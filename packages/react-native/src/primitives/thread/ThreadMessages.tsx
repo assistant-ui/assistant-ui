@@ -8,6 +8,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import {
@@ -21,6 +22,7 @@ import type { ThreadMessage } from "@assistant-ui/core";
 import type { MessageState } from "@assistant-ui/core/store";
 import {
   RenderChildrenWithAccessor,
+  useAui,
   useAuiEvent,
   useAuiState,
 } from "@assistant-ui/store";
@@ -68,6 +70,11 @@ export type ThreadMessagesFlatListProps = Omit<
     scrollToBottomOnRunStart?: boolean | undefined;
     scrollToBottomOnInitialize?: boolean | undefined;
     scrollToBottomOnThreadSwitch?: boolean | undefined;
+    /**
+     * Pages older messages in when the list nears its start. Defaults to the
+     * runtime's `thread.hasEarlier` / `isLoadingEarlier` / `loadEarlier()`;
+     * pass it to drive paging from app state instead.
+     */
     history?:
       | {
           hasMore: boolean;
@@ -470,7 +477,24 @@ export const ThreadMessagesFlatList = forwardRef<
     },
     forwardedRef,
   ) => {
+    const aui = useAui();
     const messages = useAuiState((s) => s.thread.messages);
+    const hasEarlier = useAuiState((s) => s.thread.hasEarlier);
+    const isLoadingEarlier = useAuiState((s) => s.thread.isLoadingEarlier);
+    const runtimeHistory = useMemo(
+      () =>
+        hasEarlier || isLoadingEarlier
+          ? {
+              hasMore: hasEarlier,
+              isLoadingMore: isLoadingEarlier,
+              loadMore: () => {
+                void aui.thread.loadEarlier();
+              },
+            }
+          : undefined,
+      [aui, hasEarlier, isLoadingEarlier],
+    );
+    const effectiveHistory = history ?? runtimeHistory;
     const [flatListRef, setFlatListRef] = useComposedFlatListRef(forwardedRef);
     const {
       handleContentSizeChange: handleAutoScrollContentSizeChange,
@@ -533,7 +557,7 @@ export const ThreadMessagesFlatList = forwardRef<
     );
 
     const { canLoadMore, handleStartReached } = useHistoryLoad(
-      history,
+      effectiveHistory,
       onStartReached,
     );
 
@@ -557,7 +581,7 @@ export const ThreadMessagesFlatList = forwardRef<
               ...(onScroll && { onScroll }),
               ...(scrollEventThrottle !== undefined && { scrollEventThrottle }),
             })}
-        {...(history
+        {...(effectiveHistory
           ? {
               ...(canLoadMore
                 ? { onStartReached: handleStartReached }
