@@ -10,13 +10,11 @@ import {
 
 const useThreadLoadEarlier = () => {
   const aui = useAui();
-  const disabled = useAuiState(
-    (s) => !s.thread.hasEarlier || s.thread.isLoadingEarlier,
-  );
+  const hasEarlier = useAuiState((s) => s.thread.hasEarlier);
   const loadEarlier = useCallback(() => {
     void aui.thread.loadEarlier();
   }, [aui]);
-  if (disabled) return null;
+  if (!hasEarlier) return null;
   return loadEarlier;
 };
 
@@ -27,7 +25,9 @@ export namespace ThreadPrimitiveLoadEarlier {
 
 /**
  * A button that loads the page before the first loaded message. Disabled
- * while the runtime reports no earlier messages or a load is in flight.
+ * while the runtime reports no earlier messages. A press while a page is
+ * loading joins that load, so the button stays enabled and keeps keyboard
+ * focus until the page lands; read `thread.isLoadingEarlier` to show progress.
  */
 export const ThreadPrimitiveLoadEarlier = createActionButton(
   "ThreadPrimitive.LoadEarlier",

@@ -322,11 +322,18 @@ describe("Thread", () => {
     });
     expect(screen.queryByText("First")).toBeNull();
 
+    loadEarlier.focus();
     fireEvent.click(loadEarlier);
     const loading = await screen.findByRole("button", {
       name: "Loading earlier messages",
     });
-    expect((loading as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText("Loading earlier messages", {
+        selector: '[role="status"]',
+      }),
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(loading);
+    fireEvent.click(loading);
     expect(onLoadEarlier).toHaveBeenCalledTimes(1);
 
     await act(async () => finish());
@@ -334,6 +341,10 @@ describe("Thread", () => {
     expect(
       screen.queryByRole("button", { name: /earlier messages/ }),
     ).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(
+      document.activeElement?.closest('[data-slot="aui_thread-viewport"]'),
+    ).not.toBeNull();
   });
 
   it("groups final voice transcripts into spoken rows", async () => {

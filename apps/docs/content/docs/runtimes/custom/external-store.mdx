@@ -460,7 +460,7 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-The runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()`. `ThreadPrimitive.LoadEarlier` is a button that loads the next page and is disabled while none exists or one is loading, `ThreadPrimitive.Viewport` keeps the visible messages in place when the page lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` loads one when the list nears its start.
+The runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()`. `ThreadPrimitive.LoadEarlier` is a button that loads the next page and is disabled while none exists (a press while one loads joins it, so the button keeps keyboard focus), `ThreadPrimitive.Viewport` keeps the visible messages in place when the page lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` loads one when the list nears its start.
 
 - Give every message a stable `id`; a message without one is renumbered when earlier ones arrive, which remounts it.
 - Merge the page into the latest `messages`, not a copy taken when the request started, so tokens that streamed meanwhile are kept.
