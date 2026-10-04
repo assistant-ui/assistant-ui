@@ -119,7 +119,7 @@ function ReasoningTestThread() {
           {
             type: "reasoning",
             text: "Second thought",
-            timing: { startedAt: 4_000, completedAt: 13_400 },
+            timing: { startedAt: 6_000, completedAt: 13_400 },
           },
           { type: "text", text: "Answer" },
         ],

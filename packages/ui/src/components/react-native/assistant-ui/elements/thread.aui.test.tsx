@@ -859,7 +859,7 @@ describe("Thread", () => {
             type: "reasoning",
             text: "Second thought",
             status: { type: "complete" },
-            timing: { startedAt: 4_000, completedAt: 13_400 },
+            timing: { startedAt: 6_000, completedAt: 13_400 },
           },
         ],
       }),
@@ -872,6 +872,35 @@ describe("Thread", () => {
     );
     expect(trigger?.getAttribute("data-active")).toBe("false");
     expect(trigger?.getAttribute("data-duration")).toBe("12");
+  });
+
+  it("leaves a reasoning group unlabelled while one of its parts still streams", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "running" },
+        parts: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "complete" },
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "running" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    const trigger = container.querySelector(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(trigger?.getAttribute("data-active")).toBe("true");
+    expect(trigger?.getAttribute("data-duration")).toBe("undefined");
   });
 
   it("disables send while composer.canSend is false and enables it when true", async () => {

@@ -68,7 +68,7 @@ export const getGroupSummary = (
   const timing: MessagePartTiming | undefined =
     startedAt === undefined
       ? undefined
-      : isSettled && completedAt !== undefined
+      : !isRunning && isSettled && completedAt !== undefined
         ? { startedAt, completedAt }
         : { startedAt };
 

@@ -120,6 +120,21 @@ describe("getGroupSummary", () => {
     expect(summary.timing).toEqual(expected);
   });
 
+  it("omits the finish while an untimed part still runs", () => {
+    const summary = getGroupSummary(
+      [
+        {
+          status: { type: "complete" as const },
+          timing: { startedAt: 1_000, completedAt: 2_000 },
+        },
+        { status: { type: "running" as const } },
+      ],
+      [0, 1],
+    );
+
+    expect(summary.timing).toEqual({ startedAt: 1_000 });
+  });
+
   it("returns complete with zero counts for empty indices", () => {
     expect(getGroupSummary([], [])).toEqual({
       status: { type: "complete" },
