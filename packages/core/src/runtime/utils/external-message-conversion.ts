@@ -2,6 +2,7 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import { ThreadMessageConverter } from "../../runtimes/external-store/thread-message-converter";
 import type {
+  MessagePartTiming,
   ThreadAssistantMessage,
   ThreadMessage,
   ToolCallMessagePart,
@@ -134,6 +135,20 @@ const mergeInnerMessages = (existing: object, incoming: object) => ({
   ],
 });
 
+const mergePartTiming = (
+  existing: MessagePartTiming | undefined,
+  incoming: MessagePartTiming | undefined,
+): MessagePartTiming | undefined => {
+  if (!existing || !incoming) return existing ?? incoming;
+  const startedAt = Math.min(existing.startedAt, incoming.startedAt);
+  if (existing.completedAt === undefined || incoming.completedAt === undefined)
+    return { startedAt };
+  return {
+    startedAt,
+    completedAt: Math.max(existing.completedAt, incoming.completedAt),
+  };
+};
+
 const isNaNToolCallId = (toolCallId: unknown) =>
   typeof toolCallId === "number" && Number.isNaN(toolCallId);
 
@@ -176,7 +191,7 @@ export const joinExternalMessages = (
           result: output.result,
           artifact: output.artifact,
           isError: output.isError,
-          messages: output.messages,
+          messages: output.messages ?? toolCall.messages,
         };
       }
     } else {
@@ -197,10 +212,10 @@ export const joinExternalMessages = (
             content,
           };
         case "assistant":
+          assistantMessage.status = output.status;
           if (assistantMessage.content.length === 0) {
             assistantMessage.id = output.id;
             assistantMessage.createdAt ??= output.createdAt;
-            assistantMessage.status ??= output.status;
 
             if (output.attachments) {
               assistantMessage.attachments = [
@@ -287,9 +302,11 @@ export const joinExternalMessages = (
                 const existing = assistantMessage.content[
                   existingIdx
                 ] as typeof part;
+                const timing = mergePartTiming(existing.timing, part.timing);
                 assistantMessage.content[existingIdx] = {
                   ...existing,
                   text: `${existing.text}\n\n${part.text}`,
+                  ...(timing && { timing }),
                   ...mergeInnerMessages(existing, part),
                 };
                 continue;
@@ -567,7 +584,11 @@ export const convertExternalMessages = <T extends WeakKey>(
       if (!key || !cache) return message;
 
       const cached = cache.chunkCache.get(key);
-      if (cached && shallowArrayEqual(cached.outputs, message.outputs)) {
+      if (
+        cached &&
+        shallowArrayEqual(cached.outputs, message.outputs) &&
+        shallowArrayEqual(cached.inputs, message.inputs)
+      ) {
         return cached;
       }
       cache.chunkCache.set(key, message);

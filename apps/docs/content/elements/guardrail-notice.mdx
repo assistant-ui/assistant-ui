@@ -119,13 +119,13 @@ export function RefusalNotice() {
 </div>
 ```
 
-The alternatives block is entirely omitted, not just empty, when `alternatives` is an empty array; the notice then ends after the explanation paragraph. Each alternative renders as a button when `onPick` is provided and as non-interactive text otherwise.
+The alternatives block is omitted when `alternatives` is an empty array; the notice then ends after the explanation paragraph. Each alternative renders as a button when `onPick` is provided and as non-interactive text otherwise.
 
 ## Examples
 
 ### Reading the refusal reason
 
-`status.reason` on an incomplete message is one of a fixed set of strings; `"content-filter"` is the one that maps to a guardrail stop specifically, distinct from `"cancelled"`, `"length"`, `"error"`, or `"other"`.
+`status.reason` on an incomplete message is one of a fixed set of strings; `"content-filter"` is the one that maps to a guardrail stop specifically, distinct from `"cancelled"`, `"tool-calls"`, `"length"`, `"error"`, or `"other"`.
 
 ```tsx
 const policy = status.type === "incomplete" ? status.reason : undefined;
@@ -133,7 +133,7 @@ const policy = status.type === "incomplete" ? status.reason : undefined;
 
 ### Restyle the notice
 
-Both lanes take `className` on the root, which starts as `flex w-full max-w-sm flex-col gap-3 rounded-[20px]` on the shared `paper` surface. The shield icon's amber tint and the policy tag's `mono` styling both come from `surfaces.tsx`.
+Both lanes take `className` on the root, which starts as `flex w-full max-w-sm flex-col gap-3 rounded-[20px]` on the shared `paper` surface. The policy tag reads the `mono` token from `surfaces.tsx`; the shield icon's amber tint is set in the component.
 
 ```tsx
 <GuardrailNotice className="max-w-none rounded-2xl" /* ... */ />

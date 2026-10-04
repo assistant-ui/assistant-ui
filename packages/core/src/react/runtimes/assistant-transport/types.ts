@@ -26,6 +26,7 @@ export type UserMessagePart = TextPart | ImagePart;
 
 export type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 
@@ -114,7 +115,7 @@ export type AssistantTransportOptions<T> = {
   api: string;
   /**
    * Backs the thread list with Assistant Cloud; requests carry the cloud thread id.
-   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud, as for `useLocalRuntime`.
+   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud on Next.js, as for `useLocalRuntime`.
    */
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
