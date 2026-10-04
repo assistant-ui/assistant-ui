@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ExternalLinkIcon } from "lucide-react";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage, typeSection } from "@/components/shared/type";
+import { typePage, typeSection } from "@/components/shared/type";
+import { Button } from "@/components/ui/button";
+import {
+  SPONSOR_PRODUCTS,
+  sponsorAssistantUi,
+} from "@/lib/catalog/products/sponsors";
 import { createOgMetadata } from "@/lib/og";
-import { cn } from "@/lib/utils";
+import { SetupButton } from "./setup-button";
 
-const title = "Hackathon resources";
+const title = "Hackathon sponsors";
 const description =
-  "Chat UI, multiplayer AI chat, and a sync engine for your project.";
+  "Every product from the Build Personal Agents Hack sponsors, in one place.";
 
 export const metadata: Metadata = {
   title,
@@ -16,67 +22,65 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
+type Sponsor = {
+  slug: string;
+  name: string;
+  tagline: string;
+  href: string;
+  /** Set for a sponsor the reader signs up for instead of adding to a setup. */
+  signup?: string;
+};
+
+const sponsors: Sponsor[] = [
+  sponsorAssistantUi,
+  ...SPONSOR_PRODUCTS,
+  {
+    slug: "coderabbit",
+    name: "CodeRabbit",
+    tagline: "AI code reviews on every pull request and in your terminal.",
+    href: "https://www.coderabbit.ai",
+    signup: "https://app.coderabbit.ai/login",
+  },
+];
+
 export default function HackathonResourcesPage() {
   return (
     <PageFrame pad="sub" className="antialiased">
-      <header className="flex flex-col gap-5">
-        <h1 className={typePage}>{title}.</h1>
-        <p className={cn(typeDeck, "max-w-[48ch]")}>
-          Three products to build with.
-        </p>
-      </header>
+      <h1 className={typePage}>{title}.</h1>
       <div className="border-foreground/10 divide-foreground/10 mt-12 divide-y border-y">
-        <section className="grid gap-5 py-8 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <h2 className={typeSection}>assistant-ui</h2>
-            <p className="text-muted-foreground">Chat UI</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <Link href="/components" className="underline underline-offset-4">
-              Choose components
-            </Link>
-            <Link
-              href="/docs/installation"
-              className="underline underline-offset-4"
-            >
-              Docs
-            </Link>
-          </div>
-        </section>
-        <section className="grid gap-5 py-8 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <h2 className={typeSection}>harness-sdk</h2>
-            <p className="text-muted-foreground">Multiplayer AI Chat · Alpha</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <Link href="/harness-sdk" className="underline underline-offset-4">
-              Set up
-            </Link>
-            <a
-              href="https://workos-demo-sandy.vercel.app/"
-              className="underline underline-offset-4"
-            >
-              Demo
-            </a>
-          </div>
-        </section>
-        <section className="grid gap-5 py-8 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <h2 className={typeSection}>statewire</h2>
-            <p className="text-muted-foreground">Sync Engine</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <Link href="/statewire" className="underline underline-offset-4">
-              Set up
-            </Link>
-            <a
-              href="https://statewire-tic-tac-toe-hackathon-20261003.assistant-ui.workers.dev/"
-              className="underline underline-offset-4"
-            >
-              Demo
-            </a>
-          </div>
-        </section>
+        {sponsors.map((product) => (
+          <section
+            key={product.slug}
+            className="grid gap-5 py-8 sm:grid-cols-2"
+          >
+            <div className="flex flex-col gap-2">
+              <h2 className={typeSection}>
+                <Link
+                  href={product.href}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {product.name}
+                </Link>
+              </h2>
+              <p className="text-muted-foreground">{product.tagline}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-6 sm:justify-end sm:pr-6">
+              {product.signup ? (
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  className="min-w-28"
+                  render={<a href={product.signup} />}
+                >
+                  <ExternalLinkIcon data-icon="inline-start" />
+                  Sign up
+                </Button>
+              ) : (
+                <SetupButton slug={product.slug} />
+              )}
+            </div>
+          </section>
+        ))}
       </div>
     </PageFrame>
   );
