@@ -377,6 +377,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   ToolModelContentPart,
   MessageStatus,

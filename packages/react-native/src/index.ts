@@ -23,6 +23,7 @@ export type {
   ToolApprovalResponse,
   ToolCallMessagePart,
   ToolCallMessagePartStatus,
+  MessagePartTiming,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
