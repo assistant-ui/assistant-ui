@@ -14,6 +14,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { LangChainMessage } from "./types";
 import type {
   LangGraphInterruptState,
@@ -668,9 +669,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -706,9 +707,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -753,9 +754,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -796,9 +797,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalled());
 
     await act(async () => {
@@ -916,9 +917,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -967,9 +968,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(auiResult.current.thread.getState().isLoading).toBe(false),
@@ -1018,9 +1019,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
 
@@ -1087,9 +1088,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1152,9 +1153,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // start a run and let it stream its first chunk
@@ -1203,9 +1204,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // stage state for the next send
@@ -1274,9 +1275,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1328,9 +1329,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     act(() => {
@@ -1343,6 +1344,7 @@ describe("useLangGraphRuntime", () => {
     expect(reloadSignal.aborted).toBe(false);
 
     unmount();
+    await act(async () => {});
 
     expect(reloadSignal.aborted).toBe(true);
     reloadPending.resolve({ messages: [] });
@@ -1370,9 +1372,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1408,9 +1410,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // establish graph state via a run's values event
@@ -1470,9 +1472,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     let firstReload!: Promise<void>;
@@ -1528,9 +1530,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // the initial load is already fetching what a refetch would ask for, and
@@ -1585,9 +1587,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     expect(runtimeResult.current.thread.getState().isLoading).toBe(true);
 
@@ -1633,9 +1635,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -1648,6 +1650,7 @@ describe("useLangGraphRuntime", () => {
     expect(signal?.aborted).toBe(false);
 
     unmount();
+    await act(async () => {});
 
     expect(signal?.aborted).toBe(true);
   });
@@ -1669,9 +1672,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.threads.mainThreadId), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(onThreadIdChange).toHaveBeenLastCalledWith("lg-thread-1"),
@@ -2897,9 +2900,9 @@ describe("useLangGraphRuntime", () => {
           { wrapper },
         );
 
-        await act(async () => {
-          await runtimeResult.current.threads.switchToThread("lg-thread-1");
-        });
+        await settleOutsideAct(() =>
+          runtimeResult.current.threads.switchToThread("lg-thread-1"),
+        );
         await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
         await act(async () => {
@@ -3225,9 +3228,9 @@ describe("useLangGraphRuntime", () => {
       const wrapper = wrapperFactory(runtimeResult.current);
       renderHook(() => useAui(), { wrapper });
 
-      await act(async () => {
-        await runtimeResult.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        runtimeResult.current.threads.switchToThread("lg-thread-1"),
+      );
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
       await waitFor(() => {
         const parts = runtimeResult.current.thread
@@ -3252,6 +3255,53 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[0]?.[0]).toMatchObject([
         { type: "tool", tool_call_id: "tc-1" },
         { type: "tool", tool_call_id: "tc-2" },
+      ]);
+    });
+
+    it("resumes the graph with a frontend tool result when a sibling tool call has no id", async () => {
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { name: "lookup", args: {} },
+                  { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+                ],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        {
+          type: "tool",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ temperature: 72 }),
+        },
       ]);
     });
 
@@ -3329,6 +3379,59 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual({
         configurable: { model_name: "model-a" },
       });
+    });
+
+    it("cancels only the pending tool calls that carry an id", async () => {
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { name: "lookup", args: {} },
+                  { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+                ],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setText("never mind");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toEqual([
+        {
+          id: expect.any(String),
+          type: "tool",
+          name: "get_weather",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { id: expect.any(String), type: "human", content: "never mind" },
+      ]);
     });
 
     it("drops a late tool result for a call already answered by a new turn's auto-cancellation instead of resuming the graph", async () => {

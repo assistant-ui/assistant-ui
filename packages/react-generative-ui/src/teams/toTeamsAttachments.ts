@@ -77,7 +77,10 @@ export function toTeamsAttachments(
   _options?: ToAdaptiveCardOptions,
 ): TeamsAttachmentsResult {
   const warnings: TeamsConversionWarning[] = [];
-  const context: ConversionContext = { warnings, usedInputIds: new Set() };
+  const context: ConversionContext = {
+    warnings,
+    usedInputIds: new Set(),
+  };
   try {
     const bounded = boundSpec(node, (reason) =>
       warnings.push({

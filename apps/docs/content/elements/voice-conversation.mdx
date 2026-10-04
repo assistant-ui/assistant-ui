@@ -193,7 +193,7 @@ Standalone, `onEnd` is whatever your app decides ending a call means, closing th
 
 | Hook | Returns | Description |
 |------|---------|--------------|
-| `useVoiceState()` | `VoiceSessionState \| undefined` | `{ status, isMuted, mode }`. `undefined` before `connectVoice()` is called or after the session ends. |
+| `useVoiceState()` | `VoiceSessionState \| undefined` | `{ status, isMuted, mode, canSendText }`. `undefined` before `connectVoice()` is called or after the session ends. |
 | `useVoiceVolume()` | `number` | Live input amplitude while a session is connected. |
 | `useVoiceControls()` | `{ connect, disconnect, mute, unmute }` | Each calls the matching `aui.thread.*Voice()` method. |
 
@@ -204,6 +204,7 @@ Standalone, `onEnd` is whatever your app decides ending a call means, closing th
 | `status.type` | `"starting" \| "running" \| "ended"` | `"starting"` maps to the `"connecting"` mode shown here. |
 | `mode` | `"listening" \| "speaking"` | No `"thinking"` value; infer that gap yourself if you want to show it. |
 | `isMuted` | `boolean` | Reflects `mute()` and `unmute()`. |
+| `canSendText` | `boolean` | Whether the running session takes typed text. |
 
 </RuntimeMode>
 

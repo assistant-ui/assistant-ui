@@ -1,5 +1,20 @@
 # create-assistant-ui
 
+## 0.0.83
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - assistant-ui@0.0.120
+
+## 0.0.82
+
+### Patch Changes
+
+- Updated dependencies [[`cec9fd4`](https://github.com/assistant-ui/assistant-ui/commit/cec9fd4bf1d17aeff969f5ff57e4c5b34ea3ea61), [`3104efa`](https://github.com/assistant-ui/assistant-ui/commit/3104efa20a6659919fb230b8b5d4e6ecf0ed7c63)]:
+  - assistant-ui@0.0.119
+
 ## 0.0.81
 
 ### Patch Changes

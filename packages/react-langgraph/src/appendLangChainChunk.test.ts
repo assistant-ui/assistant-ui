@@ -834,6 +834,35 @@ describe("appendLangChainChunk tool_call id merging", () => {
   });
 });
 
+describe("appendLangChainChunk malformed tool_call_chunks", () => {
+  it("skips a null tool_call_chunks entry in a first chunk and its continuation", () => {
+    const first = append(
+      undefined,
+      aiChunk([
+        null,
+        { id: "call-1", index: 0, name: "lookup", args: '{"q": ' },
+      ] as unknown as LangChainMessageChunk["tool_call_chunks"]),
+    );
+    const merged = append(
+      first,
+      aiChunk([
+        null,
+        { id: "call-1", index: 0, args: '"x"}' },
+      ] as unknown as LangChainMessageChunk["tool_call_chunks"]),
+    );
+
+    expect(merged.tool_calls).toMatchObject([
+      {
+        id: "call-1",
+        index: 0,
+        name: "lookup",
+        args: { q: "x" },
+        partial_json: '{"q": "x"}',
+      },
+    ]);
+  });
+});
+
 describe("appendLangChainChunk updates-event partial_json", () => {
   // Anthropic streams input_json_delta with its own whitespace; the `messages`
   // stream-mode chunks accumulate that text as partial_json. When the node
@@ -993,6 +1022,86 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     });
 
     expect(final.tool_calls?.[0]?.partial_json).toBe('{"q": "x"}');
+  });
+
+  it("carries partial_json past a null tool_calls entry", () => {
+    const final = appendAi(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          {
+            id: "call-1",
+            index: 0,
+            name: "ask_question",
+            args: { q: "x" },
+            partial_json: '{"q": "x"}',
+          },
+          {
+            id: "",
+            index: 1,
+            name: "ask_question",
+            args: { q: "y" },
+            partial_json: '{"q": "y"}',
+          },
+        ],
+      } as unknown as AiMessage,
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          { id: "call-1", index: 0, name: "ask_question", args: { q: "x" } },
+          { id: "", index: 1, name: "ask_question", args: { q: "y" } },
+        ],
+      } as unknown as AiMessage,
+    );
+
+    expect(final.tool_calls?.map((call) => call?.partial_json)).toEqual([
+      undefined,
+      '{"q": "x"}',
+      '{"q": "y"}',
+    ]);
+  });
+
+  it("merges a streamed chunk into a message with a null tool_calls entry", () => {
+    const final = append(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          {
+            id: "call-1",
+            index: 0,
+            name: "ask_question",
+            args: {},
+            partial_json: '{"q": ',
+          },
+          {
+            id: "",
+            index: 1,
+            name: "ask_question",
+            args: {},
+            partial_json: '{"q": ',
+          },
+        ],
+      } as unknown as AiMessage,
+      aiChunk([
+        { id: "call-1", index: 0, name: "ask_question", args: '"x"}' },
+        { id: "", index: 1, name: "ask_question", args: '"y"}' },
+      ]),
+    );
+
+    expect(final.tool_calls?.map((call) => call?.partial_json)).toEqual([
+      undefined,
+      '{"q": "x"}',
+      '{"q": "y"}',
+    ]);
   });
 
   it("returns a non-ai message unchanged", () => {
