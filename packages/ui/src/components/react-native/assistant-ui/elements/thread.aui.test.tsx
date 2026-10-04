@@ -162,6 +162,7 @@ const h = vi.hoisted(() => {
       composer: () => rootComposer,
       message: ({ index }: { index: number }) => makeMessageClient(index),
       suggestions: vi.fn(),
+      loadEarlier: vi.fn(async () => {}),
     },
     message: makeMessageClient(0),
     attachment: { getState: () => state.attachment, remove: removeAttachment },
@@ -1234,6 +1235,28 @@ describe("Thread", () => {
 
   describe("windowed history", () => {
     const edge = () => container.querySelector(".aui-thread-history-edge");
+
+    it("pages through the runtime and shows its loading edge when no history is passed", async () => {
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      h.state.thread.hasEarlier = true;
+      h.state.thread.isLoadingEarlier = false;
+      try {
+        await render();
+        h.list.props.onStartReached({ distanceFromStart: 0 });
+        expect(h.client.thread.loadEarlier).toHaveBeenCalledTimes(1);
+        expect(edge()).toBeNull();
+
+        h.state.thread.isLoadingEarlier = true;
+        await render();
+        expect(edge()).not.toBeNull();
+        expect(h.list.props.onStartReached).toBeUndefined();
+      } finally {
+        h.state.thread.hasEarlier = false;
+        h.state.thread.isLoadingEarlier = false;
+      }
+    });
     const oneMessage = () =>
       addMessages(
         h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),

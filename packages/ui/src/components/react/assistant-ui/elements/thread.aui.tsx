@@ -221,6 +221,12 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             <ThreadHistorySkeleton />
           </AuiIf>
 
+          <AuiIf
+            condition={(s) => s.thread.hasEarlier || s.thread.isLoadingEarlier}
+          >
+            <ThreadLoadEarlier />
+          </AuiIf>
+
           <div
             data-slot="aui_message-group"
             className="mb-14 flex flex-col gap-y-6 empty:hidden"
@@ -361,6 +367,24 @@ const SpokenActionBar: FC = () => {
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
     </ActionBarPrimitive.Root>
+  );
+};
+
+const ThreadLoadEarlier: FC = () => {
+  const loading = useAuiState((s) => s.thread.isLoadingEarlier);
+  return (
+    <ThreadPrimitive.LoadEarlier asChild>
+      <Button
+        variant="ghost"
+        size="sm"
+        data-slot="aui_thread-load-earlier"
+        className="aui-thread-load-earlier text-muted-foreground mb-6 self-center rounded-full"
+      >
+        <span className={cn(loading && "shimmer motion-reduce:animate-none")}>
+          {loading ? "Loading earlier messages" : "Load earlier messages"}
+        </span>
+      </Button>
+    </ThreadPrimitive.LoadEarlier>
   );
 };
 
