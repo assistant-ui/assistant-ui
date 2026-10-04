@@ -134,7 +134,7 @@ export function StartSetupDialog({
                 <span
                   aria-hidden
                   className={cn(
-                    "absolute top-3 right-3 flex size-5 shrink-0 items-center justify-center rounded-full sm:static sm:mt-0.5",
+                    "col-start-3 row-start-1 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
                     mode === option.value
                       ? "bg-foreground text-background"
                       : "border-foreground/20 border",
