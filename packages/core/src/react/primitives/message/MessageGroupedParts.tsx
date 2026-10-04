@@ -198,7 +198,7 @@ const PartChildrenSentinel: FC = () => {
   );
 };
 
-const renderNode = <TKey extends `group-${string}`>(
+export const renderGroupNode = <TKey extends `group-${string}`>(
   node: GroupNode,
   parts: readonly PartState[],
   render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
@@ -232,7 +232,11 @@ const renderNode = <TKey extends `group-${string}`>(
       {render({
         part: groupPart,
         children: (
-          <>{node.children.map((child) => renderNode(child, parts, render))}</>
+          <>
+            {node.children.map((child) =>
+              renderGroupNode(child, parts, render),
+            )}
+          </>
         ),
       })}
     </Fragment>
@@ -306,7 +310,7 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
 
   return (
     <>
-      {tree.map((node) => renderNode(node, parts, children))}
+      {tree.map((node) => renderGroupNode(node, parts, children))}
       {shouldShowIndicator(indicator, parts, isRunning) &&
         children({
           part: { type: "indicator" },
