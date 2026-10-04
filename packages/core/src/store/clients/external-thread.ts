@@ -1415,7 +1415,6 @@ const useExternalThread = ({
         );
       })
       .finally(() => {
-        if (loadingEarlierRef.current !== loading) return;
         loadingEarlierRef.current = undefined;
         setIsLoadingEarlier(false);
       });

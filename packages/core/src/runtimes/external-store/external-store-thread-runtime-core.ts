@@ -130,7 +130,6 @@ export class ExternalStoreThreadRuntimeCore
         );
       })
       .finally(() => {
-        if (this._loadingEarlier !== loading) return;
         this._loadingEarlier = undefined;
         this._notifySubscribers();
       });

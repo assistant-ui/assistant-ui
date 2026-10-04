@@ -260,7 +260,10 @@ export type ThreadRuntimeCore = Readonly<{
   hasEarlier?: boolean;
   /** Whether a `loadEarlier` call is in flight. */
   isLoadingEarlier?: boolean;
-  /** Loads the page before the first message, sharing one in-flight call. */
+  /**
+   * Loads the page before the first message, sharing one in-flight call.
+   * Never rejects: a failed load is logged and ends the load.
+   */
   loadEarlier?(): Promise<void>;
   /**
    * Optional explicit thread-level running flag. When provided, takes
