@@ -94,59 +94,61 @@ export function StartSetupDialog({
             confirm();
           }}
         >
-          <fieldset className="grid min-h-0 gap-2 overflow-y-auto px-6 pb-7 sm:px-8">
-            <legend className="sr-only">Setup method</legend>
-            {MODES.map((option) => (
-              <label
-                key={option.value}
-                className={cn(
-                  "has-focus-visible:ring-ring relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors duration-150 has-focus-visible:ring-2 motion-reduce:transition-none sm:p-5",
-                  mode === option.value
-                    ? "border-foreground/60 bg-foreground/[0.04]"
-                    : "border-foreground/10 hover:bg-foreground/[0.025]",
-                )}
-              >
-                <input
-                  type="radio"
-                  name={name}
-                  value={option.value}
-                  checked={mode === option.value}
-                  onChange={() => setMode(option.value)}
-                  className="sr-only"
-                />
-                <option.icon
-                  aria-hidden
-                  className="text-muted-foreground mt-0.5 size-5 shrink-0"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-medium">
-                    {option.title}
-                    {option.recommended ? (
-                      <span className="text-muted-foreground text-xs font-normal">
-                        Recommended
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-muted-foreground mt-1.5 block text-sm leading-relaxed sm:whitespace-nowrap">
-                    {option.detail}
-                  </span>
-                </span>
-                <span
-                  aria-hidden
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-7 sm:px-8">
+            <fieldset className="grid gap-2">
+              <legend className="sr-only">Setup method</legend>
+              {MODES.map((option) => (
+                <label
+                  key={option.value}
                   className={cn(
-                    "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
+                    "has-focus-visible:ring-ring relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors duration-150 has-focus-visible:ring-2 motion-reduce:transition-none sm:p-5",
                     mode === option.value
-                      ? "bg-foreground text-background"
-                      : "border-foreground/20 border",
+                      ? "border-foreground/60 bg-foreground/[0.04]"
+                      : "border-foreground/10 hover:bg-foreground/[0.025]",
                   )}
                 >
-                  {mode === option.value ? (
-                    <CheckIcon className="size-3" />
-                  ) : null}
-                </span>
-              </label>
-            ))}
-          </fieldset>
+                  <input
+                    type="radio"
+                    name={name}
+                    value={option.value}
+                    checked={mode === option.value}
+                    onChange={() => setMode(option.value)}
+                    className="sr-only"
+                  />
+                  <option.icon
+                    aria-hidden
+                    className="text-muted-foreground mt-0.5 size-5 shrink-0"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-medium">
+                      {option.title}
+                      {option.recommended ? (
+                        <span className="text-muted-foreground text-xs font-normal">
+                          Recommended
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-muted-foreground mt-1.5 block text-sm leading-relaxed sm:whitespace-nowrap">
+                      {option.detail}
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
+                      mode === option.value
+                        ? "bg-foreground text-background"
+                        : "border-foreground/20 border",
+                    )}
+                  >
+                    {mode === option.value ? (
+                      <CheckIcon className="size-3" />
+                    ) : null}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          </div>
           <DialogFooter className="border-foreground/10 bg-foreground/[0.025] flex-row items-center justify-end border-t px-6 py-4 sm:px-8">
             <Button type="submit" disabled={mode === null}>
               Continue

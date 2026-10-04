@@ -33,6 +33,23 @@ describe("start setup dialog", () => {
     expect(mocks.beginSetup).not.toHaveBeenCalled();
   });
 
+  it("keeps the setup choices in a scroll area above the footer", () => {
+    open();
+
+    const group = screen.getByRole("group", { name: "Setup method" });
+    const scrollArea = group.parentElement;
+
+    expect(scrollArea?.classList.contains("min-h-0")).toBe(true);
+    expect(scrollArea?.classList.contains("flex-1")).toBe(true);
+    expect(scrollArea?.classList.contains("overflow-y-auto")).toBe(true);
+    expect(
+      scrollArea?.contains(screen.getByRole("radio", { name: /Manual/ })),
+    ).toBe(true);
+    expect(
+      scrollArea?.contains(screen.getByRole("button", { name: "Continue" })),
+    ).toBe(false);
+  });
+
   it("preselects the recommended method again when reopened after another choice", () => {
     open();
     fireEvent.click(screen.getByRole("radio", { name: /Manual/ }));
