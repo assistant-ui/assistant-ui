@@ -1,4 +1,6 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { Suspense } from "react";
+import { createRenderCounter } from "@assistant-ui/x-performance";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ConversationMapAui } from "./conversation-map.aui";
@@ -106,6 +108,73 @@ afterEach(() => {
 });
 
 describe("ConversationMapAui", () => {
+  it("does not regroup earlier turns during a streaming update", () => {
+    let reads = 0;
+    const first = {
+      ...user("u1", "First"),
+      get role() {
+        reads++;
+        return "user";
+      },
+    };
+    const prefix = [first, assistant("a1", "Answer"), user("u2", "Second")];
+    mocks.state.thread.messages = [...prefix, assistant("a2", "Old")];
+    const counter = createRenderCounter();
+    const { rerender } = render(
+      counter.wrapCommits("map", <ConversationMapAui />),
+    );
+
+    reads = 0;
+    counter.reset();
+    mocks.state.thread.messages = [...prefix, assistant("a2", "New")];
+    rerender(counter.wrapCommits("map", <ConversationMapAui />));
+
+    expect(reads).toBe(0);
+    expect(counter.commits("map")).toBe(1);
+    expect(labels()).toEqual(["First", "Second"]);
+  });
+
+  it("restores the committed projection after an interrupted render", () => {
+    const pending = new Promise<void>(() => {});
+    const Gate = ({ blocked }: { blocked: boolean }) => {
+      if (blocked) throw pending;
+      return null;
+    };
+    const messages = [assistant("a1", "Original")];
+    mocks.state.thread.messages = messages;
+    const { rerender } = render(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked={false} />
+      </Suspense>,
+    );
+
+    mocks.state.thread.messages = [assistant("a1", "Interrupted")];
+    rerender(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked />
+      </Suspense>,
+    );
+    mocks.state.thread.messages = [...messages];
+    rerender(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked={false} />
+      </Suspense>,
+    );
+
+    expect(labels()).toEqual(["Original"]);
+    mocks.state.thread.messages = [assistant("a1", "Completed")];
+    rerender(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked={false} />
+      </Suspense>,
+    );
+    expect(labels()).toEqual(["Completed"]);
+  });
+
   it("puts one tick on each turn rather than each message", async () => {
     mocks.state.thread.messages = [
       user("u1", "Can you check the extension build?"),

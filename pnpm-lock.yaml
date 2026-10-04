@@ -5709,6 +5709,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-performance':
+        specifier: workspace:*
+        version: link:../x-performance
       '@assistant-ui/x-react18':
         specifier: workspace:*
         version: link:../x-react18
