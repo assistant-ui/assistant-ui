@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix: surface asynchronous stream callback errors
+fix: keep streaming tool arguments while surfacing asynchronous callback errors

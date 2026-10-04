@@ -1625,4 +1625,57 @@ describe("unstable_runPendingTools", () => {
 
     expect(unhandledRejections).toEqual([]);
   });
+
+  it("continues streaming arguments while an async streamCall is pending", async () => {
+    const values: unknown[] = [];
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-args",
+            toolName: "streaming",
+          },
+        });
+        controller.enqueue({
+          type: "text-delta",
+          path: [0],
+          textDelta: '{"value":"done"}',
+        });
+        controller.enqueue({
+          type: "tool-call-args-text-finish",
+          path: [0],
+        });
+        controller.enqueue({ type: "part-finish", path: [0] });
+        controller.close();
+      },
+    });
+
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      await inputStream
+        .pipeThrough(
+          unstable_toolResultStream(
+            {
+              streaming: {
+                parameters: {
+                  type: "object",
+                  properties: { value: { type: "string" } },
+                },
+                streamCall: async (reader) => {
+                  values.push(await reader.args.get("value"));
+                },
+              },
+            },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(new WritableStream<AssistantStreamChunk>());
+    });
+
+    expect(unhandledRejections).toEqual([]);
+    expect(values).toEqual(["done"]);
+  });
 });
