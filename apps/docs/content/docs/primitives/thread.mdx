@@ -343,6 +343,23 @@ messageIds.map((messageId) => (
   experimental and may change in any release.
 </Callout>
 
+### Row
+
+Renders one row of a thread flattened by `createThreadRowsSelector`, for virtualized lists: a whole user or system message (or any message being edited), one top-level node of an assistant message's part grouping, or the end of a turn. It mounts only the row's message scope and, for a part row, only that row's parts; a row whose message has left the thread renders nothing. The render function switches on `type`, and a part row receives `part` and `children` exactly as `MessagePrimitive.GroupedParts` passes them. See the [virtualization guide](/docs/guides/virtualization).
+
+```tsx
+const selectRows = createThreadRowsSelector();
+
+function Rows() {
+  const rows = useAuiState(selectRows);
+  return rows.map((row) => (
+    <ThreadPrimitive.Row key={row.key} row={row}>
+      {renderRow}
+    </ThreadPrimitive.Row>
+  ));
+}
+```
+
 ### ScrollToBottom
 
 Scrolls the viewport to the bottom. Disabled when the viewport is already at the bottom. Renders a `<button>` element unless `asChild` is set.

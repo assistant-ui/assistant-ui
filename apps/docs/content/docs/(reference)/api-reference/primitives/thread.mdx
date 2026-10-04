@@ -3,7 +3,7 @@ title: ThreadPrimitive
 description: Thread primitives for rendering chat transcripts, message lists, viewport state, suggestions, and composers in assistant-ui.
 ---
 
-import { ThreadPrimitiveIfProps, ThreadPrimitiveLoadEarlierProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
+import { ThreadPrimitiveIfProps, ThreadPrimitiveLoadEarlierProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveRowProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -222,6 +222,22 @@ return messageIds.map((messageId) => (
 ```
 
 <ParametersTable {...ThreadPrimitiveUnstable_MessageByIdProps} />
+
+### Row
+
+{ThreadPrimitiveDocs.Row?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.Row.deprecated}
+  </Callout>
+)}
+
+{ThreadPrimitiveDocs.Row?.description}
+
+{ThreadPrimitiveDocs.Row?.element && (
+  <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.Row?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ThreadPrimitiveRowProps} />
 
 ### ScrollToBottom
 
