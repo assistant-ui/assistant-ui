@@ -99,6 +99,11 @@ const isHistoryLoadingView = (s: AssistantState) =>
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
+const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
+  timing?.completedAt === undefined
+    ? undefined
+    : Math.round((timing.completedAt - timing.startedAt) / 1000);
+
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
@@ -813,7 +818,10 @@ const AssistantMessage: FC = () => {
                 const streaming = part.status.type === "running";
                 return (
                   <ReasoningRoot streaming={streaming}>
-                    <ReasoningTrigger active={streaming} />
+                    <ReasoningTrigger
+                      active={streaming}
+                      duration={reasoningDuration(part.timing)}
+                    />
                     <ReasoningContent>
                       <ReasoningText>{children}</ReasoningText>
                     </ReasoningContent>

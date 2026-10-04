@@ -72,6 +72,11 @@ import {
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
+const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
+  timing?.completedAt === undefined
+    ? undefined
+    : Math.round((timing.completedAt - timing.startedAt) / 1000);
+
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
  * `Welcome` replace whole sections; the remaining slots override how the
@@ -594,7 +599,10 @@ const AssistantMessage: FC = () => {
                 const running = part.status.type === "running";
                 return (
                   <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
+                    <ReasoningTrigger
+                      active={running}
+                      duration={reasoningDuration(part.timing)}
+                    />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>
                     </ReasoningContent>

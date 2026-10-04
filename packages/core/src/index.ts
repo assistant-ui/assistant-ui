@@ -27,6 +27,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   Unstable_ToolInteraction,
   Unstable_ToolInteractionInput,

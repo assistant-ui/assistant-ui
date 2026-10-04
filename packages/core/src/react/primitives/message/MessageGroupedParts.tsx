@@ -6,6 +6,7 @@ import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
+  MessagePartTiming,
   ToolCallMessagePartStatus,
 } from "../../../types/message";
 import { getGroupSummary } from "../../../utils/getGroupStatus";
@@ -44,6 +45,8 @@ export namespace MessagePrimitiveGroupedParts {
     /** Per status tallies over `indices`. */
     readonly counts: GroupCounts;
     readonly indices: readonly number[];
+    /** Wall-clock span of the group's timed parts: the earliest start, and the latest finish once every timed part has finished. Absent when none of them carries timing. */
+    readonly timing?: MessagePartTiming;
   };
 
   /**
@@ -215,12 +218,13 @@ const renderNode = <TKey extends `group-${string}`>(
     );
   }
 
-  const { status, counts } = getGroupSummary(parts, node.indices);
+  const { status, counts, timing } = getGroupSummary(parts, node.indices);
   const groupPart: MessagePrimitiveGroupedParts.GroupPart<TKey> = {
     type: node.key as TKey,
     status,
     counts,
     indices: node.indices,
+    ...(timing && { timing }),
   };
 
   return (

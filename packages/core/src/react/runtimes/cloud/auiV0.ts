@@ -4,6 +4,7 @@ import type {
   SourceProviderMetadata,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
+  MessagePartTiming,
   ToolCallTiming,
   ToolApprovalDisplay,
   ToolApprovalOption,
@@ -67,6 +68,7 @@ type AuiV0MessagePart =
       readonly id?: string;
       readonly text: string;
       readonly unstable_summary?: string;
+      readonly timing?: MessagePartTiming;
       readonly providerMetadata?: NonNullable<
         ReasoningMessagePart["providerMetadata"]
       >;
@@ -418,6 +420,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             text: part.text,
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
+              : undefined),
+            ...(part.timing !== undefined
+              ? { timing: part.timing }
               : undefined),
             ...(part.providerMetadata !== undefined
               ? { providerMetadata: part.providerMetadata }
