@@ -9,14 +9,14 @@ description: "Inline SVG marks for OpenAI, Anthropic, and Google model providers
 
 <RuntimeMode>
 
-`ModelSelector`'s own `ModelOption` type carries an optional `icon: ReactNode`, rendered next to the model's name in both the trigger and the list. assistant-ui doesn't know which mark belongs to which provider, that mapping is yours to set when you build the option list.
+`ModelSelector`'s own `ModelOption` type carries an optional `icon: ReactNode`, rendered next to the model's name in both the trigger and the list. assistant-ui doesn't map marks to providers; set the icon when you build the option list.
 
 <Steps>
   <Step>
 
 ### Attach a logo to each model option
 
-```tsx title="components/assistant-ui/elements/model-catalog.ts"
+```tsx title="components/assistant-ui/elements/model-catalog.tsx"
 import { ClaudeLogo, OpenAILogo, GeminiLogo } from "@/components/assistant-ui/elements/logos";
 import type { ModelOption } from "@/components/assistant-ui/elements/model-selector";
 
@@ -27,7 +27,7 @@ export const models: ModelOption[] = [
 ];
 ```
 
-Pass `models` to `ModelSelectorRoot`, or the runtime-connected `ModelSelector` kit component, the way [Model selector](/elements/model-selector) documents; the icon shows up for free once it's on the option.
+Pass `models` to `ModelSelectorRoot`, or the runtime-connected `ModelSelector` kit component, the way [Model selector](/elements/model-selector) documents; the selector renders the icon once it is on the option.
 
   </Step>
 </Steps>
@@ -106,6 +106,6 @@ There's no dedicated selector: this is a field you set on the array you already 
 | `OpenAILogo` | `currentColor` | Recolors with text color utilities. |
 | `GeminiLogo` | Fixed, left-to-right gradient | Generates a fresh gradient id per instance with `useId`, so multiple copies on one page never collide. |
 
-Each accepts `LogoProps`, exactly `ComponentProps<"svg">`. None of the three sets a default size; unsized, they render at the SVG's intrinsic size, so pass `className="size-N"` or `width` / `height` explicitly.
+Each accepts `LogoProps`, exactly `ComponentProps<"svg">`. None of the three sets a default size, so pass `className="size-N"` or `width` / `height`.
 
 </StandaloneMode>

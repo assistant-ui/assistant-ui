@@ -87,7 +87,6 @@ Then we define a tool UI renderer:
 "use client";
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
-import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
 export const PurchaseStockToolUI: ToolCallMessagePartComponent<
@@ -208,13 +207,15 @@ export function TransactionConfirmationPending(props: TransactionConfirmation) {
 
 ### Bind approval UI
 
-```tsx title="@/app/page.tsx" {1-5,12}
+```tsx title="@/app/assistant.tsx" {8,15-18}
 "use client";
+
+import { AssistantRuntimeProvider, AuiConfig, defineToolkit, Tools } from "@assistant-ui/react";
+import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { PurchaseStockToolUI } from "@/components/tools/purchase-stock/PurchaseStockTool";
-import { AuiConfig, AuiProvider, defineToolkit, Tools, useAui } from "@assistant-ui/react";
 
 const toolkit = defineToolkit({
   price_snapshot: {
@@ -227,13 +228,23 @@ const toolkit = defineToolkit({
   },
 });
 
-export default function Home() {
-  const aui = useAui();
+export function Assistant() {
+  const apiUrl =
+    process.env.NEXT_PUBLIC_LANGGRAPH_API_URL ||
+    (typeof window !== "undefined"
+      ? new URL("/api", window.location.href).href
+      : undefined);
+
+  const runtime = useStreamRuntime({
+    assistantId: process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID!,
+    apiUrl,
+  });
   const config = AuiConfig({ tools: Tools({ toolkit }) });
+
   return (
-    <AuiProvider extends={aui} config={config}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
-    </AuiProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -316,7 +327,7 @@ export function TransactionConfirmationFinal(props: TransactionConfirmation) {
 
 We will import the new `<TransactionConfirmationFinal />` component and use it in the `render` function whenever an approval result is available.
 
-```tsx title="@/components/tools/purchase-stock/PurchaseStockTool.tsx" {3,25-30,37-42}
+```tsx title="@/components/tools/purchase-stock/PurchaseStockTool.tsx" {4,24-29,53-59}
 "use client";
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";

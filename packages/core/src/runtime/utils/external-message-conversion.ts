@@ -2,6 +2,7 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import { ThreadMessageConverter } from "../../runtimes/external-store/thread-message-converter";
 import type {
+  MessagePartTiming,
   ThreadAssistantMessage,
   ThreadMessage,
   ToolCallMessagePart,
@@ -133,6 +134,20 @@ const mergeInnerMessages = (existing: object, incoming: object) => ({
     ...((incoming as any)[symbolInnerMessage] ?? []),
   ],
 });
+
+const mergePartTiming = (
+  existing: MessagePartTiming | undefined,
+  incoming: MessagePartTiming | undefined,
+): MessagePartTiming | undefined => {
+  if (!existing || !incoming) return existing ?? incoming;
+  const startedAt = Math.min(existing.startedAt, incoming.startedAt);
+  if (existing.completedAt === undefined || incoming.completedAt === undefined)
+    return { startedAt };
+  return {
+    startedAt,
+    completedAt: Math.max(existing.completedAt, incoming.completedAt),
+  };
+};
 
 const isNaNToolCallId = (toolCallId: unknown) =>
   typeof toolCallId === "number" && Number.isNaN(toolCallId);
@@ -287,9 +302,11 @@ export const joinExternalMessages = (
                 const existing = assistantMessage.content[
                   existingIdx
                 ] as typeof part;
+                const timing = mergePartTiming(existing.timing, part.timing);
                 assistantMessage.content[existingIdx] = {
                   ...existing,
                   text: `${existing.text}\n\n${part.text}`,
+                  ...(timing && { timing }),
                   ...mergeInnerMessages(existing, part),
                 };
                 continue;

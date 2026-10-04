@@ -1,0 +1,188 @@
+[
+  {
+    "slug": "ai-sdk-chat",
+    "package": "bundle-ai-sdk",
+    "title": "Simple AI SDK chat",
+    "summary": "A focused conversation with streaming replies and message controls.",
+    "description": "Start with a complete chat interface, then connect the AI SDK transport to your model provider. The preview runs locally with scripted responses so you can explore the UI without a key.",
+    "useCase": "A standalone chat in a React app",
+    "entry": "src/main.tsx",
+    "components": [
+      {
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
+      },
+      {
+        "name": "Composer",
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
+      },
+      {
+        "name": "AI SDK runtime",
+        "href": "/docs/runtimes/ai-sdk/v7",
+        "detail": "useChatRuntime connects the UI to an AI SDK message stream."
+      }
+    ],
+    "guide": "/docs/runtimes/ai-sdk/v7",
+    "upstreamSource": "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v7",
+    "try": [
+      "Send a message and watch the reply stream.",
+      "Copy or regenerate a reply. Stop a response while it is running."
+    ],
+    "requirements": "React, an AI SDK backend, and a model provider key for live responses."
+  },
+  {
+    "slug": "collaborative-editor",
+    "package": "bundle-block-editor",
+    "title": "Collaborative block editor",
+    "summary": "Write alongside an assistant in the same editable document.",
+    "description": "A Lexical document and an assistant share one workspace. Edit blocks by hand, then ask the assistant to add or revise content. The local preview uses scripted editing actions; the source keeps the editor separate from the conversation runtime.",
+    "useCase": "Document drafting and editing",
+    "entry": "src/main.tsx",
+    "components": [
+      {
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
+      },
+      {
+        "name": "Composer",
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
+      },
+      {
+        "name": "AI SDK runtime",
+        "href": "/docs/runtimes/ai-sdk/v7",
+        "detail": "useChatRuntime connects the UI to an AI SDK message stream."
+      },
+      {
+        "name": "Lexical editor",
+        "href": "https://lexical.dev/",
+        "detail": "Rich text blocks and history live in the existing Lexical editor."
+      }
+    ],
+    "guide": "/docs/tools/interactables",
+    "upstreamSource": "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables",
+    "try": [
+      "Edit the document directly.",
+      "Ask the assistant to add a section, then undo the edit."
+    ],
+    "requirements": "React and Lexical. Connect an AI SDK backend for model-directed editing.",
+    "sourceFiles": ["src/history.ts"]
+  },
+  {
+    "slug": "website-assistant",
+    "package": "bundle-blog-assistant",
+    "title": "Website corner assistant",
+    "summary": "An assistant that answers questions about the page you are reading.",
+    "description": "A compact launcher opens a chat beside a sample article. Suggested questions and replies use the article content, keeping the conversation grounded in the visible page. The preview uses local, scripted answers.",
+    "useCase": "Documentation, blogs, and product pages",
+    "entry": "src/main.tsx",
+    "components": [
+      {
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
+      },
+      {
+        "name": "Composer",
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
+      },
+      {
+        "name": "AI SDK runtime",
+        "href": "/docs/runtimes/ai-sdk/v7",
+        "detail": "useChatRuntime connects the UI to an AI SDK message stream."
+      },
+      {
+        "name": "shadcn AssistantModal template",
+        "href": "/elements/assistant-modal",
+        "detail": "The shared AssistantModal template opens the conversation beside the page."
+      }
+    ],
+    "guide": "/examples/modal",
+    "upstreamSource": "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/docs/samples/assistant-modal.tsx",
+    "try": [
+      "Open the assistant launcher beside the article.",
+      "Ask a suggested question about the article."
+    ],
+    "requirements": "React and page content to ground replies. A model backend is needed for open-ended questions.",
+    "sourceFiles": [
+      "ui/components/react/assistant-ui/elements/assistant-modal.aui.tsx"
+    ]
+  },
+  {
+    "slug": "data-explorer",
+    "package": "bundle-data-explorer",
+    "title": "Data exploration assistant",
+    "summary": "Ask questions, change filters, and inspect a sample dataset.",
+    "description": "A chart, a table, and an assistant work from the same checked-in sample dataset. Supported questions calculate answers from the data and update the view. The local preview uses deterministic query matching rather than a live model.",
+    "useCase": "Analytics and internal dashboards",
+    "entry": "src/main.tsx",
+    "components": [
+      {
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
+      },
+      {
+        "name": "Composer",
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
+      },
+      {
+        "name": "AI SDK runtime",
+        "href": "/docs/runtimes/ai-sdk/v7",
+        "detail": "useChatRuntime connects the UI to an AI SDK message stream."
+      },
+      {
+        "name": "SVG chart and HTML table",
+        "href": "/docs/tools/generative-ui",
+        "detail": "Accessible charts and tables reflect the selected data."
+      }
+    ],
+    "guide": "/docs/tools/generative-ui",
+    "upstreamSource": "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",
+    "try": [
+      "Choose a suggested question to filter the data.",
+      "Compare the calculated answer with the chart and table."
+    ],
+    "requirements": "React and a dataset. Connect an AI SDK backend to interpret open-ended queries.",
+    "sourceFiles": ["src/data.ts"]
+  },
+  {
+    "slug": "website-use-agent",
+    "package": "bundle-website-agent",
+    "title": "Website-use agent",
+    "summary": "Watch an agent move, click, and update a small SaaS workspace.",
+    "description": "An animated cursor makes scripted actions visible while they operate real controls in a sample task workspace. The cursor is also a reusable component you can add to your own UI. All actions stay in this local demo.",
+    "useCase": "Visible agent actions in an application",
+    "entry": "src/main.tsx",
+    "components": [
+      {
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
+      },
+      {
+        "name": "Composer",
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
+      },
+      {
+        "name": "AI SDK runtime",
+        "href": "/docs/runtimes/ai-sdk/v7",
+        "detail": "useChatRuntime connects the UI to an AI SDK message stream."
+      }
+    ],
+    "guide": "/docs/tools/interactables",
+    "upstreamSource": "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables",
+    "try": [
+      "Ask the agent to filter or complete a task.",
+      "Watch the cursor target and activate the real controls."
+    ],
+    "requirements": "React and DOM controls to operate. A model backend is needed for autonomous planning.",
+    "sourceFiles": ["src/agent-cursor.tsx"]
+  }
+]
