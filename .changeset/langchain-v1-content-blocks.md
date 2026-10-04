@@ -12,5 +12,5 @@ standard `image`, `video`, `audio`, `file` or `text-plain` blocks that
 entirely, a `file` block reported `application/octet-stream` because `mimeType`
 was never read, and a url-referenced block converted to a file part with no
 data. Both vocabularies now resolve through one media block arm, and a block
-that carries no representable payload is reported as an unknown part type in
-development instead of vanishing.
+that carries no representable payload is reported as an unrepresentable
+message part in development instead of vanishing.

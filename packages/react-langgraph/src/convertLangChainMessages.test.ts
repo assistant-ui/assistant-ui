@@ -1043,7 +1043,7 @@ describe("convertLangChainMessages standard content blocks", () => {
       type: "human",
       id: "human-std-image",
       content: [{ type: "image", mimeType: "image/png", data: "ZmFrZQ==" }],
-    });
+    } as unknown as LangChainMessage);
 
     expect(result).toMatchObject({
       role: "user",
@@ -1058,7 +1058,7 @@ describe("convertLangChainMessages standard content blocks", () => {
       content: [
         { type: "file", mimeType: "application/pdf", data: "JVBERi0=" },
       ],
-    });
+    } as unknown as LangChainMessage);
 
     expect(result).toMatchObject({
       role: "user",
@@ -1084,7 +1084,7 @@ describe("convertLangChainMessages standard content blocks", () => {
           url: "https://cdn.example/a.pdf",
         },
       ],
-    });
+    } as unknown as LangChainMessage);
 
     expect(result).toMatchObject({
       role: "user",

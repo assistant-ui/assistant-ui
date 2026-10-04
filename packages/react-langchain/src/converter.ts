@@ -22,7 +22,33 @@ export type LangChainContentBlock =
       summary?: Array<{ type: "summary_text"; text?: string }>;
       reasoning?: string;
     }
-  | LangChainMediaBlock
+  | {
+      type: "file";
+      data: string;
+      mime_type: string;
+      source_type?: "base64";
+      metadata?: { filename?: string };
+    }
+  | {
+      type: "file";
+      url: string;
+      mime_type?: string;
+      source_type: "url";
+      metadata?: { filename?: string };
+    }
+  | {
+      type: "file";
+      id: string;
+      mime_type?: string;
+      source_type: "id";
+      metadata?: { filename?: string };
+    }
+  | {
+      type: "audio";
+      data: string;
+      mime_type: string;
+      source_type: "base64";
+    }
   | { type: "tool_use" | "input_json_delta" };
 
 /**
@@ -30,7 +56,7 @@ export type LangChainContentBlock =
  * key their payload off `mimeType` plus a `data`/`url`/`fileId` field, while
  * the legacy data content blocks key it off `mime_type` plus `source_type`.
  */
-export type LangChainMediaBlock = {
+type LangChainMediaBlock = {
   type: "image" | "video" | "audio" | "file" | "text-plain";
   mimeType?: string;
   mime_type?: string;
@@ -130,7 +156,7 @@ const convertMediaBlock = (
 };
 
 export const convertLangChainContentBlock = (
-  part: LangChainContentBlock,
+  part: LangChainContentBlock | LangChainMediaBlock,
 ): ConvertedContentPart | null | undefined => {
   const type = part.type;
   switch (type) {

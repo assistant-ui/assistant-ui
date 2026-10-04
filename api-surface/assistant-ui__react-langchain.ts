@@ -1069,7 +1069,36 @@ type LangChainContentBlock = {
     text?: string;
   }>;
   reasoning?: string;
-} | LangChainMediaBlock | {
+} | {
+  type: "file";
+  data: string;
+  mime_type: string;
+  source_type?: "base64";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "file";
+  url: string;
+  mime_type?: string;
+  source_type: "url";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "file";
+  id: string;
+  mime_type?: string;
+  source_type: "id";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+} | {
   type: "input_json_delta" | "tool_use";
 };
 
@@ -2341,10 +2370,10 @@ type VoiceSessionState = {
 
 declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metadata?: LangChainMessageConverterMetadata) => useExternalMessageConverter.Message;
 
-declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
+declare const convertLangChainContentBlock: (part: LangChainContentBlock | LangChainMediaBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
-  export { LangChainContentBlock, LangChainMediaBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
 }
 
 declare const createLangChainStreamingTimingAccessors: <TMessage extends {
@@ -2455,7 +2484,7 @@ declare const groupUIMessagesByParent: <T extends {
 }>(value: unknown) => Map<string, T[]>;
 
 declare namespace entry_root_exports {
-  export { LangChainBaseMessage, LangChainContentBlock, LangChainMediaBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
+  export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
 
 declare const uiMessageToDataPart: <TUIMessage extends {

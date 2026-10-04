@@ -27,7 +27,6 @@ export type {
 export type {
   LangChainBaseMessage,
   LangChainContentBlock,
-  LangChainMediaBlock,
   LangChainToolCall,
   RemoveUIMessage,
   UIMessage,
