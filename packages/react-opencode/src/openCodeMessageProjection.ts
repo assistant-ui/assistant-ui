@@ -21,6 +21,12 @@ import {
   projectOpenCodePermissionApproval,
   projectResolvedOpenCodePermissionApproval,
 } from "./openCodePermissionApproval";
+import {
+  isProjectableOpenCodeQuestion,
+  projectAnsweredOpenCodeQuestionApproval,
+  projectOpenCodeQuestionApproval,
+  projectRejectedOpenCodeQuestionApproval,
+} from "./openCodeQuestionApproval";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type ProjectedContentPart = Exclude<
@@ -172,6 +178,53 @@ const getPermissionIndex = (state: OpenCodeThreadState): PermissionIndex => {
   return index;
 };
 
+type QuestionState = OpenCodeThreadState["interactions"]["questions"];
+type PendingQuestion = QuestionState["pending"][string];
+type AnsweredQuestion = QuestionState["answered"][string];
+type RejectedQuestion = QuestionState["rejected"][string];
+
+type QuestionIndex = {
+  pendingByCallId: ReadonlyMap<string, PendingQuestion>;
+  answeredByCallId: ReadonlyMap<string, AnsweredQuestion>;
+  rejectedByCallId: ReadonlyMap<string, RejectedQuestion>;
+};
+
+const questionIndexCache = new WeakMap<QuestionState, QuestionIndex>();
+
+const getQuestionIndex = (state: OpenCodeThreadState): QuestionIndex => {
+  const questions = state.interactions.questions;
+  const cached = questionIndexCache.get(questions);
+  if (cached) return cached;
+
+  const pendingByCallId = new Map<string, PendingQuestion>();
+  for (const request of Object.values(questions.pending)) {
+    if (request.tool?.callID && isProjectableOpenCodeQuestion(request))
+      pendingByCallId.set(request.tool.callID, request);
+  }
+
+  const answeredByCallId = new Map<string, AnsweredQuestion>();
+  for (const entry of Object.values(questions.answered)) {
+    const callId = entry.request.tool?.callID;
+    if (callId && isProjectableOpenCodeQuestion(entry.request))
+      answeredByCallId.set(callId, entry);
+  }
+
+  const rejectedByCallId = new Map<string, RejectedQuestion>();
+  for (const entry of Object.values(questions.rejected)) {
+    const callId = entry.request.tool?.callID;
+    if (callId && isProjectableOpenCodeQuestion(entry.request))
+      rejectedByCallId.set(callId, entry);
+  }
+
+  const index: QuestionIndex = {
+    pendingByCallId,
+    answeredByCallId,
+    rejectedByCallId,
+  };
+  questionIndexCache.set(questions, index);
+  return index;
+};
+
 const childMessagesCache = new WeakMap<
   OpenCodeThreadState,
   readonly ThreadMessage[]
@@ -210,13 +263,7 @@ const hasPendingInteractionForToolCall = (
     return true;
   }
 
-  for (const request of Object.values(state.interactions.questions.pending)) {
-    if (request.tool?.callID === toolCallId) {
-      return true;
-    }
-  }
-
-  return false;
+  return getQuestionIndex(state).pendingByCallId.has(toolCallId);
 };
 
 const hasPendingInteractionForMessage = (
@@ -336,6 +383,18 @@ const projectAssistantContent = (
         const resolvedPermission = permission
           ? undefined
           : getResolvedPermissionForToolCall(state, toolCallId);
+        const questions =
+          permission || resolvedPermission
+            ? undefined
+            : getQuestionIndex(state);
+        const question = questions?.pendingByCallId.get(toolCallId);
+        const answeredQuestion = question
+          ? undefined
+          : questions?.answeredByCallId.get(toolCallId);
+        const rejectedQuestion =
+          question || answeredQuestion
+            ? undefined
+            : questions?.rejectedByCallId.get(toolCallId);
         content.push({
           type: "tool-call",
           toolCallId,
@@ -357,7 +416,23 @@ const projectAssistantContent = (
                       resolvedPermission,
                     ),
                 }
-              : {}),
+              : question
+                ? { approval: projectOpenCodeQuestionApproval(question) }
+                : answeredQuestion
+                  ? {
+                      approval:
+                        projectAnsweredOpenCodeQuestionApproval(
+                          answeredQuestion,
+                        ),
+                    }
+                  : rejectedQuestion
+                    ? {
+                        approval:
+                          projectRejectedOpenCodeQuestionApproval(
+                            rejectedQuestion,
+                          ),
+                      }
+                    : {}),
           ...(currentStepId() ? { parentId: currentStepId() } : {}),
         });
         break;
