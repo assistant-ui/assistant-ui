@@ -3969,6 +3969,26 @@ type ThreadRow = {
   readonly completedAt?: number;
 };
 
+declare const ThreadRowsFlatList: import("react").ForwardRefExoticComponent<Omit<FlatListProps<ThreadRow>, "children" | "data" | "keyExtractor" | "renderItem"> & {
+  groupBy?: ThreadRowsOptions["groupBy"];
+  children: ThreadPrimitiveRow.Props["children"];
+  autoScroll?: boolean | undefined;
+  scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
+  history?: ThreadMessagesFlatListProps["history"];
+} & import("react").RefAttributes<FlatList<ThreadRow>>>;
+
+type ThreadRowsFlatListProps = Omit<FlatListProps<ThreadRow>, "children" | "data" | "keyExtractor" | "renderItem"> & {
+  groupBy?: ThreadRowsOptions["groupBy"];
+  children: ThreadPrimitiveRow.Props["children"];
+  autoScroll?: boolean | undefined;
+  scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
+  history?: ThreadMessagesFlatListProps["history"];
+};
+
 type ThreadRowsOptions = {
   readonly groupBy?: ((part: PartState, context: GroupByContext) => readonly `group-${string}`[] | null) | undefined;
 };
@@ -5044,7 +5064,7 @@ declare namespace threadList_d_exports {
 }
 
 declare namespace thread_d_exports {
-  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesFlatList as MessagesFlatList, ThreadMessagesFlatListProps as MessagesFlatListProps, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadPrimitiveRow as Row, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
+  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesFlatList as MessagesFlatList, ThreadMessagesFlatListProps as MessagesFlatListProps, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadPrimitiveRow as Row, ThreadRowsFlatList as RowsFlatList, ThreadRowsFlatListProps as RowsFlatListProps, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
 }
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
