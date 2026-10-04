@@ -53,11 +53,11 @@ export const createToolCallPartRegistry = () => {
         closeArgsText(toolCallController);
       }
     },
-    closeAll: () => {
-      toolCallControllers.forEach((toolCallController) => {
+    closeAll: async () => {
+      for (const toolCallController of toolCallControllers.values()) {
         closedToolCallArgs.add(toolCallController);
-        toolCallController.close();
-      });
+        await Promise.resolve(toolCallController.close());
+      }
       toolCallControllers.clear();
       closedToolCallArgs.clear();
     },

@@ -579,9 +579,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
           }
         },
-        flush() {
+        async flush() {
           closeOpenToolCallArgs();
-          toolCallPartRegistry.closeAll();
+          await toolCallPartRegistry.closeAll();
         },
       });
 

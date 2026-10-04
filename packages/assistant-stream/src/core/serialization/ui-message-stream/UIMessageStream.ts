@@ -209,13 +209,13 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
           }
         },
-        flush() {
+        async flush() {
           if (activeToolCallId !== undefined) {
             toolCallPartRegistry.closeArgsText(
               toolCallPartRegistry.get(activeToolCallId),
             );
           }
-          toolCallPartRegistry.closeAll();
+          await toolCallPartRegistry.closeAll();
         },
       });
 

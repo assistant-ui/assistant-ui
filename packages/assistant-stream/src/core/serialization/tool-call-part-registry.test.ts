@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { ToolCallStreamController } from "../modules/tool-call";
 import { DataStreamDecoder } from "./data-stream/DataStream";
+import { createToolCallPartRegistry } from "./tool-call-part-registry";
 import { UIMessageStreamDecoder } from "./ui-message-stream/UIMessageStream";
 
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -15,15 +17,19 @@ async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
   return chunks;
 }
 
-function decodeDataStream(lines: string[]) {
+function decodeDataStreamChunks(chunks: string[]) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const line of lines) controller.enqueue(encoder.encode(line + "\n"));
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
   return collectChunks(stream.pipeThrough(new DataStreamDecoder()));
+}
+
+function decodeDataStream(lines: string[]) {
+  return decodeDataStreamChunks(lines.map((line) => `${line}\n`));
 }
 
 function decodeUIMessageStream(events: string[]) {
@@ -123,5 +129,62 @@ describe("registry-backed decoders", () => {
           chunk.type === "part-finish",
       ),
     ).toHaveLength(2);
+  });
+
+  it("keeps tool-call finish order independent of byte chunking", async () => {
+    const first = '9:{"toolCallId":"t0","toolName":"search","args":{}}\n';
+    const second = '9:{"toolCallId":"t1","toolName":"search","args":{}}\n';
+    const selectOrder = (chunks: AssistantStreamChunk[]) =>
+      chunks.map(({ type, path }) => ({ type, path }));
+
+    const combined = await decodeDataStreamChunks([first + second]);
+    const split = await decodeDataStreamChunks([first, second]);
+
+    expect(selectOrder(split)).toEqual(selectOrder(combined));
+    expect(
+      combined
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
+  });
+});
+
+describe("createToolCallPartRegistry", () => {
+  it("closes controllers sequentially in registry order", async () => {
+    const registry = createToolCallPartRegistry();
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    const firstReady = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const controller = (close: () => void): ToolCallStreamController => ({
+      argsText: {
+        append() {},
+        close() {},
+      },
+      close,
+      setResponse() {},
+    });
+
+    registry.start("t0", () =>
+      controller(async () => {
+        await firstReady;
+        order.push("t0");
+      }),
+    );
+    registry.start("t1", () =>
+      controller(() => {
+        order.push("t1");
+      }),
+    );
+
+    const closing = registry.closeAll();
+    await Promise.resolve();
+    const beforeRelease = [...order];
+    releaseFirst();
+    await closing;
+
+    expect(beforeRelease).toEqual([]);
+    expect(order).toEqual(["t0", "t1"]);
   });
 });
