@@ -20,7 +20,10 @@ import {
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../context";
-import { useThreadViewport } from "../../context/react/ThreadViewportContext";
+import {
+  useThreadViewport,
+  useThreadViewportStore,
+} from "../../context/react/ThreadViewportContext";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
@@ -201,6 +204,16 @@ const AtBottom: FC = () => {
   return <output data-testid="is-at-bottom">{String(isAtBottom)}</output>;
 };
 
+const RequestSmoothScrollToBottom: FC = () => {
+  const threadViewportStore = useThreadViewportStore();
+
+  useEffect(() => {
+    threadViewportStore.getState().scrollToBottom({ behavior: "smooth" });
+  }, [threadViewportStore]);
+
+  return null;
+};
+
 const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
@@ -322,6 +335,76 @@ describe("useThreadViewportAutoScroll", () => {
         top: viewport.scrollHeight,
         behavior: "smooth",
       });
+    } finally {
+      scrollToSpy.mockRestore();
+    }
+  });
+
+  it("updates isAtBottom when a wheel interrupts a smooth scroll short of the bottom", async () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="smooth">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    const scrollToSpy = vi
+      .spyOn(viewport, "scrollTo")
+      .mockImplementation(() => {});
+    try {
+      view.rerender(
+        <SyncRuntimeProvider>
+          <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+          <ThreadPrimitiveScrollToBottom behavior="smooth">
+            Scroll to bottom
+          </ThreadPrimitiveScrollToBottom>
+          <RequestSmoothScrollToBottom />
+        </SyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(scrollToSpy).toHaveBeenCalledWith({
+          top: viewport.scrollHeight,
+          behavior: "smooth",
+        });
+      });
+
+      act(() => {
+        viewport.scrollTop = 100;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Scroll to bottom",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(true);
+
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+        viewport.scrollTop = 120;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Scroll to bottom",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false);
     } finally {
       scrollToSpy.mockRestore();
     }

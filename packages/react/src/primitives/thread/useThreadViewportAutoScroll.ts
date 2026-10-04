@@ -231,7 +231,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     const newIsAtBottom = isViewportAtBottom(div);
 
     const isInFlightDownwardScroll =
-      !newIsAtBottom && lastScrollTop.current < div.scrollTop;
+      scrollingToBottomBehaviorRef.current !== null &&
+      !newIsAtBottom &&
+      lastScrollTop.current < div.scrollTop;
     if (isInFlightDownwardScroll) {
       // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
       // before landing, don't flicker isAtBottom or clear intent mid-animation
@@ -335,6 +337,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     const gestures = ["pointerdown", "wheel", "touchstart", "keydown"] as const;
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+    el.addEventListener("wheel", cancelPendingScrollToBottom, {
+      passive: true,
+    });
     el.addEventListener("keydown", cancelOnKeyDown);
     for (const gesture of gestures) {
       el.addEventListener(gesture, releasePrependAnchor, { passive: true });
@@ -342,6 +347,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     return () => {
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+      el.removeEventListener("wheel", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
       for (const gesture of gestures) {
         el.removeEventListener(gesture, releasePrependAnchor);
