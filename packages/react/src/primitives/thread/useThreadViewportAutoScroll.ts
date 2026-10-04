@@ -33,6 +33,41 @@ const TEXT_ENTRY_SELECTOR = [
     ":not([type='range']):not([type='file']):not([type='color'])",
 ].join(", ");
 
+const MESSAGE_SELECTOR = "[data-message-id]";
+
+type MessageOffset = { readonly id: string; readonly offset: number };
+
+const offsetInViewport = (element: Element, viewport: Element) =>
+  element.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+
+const measureFirstMessage = (viewport: HTMLElement): MessageOffset | null => {
+  const element = viewport.querySelector<HTMLElement>(MESSAGE_SELECTOR);
+  const id = element?.dataset["messageId"];
+  return element && id
+    ? { id, offset: offsetInViewport(element, viewport) }
+    : null;
+};
+
+const findMessage = (viewport: HTMLElement, id: string) => {
+  for (const element of viewport.querySelectorAll<HTMLElement>(
+    MESSAGE_SELECTOR,
+  )) {
+    if (element.dataset["messageId"] === id) return element;
+  }
+  return null;
+};
+
+/** Scrolls so the message sits at `anchor.offset` again; false when it is gone. */
+const keepMessageAt = (viewport: HTMLElement, anchor: MessageOffset) => {
+  const element = findMessage(viewport, anchor.id);
+  if (!element) return false;
+  const delta = offsetInViewport(element, viewport) - anchor.offset;
+  if (Math.abs(delta) >= 1) {
+    viewport.scrollTo({ top: viewport.scrollTop + delta, behavior: "instant" });
+  }
+  return true;
+};
+
 export namespace useThreadViewportAutoScroll {
   export type Options = {
     /**
@@ -76,6 +111,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const divRef = useRef<TElement>(null);
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const firstMessageId = useAuiState((s) => s.thread.messages[0]?.id);
+  const threadId = useAuiState((s) => s.threadListItem.id);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const initializeScrollRequestedRef = useRef(false);
   const scheduledFrameRef = useRef<number | null>(null);
@@ -89,6 +125,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const lastScrollHeight = useRef<number>(0);
   const lastObservedScrollHeight = useRef<number>(0);
   const lastObservedClientHeight = useRef<number>(0);
+  const firstMessageRef = useRef<MessageOffset | null>(null);
+  // Set when earlier messages land and held until the reader's next gesture,
+  // so content above that settles afterwards (lazy layout, late media) keeps
+  // the reader's rows in place on engines without native scroll anchoring.
+  const prependAnchorRef = useRef<MessageOffset | null>(null);
 
   // Pending bottom-scroll intent. Planted by initialize/run-start/switch/button
   // triggers, cleared when handleScroll confirms we reached bottom, or when the
@@ -112,6 +153,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
     followBottomRef.current = true;
     scrollingToBottomBehaviorRef.current = behavior;
+    prependAnchorRef.current = null;
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
 
@@ -190,6 +232,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
     lastScrollTop.current = div.scrollTop;
     lastScrollHeight.current = div.scrollHeight;
+    firstMessageRef.current = measureFirstMessage(div);
   };
 
   const resizeRef = useOnResizeContent(() => {
@@ -218,6 +261,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       followBottomRef.current
     ) {
       scrollToBottom("instant");
+    } else if (
+      prependAnchorRef.current &&
+      !keepMessageAt(div, prependAnchorRef.current)
+    ) {
+      prependAnchorRef.current = null;
     }
 
     handleScroll();
@@ -244,23 +292,40 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
       cancelPendingScrollToBottom();
     };
+    const releasePrependAnchor = () => {
+      prependAnchorRef.current = null;
+    };
+    const gestures = ["pointerdown", "wheel", "touchstart", "keydown"] as const;
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
     el.addEventListener("keydown", cancelOnKeyDown);
+    for (const gesture of gestures) {
+      el.addEventListener(gesture, releasePrependAnchor, { passive: true });
+    }
     return () => {
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
+      for (const gesture of gestures) {
+        el.removeEventListener(gesture, releasePrependAnchor);
+      }
     };
   });
 
-  // Earlier messages prepended above the reader keep its distance from the
-  // bottom; where the browser already anchored the scroll, this is a no-op.
-  const previousFirstMessageIdRef = useRef(firstMessageId);
+  // Earlier messages prepended above the reader put the old first message back
+  // where the reader saw it, so growth below it in the same commit (a
+  // streaming reply) is not mistaken for the page; where the browser already
+  // anchored the scroll, this is a no-op.
+  const previousRef = useRef({ threadId, firstMessageId });
   useLayoutEffect(() => {
-    const previousFirstMessageId = previousFirstMessageIdRef.current;
-    previousFirstMessageIdRef.current = firstMessageId;
+    const previous = previousRef.current;
+    previousRef.current = { threadId, firstMessageId };
+    if (previous.threadId !== threadId) {
+      prependAnchorRef.current = null;
+      return;
+    }
     const div = divRef.current;
+    const previousFirstMessageId = previous.firstMessageId;
     if (
       !div ||
       previousFirstMessageId === undefined ||
@@ -276,14 +341,21 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       );
     if (!prepended) return;
 
-    const top =
-      div.scrollHeight - (lastScrollHeight.current - lastScrollTop.current);
-    if (Math.abs(div.scrollTop - top) >= 1) {
-      div.scrollTo({ top, behavior: "instant" });
+    const anchor = firstMessageRef.current;
+    if (anchor?.id === previousFirstMessageId && keepMessageAt(div, anchor)) {
+      prependAnchorRef.current = anchor;
+    } else {
+      // Message roots that render no `data-message-id` leave only the total
+      // growth to go on, which counts any growth below the reader too.
+      const top =
+        div.scrollHeight - (lastScrollHeight.current - lastScrollTop.current);
+      if (Math.abs(div.scrollTop - top) >= 1) {
+        div.scrollTo({ top, behavior: "instant" });
+      }
     }
     lastScrollTop.current = div.scrollTop;
     lastScrollHeight.current = div.scrollHeight;
-  }, [aui, autoScroll, firstMessageId]);
+  }, [aui, autoScroll, firstMessageId, threadId]);
 
   useLayoutEffect(() => {
     if (!scrollToBottomOnInitialize) return;

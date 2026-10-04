@@ -52,7 +52,18 @@ const getMaxScrollTop = (element: Element) =>
 
 let forceShortViewportMeasurement = false;
 let viewportMeasurementOffset = 0;
+const messageHeights = new Map<string, number>();
 const resizeObserverCallbacks = new Set<ResizeObserverCallback>();
+
+const messageRows = () => [
+  ...document.querySelectorAll<HTMLElement>('[data-testid="thread-message"]'),
+];
+
+const rowHeight = (row: Element) =>
+  messageHeights.get(row.getAttribute("data-message-id") ?? "") ?? 80;
+
+const rowsHeight = (rows: readonly Element[]) =>
+  rows.reduce((height, row) => height + rowHeight(row), 0);
 
 class TestResizeObserver {
   private callback: ResizeObserverCallback;
@@ -123,11 +134,32 @@ beforeAll(() => {
     get() {
       if (this.getAttribute("data-testid") !== "viewport") return 0;
       if (forceShortViewportMeasurement) return this.clientHeight;
-      return (
-        document.querySelectorAll('[data-testid="thread-message"]').length *
-          80 +
-        viewportMeasurementOffset
-      );
+      return rowsHeight(messageRows()) + viewportMeasurementOffset;
+    },
+  });
+
+  Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value(this: HTMLElement) {
+      const rows = messageRows();
+      const index = rows.indexOf(this);
+      const viewport = this.closest<HTMLElement>('[data-testid="viewport"]');
+      const top =
+        index === -1
+          ? 0
+          : rowsHeight(rows.slice(0, index)) - (viewport?.scrollTop ?? 0);
+      const height = index === -1 ? 0 : rowHeight(this);
+      return {
+        x: 0,
+        y: top,
+        top,
+        bottom: top + height,
+        left: 0,
+        right: 0,
+        width: 0,
+        height,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
     },
   });
 
@@ -143,6 +175,7 @@ beforeAll(() => {
 afterEach(() => {
   forceShortViewportMeasurement = false;
   viewportMeasurementOffset = 0;
+  messageHeights.clear();
   resizeObserverCallbacks.clear();
   cleanup();
 });
@@ -171,9 +204,11 @@ const AtBottom: FC = () => {
 const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
+  scrollToBottomOnThreadSwitch,
 }: {
   autoScroll?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
 }) => (
   <ThreadPrimitiveRoot>
     <ThreadPrimitiveViewport
@@ -181,6 +216,7 @@ const Thread = ({
       data-testid="viewport"
       turnAnchor="top"
       scrollToBottomOnInitialize={scrollToBottomOnInitialize}
+      scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
     >
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
@@ -919,14 +955,23 @@ describe("useThreadViewportAutoScroll", () => {
       }),
     );
 
-    const PagedThread = ({ follow = false }: { follow?: boolean }) => {
+    type PagedThreadProps = {
+      follow?: boolean;
+      /** Runs in the same update that prepends the page. */
+      onPrepend?: () => void;
+    };
+
+    const PagedThread = ({ follow = false, onPrepend }: PagedThreadProps) => {
       const [loaded, setLoaded] = useState(pagedMessages.slice(4));
       const runtime = useExternalStoreRuntime<ThreadMessageLike>({
         messages: loaded,
         convertMessage: (message) => message,
         onNew: async () => {},
         hasEarlier: loaded.length < pagedMessages.length,
-        onLoadEarlier: async () => setLoaded(pagedMessages),
+        onLoadEarlier: async () => {
+          onPrepend?.();
+          setLoaded(pagedMessages);
+        },
       });
 
       return (
@@ -937,8 +982,11 @@ describe("useThreadViewportAutoScroll", () => {
       );
     };
 
-    const renderAt = async (scrollTop: number, follow = false) => {
-      render(<PagedThread follow={follow} />);
+    const renderAt = async (
+      scrollTop: number,
+      { follow = false, onPrepend }: PagedThreadProps = {},
+    ) => {
+      render(<PagedThread follow={follow} {...(onPrepend && { onPrepend })} />);
       await waitFor(() =>
         expect(screen.getAllByTestId("thread-message")).toHaveLength(4),
       );
@@ -972,12 +1020,94 @@ describe("useThreadViewportAutoScroll", () => {
     it.each([false, true])(
       "keeps a reader at the bottom at the bottom (auto-follow %s)",
       async (follow) => {
-        await renderAt(4 * 80 - 100, follow);
+        await renderAt(4 * 80 - 100, { follow });
 
         await loadEarlier();
 
         expect(getViewport().scrollTop).toBe(8 * 80 - 100);
       },
     );
+
+    it("does not count growth below the reader in the same update as part of the page", async () => {
+      await renderAt(100, {
+        onPrepend: () => {
+          viewportMeasurementOffset = 40;
+        },
+      });
+
+      await loadEarlier();
+
+      expect(getViewport().scrollTop).toBe(4 * 80 + 100);
+    });
+
+    it("holds the rows in place while the page above settles, until the reader's next gesture", async () => {
+      await renderAt(0);
+      await loadEarlier();
+      expect(getViewport().scrollTop).toBe(4 * 80);
+
+      messageHeights.set("message-3", 120);
+      act(notifyResizeObservers);
+      expect(getViewport().scrollTop).toBe(4 * 80 + 40);
+
+      fireEvent.wheel(getViewport());
+      messageHeights.set("message-2", 120);
+      act(notifyResizeObservers);
+      expect(getViewport().scrollTop).toBe(4 * 80 + 40);
+    });
+
+    it("does not treat a thread switch as a page, even when the new thread repeats the old first message", async () => {
+      const SwitchingThread = () => {
+        const [thread, setThread] = useState({
+          id: "a",
+          messages: pagedMessages.slice(4),
+        });
+        const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+          messages: thread.messages,
+          convertMessage: (message) => message,
+          onNew: async () => {},
+          adapters: {
+            threadList: {
+              threadId: thread.id,
+              threads: [
+                { id: "a", status: "regular" },
+                { id: "b", status: "regular" },
+              ],
+            },
+          },
+        });
+
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <Thread scrollToBottomOnThreadSwitch={false} />
+            <button
+              type="button"
+              data-testid="switch"
+              onClick={() =>
+                setThread({ id: "b", messages: pagedMessages.slice(3) })
+              }
+            />
+          </AssistantRuntimeProvider>
+        );
+      };
+
+      render(<SwitchingThread />);
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(4),
+      );
+      act(() => {
+        getViewport().scrollTop = 100;
+        fireEvent.scroll(getViewport());
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("switch"));
+      });
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(5),
+      );
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(100);
+    });
   });
 });
