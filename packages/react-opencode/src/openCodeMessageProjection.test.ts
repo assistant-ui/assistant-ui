@@ -647,7 +647,13 @@ describe("projectOpenCodeThreadMessages", () => {
             question_1: {
               id: "question_1",
               sessionID: "ses_1",
-              questions: [],
+              questions: [
+                {
+                  question: "Continue?",
+                  header: "Confirm",
+                  options: [{ label: "Yes", description: "Proceed" }],
+                },
+              ],
               askedAt: 1000,
               tool: {
                 messageID: "assistant-1",
@@ -707,6 +713,76 @@ describe("projectOpenCodeThreadMessages", () => {
       type: "requires-action",
       reason: "tool-calls",
     });
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        approval: {
+          id: "question_1",
+          display: "questions",
+          questions: [
+            {
+              id: "0",
+              prompt: "Continue?",
+              header: "Confirm",
+              options: [{ id: "Yes", label: "Yes", description: "Proceed" }],
+              allowFreeform: true,
+            },
+          ],
+        },
+      },
+    ]);
+
+    const answeredState: OpenCodeThreadState = {
+      ...state,
+      interactions: {
+        ...state.interactions,
+        questions: {
+          pending: {},
+          answered: {
+            question_1: {
+              request: state.interactions.questions.pending.question_1!,
+              answers: [["Yes"]],
+              respondedAt: 2000,
+            },
+          },
+          rejected: {},
+        },
+      },
+    };
+    expect(
+      projectOpenCodeThreadMessages(answeredState)[0]?.content,
+    ).toMatchObject([
+      {
+        type: "tool-call",
+        approval: {
+          id: "question_1",
+          display: "questions",
+          approved: true,
+          answers: { "0": { optionIds: ["Yes"] } },
+        },
+      },
+    ]);
+
+    const rejectedState: OpenCodeThreadState = {
+      ...state,
+      interactions: {
+        ...state.interactions,
+        questions: {
+          pending: {},
+          answered: {},
+          rejected: {
+            question_1: {
+              request: state.interactions.questions.pending.question_1!,
+              rejectedAt: 2000,
+            },
+          },
+        },
+      },
+    };
+    expect(
+      projectOpenCodeThreadMessages(rejectedState)[0]?.content,
+    ).toMatchObject([{ type: "tool-call", approval: { approved: false } }]);
   });
 
   it("normalizes escaped newlines in reasoning parts", () => {
