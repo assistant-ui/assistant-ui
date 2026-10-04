@@ -3,6 +3,10 @@ import type { ToolCallStreamController } from "../modules/tool-call";
 export const createToolCallPartRegistry = () => {
   const toolCallControllers = new Map<string, ToolCallStreamController>();
   const closedToolCallArgs = new Set<ToolCallStreamController>();
+  const closingToolCalls = new WeakMap<
+    ToolCallStreamController,
+    Promise<void>
+  >();
 
   const tryGet = (toolCallId: string) => toolCallControllers.get(toolCallId);
 
@@ -44,7 +48,15 @@ export const createToolCallPartRegistry = () => {
       toolCallController: ToolCallStreamController,
       response: Parameters<ToolCallStreamController["setResponse"]>[0],
     ) => {
-      toolCallController.setResponse(response);
+      const responseTask = Promise.resolve(
+        toolCallController.setResponse(response),
+      );
+      if (
+        !response.isPreliminary &&
+        !closingToolCalls.has(toolCallController)
+      ) {
+        closingToolCalls.set(toolCallController, responseTask);
+      }
       closedToolCallArgs.add(toolCallController);
     },
     closeOpenArgsText: () => {
@@ -56,7 +68,11 @@ export const createToolCallPartRegistry = () => {
     closeAll: async () => {
       for (const toolCallController of toolCallControllers.values()) {
         closedToolCallArgs.add(toolCallController);
-        await Promise.resolve(toolCallController.close());
+        const closeTask =
+          closingToolCalls.get(toolCallController) ??
+          Promise.resolve(toolCallController.close());
+        closingToolCalls.set(toolCallController, closeTask);
+        await closeTask;
       }
       toolCallControllers.clear();
       closedToolCallArgs.clear();

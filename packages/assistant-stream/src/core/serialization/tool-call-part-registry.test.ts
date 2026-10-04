@@ -150,6 +150,52 @@ describe("registry-backed decoders", () => {
 });
 
 describe("createToolCallPartRegistry", () => {
+  it("awaits a final response already closing before the next controller", async () => {
+    const registry = createToolCallPartRegistry();
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    const firstReady = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let firstClosing = false;
+    const first = registry.start("t0", () => ({
+      argsText: {
+        append() {},
+        close() {},
+      },
+      async setResponse() {
+        if (firstClosing) return;
+        firstClosing = true;
+        await firstReady;
+        order.push("t0");
+      },
+      close() {
+        if (!firstClosing) order.push("t0");
+      },
+    }));
+    registry.start("t1", () => ({
+      argsText: {
+        append() {},
+        close() {},
+      },
+      setResponse() {},
+      close() {
+        order.push("t1");
+      },
+    }));
+
+    registry.setResponse(first, { result: "done" });
+    registry.setResponse(first, { result: "ignored" });
+    const closing = registry.closeAll();
+    await Promise.resolve();
+    const beforeRelease = [...order];
+    releaseFirst();
+    await closing;
+
+    expect(beforeRelease).toEqual([]);
+    expect(order).toEqual(["t0", "t1"]);
+  });
+
   it("closes controllers sequentially in registry order", async () => {
     const registry = createToolCallPartRegistry();
     const order: string[] = [];
