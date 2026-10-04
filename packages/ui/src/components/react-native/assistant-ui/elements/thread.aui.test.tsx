@@ -466,10 +466,17 @@ vi.mock("./reasoning.aui", async () => {
   const React = await import("react");
   const Root = ({ children }: { children?: React.ReactNode }) =>
     React.createElement("div", { "data-testid": "reasoning-root" }, children);
-  const Trigger = ({ active }: { active?: boolean }) =>
+  const Trigger = ({
+    active,
+    duration,
+  }: {
+    active?: boolean;
+    duration?: number;
+  }) =>
     React.createElement("button", {
       "data-testid": "reasoning-trigger",
       "data-active": String(active),
+      "data-duration": String(duration),
     });
   const Content = ({ children }: { children?: React.ReactNode }) =>
     React.createElement(
@@ -835,6 +842,36 @@ describe("Thread", () => {
     );
     expect(triggers).toHaveLength(1);
     expect(triggers[0]?.getAttribute("data-active")).toBe("true");
+  });
+
+  it("labels a settled reasoning group with its span from part timing", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "complete" },
+        parts: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "complete" },
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "complete" },
+            timing: { startedAt: 4_000, completedAt: 13_400 },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    const trigger = container.querySelector(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(trigger?.getAttribute("data-active")).toBe("false");
+    expect(trigger?.getAttribute("data-duration")).toBe("12");
   });
 
   it("disables send while composer.canSend is false and enables it when true", async () => {

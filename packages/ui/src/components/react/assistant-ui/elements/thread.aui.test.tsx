@@ -105,6 +105,36 @@ function FeedbackTestThread({ submit }: { submit?: () => void }) {
   );
 }
 
+function ReasoningTestThread() {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            timing: { startedAt: 4_000, completedAt: 13_400 },
+          },
+          { type: "text", text: "Answer" },
+        ],
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
 function VoiceRuntimeAccess({
   onReady,
 }: {
@@ -238,6 +268,14 @@ describe("Thread", () => {
     expect(submit).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "negative" }),
     );
+  });
+
+  it("labels a settled reasoning group with its span from part timing", async () => {
+    render(<ReasoningTestThread />);
+
+    expect(
+      await screen.findByRole("button", { name: /Reasoning \(12s\)/ }),
+    ).toBeTruthy();
   });
 
   it("groups final voice transcripts into spoken rows", async () => {
