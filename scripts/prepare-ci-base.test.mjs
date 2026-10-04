@@ -13,7 +13,10 @@ import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { prepareCiBase } from "./prepare-ci-base.mjs";
 
-function fixture(t, { advances = 0, baseRef = "main" } = {}) {
+function fixture(
+  t,
+  { advances = 0, baseRef = "main", baseAdvancesIntoFeature = false } = {},
+) {
   const root = mkdtempSync(join(tmpdir(), "aui-ci-base-test-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const origin = join(root, "origin");
@@ -42,13 +45,22 @@ function fixture(t, { advances = 0, baseRef = "main" } = {}) {
   commit("first.txt", "first commit");
   git(origin, "mv", "removed.txt", "renamed.txt");
   git(origin, "commit", "--quiet", "-m", "rename");
-  const feature = commit("second.txt", "second commit");
+  let feature = commit("second.txt", "second commit");
   git(origin, "switch", "--quiet", baseRef);
   const base = commit("base.txt", "base");
+  let nextBase;
+  if (baseAdvancesIntoFeature) {
+    git(origin, "switch", "--quiet", "-c", "feature-next");
+    nextBase = commit("shared.txt", "later base");
+    commit("third.txt", "third commit");
+    feature = commit("fourth.txt", "fourth commit");
+    git(origin, "switch", "--quiet", baseRef);
+  }
   git(origin, "switch", "--quiet", "-c", "pull-merge");
-  git(origin, "merge", "--quiet", "--no-ff", "feature", "-m", "merge");
+  git(origin, "merge", "--quiet", "--no-ff", feature, "-m", "merge");
   const head = git(origin, "rev-parse", "HEAD");
   git(origin, "switch", "--quiet", baseRef);
+  if (nextBase) git(origin, "merge", "--quiet", "--ff-only", nextBase);
   for (let i = 0; i < advances; i++) commit(`advance-${i}.txt`, `${i}`);
   const url = pathToFileURL(origin).href;
   git(shallow, "init", "--quiet");
@@ -81,10 +93,21 @@ for (const advances of [0, 1, 4]) {
     assert.equal(git(shallow, "rev-parse", "HEAD^2"), feature);
     assert.equal(
       git(shallow, "rev-parse", "--is-shallow-repository"),
-      advances < 2 ? "true" : "false",
+      advances === 0 ? "true" : "false",
     );
   });
 }
+
+test("does not accept an older shallow merge base when the base moves into the feature history", (t) => {
+  const { shallow, full, git, baseRef } = fixture(t, {
+    baseAdvancesIntoFeature: true,
+  });
+  prepareCiBase(baseRef, shallow);
+  assert.equal(
+    git(shallow, "merge-base", "HEAD", `origin/${baseRef}`),
+    git(full, "merge-base", "HEAD", `origin/${baseRef}`),
+  );
+});
 
 test("supports non-main bases with slashes", (t) => {
   const { shallow, full, git, baseRef } = fixture(t, {

@@ -22,7 +22,10 @@ export function prepareCiBase(baseRef, cwd = process.cwd()) {
     "origin",
     `+refs/heads/${baseRef}:${base}`,
   );
-  if (fetched.status === 0 && git("merge-base", "HEAD", base).status === 0) {
+  if (
+    fetched.status === 0 &&
+    git("merge-base", "--is-ancestor", base, "HEAD").status === 0
+  ) {
     return;
   }
 
