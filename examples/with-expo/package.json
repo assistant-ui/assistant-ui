@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "export:web": "expo export --platform web && node scripts/flatten-assets.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {
