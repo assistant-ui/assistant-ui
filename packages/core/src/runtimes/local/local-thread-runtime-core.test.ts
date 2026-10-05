@@ -6109,6 +6109,46 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(assistant.status).toEqual({ type: "complete", reason: "stop" });
   });
 
+  it("keeps the branch the user switched to while a multi-step answer runs", async () => {
+    let releaseToolStep!: () => void;
+    const toolStep = new Promise<void>(
+      (resolve) => (releaseToolStep = resolve),
+    );
+    let calls = 0;
+    const thread = createPlainThread({
+      async run(): Promise<ChatModelRunResult> {
+        calls++;
+        if (calls === 2) {
+          await toolStep;
+          return {
+            content: [{ ...toolCallPart("search"), result: "found" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        }
+        return { content: [{ type: "text", text: "answer" }] };
+      },
+    });
+    await thread.append(userMessage("hi"));
+    const [question, firstAnswer] = thread.messages.map(
+      (message) => message.id,
+    );
+
+    void thread.startRun({
+      parentId: question!,
+      sourceId: firstAnswer!,
+      runConfig: {},
+    });
+    await flush();
+    expect(thread.messages.at(-1)?.id).not.toBe(firstAnswer);
+
+    thread.switchToBranch(firstAnswer!);
+    releaseToolStep();
+    await flush();
+
+    expect(calls).toBe(3);
+    expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
+  });
+
   it("marks the message errored when the adapter rejects", async () => {
     const thread = createPlainThread({
       async run() {
