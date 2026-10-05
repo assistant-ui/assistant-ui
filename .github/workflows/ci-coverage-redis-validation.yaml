@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   consumers:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 3c459ca79d99680d1853a5a6ad6fc7979ddd3a9b
+          ref: 6a8877eae9
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
         with:
