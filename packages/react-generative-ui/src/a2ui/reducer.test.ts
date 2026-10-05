@@ -100,6 +100,41 @@ describe("applyA2uiOperations", () => {
     expect(result.state.get("properties")?.catalogId).toBe("basic");
   });
 
+  it("applies v0.9.1 operations the way v0.9 does", () => {
+    const result = applyA2uiOperations(new Map(), [
+      {
+        version: "v0.9.1",
+        createSurface: { surfaceId: "main", catalogId: "basic" },
+      },
+      {
+        version: "v0.9.1",
+        updateComponents: {
+          surfaceId: "main",
+          components: [{ id: "root", component: "Text", text: "hello" }],
+        },
+      },
+      {
+        version: "v0.9.1",
+        updateDataModel: {
+          surfaceId: "main",
+          path: "/profile/name",
+          value: "Ada",
+        },
+      },
+    ]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.state.get("main")).toMatchObject({
+      catalogId: "basic",
+      dataModel: { profile: { name: "Ada" } },
+    });
+    expect(result.state.get("main")?.components.get("root")).toEqual({
+      id: "root",
+      component: "Text",
+      text: "hello",
+    });
+  });
+
   it.each(["10001", "4294967294"])(
     "rejects array pointer index %s beyond the auto-vivification limit",
     (index) => {

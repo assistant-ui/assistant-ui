@@ -101,6 +101,7 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
       attachments: false,
       feedback: false,
       queue: false,
+      answerToolCall: false,
     });
   });
 

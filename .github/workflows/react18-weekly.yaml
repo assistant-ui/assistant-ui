@@ -1,0 +1,96 @@
+name: React 18 Peer Tests
+
+# Packages whose react peer range is ^18 || ^19 run React 19 on every PR; React 18 runs here, weekly and on demand.
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "turbo filter arguments, e.g. --filter=@assistant-ui/react (default: every package with React 18 scripts)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  react18:
+    name: React 18
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check published declarations against React 18
+        id: types
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          PACKAGES: ${{ inputs.packages }}
+        # PACKAGES is split on purpose, so it can carry several --filter arguments.
+        run: pnpm turbo run test:types:peer-react18 --continue $PACKAGES
+
+      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner; the builds above keep turbo's default concurrency.
+      - name: Run tests on React 18
+        id: tests
+        if: ${{ !cancelled() }}
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          PACKAGES: ${{ inputs.packages }}
+        run: pnpm turbo run test:peer-react18 --concurrency=1 --continue $PACKAGES
+
+      # Only scheduled runs report, so a dispatch against a work-in-progress branch never opens or closes the issue.
+      - name: Report to the tracking issue
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          FAILED: ${{ steps.types.outcome == 'failure' || steps.tests.outcome == 'failure' }}
+        with:
+          script: |
+            const label = "react18-weekly";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo,
+              labels: label,
+              state: "open",
+              per_page: 1,
+            });
+            const issue = open[0];
+            if (process.env.FAILED === "true") {
+              const body = `The weekly React 18 run failed: ${runUrl}`;
+              if (issue) {
+                await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body });
+              } else {
+                await github.rest.issues.create({
+                  ...context.repo,
+                  title: "React 18 peer tests are failing",
+                  body: `${body}\n\nThe next passing weekly run closes this issue.`,
+                  labels: [label],
+                });
+              }
+            } else if (issue) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: `The weekly React 18 run passed again: ${runUrl}`,
+              });
+              await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: "closed" });
+            }

@@ -48,6 +48,23 @@ describe("checkout wire state", () => {
     expect(parseCheckoutState(state)).toBe(state);
   });
 
+  it("passes a multiple choice and its array answer through", () => {
+    const state = {
+      ...full(),
+      inputs: [
+        {
+          ...input,
+          options: [{ id: "slack", label: "Slack" }],
+          multiple: true,
+          status: "answered",
+          answer: '["slack","Discord"]',
+          answeredAt: 6,
+        },
+      ],
+    };
+    expect(parseCheckoutState(state)).toBe(state);
+  });
+
   it("treats a missing snapshot as still loading", () => {
     expect(parseCheckoutState(undefined)).toBeUndefined();
   });
@@ -57,6 +74,7 @@ describe("checkout wire state", () => {
     ["a list that is not a list", { ...full(), inputs: null }],
     ["a list entry that is not an object", { ...full(), steps: ["s1"] }],
     ["an unknown status", { ...full(), status: "paid" }],
+    ["a checkout id that is not a string", { ...full(), id: 3 }],
     ["a missing agent", { ...full(), agent: null }],
     [
       "options that are not a list",
@@ -65,6 +83,10 @@ describe("checkout wire state", () => {
     [
       "an option without a label",
       { ...full(), inputs: [{ ...input, options: [{ id: "x" }] }] },
+    ],
+    [
+      "a multiple flag that is not true",
+      { ...full(), inputs: [{ ...input, multiple: "yes" }] },
     ],
     [
       "a step without a title",

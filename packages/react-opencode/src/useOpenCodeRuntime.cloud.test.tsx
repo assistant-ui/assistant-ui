@@ -138,8 +138,9 @@ describe("useOpenCodeRuntime cloud", () => {
       }),
     );
 
+    const client = createClient();
     const App = () => {
-      useOpenCodeRuntime({ client: createClient(), cloud });
+      useOpenCodeRuntime({ client, cloud });
       return null;
     };
 
@@ -159,8 +160,9 @@ describe("useOpenCodeRuntime cloud", () => {
     });
     mocks.sessionDelete.mockRejectedValue(failure);
 
+    const client = createClient();
     const App = () => {
-      useOpenCodeRuntime({ client: createClient(), cloud });
+      useOpenCodeRuntime({ client, cloud });
       return null;
     };
 

@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearCart, getCart, replaceCart } from "@/lib/catalog/cart-store";
+import {
+  clearCart,
+  getCart,
+  getCartInstructions,
+  replaceCart,
+  setCartInstructions,
+} from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
 
 const mocks = vi.hoisted(() => ({
@@ -22,9 +28,6 @@ vi.mock("next/navigation", async (importOriginal) => ({
 vi.mock("@/hooks/use-hydrated", () => ({
   useHydrated: () => mocks.hydrated,
 }));
-vi.mock("@/components/shared/checkout-provider", () => ({
-  useCheckout: () => null,
-}));
 vi.mock("@/lib/checkout/session-store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/checkout/session-store")>()),
   useCheckoutSession: () => mocks.session,
@@ -39,6 +42,30 @@ afterEach(() => {
 });
 
 describe("CartView", () => {
+  it.each(["statewire", "harness-sdk"])(
+    "makes the %s build brief visible and retains notes",
+    (slug) => {
+      replaceCart(["cloud", slug]);
+      setCartInstructions("Preserve our existing routes.");
+      render(<CartView />);
+      const brief = screen.getByRole("textbox", {
+        name: "What do you want to build?",
+      });
+      expect(brief).toHaveProperty("value", "Preserve our existing routes.");
+      fireEvent.change(brief, {
+        target: {
+          value: "Preserve our existing routes. Add a shared task board.",
+        },
+      });
+      expect(getCartInstructions()).toBe(
+        "Preserve our existing routes. Add a shared task board.",
+      );
+      expect(
+        screen.queryByRole("textbox", { name: "Special instructions" }),
+      ).toBeNull();
+    },
+  );
+
   it("waits for hydration before rendering the cart shell", () => {
     mocks.hydrated = false;
 
@@ -55,6 +82,21 @@ describe("CartView", () => {
     render(<CartView />);
 
     expect(getCart()).toEqual(["cloud"]);
+  });
+
+  it("holds Start setup while a session is stored, before its connection reports", () => {
+    replaceCart(["cloud", "agent-tools"]);
+    mocks.session = { id: "stale", products: ["react-app"], startedAt: 1 };
+
+    render(<CartView />);
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "Setup is in progress",
+    );
+    const start = screen.getByRole("button", { name: "Start setup" });
+    expect(start).toHaveProperty("disabled", true);
+    fireEvent.click(start);
+    expect(getCart()).toEqual(["cloud", "agent-tools"]);
   });
 
   it("leaves the cart alone when a shared link has no known products", () => {

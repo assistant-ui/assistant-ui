@@ -17,14 +17,16 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/react";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
+import { toOpenCodeQuestionAnswers } from "./openCodeQuestionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import {
@@ -152,8 +154,9 @@ const useOpenCodeThreadStore = (
     invokeErrorCallback(options.onError, error);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
+    // oxlint-disable-next-line react/rules-of-hooks -- useReplaySafeEffect runs this callback inside useEffect
     void controller.load().catch(onLoadError);
   }, [controller]);
 
@@ -218,10 +221,25 @@ const useOpenCodeThreadStore = (
       },
       onRespondToToolApproval: async (response) => {
         try {
-          await controller.replyToPermission(
-            response.approvalId,
-            toOpenCodePermissionResponse(response),
-          );
+          const question =
+            state.interactions.questions.pending[response.approvalId];
+          if (question) {
+            if (!response.approved) {
+              await controller.rejectQuestion(response.approvalId);
+            } else if (response.answers) {
+              await controller.replyToQuestion(
+                response.approvalId,
+                toOpenCodeQuestionAnswers(question, response.answers),
+              );
+            } else {
+              throw new Error("OpenCode question approval requires answers");
+            }
+          } else {
+            await controller.replyToPermission(
+              response.approvalId,
+              toOpenCodePermissionResponse(response),
+            );
+          }
         } catch (error) {
           invokeErrorCallback(options.onError, error);
           throw error;
@@ -383,23 +401,31 @@ export const useOpenCodeRuntime = (
   options: OpenCodeRuntimeOptions = {},
 ): AssistantRuntime => {
   const baseUrl = options.baseUrl ?? "http://localhost:4096";
-  const client = useMemo(
-    () => options.client ?? createOpencodeClient({ baseUrl }),
-    [baseUrl, options.client],
-  );
-  const registry = useMemo(() => createRegistry(client), [client]);
+  const clientKey = options.client ?? baseUrl;
+  const createPinned = () => {
+    const client = options.client ?? createOpencodeClient({ baseUrl });
+    return {
+      key: clientKey,
+      client,
+      registry: createRegistry(client),
+      adapter: createOpenCodeThreadListAdapter(client),
+    };
+  };
+  const [pinned, setPinned] = useState(createPinned);
+  let current = pinned;
+  if (pinned.key !== clientKey) {
+    current = createPinned();
+    setPinned(current);
+  }
+  const { client, registry, adapter: openCodeAdapter } = current;
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     registry.activate();
     return () => {
       registry.dispose();
     };
   }, [registry]);
 
-  const openCodeAdapter = useMemo(
-    () => createOpenCodeThreadListAdapter(client),
-    [client],
-  );
   const cloudAdapter = useCloudThreadListAdapter({
     cloud: options.cloud,
     sdk: options.cloud ? OPENCODE_SDK : undefined,

@@ -1,7 +1,19 @@
 import remend from "remend";
 import { parseMarkdownIntoBlocks } from "streamdown";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { findRemendWindowStart, tailBoundedRemend } from "../remend";
+
+const mocks = vi.hoisted(() => ({
+  remend: vi.fn<typeof remend>(),
+}));
+
+vi.mock("remend", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("remend")>();
+  return {
+    ...actual,
+    default: mocks.remend.mockImplementation(actual.default),
+  };
+});
 
 const CORPUS = `# Heading one
 
@@ -84,6 +96,242 @@ describe("tailBoundedRemend", () => {
 
   it("keeps comparison escapes after another paragraph starts", () => {
     expect(tailBoundedRemend("- > 25\n\nTail")).toBe("- \\> 25\n\nTail");
+  });
+
+  describe("comparison operators", () => {
+    it.each([
+      ["LF", "\n\n"],
+      ["CRLF", "\r\n\r\n"],
+      ["space-filled LF", "\n   \n"],
+      ["space-filled CRLF", "\r\n   \r\n"],
+      ["tab-filled LF", "\n\t\n"],
+      ["single LF", "\n"],
+      ["single CR", "\r"],
+    ])("does not pair a list comparison across %s", (_, separator) => {
+      for (const marker of ["-", "*", "+", "1.", "2)"]) {
+        for (const operator of [">", ">="]) {
+          const text = `${marker} ${operator}${separator}5`;
+          expect(tailBoundedRemend(text)).toBe(text);
+          const settled = `${text}\n\nTail`;
+          expect(tailBoundedRemend(settled)).toBe(settled);
+          expect(blocksOf(tailBoundedRemend(settled))).toEqual(
+            blocksOf(settled),
+          );
+        }
+      }
+    });
+
+    it.each([
+      ["- >5", "- \\>5"],
+      ["* > 25", "* \\> 25"],
+      ["+ >=$25", "+ \\>=$25"],
+      ["12. >= $25", "12. \\>= $25"],
+      ["2)  >\t5", "2)  \\>\t5"],
+      ["\t- > 5", "\t- \\> 5"],
+      ["   - > 5", "   - \\> 5"],
+      ["00000000001. > 5", "00000000001. \\> 5"],
+      ["- > 5 and > 6", "- \\> 5 and > 6"],
+      ["- > 5 `code`", "- \\> 5 `code`"],
+      ["- > 5 x~y", "- \\> 5 x\\~y"],
+      ["a\u2028- > 5", "a\u2028- \\> 5"],
+      ["- >\u20281. >5", "- \\>\u20281. >5"],
+      ["- >\u2029- >5", "- >\u2029- \\>5"],
+      ["not a list > 5", "not a list > 5"],
+      ["-\t>5", "-\t>5"],
+      ["- \t>5", "- \t>5"],
+      ["- > =5", "- > =5"],
+      ["- >$ 5", "- >$ 5"],
+      ["- >>5", "- >>5"],
+      ["- \\>5", "- \\>5"],
+      ["- >word", "- >word"],
+      ["> 5", "> 5"],
+      ["- - >5", "- - >5"],
+      ["- >+5", "- >+5"],
+      ["- >-5", "- >-5"],
+      ["١. >5", "١. >5"],
+      ["`- > 5`", "`- > 5`"],
+    ])("matches remend on the single line %j", (text, expected) => {
+      expect(remend(text)).toBe(expected);
+      expect(tailBoundedRemend(text)).toBe(expected);
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
+    it("matches remend's single-line whitespace in both comparison positions", () => {
+      for (const code of [
+        9, 11, 12, 32, 0xa0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
+        0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f,
+        0x205f, 0x3000, 0xfeff,
+      ]) {
+        const space = String.fromCharCode(code);
+        const text = `${space}- >=${space}$5`;
+        const expected = `${space}- \\>=${space}$5`;
+        expect(remend(text)).toBe(expected);
+        expect(tailBoundedRemend(text)).toBe(expected);
+      }
+      for (const code of [0x85, 0x180e, 0x200b]) {
+        const space = String.fromCharCode(code);
+        for (const text of [`${space}- >5`, `- >${space}5`]) {
+          expect(remend(text)).toBe(text);
+          expect(tailBoundedRemend(text)).toBe(text);
+        }
+      }
+    });
+
+    it.each([
+      ["a `\n- > 5\n` b\n- > 6", "a `\n- > 5\n` b\n- \\> 6"],
+      ["a \\`\n- > 5", "a \\`\n- \\> 5"],
+    ])("preserves remend's inline code context in %j", (text, expected) => {
+      expect(remend(text)).toBe(expected);
+      expect(tailBoundedRemend(text)).toBe(expected);
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
+    it.each([
+      ["escaped backtick inside an open span", "a `\\`\n- > 5\n` b"],
+      ["span closing before a list line", "a `\\` b\n- > 5"],
+      ["blank line ending a pending span", "a `x\n- > 5\n\n- > 6"],
+    ])("matches remend after %s", (_, text) => {
+      expect(tailBoundedRemend(text)).toBe(remend(text));
+    });
+
+    it.each([
+      ["two-backtick", "``a\n- > 5``"],
+      ["two-backtick with shorter runs", "a ``x`y`\n- > 5`` b"],
+      ["two-backtick with a longer run", "a ``x```\n- > 5`` b"],
+      ["two-backtick closing at line start", "a ``x\n- > 5\n`` b"],
+      ["three-backtick", "a ```x\n- > 5``` b"],
+      ["three-backtick with a shorter run", "a ```x``\n- > 5``` b"],
+      ["three-backtick with a longer run", "a ```x````\n- > 5``` b"],
+      ["three-backtick closing at line start", "a ```x\n- > 5\n``` b`c`"],
+    ])("preserves multiline %s inline code", (_, code) => {
+      const text = `${code}\n- > 6`;
+      const expected = `${code}\n- \\> 6`;
+      expect(tailBoundedRemend(text)).toBe(expected);
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
+    it("keeps indentation after a settled separator", () => {
+      const text = "A\n\n > quote\n\nTail";
+      expect(tailBoundedRemend(text)).toBe(text);
+      expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(text));
+    });
+
+    it("passes a list item's continuation to a custom handler in one call", () => {
+      const calls: string[] = [];
+      const text = "- first\n\n  continuation\n\nTail";
+      const result = tailBoundedRemend(text, {
+        handlers: [
+          {
+            name: "join",
+            handle: (run) => {
+              calls.push(run);
+              return run.replace("- first\n\n  continuation", "- joined");
+            },
+          },
+        ],
+      });
+      expect(calls).toEqual(["- first\n\n  continuation\n\n", "Tail"]);
+      expect(result).toBe("- joined\n\nTail");
+    });
+
+    it("keeps comparison escapes between single tilde and priority 5 custom handlers", () => {
+      const calls: [number, string][] = [];
+      const handlers = [5, 0, 4, 10].map((priority) => ({
+        name: `record-${priority}`,
+        priority,
+        handle: (text: string) => {
+          calls.push([priority, text]);
+          return text;
+        },
+      }));
+      const options = { handlers };
+      expect(tailBoundedRemend("- > 5 x~y\n\nTail", options)).toBe(
+        "- \\> 5 x\\~y\n\nTail",
+      );
+      expect(calls).toEqual([
+        [0, "- > 5 x\\~y\n\n"],
+        [4, "- > 5 x\\~y\n\n"],
+        [5, "- \\> 5 x\\~y\n\n"],
+        [10, "- \\> 5 x\\~y\n\n"],
+        [0, "Tail"],
+        [4, "Tail"],
+        [5, "Tail"],
+        [10, "Tail"],
+      ]);
+      expect(options).toEqual({ handlers });
+      expect(handlers.map(({ priority }) => priority)).toEqual([5, 0, 4, 10]);
+    });
+
+    it("confines comparisons introduced by an earlier handler to their line", () => {
+      const calls: string[] = [];
+      expect(
+        tailBoundedRemend("Draft", {
+          handlers: [
+            { name: "insert", priority: 4, handle: () => "- >\n5" },
+            {
+              name: "record",
+              priority: 5,
+              handle: (text) => {
+                calls.push(text);
+                return text;
+              },
+            },
+          ],
+        }),
+      ).toBe("- >\n5");
+      expect(calls).toEqual(["- >\n5"]);
+    });
+
+    it("keeps link completion's early return after comparison escaping", () => {
+      const calls: string[] = [];
+      const options = {
+        handlers: [
+          {
+            name: "late",
+            handle: (text: string) => {
+              calls.push(text);
+              return text;
+            },
+          },
+        ],
+      };
+      const text = "- > 5 [link";
+      expect(tailBoundedRemend(text, options)).toBe(remend(text, options));
+      expect(calls).toEqual([]);
+    });
+
+    it.each([undefined, true, false])(
+      "disables remend's comparison handler when comparisonOperators is %s",
+      (comparisonOperators) => {
+        const options =
+          comparisonOperators === undefined
+            ? undefined
+            : { comparisonOperators };
+        for (const text of [
+          "- > 5",
+          "- > 5\n\n- > 6",
+          "- > 5\n\n```\ncode\n```\n\n- > 6",
+          "- > 5\n\n```\ncode",
+          "- > 5\n\n$$\nx",
+        ]) {
+          const callStart = mocks.remend.mock.calls.length;
+          const result = tailBoundedRemend(text, options);
+          const calls = mocks.remend.mock.calls.slice(callStart);
+          expect(calls.length).toBeGreaterThan(0);
+          for (const [, callOptions] of calls) {
+            expect(callOptions?.comparisonOperators).toBe(false);
+          }
+          expect(result).toContain(
+            comparisonOperators === false ? "- > 5" : "- \\> 5",
+          );
+          if (text.endsWith("- > 6")) {
+            expect(result).toContain(
+              comparisonOperators === false ? "- > 6" : "- \\> 6",
+            );
+          }
+        }
+      },
+    );
   });
 
   it("respects disabled escapes in earlier paragraphs", () => {
@@ -298,6 +546,249 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(expected);
   });
 
+  describe.each([
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+  ])("HTML containers with %s", (_, newline) => {
+    const lines = (text: string) => text.split("\n").join(newline);
+
+    it.each([
+      ["a quote inside a bullet item", "- > <pre>\n  > a~b\n  > </pre>"],
+      [
+        "an indented quote continuing an ordered item",
+        "1. Intro\n\n    > <pre>\n    > a~b\n    > </pre>",
+      ],
+      ["a tab after a quote marker", ">\t<pre>\n>\ta~b"],
+      ["a dedented root HTML body", "  <pre>\na~b\n</pre>"],
+      [
+        "a setext underline after lazy quoted prose",
+        "> Title\ncontinued\n> ===\n> <span>\n> a~b",
+      ],
+      [
+        "a sibling item after a thematic break and prose",
+        "1. ---\n   text\n2. <span>\n   a~b",
+      ],
+      [
+        "an ordered item after a nested quote ends",
+        "- Intro\n  > words\n  2. <span>\n     a~b",
+      ],
+      [
+        "quotes surrounding a list prefix",
+        "> - > <pre>\n>   > a~b\n>   > </pre>",
+      ],
+      ["a plus item containing a quote", "+ > <pre>\n  > a~b"],
+      ["an asterisk item containing a quote", "* > <pre>\n  > a~b"],
+      [
+        "a parenthesized ordered item containing a quote",
+        "12) > <pre>\n    > a~b",
+      ],
+      ["a tab-padded item containing a quote", "-\t> <pre>\n\t> a~b"],
+      [
+        "a quoted tab-padded item containing a quote",
+        "> -\t> <pre>\n> \t> a~b",
+      ],
+      ["a tab after an indented quote marker", "   >\t<pre>\n   >\ta~b"],
+      ["a tab after optional quote whitespace", "> \t<pre>\n> \ta~b"],
+      ["a dedented quote-local HTML body", ">   <pre>\n> a~b\n> </pre>"],
+      [
+        "a list continuation after a heading and blank line",
+        "10. # Title\n\n    > <span>\n    > a~b",
+      ],
+      [
+        "a list continuation after a thematic break",
+        "10. ---\n    > <span>\n    > a~b",
+      ],
+      [
+        "an HTML continuation at the item's content column",
+        "10. Intro\n\n    <span>\n    a~b",
+      ],
+      [
+        "a quote in a quoted list continuation",
+        "> 1. Intro\n>\n>     > <span>\n>     > a~b",
+      ],
+      ["deeper quote markers in the raw body", "- > <div>\n  > >\n  > a~b"],
+      ["list-shaped text in the raw body", "- > <div>\n  > - > a~b"],
+      ["a self-closing tag after an unquoted value", "- > <x a=b/>\n  > a~b"],
+      ["a new quote after a quoted item ends", "> - Intro\n\n>   <pre>\n> a~b"],
+    ])("protects %s", (_, block) => {
+      expect(tailBoundedRemend(lines(block))).toBe(lines(block));
+      expect(tailBoundedRemend(lines(block + "\n\nTail x~y **bold"))).toBe(
+        lines(block + "\n\nTail x\\~y **bold**"),
+      );
+    });
+
+    it.each([
+      [
+        "lazy quote continuation without an underline",
+        "> Title\ncontinued\n> <span>\n> a~b **bold",
+        "> Title\ncontinued\n> <span>\n> a\\~b **bold**",
+      ],
+      [
+        "an underline in a newly opened quote",
+        "Intro\n> ===\n> <span>\n> a~b **bold",
+        "Intro\n> ===\n> <span>\n> a\\~b **bold**",
+      ],
+      [
+        "an ordered marker interrupting root prose",
+        "Intro\n2. <span>\n   a~b **bold",
+        "Intro\n2. <span>\n   a\\~b **bold**",
+      ],
+      [
+        "an ordered marker interrupting item prose",
+        "1. Intro\n   2. <span>\n      a~b **bold",
+        "1. Intro\n   2. <span>\n      a\\~b **bold**",
+      ],
+      [
+        "four columns without a known item",
+        "    <pre>\na~b **bold",
+        "    <pre>\na\\~b **bold**",
+      ],
+      [
+        "four columns before a quote without a known item",
+        "    > <pre>\n    > a~b **bold",
+        "    > <pre>\n    > a\\~b **bold**",
+      ],
+      [
+        "four extra columns inside an item",
+        "- Intro\n\n      <pre>\n      a~b **bold",
+        "- Intro\n\n      <pre>\n      a\\~b **bold**",
+      ],
+      [
+        "four extra columns before an item's quote",
+        "- Intro\n\n      > <pre>\n      > a~b **bold",
+        "- Intro\n\n      > <pre>\n      > a\\~b **bold**",
+      ],
+      [
+        "excessive marker padding",
+        "-     <pre>\n      a~b **bold",
+        "-     <pre>\n      a\\~b **bold**",
+      ],
+      [
+        "excessive tab padding",
+        "-\t\t<pre>\n        a~b **bold",
+        "-\t\t<pre>\n        a\\~b **bold**",
+      ],
+      [
+        "excessive padding in a quote",
+        "> -     <pre>\n>       a~b **bold",
+        "> -     <pre>\n>       a\\~b **bold**",
+      ],
+      [
+        "a slash inside an unquoted attribute",
+        "- > <x a=b/c>\n  > a~b **bold",
+        "- > <x a=b/c>\n  > a\\~b **bold**",
+      ],
+      [
+        "a list-shaped line in root indented code",
+        "    - Intro\n\n      <pre>\n      a~b **bold",
+        "    - Intro\n\n      <pre>\n      a\\~b **bold**",
+      ],
+      [
+        "a spaced thematic break",
+        "- - -\n    <pre>\na~b **bold",
+        "- - -\n    <pre>\na\\~b **bold**",
+      ],
+    ])("repairs prose with %s", (_, text, expected) => {
+      expect(tailBoundedRemend(lines(text))).toBe(lines(expected));
+    });
+
+    it.each([
+      [
+        "a missing inner quote prefix",
+        "- > <pre>\n  > a~b\n  x~y **bold",
+        "- > <pre>\n  > a~b\n  x\\~y **bold**",
+      ],
+      [
+        "a missing outer quote prefix",
+        "> - > <pre>\n>   > a~b\n  > x~y **bold",
+        "> - > <pre>\n>   > a~b\n  > x\\~y **bold**",
+      ],
+      [
+        "an item dedent",
+        "- > <pre>\n  > a~b\n> x~y **bold",
+        "- > <pre>\n  > a~b\n> x\\~y **bold**",
+      ],
+      [
+        "an HTML continuation leaving its item",
+        "10. Intro\n\n    <pre>\n    a~b\nx~y **bold",
+        "10. Intro\n\n    <pre>\n    a~b\nx\\~y **bold**",
+      ],
+      [
+        "a sibling item",
+        "- > <pre>\n  > a~b\n- x~y **bold",
+        "- > <pre>\n  > a~b\n- x\\~y **bold**",
+      ],
+      [
+        "a quoted sibling item",
+        "> - > <pre>\n>   > a~b\n> - x~y **bold",
+        "> - > <pre>\n>   > a~b\n> - x\\~y **bold**",
+      ],
+      [
+        "a blank line after a known tag",
+        "- > <div>\n  > a~b\n  >\n  > x~y **bold",
+        "- > <div>\n  > a~b\n  >\n  > x\\~y **bold**",
+      ],
+      [
+        "a blank line after a complete tag",
+        "- > <span>\n  > a~b\n  >\n  > x~y **bold",
+        "- > <span>\n  > a~b\n  >\n  > x\\~y **bold**",
+      ],
+      [
+        "a blank line missing its quote prefix",
+        "- > <pre>\n  > a~b\n\n  > x~y **bold",
+        "- > <pre>\n  > a~b\n\n  > x\\~y **bold**",
+      ],
+      [
+        "an explicit raw tag closer",
+        "- > <pre>\n  > a~b\n  > </pre>\n  > x~y **bold",
+        "- > <pre>\n  > a~b\n  > </pre>\n  > x\\~y **bold**",
+      ],
+      [
+        "an explicit comment closer",
+        "- > <!--\n  > a~b\n  > -->\n  > x~y **bold",
+        "- > <!--\n  > a~b\n  > -->\n  > x\\~y **bold**",
+      ],
+      [
+        "an explicit processing instruction closer",
+        "- > <?xml\n  > a~b\n  > ?>\n  > x~y **bold",
+        "- > <?xml\n  > a~b\n  > ?>\n  > x\\~y **bold**",
+      ],
+      [
+        "an explicit declaration closer",
+        "- > <!DOCTYPE html\n  > a~b\n  > >\n  > x~y **bold",
+        "- > <!DOCTYPE html\n  > a~b\n  > >\n  > x\\~y **bold**",
+      ],
+      [
+        "an explicit CDATA closer",
+        "- > <![CDATA[\n  > a~b\n  > ]]>\n  > x~y **bold",
+        "- > <![CDATA[\n  > a~b\n  > ]]>\n  > x\\~y **bold**",
+      ],
+      [
+        "four columns before an enclosing quote marker",
+        "> <pre>\n> a~b\n    > x~y **bold",
+        "> <pre>\n> a~b\n    > x\\~y **bold**",
+      ],
+      [
+        "four extra columns before an item's enclosing quote marker",
+        "- > <pre>\n  > a~b\n      > x~y **bold",
+        "- > <pre>\n  > a~b\n      > x\\~y **bold**",
+      ],
+    ])("ends HTML at %s", (_, text, expected) => {
+      expect(tailBoundedRemend(lines(text))).toBe(lines(expected));
+    });
+
+    it.each([2, 3, 4, 5])(
+      "closes CDATA only after an even run of %i brackets",
+      (count) => {
+        const block = "<![CDATA[\na~b\n" + "]".repeat(count) + ">";
+        const tail = count % 2 === 0 ? "\nx\\~y **bold**" : "\nx~y **bold";
+        expect(tailBoundedRemend(lines(block + "\nx~y **bold"))).toBe(
+          lines(block + tail),
+        );
+      },
+    );
+  });
+
   it("completes the paragraph a lone tag line continues", () => {
     expect(
       tailBoundedRemend(
@@ -412,6 +903,30 @@ describe("tailBoundedRemend", () => {
       `${block}\n\nafter **bold**`,
     );
   });
+
+  it.each([
+    ["backtick fence", "```sh\n      echo a~b\n      ```"],
+    ["display math block", "$$\n      a~b\n      $$"],
+  ])(
+    "protects a %s after dedenting nested list markers and repairs following prose",
+    (_, block) => {
+      const text = `- a\n    - b\n        - c\n    - ${block}\n\nDone **bold`;
+      expect(tailBoundedRemend(text)).toBe(`${text}**`);
+      expect(findRemendWindowStart(text)).toBe(text.indexOf("Done"));
+    },
+  );
+
+  it.each([
+    ["backtick fence", "- > ```sh\n  > echo a~b\n  > ```"],
+    ["display math block", "- > $$\n  > a~b\n  > $$"],
+  ])(
+    "protects a %s opened in a quote after a list marker and repairs following prose",
+    (_, block) => {
+      const text = `${block}\n\nDone **bold`;
+      expect(tailBoundedRemend(text)).toBe(`${text}**`);
+      expect(findRemendWindowStart(text)).toBe(text.indexOf("Done"));
+    },
+  );
 
   it("leaves an open fence on a list marker line untouched", () => {
     const text = "Intro\n\n- ~~~r\n  lm(y~x)\n  a **b";
