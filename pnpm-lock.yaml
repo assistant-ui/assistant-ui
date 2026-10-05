@@ -5830,6 +5830,9 @@ importers:
       '@assistant-ui/tap':
         specifier: ^0.9.21
         version: link:../tap
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -5837,9 +5840,6 @@ importers:
       '@types/node':
         specifier: ^26.6.3
         version: 26.6.3
-      '@types/react':
-        specifier: ^19.3.0
-        version: 19.3.0
       assistant-cloud:
         specifier: workspace:*
         version: link:../cloud
