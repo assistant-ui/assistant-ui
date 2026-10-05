@@ -74,12 +74,17 @@ A workspace owns its threads. A request can read and write only the threads in i
 | 403 | `Anonymous access is not allowed` | Anonymous sessions are disabled for the project. |
 | 404 | `Project not found` | The anonymous route's project does not exist. |
 
-Keep a browser client stable across renders. Creating it in `useMemo`, keyed to the token getter and a stable user or session identifier, preserves its exchanged token cache while replacing the client when its identity changes.
+Keep a browser client stable across renders. Key the token getter to every value that identifies the authenticated scope, such as the user and workspace. The client then preserves its exchanged token cache while that scope is unchanged and is replaced when the token getter changes.
 
 ```tsx title="use-cloud.ts"
+const authToken = useCallback(
+  () => getAuthToken({ userId, workspaceId }),
+  [getAuthToken, userId, workspaceId],
+);
+
 const cloud = useMemo(
   () => new AssistantCloud({ baseUrl, authToken }),
-  [authToken, baseUrl, sessionId],
+  [authToken, baseUrl],
 );
 ```
 

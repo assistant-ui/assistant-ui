@@ -39,6 +39,26 @@ export type AssistantCloudAuthStrategy = {
   invalidate(): void;
 };
 
+type AuthRequestContext = {
+  strategy: object;
+  generation: number;
+};
+
+const authHeaderContexts = new WeakMap<
+  Record<string, string>,
+  AuthRequestContext
+>();
+const requestHeaderContexts = new WeakMap<Headers, AuthRequestContext>();
+
+export const bindAuthRequestHeaders = (
+  requestHeaders: Headers,
+  authHeaders: Record<string, string>,
+): void => {
+  if (requestHeaders.get("Authorization") !== authHeaders.Authorization) return;
+  const context = authHeaderContexts.get(authHeaders);
+  if (context) requestHeaderContexts.set(requestHeaders, context);
+};
+
 const getJwtExpiry = (jwt: string): number => {
   try {
     const parts = jwt.split(".");
@@ -140,7 +160,7 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
       this.tokenExpiry &&
       this.tokenExpiry - currentTime > 30 * 1000
     ) {
-      return { Authorization: `Bearer ${this.cachedToken}` };
+      return this.createAuthHeaders(this.cachedToken);
     }
 
     if (!this.tokenRequest) {
@@ -173,18 +193,39 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
     this.cachedToken = token;
     this.tokenExpiry = tokenExpiry;
 
-    return { Authorization: `Bearer ${token}` };
+    return this.createAuthHeaders(token);
+  }
+
+  private createAuthHeaders(token: string): Record<string, string> {
+    const headers = { Authorization: `Bearer ${token}` };
+    authHeaderContexts.set(headers, {
+      strategy: this,
+      generation: this.generation,
+    });
+    return headers;
   }
 
   public readAuthHeaders(headers: Headers, requestHeaders?: Headers) {
     const requestAuthHeader = requestHeaders?.get("Authorization");
-    if (
-      requestAuthHeader !== null &&
-      requestAuthHeader !== undefined &&
-      requestAuthHeader !==
-        (this.cachedToken ? `Bearer ${this.cachedToken}` : undefined)
-    ) {
-      return;
+    const requestContext = requestHeaders
+      ? requestHeaderContexts.get(requestHeaders)
+      : undefined;
+    if (requestContext) {
+      if (
+        requestContext.strategy !== this ||
+        requestContext.generation !== this.generation
+      ) {
+        return;
+      }
+    } else {
+      if (
+        requestAuthHeader !== null &&
+        requestAuthHeader !== undefined &&
+        requestAuthHeader !==
+          (this.cachedToken ? `Bearer ${this.cachedToken}` : undefined)
+      ) {
+        return;
+      }
     }
 
     const authHeader = headers.get("Authorization");
@@ -364,6 +405,12 @@ const getSharedAnonymousAuthToken = (
   return sharedRequest;
 };
 
+const invalidateSharedAnonymousAuthToken = (baseUrl: string): void => {
+  const storage = getLocalStorage();
+  if (!storage) return;
+  anonymousAuthTokenRequests.get(storage)?.delete(baseUrl);
+};
+
 export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "anon";
 
@@ -467,6 +514,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
   }
 
   public invalidate(): void {
+    invalidateSharedAnonymousAuthToken(this.baseUrl);
     this.jwtStrategy.invalidate();
   }
 }

@@ -203,6 +203,65 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
+  it("starts a new shared anonymous token request after invalidation", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const firstAccessToken = createAccessToken("anonymous-1");
+    const secondAccessToken = createAccessToken("anonymous-2");
+    let resolveFirstResponse: (response: Response) => void = () => {};
+    let resolveSecondResponse: (response: Response) => void = () => {};
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirstResponse = resolve;
+    });
+    const secondResponse = new Promise<Response>((resolve) => {
+      resolveSecondResponse = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(() => secondResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    const firstRequest = strategy.getAuthHeaders();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    strategy.invalidate();
+    const secondRequest = strategy.getAuthHeaders();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    resolveSecondResponse({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: secondAccessToken,
+        refresh_token: { token: "r2", expires_at: "2099-02-01" },
+      }),
+    } as unknown as Response);
+    await expect(secondRequest).resolves.toEqual({
+      Authorization: `Bearer ${secondAccessToken}`,
+    });
+
+    resolveFirstResponse({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: firstAccessToken,
+        refresh_token: refreshToken,
+      }),
+    } as unknown as Response);
+    await expect(firstRequest).resolves.toBe(false);
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${secondAccessToken}`,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("coordinates anonymous token requests across realms", async () => {
     const values = new Map<string, string>();
     installLocalStorage({

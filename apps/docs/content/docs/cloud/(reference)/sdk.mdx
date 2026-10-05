@@ -186,7 +186,7 @@ await cloud.scores.create({
 | `cloud.events.track` | `(event: AssistantCloudEvent) => void` | `POST /events` | Never surfaces delivery failures. |
 | `cloud.events.dispose` | `() => void` | `POST /events` when buffered | Never surfaces delivery failures. |
 | `cloud.auth.tokens.create` | `() => Promise<{ token: string }>` | `POST /auth/tokens` | Both. |
-| `cloud.auth.invalidate` | `() => void` | None | Clears cached browser authentication and pending engagement events. |
+| `cloud.auth.invalidate` | `() => void` | None | Clears cached authentication and pending engagement events. |
 | `cloud.projects.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /projects/threads` | Both. |
 | `cloud.projects.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /projects/threads/{threadId}/messages` | Both. |
 

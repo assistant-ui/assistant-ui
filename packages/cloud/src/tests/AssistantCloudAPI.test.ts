@@ -214,6 +214,56 @@ describe("AssistantCloudAPI", () => {
     });
   });
 
+  it("accepts token rotations from concurrent requests in the same session", async () => {
+    const providerToken = createAccessToken("user-a");
+    const firstInternalToken = createAccessToken("internal-user-a-1");
+    const secondInternalToken = createAccessToken("internal-user-a-2");
+    let resolveFirstResponse: (response: Response) => void = () => {};
+    let resolveSecondResponse: (response: Response) => void = () => {};
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirstResponse = resolve;
+    });
+    const secondResponse = new Promise<Response>((resolve) => {
+      resolveSecondResponse = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(() => secondResponse)
+      .mockResolvedValue({ ok: true, headers: new Headers() } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => providerToken,
+    });
+
+    const firstRequest = api.makeRawRequest("/threads");
+    const secondRequest = api.makeRawRequest("/threads");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    resolveFirstResponse({
+      ok: true,
+      headers: new Headers({
+        Authorization: `Bearer ${firstInternalToken}`,
+      }),
+    } as Response);
+    await firstRequest;
+
+    resolveSecondResponse({
+      ok: true,
+      headers: new Headers({
+        Authorization: `Bearer ${secondInternalToken}`,
+      }),
+    } as Response);
+    await secondRequest;
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock.mock.calls[2]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${secondInternalToken}`,
+    });
+  });
+
   it("returns false from initializeAuth when auth token callback returns null", async () => {
     const api = new AssistantCloudAPI({
       baseUrl: "https://test.example.com",

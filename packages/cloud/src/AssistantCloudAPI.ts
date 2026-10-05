@@ -3,6 +3,7 @@ import {
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
+  bindAuthRequestHeaders,
   normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
@@ -193,7 +194,9 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    this._auth.readAuthHeaders(response.headers, new Headers(headers));
+    const requestHeaders = new Headers(headers);
+    bindAuthRequestHeaders(requestHeaders, authHeaders);
+    this._auth.readAuthHeaders(response.headers, requestHeaders);
 
     if (!response.ok) {
       const text = await response.text();

@@ -89,6 +89,7 @@ describe("AssistantCloudEvents", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
+        status: 204,
         headers: new Headers(),
       } as Response);
     vi.stubGlobal("fetch", fetchMock);
