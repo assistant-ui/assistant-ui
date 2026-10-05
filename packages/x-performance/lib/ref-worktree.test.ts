@@ -10,7 +10,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
+import { createRequire } from "node:module";
+import { delimiter, dirname, join } from "node:path";
 import { distFingerprint, ensureRefWorktree } from "./ref-worktree.mjs";
 
 const mocks = vi.hoisted(() => ({ sha: "", root: "" }));
@@ -108,6 +109,14 @@ describe("ensureRefWorktree", () => {
       }),
     ]);
     expect(existsSync(`${wt}.built`)).toBe(true);
+    const require = createRequire(new URL("../package.json", import.meta.url));
+    for (const dependency of ["react", "react-dom"]) {
+      expect(
+        realpathSync(join(wt, "packages/core/node_modules", dependency)),
+      ).toBe(
+        realpathSync(dirname(require.resolve(`${dependency}/package.json`))),
+      );
+    }
   });
 
   it("does not install or build a trace-only reference", () => {
