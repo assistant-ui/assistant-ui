@@ -28,6 +28,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentPropsWithoutRef,
   type FC,
 } from "react";
@@ -120,39 +121,44 @@ const dateGroupLabel = (
 const startOfLocalDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-const useStartOfToday = () => {
-  const [startOfToday, setStartOfToday] = useState(() =>
-    startOfLocalDay(new Date()),
-  );
-
-  useEffect(() => {
-    let timeout: number;
-    const scheduleNextDay = () => {
-      const now = new Date();
-      setStartOfToday(startOfLocalDay(now));
-      const startOfTomorrow = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + 1,
-      ).getTime();
-      timeout = window.setTimeout(
-        scheduleNextDay,
-        startOfTomorrow - now.getTime(),
-      );
-    };
-    scheduleNextDay();
-    return () => window.clearTimeout(timeout);
-  }, []);
-
-  return startOfToday;
+const subscribeToNextDay = (onDayChange: () => void) => {
+  let timeout: number;
+  const scheduleNextDay = () => {
+    const now = new Date();
+    const startOfTomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    ).getTime();
+    timeout = window.setTimeout(() => {
+      onDayChange();
+      scheduleNextDay();
+    }, startOfTomorrow - now.getTime());
+  };
+  scheduleNextDay();
+  return () => window.clearTimeout(timeout);
 };
+
+const getStartOfToday = () => startOfLocalDay(new Date());
+
+// A server render and hydration see no day start, so a prerender never reads
+// the clock; a client-only mount groups on its first render.
+const getServerStartOfToday = () => undefined;
+
+const useStartOfToday = () =>
+  useSyncExternalStore<number | undefined>(
+    subscribeToNextDay,
+    getStartOfToday,
+    getServerStartOfToday,
+  );
 
 export type ThreadListGroup = { label: string; indices: number[] };
 
 /**
  * Filters the thread list by title and buckets the matches by last activity
- * (Today, Yesterday, Earlier). `groups` is null when no thread carries a
- * date, in which case `filteredIndices` keeps the runtime order.
+ * (Today, Yesterday, Earlier). `groups` is null when no thread carries a date
+ * or while the local day start is unknown during server render and hydration,
+ * in which case `filteredIndices` keeps the runtime order.
  */
 export const useThreadListGroups = (searchQuery = "") => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
@@ -174,7 +180,10 @@ export const useThreadListGroups = (searchQuery = "") => {
             .includes(query),
       )
       .map(({ index }) => index);
-    if (!filteredIndices.some((index) => dates[index])) {
+    if (
+      startOfToday === undefined ||
+      !filteredIndices.some((index) => dates[index])
+    ) {
       return { threadIds, filteredIndices, groups: null };
     }
 

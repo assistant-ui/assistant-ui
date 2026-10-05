@@ -1,5 +1,11 @@
 # @assistant-ui/agent-launcher
 
+## 0.1.17
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.16
 
 ### Patch Changes

@@ -3,7 +3,7 @@ title: Migration from Web
 description: Migrate an existing @assistant-ui/react app to the terminal with React Ink.
 ---
 
-If you already have an assistant-ui web app, most of your code transfers directly. The runtime core is shared between `@assistant-ui/react` and `@assistant-ui/react-ink` via `@assistant-ui/core` — only the UI layer changes.
+If you already have an assistant-ui web app, most of your code transfers directly. The runtime core is shared between `@assistant-ui/react` and `@assistant-ui/react-ink` via `@assistant-ui/core`. Only the UI layer changes.
 
 ## What stays the same
 
@@ -37,10 +37,10 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 ### Keep your runtime hook
 
-Your `useLocalRuntime` setup works as-is — no changes needed:
+Your `useLocalRuntime` setup works as-is:
 
 ```tsx title="hooks/use-app-runtime.ts"
-// This file is identical to your web version
+// Same as your web version, except for the import path
 import { useLocalRuntime, type ChatModelAdapter } from "@assistant-ui/react-ink";
 
 export function useAppRuntime(adapter: ChatModelAdapter) {

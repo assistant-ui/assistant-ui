@@ -43,6 +43,7 @@ export function XuluxHeaderActions({
             variant="outline"
             size="sm"
             className="h-7 gap-1.5 px-2.5 text-xs"
+            aria-label="Templates"
             onClick={onShowTemplates}
           >
             <LayoutGrid className="size-3.5" />
@@ -53,6 +54,7 @@ export function XuluxHeaderActions({
             variant="outline"
             size="sm"
             className="h-7 gap-1.5 px-2.5 text-xs"
+            aria-label="New"
             onClick={onNewChat}
           >
             <Plus className="size-3.5" />

@@ -1,9 +1,10 @@
+import { cacheLife } from "next/cache";
 import { buildMarkdownSitemap, createDiscoveryResponse } from "@/lib/agent-discovery";
 import { design, elementsDocs, examples, source } from "@/lib/source";
 
-export const revalidate = false;
-
-function sitemapDocument() {
+async function sitemapDocument() {
+  "use cache";
+  cacheLife("max");
   return buildMarkdownSitemap([
     { title: "Documentation", pages: source.getPages() },
     { title: "Examples", pages: examples.getPages() },
@@ -12,14 +13,14 @@ function sitemapDocument() {
   ]);
 }
 
-export function GET() {
-  return createDiscoveryResponse(sitemapDocument(), {
+export async function GET() {
+  return createDiscoveryResponse(await sitemapDocument(), {
     contentType: "text/markdown; charset=utf-8",
   });
 }
 
-export function HEAD() {
-  return createDiscoveryResponse(sitemapDocument(), {
+export async function HEAD() {
+  return createDiscoveryResponse(await sitemapDocument(), {
     contentType: "text/markdown; charset=utf-8",
     head: true,
   });

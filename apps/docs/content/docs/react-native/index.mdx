@@ -5,7 +5,7 @@ description: Get assistant-ui running in an Expo or React Native app with your f
 
 ## Quick Start
 
-The fastest way to get started with assistant-ui for React Native. The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread and thread list, including the composer and attachment subcomponents) and the AI SDK runtime wired up.
+The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread and thread list, including the composer and attachment subcomponents) and the AI SDK runtime wired up.
 
 <Steps>
   <Step>
@@ -259,7 +259,7 @@ npx assistant-ui@latest add thread thread-list
 npx expo install --fix
 ```
 
-This writes `components/assistant-ui/elements/{thread,attachment,thread-list}.aui.tsx`, `components/ui/icon.tsx` and `lib/utils.ts`, and installs what they import (`lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `expo-clipboard`, `expo-image-picker`, `expo-image-manipulator`). `npx expo install --fix` aligns those Expo modules with your SDK version. The thread reads safe area insets, so wrap the app in `SafeAreaProvider` from `react-native-safe-area-context` unless Expo Router already provides it.
+This writes `components/assistant-ui/elements/{thread,attachment,thread-list}.aui.tsx` and the elements the thread renders (markdown text, reasoning, file, image, tool fallback), `components/ui/icon.tsx` and `lib/utils.ts`, and installs what they import (`lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `react-native-marked`, `expo-clipboard`, `expo-image-picker`, `expo-image-manipulator`). `npx expo install --fix` aligns those Expo modules with your SDK version. The thread reads safe area insets, so wrap the app in `SafeAreaProvider` from `react-native-safe-area-context` unless Expo Router already provides it.
 
   </Step>
   <Step>

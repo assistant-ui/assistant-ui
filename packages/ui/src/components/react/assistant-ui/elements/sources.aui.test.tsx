@@ -1,7 +1,10 @@
+import { version } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceIcon, Sources } from "./sources.aui";
+
+const onReact18 = version.startsWith("18.");
 
 const imageDescriptors = {
   complete: Object.getOwnPropertyDescriptor(
@@ -71,17 +74,23 @@ describe("SourceIcon", () => {
     expect(screen.getByText("E")).toBeTruthy();
   });
 
-  it("detects the failure even when the caller passes a ref", () => {
-    stubImage(true, 0);
-    const callerRef = vi.fn();
+  // SourceIcon is a plain function component, so React 18 drops a caller's ref.
+  it.skipIf(onReact18)(
+    "detects the failure even when the caller passes a ref",
+    () => {
+      stubImage(true, 0);
+      const callerRef = vi.fn();
 
-    render(<SourceIcon url="https://example.com/reference" ref={callerRef} />);
+      render(
+        <SourceIcon url="https://example.com/reference" ref={callerRef} />,
+      );
 
-    expect(screen.getByText("E")).toBeTruthy();
-    expect(callerRef).toHaveBeenCalledWith(
-      screen.getByText("E") as HTMLSpanElement,
-    );
-  });
+      expect(screen.getByText("E")).toBeTruthy();
+      expect(callerRef).toHaveBeenCalledWith(
+        screen.getByText("E") as HTMLSpanElement,
+      );
+    },
+  );
 });
 
 describe("Sources", () => {
