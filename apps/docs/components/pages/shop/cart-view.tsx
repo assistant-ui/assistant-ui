@@ -5,13 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeftIcon, BotIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SetupLink } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -28,20 +21,11 @@ import {
   useCartInstructions,
   setCartInstructions,
 } from "@/lib/catalog/cart-store";
-import {
-  SHIPPING_METHODS,
-  setShippingMethod,
-  useShippingMethod,
-} from "@/lib/catalog/shipping-store";
+import { AgentMarks } from "@/components/pages/shop/agent-status";
 import { checkoutCart } from "@/lib/checkout/flow";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
-
-const shippingOptions = SHIPPING_METHODS.map((method) => ({
-  value: method.id,
-  label: method.name,
-}));
 
 function ActiveCheckoutBanner() {
   return (
@@ -72,7 +56,6 @@ export function CartView() {
   const slugs = useCart();
   const session = useCheckoutSession();
   const products = resolveProducts(slugs);
-  const shipping = useShippingMethod();
   const instructions = useCartInstructions();
 
   // A shared link restores the cart it describes, then the cart owns the state
@@ -109,6 +92,9 @@ export function CartView() {
   }
 
   const estimate = formatMinutes(estimateAgentMinutes(products));
+  const includesBuildProduct = products.some(
+    (product) => product.slug === "statewire" || product.slug === "harness-sdk",
+  );
 
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-16">
@@ -122,7 +108,7 @@ export function CartView() {
           {products.map((product) => (
             <li
               key={product.slug}
-              className="group/navlink grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-5 gap-y-3 py-6 sm:grid-cols-[auto_minmax(0,1fr)_5rem_4rem] sm:gap-x-8"
+              className="group/navlink grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-5 gap-y-3 py-6 sm:gap-x-8"
             >
               <NavGlyph kind={product.glyph} />
               <div className="min-w-0">
@@ -150,46 +136,68 @@ export function CartView() {
                   Remove
                 </Button>
               </div>
-              <p className="text-muted-foreground text-sm tabular-nums max-sm:col-start-2 sm:text-right">
-                Qty 1
-              </p>
-              <p className="text-sm tabular-nums max-sm:col-start-3 max-sm:row-start-1 sm:text-right">
-                $0.00
-              </p>
             </li>
           ))}
         </ul>
 
-        <details className="group/instructions mt-6">
-          <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex w-fit cursor-pointer list-none items-center gap-2 rounded-md py-2 text-sm focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-            <PlusIcon
-              aria-hidden="true"
-              className="size-4 shrink-0 group-open/instructions:rotate-45"
-            />
-            {instructions.trim()
-              ? "Edit special instructions"
-              : "Add special instructions"}
-          </summary>
-          <div className="pt-2">
+        {includesBuildProduct ? (
+          <div className="mt-6 flex flex-col gap-3">
+            <label
+              htmlFor="product-cart-build"
+              className="text-base font-medium"
+            >
+              What do you want to build?
+            </label>
             <p
-              id="setup-instructions-help"
+              id="product-cart-build-help"
               className="text-muted-foreground text-base sm:text-sm"
             >
-              Your agent will inspect your project and ask about anything it
-              needs.
+              Your agent uses this brief and your existing setup notes to build
+              with the selected products.
             </p>
             <textarea
-              name="setup-instructions"
-              aria-label="Special instructions"
-              aria-describedby="setup-instructions-help"
-              placeholder="Leave this empty unless you have a very specific, unusual requirement."
+              id="product-cart-build"
+              name="product-build"
+              aria-describedby="product-cart-build-help"
+              placeholder="Describe the shared application you want to build."
               value={instructions}
               onChange={(event) => setCartInstructions(event.target.value)}
-              rows={3}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring mt-3 w-full resize-y rounded-xl border bg-transparent px-3 py-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
+              rows={4}
+              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring rounded-control w-full resize-y border bg-transparent px-3 py-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
             />
           </div>
-        </details>
+        ) : (
+          <details className="group/instructions mt-6">
+            <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex w-fit cursor-pointer list-none items-center gap-2 rounded-md py-2 text-sm focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+              <PlusIcon
+                aria-hidden="true"
+                className="size-4 shrink-0 group-open/instructions:rotate-45"
+              />
+              {instructions.trim()
+                ? "Edit special instructions"
+                : "Add special instructions"}
+            </summary>
+            <div className="pt-2">
+              <p
+                id="setup-instructions-help"
+                className="text-muted-foreground text-base sm:text-sm"
+              >
+                Your agent will inspect your project and ask about anything it
+                needs.
+              </p>
+              <textarea
+                name="setup-instructions"
+                aria-label="Special instructions"
+                aria-describedby="setup-instructions-help"
+                placeholder="Leave this empty unless you have a very specific, unusual requirement."
+                value={instructions}
+                onChange={(event) => setCartInstructions(event.target.value)}
+                rows={3}
+                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring mt-3 w-full resize-y rounded-xl border bg-transparent px-3 py-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
+              />
+            </div>
+          </details>
+        )}
       </div>
 
       <aside
@@ -200,46 +208,15 @@ export function CartView() {
           Summary
         </h2>
         <dl className="divide-foreground/10 mt-4 divide-y text-sm">
-          <div className="flex justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Subtotal</dt>
-            <dd className="tabular-nums">$0.00</dd>
-          </div>
-          <div className="flex items-center justify-between gap-4 py-2">
-            <dt className="text-muted-foreground">
-              <label htmlFor="shipping-method">Shipping</label>
-            </dt>
+          <div className="flex items-center justify-between gap-4 py-3">
+            <dt className="text-muted-foreground">Works with</dt>
             <dd>
-              <Select
-                value={shipping.id}
-                onValueChange={(id) => {
-                  if (id !== null) setShippingMethod(id);
-                }}
-                items={shippingOptions}
-              >
-                <SelectTrigger
-                  id="shipping-method"
-                  size="sm"
-                  className="h-7 flex-row-reverse border-0 bg-transparent pr-0 pl-1 shadow-none hover:bg-transparent"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {SHIPPING_METHODS.map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      {method.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AgentMarks className="size-4" />
             </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">
             <dt className="text-muted-foreground">ETA</dt>
             <dd className="tabular-nums">{estimate}</dd>
-          </div>
-          <div className="flex justify-between gap-4 py-3 font-medium">
-            <dt>Total</dt>
-            <dd className="tabular-nums">$0.00</dd>
           </div>
         </dl>
         {session !== null ? (

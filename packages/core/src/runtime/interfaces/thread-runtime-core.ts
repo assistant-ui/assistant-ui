@@ -7,7 +7,7 @@ import type {
   ThreadMessage,
   Unstable_ToolInteraction,
 } from "../../types/message";
-import type { RunConfig } from "../../types/message";
+import type { RunConfig, ToolApprovalAnswer } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
@@ -77,6 +77,8 @@ export type RespondToToolApprovalOptions = {
   optionId?: string;
   /** The free-form answer, when the request asked for one. */
   text?: string;
+  /** The answers to a `display: "questions"` request, keyed by question id. */
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -256,6 +258,15 @@ export type ThreadRuntimeCore = Readonly<{
    */
   isSendDisabled: boolean;
   isLoading: boolean;
+  /** Whether messages exist before the first one; absent on runtimes that load whole threads. */
+  hasEarlier?: boolean;
+  /** Whether a `loadEarlier` call is in flight. */
+  isLoadingEarlier?: boolean;
+  /**
+   * Loads the page before the first message, sharing one in-flight call.
+   * Never rejects: a failed load is logged and ends the load.
+   */
+  loadEarlier?(): Promise<void>;
   /**
    * Optional explicit thread-level running flag. When provided, takes
    * precedence over the last-message-status heuristic. When omitted, falls
