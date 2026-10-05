@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useAuiState } from "@assistant-ui/vue";
+import {
+  PartByIndexProvider,
+  useAui,
+  useAuiState,
+  useScrollLock,
+} from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
 import {
   CollapsibleContent,
@@ -10,16 +15,53 @@ import {
 import { BrainIcon, ChevronDownIcon } from "@lucide/vue";
 import MarkdownText from "./markdown-text.vue";
 
-const streaming = useAuiState(
-  (s) =>
-    s.message.status?.type === "running" && s.part.status.type === "running",
+const aui = useAui();
+const index = useAuiState(() => {
+  const query = aui.part.query;
+  return query && "index" in query && typeof query.index === "number"
+    ? query.index
+    : -1;
+});
+const end = useAuiState((s) => {
+  const parts = s.message.parts;
+  const start = index.value;
+  if (
+    parts[start]?.type !== "reasoning" ||
+    parts[start - 1]?.type === "reasoning"
+  )
+    return start;
+  let last = start + 1;
+  while (parts[last]?.type === "reasoning") last++;
+  return last;
+});
+const indices = computed(() =>
+  Array.from(
+    { length: end.value - index.value },
+    (_, offset) => index.value + offset,
+  ),
 );
+const streaming = useAuiState((s) => {
+  if (s.message.status?.type !== "running") return false;
+  for (let partIndex = index.value; partIndex < end.value; partIndex++) {
+    if (s.message.parts[partIndex]?.status.type === "running") return true;
+  }
+  return false;
+});
 
 const userOpen = ref<boolean | null>(null);
 const open = computed(() => userOpen.value ?? streaming.value);
+const collapsibleRoot = ref<InstanceType<typeof CollapsibleRoot> | null>(null);
+const collapsible = computed<HTMLElement | null>(
+  () => collapsibleRoot.value?.$el ?? null,
+);
+const lockScroll = useScrollLock(collapsible, 200);
 const setOpen = (value: boolean) => {
+  lockScroll();
   userOpen.value = value;
 };
+watch(streaming, () => {
+  if (userOpen.value === null) lockScroll();
+});
 
 const preview = computed(() => streaming.value && open.value);
 const scroller = ref<HTMLElement | null>(null);
@@ -69,6 +111,8 @@ watch(
 
 <template>
   <CollapsibleRoot
+    v-if="indices.length"
+    ref="collapsibleRoot"
     :open="open"
     data-slot="aui_reasoning-root"
     class="group/reasoning-root mb-4 w-full rounded-lg border px-3 py-2"
@@ -103,7 +147,13 @@ watch(
         class="relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed text-pretty"
       >
         <div ref="content">
-          <MarkdownText />
+          <PartByIndexProvider
+            v-for="partIndex in indices"
+            :key="partIndex"
+            :index="partIndex"
+          >
+            <MarkdownText />
+          </PartByIndexProvider>
         </div>
       </div>
       <div
