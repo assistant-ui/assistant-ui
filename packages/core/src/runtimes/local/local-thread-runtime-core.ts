@@ -155,15 +155,6 @@ const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   return hasInteractions ? { ...message, content } : message;
 };
 
-type QueueDispatch = { started: boolean };
-type LocalRun = {
-  // A cancelled run's settle is owed only to the queue whose notifyCancelled
-  // reserved it; a queue created since never counts on it.
-  cancelledBy: MessageQueueController | null;
-  settled: boolean;
-  resumedFromPause: boolean;
-};
-
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -192,18 +183,13 @@ export class LocalThreadRuntimeCore
   // Identifies the dispatch in flight, not merely that one is: consecutive
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
-  private _queueRunInFlight: QueueDispatch | null = null;
-  private _startingDispatch: QueueDispatch | null = null;
-  private _activeRun: LocalRun | null = null;
-  private _settlingRuns = new Set<LocalRun>();
-  private _parkedCancelledRun: LocalRun | null = null;
-  // appends not sent through the queue whose run has not started yet
-  private _waitingAppends = new Set<QueueDispatch>();
-  // A queue enabled while appends waited to start stays busy for them, the way
-  // it does for a queued send that has not started, until the last of them
-  // starts its run or ends without one.
-  private _queueHeldByAppends: MessageQueueController | null = null;
-  private _runGeneration = 0;
+  private _queueRunInFlight: object | null = null;
+  private _activeRun: object | null = null;
+  // The queue hears busy and idle only when _isQueueBusy() changes;
+  // _queueBusy is what this controller was last told.
+  private _queueBusy = false;
+  // a Stop paused the queue while busy and its settle has not been spent
+  private _queueCancelReserved = false;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
@@ -478,36 +464,26 @@ export class LocalThreadRuntimeCore
         run: (message) => {
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
-          const dispatch: QueueDispatch = { started: false };
+          const dispatch = {};
           this._queueRunInFlight = dispatch;
           // the tail may have moved since the message was enqueued
-          void this._runAppend(
-            {
-              ...message,
-              parentId: this._resolveAppendParent(
-                this.messages.at(-1)?.id ?? null,
-              ),
-            },
-            dispatch,
-          )
+          void this._runAppend({
+            ...message,
+            parentId: this._resolveAppendParent(
+              this.messages.at(-1)?.id ?? null,
+            ),
+          })
             .finally(() => {
-              if (this._queueRunInFlight !== dispatch) return;
-              this._queueRunInFlight = null;
-              // A dispatch that never started its run settles here, unless an
-              // active run's settle will; a run that did start releases from
-              // _runLoop. This settle also carries a parked cancelled run's.
-              if (!dispatch.started && this._activeRun === null) {
-                this._parkedCancelledRun = null;
-                this._queue?.notifyIdle();
-              }
+              if (this._queueRunInFlight === dispatch)
+                this._queueRunInFlight = null;
             })
             .catch(() => {});
         },
       });
       if (this.voice) this._queue.hold();
-      if (this._waitingAppends.size > 0) this._queueHeldByAppends = this._queue;
-      if (this._activeRun || this._queueHeldByAppends === this._queue)
-        this._queue.notifyBusy();
+      this._queueBusy = false;
+      this._queueCancelReserved = false;
+      this._syncQueue();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -706,49 +682,55 @@ export class LocalThreadRuntimeCore
     return this._pendingAppends > 0 || super._isRunActive();
   }
 
-  private _owesCancelSettle(run: LocalRun): boolean {
-    return (
-      run.cancelledBy !== null &&
-      run.cancelledBy === this._queue &&
-      !run.settled
-    );
+  // appends that have not reached their run yet
+  private _appendsBeforeRun = 0;
+
+  private _isQueueBusy(): boolean {
+    return this._appendsBeforeRun > 0 || this._activeRun !== null;
   }
 
-  private async _runAppend(
-    rawMessage: AppendMessage,
-    dispatch?: QueueDispatch,
-  ): Promise<void> {
-    const start = dispatch ?? { started: false };
-    if (!dispatch) this._waitingAppends.add(start);
-    this._pendingAppends += 1;
-    try {
-      await this._runAppendInner(rawMessage, start);
-    } finally {
-      this._pendingAppends -= 1;
-      if (this._waitingAppends.delete(start)) this._releaseAppendHold();
+  private _syncQueue() {
+    const queue = this._queue;
+    if (!queue) return;
+    const busy = this._isQueueBusy();
+    if (busy && !this._queueBusy) {
+      this._queueBusy = true;
+      queue.notifyBusy();
+    } else if (!busy && this._queueBusy) {
+      // deferred so the next send starts after this run's teardown, and a
+      // run started in the same tick keeps the queue busy
+      queueMicrotask(() => {
+        if (this._queue !== queue || !this._queueBusy) return;
+        if (this._isQueueBusy()) return;
+        this._queueBusy = false;
+        this._queueCancelReserved = false;
+        queue.notifyIdle();
+      });
     }
   }
 
-  private _appendsHoldQueue(): boolean {
-    return (
-      this._queueHeldByAppends !== null &&
-      this._queueHeldByAppends === this._queue
-    );
-  }
-
-  private _releaseAppendHold() {
-    const queue = this._queueHeldByAppends;
-    if (this._waitingAppends.size > 0 || !queue || queue !== this._queue)
-      return;
-    this._queueHeldByAppends = null;
-    if (this._activeRun !== null) return;
-    this._parkedCancelledRun = null;
-    queue.notifyIdle();
+  private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    this._pendingAppends += 1;
+    this._appendsBeforeRun += 1;
+    let beforeRun = true;
+    const reachRun = () => {
+      if (!beforeRun) return;
+      beforeRun = false;
+      this._appendsBeforeRun -= 1;
+    };
+    this._syncQueue();
+    try {
+      await this._runAppendInner(rawMessage, reachRun);
+    } finally {
+      this._pendingAppends -= 1;
+      reachRun();
+      this._syncQueue();
+    }
   }
 
   private async _runAppendInner(
     rawMessage: AppendMessage,
-    dispatch: QueueDispatch,
+    reachRun: () => void,
   ): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
@@ -821,17 +803,15 @@ export class LocalThreadRuntimeCore
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
-      // startRun must reach _runLoop with no await in between, because only
-      // _runLoop marks the dispatch started.
-      this._startingDispatch = dispatch;
-      const runPromise = this.startRun({
-        parentId: newMessage.id,
-        sourceId: message.sourceId,
-        runConfig: message.runConfig ?? {},
-      });
-      this._startingDispatch = null;
+      // startRun reaches _runLoop synchronously, which marks the run active
+      // before the queue can see this append leave
+      reachRun();
       const [runResult, historyResult] = await Promise.allSettled([
-        runPromise,
+        this.startRun({
+          parentId: newMessage.id,
+          sourceId: message.sourceId,
+          runConfig: message.runConfig ?? {},
+        }),
         historyWrite,
       ]);
       if (runResult.status === "rejected") throw runResult.reason;
@@ -969,43 +949,24 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
-    const dispatch = this._startingDispatch;
-    this._startingDispatch = null;
-    if (dispatch) {
-      dispatch.started = true;
-      if (
-        this._waitingAppends.delete(dispatch) &&
-        this._waitingAppends.size === 0
-      )
-        this._queueHeldByAppends = null;
-    }
     this._notifyEventSubscribers("runStart", {});
 
-    const replaced = this._activeRun ?? this._parkedCancelledRun;
-    this._parkedCancelledRun = null;
-    const run: LocalRun = {
-      cancelledBy: null,
-      settled: false,
+    const run = {
       resumedFromPause: message.status.type === "requires-action",
     };
     this._activeRun = run;
-    this._runGeneration++;
 
     let active = false;
     try {
-      // mark busy for runs not started through the queue (regenerate, resume)
-      this._queue?.notifyBusy();
-      // A cancelled run replaced before it settles, or parked when it ended
-      // while a queued send waited to start, settles now, once this run is
-      // busy, so the queue neither counts this run's settle in its place
-      // nor dispatches in between. This notifyIdle is always swallowed:
-      // cancelRun tags a run with the queue only after that queue's
-      // notifyCancelled reserved its settle, and notifyBusy above turned that
-      // reservation into suppressIdle.
-      if (replaced && this._owesCancelSettle(replaced)) {
-        replaced.settled = true;
-        this._queue?.notifyIdle();
+      // A run start re-arms a queue a Stop paused. The Stop's reserved
+      // settle would otherwise be absorbed by notifyBusy and leave the queue
+      // busy, so it is spent here and the queue stays busy for this run.
+      if (this._queueCancelReserved && this._queue) {
+        this._queueCancelReserved = false;
+        this._queue.notifyBusy();
+        this._queue.notifyIdle();
       }
+      this._syncQueue();
       this._suggestions = [];
       this._suggestionsController?.abort();
       this._suggestionsController = null;
@@ -1033,36 +994,9 @@ export class LocalThreadRuntimeCore
       );
     } finally {
       this._notifyEventSubscribers("runEnd", {});
-      // the settle belongs to this run only while it is still the active run
-      // or was cancelled (the engine expects a cancelled run's settle); a run
-      // superseded by a newer one stays silent
       active = this._activeRun === run;
       if (active) this._activeRun = null;
-      const pendingDispatch = this._queueRunInFlight;
-      // a queued send or a holding append that has not started its run
-      // carries the settle instead
-      if (
-        (active || this._owesCancelSettle(run)) &&
-        (pendingDispatch === null || pendingDispatch.started) &&
-        !this._appendsHoldQueue()
-      ) {
-        const generation = this._runGeneration;
-        this._settlingRuns.add(run);
-        queueMicrotask(() => {
-          this._settlingRuns.delete(run);
-          // a run or queued send started since carries the settle, except a
-          // cancelled run's, which the queue counts on
-          if (
-            this._owesCancelSettle(run) ||
-            (this._runGeneration === generation &&
-              (this._queueRunInFlight === null ||
-                this._queueRunInFlight === pendingDispatch))
-          )
-            this._queue?.notifyIdle();
-        });
-      } else if (this._owesCancelSettle(run)) {
-        this._parkedCancelledRun = run;
-      }
+      this._syncQueue();
     }
 
     if (
@@ -1095,7 +1029,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
-    run: LocalRun,
+    run: { resumedFromPause: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
@@ -1472,16 +1406,8 @@ export class LocalThreadRuntimeCore
       if (this._options.unstable_queueClearOnCancel ?? true) {
         this._queue.clear();
       } else {
-        // Only an active or settling run delivers a cancel settle. Reserving
-        // one for a queued send still waiting to start would make that send's
-        // run start swallow its own settle and leave the queue busy.
-        if (this._activeRun) {
-          this._queue.notifyCancelled();
-          this._activeRun.cancelledBy = this._queue;
-        } else if (this._settlingRuns.size > 0) {
-          this._queue.notifyCancelled();
-          for (const run of this._settlingRuns) run.cancelledBy = this._queue;
-        }
+        this._queue.notifyCancelled();
+        if (this._queueBusy) this._queueCancelReserved = true;
       }
     }
     const error = new AbortError(false);
