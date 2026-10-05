@@ -44,6 +44,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       globalThis,
       "localStorage",
     );
+    vi.stubGlobal("navigator", {});
   });
 
   afterEach(() => {
@@ -216,6 +217,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     } as Storage);
     const firstAccessToken = createAccessToken("anonymous-1");
     const secondAccessToken = createAccessToken("anonymous-2");
+    const secondRefreshToken = {
+      token: "r2",
+      expires_at: "2099-02-01",
+    };
     let resolveFirstResponse: (response: Response) => void = () => {};
     let resolveSecondResponse: (response: Response) => void = () => {};
     const firstResponse = new Promise<Response>((resolve) => {
@@ -241,7 +246,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       ok: true,
       json: vi.fn().mockResolvedValue({
         access_token: secondAccessToken,
-        refresh_token: { token: "r2", expires_at: "2099-02-01" },
+        refresh_token: secondRefreshToken,
       }),
     } as unknown as Response);
     await expect(secondRequest).resolves.toEqual({
@@ -260,6 +265,9 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       Authorization: `Bearer ${secondAccessToken}`,
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(values.get(refreshTokenKey)).toBe(
+      JSON.stringify(secondRefreshToken),
+    );
   });
 
   it("coordinates anonymous token requests across realms", async () => {
