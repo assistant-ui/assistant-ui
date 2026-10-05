@@ -165,6 +165,48 @@ describe("mcp command", () => {
     },
   );
 
+  it("keeps an inline comment with its existing server and follows tab indentation", async () => {
+    const configPath = path.join(tempDir, ".vscode", "mcp.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(
+      configPath,
+      `{
+\t"servers": {
+\t\t"other": { "command": "custom" } // Keep this with other
+\t}
+}
+`,
+    );
+
+    await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+
+    const updated = fs.readFileSync(configPath, "utf-8");
+    expect(updated).toContain(
+      `\t\t"other": { "command": "custom" }, // Keep this with other
+\t\t"assistant-ui": {
+\t\t\t"type": "http",`,
+    );
+    expect(parseJsonc(updated).servers.other).toEqual({ command: "custom" });
+  });
+
+  it("formats a new server inside an empty object with the surrounding indentation", async () => {
+    const configPath = path.join(tempDir, ".vscode", "mcp.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, '{\n    "servers": {}\n}\n');
+
+    await mcp.parseAsync(["node", "mcp", "--vscode"], { from: "node" });
+
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(`{
+    "servers": {
+        "assistant-ui": {
+            "type": "http",
+            "url": "${HOSTED_MCP_URL}"
+        }
+    }
+}
+`);
+  });
+
   it("replaces the VS Code assistant-ui entry without rewriting unrelated settings", async () => {
     const configPath = path.join(tempDir, ".vscode", "mcp.json");
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
