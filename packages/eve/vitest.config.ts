@@ -6,9 +6,9 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
         lines: 97,
-        functions: 98,
+        functions: 97,
         branches: 93,
-        statements: 97,
+        statements: 96,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },

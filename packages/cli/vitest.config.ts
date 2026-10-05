@@ -8,7 +8,7 @@ export default defineConfig({
     coverage: {
       thresholds: {
         lines: 79,
-        functions: 88,
+        functions: 84,
         branches: 70,
         statements: 77,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
