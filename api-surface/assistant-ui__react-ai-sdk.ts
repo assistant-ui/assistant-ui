@@ -10,9 +10,7 @@ import { ComponentType, ReactNode } from "react";
 
 declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKChatOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
 
-type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
-  transport?: ChatTransport<UI_MESSAGE> | undefined;
-};
+type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
 
 type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
