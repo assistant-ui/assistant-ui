@@ -2928,6 +2928,9 @@ importers:
       '@assistant-ui/tap':
         specifier: workspace:*
         version: link:../../packages/tap
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@assistant-ui/vue':
         specifier: workspace:*
         version: link:../../packages/vue
