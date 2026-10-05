@@ -1576,9 +1576,12 @@ const convertElement = (
         context,
       );
       const defaultValue = props["defaultValue"];
+      const multiline =
+        props["multiline"] === true &&
+        (props["inputType"] === undefined || props["inputType"] === "text");
       const dispatchAction =
         !context.inForm &&
-        props["multiline"] !== true &&
+        !multiline &&
         typeof element.action?.type === "string" &&
         element.action.type.length > 0;
       return [
@@ -1597,10 +1600,7 @@ const convertElement = (
                   },
                 }
               : {}),
-            ...(props["multiline"] === true &&
-            (props["inputType"] === undefined || props["inputType"] === "text")
-              ? { multiline: true }
-              : {}),
+            ...(multiline ? { multiline: true } : {}),
             ...(typeof defaultValue === "string" && defaultValue
               ? { initial_value: defaultValue }
               : {}),

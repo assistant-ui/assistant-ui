@@ -601,6 +601,33 @@ describe("toSlackBlocks", () => {
       },
     );
 
+    it("enables Enter actions when multiline is ignored for a number input", () => {
+      const { blocks, warnings } = toSlackBlocks(
+        {
+          $type: "Input",
+          inputType: "number",
+          multiline: true,
+          $action: { type: "save_quantity" },
+        },
+        { surface: "modal" },
+      );
+
+      expect(warnings).toEqual([]);
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        dispatch_action: true,
+        element: {
+          action_id: "save_quantity",
+          dispatch_action_config: {
+            trigger_actions_on: ["on_enter_pressed"],
+          },
+        },
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "multiline",
+      );
+    });
+
     it.each([undefined, null, {}, { type: "" }, { type: 42 }])(
       "keeps an input without an actionable type passive: %j",
       ($action) => {
