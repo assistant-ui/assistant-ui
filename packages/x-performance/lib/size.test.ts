@@ -13,6 +13,7 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
+  BASE_INSTALL_FILTERS,
   compareSizes,
   diffSizes,
   listEntries,
@@ -58,6 +59,26 @@ vi.mock("./ref-worktree.mjs", async (importOriginal) => {
 });
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+describe("base install filters", () => {
+  it("cover every workspace targeted by the root prepare hook", () => {
+    const rootPackage = JSON.parse(
+      readFileSync(join(repoRoot, "package.json"), "utf8"),
+    ) as { scripts?: { prepare?: string } };
+    const prepareTargets = [
+      ...(rootPackage.scripts?.prepare ?? "").matchAll(
+        /\bpnpm\s+--filter(?:=|\s+)([^\s]+)/g,
+      ),
+    ].map((match) => match[1]);
+
+    expect(prepareTargets.length).toBeGreaterThan(0);
+    expect(BASE_INSTALL_FILTERS).toEqual(
+      expect.arrayContaining(
+        prepareTargets.map((target) => `--filter=${target}...`),
+      ),
+    );
+  });
+});
 
 const distFile = (subpath: string) =>
   `${subpath === "." ? "index" : subpath.slice(2)}.js`;

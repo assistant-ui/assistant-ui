@@ -11,6 +11,11 @@ import { gzipSync } from "node:zlib";
 import { ensureRefWorktree } from "./ref-worktree.mjs";
 import { envStamp, git } from "./suite.mjs";
 
+export const BASE_INSTALL_FILTERS = [
+  "--filter=.",
+  "--filter=@assistant-ui/react-devtools...",
+];
+
 export const SIZE_IGNORE = new Set([
   "assistant-ui",
   "create-assistant-ui",
@@ -243,8 +248,7 @@ export const compareSizes = async ({ root, ref, report }) => {
     "pnpm",
     [
       "install",
-      "--filter=.",
-      "--filter=@assistant-ui/react-devtools...",
+      ...BASE_INSTALL_FILTERS,
       ...baseNames.map((name) => `--filter=${name}...`),
     ],
     {
