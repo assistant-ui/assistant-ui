@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, watchEffect } from "vue";
-import { useAui, useAuiState, type ToolUIProps } from "@assistant-ui/vue";
+import {
+  useAui,
+  useAuiState,
+  useScrollLock,
+  type ToolUIProps,
+} from "@assistant-ui/vue";
 import {
   toolApprovalAcceptsText,
   type ToolApprovalAnswer,
@@ -165,6 +170,15 @@ const duration = computed(() => {
 });
 
 const open = ref(requiresAction.value);
+const collapsibleRoot = ref<InstanceType<typeof CollapsibleRoot> | null>(null);
+const collapsible = computed<HTMLElement | null>(
+  () => collapsibleRoot.value?.$el ?? null,
+);
+const lockScroll = useScrollLock(collapsible, 200);
+const setOpen = (value: boolean) => {
+  lockScroll();
+  open.value = value;
+};
 watch(requiresAction, (value) => {
   if (value) open.value = true;
 });
@@ -440,7 +454,9 @@ const sendAnswers = () => {
 <template>
   <CollapsibleRoot
     v-if="part"
-    v-model:open="open"
+    ref="collapsibleRoot"
+    :open="open"
+    @update:open="setOpen"
     data-slot="aui_tool-fallback-root"
     class="w-full"
   >
