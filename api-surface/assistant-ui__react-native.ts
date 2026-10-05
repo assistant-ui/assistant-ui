@@ -1460,6 +1460,7 @@ type CreateStartRunConfig = {
 };
 
 type CreateSuggestionAdapterOptions = {
+  key?: string | number | symbol | undefined;
   complete: (options: {
     prompt: string;
     signal?: AbortSignal;
@@ -3317,6 +3318,7 @@ type SubscribableWithState<TState, TPath> = Subscribable & {
 };
 
 type SuggestionAdapter = {
+  key?: string | number | symbol | undefined;
   generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion$1[]> | AsyncGenerator<readonly ThreadSuggestion$1[], void>;
 };
 

@@ -1832,15 +1832,35 @@ describe("useAISDKRuntime", () => {
     expect(complete).toHaveBeenCalledOnce();
   });
 
-  it("restarts suggestion generation when the adapter changes", async () => {
-    let resolveFirst!: (value: readonly { prompt: string }[]) => void;
-    const firstGenerate = vi.fn().mockImplementation(
-      () =>
-        new Promise<readonly { prompt: string }[]>((resolve) => {
-          resolveFirst = resolve;
-        }),
+  it("does not generate for an inline adapter on mount or parent rerender", async () => {
+    const complete = vi.fn().mockResolvedValue(["unexpected"]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { rerender } = renderHook(() =>
+      useAISDKRuntime(chat, {
+        adapters: {
+          suggestion: createSuggestionAdapter({ complete }),
+        },
+      }),
     );
-    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+
+    rerender();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("restarts an inline suggestion adapter when its key changes", async () => {
+    const firstComplete = vi.fn().mockResolvedValue(["first"]);
+    const secondComplete = vi.fn().mockResolvedValue(["second"]);
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
       {
@@ -1851,40 +1871,127 @@ describe("useAISDKRuntime", () => {
     ]);
 
     const { result, rerender } = renderHook(
-      ({ status, generate }) => {
+      ({ status, adapterKey, complete }) => {
         chat.status = status;
         return useAISDKRuntime(chat, {
-          adapters: { suggestion: { generate } },
+          adapters: {
+            suggestion: createSuggestionAdapter({
+              key: adapterKey,
+              complete,
+            }),
+          },
         });
       },
       {
         initialProps: {
           status: "submitted" as string,
-          generate: firstGenerate,
+          adapterKey: "first",
+          complete: firstComplete,
         },
       },
     );
 
-    rerender({ status: "ready", generate: firstGenerate });
-    await waitFor(() => expect(firstGenerate).toHaveBeenCalledOnce());
-    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+    rerender({
+      status: "ready",
+      adapterKey: "first",
+      complete: firstComplete,
+    });
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "first" },
+      ]);
+    });
 
-    rerender({ status: "ready", generate: secondGenerate });
+    rerender({
+      status: "ready",
+      adapterKey: "first",
+      complete: firstComplete,
+    });
+    expect(firstComplete).toHaveBeenCalledOnce();
 
-    expect(firstSignal.aborted).toBe(true);
-    await waitFor(() => expect(secondGenerate).toHaveBeenCalledOnce());
+    rerender({
+      status: "ready",
+      adapterKey: "second",
+      complete: secondComplete,
+    });
+    await waitFor(() => expect(secondComplete).toHaveBeenCalledOnce());
     await waitFor(() => {
       expect(result.current.thread.getState().suggestions).toEqual([
         { prompt: "second" },
       ]);
     });
+  });
+
+  it("restarts suggestion generation across stable adapter replacements", async () => {
+    let resolveFirst!: (value: readonly { prompt: string }[]) => void;
+    const firstGenerate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveFirst = resolve;
+        }),
+    );
+    let resolveSecond!: (value: readonly { prompt: string }[]) => void;
+    const secondGenerate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveSecond = resolve;
+        }),
+    );
+    const thirdGenerate = vi.fn().mockResolvedValue([{ prompt: "third" }]);
+    const firstAdapter = { generate: firstGenerate };
+    const secondAdapter = { generate: secondGenerate };
+    const thirdAdapter = { generate: thirdGenerate };
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, adapter }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: adapter },
+        });
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          adapter: firstAdapter,
+        },
+      },
+    );
+
+    rerender({ status: "ready", adapter: firstAdapter });
+    await waitFor(() => expect(firstGenerate).toHaveBeenCalledOnce());
+    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", adapter: secondAdapter });
+
+    expect(firstSignal.aborted).toBe(true);
+    await waitFor(() => expect(secondGenerate).toHaveBeenCalledOnce());
+    const secondSignal = secondGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", adapter: thirdAdapter });
+
+    expect(secondSignal.aborted).toBe(true);
+    await waitFor(() => expect(thirdGenerate).toHaveBeenCalledOnce());
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "third" },
+      ]);
+    });
 
     resolveFirst([{ prompt: "stale" }]);
+    resolveSecond([{ prompt: "also stale" }]);
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
     expect(result.current.thread.getState().suggestions).toEqual([
-      { prompt: "second" },
+      { prompt: "third" },
     ]);
   });
 

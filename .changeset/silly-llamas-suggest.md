@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/ai-sdk": patch
+"@assistant-ui/core": patch
 ---
 
-fix: restart generated suggestions after the adapter changes
+fix: follow generated suggestion adapter replacements without restarting inline adapters

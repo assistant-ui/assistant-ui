@@ -203,30 +203,23 @@ const useGeneratedSuggestions = (
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-  const lastGenerateRef = useRef(suggestionAdapter?.generate);
-  // A generator is a replacement key only after it remains stable across renders,
-  // so inline adapter factories do not turn every render into a restart.
-  const stableGenerateRef = useRef<SuggestionAdapter["generate"] | undefined>(
-    undefined,
-  );
+  const adapterKey =
+    suggestionAdapter?.key ?? suggestionAdapter?.generate ?? null;
+  const adapterRef = useRef(suggestionAdapter);
+  const lastAdapterKeyRef = useRef(adapterKey);
   const adapterReplacedRef = useRef(false);
   useInsertionEffect(() => {
-    const generate = suggestionAdapter?.generate;
-    if (lastGenerateRef.current === generate) {
-      stableGenerateRef.current = generate;
-    } else {
-      const replacedStableGenerator =
-        lastGenerateRef.current !== undefined &&
-        stableGenerateRef.current === lastGenerateRef.current &&
-        generate !== undefined;
-      stableGenerateRef.current = undefined;
-      adapterReplacedRef.current ||= replacedStableGenerator;
-      if (generate === undefined || replacedStableGenerator) {
-        controllerRef.current?.abort();
-      }
+    adapterRef.current = suggestionAdapter;
+    const adapterReplaced =
+      lastAdapterKeyRef.current !== null &&
+      adapterKey !== null &&
+      lastAdapterKeyRef.current !== adapterKey;
+    adapterReplacedRef.current ||= adapterReplaced;
+    if (adapterKey === null || adapterReplaced) {
+      controllerRef.current?.abort();
     }
-    lastGenerateRef.current = generate;
-  }, [suggestionAdapter]);
+    lastAdapterKeyRef.current = adapterKey;
+  }, [adapterKey, suggestionAdapter]);
   const hasAdapter = suggestionAdapter !== undefined;
   const adapterPresentRef = useRef(hasAdapter);
 
@@ -237,7 +230,7 @@ const useGeneratedSuggestions = (
       setSuggestions((prev) => (prev.length === 0 ? prev : EMPTY_SUGGESTIONS));
     };
 
-    const adapter = suggestionAdapter;
+    const adapter = adapterRef.current;
     const adapterRestored = hasAdapter && !adapterPresentRef.current;
     adapterPresentRef.current = hasAdapter;
     const adapterReplaced = adapterReplacedRef.current;
@@ -286,7 +279,7 @@ const useGeneratedSuggestions = (
         });
       } catch {}
     })();
-  }, [hasAdapter, isRunning, suggestionAdapter]);
+  }, [adapterKey, hasAdapter, isRunning]);
 
   useReplaySafeEffect(() => {
     return () => {

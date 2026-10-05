@@ -235,6 +235,10 @@ const runtime = useChatRuntime({
 });
 ```
 
+`createSuggestionAdapter` treats inline instances as one logical adapter across
+rerenders. If changing its inputs should immediately regenerate suggestions for
+an already-settled response, pass a `key` that changes with those inputs.
+
 Example route that returns suggestion strings with the AI SDK:
 
 ```ts

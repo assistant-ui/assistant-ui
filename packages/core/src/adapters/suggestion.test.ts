@@ -24,6 +24,19 @@ const message = (
   }) as unknown as ThreadMessage;
 
 describe("createSuggestionAdapter", () => {
+  it("keeps inline factory identity stable and exposes explicit replacement keys", () => {
+    const complete = vi.fn().mockResolvedValue(["follow up"]);
+    const implicitFirst = createSuggestionAdapter({ complete });
+    const implicitSecond = createSuggestionAdapter({ complete });
+    const first = createSuggestionAdapter({ complete, key: "first" });
+    const second = createSuggestionAdapter({ complete, key: "second" });
+
+    expect(implicitFirst.generate).not.toBe(implicitSecond.generate);
+    expect(implicitFirst.key).toBe(implicitSecond.key);
+    expect(first.key).toBe("first");
+    expect(second.key).toBe("second");
+  });
+
   it("builds a role-labeled transcript from recent messages and honors maxMessages", async () => {
     const complete = vi.fn().mockResolvedValue(["follow up"]);
     const adapter = createSuggestionAdapter({ complete, maxMessages: 2 });

@@ -8,6 +8,8 @@ export type SuggestionAdapterGenerateOptions = {
 };
 
 export type SuggestionAdapter = {
+  /** Changes when the adapter should regenerate suggestions for a settled run. */
+  key?: string | number | symbol | undefined;
   generate: (
     options: SuggestionAdapterGenerateOptions,
   ) =>
@@ -36,6 +38,8 @@ export const consumeSuggestionResult = async (
 };
 
 export type CreateSuggestionAdapterOptions = {
+  /** Changes when updated configuration should replace the active adapter. */
+  key?: string | number | symbol | undefined;
   complete: (options: {
     prompt: string;
     signal?: AbortSignal;
@@ -45,6 +49,8 @@ export type CreateSuggestionAdapterOptions = {
   maxMessages?: number | undefined;
 };
 
+const DEFAULT_CREATED_ADAPTER_KEY = Symbol("createSuggestionAdapter");
+
 export const createSuggestionAdapter = (
   options: CreateSuggestionAdapterOptions,
 ): SuggestionAdapter => {
@@ -52,6 +58,7 @@ export const createSuggestionAdapter = (
   const maxMessages = options.maxMessages ?? 10;
 
   return {
+    key: options.key ?? DEFAULT_CREATED_ADAPTER_KEY,
     async generate({ messages, signal }) {
       const limit = Math.max(0, Math.floor(maxMessages));
       const recent = limit === 0 ? [] : messages.slice(-limit);

@@ -1686,6 +1686,7 @@ type StartRunConfig = {
 };
 
 type SuggestionAdapter = {
+  key?: string | number | symbol | undefined;
   generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
 };
 
