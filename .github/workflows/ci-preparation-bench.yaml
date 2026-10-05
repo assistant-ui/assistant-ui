@@ -1,0 +1,71 @@
+name: CI preparation benchmark
+on:
+  push:
+    branches: [perf/ci-preparation-bench]
+permissions:
+  contents: read
+jobs:
+  seed:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Isolate the scoped store
+        run: echo "PNPM_CONFIG_STORE_DIR=$RUNNER_TEMP/performance-store" >> "$GITHUB_ENV"
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        id: cache
+        with:
+          path: ${{ runner.temp }}/performance-store
+          key: ci-performance-scope-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
+  performance:
+    needs: seed
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        variant: [shared, none, scoped]
+        sample: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+      - name: Start preparation clock
+        run: echo "PREP_STARTED=$(date +%s%3N)" >> "$GITHUB_ENV"
+      - name: Isolate the scoped store
+        if: matrix.variant == 'scoped'
+        run: echo "PNPM_CONFIG_STORE_DIR=$RUNNER_TEMP/performance-store" >> "$GITHUB_ENV"
+      - name: Restore scoped cache
+        if: matrix.variant == 'scoped'
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ runner.temp }}/performance-store
+          key: ci-performance-scope-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          fail-on-cache-miss: true
+      - name: Setup pnpm and Node
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: ${{ matrix.variant == 'shared' }}
+          install: false
+      - name: Install Performance dependencies
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
+      - name: Record preparation and verify builds
+        env:
+          BENCH_VARIANT: ${{ matrix.variant }}
+          BENCH_SAMPLE: ${{ matrix.sample }}
+          PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: false
+        run: node scripts/bench-ci-preparation.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: performance-${{ matrix.variant }}-${{ matrix.sample }}
+          path: bench-results/
+          retention-days: 7
