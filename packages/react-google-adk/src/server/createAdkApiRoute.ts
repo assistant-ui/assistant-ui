@@ -55,7 +55,16 @@ const ensureRunnerSession = async (
         sessionId,
       });
       if (!session) {
-        await sessionService.createSession({ appName, userId, sessionId });
+        try {
+          await sessionService.createSession({ appName, userId, sessionId });
+        } catch (error) {
+          const existing = await sessionService.getSession({
+            appName,
+            userId,
+            sessionId,
+          });
+          if (!existing) throw error;
+        }
       }
     })();
     serviceSessions.set(key, pending);

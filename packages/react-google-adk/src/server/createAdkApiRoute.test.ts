@@ -100,4 +100,65 @@ describe("createAdkApiRoute", () => {
     expect(createSession).toHaveBeenCalledTimes(1);
     expect(runAsync).toHaveBeenCalledTimes(2);
   });
+
+  it("continues when another process creates the session first", async () => {
+    let exists = false;
+    const getSession = vi.fn(async () =>
+      exists ? { id: "thread-1" } : undefined,
+    );
+    const createSession = vi.fn(async () => {
+      exists = true;
+      throw new Error("Session already exists");
+    });
+    const runAsync = vi.fn(async function* () {});
+    const handler = createAdkApiRoute({
+      runner: {
+        appName: "test-app",
+        sessionService: { getSession, createSession },
+        runAsync,
+      },
+      userId: "user-1",
+      sessionId: "thread-1",
+    });
+
+    await handler(
+      new Request("https://example.test/api/adk", {
+        method: "POST",
+        body: JSON.stringify({ message: "Hello" }),
+      }),
+    );
+
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(createSession).toHaveBeenCalledOnce();
+    expect(runAsync).toHaveBeenCalledOnce();
+  });
+
+  it("preserves create failures when the session still does not exist", async () => {
+    const failure = new Error("database unavailable");
+    const getSession = vi.fn(async () => undefined);
+    const createSession = vi.fn(async () => {
+      throw failure;
+    });
+    const runAsync = vi.fn(async function* () {});
+    const handler = createAdkApiRoute({
+      runner: {
+        appName: "test-app",
+        sessionService: { getSession, createSession },
+        runAsync,
+      },
+      userId: "user-1",
+      sessionId: "thread-1",
+    });
+
+    await expect(
+      handler(
+        new Request("https://example.test/api/adk", {
+          method: "POST",
+          body: JSON.stringify({ message: "Hello" }),
+        }),
+      ),
+    ).rejects.toBe(failure);
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(runAsync).not.toHaveBeenCalled();
+  });
 });
