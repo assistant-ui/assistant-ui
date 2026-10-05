@@ -34,6 +34,8 @@ test("detects package build and checker inputs", () => {
     ".github/workflows/code-quality.yaml",
     ".github/workflows/deploy-examples.yaml",
     "examples/with-expo/package.json",
+    "apps/docs/turbo.json",
+    "examples/with-resumable-stream/turbo.json",
   ]) {
     assert.equal(hasPackageBuildInputs([file]), true, file);
   }
@@ -47,6 +49,8 @@ test("ignores changes outside the package build job", () => {
     ".changeset/example.md",
     "README.md",
     "packages-extra/react/src/index.ts",
+    "apps/docs/turbo.json.bak",
+    "examples/with-resumable-stream/turbo.json.bak",
   ]) {
     assert.equal(hasPackageBuildInputs([file]), false, file);
   }
