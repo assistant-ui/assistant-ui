@@ -58,7 +58,7 @@ Styled components (thread, messages, reasoning, tool calls, thread list) install
 - `AuiProvider` owns an assistant client built from an `AuiConfig`; `AuiIf` renders its slot while a state selector returns true.
 - `useAui()` returns a stable client whose scope accessors resolve to the provider's current client. `useAuiState(selector)` returns a computed ref that updates when the selected slice changes. `useAuiEvent(event, callback)` subscribes for the lifetime of the current effect scope.
 - Primitives cover threads (`ThreadPrimitiveRoot`, `Messages`, `Viewport`, `ViewportFooter`, `ScrollToBottom`, `Suggestions`), messages (`MessagePrimitiveRoot`, `Parts`, `Attachments`), composers (`ComposerPrimitiveInput`, `Send`, `Cancel`, `Attachments`, `AddAttachment`, `AttachmentDropzone`), attachments, branch pickers, action bars, suggestions, errors, chain of thought, and thread lists, each exported under its full name such as `ThreadPrimitiveMessages`.
-- Tool calls render through renderers registered with `Tools({ toolkit })` or `aui.tools.setToolUI`, which receive a single `tool` prop typed `ToolUIProps`.
+- Tool calls render through Vue components registered with `Tools({ toolkit })` or `aui.tools.setToolUI`, which receive a single `tool` prop typed `ToolUIProps`; a React renderer from a toolkit shared with a React app does not render in Vue.
 
 ## Without the AI SDK
 
