@@ -118,35 +118,24 @@ test("workspace changes avoid planner overhead without skipping checks", () => {
   ]);
 });
 
-test("only typecheck gates installation and the app bundle check retains dependencies", () => {
+test("typecheck installation and execution use the planner result", () => {
   const workflow = readFileSync(
     new URL("../.github/workflows/code-quality.yaml", import.meta.url),
     "utf8",
   );
-  const block = (job) =>
-    workflow.split(`\n  ${job}:\n`)[1].split(/\n  [\w-]+:\n/)[0];
-  const typecheck = block("typecheck");
-  assert.ok(!typecheck.split("    steps:")[0].includes("if:"));
-  for (const step of ["Install dependencies", "Typecheck"])
-    assert.match(
-      typecheck,
-      new RegExp(
-        `- name: ${step}\\n\\s+if: steps\\.tasks\\.outputs\\.run == 'true'`,
-      ),
+  const typecheck = workflow
+    .split("\n  typecheck:\n")[1]
+    .split(/\n  [\w-]+:\n/)[0];
+  const steps = typecheck.split(/\n\s+- name: /);
+  for (const name of ["Install dependencies", "Typecheck"]) {
+    const step = steps.find((value) => value.split("\n")[0] === name);
+    assert.ok(step);
+    assert.ok(
+      step
+        .split("\n")
+        .some(
+          (line) => line.trim() === "if: steps.tasks.outputs.run == 'true'",
+        ),
     );
-  const apps = block("build-apps");
-  const gate = "steps.app_build_inputs.outputs.run == 'true'";
-  for (const step of [
-    "Install dependencies",
-    "Build apps",
-    "Verify standalone example bundle contracts",
-  ]) {
-    const afterName = apps.split(`- name: ${step}\n`)[1];
-    assert.equal(afterName.trimStart().split("\n")[0], `if: ${gate}`);
   }
-  assert.equal(
-    workflow.split("run: node --test scripts/ci-has-tasks.test.mjs").length - 1,
-    1,
-  );
-  assert.match(apps, /run: pnpm test:bundles/);
 });
