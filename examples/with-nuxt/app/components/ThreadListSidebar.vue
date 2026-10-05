@@ -10,7 +10,7 @@ import { PlusIcon } from "@lucide/vue";
 
 <template>
   <aside
-    class="border-border/60 flex h-full w-64 shrink-0 flex-col gap-3 border-r p-3"
+    class="border-border/60 flex h-full w-full shrink-0 flex-col gap-3 border-b p-3 md:w-64 md:border-r md:border-b-0"
   >
     <ThreadListPrimitiveNew
       class="border-border/60 hover:bg-muted flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors"
