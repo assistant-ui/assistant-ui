@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
 import { distFingerprint, ensureRefWorktree } from "./ref-worktree.mjs";
 import { pkgRoot } from "./suite.mjs";
+import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
 const mocks = vi.hoisted(() => ({ sha: "", root: "" }));
 vi.mock("./suite.mjs", async (importOriginal) => ({
@@ -84,12 +85,7 @@ describe("ensureRefWorktree", () => {
           "--frozen-lockfile",
           "--filter=.",
           "--filter=@assistant-ui/react-devtools...",
-          "--filter=@assistant-ui/tap...",
-          "--filter=@assistant-ui/core...",
-          "--filter=@assistant-ui/store...",
-          "--filter=assistant-stream...",
-          "--filter=@assistant-ui/react...",
-          "--filter=@assistant-ui/react-markdown...",
+          ...Object.keys(REF_PACKAGE_DIRS).map((name) => `--filter=${name}...`),
         ],
         cwd: realpathSync(wt),
         CI: "true",
@@ -99,12 +95,7 @@ describe("ensureRefWorktree", () => {
           "turbo",
           "run",
           "build",
-          "--filter=@assistant-ui/tap",
-          "--filter=@assistant-ui/core",
-          "--filter=@assistant-ui/store",
-          "--filter=assistant-stream",
-          "--filter=@assistant-ui/react",
-          "--filter=@assistant-ui/react-markdown",
+          ...Object.keys(REF_PACKAGE_DIRS).map((name) => `--filter=${name}`),
         ],
         cwd: realpathSync(wt),
       }),
