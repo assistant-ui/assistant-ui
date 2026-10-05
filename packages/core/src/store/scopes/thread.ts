@@ -18,6 +18,7 @@ import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { SuggestionsMethods } from "./suggestions";
+import type { TaskMethods, TaskState } from "./task";
 
 export type ThreadState = {
   /**
@@ -33,6 +34,14 @@ export type ThreadState = {
    */
   readonly isLoading: boolean;
   /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
+  /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
   readonly isRunning: boolean;
@@ -44,6 +53,10 @@ export type ThreadState = {
    * The messages in the currently selected branch of the thread.
    */
   readonly messages: readonly MessageState[];
+  /**
+   * Child work derived from the thread's tool calls: every tool call that carries a nested conversation, in document order with nested tasks after their parent. The array keeps its identity while no task changed.
+   */
+  readonly tasks: readonly TaskState[];
   /**
    * The thread state.
    * @deprecated This feature is experimental
@@ -77,6 +90,10 @@ export type ThreadMethods = {
    */
   suggestions(): SuggestionsMethods;
   /**
+   * Access a task by index or toolCallId; an id resolves the first task with that toolCallId in document order.
+   */
+  task(selector: { index: number } | { id: string }): TaskMethods;
+  /**
    * Append a new message to the thread.
    *
    * @example ```ts
@@ -105,6 +122,12 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Load the page before the first loaded message. Resolves at once when
+   * `hasEarlier` is false; concurrent calls share one load, and a failed load
+   * is logged rather than rejected.
+   */
+  loadEarlier(): Promise<void>;
   /**
    * Re-fetch this thread's state from its backing store, in place: the tap
    * thread's refetch hook, which `threads.reloadMainThread()` prefers and
@@ -144,6 +167,12 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  "thread.historyWriteError": {
+    threadId: string;
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+  };
   "thread.toolApprovalAnswered": {
     threadId: string;
     messageId: string;

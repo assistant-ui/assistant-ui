@@ -40,9 +40,8 @@
           }
         }
       ],
-      "expo-font",
-      "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      ["expo-build-properties", { "ios": { "enableSceneSupport": true } }]
     ],
     "experiments": {
       "typedRoutes": true,

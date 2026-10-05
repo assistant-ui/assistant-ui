@@ -20,6 +20,16 @@ describe("resolveImageMediaType", () => {
     );
   });
 
+  it("ignores a wildcard image content type", () => {
+    expect(resolveImageMediaType(JPEG, "image/*")).toBe("image/jpeg");
+  });
+
+  it("ignores a wildcard data url media type", () => {
+    expect(resolveImageMediaType(`data:image/*;base64,${JPEG}`)).toBe(
+      "image/jpeg",
+    );
+  });
+
   it("takes the data url declaration when it is an image type", () => {
     expect(
       resolveImageMediaType("data:image/svg+xml,%3Csvg%3E%3C/svg%3E"),

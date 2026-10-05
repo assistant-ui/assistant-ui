@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSpeechDictationAdapter, WebSpeechSynthesisAdapter } from "./speech";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -37,6 +38,34 @@ describe("WebSpeechSynthesisAdapter", () => {
       expect(cancel).not.toHaveBeenCalled();
       expect(old.status).toBe(endedStatus);
       expect(current.status).toEqual({ type: "running" });
+    },
+  );
+
+  it.each(["end", "error"] as const)(
+    "handles a synchronous %s event while starting playback",
+    (eventType) => {
+      class MockSpeechSynthesisUtterance extends EventTarget {}
+      vi.stubGlobal("SpeechSynthesisUtterance", MockSpeechSynthesisUtterance);
+      vi.stubGlobal("window", {
+        speechSynthesis: {
+          speak: (utterance: EventTarget) => {
+            const event = new Event(eventType);
+            if (eventType === "error") {
+              Object.assign(event, { error: "synthesis-failed" });
+            }
+            utterance.dispatchEvent(event);
+          },
+          cancel: vi.fn(),
+        },
+      });
+
+      const result = new WebSpeechSynthesisAdapter().speak("Hello");
+
+      expect(result.status).toEqual({
+        type: "ended",
+        reason: eventType === "end" ? "finished" : "error",
+        error: eventType === "end" ? undefined : "synthesis-failed",
+      });
     },
   );
 
@@ -178,6 +207,71 @@ describe("WebSpeechDictationAdapter", () => {
       })),
     } as unknown as Event);
   };
+
+  it("cancels a stop that never receives a terminal browser event", async () => {
+    vi.useFakeTimers();
+    const abort = vi.fn();
+    class MockSpeechRecognition extends EventTarget {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      start() {}
+      stop() {}
+      abort() {
+        abort();
+        this.dispatchEvent(
+          Object.assign(new Event("error"), {
+            error: "network",
+            message: "late error",
+          }),
+        );
+      }
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const session = new WebSpeechDictationAdapter().listen();
+    let settled = false;
+
+    const stopping = session.stop().then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(settled).toBe(false);
+    expect(abort).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await stopping;
+
+    expect(abort).toHaveBeenCalledOnce();
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resolves stop from the browser end event without aborting", async () => {
+    const abort = vi.fn();
+    class MockSpeechRecognition extends EventTarget {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      start() {}
+      stop() {
+        this.dispatchEvent(new Event("end"));
+      }
+      abort() {
+        abort();
+      }
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const session = new WebSpeechDictationAdapter().listen();
+
+    await expect(session.stop()).resolves.toBeUndefined();
+
+    expect(abort).not.toHaveBeenCalled();
+    expect(session.status).toEqual({ type: "ended", reason: "stopped" });
+  });
 
   it("publishes the entire interim suffix when only its last result changes", () => {
     const listeners = stubSpeechRecognition();

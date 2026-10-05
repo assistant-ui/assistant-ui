@@ -1,27 +1,37 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui, useAuiEvent } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
 import { useLocalRuntime } from "../react/runtimes/useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../react/runtimes/useRemoteThreadListRuntime";
-import { deferred, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  actSettled,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 import { RuntimeAdapter } from "../react/RuntimeAdapter";
 import {
   AssistantRuntimeImpl,
   type AssistantRuntime,
 } from "../runtime/api/assistant-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
+import { LocalRuntimeCore } from "../runtimes/local/local-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ThreadMessage } from "../types/message";
 
 type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
 
 const EMPTY_MESSAGES: readonly never[] = [];
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 const useTestThreadRuntime = () =>
-  useExternalStoreRuntime({
+  useExternalStoreRuntime<ThreadMessage>({
     messages: EMPTY_MESSAGES,
     isRunning: false,
     onNew: async () => {},
@@ -72,6 +82,69 @@ const createRuntime = () => {
 };
 
 describe("thread switch events", () => {
+  it("forwards a history write failure to a store event listener", async () => {
+    const error = new Error("append failed");
+    const listener = vi.fn();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run: async () => ({ content: [] }) },
+          history: {
+            load: async () => ({ messages: [] }),
+            append: async () => {
+              throw error;
+            },
+          },
+        },
+      },
+      undefined,
+    );
+    const runtime = new AssistantRuntimeImpl(core);
+    const Listener = () => {
+      useAuiEvent("thread.historyWriteError", listener);
+      return null;
+    };
+    const Harness = () => {
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Listener />
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      await expect(
+        core.threads.getMainThreadRuntimeCore().append({
+          parentId: null,
+          sourceId: null,
+          runConfig: {},
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          attachments: [],
+          metadata: { custom: {} },
+          createdAt: new Date(),
+          startRun: false,
+        }),
+      ).rejects.toBe(error);
+    });
+
+    await waitFor(() =>
+      expect(listener).toHaveBeenCalledExactlyOnceWith({
+        threadId: runtime.thread.getState().threadId,
+        operation: "append",
+        messageIds: [runtime.thread.getState().messages[0]!.id],
+        message: error.message,
+      }),
+    );
+    expect(log).toHaveBeenCalledWith(
+      "[assistant-ui] local thread history write failed:",
+      error,
+    );
+  });
+
   it("delivers switchedTo to default-scope, star-scope, and aui.on listeners", async () => {
     const runtime = createRuntime();
     const defaultScope = vi.fn();
@@ -129,7 +202,10 @@ describe("thread switch events", () => {
 
   it("delivers threads.selectionChanged with the new and previous thread ids", async () => {
     const runtime = createRuntime();
-    const selectionChanged = vi.fn();
+    const selectionChanged =
+      vi.fn<
+        (payload: { threadId: string; previousThreadId: string }) => void
+      >();
     const auiOn = vi.fn();
     let aui!: ReturnType<typeof useAui>;
     const Consumer = () => {
@@ -208,7 +284,10 @@ describe("thread switch events", () => {
 
   it("emits when a deep-linked initial thread resolves after mount", async () => {
     const adapter = makeAdapter();
-    const selectionChanged = vi.fn();
+    const selectionChanged =
+      vi.fn<
+        (payload: { threadId: string; previousThreadId: string }) => void
+      >();
     const Listener = () => {
       useAuiEvent("threads.selectionChanged", selectionChanged);
       return null;
@@ -228,10 +307,7 @@ describe("thread switch events", () => {
     render(<Harness />);
 
     await waitFor(() => expect(selectionChanged).toHaveBeenCalledTimes(1));
-    const payload = selectionChanged.mock.calls[0]![0] as {
-      threadId: string;
-      previousThreadId: string;
-    };
+    const payload = selectionChanged.mock.calls[0]![0];
     expect(payload.threadId).toBe("thread-a");
     expect(payload.previousThreadId).toMatch(/^__LOCALID_/);
   });
@@ -344,9 +420,7 @@ const renderRemoteList = (
 };
 
 const switchTo = async (runtime: AssistantRuntime, remoteId: string) => {
-  await act(async () => {
-    await runtime.threads.switchToThread(remoteId);
-  });
+  await actSettled(() => runtime.threads.switchToThread(remoteId));
   await waitFor(() => {
     expect(runtime.threads.mainItem.getState().remoteId).toBe(remoteId);
   });

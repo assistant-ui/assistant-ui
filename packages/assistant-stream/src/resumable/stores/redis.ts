@@ -1,15 +1,24 @@
 import {
+  APPEND_IF_UNCHANGED_KEY_COUNT,
+  APPEND_IF_UNCHANGED_SCRIPT,
+  DELETE_IF_UNCHANGED_SCRIPT,
   FINALIZE_IF_UNCHANGED_KEY_COUNT,
   FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
+  appendIfUnchangedArgs,
+  deleteIfUnchangedArgs,
   finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
+import { redisScriptSha, runCachedRedisScript } from "./redis-script";
 import type { ResumableStreamStore } from "../types";
 
 const RESP_BLOB_STRING = 36;
+const APPEND_IF_UNCHANGED_SHA = redisScriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = redisScriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = redisScriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 type NodeRedisFields = Record<string, string | Buffer>;
 
@@ -75,16 +84,54 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       }
       await chain.execAsPipeline();
     },
+    async appendIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        APPEND_IF_UNCHANGED_SHA,
+        APPEND_IF_UNCHANGED_SCRIPT,
+        APPEND_IF_UNCHANGED_KEY_COUNT,
+        appendIfUnchangedArgs(options).map((arg) =>
+          typeof arg === "string" ? arg : toBuffer(arg),
+        ),
+      );
+      return result === 1;
+    },
     async finalizeIfUnchanged(options) {
-      const result = await client.sendCommand<number>([
-        "EVAL",
+      const result = await runScript(
+        client,
+        FINALIZE_IF_UNCHANGED_SHA,
         FINALIZE_IF_UNCHANGED_SCRIPT,
-        String(FINALIZE_IF_UNCHANGED_KEY_COUNT),
-        ...finalizeIfUnchangedArgs(options),
-      ]);
+        FINALIZE_IF_UNCHANGED_KEY_COUNT,
+        finalizeIfUnchangedArgs(options),
+      );
+      return result === 1;
+    },
+    async deleteIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        DELETE_IF_UNCHANGED_SHA,
+        DELETE_IF_UNCHANGED_SCRIPT,
+        options.dataKeys.length + 1,
+        deleteIfUnchangedArgs(options),
+      );
       return result === 1;
     },
   };
+}
+
+async function runScript(
+  client: NodeRedisLike,
+  sha: string,
+  script: string,
+  keyCount: number,
+  args: Array<string | Buffer>,
+): Promise<number> {
+  return runCachedRedisScript(
+    () =>
+      client.sendCommand<number>(["EVALSHA", sha, String(keyCount), ...args]),
+    () =>
+      client.sendCommand<number>(["EVAL", script, String(keyCount), ...args]),
+  );
 }
 
 function applyPipelineCommand(

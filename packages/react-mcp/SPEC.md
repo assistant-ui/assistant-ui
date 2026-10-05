@@ -52,7 +52,7 @@ packages/react-mcp/
 │   │   ├── server.ts                           barrel (McpServerPrimitive.*)
 │   │   ├── server/{Root,Icon,Name,Status,Error,ConnectButton,DisconnectButton,RemoveButton,OAuthLink,Tools,ToolName}.tsx
 │   │   ├── addForm.ts                          barrel (McpAddFormPrimitive.*)
-│   │   ├── addForm/{Root,NameField,UrlField,AuthSelect,AuthFields,Submit,Cancel,Error}.tsx
+│   │   ├── addForm/{Root,NameField,UrlField,AuthSelect,AuthFields,BearerTokenField,ScopesField,Submit,Cancel,Error}.tsx
 │   │   ├── elicitation.ts                       barrel (McpElicitationPrimitive.*)
 │   │   └── elicitation/{Items,Root,Message,Error,Fields,Accept,Decline,Cancel,initialElicitationDraft}.tsx
 │   ├── hooks/
@@ -75,7 +75,7 @@ After the v0.1 simplification, the package's runtime surface is:
 | `McpServerByIdProvider` | Scope a subtree to one server (used by iteration primitives; useful standalone) |
 | `useMcpOAuthCallback`, `McpOAuthCallback` | OAuth callback page handlers |
 
-There is no `MCPProvider` (mount the resource directly with `useAui`), no `useMcpManager` (`useAui().mcp()` in callbacks per the [tap methods guide](../../apps/docs/content/tap-docs/store/methods.mdx)), no `useMcpTools` (auto-registered via `modelContext`), no `canAddCustom` (hide the add-UI to disable), no `mcpRuntimeToolsToAiSdkTools` (the runtime sees tools through `modelContext`).
+There is no `MCPProvider` (mount the resource directly with `useAui`), no `useMcpManager` (`useAui().mcp()` in callbacks per the [tap methods guide](../../apps/docs/content/docs/store/methods.mdx)), no `useMcpTools` (auto-registered via `modelContext`), no `canAddCustom` (hide the add-UI to disable), no `mcpRuntimeToolsToAiSdkTools` (the runtime sees tools through `modelContext`).
 
 ## 1. Types
 
@@ -320,9 +320,9 @@ The add form owns its own draft state and submits via `aui.mcp().addCustomServer
 
 ```tsx
 <McpAddFormPrimitive.Root onSubmitted={(id) => closeDialog()}>
-  <McpAddFormPrimitive.NameField />
-  <McpAddFormPrimitive.UrlField />
-  <McpAddFormPrimitive.AuthSelect />
+  <label>Name <McpAddFormPrimitive.NameField /></label>
+  <label>URL <McpAddFormPrimitive.UrlField /></label>
+  <label>Auth <McpAddFormPrimitive.AuthSelect /></label>
   <McpAddFormPrimitive.AuthFields />
   <McpAddFormPrimitive.Error />
   <McpAddFormPrimitive.Submit />

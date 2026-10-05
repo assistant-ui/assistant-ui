@@ -1,5 +1,7 @@
+import { cacheLife } from "next/cache";
 import {
   type GitHubContributor,
+  getCoAuthorUser,
   getCommitActivityStats,
   getCommitCoAuthors,
   getCommitsSince,
@@ -7,12 +9,13 @@ import {
   getReleases,
   getStarHistory,
   getUser,
-  getUserById,
 } from "./github";
 import {
+  FLAGSHIP_PACKAGE,
   NPM_REVALIDATE,
   type NpmDailyDownloads,
   getDownloadsRange,
+  getLastWeek,
 } from "./npm";
 
 export type PackageInfo = {
@@ -354,7 +357,8 @@ export type PackageDownloads = {
 };
 
 export type NpmDownloads = {
-  totalWeekly: number;
+  flagshipWeekly: number | null;
+  totalWeekly: number | null;
   perPackage: Record<string, PackageDownloads>;
 };
 
@@ -394,8 +398,11 @@ export async function fetchCommitActivity(
     return points;
   }
 
+  // The instant is part of the request url and so of its data cache key, so
+  // the window starts on a day boundary to keep its pages shared across renders.
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 365);
+  since.setUTCHours(0, 0, 0, 0);
   const items = await getCommitsSince(
     since.toISOString(),
     undefined,
@@ -438,22 +445,38 @@ const toContributor = (c: GitHubContributor): Contributor => ({
   contributions: c.contributions,
 });
 
-export async function fetchContributors(
-  revalidate?: number,
-): Promise<Contributor[] | null> {
-  const raw = await getContributors(undefined, revalidate);
-  if (raw === null) return null;
+export async function fetchContributors(): Promise<Contributor[] | null> {
+  try {
+    return await getCachedContributors();
+  } catch {
+    return null;
+  }
+}
+
+async function getCachedContributors(): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
+  const raw = await getContributors();
+  if (raw === null) throw new Error("Contributors read incomplete");
   return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
 }
 
 /* Claude has no GitHub account, so it never resolves as a "Bot"; it is matched by the co-author email every model variant shares. */
 const CLAUDE_CO_AUTHOR_EMAIL = "noreply@anthropic.com";
 
-export async function fetchBotCoAuthors(
-  revalidate?: number,
-): Promise<Contributor[]> {
-  const coAuthors = await getCommitCoAuthors(revalidate);
-  if (coAuthors === null) return [];
+export async function fetchBotCoAuthors(): Promise<Contributor[]> {
+  try {
+    return await getCachedBotCoAuthors();
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedBotCoAuthors(): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
+  const coAuthors = await getCommitCoAuthors();
+  if (coAuthors === null) throw new Error("Co-author scan incomplete");
 
   let claudeCount = 0;
   const accounts = new Map<
@@ -482,10 +505,7 @@ export async function fetchBotCoAuthors(
 
   const resolved = await Promise.all(
     Array.from(accounts.values()).map(async ({ id, login, count }) => {
-      const user =
-        id != null
-          ? await getUserById(id, revalidate)
-          : await getUser(login!, revalidate);
+      const user = await getCoAuthorUser(id ?? login!);
       if (!user || user.type !== "Bot") return null;
       return {
         login: user.login,
@@ -507,7 +527,7 @@ export async function fetchBotCoAuthors(
   const result = Array.from(byLogin.values());
 
   if (claudeCount > 0) {
-    const anthropic = await getUser("anthropics", revalidate);
+    const anthropic = await getUser("anthropics");
     result.push({
       login: "Claude",
       avatarUrl: anthropic?.avatarUrl ?? "/icons/anthropic.svg",
@@ -530,19 +550,18 @@ const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0);
 
 async function fetchPackageDownloadRange(
   name: string,
+  end: string,
   revalidate?: number,
-): Promise<PackageDownloads> {
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  const start = new Date(today);
-  start.setUTCDate(today.getUTCDate() - 60);
-  const startStr = start.toISOString().slice(0, 10);
+): Promise<PackageDownloads | null> {
+  const downloads = await getDownloadsRange(
+    name,
+    shiftDays(end, -60),
+    end,
+    revalidate,
+  );
+  if (downloads === null) return null;
 
-  const downloads = await getDownloadsRange(name, startStr, end, revalidate);
-  const all = downloads.map((d) => d.downloads);
-  if (all.length === 0) return EMPTY_DOWNLOADS;
-
-  const last60 = all.slice(-60);
+  const last60 = downloads.map((d) => d.downloads).slice(-60);
   const last30 = last60.slice(-30);
   const prior30 = last60.slice(-60, -30);
   const last7 = last60.slice(-7);
@@ -558,26 +577,29 @@ async function fetchPackageDownloadRange(
 export async function fetchNpmDownloads(
   revalidate?: number,
 ): Promise<NpmDownloads> {
+  const end = await getNpmEnd(revalidate);
   const entries = await Promise.all(
     PACKAGES.filter((pkg) => !pkg.deprecated).map(
       async (pkg) =>
         [
           pkg.name,
-          await fetchPackageDownloadRange(pkg.name, revalidate),
+          end
+            ? await fetchPackageDownloadRange(pkg.name, end, revalidate)
+            : null,
         ] as const,
     ),
   );
   const perPackage: Record<string, PackageDownloads> = {};
-  let totalWeekly = 0;
+  let flagshipWeekly: number | null = null;
+  let totalWeekly: number | null = 0;
   for (const [name, downloads] of entries) {
-    perPackage[name] = downloads;
-    totalWeekly += downloads.weekly;
+    perPackage[name] = downloads ?? EMPTY_DOWNLOADS;
+    totalWeekly =
+      downloads && totalWeekly !== null ? totalWeekly + downloads.weekly : null;
+    if (name === FLAGSHIP_PACKAGE && downloads)
+      flagshipWeekly = downloads.weekly;
   }
-  return { totalWeekly, perPackage };
-}
-
-function currentMonthKey(): string {
-  return new Date().toISOString().slice(0, 7);
+  return { flagshipWeekly, totalWeekly, perPackage };
 }
 
 export const TIMELINE_PACKAGES = [
@@ -603,13 +625,20 @@ export async function fetchTimelineSeries(
   packages: readonly string[],
   revalidate?: number,
 ): Promise<TimelineSeries> {
+  const npmEnd = await getNpmEnd(revalidate);
+  const series = packages.map((pkg, idx) => ({
+    key: `s${idx}`,
+    pkg,
+    label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
+    chartIndex: (idx % 5) + 1,
+  }));
+  if (!npmEnd) return { series, data: [] };
+
   const fetched = await Promise.all(
-    packages.map(async (pkg, idx) => ({
-      key: `s${idx}`,
-      pkg,
-      label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
-      chartIndex: (idx % 5) + 1,
-      points: await fetchDownloadsTimeline(pkg, revalidate),
+    series.map(async (item) => ({
+      ...item,
+      points: (await fetchDownloadsTimelineForEnd(item.pkg, npmEnd, revalidate))
+        .points,
     })),
   );
 
@@ -619,7 +648,7 @@ export async function fetchTimelineSeries(
   }
   const months = Array.from(monthsSet).sort();
 
-  const cutoff = currentMonthKey();
+  const cutoff = inflightMonth(npmEnd);
   const data = months.map((date) => {
     const isProjected = date === cutoff;
     const row: { date: string; [key: string]: number | string } = { date };
@@ -642,40 +671,41 @@ export async function fetchTimelineSeries(
     }
   }
 
-  const series = fetched.map(({ key, pkg, label, chartIndex }) => ({
-    key,
-    pkg,
-    label,
-    chartIndex,
-  }));
-
   return {
     series,
     data,
-    ...(projectedIndex >= 0 ? { projectedMonth: cutoff } : {}),
+    ...(cutoff && projectedIndex >= 0 ? { projectedMonth: cutoff } : {}),
   };
 }
 
 const TIMELINE_MONTHS_BACK = 12;
-// npm backfills a day or two behind, so a month is only final once that lag passes.
-const TRAILING_LAG_DAYS = 2;
 type MonthBucket = {
   month: string;
   sum: number;
   dailies: NpmDailyDownloads[];
 };
 
-function monthKeysBack(now: Date, count: number): string[] {
+function monthKeysBack(day: string, count: number): string[] {
+  const [year, month] = day.split("-").map(Number);
   return Array.from({ length: count + 1 }, (_, i) =>
-    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (count - i), 1))
+    new Date(Date.UTC(year!, month! - 1 - (count - i), 1))
       .toISOString()
       .slice(0, 7),
   );
 }
 
+function monthOf(day: string): string {
+  return day.slice(0, 7);
+}
+
 function monthEnd(month: string): string {
   const [year, monthOfYear] = month.split("-").map(Number);
   return new Date(Date.UTC(year!, monthOfYear!, 0)).toISOString().slice(0, 10);
+}
+
+function inflightMonth(npmEnd: string): string | undefined {
+  const month = monthOf(npmEnd);
+  return monthEnd(month) === npmEnd ? undefined : month;
 }
 
 function shiftDays(day: string, by: number): string {
@@ -684,14 +714,36 @@ function shiftDays(day: string, by: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+// A range answers every day it is asked for and reports the days npm has not
+// aggregated yet as 0, so there is no end to read to without npm's window.
+async function getNpmEnd(revalidate?: number): Promise<string | null> {
+  return (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ?? null;
+}
+
+// Returns nothing unless every window was read, so a render cached as complete
+// never draws a year that is missing its in-flight month.
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const cutoff = currentMonthKey();
-  const months = monthKeysBack(now, TIMELINE_MONTHS_BACK);
+  const npmEnd = await getNpmEnd(revalidate);
+  if (!npmEnd) return [];
+
+  const { points, complete } = await fetchDownloadsTimelineForEnd(
+    name,
+    npmEnd,
+    revalidate,
+  );
+  return complete ? points : [];
+}
+
+async function fetchDownloadsTimelineForEnd(
+  name: string,
+  npmEnd: string,
+  revalidate?: number,
+): Promise<{ points: TimelinePoint[]; complete: boolean }> {
+  const cutoff = inflightMonth(npmEnd);
+  const months = monthKeysBack(npmEnd, TIMELINE_MONTHS_BACK);
   const start = `${months[0]}-01`;
 
   // Everything up to the last month npm has finished backfilling is final, so it
@@ -699,37 +751,36 @@ export async function fetchDownloadsTimeline(
   // read every render. Asking per month instead would multiply a deploy's
   // requests by thirteen, and the burst is what npm refuses; asking for the
   // whole year at once cost the entire series whenever the one request was.
-  const settled = months
-    .filter((month) => shiftDays(monthEnd(month), TRAILING_LAG_DAYS) < today)
-    .at(-1);
+  const settled = months.filter((month) => monthEnd(month) <= npmEnd).at(-1);
 
   const dailies: NpmDailyDownloads[] = [];
   if (settled) {
-    dailies.push(
-      ...(await getDownloadsRange(
-        name,
-        start,
-        monthEnd(settled),
-        revalidate ?? NPM_REVALIDATE.COLD,
-      )),
+    const settledDailies = await getDownloadsRange(
+      name,
+      start,
+      monthEnd(settled),
+      revalidate ?? NPM_REVALIDATE.COLD,
     );
+    if (!settledDailies?.length) return { points: [], complete: false };
+    dailies.push(...settledDailies);
   }
+  let complete = true;
   const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
-  if (tail <= today) {
-    dailies.push(
-      ...(await getDownloadsRange(
-        name,
-        tail,
-        today,
-        revalidate ?? NPM_REVALIDATE.WARM,
-      )),
+  if (tail <= npmEnd) {
+    const tailDailies = await getDownloadsRange(
+      name,
+      tail,
+      npmEnd,
+      revalidate ?? NPM_REVALIDATE.WARM,
     );
+    if (tailDailies?.length) dailies.push(...tailDailies);
+    else complete = false;
   }
-  if (!dailies.length) return [];
+  if (!dailies.length) return { points: [], complete: false };
 
   const byMonth = new Map<string, MonthBucket>();
   for (const point of dailies) {
-    const month = point.day.slice(0, 7);
+    const month = monthOf(point.day);
     const bucket = byMonth.get(month) ?? { month, sum: 0, dailies: [] };
     bucket.sum += point.downloads;
     bucket.dailies.push(point);
@@ -743,43 +794,35 @@ export async function fetchDownloadsTimeline(
   const lastFullMonth = fullMonths.at(-1);
   const priorFullMonth = fullMonths.at(-2);
 
-  return buckets.map((bucket) => ({
-    date: bucket.month,
-    value:
-      bucket.month === cutoff
-        ? projectInflightMonth(
-            bucket.month,
-            bucket,
-            lastFullMonth?.sum,
-            priorFullMonth?.sum,
-          )
-        : bucket.sum,
-  }));
+  return {
+    points: buckets.map((bucket) => ({
+      date: bucket.month,
+      value:
+        bucket.month === cutoff
+          ? projectInflightMonth(
+              bucket,
+              lastFullMonth?.sum,
+              priorFullMonth?.sum,
+            )
+          : bucket.sum,
+    })),
+    complete,
+  };
 }
 
 function projectInflightMonth(
-  date: string,
-  bucket: { sum: number; dailies: { day: string; downloads: number }[] },
+  bucket: MonthBucket,
   lastFullMonthSum: number | undefined,
   priorFullMonthSum: number | undefined,
 ): number {
-  const dailies = [...bucket.dailies].sort((a, b) =>
-    a.day.localeCompare(b.day),
-  );
-  const stable = dailies.slice(
-    0,
-    Math.max(1, dailies.length - TRAILING_LAG_DAYS),
-  );
-  const stableSum = stable.reduce((s, d) => s + d.downloads, 0);
-  const stableDays = stable.length;
-
+  const observedDays = bucket.dailies.length;
   const totalDays = new Date(
-    Number(date.slice(0, 4)),
-    Number(date.slice(5, 7)),
+    Number(bucket.month.slice(0, 4)),
+    Number(bucket.month.slice(5, 7)),
     0,
   ).getDate();
 
-  const linear = (stableSum / stableDays) * totalDays;
+  const linear = (bucket.sum / observedDays) * totalDays;
 
   if (!lastFullMonthSum || !priorFullMonthSum || priorFullMonthSum === 0) {
     return Math.round(linear);
@@ -792,17 +835,25 @@ function projectInflightMonth(
   );
   const trend = lastFullMonthSum * (1 + growth);
   // early in the month trust the trend (little data); late, trust observed.
-  const elapsedFraction = stableDays / totalDays;
+  const elapsedFraction = observedDays / totalDays;
   const blended = elapsedFraction * linear + (1 - elapsedFraction) * trend;
 
   return Math.round(blended);
 }
 
-export async function fetchStarHistory(
-  revalidate?: number,
-): Promise<TimelinePoint[]> {
-  const weeks = await getStarHistory(revalidate);
-  if (!weeks || weeks.length < 2) return [];
+export async function fetchStarHistory(): Promise<TimelinePoint[]> {
+  try {
+    return await getCachedStarHistory();
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedStarHistory(): Promise<TimelinePoint[]> {
+  "use cache";
+  cacheLife("hours");
+  const weeks = await getStarHistory();
+  if (!weeks || weeks.length < 2) throw new Error("Star history incomplete");
 
   const ordered = [...weeks].sort((a, b) => a.week - b.week);
   const now = Date.now();

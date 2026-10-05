@@ -102,15 +102,17 @@ const streamReconnected: OpenCodeServerEvent = {
 };
 
 const createReconnectClient = ({
+  get = vi
+    .fn()
+    .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
+  messages = vi.fn().mockResolvedValue({ data: [] }),
   status = vi.fn().mockResolvedValue({ data: {} }),
   permissions = vi.fn().mockResolvedValue({ data: [] }),
   questions = vi.fn().mockResolvedValue({ data: [] }),
 } = {}) => ({
   session: {
-    get: vi
-      .fn()
-      .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
-    messages: vi.fn().mockResolvedValue({ data: [] }),
+    get,
+    messages,
     status,
   },
   permission: { list: permissions },
@@ -1138,6 +1140,373 @@ describe("OpenCodeThreadController", () => {
     expect(questions).toHaveBeenCalledTimes(1);
   });
 
+  it("restores reconnect interactions to loaded child sessions", async () => {
+    const eventSource = createEventSource();
+    const permissions = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "perm_parent",
+          sessionID: "ses_parent",
+          permission: "fs.read",
+          metadata: {},
+        },
+        {
+          id: "perm_child",
+          sessionID: "ses_child",
+          permission: "fs.write",
+          metadata: {},
+        },
+        {
+          id: "perm_settled",
+          sessionID: "ses_child",
+          permission: "fs.write",
+          metadata: {},
+        },
+      ],
+    });
+    const questions = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "question_grandchild",
+          sessionID: "ses_grandchild",
+          questions: [],
+        },
+        {
+          id: "question_settled",
+          sessionID: "ses_grandchild",
+          questions: [],
+        },
+      ],
+    });
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_parent") {
+        return Promise.resolve({
+          data: [
+            createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
+          ],
+        });
+      }
+      if (sessionID === "ses_child") {
+        return Promise.resolve({
+          data: [
+            createTaskMessage("ses_child", "child-assistant", [
+              "ses_grandchild",
+            ]),
+          ],
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+    const client = createReconnectClient({
+      get: vi.fn(({ sessionID }: { sessionID: string }) =>
+        Promise.resolve({
+          data: { id: sessionID, title: sessionID, time: {} },
+        }),
+      ),
+      messages,
+      permissions,
+      questions,
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+
+    await controller.load();
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.childSessionsById
+          .ses_grandchild?.loadState.type,
+      ).toBe("ready");
+    });
+
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_child",
+      properties: {
+        id: "perm_settled",
+        sessionID: "ses_child",
+        permission: "fs.write",
+        metadata: {},
+      },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "permission.replied",
+      sessionId: "ses_child",
+      properties: { requestID: "perm_settled", reply: "once" },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_grandchild",
+      properties: {
+        id: "question_settled",
+        sessionID: "ses_grandchild",
+        questions: [],
+      },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.replied",
+      sessionId: "ses_grandchild",
+      properties: { requestID: "question_settled", answers: [] },
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      const state = controller.getState();
+      const child = state.childSessionsById.ses_child;
+      const grandchild = child?.childSessionsById.ses_grandchild;
+      expect(Object.keys(state.interactions.permissions.pending)).toEqual([
+        "perm_parent",
+      ]);
+      expect(
+        Object.keys(child?.interactions.permissions.pending ?? {}),
+      ).toEqual(["perm_child"]);
+      expect(
+        child?.interactions.permissions.resolved.perm_settled,
+      ).toBeDefined();
+      expect(
+        Object.keys(grandchild?.interactions.questions.pending ?? {}),
+      ).toEqual(["question_grandchild"]);
+      expect(
+        grandchild?.interactions.questions.answered.question_settled,
+      ).toBeDefined();
+    });
+
+    expect(permissions).toHaveBeenCalledTimes(1);
+    expect(questions).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for reconnect history before routing child interactions", async () => {
+    const eventSource = createEventSource();
+    const reconnectMessages = createDeferred<{ data: unknown[] }>();
+    let rootMessageCalls = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_1") {
+        rootMessageCalls += 1;
+        return rootMessageCalls === 1
+          ? Promise.resolve({ data: [] })
+          : reconnectMessages.promise;
+      }
+      if (sessionID === "ses_child") {
+        return Promise.resolve({
+          data: [
+            createTaskMessage("ses_child", "child-assistant", [
+              "ses_grandchild",
+            ]),
+          ],
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+    const permissions = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "perm_child",
+          sessionID: "ses_child",
+          permission: "fs.write",
+          metadata: {},
+        },
+      ],
+    });
+    const questions = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "question_grandchild",
+          sessionID: "ses_grandchild",
+          questions: [],
+        },
+      ],
+    });
+    const client = createReconnectClient({
+      messages,
+      permissions,
+      questions,
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(permissions).toHaveBeenCalledTimes(1));
+
+    reconnectMessages.resolve({
+      data: [createTaskMessage("ses_1", "parent-assistant", ["ses_child"])],
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.interactions
+          .permissions.pending.perm_child,
+      ).toBeDefined();
+      expect(
+        controller.getState().childSessionsById.ses_child?.childSessionsById
+          .ses_grandchild?.interactions.questions.pending.question_grandchild,
+      ).toBeDefined();
+    });
+  });
+
+  it("restores root interactions without waiting for reconnect history", async () => {
+    const eventSource = createEventSource();
+    const reconnectMessages = createDeferred<{ data: unknown[] }>();
+    const client = createReconnectClient({
+      messages: vi.fn(() => reconnectMessages.promise),
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_root",
+            sessionID: "ses_1",
+            permission: "fs.read",
+            metadata: {},
+          },
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().interactions.permissions.pending.perm_root,
+      ).toBeDefined();
+    });
+    reconnectMessages.resolve({ data: [] });
+  });
+
+  it("preserves equivalent pending interactions across reconnect", async () => {
+    const eventSource = createEventSource();
+    const permission = {
+      id: "perm_1",
+      sessionID: "ses_1",
+      permission: "fs.read",
+      metadata: { title: "Read file" },
+    };
+    const question = {
+      id: "question_1",
+      sessionID: "ses_1",
+      questions: [{ header: "Continue", question: "Continue?" }],
+    };
+    const client = createReconnectClient({
+      permissions: vi.fn().mockResolvedValue({ data: [permission] }),
+      questions: vi.fn().mockResolvedValue({ data: [question] }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: permission,
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: question,
+      raw: {},
+    });
+    const pendingPermission =
+      controller.getState().interactions.permissions.pending.perm_1;
+    const pendingQuestion =
+      controller.getState().interactions.questions.pending.question_1;
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.permission.list).toHaveBeenCalledTimes(1);
+      expect(client.question.list).toHaveBeenCalledTimes(1);
+    });
+
+    expect(controller.getState().interactions.permissions.pending.perm_1).toBe(
+      pendingPermission,
+    );
+    expect(
+      controller.getState().interactions.questions.pending.question_1,
+    ).toBe(pendingQuestion);
+  });
+
+  it("refreshes pending reconnect interactions with the latest payload", async () => {
+    const eventSource = createEventSource();
+    const client = createReconnectClient({
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_1",
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: { title: "Current permission" },
+          },
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "question_1",
+            sessionID: "ses_1",
+            questions: [{ header: "Current question", question: "Continue?" }],
+          },
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "perm_1",
+        sessionID: "ses_1",
+        permission: "fs.read",
+        metadata: { title: "Stale permission" },
+      },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "question_1",
+        sessionID: "ses_1",
+        questions: [{ header: "Stale question", question: "Wait?" }],
+      },
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().interactions.permissions.pending.perm_1?.title,
+      ).toBe("Current permission");
+      expect(
+        controller.getState().interactions.questions.pending.question_1
+          ?.questions[0]?.header,
+      ).toBe("Current question");
+    });
+  });
+
   it("does not refetch a loaded child when the parent re-attaches", async () => {
     const eventSource = createEventSource();
     const messages = vi.fn(({ sessionID }: { sessionID: string }) =>
@@ -1749,6 +2118,136 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("keeps the active run when a background history refresh fails", async () => {
+    const eventSource = createEventSource();
+    const get = vi.fn().mockRejectedValue(new Error("history unavailable"));
+    const client = createReconnectClient({ get });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    });
+
+    await vi.waitFor(() => expect(get).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().loadState).toMatchObject({ type: "error" });
+    expect(controller.getState().runState).toMatchObject({ type: "streaming" });
+  });
+
+  it("coalesces background history refreshes", async () => {
+    const eventSource = createEventSource();
+    const firstSession = createDeferred<{ data: unknown }>();
+    const firstMessages = createDeferred<{ data: unknown[] }>();
+    const secondSession = createDeferred<{ data: unknown }>();
+    const secondMessages = createDeferred<{ data: unknown[] }>();
+    const get = vi
+      .fn()
+      .mockReturnValueOnce(firstSession.promise)
+      .mockReturnValueOnce(secondSession.promise);
+    const listMessages = vi
+      .fn()
+      .mockReturnValueOnce(firstMessages.promise)
+      .mockReturnValueOnce(secondMessages.promise);
+    const client = createReconnectClient({
+      get,
+      messages: listMessages,
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const compacted: OpenCodeServerEvent = {
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    };
+    eventSource.emit(compacted);
+    eventSource.emit(compacted);
+
+    expect(get).toHaveBeenCalledOnce();
+    expect(listMessages).toHaveBeenCalledOnce();
+
+    firstSession.resolve({ data: { id: "stale_session", time: {} } });
+    firstMessages.resolve({ data: [] });
+    await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(listMessages).toHaveBeenCalledTimes(2);
+    expect(controller.getState().loadState).toMatchObject({ type: "loading" });
+    expect(controller.getState().session).toBeNull();
+
+    secondSession.resolve({ data: { id: "fresh_session", time: {} } });
+    secondMessages.resolve({ data: [] });
+    await vi.waitFor(() =>
+      expect(controller.getState().loadState).toMatchObject({ type: "ready" }),
+    );
+    expect(controller.getState().session).toMatchObject({
+      id: "fresh_session",
+    });
+  });
+
+  it("uses an explicit refresh to satisfy a queued background refresh", async () => {
+    const eventSource = createEventSource();
+    const firstSession = createDeferred<{ data: unknown }>();
+    const firstMessages = createDeferred<{ data: unknown[] }>();
+    const secondSession = createDeferred<{ data: unknown }>();
+    const secondMessages = createDeferred<{ data: unknown[] }>();
+    const get = vi
+      .fn()
+      .mockReturnValueOnce(firstSession.promise)
+      .mockReturnValueOnce(secondSession.promise);
+    const listMessages = vi
+      .fn()
+      .mockReturnValueOnce(firstMessages.promise)
+      .mockReturnValueOnce(secondMessages.promise);
+    const controller = new OpenCodeThreadController(
+      createReconnectClient({ get, messages: listMessages }) as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const compacted: OpenCodeServerEvent = {
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    };
+    eventSource.emit(compacted);
+    eventSource.emit(compacted);
+    const refresh = controller.refresh();
+
+    firstSession.resolve({ data: { id: "stale_session", time: {} } });
+    firstMessages.resolve({ data: [] });
+    secondSession.resolve({ data: { id: "fresh_session", time: {} } });
+    secondMessages.resolve({ data: [] });
+    await refresh;
+
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(listMessages).toHaveBeenCalledTimes(2);
+    expect(controller.getState().loadState).toMatchObject({ type: "ready" });
+    expect(controller.getState().session).toMatchObject({
+      id: "fresh_session",
+    });
+  });
+
   it("keeps current state when the status endpoint is unavailable", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({
@@ -1900,6 +2399,668 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("ignores a reconnect status response older than a live status event", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const client = createReconnectClient({
+      status: vi.fn(() => status.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+  });
+
+  it("ignores a reconnect status response older than a live part update", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Initial",
+    };
+    const client = createReconnectClient({
+      messages: vi.fn().mockResolvedValue({
+        data: [{ ...message, parts: [part] }],
+      }),
+      status: vi.fn(() => status.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: { ...part, text: "Live output" } },
+      raw: {},
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+    expect(controller.getState().runState).toMatchObject({
+      type: "streaming",
+    });
+  });
+
+  it("ignores a reconnect status response older than a locally started run", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const prompt = createDeferred<unknown>();
+    const client = createReconnectClient({
+      status: vi.fn(() => status.promise),
+    });
+    Object.assign(client.session, {
+      promptAsync: vi.fn(() => prompt.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+    const send = controller.sendMessage({
+      role: "user",
+      parentId: null,
+      sourceId: null,
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      runConfig: {},
+      createdAt: new Date(),
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toBeNull();
+    expect(controller.getState().runState).toMatchObject({
+      type: "streaming",
+    });
+
+    prompt.resolve({});
+    await send;
+  });
+
+  it("preserves live events received while history is loading", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const load = controller.load();
+    const liveMessage = createTaskMessage("ses_1", "live_message", []);
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: liveMessage.info },
+      raw: {},
+    });
+
+    expect(controller.getState().messageOrder).toEqual(["live_message"]);
+
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [] });
+    await load;
+
+    expect(controller.getState().messageOrder).toEqual(["live_message"]);
+  });
+
+  it.each(["message", "part", "delta"] as const)(
+    "drops untouched cached parts omitted by history after a live %s update",
+    async (update) => {
+      const messages = createDeferred<{ data: unknown[] }>();
+      const eventSource = createEventSource();
+      const message = createTaskMessage("ses_1", "message_1", []);
+      const part = {
+        id: "part_1",
+        messageID: "message_1",
+        sessionID: "ses_1",
+        type: "text",
+        text: "Initial",
+      };
+      const removedPart = { ...part, id: "removed_part", text: "Deleted" };
+      const client = {
+        session: {
+          get: vi.fn().mockResolvedValue({ data: { id: "ses_1", time: {} } }),
+          messages: vi
+            .fn()
+            .mockResolvedValueOnce({
+              data: [{ ...message, parts: [part, removedPart] }],
+            })
+            .mockReturnValueOnce(messages.promise),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      await controller.load();
+
+      const load = controller.refresh();
+      const livePart = { ...part, text: "Initial live" };
+      const event =
+        update === "message"
+          ? { type: "message.updated", properties: { info: message.info } }
+          : update === "part"
+            ? {
+                type: "message.part.updated",
+                properties: { part: livePart },
+              }
+            : {
+                type: "message.part.delta",
+                properties: {
+                  messageID: "message_1",
+                  partID: "part_1",
+                  field: "text",
+                  delta: " live",
+                },
+              };
+      eventSource.emit({ ...event, sessionId: "ses_1", raw: {} });
+      messages.resolve({ data: [{ ...message, parts: [livePart] }] });
+      await load;
+
+      expect(controller.getState().messagesById.message_1?.parts).toEqual([
+        livePart,
+      ]);
+    },
+  );
+
+  it.each(["part", "delta"] as const)(
+    "retains only the omitted live %s across a forced replacement load",
+    async (update) => {
+      const firstMessages = createDeferred<{ data: unknown[] }>();
+      const secondMessages = createDeferred<{ data: unknown[] }>();
+      const eventSource = createEventSource();
+      const message = createTaskMessage("ses_1", "message_1", []);
+      const part = {
+        id: "part_1",
+        messageID: "message_1",
+        sessionID: "ses_1",
+        type: "text",
+        text: "Initial",
+      };
+      const removedPart = { ...part, id: "removed_part", text: "Deleted" };
+      const client = {
+        session: {
+          get: vi.fn().mockResolvedValue({ data: { id: "ses_1", time: {} } }),
+          messages: vi
+            .fn()
+            .mockResolvedValueOnce({
+              data: [{ ...message, parts: [part, removedPart] }],
+            })
+            .mockReturnValueOnce(firstMessages.promise)
+            .mockReturnValueOnce(secondMessages.promise),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      await controller.load();
+
+      const firstLoad = controller.refresh();
+      const livePart = { ...part, text: "Initial live" };
+      const event =
+        update === "part"
+          ? {
+              type: "message.part.updated",
+              properties: { part: livePart },
+            }
+          : {
+              type: "message.part.delta",
+              properties: {
+                messageID: "message_1",
+                partID: "part_1",
+                field: "text",
+                delta: " live",
+              },
+            };
+      eventSource.emit({ ...event, sessionId: "ses_1", raw: {} });
+      const secondLoad = controller.refresh();
+      firstMessages.resolve({ data: [] });
+      await firstLoad;
+      secondMessages.resolve({ data: [message] });
+      await secondLoad;
+
+      expect(controller.getState().messagesById.message_1?.parts).toEqual([
+        livePart,
+      ]);
+    },
+  );
+
+  it("preserves an unknown part update through its forced refresh", async () => {
+    const eventSource = createEventSource();
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const client = {
+      session: {
+        get: vi.fn().mockResolvedValue({ data: { id: "ses_1", time: {} } }),
+        messages: vi.fn().mockResolvedValue({ data: [message] }),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: {
+        part: {
+          id: "part_1",
+          messageID: "message_1",
+          sessionID: "ses_1",
+          type: "text",
+          text: "Live output",
+        },
+      },
+      raw: {},
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
+        [{ id: "part_1", text: "Live output" }],
+      );
+    });
+  });
+
+  it("preserves loaded parts after a live message info update", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const load = controller.load();
+    const message = createTaskMessage("ses_1", "message_1", []);
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [
+        {
+          ...message,
+          parts: [
+            {
+              id: "part_1",
+              messageID: "message_1",
+              sessionID: "ses_1",
+              type: "text",
+              text: "Loaded output",
+            },
+          ],
+        },
+      ],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Loaded output" },
+    ]);
+  });
+
+  it("preserves optimistic shadow parts after a live message update", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const shadowParts = [{ type: "text", text: "Pending text" }] as const;
+    (
+      controller as unknown as {
+        dispatch: (event: unknown) => void;
+      }
+    ).dispatch({
+      type: "local.message.queued",
+      pending: {
+        clientId: "local_1",
+        sessionId: "ses_1",
+        createdAt: 1000,
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        contentText: "Pending text",
+        parts: shadowParts,
+        status: "pending",
+      },
+    });
+
+    const load = controller.load();
+    const info = {
+      id: "message_1",
+      role: "user",
+      sessionID: "ses_1",
+      time: { created: 1000 },
+    } as const;
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [{ info, parts: [] }] });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.shadowParts).toEqual(
+      shadowParts,
+    );
+  });
+
+  it("does not duplicate deltas already present in loaded history", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const initialPart = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Hello",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: initialPart },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.delta",
+      sessionId: "ses_1",
+      properties: {
+        messageID: "message_1",
+        partID: "part_1",
+        field: "text",
+        delta: " world",
+      },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [
+        {
+          ...message,
+          parts: [{ ...initialPart, text: "Hello world" }],
+        },
+      ],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Hello world" },
+    ]);
+  });
+
+  it("uses loaded history when it contains more complete part content", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const initialPart = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Hello",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: initialPart },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.delta",
+      sessionId: "ses_1",
+      properties: {
+        messageID: "message_1",
+        partID: "part_1",
+        field: "text",
+        delta: " again",
+      },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [
+        {
+          ...message,
+          parts: [{ ...initialPart, text: "Hello world again" }],
+        },
+      ],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Hello world again" },
+    ]);
+  });
+
+  it("keeps loaded same-id parts authoritative over live updates", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Initial",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: { ...part, text: "Live output" } },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [{ ...message, parts: [{ ...part, text: "Loaded output" }] }],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Loaded output" },
+    ]);
+  });
+
+  it("does not resurrect parts removed during a history load", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Removed output",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.removed",
+      sessionId: "ses_1",
+      properties: { messageID: "message_1", partID: "part_1" },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [{ ...message, parts: [part] }] });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toEqual([]);
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();
@@ -1919,13 +3080,22 @@ describe("OpenCodeThreadController", () => {
       },
     };
 
+    const eventSource = createEventSource();
     const controller = new OpenCodeThreadController(
       client as never,
-      () => ({ subscribe: () => () => {} }),
+      () => eventSource,
       "ses_1",
     );
 
+    controller.subscribe(vi.fn());
     const firstLoad = controller.load();
+    const liveMessage = createTaskMessage("ses_1", "live_message", []);
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: liveMessage.info },
+      raw: {},
+    });
     const secondLoad = controller.load(true);
 
     firstSession.resolve({
@@ -1982,7 +3152,10 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().session).toMatchObject({
       id: "fresh_session",
     });
-    expect(controller.getState().messageOrder).toEqual(["fresh_message"]);
+    expect(controller.getState().messageOrder).toEqual([
+      "live_message",
+      "fresh_message",
+    ]);
   });
 
   it("replies to questions and stores answered state", async () => {
@@ -2082,5 +3255,62 @@ describe("OpenCodeThreadController", () => {
     expect(
       controller.getState().interactions.questions.pending.question_1,
     ).toBeUndefined();
+  });
+
+  describe("revert", () => {
+    const createRevertController = () => {
+      const client = {
+        session: { revert: vi.fn().mockResolvedValue({}) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
+      return { client, controller };
+    };
+
+    it("leaves an idle thread idle so the composer stays usable", async () => {
+      const { client, controller } = createRevertController();
+      expect(controller.getState().runState.type).toBe("idle");
+
+      await controller.revert("msg_1");
+
+      // Reverting a finished turn produces no busy-to-idle transition, so a
+      // `reverting` state entered here would never be left.
+      expect(controller.getState().runState.type).toBe("idle");
+      expect(client.session.revert).toHaveBeenCalledWith(
+        { sessionID: "ses_1", messageID: "msg_1" },
+        { throwOnError: true },
+      );
+    });
+
+    it("marks a running thread as reverting", async () => {
+      const { controller } = createRevertController();
+      (
+        controller as unknown as { dispatch: (event: unknown) => void }
+      ).dispatch({ type: "run.started" });
+      expect(controller.getState().runState.type).toBe("streaming");
+
+      await controller.revert("msg_1");
+
+      expect(controller.getState().runState.type).toBe("reverting");
+    });
+
+    it("surfaces a failed revert as a run error", async () => {
+      const error = new Error("revert failed");
+      const client = {
+        session: { revert: vi.fn().mockRejectedValue(error) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
+
+      await expect(controller.revert("msg_1")).rejects.toThrow("revert failed");
+
+      expect(controller.getState().runState).toMatchObject({ type: "error" });
+    });
   });
 });

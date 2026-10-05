@@ -1,5 +1,41 @@
 # @assistant-ui/store
 
+## 0.3.17
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.3.16
+
+### Patch Changes
+
+- [#7825](https://github.com/assistant-ui/assistant-ui/pull/7825) [`2e066e2`](https://github.com/assistant-ui/assistant-ui/commit/2e066e20ef116f234e10aa8ae42181c8130bc595) - fix: deliver scoped events from remote thread clients ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8597](https://github.com/assistant-ui/assistant-ui/pull/8597) [`ce5b7ed`](https://github.com/assistant-ui/assistant-ui/commit/ce5b7ed5e07bd2a26c9e30e02455b9749c31ae53) - fix: remove runtime import cycles from development bundles ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8518](https://github.com/assistant-ui/assistant-ui/pull/8518) [`e73db99`](https://github.com/assistant-ui/assistant-ui/commit/e73db990bfb860f428da6b5979f07ef416ab3fd4) - fix: runtime hooks keep their clients, runs, streams, queued sends and pending history copies across a fast refresh or a StrictMode replay instead of rebuilding or tearing them down ([@okisdev](https://github.com/okisdev))
+
+- [#8590](https://github.com/assistant-ui/assistant-ui/pull/8590) [`c980b36`](https://github.com/assistant-ui/assistant-ui/commit/c980b36c33a0b8c384184eded99acc46122484e3) - fix: run `useInsertionEffect` cleanups only when a resource is released for good, as React does, let `createTapRoot().unmount()` release a `mountOnSubscribe` root instead of throwing, and have `destroy()` release an assistant client's resources for good ([@okisdev](https://github.com/okisdev))
+
+## 0.3.15
+
+### Patch Changes
+
+- [#7871](https://github.com/assistant-ui/assistant-ui/pull/7871) [`21f8bdf`](https://github.com/assistant-ui/assistant-ui/commit/21f8bdfd8c5c0541cf6d0541eec07fb9e88c3ad3) - fix: stop a nested `useChatRuntime` chat when its own component unmounts, stop registering `AISDKThreads` cloud threads on the client destroy signal, and stop fast refresh from aborting the destroy signal of `useAui(config)` hosts ([@okisdev](https://github.com/okisdev))
+
+- [#7749](https://github.com/assistant-ui/assistant-ui/pull/7749) [`8e1508a`](https://github.com/assistant-ui/assistant-ui/commit/8e1508a9cde31e3d682a3b142dcd2aca29696b11) - perf: keep a thread update off every message client ([@okisdev](https://github.com/okisdev))
+  
+  A streamed token no longer re-runs every message client in an external-store thread, cutting per-token cost by about 60% at 1000 messages.
+
+## 0.3.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
 ## 0.3.13
 
 ### Patch Changes

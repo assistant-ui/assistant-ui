@@ -88,6 +88,7 @@ describe("cursor grapheme lookup", () => {
               visited++;
               yield entry;
             }
+            return undefined;
           };
           return segments;
         });

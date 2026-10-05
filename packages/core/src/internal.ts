@@ -32,9 +32,22 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
+export { getMessagePartKeys } from "./utils/getMessagePartKeys";
+export { getSuggestionKeys } from "./utils/getSuggestionKeys";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
 export { notifyEventListeners } from "./utils/notify-event-listeners";
+export {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+  type ExternalMessageMetadataKeySelector,
+} from "./runtime/utils/external-message-conversion";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
+export {
+  TOOL_INTERACTION_LIMITS,
+  appendToolInteraction,
+  createToolInteraction,
+  readToolInteractionLog,
+} from "./runtime/utils/tool-interactions";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 
 // Composite context provider
@@ -55,6 +68,7 @@ export {
 // JSON type guards, reused by framework bindings so the depth-guarded
 // validation lives in one place.
 export { isJSONValue, isRecord } from "./utils/json/is-json";
+export { isJSONValueEqual } from "./utils/json/is-json-equal";
 
 // Data-URL decoder and http(s) matcher, reused by framework adapters so the
 // outbound part conversion lives in one place.

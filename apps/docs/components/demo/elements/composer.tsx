@@ -50,8 +50,8 @@ const PEOPLE: ComposerPerson[] = [
 ];
 
 const MODELS: ComposerModel[] = [
-  { name: "Fable 5", meta: "1M ctx" },
-  { name: "Opus 5", meta: "400k ctx" },
+  { name: "Fable 5.1", meta: "1M ctx" },
+  { name: "Opus 5.5", meta: "1M ctx" },
   { name: "Haiku 4.5", meta: "200k ctx" },
 ];
 
@@ -59,7 +59,7 @@ const TRANSCRIPT = "Summarize the review threads from this week";
 
 export function ComposerDemo() {
   const [value, setValue] = useState("");
-  const [model, setModel] = useState("Fable 5");
+  const [model, setModel] = useState("Fable 5.1");
   const [modelOpen, setModelOpen] = useState(false);
   const [removed, setRemoved] = useState<string[]>([]);
   const [voice, setVoice] = useState<"idle" | "recording" | "transcribing">(

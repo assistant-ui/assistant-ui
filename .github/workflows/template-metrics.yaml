@@ -7,6 +7,7 @@ on:
       - "templates/**"
       - "packages/ui/**"
       - "scripts/template-metrics.mjs"
+      - "scripts/template-metrics-install.test.mjs"
       - ".github/workflows/template-metrics.yaml"
 
 permissions:
@@ -26,7 +27,7 @@ env:
 jobs:
   gate:
     name: Footprint Gate
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -46,7 +47,7 @@ jobs:
 
   report:
     name: LOC + Bundle Size
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -58,24 +59,25 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Test template install selection
+        run: node --test scripts/template-metrics-install.test.mjs
+
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
-      - name: Cache turbo build setup
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.ref }}-
-            ${{ runner.os }}-turbo-
-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          set -euo pipefail
+          # Templates alias UI source files outside their manifest dependency graph.
+          filters=(--filter=. --filter="@assistant-ui/ui..." --filter="@assistant-ui/react-devtools...")
+          for template in $BUNDLE_TEMPLATES; do
+            filters+=("--filter={./templates/$template}...")
+          done
+          pnpm install --frozen-lockfile "${filters[@]}"
 
       - name: Build templates (bundle subset)
         env:

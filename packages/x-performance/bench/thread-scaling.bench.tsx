@@ -1,5 +1,5 @@
-import { describe, test } from "vitest";
-import { createElement, useState } from "react";
+import { describe, inject, test } from "vitest";
+import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { useAuiState } from "@assistant-ui/store";
@@ -8,6 +8,7 @@ import {
   AssistantRuntimeProvider,
   MessagePrimitiveParts,
   ThreadPrimitiveMessages,
+  ThreadPrimitiveUnstable_MessageById,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 
@@ -41,11 +42,26 @@ const seed = (n: number): Msg[] =>
   }));
 
 type Host = { tick: () => void; unmount: () => void };
+type Variant =
+  | "runtime only"
+  | "provider only"
+  | "all messages"
+  | "all messages by id"
+  | "20 message window";
 
-const mount = (n: number): Host => {
+const mount = (n: number, variant: Variant = "all messages"): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const last = `m${n - 1}`;
   const body = seedText(n - 1);
+  const byIdIds =
+    variant === "all messages by id"
+      ? Array.from({ length: n }, (_, i) => `m${i}`)
+      : variant === "20 message window"
+        ? Array.from(
+            { length: Math.min(n, 20) },
+            (_, i) => `m${Math.max(0, n - 20) + i}`,
+          )
+        : null;
   const App = () => {
     const [messages, set] = useState<Msg[]>(() => seed(n));
     setMessages = set;
@@ -54,9 +70,20 @@ const mount = (n: number): Host => {
       convertMessage,
       onNew: async () => {},
     });
+    if (variant === "runtime only") return null;
     return (
       <AssistantRuntimeProvider runtime={runtime}>
-        <ThreadPrimitiveMessages components={COMPONENTS} />
+        {variant === "all messages" ? (
+          <ThreadPrimitiveMessages components={COMPONENTS} />
+        ) : (
+          byIdIds?.map((messageId) => (
+            <ThreadPrimitiveUnstable_MessageById
+              key={messageId}
+              messageId={messageId}
+              components={COMPONENTS}
+            />
+          ))
+        )}
       </AssistantRuntimeProvider>
     );
   };
@@ -67,12 +94,8 @@ const mount = (n: number): Host => {
     tick: () => {
       flip = !flip;
       const tail = flip ? " tok a" : " tok b";
-      flushSync(() =>
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === last ? { ...m, text: `${body}${tail}` } : m,
-          ),
-        ),
+      setMessages((prev) =>
+        prev.map((m) => (m.id === last ? { ...m, text: `${body}${tail}` } : m)),
       );
     },
     unmount: () => flushSync(() => root.unmount()),
@@ -84,7 +107,9 @@ const SIZES = [10, 100, 1000];
 describe("external-store thread: mount+unmount by message count", () => {
   for (const n of SIZES) {
     test(`${n} messages`, async ({ bench }) => {
-      await bench(`${n} messages`, () => mount(n).unmount()).run();
+      await bench(`${n} messages`, () => mount(n).unmount()).run(
+        inject("benchSampling"),
+      );
     });
   }
 });
@@ -104,8 +129,49 @@ describe("external-store thread: one token changed in the last message, by threa
           },
           afterAll: () => host.unmount(),
         },
-        () => host.tick(),
-      ).run();
+        () => flushSync(host.tick),
+      ).run(inject("benchSampling"));
     });
+  }
+});
+
+// `act` settles each token's host update and runtime store notification.
+// Runtime only mounts the hook; provider only adds thread and message clients.
+// All messages uses the list path; all messages by id uses the ID path at full count.
+// The 20 message window uses the ID path for only the last 20 scopes.
+describe("external-store thread: one token changed in the last message, by layer", () => {
+  for (const n of SIZES) {
+    for (const variant of [
+      "runtime only",
+      "provider only",
+      "all messages",
+      "all messages by id",
+      "20 message window",
+    ] as const) {
+      const row = `${variant}, ${n} messages`;
+      let host: Host;
+      test(row, async ({ bench }) => {
+        await bench(
+          row,
+          {
+            beforeAll: () => {
+              host = mount(n, variant);
+              (
+                globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+              ).IS_REACT_ACT_ENVIRONMENT = true;
+            },
+            afterAll: () => {
+              (
+                globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+              ).IS_REACT_ACT_ENVIRONMENT = false;
+              host.unmount();
+            },
+          },
+          async () => {
+            await act(host.tick);
+          },
+        ).run(inject("benchSampling"));
+      });
+    }
   }
 });

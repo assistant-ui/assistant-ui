@@ -13,10 +13,12 @@ import { StreamdownSample } from "@/components/pages/docs/samples/streamdown";
 <StreamdownSample />
 
 <Callout type="info">
-  `@assistant-ui/react-streamdown` is an **alternative** to `@assistant-ui/react-markdown`. Choose based on your needs:
-  - **react-markdown**: Lightweight, bring-your-own syntax highlighter
-  - **react-streamdown**: Feature-rich with built-in Shiki, KaTeX, Mermaid support
+  `@assistant-ui/react-streamdown` is an **alternative** to `@assistant-ui/react-markdown`:
+  - **react-markdown**: smaller, and you bring your own syntax highlighter
+  - **react-streamdown**: Shiki, KaTeX, and Mermaid support through plugins
 </Callout>
+
+<AgentSetup product="guides/streamdown" />
 
 ## Installation
 
@@ -40,7 +42,7 @@ Streamdown's controls (code-block copy/download buttons, mermaid fullscreen over
 @source "../node_modules/@streamdown/cjk/dist/*.js";
 ```
 
-Adjust the relative path to wherever your project's `node_modules` lives. In a pnpm or Turbo monorepo with hoisted dependencies, you typically need more `../` segments to reach the workspace root. Only include the plugin lines for packages you actually installed.
+Adjust the relative path to wherever your project's `node_modules` lives. In a pnpm or Turbo monorepo with hoisted dependencies, you typically need more `../` segments to reach the workspace root. Only include the plugin lines for packages you installed.
 
 Without these directives, the copy/download/fullscreen buttons render with no padding or cursor styling (and look broken), and the `caret` indicator stays invisible.
 
@@ -136,7 +138,7 @@ Both renderers preserve code markup from rehype plugins, such as `rehype-highlig
 | `remarkRehypeOptions` | `object` | - | Options passed to remark-rehype |
 | `BlockComponent` | `ComponentType` | - | Custom component for rendering blocks |
 | `parseMarkdownIntoBlocksFn` | `(md: string) => string[]` | - | Custom block parsing function |
-| `parseIncompleteMarkdown` | `boolean` | `false` | Parse incomplete markdown as-is (skip remend) |
+| `parseIncompleteMarkdown` | `boolean` | `true` | Repair incomplete markdown with remend while streaming. Set to `false` to skip the repair |
 | `security` | `SecurityConfig` | - | URL/image security restrictions |
 
 ## Plugin Configuration
@@ -335,7 +337,7 @@ function MyCodeComponent({ children }) {
 
 ## Re-exported Utilities
 
-The package re-exports useful utilities:
+The package also exports these utilities:
 
 ```tsx
 import {

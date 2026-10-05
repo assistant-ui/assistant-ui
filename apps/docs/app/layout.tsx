@@ -10,6 +10,7 @@ import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 import { umamiBootstrapScript } from "@/lib/umami-sampling";
 import { AnalyticsGate } from "@/components/analytics-gate";
 import { ConsentBanner } from "@/components/consent-banner";
+import { OutsideRenderer } from "@/components/outside-renderer";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
@@ -41,6 +42,7 @@ export const viewport = {
 
 export const metadata = {
   metadataBase: getMetadataBase(),
+  alternates: { canonical: "./" },
   title: {
     template: "%s · assistant-ui",
     default: "assistant-ui · The frontend library for AI agents",
@@ -97,8 +99,10 @@ export default function Layout({ children }: { children: ReactNode }) {
         <Provider>
           <SiteAssistant>{children}</SiteAssistant>
         </Provider>
-        <AnalyticsGate />
-        <ConsentBanner />
+        <OutsideRenderer>
+          <AnalyticsGate />
+          <ConsentBanner />
+        </OutsideRenderer>
       </body>
     </html>
   );

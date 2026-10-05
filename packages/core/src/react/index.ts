@@ -1,5 +1,5 @@
-/// <reference path="../store/scope-registration.ts" />
-/// <reference path="./types/store-augmentation.ts" />
+/// <reference path="../store/scope-registration.ts" preserve="true" />
+/// <reference path="./types/store-augmentation.ts" preserve="true" />
 
 // model-context
 export {
@@ -217,8 +217,12 @@ export { useExternalStoreSharedOptions } from "./runtimes/useExternalStoreShared
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
 } from "./runtimes/external-message-converter";
-export type { JoinStrategy } from "./runtimes/external-message-converter";
+export type {
+  ExternalMessageConversionCache,
+  JoinStrategy,
+} from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
 export {
   useStreamingTiming,
@@ -287,6 +291,12 @@ export {
 } from "./primitives/message/MessageParts";
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
 export { groupPartByType, type GroupByContext } from "./utils/groupParts";
+export {
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
+} from "./utils/threadRows";
+export { ThreadPrimitiveRow } from "./primitives/thread/ThreadRow";
 export {
   MessagePrimitiveGenerativeUI,
   GenerativeUIRender,

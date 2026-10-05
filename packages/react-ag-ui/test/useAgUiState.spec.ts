@@ -27,6 +27,7 @@ describe("useAgUiState", () => {
     againstState(
       agUiExtras.provide({
         interrupts: [],
+        sendA2uiAction: vi.fn(),
         submitInterruptResponses: vi.fn(),
         steerAway: vi.fn(),
         state: { count: 1 },
@@ -49,6 +50,7 @@ describe("useAgUiSetState", () => {
     const setState = vi.fn();
     const extras = agUiExtras.provide({
       interrupts: [],
+      sendA2uiAction: vi.fn(),
       submitInterruptResponses: vi.fn(),
       steerAway: vi.fn(),
       state: { count: 0 },
@@ -68,6 +70,7 @@ describe("useAgUiSetState", () => {
     const setState = vi.fn();
     const extras = agUiExtras.provide({
       interrupts: [],
+      sendA2uiAction: vi.fn(),
       submitInterruptResponses: vi.fn(),
       steerAway: vi.fn(),
       state: { count: 2 },

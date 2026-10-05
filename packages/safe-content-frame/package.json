@@ -1,6 +1,6 @@
 {
   "name": "safe-content-frame",
-  "version": "0.0.30",
+  "version": "0.0.32",
   "description": "Secure iframe rendering for untrusted content using SafeContentFrame",
   "keywords": [
     "iframe",
@@ -35,13 +35,15 @@
   "scripts": {
     "build": "aui-build",
     "dev": "vite demo",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "jsdom": "^30.0.1",
-    "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vite": "^8.3.1",
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

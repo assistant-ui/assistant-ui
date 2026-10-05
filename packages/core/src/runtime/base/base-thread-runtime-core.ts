@@ -1,5 +1,6 @@
 import type {
   AppendMessage,
+  TextMessagePart,
   ThreadAssistantMessage,
   ThreadMessage,
 } from "../../types/message";
@@ -11,6 +12,10 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../utils/message-repository";
+import {
+  captureThreadRuntimeDisposal,
+  captureThreadRuntimeGeneration,
+} from "../utils/thread-runtime-lifecycle";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -35,6 +40,7 @@ import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { MessageNotSentError } from "../../types/error";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 import {
   BaseSubscribable,
@@ -92,6 +98,25 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.getMessages();
   }
 
+  protected _commitVoiceMessage(
+    _message: ThreadMessage,
+  ): void | Promise<void> {}
+
+  protected _onMessageMetadataChanged(
+    _previousMessage: ThreadAssistantMessage,
+    _message: ThreadAssistantMessage,
+  ): void {}
+
+  protected _dropVoiceMessage(messageId: string, notify: boolean) {
+    const index = this._voiceMessages.findIndex(
+      (voiceMessage) => voiceMessage.id === messageId,
+    );
+    if (index === -1) return;
+    this._voiceMessages.splice(index, 1);
+    this._markVoiceMessagesDirty();
+    if (notify) this._notifySubscribers();
+  }
+
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
       return this._getBaseMessages();
@@ -101,7 +126,13 @@ export abstract class BaseThreadRuntimeCore
       this._cachedVoiceGeneration !== this._voiceGeneration ||
       this._cachedMergedBase !== base
     ) {
-      this._cachedMergedMessages = [...base, ...this._voiceMessages];
+      const baseMessageIds = new Set(base.map((message) => message.id));
+      this._cachedMergedMessages = [
+        ...base,
+        ...this._voiceMessages.filter(
+          (message) => !baseMessageIds.has(message.id),
+        ),
+      ];
       this._cachedVoiceGeneration = this._voiceGeneration;
       this._cachedMergedBase = base;
     }
@@ -126,6 +157,11 @@ export abstract class BaseThreadRuntimeCore
   constructor(_contextProvider: ModelContextProvider) {
     super();
     this._contextProvider = _contextProvider;
+    captureThreadRuntimeDisposal(this).addEventListener("abort", () => {
+      this.composer.__internal_dispose();
+      for (const composer of this._editComposers.values())
+        composer.__internal_dispose();
+    });
   }
 
   public getModelContext() {
@@ -171,7 +207,26 @@ export abstract class BaseThreadRuntimeCore
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
   }
+  protected _isVoiceMessage(messageId: string | null) {
+    return (
+      messageId !== null && this._voiceMessages.some((m) => m.id === messageId)
+    );
+  }
+
+  protected _resolveAppendParent(parentId: string | null): string | null {
+    return this._isVoiceMessage(parentId)
+      ? (this._getBaseMessages().at(-1)?.id ?? null)
+      : parentId;
+  }
+
   public beginEdit(messageId: string) {
+    if (this.voice)
+      throw new Error(
+        "Cannot edit a message while a voice session is connected",
+      );
+    if (this._isVoiceMessage(messageId)) {
+      throw new Error("Voice transcript messages cannot be edited");
+    }
     if (this._editComposers.has(messageId))
       throw new Error("Edit already in progress");
 
@@ -244,22 +299,36 @@ export abstract class BaseThreadRuntimeCore
     });
   }
 
-  public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
+  public submitFeedback({ messageId, type, comment }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
-    if (!adapter) throw new Error("Feedback adapter not configured");
-
-    const { message, parentId } = this.repository.getMessage(messageId);
-    adapter.submit({ message, type });
+    const entry = this.getMessageById(messageId);
+    if (!entry) throw new Error(`Message not found: ${messageId}`);
+    const { message, parentId } = entry;
+    const trimmed = comment?.trim();
+    const feedback = { type, ...(trimmed ? { comment: trimmed } : undefined) };
+    adapter?.submit({ message, ...feedback });
 
     if (message.role === "assistant") {
-      const updatedMessage: ThreadMessage = {
+      const updatedMessage: ThreadAssistantMessage = {
         ...message,
         metadata: {
           ...message.metadata,
-          submittedFeedback: { type },
+          submittedFeedback: feedback,
         },
       };
-      this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      const voiceIdx = this._voiceMessages.findIndex(
+        (voiceMessage) => voiceMessage.id === messageId,
+      );
+      if (voiceIdx === -1) {
+        this.repository.addOrUpdateMessage(parentId, updatedMessage);
+        this._onMessageMetadataChanged(message, updatedMessage);
+      } else {
+        this._voiceMessages[voiceIdx] = updatedMessage;
+        if (this._currentAssistantMsg === message) {
+          this._currentAssistantMsg = updatedMessage;
+        }
+        this._markVoiceMessagesDirty();
+      }
     }
 
     this._notifySubscribers();
@@ -272,7 +341,9 @@ export abstract class BaseThreadRuntimeCore
     const adapter = this.adapters?.speech;
     if (!adapter) throw new Error("Speech adapter not configured");
 
-    const { message } = this.repository.getMessage(messageId);
+    const entry = this.getMessageById(messageId);
+    if (!entry) throw new Error(`Message not found: ${messageId}`);
+    const { message } = entry;
 
     const previousStop = this._stopSpeaking;
     let utterance: SpeechSynthesisAdapter.Utterance;
@@ -360,12 +431,69 @@ export abstract class BaseThreadRuntimeCore
     return () => this._voiceVolumeSubscribers.delete(callback);
   };
 
+  protected _onVoiceConnected(): void {}
+
+  protected _onVoiceDisconnected(): void {}
+
+  private _toVoiceSessionState(
+    session: RealtimeVoiceAdapter.Session,
+    status: RealtimeVoiceAdapter.Status,
+    mode: RealtimeVoiceAdapter.Mode,
+  ): VoiceSessionState {
+    return {
+      status,
+      isMuted: session.isMuted,
+      mode,
+      canSendText: status.type === "running" && session.sendText !== undefined,
+    };
+  }
+
+  protected _isRunActive(): boolean {
+    const runtime: ThreadRuntimeCore = this;
+    if (runtime.isRunning) return true;
+    const last = this._getBaseMessages().at(-1);
+    return (
+      last?.role === "assistant" &&
+      (last.status.type === "running" || last.status.type === "requires-action")
+    );
+  }
+
+  /**
+   * Waits for a pending history import before a voice message is committed.
+   * The import may begin before or after the voice session connects, so the
+   * loading state must be rechecked when the commit is ready to run. The wait
+   * also ends when the runtime is invalidated, since a superseded runtime may
+   * never learn that loading ended.
+   */
+  protected _getVoiceCommitBarrier(): Promise<void> | undefined {
+    if (!this.isLoading) return undefined;
+    const generation = captureThreadRuntimeGeneration(this);
+    return (async () => {
+      while (this.isLoading && !generation.aborted) {
+        await new Promise<void>((resolve) => {
+          const wake = () => {
+            unsubscribe();
+            generation.removeEventListener("abort", wake);
+            resolve();
+          };
+          const unsubscribe = this.subscribe(wake);
+          generation.addEventListener("abort", wake);
+        });
+      }
+    })();
+  }
+
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
+    if (this._isRunActive())
+      throw new Error(
+        "Cannot start a voice session while a run is in progress or paused on a pending tool action",
+      );
+    const replacing = this._voiceSession !== undefined;
 
     try {
-      this.disconnectVoice();
+      this._disconnectVoice(false);
     } catch (error) {
       console.error(
         "[assistant-ui] Voice cleanup threw before reconnect",
@@ -373,7 +501,14 @@ export abstract class BaseThreadRuntimeCore
       );
     }
 
-    const session = adapter.connect({});
+    let session: RealtimeVoiceAdapter.Session;
+    try {
+      session = adapter.connect({});
+    } catch (error) {
+      if (replacing && this._voiceSession === undefined)
+        this._onVoiceDisconnected();
+      throw error;
+    }
     this._voiceSession = session;
     const unsubs: Array<() => void> = [];
     this._voiceUnsubs = unsubs;
@@ -398,27 +533,29 @@ export abstract class BaseThreadRuntimeCore
     try {
       let currentMode: RealtimeVoiceAdapter.Mode = "listening";
 
-      this.voice = {
-        status: session.status,
-        isMuted: session.isMuted,
-        mode: currentMode,
-      };
+      this.voice = this._toVoiceSessionState(
+        session,
+        session.status,
+        currentMode,
+      );
       this._voiceVolume = 0;
       this._notifySubscribers();
       if (finishDetachedSetup()) return;
 
       unsubs.push(
         session.onStatusChange((status) => {
+          if (this._voiceSession !== session) return;
           if (status.type === "ended") {
             this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
+            this._onVoiceDisconnected();
           } else {
-            this.voice = {
+            this.voice = this._toVoiceSessionState(
+              session,
               status,
-              isMuted: session.isMuted,
-              mode: currentMode,
-            };
+              currentMode,
+            );
           }
           this._notifySubscribers();
         }),
@@ -427,6 +564,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onModeChange((mode) => {
+          if (this._voiceSession !== session) return;
           currentMode = mode;
           if (this.voice) {
             this.voice = { ...this.voice, mode };
@@ -438,6 +576,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onVolumeChange((volume) => {
+          if (this._voiceSession !== session) return;
           this._voiceVolume = volume;
           notifyEventListeners(
             this._voiceVolumeSubscribers,
@@ -450,20 +589,23 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onTranscript((transcript) => {
+          if (this._voiceSession !== session) return;
           this._handleVoiceTranscript(transcript);
         }),
       );
-      finishDetachedSetup();
+      if (!finishDetachedSetup()) this._onVoiceConnected();
     } catch (error) {
       if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
         try {
-          this.disconnectVoice();
+          this._disconnectVoice(false);
         } catch (cleanupError) {
           console.error(
             "[assistant-ui] Voice rollback cleanup threw",
             cleanupError,
           );
         }
+        if (replacing && this._voiceSession === undefined)
+          this._onVoiceDisconnected();
       } else {
         finishDetachedSetup();
       }
@@ -472,6 +614,12 @@ export abstract class BaseThreadRuntimeCore
   }
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
+
+  private _observeVoiceCommit(commit: () => void | Promise<void>) {
+    void new Promise<void>((resolve) => resolve(commit())).catch((error) => {
+      console.error("[assistant-ui] Voice message commit failed", error);
+    });
+  }
 
   private _handleVoiceTranscript(
     transcript: RealtimeVoiceAdapter.TranscriptItem,
@@ -483,17 +631,16 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._voiceMessages.push({
-          id: generateId(),
-          role: "user",
-          content: [{ type: "text", text: transcript.text }],
-          metadata: { custom: {} },
-          createdAt: new Date(),
-          status: { type: "complete", reason: "unknown" },
-          attachments: [],
-        });
-        this._markVoiceMessagesDirty();
-        this._notifySubscribers();
+        this._observeVoiceCommit(() =>
+          this._commitVoiceUserMessage({
+            id: generateId(),
+            role: "user",
+            content: [{ type: "text", text: transcript.text }],
+            metadata: { modality: "voice", custom: {} },
+            createdAt: new Date(),
+            attachments: [],
+          }),
+        );
       }
     } else {
       const status: ThreadAssistantMessage["status"] = transcript.isFinal
@@ -510,6 +657,7 @@ export abstract class BaseThreadRuntimeCore
             unstable_annotations: [],
             unstable_data: [],
             steps: [],
+            modality: "voice",
             custom: {},
           },
           status,
@@ -529,6 +677,8 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
+        const message = this._currentAssistantMsg;
+        this._observeVoiceCommit(() => this._commitVoiceMessage(message));
         this._currentAssistantMsg = null;
       }
 
@@ -537,7 +687,67 @@ export abstract class BaseThreadRuntimeCore
     }
   }
 
-  private _finishVoiceAssistantMessage() {
+  private _commitVoiceUserMessage(message: ThreadMessage) {
+    this._voiceMessages.push(message);
+    try {
+      return this._commitVoiceMessage(message);
+    } finally {
+      this._markVoiceMessagesDirty();
+      this._notifySubscribers();
+    }
+  }
+
+  protected async _appendToVoiceSession(message: AppendMessage) {
+    const session = this._voiceSession;
+    if (!this.voice?.canSendText || !session?.sendText)
+      throw new Error(
+        "Cannot send a text message while a voice session is connected",
+      );
+    const content = message.content.filter(
+      (part): part is TextMessagePart => part.type === "text",
+    );
+    if (
+      message.role !== "user" ||
+      message.sourceId != null ||
+      message.parentId !==
+        this._resolveAppendParent(this.messages.at(-1)?.id ?? null) ||
+      message.attachments?.length ||
+      content.length !== message.content.length ||
+      !content.some((part) => part.text.trim())
+    )
+      throw new Error(
+        "Only a plain text user message can be sent while a voice session is connected",
+      );
+
+    const enriched = this.enrichAppendMetadata(message);
+    this.ensureInitialized();
+    const generation = captureThreadRuntimeGeneration(this);
+    try {
+      await session.sendText(getThreadMessageText(message));
+    } catch (error) {
+      if (generation.aborted) return;
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
+    }
+    if (generation.aborted) return;
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
+    this._finishVoiceAssistantMessage(false);
+    this._currentAssistantMsg = null;
+    await this._commitVoiceUserMessage({
+      id: generateId(),
+      role: "user",
+      content,
+      metadata: { custom: { ...enriched.metadata?.custom } },
+      createdAt: message.createdAt,
+      attachments: [],
+    });
+  }
+
+  private _finishVoiceAssistantMessage(notify = true) {
     const last = this._voiceMessages.at(-1);
     if (last?.role === "assistant" && last.status.type === "running") {
       const idx = this._voiceMessages.length - 1;
@@ -545,12 +755,21 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
+      this._observeVoiceCommit(() =>
+        this._commitVoiceMessage(this._voiceMessages[idx]!),
+      );
+      this._currentAssistantMsg = null;
       this._markVoiceMessagesDirty();
-      this._notifySubscribers();
+      if (notify) this._notifySubscribers();
     }
   }
 
   public disconnectVoice() {
+    this._disconnectVoice(true);
+  }
+
+  private _disconnectVoice(fireHook: boolean) {
+    this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     // Drain the shared list in place so reentrant setup cannot release the same handles again.
     const unsubs = this._voiceUnsubs.splice(0);
@@ -559,20 +778,30 @@ export abstract class BaseThreadRuntimeCore
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
+    const stopSpeaking =
+      this.speech && this._isVoiceMessage(this.speech.messageId)
+        ? this._stopSpeaking
+        : undefined;
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
 
-    notifySubscribers([
-      ...unsubs,
-      ...(session ? [() => session.disconnect()] : []),
-      () =>
-        notifyEventListeners(
-          this._voiceVolumeSubscribers,
-          undefined,
-          "Voice volume",
-        ),
-      () => this._notifySubscribers(),
-    ]);
+    try {
+      notifySubscribers([
+        ...unsubs,
+        ...(stopSpeaking ? [stopSpeaking] : []),
+        ...(session ? [() => session.disconnect()] : []),
+        () =>
+          notifyEventListeners(
+            this._voiceVolumeSubscribers,
+            undefined,
+            "Voice volume",
+          ),
+        () => this._notifySubscribers(),
+      ]);
+    } finally {
+      if (fireHook && session && this._voiceSession === undefined)
+        this._onVoiceDisconnected();
+    }
   }
 
   public muteVoice() {

@@ -71,7 +71,7 @@ Every `generate_image` tool call in the thread now renders as this element, wher
 
 <StandaloneMode>
 
-Standalone, `ImageGeneration` is fully controlled: you hold the prompt and whether generation is in flight.
+Standalone, `ImageGeneration` is fully controlled: you hold the prompt and whether generation is in flight, and optionally handle regeneration.
 
 <Steps>
   <Step>
@@ -81,17 +81,15 @@ Standalone, `ImageGeneration` is fully controlled: you hold the prompt and wheth
 ```tsx title="app/answer.tsx"
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
 
 export function Generation() {
+  const prompt = "A calm mountain lake at dawn";
   const [generating, setGenerating] = useState(true);
 
   return (
-    <ImageGeneration
-      prompt="A calm mountain lake at dawn"
-      generating={generating}
-    />
+    <ImageGeneration prompt={prompt} generating={generating} />
   );
 }
 ```
@@ -101,19 +99,37 @@ export function Generation() {
 
 ### Flip it off once generation finishes
 
-`ImageGeneration` never receives the resulting URL, so hold it separately and swap in a real image renderer once it arrives:
+`ImageGeneration` never receives the resulting URL, so hold it separately and swap in a real image renderer once it arrives. Keep regeneration available beside the result:
 
 ```tsx
 const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-useEffect(() => {
-  generateImage(prompt).then((url) => {
-    setGenerating(false);
+const regenerate = useCallback(async () => {
+  setGenerating(true);
+
+  try {
+    const url = await generateImage(prompt);
     setImageUrl(url);
-  });
+  } finally {
+    setGenerating(false);
+  }
 }, [prompt]);
 
-return imageUrl ? <img src={imageUrl} alt={prompt} /> : (
+useEffect(() => {
+  void regenerate();
+}, [regenerate]);
+
+return imageUrl && !generating ? (
+  <figure>
+    <img src={imageUrl} alt={prompt} />
+    <figcaption>
+      <span>{prompt}</span>
+      <button type="button" onClick={() => void regenerate()}>
+        Regenerate image
+      </button>
+    </figcaption>
+  </figure>
+) : (
   <ImageGeneration prompt={prompt} generating={generating} />
 );
 ```
@@ -133,28 +149,27 @@ return imageUrl ? <img src={imageUrl} alt={prompt} /> : (
   </div>
   <div>
     <p>{/* prompt, or a shimmering "Generating" label while generating */}</p>
-    <button aria-label="Regenerate image" />
+    {onRegenerate && (
+      <button aria-label="Regenerate image" disabled={generating} />
+    )}
   </div>
 </div>
 ```
 
-The frame never renders an actual generated image: the gradient behind the dot grid is a fixed decorative graphic in the source, present in both states and only changing its blur and opacity as `generating` flips. Nothing in this element accepts an image URL. Once a tool call resolves with a real one, hand it to a renderer that does; see the [Image](/elements/image) element. The dot grid's 64 dots pulse with a staggered delay while `generating` is true and fade to fully transparent once it is false. The regenerate button fades out and stops receiving pointer events while generating, but has no `onClick` in the source: wire one by editing the installed file directly, the way you would any other owned-source element.
+The frame never renders an actual generated image: the gradient behind the dot grid is a fixed decorative graphic in the source, present in both states and only changing its blur and opacity as `generating` flips. Nothing in this element accepts an image URL. Once a tool call resolves with a real one, hand it to a renderer that does; see the [Image](/elements/image) element. The dot grid's 64 dots pulse with a staggered delay while `generating` is true and fade to fully transparent once it is false. The regenerate button renders only when `onRegenerate` is provided. While generating, it fades out, is disabled, and is hidden from assistive technology until it can run again.
 
 ## Examples
 
-### Wiring the regenerate button
+### Handle regeneration
 
-The button exists in the DOM but the source has no handler for it. Add one where you install the element:
+Pass `onRegenerate` to show the button and restart your generation flow:
 
 ```tsx
-<button
-  type="button"
-  aria-label="Regenerate image"
-  onClick={() => regenerate(prompt)}
-  className={cn(ghostButton, "size-6 shrink-0", generating && "pointer-events-none opacity-0")}
->
-  <RefreshCwIcon className="size-3" />
-</button>
+<ImageGeneration
+  prompt={prompt}
+  generating={generating}
+  onRegenerate={() => void regenerate()}
+/>
 ```
 
 ### Restyle the frame
@@ -187,7 +202,8 @@ See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `prompt` | `string` | required | Shown below the frame once generation finishes. |
-| `generating` | `boolean` | required | Shows the pulsing dot grid, the blurred gradient, and the shimmering prompt label while true. |
+| `generating` | `boolean` | required | While true, shows the pulsing dot grid and a shimmering "Generating" label in place of the prompt, and hides the gradient. |
+| `onRegenerate` | `() => void` | | Renders the regenerate button and runs when it is activated. The button is disabled while generating. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

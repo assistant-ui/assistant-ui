@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
 import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
+import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import { MessageNotSentError } from "../../types/error";
 import { AssistantRuntimeImpl } from "./assistant-runtime";
 import {
   ThreadRuntimeImpl,
@@ -83,6 +87,54 @@ describe("ThreadRuntime.append with an external store", () => {
   });
 });
 
+describe("ThreadRuntime.append when the send rejects", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const rejectingWith = (error: unknown) =>
+    vi.fn(async () => {
+      throw error;
+    });
+
+  const threadWith = (callbacks: { onNew: ReturnType<typeof rejectingWith> }) =>
+    new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({ messages: [], ...callbacks }),
+    ).thread;
+
+  const settle = async (callback: ReturnType<typeof rejectingWith>) => {
+    await vi.waitFor(() => expect(callback).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+
+  const silenceConsoleError = () =>
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+  it("logs a failed append instead of leaving an unhandled rejection", async () => {
+    const consoleError = silenceConsoleError();
+    const error = new Error("network down");
+    const onNew = rejectingWith(error);
+
+    threadWith({ onNew }).append({ content: [{ type: "text", text: "hi" }] });
+    await settle(onNew);
+
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] Message append failed",
+      error,
+    );
+  });
+
+  it("stays silent for an undispatched append, which the composer owns", async () => {
+    const consoleError = silenceConsoleError();
+    const onNew = rejectingWith(new MessageNotSentError());
+
+    threadWith({ onNew }).append({ content: [{ type: "text", text: "hi" }] });
+    await settle(onNew);
+
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+});
+
 describe("ThreadRuntime state subscriptions", () => {
   it("tears down every source before reconnecting after an error", () => {
     const core = new ReadonlyThreadRuntimeCore();
@@ -132,5 +184,61 @@ describe("ThreadRuntime state subscriptions", () => {
     runtime.subscribe(() => {});
     expect(threadSubscriptions).toBe(2);
     expect(itemSubscriptions).toBe(2);
+  });
+});
+
+describe("ThreadRuntime model context", () => {
+  it("notifies modelContextUpdate subscribers when the bound core is replaced", () => {
+    const attached = new ExternalStoreRuntimeCore({
+      messages: [],
+      onNew: async () => {},
+    });
+    attached.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: { search_docs: { parameters: z.object({}) } },
+      }),
+    });
+
+    let core: ThreadRuntimeCore = EMPTY_THREAD_CORE;
+    let notifyBinding!: () => void;
+    const path = {
+      ref: "test.thread",
+      threadSelector: { type: "main" as const },
+    };
+    const runtime = new ThreadRuntimeImpl(
+      {
+        path,
+        getState: () => core,
+        subscribe: (callback) => {
+          notifyBinding = callback;
+          return () => {};
+        },
+        outerSubscribe: () => () => {},
+      } satisfies ThreadRuntimeCoreBinding,
+      {
+        path,
+        getState: () => ({
+          id: "test",
+          remoteId: undefined,
+          externalId: undefined,
+          isMain: true,
+          isRunning: false,
+          status: "regular",
+          title: undefined,
+        }),
+        subscribe: () => () => {},
+      } satisfies ThreadListItemRuntimeBinding,
+    );
+
+    const reads: string[][] = [];
+    runtime.unstable_on("modelContextUpdate", () => {
+      reads.push(Object.keys(runtime.getModelContext().tools ?? {}));
+    });
+    expect(runtime.getModelContext().tools).toBeUndefined();
+
+    core = attached.threads.getMainThreadRuntimeCore();
+    notifyBinding();
+
+    expect(reads).toEqual([["search_docs"]]);
   });
 });

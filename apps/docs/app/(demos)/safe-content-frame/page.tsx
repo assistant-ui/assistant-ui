@@ -7,7 +7,7 @@ import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "safe-content-frame" as const;
@@ -286,7 +286,7 @@ export default function SafeContentFramePage() {
         </section>
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The setup</p>
+          <p className="text-sm font-medium">The setup</p>
           <CodeBlock title="untrusted.ts" className="my-0 mt-6 max-w-[44rem]">
             <Highlight code={SNIPPET} language="ts" />
           </CodeBlock>
@@ -294,8 +294,8 @@ export default function SafeContentFramePage() {
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
-            <p className={typeEyebrow}>The surface</p>
-            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+            <p className="text-sm font-medium">The surface</p>
+            <span className="text-muted-foreground text-sm tabular-nums">
               {SURFACE.length}
             </span>
           </div>

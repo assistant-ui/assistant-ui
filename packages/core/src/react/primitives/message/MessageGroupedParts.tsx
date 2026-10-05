@@ -6,18 +6,32 @@ import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
+  MessagePartTiming,
   ToolCallMessagePartStatus,
 } from "../../../types/message";
-import { getGroupStatus } from "../../../utils/getGroupStatus";
+import { getGroupSummary } from "../../../utils/getGroupStatus";
+import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 import {
   buildGroupTree,
   GROUPBY_MEMO_KEY,
   type GroupByContext,
   type GroupNode,
 } from "../../utils/groupParts";
-import { MessagePartChildren, type EnrichedPartState } from "./MessageParts";
+import {
+  DefaultPartFallback,
+  MessagePartChildren,
+  type EnrichedPartState,
+} from "./MessageParts";
 
 export namespace MessagePrimitiveGroupedParts {
+  /** Per status tallies over the group's `indices`; they sum to `indices.length`. */
+  export type GroupCounts = {
+    readonly running: number;
+    readonly complete: number;
+    readonly incomplete: number;
+    readonly requiresAction: number;
+  };
+
   /**
    * A coalesced group of adjacent parts. Surfaced through the same
    * `{ part }` channel as a leaf {@link EnrichedPartState} so consumers
@@ -28,7 +42,11 @@ export namespace MessagePrimitiveGroupedParts {
   export type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
     readonly type: TKey;
     readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+    /** Per status tallies over `indices`. */
+    readonly counts: GroupCounts;
     readonly indices: readonly number[];
+    /** Wall-clock span of the group's timed parts: the earliest start, and the latest finish once every timed part has finished. Absent when none of them carries timing. */
+    readonly timing?: MessagePartTiming;
   };
 
   /**
@@ -70,7 +88,9 @@ export namespace MessagePrimitiveGroupedParts {
      * For group nodes: the recursively-rendered subtree (subgroups +
      * leaf parts). For leaf parts: a sentinel that throws when rendered
      * — accidental fall-through (`default: return children;`) errors
-     * loudly instead of silently rendering nothing.
+     * loudly instead of silently rendering nothing. Returning `null` for a
+     * leaf renders its registered tool or data UI, when one exists; return an
+     * empty fragment to suppress that registered UI explicitly.
      */
     readonly children: ReactNode;
   };
@@ -85,10 +105,10 @@ export namespace MessagePrimitiveGroupedParts {
      * `switch (part.type)` can tell groups apart from real part types.
      *
      * **Prefer {@link groupPartByType}** for the common case of mapping by
-     * `part.type` — it ships a stable memo fingerprint so the tree
+     * `part.type` or tool name — it ships a stable memo fingerprint so the tree
      * survives unrelated re-renders. Use an inline function only when
      * the helper isn't expressive enough (e.g. branching on
-     * `part.toolName` or part metadata).
+     * `part.parentId` or part metadata).
      *
      * The second argument is a {@link GroupByContext} carrying the tool-UI
      * registry, for grouping that depends on it (e.g. standalone tool calls).
@@ -125,11 +145,14 @@ export namespace MessagePrimitiveGroupedParts {
      * (when the `indicator` condition is met) once for the trailing
      * {@link IndicatorPart}. Switch on `part.type`: `"group-…"` cases wrap
      * `children`; real part types (`"text"`, `"tool-call"`, …) render the
-     * part directly; `"indicator"` renders status/loading UI.
+     * part directly. Returning `null` for a tool or data leaf uses its
+     * registered UI, while an empty fragment suppresses it; `"indicator"`
+     * renders status/loading UI.
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
-     * `resume`, `respondToApproval`, `dataRendererUI`).
+     * `resume`, `respondToApproval`, `unstable_recordInteraction`,
+     * `dataRendererUI`).
      */
     readonly children: (info: RenderInfo<TKey>) => ReactNode;
   };
@@ -171,42 +194,54 @@ const PartChildrenSentinel: FC = () => {
   throw new Error(
     "MessagePrimitive.GroupedParts: rendered `children` under a leaf " +
       "part. `children` is only meaningful for `group-…` cases — add a " +
-      "matching case for the part type or return `null` to skip it.",
+      "matching case for the part type or return `null` to use registered UIs.",
   );
 };
 
-const renderNode = <TKey extends `group-${string}`>(
+export const renderGroupNode = <TKey extends `group-${string}`>(
   node: GroupNode,
   parts: readonly PartState[],
-  render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
+  render: (info: {
+    readonly part:
+      | MessagePrimitiveGroupedParts.GroupPart<TKey>
+      | EnrichedPartState;
+    readonly children: ReactNode;
+  }) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
-    // Key by part identity when available, else absolute part index — never
-    // the structural nodeKey, which leaves zombie fiber subscriptions when
-    // parts reshape (#4051).
     return (
       <MessagePartChildren
         key={node.idKey ? `part-${node.idKey}` : `part-${node.index}`}
         index={node.index}
       >
-        {({ part }) => render({ part, children: <PartChildrenSentinel /> })}
+        {({ part }) =>
+          render({ part, children: <PartChildrenSentinel /> }) ?? (
+            <DefaultPartFallback />
+          )
+        }
       </MessagePartChildren>
     );
   }
 
-  const status = getGroupStatus(parts, node.indices);
+  const { status, counts, timing } = getGroupSummary(parts, node.indices);
   const groupPart: MessagePrimitiveGroupedParts.GroupPart<TKey> = {
     type: node.key as TKey,
     status,
+    counts,
     indices: node.indices,
+    ...(timing && { timing }),
   };
 
   return (
-    <Fragment key={node.idKey ?? node.nodeKey}>
+    <Fragment key={JSON.stringify([node.key, node.idKey ?? node.nodeKey])}>
       {render({
         part: groupPart,
         children: (
-          <>{node.children.map((child) => renderNode(child, parts, render))}</>
+          <>
+            {node.children.map((child) =>
+              renderGroupNode(child, parts, render),
+            )}
+          </>
         ),
       })}
     </Fragment>
@@ -273,16 +308,14 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     const context: GroupByContext = { toolUIs };
     return buildGroupTree(
       parts.map((part) => groupBy(part, context) ?? []),
-      parts.map((part) =>
-        part.type === "tool-call" ? part.toolCallId : undefined,
-      ),
+      getMessagePartKeys(parts),
     );
     // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
   }, [parts, memoDep, toolUIs]);
 
   return (
     <>
-      {tree.map((node) => renderNode(node, parts, children))}
+      {tree.map((node) => renderGroupNode(node, parts, children))}
       {shouldShowIndicator(indicator, parts, isRunning) &&
         children({
           part: { type: "indicator" },

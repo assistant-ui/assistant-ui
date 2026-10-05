@@ -8,8 +8,6 @@ import {
   type DesignComponentMeta,
 } from "@/components/pages/design/registry-meta";
 import { DESIGN_PREVIEWS } from "@/components/pages/design/registry";
-import { typeEyebrow } from "@/components/shared/type";
-import { cn } from "@/lib/utils";
 
 export function DesignGallery(): ReactNode {
   return (
@@ -23,10 +21,8 @@ export function DesignGallery(): ReactNode {
             <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
               {String(sectionIndex + 1).padStart(2, "0")}
             </span>
-            <h2 className={cn(typeEyebrow, "text-foreground")}>
-              {section.label}
-            </h2>
-            <span className="text-muted-foreground ms-auto font-mono text-[11px] tabular-nums">
+            <h2 className="text-sm font-medium">{section.label}</h2>
+            <span className="text-muted-foreground ms-auto text-sm tabular-nums">
               {section.components.length} components
             </span>
           </div>
@@ -54,7 +50,7 @@ function DesignCard({
       <div className="flex h-8 items-center justify-between">
         <Link
           href={`/design/components/${component.slug}`}
-          className={`${typeEyebrow} hover:text-foreground transition-colors`}
+          className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
         >
           {component.name}
         </Link>
