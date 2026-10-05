@@ -1,4 +1,11 @@
-import { act, Activity, StrictMode, useInsertionEffect, useRef } from "react";
+import {
+  act,
+  Activity,
+  StrictMode,
+  useInsertionEffect,
+  useRef,
+  version,
+} from "react";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
@@ -30,6 +37,8 @@ vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
   onCommitFiberUnmount: () => {},
 });
 const { cleanup, render } = await import("@testing-library/react");
+
+const onReact18 = version.startsWith("18.");
 
 afterEach(() => {
   cleanup();
@@ -66,9 +75,10 @@ const hosts = [
 
 describe.each(hosts)("$name Fast Refresh", ({ useHost, size }) => {
   describe.each([false, true])("nested in a resource: %s", (nested) => {
-    it.each(["visible", "hidden", "revealed"])(
+    it.for(["visible", "hidden", "revealed"])(
       "retains insertion cells through a real refresh while %s",
-      async (mode) => {
+      async (mode, { skip }) => {
+        skip(onReact18 && mode !== "visible", "Activity is React 19 only");
         const setup = vi.fn();
         const release = vi.fn();
         function useLifetime() {
@@ -101,9 +111,14 @@ describe.each(hosts)("$name Fast Refresh", ({ useHost, size }) => {
         }
         const ui = (hidden: boolean) => (
           <StrictMode>
-            <Activity mode={hidden ? "hidden" : "visible"}>
+            {onReact18 ? (
+              // Activity is React 19 only; the visible-mode refresh runs without it on React 18.
               <Before />
-            </Activity>
+            ) : (
+              <Activity mode={hidden ? "hidden" : "visible"}>
+                <Before />
+              </Activity>
+            )}
           </StrictMode>
         );
         const view = render(ui(false));

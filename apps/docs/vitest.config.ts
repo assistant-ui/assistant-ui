@@ -10,6 +10,7 @@ export default {
     pool: "threads",
     fsModuleCache: true,
     globals: true,
+    setupFiles: ["./test/setup.ts"],
     env: {
       NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test",
     },

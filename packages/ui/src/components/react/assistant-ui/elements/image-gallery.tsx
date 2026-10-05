@@ -49,7 +49,7 @@ export function ImageGallery({
   const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const previousRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const index = images.findIndex((image) => image.id === activeId);

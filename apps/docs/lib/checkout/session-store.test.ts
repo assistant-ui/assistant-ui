@@ -48,6 +48,34 @@ describe("checkout session store", () => {
     }
   });
 
+  it("permits a login round trip only when both the session and agent link can be restored", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    const session = store.startCheckout(["cloud"])!;
+    const url = store.agentLinkUrl();
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(true);
+    expect(store.canRestoreCheckoutSession("another", url)).toBe(false);
+    values.delete("aui-agent-link");
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+    values.set("aui-agent-link", "another");
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+    values.delete(storageKey);
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+  });
+
+  it("refuses a login round trip when browser local storage is blocked", async () => {
+    setupStorage();
+    const store = await loadStore();
+    const session = store.startCheckout(["cloud"])!;
+    const url = store.agentLinkUrl();
+    vi.stubGlobal("window", {
+      get localStorage() {
+        throw new Error("blocked");
+      },
+    });
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+  });
+
   it("starts one session for the given products and keeps it until ended", async () => {
     const values = setupStorage();
     const store = await loadStore();

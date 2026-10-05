@@ -2,7 +2,7 @@
 
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useResource } from "@assistant-ui/tap";
-import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
+import type { TriggerAdapter } from "@assistant-ui/core";
 import {
   createContext,
   forwardRef,
@@ -74,7 +74,7 @@ export namespace ComposerPrimitiveTriggerPopover {
     /** Overrides trigger detection for both textarea and Lexical inputs. `endOffset` is the exclusive replace bound. */
     readonly matcher?: TriggerMatcher | undefined;
     /** Adapter providing categories and items. */
-    readonly adapter?: Unstable_TriggerAdapter | undefined;
+    readonly adapter?: TriggerAdapter | undefined;
     /** Whether the adapter is resolving items, surfaced to the popover scope for async sources. @default false */
     readonly isLoading?: boolean | undefined;
   };
@@ -89,22 +89,22 @@ export namespace ComposerPrimitiveTriggerPopover {
  * `<TriggerPopover.Directive>` or `<TriggerPopover.Action>` as a child. Without
  * a behavior the trigger stays closed.
  *
- * Must be placed inside `ComposerPrimitive.Unstable_TriggerPopoverRoot`.
+ * Must be placed inside `ComposerPrimitive.TriggerPopoverRoot`.
  *
  * @example
  * ```tsx
- * <ComposerPrimitive.Unstable_TriggerPopover
+ * <ComposerPrimitive.TriggerPopover
  *   char="@"
  *   adapter={mentionAdapter}
  * >
- *   <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
- *   <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+ *   <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
+ *   <ComposerPrimitive.TriggerPopoverCategories>
  *     {(cats) => cats.map(...)}
- *   </ComposerPrimitive.Unstable_TriggerPopoverCategories>
- *   <ComposerPrimitive.Unstable_TriggerPopoverItems>
+ *   </ComposerPrimitive.TriggerPopoverCategories>
+ *   <ComposerPrimitive.TriggerPopoverItems>
  *     {(items) => items.map(...)}
- *   </ComposerPrimitive.Unstable_TriggerPopoverItems>
- * </ComposerPrimitive.Unstable_TriggerPopover>
+ *   </ComposerPrimitive.TriggerPopoverItems>
+ * </ComposerPrimitive.TriggerPopover>
  * ```
  */
 export const ComposerPrimitiveTriggerPopover = forwardRef<
@@ -196,7 +196,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
         ...(behavior ? { behavior } : {}),
         resource: getResource(),
       });
-    }, [root, char, hasMatcher, behavior]);
+    }, [root, char, hasMatcher, registeredMatcher, behavior]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
