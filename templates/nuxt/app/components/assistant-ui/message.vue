@@ -86,7 +86,7 @@ const error = useAuiState((s) => {
       :class="
         role === 'user'
           ? 'bg-muted text-foreground max-w-[80%] rounded-xl px-4 py-2'
-          : 'text-foreground leading-relaxed'
+          : 'text-foreground w-full leading-relaxed'
       "
     >
       <div
