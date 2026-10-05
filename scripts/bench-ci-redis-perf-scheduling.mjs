@@ -220,12 +220,7 @@ async function redis() {
     dir,
     "redis-integration-tests",
     "pnpm",
-    [
-      "-C",
-      "packages/assistant-stream",
-      "test",
-      "src/resumable/stores/redis.test.ts",
-    ],
+    ["-C", "packages/assistant-stream", "test"],
     redisEnv,
   );
 }
@@ -271,11 +266,19 @@ async function install() {
       env,
     );
     const ref = clone(`${variant}-ref`);
+    const refFilters =
+      variant === "after"
+        ? [
+            "--filter=.",
+            "--filter=@assistant-ui/react-devtools...",
+            ...perfFilters.map((filter) => `${filter}...`),
+          ]
+        : [];
     run(
       ref,
       `${variant}-warm-store-ref-install`,
       "pnpm",
-      ["install", "--frozen-lockfile", ...filters],
+      ["install", "--frozen-lockfile", ...refFilters],
       env,
     );
     run(
