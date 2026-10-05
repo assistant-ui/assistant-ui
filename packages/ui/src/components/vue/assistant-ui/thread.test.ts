@@ -5,7 +5,7 @@ import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type {
   ExternalStoreAdapter,
   ThreadMessageLike,
-  ToolApprovalOption,
+  ToolCallMessagePart,
 } from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
@@ -77,11 +77,19 @@ const button = (root: ParentNode, label: string) => {
   return match;
 };
 
+const answerField = (root: ParentNode, label: string) =>
+  root.querySelector<HTMLTextAreaElement>(`textarea[aria-label="${label}"]`);
+
+const type = (field: HTMLTextAreaElement, value: string) => {
+  field.value = value;
+  field.dispatchEvent(new Event("input"));
+};
+
 const trigger = (root: ParentNode, slot: string) =>
   root.querySelector<HTMLButtonElement>(`[data-slot="${slot}"]`)!;
 
 const pendingApproval = (
-  approval: { options?: readonly ToolApprovalOption[] } = {},
+  approval: Omit<NonNullable<ToolCallMessagePart["approval"]>, "id"> = {},
 ): ThreadMessageLike => ({
   role: "assistant",
   content: [
@@ -344,6 +352,118 @@ describe("vue thread", () => {
 
     update([toolCall("second")]);
     await settle(() => expect(button(el, "Allow").disabled).toBe(false));
+
+    unmount();
+  });
+
+  it("sends a free-form answer to a text request", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [pendingApproval({ prompt: "Which branch?", display: "text" })],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(answerField(el, "Which branch?")).not.toBeNull());
+    expect(
+      buttons(el).some((item) => item.textContent?.trim() === "Deny"),
+    ).toBe(false);
+    type(answerField(el, "Which branch?")!, "release");
+    button(el, "Send").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      text: "release",
+    });
+
+    unmount();
+  });
+
+  it("answers every question of a questionnaire together", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [
+        pendingApproval({
+          display: "questions",
+          questions: [
+            {
+              id: "env",
+              prompt: "Which environment?",
+              options: [
+                { id: "prod", label: "Production" },
+                { id: "dev", label: "Development" },
+              ],
+            },
+            { id: "why", prompt: "Why now?" },
+          ],
+        }),
+      ],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(button(el, "Production")).toBeDefined());
+    expect(button(el, "Send").disabled).toBe(true);
+    button(el, "Production").click();
+    type(answerField(el, "Why now?")!, "hotfix");
+
+    await settle(() => expect(button(el, "Send").disabled).toBe(false));
+    button(el, "Send").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      answers: { env: { optionIds: ["prod"] }, why: { text: "hotfix" } },
+    });
+
+    unmount();
+  });
+
+  it("dismisses a dismissible question without an answer", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [
+        pendingApproval({
+          prompt: "Pick a target",
+          display: "select",
+          dismissible: true,
+          options: [{ id: "staging", kind: "_target", label: "Staging" }],
+        }),
+      ],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(button(el, "Dismiss")).toBeDefined());
+    expect(
+      buttons(el).some((item) => item.textContent?.trim() === "Deny"),
+    ).toBe(false);
+    button(el, "Dismiss").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      approved: false,
+    });
+
+    unmount();
+  });
+
+  it("reopens the controls with the host's error when it rejects an answer", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {
+      throw new Error("host refused");
+    });
+    const { el, unmount } = mountThread([pendingApproval()], {
+      adapter: { onRespondToToolApproval },
+    });
+
+    await settle(() => expect(button(el, "Allow")).toBeDefined());
+    button(el, "Allow").click();
+
+    await settle(() =>
+      expect(el.querySelector('[role="alert"]')?.textContent).toContain(
+        "host refused",
+      ),
+    );
+    expect(button(el, "Allow").disabled).toBe(false);
 
     unmount();
   });
