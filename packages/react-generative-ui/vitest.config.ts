@@ -7,6 +7,9 @@ const temporalTests = [
 
 export default defineConfig({
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+    },
     pool: "threads",
     fsModuleCache: true,
     projects: [

@@ -31,6 +31,9 @@ const refPlugins: Plugin[] = refRoot
 export default defineConfig({
   plugins: refPlugins,
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx,mjs}", "bin/**/*.mjs"],
+    },
     environment: "jsdom",
     pool: "forks",
     execArgv: ["--expose-gc"],
