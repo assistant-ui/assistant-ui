@@ -77,6 +77,34 @@ describe("DataStreamRuntimeAdapter cancellation", () => {
 });
 
 describe("DataStreamRuntimeAdapter response handling", () => {
+  it("cancels the response body when decoder construction fails", async () => {
+    const cancel = vi.fn();
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
+
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      maxStreamLineLength: 0,
+      onError,
+    });
+
+    await expect(
+      runOnce(adapter, createRunOptions(new AbortController().signal)),
+    ).rejects.toThrow("maxLineLength must be a positive safe integer");
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
   it("applies the configured line limit to UI message streams", async () => {
     const onError = vi.fn();
     vi.stubGlobal(

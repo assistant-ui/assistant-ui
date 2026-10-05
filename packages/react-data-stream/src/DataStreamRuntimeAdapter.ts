@@ -221,6 +221,7 @@ export class DataStreamRuntimeAdapter implements ChatModelAdapter {
         unstable_getMessage(),
       );
     } catch (error: unknown) {
+      await result.body?.cancel().catch(() => undefined);
       if (!(error instanceof Error && error.name === "AbortError")) {
         invokeRuntimeCallback(
           "onError",
