@@ -24,11 +24,9 @@ import {
 import {
   getPlatformSwitchHref,
   isPlatform,
-  isSurface,
   PLATFORM_ENTRY_PATHS,
   PLATFORM_LABELS,
   PLATFORMS,
-  SURFACES,
   type Platform,
   usePlatform,
 } from "./context";
@@ -44,7 +42,8 @@ const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
   cloud: Cloud,
 };
 
-const LIBRARIES = PLATFORMS.filter((p) => !isSurface(p));
+const LIBRARIES: readonly Platform[] = ["tap", "cloud"];
+const BINDINGS = PLATFORMS.filter((p) => !LIBRARIES.includes(p));
 
 function getVisiblePlatformSwitchHref(
   visibleUrls: ReadonlySet<string>,
@@ -113,8 +112,8 @@ export function PlatformSwitcher({
             setPlatform(next);
           }}
         >
-          {SURFACES.map(renderItem)}
-          {LIBRARIES.length > 0 && <DropdownMenuSeparator />}
+          {BINDINGS.map(renderItem)}
+          <DropdownMenuSeparator />
           {LIBRARIES.map(renderItem)}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
