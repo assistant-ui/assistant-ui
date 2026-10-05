@@ -17,26 +17,31 @@ const index = useAuiState(() => {
     ? query.index
     : -1;
 });
-const parts = useAuiState((s) => s.message.parts);
-const messageRunning = useAuiState((s) => s.message.status?.type === "running");
-const indices = computed(() => {
+const end = useAuiState((s) => {
+  const parts = s.message.parts;
   const start = index.value;
   if (
-    parts.value[start]?.type !== "reasoning" ||
-    parts.value[start - 1]?.type === "reasoning"
+    parts[start]?.type !== "reasoning" ||
+    parts[start - 1]?.type === "reasoning"
   )
-    return [];
-  let end = start + 1;
-  while (parts.value[end]?.type === "reasoning") end++;
-  return Array.from({ length: end - start }, (_, offset) => start + offset);
+    return start;
+  let last = start + 1;
+  while (parts[last]?.type === "reasoning") last++;
+  return last;
 });
-const streaming = computed(
-  () =>
-    messageRunning.value &&
-    indices.value.some(
-      (partIndex) => parts.value[partIndex]?.status.type === "running",
-    ),
+const indices = computed(() =>
+  Array.from(
+    { length: end.value - index.value },
+    (_, offset) => index.value + offset,
+  ),
 );
+const streaming = useAuiState((s) => {
+  if (s.message.status?.type !== "running") return false;
+  for (let partIndex = index.value; partIndex < end.value; partIndex++) {
+    if (s.message.parts[partIndex]?.status.type === "running") return true;
+  }
+  return false;
+});
 
 const userOpen = ref<boolean | null>(null);
 const open = computed(() => userOpen.value ?? streaming.value);
