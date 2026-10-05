@@ -74,12 +74,16 @@ export const toolkit = defineToolkit({
 ### Register the toolkit
 
 ```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { toolkit } from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
@@ -108,9 +112,12 @@ Standalone, a fulfilled `onComplete` settles the flow into its receipt. Hold com
 "use client";
 
 import { useState } from "react";
-import { QuestionFlow } from "@/components/assistant-ui/elements/question-flow";
+import {
+  QuestionFlow,
+  type QuestionFlowStep,
+} from "@/components/assistant-ui/elements/question-flow";
 
-const STEPS = [
+const STEPS: QuestionFlowStep[] = [
   {
     id: "audience",
     question: "Who should receive this update?",
@@ -179,7 +186,7 @@ Return a promise when the answers need to reach a server first. The final option
 </div>
 ```
 
-An open flow has one paper card, a counter, a progress bar, and the current step's OptionList. A single selection advances immediately. A multiple selection uses Next until the final step, which uses Submit by default. Back preserves prior answers and returns focus to the next step's first enabled option. Without `onComplete`, every step is a display-only OptionList with no header controls.
+An open flow has one paper card, a counter, a progress bar, and the current step's OptionList. A single selection advances immediately. A multiple selection uses Next until the final step, which uses Submit by default. Back preserves prior answers. Each step change moves focus to the first enabled option of the step now shown. Without `onComplete`, every step is a display-only OptionList with no header controls.
 
 After `onComplete` resolves, the card is a receipt. `choice`, when set, takes precedence over the internally confirmed answers. A receipt has one row for each answered step, with the question above its selected labels, and no controls.
 

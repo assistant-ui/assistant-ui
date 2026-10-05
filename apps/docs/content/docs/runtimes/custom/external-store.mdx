@@ -56,7 +56,7 @@ If you do not have an existing store, use [`LocalRuntime`](/docs/runtimes/custom
   </Flow.Canvas>
 </Flow.Root>
 
-Key idea: you own the state, the adapter translates between your format and assistant-ui's. UI features are capability-based; if you provide `setMessages`, branching turns on; if you provide `onEdit`, editing turns on; etc.
+You own the state, and the adapter translates between your format and assistant-ui's. UI features are capability-based: providing `setMessages` turns on branching, and providing `onEdit` turns on editing.
 
 ## Quickstart
 
@@ -169,7 +169,7 @@ export default function Page() {
 
 ## Message conversion
 
-Two approaches.
+There are two approaches.
 
 ### Inline `convertMessage`
 
@@ -458,7 +458,7 @@ By default, sending while the thread is running is disabled. Provide a `queue` a
 
 The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
 
-A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors — unknown ids or anchors throw rather than being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
+A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors: unknown ids or anchors throw instead of being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -500,6 +500,30 @@ const runtime = useExternalStoreRuntime({
   },
 });
 ```
+
+## Paging earlier messages
+
+A long thread can open on its latest page and fetch older messages on demand. Report whether older messages exist with `hasEarlier`, and load the page before the first message in `onLoadEarlier`:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew,
+  hasEarlier: cursor !== null,
+  onLoadEarlier: async () => {
+    const page = await fetchMessagesBefore(cursor);
+    setMessages((current) => [...page.messages, ...current]);
+    setCursor(page.previousCursor);
+  },
+});
+```
+
+The runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()`. `ThreadPrimitive.LoadEarlier` is a button that loads the next page and is disabled while none exists (a press while one loads joins it, so the button keeps keyboard focus), `ThreadPrimitive.Viewport` keeps the visible messages in place when the page lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` loads one when the list nears its start.
+
+- Give every message a stable `id`; a message without one is renumbered when earlier ones arrive, which remounts it.
+- Merge the page into the latest `messages`, not a copy taken when the request started, so tokens that streamed meanwhile are kept.
+- With `messageRepository`, publish the full merged repository with its head; a repository replaces the previous one rather than extending it.
 
 ## Multi-thread
 
@@ -787,9 +811,9 @@ useExternalStoreRuntime({
 });
 ```
 
-**State not updating.** check for: array mutation instead of new arrays, missing `setMessages`, broken async handling, or invalid `convertMessage` output.
+**State not updating.** Check for: array mutation instead of new arrays, missing `setMessages`, broken async handling, or invalid `convertMessage` output.
 
-**Messages going to the wrong thread.** the runtime's `currentThreadId` and your store's selected thread must stay in sync. Centralize thread id in a context, never in component-local state. See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter).
+**Messages going to the wrong thread.** The runtime's `currentThreadId` and your store's selected thread must stay in sync. Centralize thread id in a context, never in component-local state. See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter).
 
 ## API reference
 
@@ -838,6 +862,19 @@ useExternalStoreRuntime({
         "Whether the adapter is in a loading state. Displays a loading indicator instead of the composer.",
     },
     {
+      name: "hasEarlier",
+      type: "boolean",
+      description:
+        "Whether messages exist before the first one in messages. Surfaces as thread.hasEarlier, but only together with onLoadEarlier.",
+      default: "false",
+    },
+    {
+      name: "onLoadEarlier",
+      type: "() => Promise<void>",
+      description:
+        "Loads the page before the first message; prepend it to messages. One call runs at a time, thread.isLoadingEarlier stays true until the promise settles, and a rejection is logged rather than passed on.",
+    },
+    {
       name: "suggestions",
       type: "readonly ThreadSuggestion[]",
       description: "Suggested prompts to display.",
@@ -865,7 +902,7 @@ useExternalStoreRuntime({
     },
     {
       name: "onReload",
-      type: "(parentId: string | Null, config: StartRunConfig) => Promise<void>",
+      type: "(parentId: string | null, config: StartRunConfig) => Promise<void>",
       description:
         "Handler for regenerating messages (required for reload feature).",
     },
@@ -882,7 +919,7 @@ useExternalStoreRuntime({
     },
     {
       name: "onAddToolResult",
-      type: "(options: AddToolResultOptions) => Promise<void> | Void",
+      type: "(options: AddToolResultOptions) => Promise<void> | void",
       description: "Handler for adding tool call results.",
     },
     {
@@ -943,7 +980,7 @@ useExternalStoreRuntime({
       name: "adapters",
       type: "object",
       description:
-        "Capability adapters: attachments, speech, dictation, feedback, threadList. See /docs/runtimes/concepts/adapters.",
+        "Capability adapters: attachments, speech, dictation, voice, feedback, threadList. See /docs/runtimes/concepts/adapters.",
     },
     {
       name: "unstable_capabilities",
@@ -967,9 +1004,9 @@ useExternalStoreRuntime({
     },
     {
       name: "content",
-      type: "string | Readonly MessagePart[]",
+      type: "string | readonly ThreadMessageLikePart[]",
       description:
-        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart.",
+        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart. A part's optional id, including on data-* parts, keys the part when it is non-empty and no other part of the same type in the message shares it, preserving component state when parts are reordered or updated with the same id. Every part with a missing or empty id, or an id shared by another part of the same type, is keyed by its type and position.",
       required: true,
     },
     {

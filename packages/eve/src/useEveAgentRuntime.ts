@@ -39,10 +39,12 @@ import {
   type UseEveAgentStatus,
 } from "eve/react";
 import {
+  collectInterruptedTurnEvents,
   convertEveMessages,
   findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
+  type InterruptedTurnEventCache,
 } from "./convertEveMessages";
 import {
   collectTurnTimestamps,
@@ -297,6 +299,15 @@ const useEveThreadRuntime = (
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
     [agent.events],
   );
+  const interruptionCacheRef = useRef<InterruptedTurnEventCache>({
+    lastEvents: [],
+    interruptions: [],
+  });
+  const interruptionEvents = useMemo(
+    () =>
+      collectInterruptedTurnEvents(agent.events, interruptionCacheRef.current),
+    [agent.events],
+  );
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
@@ -310,6 +321,7 @@ const useEveThreadRuntime = (
     return convertEveMessages(agent.data, {
       isRunning,
       error: agent.error,
+      events: interruptionEvents,
       getCreatedAt: (message) => {
         const turnId = message.metadata?.turnId;
         const durable =
@@ -326,7 +338,7 @@ const useEveThreadRuntime = (
         return createdAt;
       },
     });
-  }, [agent.data, agent.error, isRunning, turnTimestamps]);
+  }, [agent.data, agent.error, interruptionEvents, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);

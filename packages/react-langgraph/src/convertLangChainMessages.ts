@@ -33,6 +33,7 @@ import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
+import { getIncrementalToolCallArgs } from "./incrementalToolCallArgs";
 
 export type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
@@ -162,7 +163,10 @@ const resolveToolCallArgs = ({
     argsText = serialized.argsText;
   }
 
-  const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
+  const parsedPartialArgs = argsText
+    ? (getIncrementalToolCallArgs(chunk, argsText) ??
+      parsePartialJsonObject(argsText))
+    : null;
   let args = (
     argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
@@ -366,6 +370,8 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const toolCallChunksByIndex = new Map<number, LangChainToolCallChunk>();
       if (message.tool_calls?.length) {
         for (const toolCallChunk of message.tool_call_chunks ?? []) {
+          if (typeof toolCallChunk !== "object" || toolCallChunk === null)
+            continue;
           const { id, index } = toolCallChunk;
           if (!toolCallChunksById.has(id)) {
             toolCallChunksById.set(id, toolCallChunk);

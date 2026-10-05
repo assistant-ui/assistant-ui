@@ -205,6 +205,170 @@ const wrappedFetchOf = (
   ).fetch;
 
 describe("AssistantChatTransport resumable fetch wrapper", () => {
+  it("keeps a replacement checkpoint set while preparing an older reconnect", async () => {
+    const storage = createMemoryStorage("stream-old");
+    let finishPrepare!: () => void;
+    const prepareReconnectToStreamRequest = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        finishPrepare = resolve;
+      });
+      return { headers: { "x-custom": "retained" } };
+    });
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const transport = new AssistantChatTransport({
+      fetch,
+      prepareReconnectToStreamRequest,
+      resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+    });
+    const pending = transport.reconnectToStream({ chatId: "thread" });
+    await vi.waitFor(() =>
+      expect(prepareReconnectToStreamRequest).toHaveBeenCalledOnce(),
+    );
+    storage.setStreamId("stream-new");
+    finishPrepare();
+    await expect(pending).resolves.toBeNull();
+    expect(fetch.mock.calls[0]?.[0]).toBe("/api/resume/stream-old");
+    expect(
+      Array.from(new Headers(fetch.mock.calls[0]?.[1]?.headers).entries()),
+    ).toEqual([["x-custom", "retained"]]);
+    expect(storage.getStreamId()).toBe("stream-new");
+  });
+
+  it.each([
+    { status: 204, replaceCheckpoint: false },
+    { status: 204, replaceCheckpoint: true },
+    { status: 404, replaceCheckpoint: false },
+    { status: 404, replaceCheckpoint: true },
+  ])(
+    "clears only the matching checkpoint after $status (replacement: $replaceCheckpoint)",
+    async ({ status, replaceCheckpoint }) => {
+      const storage = createMemoryStorage("stream-old");
+      let respond!: (response: Response) => void;
+      const fetch = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            respond = resolve;
+          }),
+      );
+      const transport = new AssistantChatTransport({
+        fetch,
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const pending = transport.reconnectToStream({ chatId: "thread" });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+      if (replaceCheckpoint) storage.setStreamId("stream-new");
+      respond(
+        new Response(status === 404 ? "stream expired" : null, { status }),
+      );
+      if (status === 404) {
+        await expect(pending).rejects.toThrow("stream expired");
+      } else {
+        await expect(pending).resolves.toBeNull();
+      }
+      expect(storage.getStreamId()).toBe(
+        replaceCheckpoint ? "stream-new" : null,
+      );
+    },
+  );
+
+  it.each([undefined, "stream-old", "response-id"])(
+    "preserves a replacement checkpoint on a delayed successful reconnect (%s)",
+    async (responseId) => {
+      const storage = createMemoryStorage("stream-old");
+      let respond!: (response: Response) => void;
+      const fetch = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            respond = resolve;
+          }),
+      );
+      const transport = new AssistantChatTransport({
+        fetch,
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const pending = transport.reconnectToStream({ chatId: "thread" });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+      storage.setStreamId("stream-new");
+      respond(
+        new Response('data: {"type":"finish"}\n\n', {
+          headers: {
+            "content-type": "text/event-stream",
+            ...(responseId && { [RESUMABLE_STREAM_ID_HEADER]: responseId }),
+          },
+        }),
+      );
+      const stream = await pending;
+      expect(storage.getStreamId()).toBe("stream-new");
+      const reader = stream!.getReader();
+      while (!(await reader.read()).done) {}
+      expect(storage.getStreamId()).toBe("stream-new");
+    },
+  );
+
+  it.each([undefined, "stream-old", "response-id"])(
+    "preserves a checkpoint replaced while consuming a reconnect (%s)",
+    async (responseId) => {
+      const storage = createMemoryStorage("stream-old");
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const transport = new AssistantChatTransport({
+        fetch: vi.fn(
+          async () =>
+            new Response(
+              new ReadableStream({
+                start(value) {
+                  controller = value;
+                },
+              }),
+              {
+                headers: {
+                  "content-type": "text/event-stream",
+                  ...(responseId && {
+                    [RESUMABLE_STREAM_ID_HEADER]: responseId,
+                  }),
+                },
+              },
+            ),
+        ),
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const stream = await transport.reconnectToStream({ chatId: "thread" });
+      expect(storage.getStreamId()).toBe(responseId ?? "stream-old");
+      storage.setStreamId("stream-new");
+      controller.enqueue(
+        new TextEncoder().encode('data: {"type":"finish"}\n\n'),
+      );
+      controller.close();
+      const reader = stream!.getReader();
+      while (!(await reader.read()).done) {}
+      expect(storage.getStreamId()).toBe("stream-new");
+    },
+  );
+
+  it.each([undefined, "stream-old", "response-id"])(
+    "clears the checkpoint owned by a completed reconnect (%s)",
+    async (responseId) => {
+      const storage = createMemoryStorage("stream-old");
+      const transport = new AssistantChatTransport({
+        fetch: vi.fn(
+          async () =>
+            new Response('data: {"type":"finish"}\n\n', {
+              headers: {
+                "content-type": "text/event-stream",
+                ...(responseId && { [RESUMABLE_STREAM_ID_HEADER]: responseId }),
+              },
+            }),
+        ),
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const stream = await transport.reconnectToStream({ chatId: "thread" });
+      const reader = stream!.getReader();
+      while (!(await reader.read()).done) {}
+      expect(storage.getStreamId()).toBeNull();
+    },
+  );
+
   it("passes a 204 with a non-null empty body through untouched (WebKit)", async () => {
     const response = nullBodyStatusWithBody(204);
     const fetchMock = vi.fn(async () => response);

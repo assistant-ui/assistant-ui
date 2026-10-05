@@ -11,7 +11,7 @@ description: Connect the AI SDK runtime to Assistant Cloud for persisted threads
 |---|---|
 | Cloud threads | The cloud thread-list adapter lists active and archived threads, creates a remote id when a thread initializes, and sends rename, archive, restore and delete actions to the project. |
 | Persistent message history | The AI SDK external-history layer stores messages in `ai-sdk/v6`, reloads a thread once when it is opened, and keeps local to cloud message ids so later writes target the stored row. |
-| Thread titles | The thread-list adapter can ask the cloud title assistant to name a thread. It sends only text and tool-call parts, so the project title feature can work from the conversation rather than from a client-only label. |
+| Thread titles | The thread-list adapter can ask the cloud title assistant to name a thread. It sends only text and tool-call parts. |
 | Run reports | A terminal assistant message becomes a report with message status, outcome, error, timings, steps, tool calls and the metadata your route supplied. |
 | Engagement events | The cloud history adapter subscribes to runtime interactions, then resolves the cloud thread and message ids before sending engagement data. |
 | Feedback | The default feedback adapter sends positive or negative feedback only after it can map the displayed message to its stored cloud row. |
@@ -312,7 +312,7 @@ export async function POST(req: Request) {
 | `toCreateMessage` | `undefined` | Converts an assistant-ui message to the AI SDK message the transport sends. Use it when outgoing metadata or content needs a transform. |
 | `onResumeError` | `undefined` | Receives an error when a resumable stream cannot reconnect. The runtime still clears the stale stream id. |
 
-`AISDKThreads` is the resource-tree entry for `AuiConfig` and `createAssistantClient`. Its cloud choices are deliberately different from the hook's environment fallback.
+`AISDKThreads` is the resource-tree entry for `AuiConfig` and `createAssistantClient`. Its cloud choices differ from the hook's environment fallback.
 
 | `AISDKThreads` option | Default | Behaviour |
 |---|---|---|

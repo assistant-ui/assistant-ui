@@ -142,5 +142,5 @@ You can extend this example to:
 
 - [Tap Documentation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/tap)
 - [Store Documentation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/store)
-- [Client Implementation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react/src/client)
+- [Client Implementation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/core/src/react/client)
 - [Assistant UI Docs](https://assistant-ui.com)

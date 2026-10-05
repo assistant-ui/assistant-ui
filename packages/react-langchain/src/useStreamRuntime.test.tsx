@@ -9,7 +9,11 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
-import type { LangChainBaseMessage, UIMessage } from "./types";
+import type {
+  LangChainBaseMessage,
+  LangChainToolCall,
+  UIMessage,
+} from "./types";
 import { startTransition, Suspense, type ReactNode } from "react";
 import {
   useLangChainRespond,
@@ -47,6 +51,7 @@ vi.mock("./convertMessages", async (importOriginal) => {
 });
 
 import { useStreamRuntime } from "./useStreamRuntime";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 beforeEach(() => {
   mockUseChannel.mockReturnValue([]);
@@ -252,18 +257,18 @@ describe("useStreamRuntime thread options", () => {
 
     const view = render(<TestRuntime />);
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("thread-a");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("thread-a"),
+    );
 
     const threadAOptions = mockUseStream.mock.calls
       .map(([options]) => options as { threadId?: string | null })
       .findLast((options) => options.threadId === "thread-a");
     expect(threadAOptions).toBeDefined();
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("thread-b");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("thread-b"),
+    );
 
     const threadBOptions = mockUseStream.mock.calls
       .map(([options]) => options as { threadId?: string | null })
@@ -971,6 +976,45 @@ describe("useStreamRuntime staged messages", () => {
         "answer",
         "second staged",
       ]);
+    });
+  });
+});
+
+describe("useStreamRuntime pending tool call cancellation", () => {
+  it("cancels only the pending tool calls that carry an id", async () => {
+    const stream = createMockStream([
+      message("u1", "human", "look it up"),
+      {
+        id: "a1",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [
+          { name: "lookup", args: {} } as LangChainToolCall,
+          { id: "call-1", name: "search", args: {} },
+        ],
+      },
+    ]);
+    const { auiResult } = renderAui(stream);
+
+    await act(async () => {
+      await auiResult.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "never mind" }],
+      });
+    });
+
+    expect(stream.submit).toHaveBeenCalledTimes(1);
+    expect(stream.submit.mock.calls[0]![0]).toEqual({
+      messages: [
+        {
+          type: "tool",
+          name: "search",
+          tool_call_id: "call-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { id: expect.any(String), type: "human", content: "never mind" },
+      ],
     });
   });
 });
