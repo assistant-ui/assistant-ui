@@ -87,7 +87,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### hideWhenSingleBranch
 
-The `hideWhenSingleBranch` prop on `Root` hides the entire picker when there's only one branch. This is a common production pattern to reduce visual clutter:
+The `hideWhenSingleBranch` prop on `Root` hides the entire picker when there's only one branch:
 
 ```tsx
 <BranchPickerPrimitive.Root hideWhenSingleBranch>
@@ -96,10 +96,6 @@ The `hideWhenSingleBranch` prop on `Root` hides the entire picker when there's o
   <BranchPickerPrimitive.Next>→</BranchPickerPrimitive.Next>
 </BranchPickerPrimitive.Root>
 ```
-
-### Context Requirement
-
-BranchPicker reads branch state from the nearest message context. It must be placed inside a `MessagePrimitive.Root`, either directly or nested inside your message component.
 
 ## Parts
 

@@ -142,6 +142,42 @@ const createCore = (
     notifyUpdate: () => {},
   });
 
+// On teardown @ag-ui/client rethrows an errored body's reader.cancel()
+// rejection as an unhandled rejection; the wrapped cancel absorbs it.
+const createStreamingHttpAgent = () => {
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const stream = new ReadableStream<Uint8Array>({
+    start: (c) => {
+      controller = c;
+    },
+  });
+  const encoder = new TextEncoder();
+  const agent = new HttpAgent({
+    url: "https://example.invalid",
+    fetch: async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "Content-Type": "text/event-stream" }),
+        body: {
+          getReader: () => {
+            const reader = stream.getReader();
+            return {
+              read: () => reader.read(),
+              cancel: () => reader.cancel().catch(() => {}),
+            };
+          },
+        },
+      }) as unknown as Response,
+  });
+  return {
+    agent,
+    write: (event: object) =>
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)),
+    fail: (error: Error) => controller.error(error),
+  };
+};
+
 type TestRunConfig = { custom?: Record<string, unknown> };
 
 const assistantText = (message: ThreadMessage | undefined): string => {
@@ -1913,6 +1949,144 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(requestSignals[1]?.aborted).toBe(false);
   });
 
+  it("keeps a finished answer complete when the connection drops after RUN_FINISHED", async () => {
+    const http = createStreamingHttpAgent();
+    const onError = vi.fn();
+    const core = createCore(http.agent, { onError });
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "answer",
+    });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m1" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run" });
+    await vi.waitFor(() =>
+      expect(core.getMessages().at(-1)?.status).toMatchObject({
+        type: "complete",
+      }),
+    );
+
+    const failure = new TypeError("network error");
+    http.fail(failure);
+    await expect(run).rejects.toBe(failure);
+
+    expect(core.getMessages().at(-1)?.status).toEqual({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
+  it("reports an HttpAgent network failure once", async () => {
+    const http = createStreamingHttpAgent();
+    const onError = vi.fn();
+    const core = createCore(http.agent, { onError });
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "part",
+    });
+    await vi.waitFor(() =>
+      expect(assistantText(core.getMessages().at(-1))).toBe("part"),
+    );
+
+    const failure = new TypeError("network error");
+    http.fail(failure);
+    await expect(run).rejects.toBe(failure);
+
+    expect(onError.mock.calls).toEqual([[failure]]);
+    expect(core.getMessages().at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "network error",
+    });
+  });
+
+  it("reports an HttpAgent network failure in an automatic continuation once", async () => {
+    const http = createStreamingHttpAgent();
+    const onError = vi.fn();
+    const core = createCore(http.agent, { onError });
+    core.applyExternalMessages([
+      {
+        ...createToolCallAssistant(),
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "present",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+      },
+    ]);
+
+    core.addToolResult({
+      messageId: "assistant-1",
+      toolCallId: "call-1",
+      toolName: "present",
+      result: { ok: true },
+      isError: false,
+    });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(true));
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+
+    const failure = new TypeError("network error");
+    http.fail(failure);
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
+  it("reports an HttpAgent network failure in a run resumed on load once", async () => {
+    const http = createStreamingHttpAgent();
+    const onError = vi.fn();
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+    };
+    const core = createCore(http.agent, {
+      onError,
+      history: {
+        load: vi.fn().mockResolvedValue({
+          headId: "msg-1",
+          messages: [{ message: userMessage, parentId: null }],
+          unstable_resume: true,
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    const load = core.__internal_load();
+    await vi.waitFor(() => expect(core.isRunning()).toBe(true));
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    const failure = new TypeError("network error");
+    http.fail(failure);
+    await load;
+
+    expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
   it("keeps the thread linear when an append supersedes a run", async () => {
     const runInputs: any[] = [];
     const agent = {
@@ -2894,6 +3068,65 @@ describe("AGUIThreadRuntimeCore", () => {
       text: "recovered",
     });
     expect(assistant.status).toMatchObject({ type: "complete" });
+  });
+
+  it("keeps a replayed answer complete when Stop lands before the resume stream closes", async () => {
+    const agent = {
+      runAgent: vi.fn(),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+    const onCancel = vi.fn();
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+    };
+    let completeYielded!: () => void;
+    const completeYieldedPromise = new Promise<void>((resolve) => {
+      completeYielded = resolve;
+    });
+    const resume = async function* (options: {
+      abortSignal: AbortSignal;
+    }): AsyncGenerator<ChatModelRunResult, void, unknown> {
+      yield {
+        content: [{ type: "text", text: "recovered" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+      completeYielded();
+      await new Promise<void>((resolve) => {
+        options.abortSignal.addEventListener("abort", () => resolve(), {
+          once: true,
+        });
+      });
+    };
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-1",
+        messages: [{ message: userMessage, parentId: null }],
+        unstable_resume: true,
+      }),
+      resume,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: historyAdapter, onCancel });
+
+    const load = core.__internal_load();
+    await completeYieldedPromise;
+    expect(core.isRunning()).toBe(true);
+    await core.cancel();
+    await load;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.status).toEqual({ type: "complete", reason: "unknown" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(core.isRunning()).toBe(false);
   });
 
   it("resumeInFlightRun feeds history.resume() stream instead of re-running", async () => {
