@@ -27,7 +27,7 @@ export default {
         functions: 28,
         branches: 32,
         statements: 35,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold: number) => Math.ceil(threshold) - 1,
       },
     },
     environment: "node",
