@@ -32,6 +32,7 @@ import {
 } from "./OpenCodeEventSource";
 import { generateId } from "@assistant-ui/core";
 import {
+  nullProtoRecord,
   resolveFileMediaType,
   resolveImageMediaType,
   toMediaWireUrl,
@@ -366,12 +367,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   ) {
     if (this.state.childSessionsById[sessionId] === childState) return;
 
+    const childSessionsById = nullProtoRecord(this.state.childSessionsById);
+    childSessionsById[sessionId] = childState;
     this.state = {
       ...this.state,
-      childSessionsById: {
-        ...this.state.childSessionsById,
-        [sessionId]: childState,
-      },
+      childSessionsById,
     };
     this.notifyListeners();
   }
@@ -458,7 +458,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       entry.unsubscribe?.();
       entry.controller.discard();
       this.childControllersById.delete(sessionId);
-      const { [sessionId]: _removed, ...remaining } = childSessionsById;
+      const remaining = nullProtoRecord(childSessionsById);
+      delete remaining[sessionId];
       childSessionsById = remaining;
     }
 
@@ -481,10 +482,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         unsubscribe: null,
       };
       this.childControllersById.set(sessionId, entry);
-      childSessionsById = {
-        ...childSessionsById,
-        [sessionId]: controller.getState(),
-      };
+      const nextChildSessionsById = nullProtoRecord(childSessionsById);
+      nextChildSessionsById[sessionId] = controller.getState();
+      childSessionsById = nextChildSessionsById;
       added.push([sessionId, entry]);
     }
 
@@ -547,7 +547,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const controller = this.findController(request.sessionId);
     if (!controller) return false;
     const { pending, resolved } = controller.state.interactions.permissions;
-    if (request.id in resolved) return true;
+    if (Object.hasOwn(resolved, request.id)) return true;
     const existing = pending[request.id];
     if (existing && hasSamePermissionPayload(existing, request)) return true;
     controller.dispatch({ type: "permission.asked", request });
@@ -561,7 +561,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (!controller) return false;
     const { pending, answered, rejected } =
       controller.state.interactions.questions;
-    if (request.id in answered || request.id in rejected) return true;
+    if (
+      Object.hasOwn(answered, request.id) ||
+      Object.hasOwn(rejected, request.id)
+    ) {
+      return true;
+    }
     const existing = pending[request.id];
     if (existing && hasSameQuestionPayload(existing, request)) return true;
     controller.dispatch({ type: "question.asked", request });
