@@ -11,6 +11,10 @@ export function posixPath(file) {
   return file.replaceAll("\\", "/");
 }
 
+export function apiSurfaceFileName(packageName) {
+  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
+}
+
 export function collectPackages(
   repoRoot,
   filteredPackageNames,
