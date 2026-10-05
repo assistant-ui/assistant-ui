@@ -118,6 +118,10 @@ export const appendLangChainChunk = (
     return curr;
   }
 
+  const toolCallChunks = (curr.tool_call_chunks ?? []).filter(
+    (chunk) => typeof chunk === "object" && chunk !== null,
+  );
+
   if (!prev || prev.type !== "ai") {
     const { id, tool_call_chunks: _chunks, ...message } = curr;
     prev = {
@@ -127,7 +131,7 @@ export const appendLangChainChunk = (
       type: "ai",
     };
     if (!Array.isArray(curr.content)) {
-      const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
+      const toolCalls = toolCallChunks.map(chunkToToolCall);
       return {
         ...prev,
         content: typeof curr.content === "string" ? curr.content : [],
@@ -248,7 +252,7 @@ export const appendLangChainChunk = (
   }
 
   const newToolCalls = [...(prev.tool_calls ?? [])];
-  for (const chunk of curr.tool_call_chunks ?? []) {
+  for (const chunk of toolCallChunks) {
     let idx = newToolCalls.findIndex(
       (tc) => tc?.id != null && tc.id !== "" && tc.id === chunk.id,
     );

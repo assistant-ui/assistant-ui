@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import {
   Activity,
+  Fragment,
   StrictMode,
   Suspense,
   useEffect,
   useInsertionEffect,
   useRef,
   useState,
+  version,
 } from "react";
 import { createTapRoot } from "../../core/createTapRoot";
 import { resource } from "../../core/resource";
@@ -19,6 +21,8 @@ import { useTapHost } from "../../hooks/useTapHost";
 import { useTapRoot } from "../../hooks/useTapRoot";
 
 afterEach(cleanup);
+
+const onReact18 = version.startsWith("18.");
 
 const hosts = [
   {
@@ -104,9 +108,14 @@ describe.each(hosts)("$name insertion lifetime", ({ useHost, size }) => {
       );
       const ui = (hidden = false, key = "first") => (
         <StrictMode>
-          <Activity key={key} mode={hidden ? "hidden" : "visible"}>
-            {content}
-          </Activity>
+          {onReact18 ? (
+            // Activity is React 19 only; the visible-mode tests below run under a keyed Fragment on React 18.
+            <Fragment key={key}>{content}</Fragment>
+          ) : (
+            <Activity key={key} mode={hidden ? "hidden" : "visible"}>
+              {content}
+            </Activity>
+          )}
         </StrictMode>
       );
       const expectLive = () => {
@@ -134,51 +143,63 @@ describe.each(hosts)("$name insertion lifetime", ({ useHost, size }) => {
       };
     };
 
-    it("preserves insertion cells through StrictMode and Activity hide and reveal", async () => {
-      const f = fixture();
-      const view = render(f.ui());
-      f.expectLive();
-      const passiveOrder = [
-        ...(nested ? [{ id: f.Parent, kind: "parent passive" }] : []),
-        ...f.setup.mock.calls.map(([id]) => ({ id, kind: "passive" })),
-      ];
-      expect(f.events).toEqual(passiveOrder);
-      view.rerender(f.ui());
-      f.expectLive();
-      f.events.length = 0;
-      view.rerender(f.ui(true));
-      await act(async () => {});
-      f.expectLive();
-      expect(f.events).toEqual(passiveOrder);
-      view.rerender(f.ui());
-      f.expectLive();
-      view.unmount();
-      f.expectReleased();
-      await act(async () => {});
-      f.expectReleased();
-    });
+    // Activity is React 19 only.
+    it.skipIf(onReact18)(
+      "preserves insertion cells through StrictMode and Activity hide and reveal",
+      async () => {
+        const f = fixture();
+        const view = render(f.ui());
+        f.expectLive();
+        const passiveOrder = [
+          ...(nested ? [{ id: f.Parent, kind: "parent passive" }] : []),
+          ...f.setup.mock.calls.map(([id]) => ({ id, kind: "passive" })),
+        ];
+        expect(f.events).toEqual(passiveOrder);
+        view.rerender(f.ui());
+        f.expectLive();
+        f.events.length = 0;
+        view.rerender(f.ui(true));
+        await act(async () => {});
+        f.expectLive();
+        expect(f.events).toEqual(passiveOrder);
+        view.rerender(f.ui());
+        f.expectLive();
+        view.unmount();
+        f.expectReleased();
+        await act(async () => {});
+        f.expectReleased();
+      },
+    );
 
-    it("releases a hidden host once after its passive effects have disconnected", async () => {
-      const f = fixture();
-      const view = render(f.ui());
-      view.rerender(f.ui(true));
-      await act(async () => {});
-      f.expectLive();
-      view.unmount();
-      expect(f.release).not.toHaveBeenCalled();
-      await act(async () => {});
-      f.expectReleased();
-    });
+    // Activity is React 19 only.
+    it.skipIf(onReact18)(
+      "releases a hidden host once after its passive effects have disconnected",
+      async () => {
+        const f = fixture();
+        const view = render(f.ui());
+        view.rerender(f.ui(true));
+        await act(async () => {});
+        f.expectLive();
+        view.unmount();
+        expect(f.release).not.toHaveBeenCalled();
+        await act(async () => {});
+        f.expectReleased();
+      },
+    );
 
-    it("never acquires insertion cells when deleted before its first reveal", async () => {
-      const f = fixture();
-      const view = render(f.ui(true));
-      await act(async () => {});
-      expect(f.setup).not.toHaveBeenCalled();
-      view.unmount();
-      await act(async () => {});
-      expect(f.release).not.toHaveBeenCalled();
-    });
+    // Activity is React 19 only.
+    it.skipIf(onReact18)(
+      "never acquires insertion cells when deleted before its first reveal",
+      async () => {
+        const f = fixture();
+        const view = render(f.ui(true));
+        await act(async () => {});
+        expect(f.setup).not.toHaveBeenCalled();
+        view.unmount();
+        await act(async () => {});
+        expect(f.release).not.toHaveBeenCalled();
+      },
+    );
 
     it("releases synchronously on visible deletion before passive cleanup", () => {
       const f = fixture();
@@ -250,9 +271,10 @@ describe.each(hosts)("$name insertion lifetime", ({ useHost, size }) => {
       f.expectReleased();
     });
 
-    it.each([false, true])(
+    it.for([false, true])(
       "permits a release cleanup to dispatch with hidden: %s",
-      async (hidden) => {
+      async (hidden, { skip }) => {
+        skip(onReact18 && hidden, "Activity is React 19 only");
         let update!: () => void;
         const f = fixture(() => update());
         function App({
@@ -347,40 +369,44 @@ it("releases every keyed child when an insertion cleanup throws", () => {
   expect(release.mock.calls).toEqual([["a"], ["b"]]);
 });
 
-it("creates a fresh resource when a hidden hook swap returns to a released hook", async () => {
-  const release = vi.fn();
-  const First = resource(function useFirst() {
-    const id = useRef({}).current;
-    useInsertionEffect(() => () => release(id), []);
-    return id;
-  });
-  const Second = resource(function useSecond() {
-    return useRef({}).current;
-  });
-  let current: object | undefined;
-  function Host({ swapped }: { swapped: boolean }) {
-    current = useResource(swapped ? Second() : First());
-    return null;
-  }
-  const ui = (hidden: boolean, swapped = false) => (
-    <StrictMode>
-      <Activity mode={hidden ? "hidden" : "visible"}>
-        <Host swapped={swapped} />
-      </Activity>
-    </StrictMode>
-  );
-  const view = render(ui(false));
-  const first = current;
-  view.rerender(ui(true));
-  view.rerender(ui(true, true));
-  await act(async () => {});
-  expect(release.mock.calls).toEqual([[first]]);
-  view.rerender(ui(true));
-  view.rerender(ui(false));
-  expect(current).not.toBe(first);
-  view.unmount();
-  expect(release.mock.calls).toEqual([[first], [current]]);
-});
+// Activity is React 19 only.
+it.skipIf(onReact18)(
+  "creates a fresh resource when a hidden hook swap returns to a released hook",
+  async () => {
+    const release = vi.fn();
+    const First = resource(function useFirst() {
+      const id = useRef({}).current;
+      useInsertionEffect(() => () => release(id), []);
+      return id;
+    });
+    const Second = resource(function useSecond() {
+      return useRef({}).current;
+    });
+    let current: object | undefined;
+    function Host({ swapped }: { swapped: boolean }) {
+      current = useResource(swapped ? Second() : First());
+      return null;
+    }
+    const ui = (hidden: boolean, swapped = false) => (
+      <StrictMode>
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Host swapped={swapped} />
+        </Activity>
+      </StrictMode>
+    );
+    const view = render(ui(false));
+    const first = current;
+    view.rerender(ui(true));
+    view.rerender(ui(true, true));
+    await act(async () => {});
+    expect(release.mock.calls).toEqual([[first]]);
+    view.rerender(ui(true));
+    view.rerender(ui(false));
+    expect(current).not.toBe(first);
+    view.unmount();
+    expect(release.mock.calls).toEqual([[first], [current]]);
+  },
+);
 
 describe.each([false, true])(
   "resource replacement with keyed children: %s",
@@ -483,18 +509,22 @@ describe.each([false, true])(
         expect(f.release.mock.calls).toEqual(f.setup.mock.calls);
       });
 
-      it("releases the committed child when deleted during a suspended replacement", async () => {
-        const f = fixture();
-        const view = render(f.ui());
-        view.rerender(f.ui({ swapped: true, suspended: true }));
-        expect(f.release).not.toHaveBeenCalled();
-        view.unmount();
-        await act(async () => {});
-        expect(f.release.mock.calls).toEqual(f.setup.mock.calls);
-        expect(f.setup.mock.calls).toEqual(
-          multiple ? [["first"], ["stable"]] : [["first"]],
-        );
-      });
+      // React 18 skips insertion effect cleanups when it deletes a subtree that Suspense has hidden, so the host never releases the committed child.
+      it.skipIf(onReact18)(
+        "releases the committed child when deleted during a suspended replacement",
+        async () => {
+          const f = fixture();
+          const view = render(f.ui());
+          view.rerender(f.ui({ swapped: true, suspended: true }));
+          expect(f.release).not.toHaveBeenCalled();
+          view.unmount();
+          await act(async () => {});
+          expect(f.release.mock.calls).toEqual(f.setup.mock.calls);
+          expect(f.setup.mock.calls).toEqual(
+            multiple ? [["first"], ["stable"]] : [["first"]],
+          );
+        },
+      );
 
       if (multiple)
         it("permanently releases a removed key while retaining its sibling", () => {

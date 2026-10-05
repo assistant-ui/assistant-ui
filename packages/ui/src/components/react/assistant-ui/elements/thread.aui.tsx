@@ -66,6 +66,8 @@ import {
 import {
   createContext,
   useContext,
+  useLayoutEffect,
+  useRef,
   type ComponentType,
   type FC,
   type PropsWithChildren,
@@ -75,6 +77,11 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
 const shouldShowComposerResume = (s: AssistantState) =>
   !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
+
+const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
+  timing?.completedAt === undefined
+    ? undefined
+    : Math.round((timing.completedAt - timing.startedAt) / 1000);
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -220,6 +227,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             <ThreadHistorySkeleton />
           </AuiIf>
 
+          <ThreadLoadEarlier />
+
           <div
             data-slot="aui_message-group"
             className="mb-14 flex flex-col gap-y-6 empty:hidden"
@@ -360,6 +369,74 @@ const SpokenActionBar: FC = () => {
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
     </ActionBarPrimitive.Root>
+  );
+};
+
+const FOCUSABLE_SELECTOR =
+  "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1']):not([disabled])";
+
+const nextFocusable = (start: Element) => {
+  for (
+    let element = start.nextElementSibling;
+    element;
+    element = element.nextElementSibling
+  ) {
+    const target = element.matches(FOCUSABLE_SELECTOR)
+      ? element
+      : element.querySelector(FOCUSABLE_SELECTOR);
+    if (target instanceof HTMLElement) return target;
+  }
+  return null;
+};
+
+const ThreadLoadEarlier: FC = () => {
+  const visible = useAuiState(
+    (s) => s.thread.hasEarlier || s.thread.isLoadingEarlier,
+  );
+  const loading = useAuiState((s) => s.thread.isLoadingEarlier);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const focusedRef = useRef<Element | null>(null);
+
+  // The last page removes the button; a keyboard user on it continues from the
+  // next control in tab order rather than from the document body.
+  useLayoutEffect(() => {
+    const focused = focusedRef.current;
+    const slot = slotRef.current;
+    if (visible || !focused || focused.isConnected || !slot) return;
+    focusedRef.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    nextFocusable(slot)?.focus();
+  }, [visible]);
+
+  return (
+    <div
+      ref={slotRef}
+      className="contents"
+      onFocus={(event) => {
+        focusedRef.current = event.target;
+      }}
+    >
+      <span role="status" className="sr-only">
+        {loading ? "Loading earlier messages" : ""}
+      </span>
+      {visible && (
+        <ThreadPrimitive.LoadEarlier asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-slot="aui_thread-load-earlier"
+            className="aui-thread-load-earlier text-muted-foreground mb-6 self-center rounded-full"
+          >
+            <span
+              className={cn(loading && "shimmer motion-reduce:animate-none")}
+            >
+              {loading ? "Loading earlier messages" : "Load earlier messages"}
+            </span>
+          </Button>
+        </ThreadPrimitive.LoadEarlier>
+      )}
+    </div>
   );
 };
 
@@ -614,7 +691,10 @@ const AssistantMessage: FC = () => {
                 const running = part.status.type === "running";
                 return (
                   <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
+                    <ReasoningTrigger
+                      active={running}
+                      duration={reasoningDuration(part.timing)}
+                    />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>
                     </ReasoningContent>

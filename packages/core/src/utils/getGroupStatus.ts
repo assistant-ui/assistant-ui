@@ -1,11 +1,13 @@
 import type {
   MessagePartStatus,
+  MessagePartTiming,
   ToolCallMessagePartStatus,
 } from "../types/message";
 import { COMPLETE_STATUS, RUNNING_STATUS } from "./normalizePartStatus";
 
 type PartWithStatus = {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+  readonly timing?: MessagePartTiming;
 };
 
 export const getGroupStatus = (
@@ -30,8 +32,21 @@ export const getGroupSummary = (
   };
   let status: MessagePartStatus | ToolCallMessagePartStatus = COMPLETE_STATUS;
   let isRunning = false;
+  let startedAt: number | undefined;
+  let completedAt: number | undefined;
+  let isSettled = true;
 
   for (const index of indices) {
+    const timing = parts[index]?.timing;
+    if (timing) {
+      startedAt = Math.min(startedAt ?? timing.startedAt, timing.startedAt);
+      if (timing.completedAt === undefined) isSettled = false;
+      else
+        completedAt = Math.max(
+          completedAt ?? timing.completedAt,
+          timing.completedAt,
+        );
+    }
     status = parts[index]?.status ?? COMPLETE_STATUS;
     switch (status.type) {
       case "running":
@@ -50,5 +65,16 @@ export const getGroupSummary = (
     }
   }
 
-  return { status: isRunning ? RUNNING_STATUS : status, counts };
+  const timing: MessagePartTiming | undefined =
+    startedAt === undefined
+      ? undefined
+      : !isRunning && isSettled && completedAt !== undefined
+        ? { startedAt, completedAt }
+        : { startedAt };
+
+  return {
+    status: isRunning ? RUNNING_STATUS : status,
+    counts,
+    ...(timing && { timing }),
+  };
 };

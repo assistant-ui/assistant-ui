@@ -111,43 +111,43 @@ unstable hook that supplies composer text and send gating without
 `ComposerPrimitive.Input`.
 </Callout>
 
-### Unstable Trigger Popovers
+### Trigger Popovers
 
-Composer includes an unstable **trigger popover** system for character-triggered popovers (e.g. `@` for mentions, `/` for slash commands). Multiple triggers coexist under a single `TriggerPopoverRoot`.
+Composer includes stable **trigger popover** primitives and types for character-triggered popovers (e.g. `@` for mentions, `/` for slash commands). Multiple triggers coexist under a single `TriggerPopoverRoot`. The helper hooks for mention, slash command, and live completion adapters, composer input, ARIA props, and trigger popover contexts remain unstable.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+<ComposerPrimitive.TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
 
     {/* @ mention — inserts directive text into the message */}
-    <ComposerPrimitive.Unstable_TriggerPopover
+    <ComposerPrimitive.TriggerPopover
       char="@"
       adapter={mentionAdapter}
     >
-      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+      <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
       {/* popover UI */}
-    </ComposerPrimitive.Unstable_TriggerPopover>
+    </ComposerPrimitive.TriggerPopover>
 
     {/* / slash command — runs a handler on selection; leaves an audit-trail chip by default */}
-    <ComposerPrimitive.Unstable_TriggerPopover
+    <ComposerPrimitive.TriggerPopover
       char="/"
       adapter={slashAdapter}
     >
-      <ComposerPrimitive.Unstable_TriggerPopover.Action
+      <ComposerPrimitive.TriggerPopover.Action
         formatter={formatter}
         onExecute={(item) => commandHandlers[item.id]?.()}
       />
-      <ComposerPrimitive.Unstable_TriggerPopoverItems>
+      <ComposerPrimitive.TriggerPopoverItems>
         {(items) => items.map(item => (
-          <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+          <ComposerPrimitive.TriggerPopoverItem key={item.id} item={item}>
             {item.label}
-          </ComposerPrimitive.Unstable_TriggerPopoverItem>
+          </ComposerPrimitive.TriggerPopoverItem>
         ))}
-      </ComposerPrimitive.Unstable_TriggerPopoverItems>
-    </ComposerPrimitive.Unstable_TriggerPopover>
+      </ComposerPrimitive.TriggerPopoverItems>
+    </ComposerPrimitive.TriggerPopover>
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+</ComposerPrimitive.TriggerPopoverRoot>
 ```
 
 See the [Mentions guide](/docs/guides/mentions) and [Slash Commands guide](/docs/guides/slash-commands) for full documentation.
@@ -355,130 +355,130 @@ Clears the active quote from the composer. Renders a `<button>` element unless `
 </ComposerPrimitive.QuoteDismiss>
 ```
 
-### Unstable_TriggerPopoverRoot
+### TriggerPopoverRoot
 
 Root provider that groups one or more `TriggerPopover` declarations and owns the shared input plugin registry.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+<ComposerPrimitive.TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <LexicalComposerInput placeholder="Type @ to mention, / for commands..." />
-    <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
-      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+    <ComposerPrimitive.TriggerPopover char="@" adapter={mentionAdapter}>
+      <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
       ...
-    </ComposerPrimitive.Unstable_TriggerPopover>
+    </ComposerPrimitive.TriggerPopover>
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+</ComposerPrimitive.TriggerPopoverRoot>
 ```
 
-### Unstable_TriggerPopover
+### TriggerPopover
 
-Declares a trigger (by `char`, `adapter`) and renders the popover container. Selection behavior is declared by rendering exactly one behavior sub-primitive inside, either `<Unstable_TriggerPopover.Directive>` (insert a directive on selection) or `<Unstable_TriggerPopover.Action>` (run `onExecute` on selection). Only renders its DOM (and children) while the trigger is active in the composer input.
+Declares a trigger (by `char`, `adapter`) and renders the popover container. Selection behavior is declared by rendering exactly one behavior sub-primitive inside, either `<TriggerPopover.Directive>` (insert a directive on selection) or `<TriggerPopover.Action>` (run `onExecute` on selection). Only renders its DOM (and children) while the trigger is active in the composer input.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover
+<ComposerPrimitive.TriggerPopover
   char="@"
   adapter={mentionAdapter}
   className="rounded-lg border bg-popover p-1 shadow-md"
 >
-  <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
-  <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+  <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
+  <ComposerPrimitive.TriggerPopoverCategories>
     {(categories) => categories.map((category) => (
-      <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
+      <ComposerPrimitive.TriggerPopoverCategoryItem
         key={category.id}
         categoryId={category.id}
       >
         {category.label}
-      </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+      </ComposerPrimitive.TriggerPopoverCategoryItem>
     ))}
-  </ComposerPrimitive.Unstable_TriggerPopoverCategories>
-</ComposerPrimitive.Unstable_TriggerPopover>
+  </ComposerPrimitive.TriggerPopoverCategories>
+</ComposerPrimitive.TriggerPopover>
 ```
 
 Behavior is supplied by exactly one of two sub-primitives:
 
-- `<Unstable_TriggerPopover.Directive formatter={...} onInserted={...} />`: writes `:type[label]{name=id}` into the composer text (mention behavior)
-- `<Unstable_TriggerPopover.Action onExecute={...} removeOnExecute={...} />`: runs a callback on selection; leaves a directive chip behind by default (slash-command behavior)
+- `<TriggerPopover.Directive formatter={...} onInserted={...} />`: writes `:type[label]{name=id}` into the composer text (mention behavior)
+- `<TriggerPopover.Action onExecute={...} removeOnExecute={...} />`: runs a callback on selection; leaves a directive chip behind by default (slash-command behavior)
 
-### Unstable_TriggerPopover.Directive
+### TriggerPopover.Directive
 
 Behavior sub-primitive. Registers the directive-insert behavior with its parent `TriggerPopover`. Renders nothing.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover.Directive
-  formatter={unstable_defaultDirectiveFormatter}
+<ComposerPrimitive.TriggerPopover.Directive
+  formatter={defaultDirectiveFormatter}
   onInserted={(item) => track("mention", item.id)}
 />
 ```
 
-### Unstable_TriggerPopover.Action
+### TriggerPopover.Action
 
 Behavior sub-primitive. Registers the action behavior with its parent `TriggerPopover`. Renders nothing. By default leaves a directive chip behind after executing (audit trail); pass `removeOnExecute` to strip the trigger text entirely.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover.Action
+<ComposerPrimitive.TriggerPopover.Action
   onExecute={(item) => commandHandlers[item.id]?.()}
   removeOnExecute={false}
 />
 ```
 
-### Unstable_TriggerPopoverCategories
+### TriggerPopoverCategories
 
 Render-function primitive for the top-level category list. Only renders while no category is active and search mode is off.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverCategories>
+<ComposerPrimitive.TriggerPopoverCategories>
   {(categories) => categories.map((category) => (
-    <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
+    <ComposerPrimitive.TriggerPopoverCategoryItem
       key={category.id}
       categoryId={category.id}
     >
       {category.label}
-    </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+    </ComposerPrimitive.TriggerPopoverCategoryItem>
   ))}
-</ComposerPrimitive.Unstable_TriggerPopoverCategories>
+</ComposerPrimitive.TriggerPopoverCategories>
 ```
 
-### Unstable_TriggerPopoverCategoryItem
+### TriggerPopoverCategoryItem
 
 Button that selects a category and drills into its items.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverCategoryItem categoryId="tools">
+<ComposerPrimitive.TriggerPopoverCategoryItem categoryId="tools">
   Tools
-</ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+</ComposerPrimitive.TriggerPopoverCategoryItem>
 ```
 
-### Unstable_TriggerPopoverItems
+### TriggerPopoverItems
 
 Render-function primitive for the items inside the currently selected category (or global search results).
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverItems>
+<ComposerPrimitive.TriggerPopoverItems>
   {(items) => items.map((item) => (
-    <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} />
+    <ComposerPrimitive.TriggerPopoverItem key={item.id} item={item} />
   ))}
-</ComposerPrimitive.Unstable_TriggerPopoverItems>
+</ComposerPrimitive.TriggerPopoverItems>
 ```
 
-### Unstable_TriggerPopoverItem
+### TriggerPopoverItem
 
 Selectable item inside the popover.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverItem item={item}>
+<ComposerPrimitive.TriggerPopoverItem item={item}>
   {item.label}
-</ComposerPrimitive.Unstable_TriggerPopoverItem>
+</ComposerPrimitive.TriggerPopoverItem>
 ```
 
-### Unstable_TriggerPopoverBack
+### TriggerPopoverBack
 
 Back button used when drilling from categories into a specific item list.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverBack className="rounded-md px-2 py-1 text-sm hover:bg-accent">
+<ComposerPrimitive.TriggerPopoverBack className="rounded-md px-2 py-1 text-sm hover:bg-accent">
   Back
-</ComposerPrimitive.Unstable_TriggerPopoverBack>
+</ComposerPrimitive.TriggerPopoverBack>
 ```
 
 ## Patterns

@@ -45,6 +45,7 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
+import { useAfterStateCommit } from "../../store/runtime-clients/useAfterStateCommit";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
@@ -535,6 +536,8 @@ const useRemoteThreadList = (
     () => store.value,
     () => store.value,
   );
+  const getListState = useCallback(() => store.value, [store]);
+  const afterStateCommit = useAfterStateCommit(listState, getListState);
 
   const [mainThreadId, setMainThreadId] = useState(initialMainId);
   const [startedIds, setStartedIds] = useState<readonly string[]>([
@@ -1353,8 +1356,8 @@ const useRemoteThreadList = (
     switchToNewThread: () => {
       handleThreadListAction("create", () => switchToNewThread());
     },
-    getLoadThreadsPromise,
-    reload,
+    getLoadThreadsPromise: () => afterStateCommit(getLoadThreadsPromise()),
+    reload: () => afterStateCommit(reload()),
     reloadMainThread: () => {
       if (getThreadData(store.value, mainThreadId)?.status === "new") {
         return RESOLVED_PROMISE;
@@ -1363,7 +1366,7 @@ const useRemoteThreadList = (
         mainThreadClient.methods.unstable_refetchThread?.() ?? RESOLVED_PROMISE
       );
     },
-    loadMore,
+    loadMore: () => afterStateCommit(loadMore()),
     item: (selector) => {
       if (selector === "main") {
         const index = itemOrder.findIndex((item) =>

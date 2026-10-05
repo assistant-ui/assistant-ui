@@ -3,7 +3,7 @@ title: ComposerPrimitive
 description: Composable input primitives for assistant-ui prompts, send controls, cancellation, attachments, and composer state.
 ---
 
-import { ComposerPrimitiveAddAttachmentProps, ComposerPrimitiveAttachmentByIndexProps, ComposerPrimitiveAttachmentDropzoneProps, ComposerPrimitiveAttachmentsProps, ComposerPrimitiveCancelProps, ComposerPrimitiveDictateProps, ComposerPrimitiveDictationTranscriptProps, ComposerPrimitiveIfProps, ComposerPrimitiveInputProps, ComposerPrimitiveQueueProps, ComposerPrimitiveQuoteDismissProps, ComposerPrimitiveQuoteProps, ComposerPrimitiveQuoteTextProps, ComposerPrimitiveResumeProps, ComposerPrimitiveRootProps, ComposerPrimitiveSendProps, ComposerPrimitiveStopDictationProps, ComposerPrimitiveUnstable_TriggerPopoverBackProps, ComposerPrimitiveUnstable_TriggerPopoverCategoriesProps, ComposerPrimitiveUnstable_TriggerPopoverCategoryItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemsProps, ComposerPrimitiveUnstable_TriggerPopoverProps, ComposerPrimitiveUnstable_TriggerPopoverRootProps } from "@/generated/typeDocs";
+import { ComposerPrimitiveAddAttachmentProps, ComposerPrimitiveAttachmentByIndexProps, ComposerPrimitiveAttachmentDropzoneProps, ComposerPrimitiveAttachmentsProps, ComposerPrimitiveCancelProps, ComposerPrimitiveDictateProps, ComposerPrimitiveDictationTranscriptProps, ComposerPrimitiveIfProps, ComposerPrimitiveInputProps, ComposerPrimitiveQueueProps, ComposerPrimitiveQuoteDismissProps, ComposerPrimitiveQuoteProps, ComposerPrimitiveQuoteTextProps, ComposerPrimitiveResumeProps, ComposerPrimitiveRootProps, ComposerPrimitiveSendProps, ComposerPrimitiveStopDictationProps, ComposerPrimitiveTriggerPopoverBackProps, ComposerPrimitiveTriggerPopoverCategoriesProps, ComposerPrimitiveTriggerPopoverCategoryItemProps, ComposerPrimitiveTriggerPopoverItemProps, ComposerPrimitiveTriggerPopoverItemsProps, ComposerPrimitiveTriggerPopoverProps, ComposerPrimitiveTriggerPopoverRootProps, ComposerPrimitiveUnstable_TriggerPopoverBackProps, ComposerPrimitiveUnstable_TriggerPopoverCategoriesProps, ComposerPrimitiveUnstable_TriggerPopoverCategoryItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemsProps, ComposerPrimitiveUnstable_TriggerPopoverProps, ComposerPrimitiveUnstable_TriggerPopoverRootProps } from "@/generated/typeDocs";
 import { ComposerPrimitive as ComposerPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -473,6 +473,28 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 
 <ParametersTable {...ComposerPrimitiveQueueProps} />
 
+### TriggerPopover
+
+{ComposerPrimitiveDocs.TriggerPopover?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopover.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopover?.description}
+
+{ComposerPrimitiveDocs.TriggerPopover?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopover?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverProps} />
+
+{/* api-manual:ComposerPrimitive.TriggerPopover:start */}
+| Data attribute | Values |
+| --- | --- |
+| `[data-state]` | `"open"` when the trigger popover is open. |
+{/* api-manual:ComposerPrimitive.TriggerPopover:end */}
+
 ### Unstable_TriggerPopover
 
 {ComposerPrimitiveDocs.Unstable_TriggerPopover?.deprecated && (
@@ -495,6 +517,40 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 | `[data-state]` | `"open"` when the trigger popover is open. |
 {/* api-manual:ComposerPrimitive.Unstable_TriggerPopover:end */}
 
+### TriggerPopoverRoot
+
+{ComposerPrimitiveDocs.TriggerPopoverRoot?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopoverRoot.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopoverRoot?.description}
+
+{ComposerPrimitiveDocs.TriggerPopoverRoot?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopoverRoot?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+```tsx
+<ComposerPrimitive.TriggerPopoverRoot>
+  <ComposerPrimitive.TriggerPopover char="@" adapter={mentionAdapter}>
+    <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
+    ...
+  </ComposerPrimitive.TriggerPopover>
+
+  <ComposerPrimitive.TriggerPopover char="/" adapter={slashAdapter}>
+    <ComposerPrimitive.TriggerPopover.Action onExecute={handler} />
+    ...
+  </ComposerPrimitive.TriggerPopover>
+
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.TriggerPopoverRoot>
+```
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverRootProps} />
+
 ### Unstable_TriggerPopoverRoot
 
 {ComposerPrimitiveDocs.Unstable_TriggerPopoverRoot?.deprecated && (
@@ -510,24 +566,40 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 )}
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverRoot>
-  <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
-    <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+<ComposerPrimitive.TriggerPopoverRoot>
+  <ComposerPrimitive.TriggerPopover char="@" adapter={mentionAdapter}>
+    <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
     ...
-  </ComposerPrimitive.Unstable_TriggerPopover>
+  </ComposerPrimitive.TriggerPopover>
 
-  <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slashAdapter}>
-    <ComposerPrimitive.Unstable_TriggerPopover.Action onExecute={handler} />
+  <ComposerPrimitive.TriggerPopover char="/" adapter={slashAdapter}>
+    <ComposerPrimitive.TriggerPopover.Action onExecute={handler} />
     ...
-  </ComposerPrimitive.Unstable_TriggerPopover>
+  </ComposerPrimitive.TriggerPopover>
 
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input />
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+</ComposerPrimitive.TriggerPopoverRoot>
 ```
 
 <ParametersTable {...ComposerPrimitiveUnstable_TriggerPopoverRootProps} />
+
+### TriggerPopoverCategories
+
+{ComposerPrimitiveDocs.TriggerPopoverCategories?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopoverCategories.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopoverCategories?.description}
+
+{ComposerPrimitiveDocs.TriggerPopoverCategories?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopoverCategories?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverCategoriesProps} />
 
 ### Unstable_TriggerPopoverCategories
 
@@ -544,6 +616,28 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 )}
 
 <ParametersTable {...ComposerPrimitiveUnstable_TriggerPopoverCategoriesProps} />
+
+### TriggerPopoverCategoryItem
+
+{ComposerPrimitiveDocs.TriggerPopoverCategoryItem?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopoverCategoryItem.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopoverCategoryItem?.description}
+
+{ComposerPrimitiveDocs.TriggerPopoverCategoryItem?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopoverCategoryItem?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverCategoryItemProps} />
+
+{/* api-manual:ComposerPrimitive.TriggerPopoverCategoryItem:start */}
+| Data attribute | Values |
+| --- | --- |
+| `[data-highlighted]` | Present when keyboard-highlighted. |
+{/* api-manual:ComposerPrimitive.TriggerPopoverCategoryItem:end */}
 
 ### Unstable_TriggerPopoverCategoryItem
 
@@ -567,6 +661,22 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 | `[data-highlighted]` | Present when keyboard-highlighted. |
 {/* api-manual:ComposerPrimitive.Unstable_TriggerPopoverCategoryItem:end */}
 
+### TriggerPopoverItems
+
+{ComposerPrimitiveDocs.TriggerPopoverItems?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopoverItems.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopoverItems?.description}
+
+{ComposerPrimitiveDocs.TriggerPopoverItems?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopoverItems?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverItemsProps} />
+
 ### Unstable_TriggerPopoverItems
 
 {ComposerPrimitiveDocs.Unstable_TriggerPopoverItems?.deprecated && (
@@ -582,6 +692,28 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 )}
 
 <ParametersTable {...ComposerPrimitiveUnstable_TriggerPopoverItemsProps} />
+
+### TriggerPopoverItem
+
+{ComposerPrimitiveDocs.TriggerPopoverItem?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopoverItem.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopoverItem?.description}
+
+{ComposerPrimitiveDocs.TriggerPopoverItem?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopoverItem?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverItemProps} />
+
+{/* api-manual:ComposerPrimitive.TriggerPopoverItem:start */}
+| Data attribute | Values |
+| --- | --- |
+| `[data-highlighted]` | Present when keyboard-highlighted. |
+{/* api-manual:ComposerPrimitive.TriggerPopoverItem:end */}
 
 ### Unstable_TriggerPopoverItem
 
@@ -604,6 +736,22 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 | --- | --- |
 | `[data-highlighted]` | Present when keyboard-highlighted. |
 {/* api-manual:ComposerPrimitive.Unstable_TriggerPopoverItem:end */}
+
+### TriggerPopoverBack
+
+{ComposerPrimitiveDocs.TriggerPopoverBack?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerPopoverBack.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerPopoverBack?.description}
+
+{ComposerPrimitiveDocs.TriggerPopoverBack?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerPopoverBack?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveTriggerPopoverBackProps} />
 
 ### Unstable_TriggerPopoverBack
 
@@ -637,6 +785,60 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 
 {ComposerPrimitiveDocs.Unstable_RegisteredTrigger?.props && (
   <ParametersTable type={ComposerPrimitiveDocs.Unstable_RegisteredTrigger?.element} parameters={ComposerPrimitiveDocs.Unstable_RegisteredTrigger.props} />
+)}
+
+### TriggerMatch
+
+{ComposerPrimitiveDocs.TriggerMatch?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerMatch.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerMatch?.description}
+
+{ComposerPrimitiveDocs.TriggerMatch?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerMatch?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+{ComposerPrimitiveDocs.TriggerMatch?.props && (
+  <ParametersTable type={ComposerPrimitiveDocs.TriggerMatch?.element} parameters={ComposerPrimitiveDocs.TriggerMatch.props} />
+)}
+
+### TriggerMatcher
+
+{ComposerPrimitiveDocs.TriggerMatcher?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.TriggerMatcher.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.TriggerMatcher?.description}
+
+{ComposerPrimitiveDocs.TriggerMatcher?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.TriggerMatcher?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+{ComposerPrimitiveDocs.TriggerMatcher?.props && (
+  <ParametersTable type={ComposerPrimitiveDocs.TriggerMatcher?.element} parameters={ComposerPrimitiveDocs.TriggerMatcher.props} />
+)}
+
+### Unstable_TriggerMatch
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.Unstable_TriggerMatch.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.description}
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Unstable_TriggerMatch?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.props && (
+  <ParametersTable type={ComposerPrimitiveDocs.Unstable_TriggerMatch?.element} parameters={ComposerPrimitiveDocs.Unstable_TriggerMatch.props} />
 )}
 
 ### Unstable_TriggerMatcher

@@ -163,6 +163,16 @@ export type ThreadRuntimeState = {
   readonly isLoading: boolean;
 
   /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
+
+  /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
   readonly isRunning: boolean;
@@ -233,6 +243,8 @@ export const getThreadState = (
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isLoading: runtime.isLoading,
+    hasEarlier: runtime.hasEarlier ?? false,
+    isLoadingEarlier: runtime.isLoadingEarlier ?? false,
     isRunning: getThreadRuntimeCoreIsRunning(runtime),
     canResume: runtime.canResume ?? false,
     messages: runtime.messages,
@@ -310,6 +322,11 @@ export type ThreadRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  /**
+   * Loads the page before the first loaded message; resolves at once when
+   * `hasEarlier` is false. Concurrent calls share one load.
+   */
+  loadEarlier(): Promise<void>;
   /**
    * Notifies the runtime that the adapter discarded its backing session.
    * Clears session-scoped tool-invocation state without run-cancel side
@@ -413,6 +430,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.append = this.append.bind(this);
     this.deleteMessage = this.deleteMessage.bind(this);
     this.resumeRun = this.resumeRun.bind(this);
+    this.loadEarlier = this.loadEarlier.bind(this);
     this.importExternalState = this.importExternalState.bind(this);
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
@@ -484,6 +502,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public cancelRun() {
     this._threadBinding.getState().cancelRun();
+  }
+
+  public loadEarlier() {
+    return this._threadBinding.getState().loadEarlier?.() ?? Promise.resolve();
   }
 
   public unstable_notifySessionReset() {

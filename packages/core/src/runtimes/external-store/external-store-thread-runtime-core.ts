@@ -128,6 +128,35 @@ export class ExternalStoreThreadRuntimeCore
     );
   }
 
+  public get hasEarlier() {
+    return (
+      this._store.hasEarlier === true && this._store.onLoadEarlier !== undefined
+    );
+  }
+  private _loadingEarlier: Promise<void> | undefined;
+  public get isLoadingEarlier() {
+    return this._loadingEarlier !== undefined;
+  }
+  public loadEarlier(): Promise<void> {
+    if (this._loadingEarlier) return this._loadingEarlier;
+    const onLoadEarlier = this._store.onLoadEarlier;
+    if (!this.hasEarlier || !onLoadEarlier) return Promise.resolve();
+    const loading = Promise.resolve()
+      .then(() => onLoadEarlier())
+      .catch((error: unknown) => {
+        console.error(
+          "[ExternalStoreThreadRuntimeCore] onLoadEarlier callback rejected",
+          error,
+        );
+      })
+      .finally(() => {
+        this._loadingEarlier = undefined;
+        this._notifySubscribers();
+      });
+    this._loadingEarlier = loading;
+    this._notifySubscribers();
+    return loading;
+  }
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
     if (this._hasExecutingTools(this._store)) return true;
