@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        mode: [redis, install]
-        sample: [0, 1, 2]
+        mode: [baselineTypes]
+        sample: [0]
     services:
       redis:
         image: redis:8-alpine

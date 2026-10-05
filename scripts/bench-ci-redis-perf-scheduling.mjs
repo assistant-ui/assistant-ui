@@ -49,7 +49,7 @@ const json = (file) => JSON.parse(readFileSync(file, "utf8"));
 const writeJson = (file, value) =>
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 let sequence = 0;
-function run(cwd, label, cmd, args, env = cleanEnv) {
+function run(cwd, label, cmd, args, env = cleanEnv, expectedStatus = 0) {
   console.log(`START ${label}`);
   const start = performance.now();
   const res = spawnSync(cmd, args, {
@@ -66,16 +66,16 @@ function run(cwd, label, cmd, args, env = cleanEnv) {
   results.rows.push(row);
   save();
   console.log(JSON.stringify(row));
-  if (res.status !== 0) {
+  if (res.status !== expectedStatus) {
     console.error(log.slice(-16000));
     throw new Error(`${label} failed: ${res.error ?? res.status}`);
   }
   return { log, row };
 }
-function clone(name) {
+function clone(name, revision = base) {
   const dir = join(scratch, name);
   execFileSync("git", ["clone", "--shared", "--no-checkout", source, dir]);
-  execFileSync("git", ["checkout", "--detach", base], { cwd: dir });
+  execFileSync("git", ["checkout", "--detach", revision], { cwd: dir });
   return dir;
 }
 const turbo = (dir, args, env = cleanEnv) =>
@@ -462,8 +462,45 @@ async function scheduling() {
   for (const summary of summaries) assert.deepEqual(summary, summaries[0]);
 }
 
+async function baselineTypes() {
+  const revision = "d2782afd1ea692aac00230cf4747f49056a376fc";
+  const dir = clone("baseline-types", revision);
+  results.base = revision;
+  run(dir, "baseline-install", "pnpm", [
+    "install",
+    "--frozen-lockfile",
+    "--filter=.",
+    "--filter=@assistant-ui/react-devtools...",
+    "--filter=@assistant-ui/react...",
+    "--filter=@assistant-ui/react-pi...",
+  ]);
+  const { log } = run(
+    dir,
+    "baseline-typecheck",
+    "pnpm",
+    [
+      "exec",
+      "turbo",
+      "run",
+      "typecheck",
+      "--filter=@assistant-ui/react",
+      "--filter=@assistant-ui/react-pi",
+      "--continue",
+      "--cache=local:rw",
+      `--cache-dir=${join(scratch, "base-types-cache")}`,
+    ],
+    cleanEnv,
+    1,
+  );
+  assert(log.includes("makeAssistantVisible.test.tsx"));
+  assert(log.includes("ThreadSupervisor.test.ts"));
+  assert(log.includes("Property 'parameters' is missing"));
+  assert(log.includes("createdAt, metadata"));
+  results.reproducedOnUnmodifiedMain = true;
+}
+
 try {
-  await { redis, install, scheduling }[mode]();
+  await { redis, install, scheduling, baselineTypes }[mode]();
   results.verified = true;
 } finally {
   save();
