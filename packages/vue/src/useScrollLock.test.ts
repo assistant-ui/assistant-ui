@@ -102,15 +102,16 @@ describe("useScrollLock", () => {
     const scroller = document.createElement("div");
     scroller.style.overflowY = "auto";
     scroller.style.borderWidth = "0px";
+    scroller.style.paddingRight = "4px";
     document.body.appendChild(scroller);
     stubWidths(scroller, { offsetWidth: 306, clientWidth: 300 });
 
     lockWithin(scroller)();
-    expect(scroller.style.paddingRight).toBe("6px");
+    expect(scroller.style.paddingRight).toBe("10px");
 
     vi.advanceTimersByTime(200);
 
-    expect(scroller.style.paddingRight).toBe("");
+    expect(scroller.style.paddingRight).toBe("4px");
     expect(scroller.style.scrollbarWidth).toBe("");
   });
 
