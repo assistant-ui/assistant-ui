@@ -6,8 +6,6 @@ import {
 } from "@/lib/xulux/demo-downloads/create-demo-zip";
 import { getDemoDownloadManifest } from "@/lib/xulux/demo-downloads/manifest";
 
-export const runtime = "nodejs";
-
 export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });

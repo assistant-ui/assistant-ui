@@ -3,7 +3,7 @@ title: Quickstart
 description: Minimal runtime and Thread setup against an A2A server.
 ---
 
-Three steps to a working chat against an A2A server. Assumes you have already installed the package and have an A2A v1.0 server reachable; if not, start at [overview](/docs/runtimes/a2a/overview).
+This page sets up a working chat against an A2A server in three steps. It assumes you have installed the package and can reach an A2A v1.0 server; if not, start at [overview](/docs/runtimes/a2a/overview).
 
 <Steps>
 <Step>
@@ -189,7 +189,7 @@ const runtime = useA2ARuntime({
 
 ## Adding adapters
 
-Attachments, speech, feedback, history, and a custom thread list are all supported via the standard adapter slots. See [adapters](/docs/runtimes/concepts/adapters) for the contracts; pass them on `useA2ARuntime`:
+Attachments, speech, feedback, history, and a custom thread list are supported through the standard adapter slots. See [adapters](/docs/runtimes/concepts/adapters) for the contracts; pass them on `useA2ARuntime`:
 
 ```tsx
 const runtime = useA2ARuntime({

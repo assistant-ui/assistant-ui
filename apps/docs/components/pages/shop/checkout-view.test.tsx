@@ -69,7 +69,6 @@ const session: CheckoutSession = {
   products: ["assistant-ui"],
   startedAt: 1,
   fromCart: true,
-  licenseAccepted: true,
 };
 
 const state: Checkout.State = {
@@ -119,7 +118,7 @@ describe("CheckoutView", () => {
       }),
     );
     expect(sessions.get()).toBeNull();
-    expect(push).toHaveBeenCalledWith("/shop");
+    expect(push).toHaveBeenCalledWith("/components");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Setup complete",
     );

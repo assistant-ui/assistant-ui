@@ -1,7 +1,7 @@
 import { Box } from "ink";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "ink-testing-library";
-import { ThreadListItemTitle } from "../primitives/threadListItem/ThreadListItemTitle";
+import { Title as ThreadListItemTitle } from "../primitives/threadListItem";
 import { renderFrame, type UseAuiStateSelector } from "./helpers";
 
 const { mockUseAuiState, captured } = vi.hoisted(() => ({
@@ -41,8 +41,6 @@ afterEach(() => {
 });
 
 describe("ThreadListItemTitle", () => {
-  // Ink throws on a string that is not inside a Text, so a Box parent is what
-  // the documented usage nests the title in.
   it("renders the title inside a Box parent", async () => {
     mockTitle("My thread");
 
@@ -64,7 +62,6 @@ describe("ThreadListItemTitle", () => {
       </Box>,
     );
 
-    // a dropped spread would reach the host Text without these
     expect(captured.textProps).toMatchObject({
       dimColor: true,
       wrap: "truncate",

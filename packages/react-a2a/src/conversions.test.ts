@@ -156,6 +156,35 @@ describe("a2aPartToContent", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
   });
+
+  it.each(["text", "url", "raw"])("treats a null %s as absent", (field) => {
+    const part = { [field]: null } as unknown as A2APart;
+    expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+
+  it("reads the url of a part whose text is null", () => {
+    const part = {
+      text: null,
+      url: "https://example.com/doc.pdf",
+      mediaType: "application/pdf",
+    } as unknown as A2APart;
+    expect(a2aPartToContent(part)).toEqual({
+      type: "file",
+      data: "https://example.com/doc.pdf",
+      mimeType: "application/pdf",
+      sourceType: "url",
+    });
+  });
+
+  it.each([null, undefined, "text", 1])(
+    "returns an empty text part for the non-object part %s",
+    (part) => {
+      expect(a2aPartToContent(part as unknown as A2APart)).toEqual({
+        type: "text",
+        text: "",
+      });
+    },
+  );
 });
 
 describe("A2UI data parts", () => {
@@ -313,6 +342,11 @@ describe("a2aPartsToContent", () => {
       expect(a2aPartsToContent(parts as unknown as A2APart[])).toEqual([]);
     },
   );
+
+  it("skips null and undefined entries in parts", () => {
+    const parts = [null, { text: "Hello" }, undefined] as unknown as A2APart[];
+    expect(a2aPartsToContent(parts)).toEqual([{ type: "text", text: "Hello" }]);
+  });
 });
 
 describe("a2aMessageToContent", () => {

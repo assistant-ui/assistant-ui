@@ -5,7 +5,7 @@ import type {
 } from "../types/client";
 import { handleIntrospectionProp } from "./BaseProxyHandler";
 
-const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
+export const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
 
 export const INSTANCE_TAG_SYMBOL = Symbol("assistant-ui.store.instanceTag");
 
@@ -105,10 +105,11 @@ export const isScopeUnavailable = (
 /**
  * Returns the opaque identity of a bound client instance.
  *
- * The identity is stable for the lifetime of the bound client: the same
- * object is returned no matter how many accessor layers wrap the client, so
- * it is a reliable `WeakMap` key for per-client caches. Throws if the client
- * is an accessor for an unavailable scope.
+ * The identity resolves through any forwarding layer to the underlying
+ * `useClientResource` client. A scope that delegates to a replaceable client
+ * yields that client's identity, which can serve as a `WeakMap` key for
+ * per-client caches. Throws if the client is an accessor for an unavailable
+ * scope.
  */
 export const getClientId = (client: object): getClientId.ClientId =>
   ((client as AnyRecord)[CLIENT_ID_SYMBOL] ?? client) as getClientId.ClientId;

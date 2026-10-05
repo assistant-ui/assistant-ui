@@ -18,15 +18,15 @@ Pick `react-langchain` over `react-langgraph` when:
 
 Pick `react-langgraph` instead when:
 
-- You need a fully custom/bespoke backend stream (your own async generator) rather than `useStream`'s transport, or you're maintaining an existing `react-langgraph` app.
+- You need a custom backend stream (your own async generator) rather than `useStream`'s transport, or you're maintaining an existing `react-langgraph` app.
 
-Both adapters are first-class and now at feature parity (the [comparison](#comparison-with-react-langgraph) below has the full table); `react-langchain` is the newer, thinner wrapper pinned to upstream `useStream`.
+The [comparison](#comparison-with-react-langgraph) below lists what each adapter supports. `react-langchain` is the newer, thinner wrapper pinned to upstream `useStream`.
 
 ## Architecture
 
 `@assistant-ui/react-langchain` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Graph state is the source of truth; the runtime renders messages from `state.values.messages` and submits user input back to the graph.
 
-Shared adapters (attachments, speech, feedback) work the same way described in [adapters](/docs/runtimes/concepts/adapters). Cloud thread persistence is built in.
+Shared adapters (attachments, speech, dictation, voice, feedback) work the same way described in [adapters](/docs/runtimes/concepts/adapters). Cloud thread persistence is built in.
 
 `thread.isLoading` reflects `useStream`'s `isThreadLoading` (initial history hydration), separate from `isRunning` (a run being in-flight).
 
@@ -260,13 +260,15 @@ Follow the [Ink setup](/docs/ink).
 | `delete` | `(threadId: string) => Promise<void>` | Optional. When Cloud owns the thread list, called before a thread is deleted and given its Cloud thread id; read that thread's `external_id` to delete the backend thread, as [LangGraph](/docs/cloud/langgraph) shows. |
 | `onThreadIdChange` | `(threadId: string \| undefined) => void` | Optional. Called when the active thread's canonical ID changes. |
 | `unstable_threadListAdapter` | `RemoteThreadListAdapter` | Optional. Replaces the Cloud thread list adapter. |
-| `adapters` | `{ attachments?, speech?, feedback? }` | Optional. Attachment, speech, and feedback adapters. |
+| `adapters` | `{ attachments?, speech?, dictation?, voice?, feedback? }` | Optional. Attachment, speech, dictation, voice, and feedback adapters. |
+| `autoCancelPendingToolCalls` | `boolean` | Optional. When the user sends a message while tool calls are still pending, submits `tool` messages that cancel them. Defaults to `true`. |
+| `unstable_allowCancellation` | `boolean` | Optional. Routes the Cancel button to `useStream().stop()`. On by default; pass `false` to disable the Cancel button. |
 | `messagesKey` | `string` | The state key that holds messages. Defaults to `"messages"`. |
 | `uiStateKey` | `string` | The state key that holds generative `UIMessage`s. Defaults to `"ui"`. |
 
 ### Forwarding per-run config
 
-When a message is sent, its `runConfig.custom` (for example a selected mode or model) is forwarded on the underlying `useStream().submit` call as `config.configurable`. Automatic tool-result resumes and the interrupt helpers (`useLangChainRespond`, `useLangChainRespondAll`, and `useLangChainSubmit(null, { command })`) reuse that same recorded `configurable` unless the caller passes `config`. Raw `useLangChainSubmit` / `useLangChainSend` calls that start a new run do not inherit it. The recording is session-scoped and does not survive a reload. Read it in the graph from `config["configurable"]`; on LangGraph v1 the same values are also reachable through the Runtime `context`, which `config.configurable` is aliased to. This lets per-run app config reach the graph without extra wiring.
+When a message is sent, its `runConfig.custom` (for example a selected mode or model) is forwarded on the underlying `useStream().submit` call as `config.configurable`. Automatic tool-result resumes and the interrupt helpers (`useLangChainRespond`, `useLangChainRespondAll`, and `useLangChainSubmit(null, { command })`) reuse that same recorded `configurable` unless the caller passes `config`. Raw `useLangChainSubmit` / `useLangChainSend` calls that start a new run do not inherit it. The recording is session-scoped and does not survive a reload. Read it in the graph from `config["configurable"]`; on LangGraph v1 the same values are also reachable through the Runtime `context`, which `config.configurable` is aliased to.
 
 ## Reading custom state keys
 
@@ -350,17 +352,13 @@ useLangChainState<T>(key: string): T | undefined;
 useLangChainState<T>(key: string, defaultValue: T): T;
 ```
 
-Useful with the [`deepagents`](https://docs.langchain.com/oss/python/deepagents) middleware, whose `write_todos` step updates `state.todos` alongside the tool-call stream. Reading the state key directly avoids reconstructing the list from partial tool-call args.
-
-<Callout type="info">
-Added in v0.0.2 — see issue [#3862](https://github.com/assistant-ui/assistant-ui/issues/3862) for motivation.
-</Callout>
+This is useful with the [`deepagents`](https://docs.langchain.com/oss/python/deepagents) middleware, whose `write_todos` step updates `state.todos` alongside the tool-call stream. Reading the state key directly avoids reconstructing the list from partial tool-call args.
 
 ## Interrupts
 
 LangGraph interrupts pause the graph and wait for client input. `useLangChainInterruptState` exposes the current interrupt; `useLangChainRespond` resumes it with a response payload, while `useLangChainSubmit` resumes the graph with a raw state update.
 
-`useLangChainRespond` is the cleaner resume path; it carries the response payload via `useStream().respond` and handles interrupt namespaces, so you don't have to construct a `Command`.
+Prefer `useLangChainRespond`: it carries the response payload via `useStream().respond` and handles interrupt namespaces, so you don't have to construct a `Command`.
 
 <PlatformTabs>
 <Tab value="React">
@@ -469,7 +467,6 @@ import {
   useLangChainInterruptState,
   useLangChainSubmit,
 } from "@assistant-ui/react-langchain";
-import { Command } from "@langchain/langgraph-sdk";
 
 function InterruptPrompt() {
   const interrupt = useLangChainInterruptState();
@@ -480,7 +477,7 @@ function InterruptPrompt() {
       <pre>{JSON.stringify(interrupt.value, null, 2)}</pre>
       <button
         onClick={() =>
-          submit(null, { command: new Command({ resume: "approved" }) })
+          submit(null, { command: { resume: "approved" } })
         }
       >
         Approve
@@ -498,7 +495,6 @@ import {
   useLangChainInterruptState,
   useLangChainSubmit,
 } from "@assistant-ui/react-langchain";
-import { Command } from "@langchain/langgraph-sdk";
 import { Pressable, Text, View } from "react-native";
 
 function InterruptPrompt() {
@@ -510,7 +506,7 @@ function InterruptPrompt() {
       <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
       <Pressable
         onPress={() =>
-          submit(null, { command: new Command({ resume: "approved" }) })
+          submit(null, { command: { resume: "approved" } })
         }
       >
         <Text>Approve</Text>
@@ -528,7 +524,6 @@ import {
   useLangChainInterruptState,
   useLangChainSubmit,
 } from "@assistant-ui/react-langchain";
-import { Command } from "@langchain/langgraph-sdk";
 import { Box, Text, useInput } from "ink";
 
 function InterruptPrompt() {
@@ -537,7 +532,7 @@ function InterruptPrompt() {
 
   useInput((input) => {
     if (!interrupt || input !== "a") return;
-    submit(null, { command: new Command({ resume: "approved" }) });
+    submit(null, { command: { resume: "approved" } });
   });
 
   if (!interrupt) return null;
@@ -555,7 +550,7 @@ function InterruptPrompt() {
 
 ## Tool calls
 
-`useLangChainToolCalls` exposes the root tool calls `useStream` assembles from the `tools` channel — each entry carries a `name`, `args`, and `id`. Use it to render pending or streamed tool calls and approval UIs. It defaults to an empty array, so you can `.map` without a guard.
+`useLangChainToolCalls` exposes the root tool calls `useStream` assembles from the `tools` channel. Each entry carries a `name`, `args`, and `id`. Use it to render pending or streamed tool calls and approval UIs. It defaults to an empty array, so you can `.map` without a guard.
 
 <PlatformTabs>
 <Tab value="React">
@@ -624,7 +619,7 @@ function PendingToolCalls() {
 
 ## Subagent and subgraph discovery
 
-For multi-agent graphs, `useStream` tracks which subagents and subgraphs it has seen on the current run as cheap discovery maps. `useLangChainSubagents` and `useLangChainSubgraphs` surface those maps — keyed by namespace, each value a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot`. Both default to a stable empty map, so you can iterate without a guard.
+For multi-agent graphs, `useStream` tracks which subagents and subgraphs it has seen on the current run as cheap discovery maps. `useLangChainSubagents` and `useLangChainSubgraphs` surface those maps, keyed by namespace, with each value a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot`. Both default to a stable empty map, so you can iterate without a guard.
 
 These replace `react-langgraph`'s subgraph `eventHandlers`: v1 surfaces discovery as maps you read reactively rather than per-event callbacks.
 
@@ -717,7 +712,7 @@ function MessageInfo({ messageId }: { messageId: string }) {
 
 ## Media
 
-The v1 media hooks surface multimodal media streamed by the agent. Feed the `useLangChainStream` handle to them — the same pattern as the views and metadata sections above.
+The v1 media hooks surface multimodal media streamed by the agent. Feed the `useLangChainStream` handle to them, as in the views and metadata sections above.
 
 ```tsx
 import { useLangChainStream } from "@assistant-ui/react-langchain";
@@ -774,7 +769,7 @@ function App() {
 }
 ```
 
-This covers two paths transparently. The **state-snapshot** path renders whatever UI the graph has committed to its state. The **live** path renders UI streamed over the `custom` channel by `push_ui_message` / `remove_ui_message` before (or instead of) it lands in state, so components appear as the graph emits them. The runtime accumulates the live events and merges them with the state snapshot, with the snapshot authoritative once a UI lands in state. Both feed the same `makeAssistantDataUI` renderers.
+This covers two paths. The **state-snapshot** path renders whatever UI the graph has committed to its state. The **live** path renders UI streamed over the `custom` channel by `push_ui_message` / `delete_ui_message` before (or instead of) it lands in state, so components appear as the graph emits them. The runtime accumulates the live events and merges them with the state snapshot, with the snapshot authoritative once a UI lands in state. Both feed the same `makeAssistantDataUI` renderers.
 
 The live path requires the graph's `streamMode` to include `"custom"` so the UI events reach the client.
 
@@ -827,14 +822,13 @@ const runtime = useStreamRuntime({
 
 ## Comparison with `react-langgraph`
 
-Both packages connect assistant-ui to LangGraph backends. They are independent adapters for different upstream libraries; one is not a successor to the other. The official `create-assistant-ui` template (`-t langchain`) ships `react-langchain`. The two are now at feature parity; `react-langgraph` remains the choice for a fully custom backend stream or an existing `react-langgraph` app.
+Both packages connect assistant-ui to LangGraph backends. They are independent adapters for different upstream libraries; one is not a successor to the other. The official `create-assistant-ui` template (`-t langchain`) ships `react-langchain`. `react-langgraph` remains the choice for a custom backend stream or an existing `react-langgraph` app.
 
 | Aspect | `react-langgraph` | `react-langchain` |
 | --- | --- | --- |
 | Wraps | `@langchain/langgraph-sdk` (raw SDK) | `@langchain/react` (`useStream` hook) |
 | Age | Sept 2024 onward | April 2026 onward |
-| Version | `0.13.x` | `0.0.x` |
-| Lines of source | ~7,500 | ~600 |
+| Version | `0.14.x` | `0.0.x` |
 | Built on | `useExternalStoreRuntime` | `useExternalStoreRuntime` |
 | `create-assistant-ui` template | No template | `-t langchain` |
 
@@ -847,7 +841,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Thread history loading state (`thread.isLoading`) | Yes | Yes |
 | Send raw state update / resume command | Yes | Yes (`useLangChainSubmit`; `useLangChainRespond` for payload resume) |
 | Forward per-run `runConfig` | Yes (whole object → `config`) | Yes (`custom` → `config.configurable`) |
-| Read arbitrary custom state key | No | Yes (`useLangChainState<T>(key)`) |
+| Read arbitrary custom state key | Yes (`useLangGraphState` returns the whole state) | Yes (`useLangChainState<T>(key)`) |
 | Root tool-calls projection | Via message parts | Yes (`useLangChainToolCalls`) |
 | File content parts in messages | Yes | Yes |
 | Regenerate (checkpoint fork) | Yes (`getCheckpointId`) | Yes (auto-resolved) |
@@ -860,16 +854,17 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Subagent discovery | Via `eventHandlers` | Yes (`useLangChainSubagents`) |
 | Subgraph discovery | Via `eventHandlers` | Yes (`useLangChainSubgraphs`) |
 | Subagent/subgraph message views | Via `eventHandlers` | Yes (via `useLangChainStream` + v1 selector hooks) |
-| End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | n/a — cancellation via `useStream().stop()` (Cancel button on by default) |
-| Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | n/a — `useStream` owns accumulation |
+| End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | n/a; cancellation via `useStream().stop()` (Cancel button on by default) |
+| Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | n/a; `useStream` owns accumulation |
+| Message queue and steering | Yes (`unstable_enableMessageQueue`) | No |
 | Streaming timing (per-message) | Yes | Yes |
 | Cloud thread persistence | Yes | Yes |
 
 Per-message streaming timing is attached automatically to `message.metadata.timing` (no setup), matching `react-langgraph`. It captures time-to-first-token, total stream time, chunk count, and tokens/sec, computed from message growth while the run is in flight.
 
-`react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller.
+`react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing.
 
-Regenerate works without configuration. Clicking regenerate resolves the server checkpoint to fork from (the checkpoint each message records as it streams in, falling back to a `stream.client.threads.getHistory(threadId)` id match for older turns), then re-runs with `submit(null, { forkFrom })`. It works on checkpoint-enabled backends (for example LangGraph Cloud) and degrades gracefully; when no checkpoint resolves the regenerate is a no-op. `react-langgraph` instead requires a user-supplied `getCheckpointId` callback. Editing a message forks from the same checkpoint and submits the edited human content instead of re-running the prior turn; editing the first message forks from the thread's initial checkpoint to restart it.
+Regenerate works without configuration. Clicking regenerate resolves the server checkpoint to fork from (the checkpoint each message records as it streams in, falling back to a `stream.client.threads.getHistory(threadId)` id match for older turns), then re-runs with `submit(null, { forkFrom })`. It works on checkpoint-enabled backends (for example LangGraph Cloud); when no checkpoint resolves, regenerate is a no-op. `react-langgraph` instead requires a user-supplied `getCheckpointId` callback. Editing a message forks from the same checkpoint and submits the edited human content instead of re-running the prior turn; editing the first message forks from the thread's initial checkpoint to restart it.
 
 ### Hook name mapping
 
@@ -877,18 +872,18 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | --- | --- | --- |
 | `useLangGraphRuntime` | `useStreamRuntime` | Options extend upstream `UseStreamOptions`; no `stream` / `create` / `load` to write. |
 | `useLangGraphInterruptState` | `useLangChainInterruptState` | Same return shape. |
-| `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume; carries a payload via `stream.respond`. For a raw `Command`, use `useLangChainSubmit(null, { command })`. |
-| `useLangGraphSend` | _(use `runtime.thread.append`)_ | No direct equivalent; send turns through the runtime. |
+| `useLangGraphSendCommand` | `useLangChainSendCommand` | Submits a v1 command (`{ resume?, goto?, update? }`) via `useLangChainSubmit(null, { command })`. To carry a response payload, prefer `useLangChainRespond`. |
+| `useLangGraphSend` | `useLangChainSend` | Submits messages via `useStream().submit({ [messagesKey]: messages }, options)`. |
 | `useLangGraphMessageMetadata` | _(use `useMessageMetadata(useLangChainStream(), id)`)_ | Per-message metadata via the upstream selector hook. |
 | `useLangGraphUIMessages` | _(UI renders as data parts; register with `makeAssistantDataUI`)_ | See [Generative UI](#generative-ui). |
-| _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |
-| _(none)_ | `useLangChainToolCalls` | New — root tool calls assembled by `useStream`. |
-| _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
+| `useLangGraphState` | `useLangChainState<T>(key)` | Reads one custom state key reactively; `useLangGraphState` returns the whole state object. |
+| _(none)_ | `useLangChainToolCalls` | Root tool calls assembled by `useStream`. |
+| _(none)_ | `useLangChainError()` | Reads the last run/hydration error reactively. |
 | _(none)_ | `useLangChainRespondAll` | Resume multiple interrupts at one checkpoint (`stream.respondAll`). |
-| _(none)_ | `useLangChainInterrupts` | New — every interrupt pending at the checkpoint, each with `id` and `value`. |
-| _(via `eventHandlers`)_ | `useLangChainSubagents` | New — subagents discovered on the current run; replaces subgraph event handlers. |
-| _(via `eventHandlers`)_ | `useLangChainSubgraphs` | New — subgraphs discovered on the current run; replaces subgraph event handlers. |
-| _(none)_ | `useLangChainStream` | New — the raw `useStream` handle for v1's scoped `useMessages` / `useToolCalls` selector hooks. |
+| _(none)_ | `useLangChainInterrupts` | Every interrupt pending at the checkpoint, each with `id` and `value`. |
+| _(via `eventHandlers`)_ | `useLangChainSubagents` | Subagents discovered on the current run; replaces subgraph event handlers. |
+| _(via `eventHandlers`)_ | `useLangChainSubgraphs` | Subgraphs discovered on the current run; replaces subgraph event handlers. |
+| _(none)_ | `useLangChainStream` | The raw `useStream` handle for v1's scoped `useMessages` / `useToolCalls` selector hooks. |
 
 ## Related
 

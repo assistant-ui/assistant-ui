@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Text } from "react-native";
-import { ThreadListItemTitle } from "./ThreadListItemTitle";
+import { Title as ThreadListItemTitle } from "../threadListItem";
 
 const h = vi.hoisted(() => ({
   state: { threadListItem: { title: undefined as string | undefined } },
@@ -54,8 +54,6 @@ describe("ThreadListItemTitle", () => {
     container.remove();
   });
 
-  // React Native rejects a raw string outside a Text, so the title has to reach
-  // the host through react-native's own Text element.
   it("renders the title through react-native Text", async () => {
     h.state.threadListItem.title = "My thread";
 
