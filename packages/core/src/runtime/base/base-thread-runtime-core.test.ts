@@ -1007,6 +1007,58 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(voice.session.disconnect).not.toHaveBeenCalled();
   });
 
+  it("releases ended-session handlers when transcript finalization notifies a throwing subscriber", () => {
+    const voice = createVoiceAdapter();
+    const cleanups = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
+    const registrations = [
+      "onStatusChange",
+      "onModeChange",
+      "onVolumeChange",
+      "onTranscript",
+    ] as const;
+    for (const [index, name] of registrations.entries()) {
+      const register = voice.session[name].bind(voice.session);
+      vi.spyOn(voice.session, name).mockImplementation(
+        (callback: Parameters<typeof register>[0]) => {
+          const unsubscribe = register(callback as never);
+          return () => {
+            cleanups[index]!();
+            unsubscribe();
+          };
+        },
+      );
+    }
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+    voice.emitTranscript({ role: "assistant", text: "Partial" });
+    const listenerError = new Error("subscriber failed");
+    const unsubscribe = runtime.subscribe(() => {
+      throw listenerError;
+    });
+
+    expect(() =>
+      voice.emitStatus({ type: "ended", reason: "finished" }),
+    ).toThrow(listenerError);
+
+    expect(runtime.voice).toBeUndefined();
+    expect(runtime.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      content: [{ type: "text", text: "Partial" }],
+    });
+    expect(cleanups.map((cleanup) => cleanup.mock.calls.length)).toEqual([
+      1, 1, 1, 1,
+    ]);
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+
+    unsubscribe();
+    disposeThreadRuntime(runtime);
+    expect(cleanups.map((cleanup) => cleanup.mock.calls.length)).toEqual([
+      1, 1, 1, 1,
+    ]);
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+  });
+
   it("rethrows one subscriber error once while disconnecting", () => {
     const voice = createVoiceAdapter();
     const runtime = new TestRuntime(voice);

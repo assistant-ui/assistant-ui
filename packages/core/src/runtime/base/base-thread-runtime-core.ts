@@ -546,10 +546,10 @@ export abstract class BaseThreadRuntimeCore
         session.onStatusChange((status) => {
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
-            this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
             try {
+              this._finishVoiceAssistantMessage(false);
               this._onVoiceDisconnected();
               this._notifySubscribers();
             } finally {
