@@ -44,7 +44,7 @@
     "@lexical/plain-text": "^0.52.0",
     "@lexical/react": "^0.52.0",
     "@lexical/utils": "^0.52.0",
-    "@modelcontextprotocol/server": "^2.3.0",
+    "@modelcontextprotocol/server": "~2.2.0",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
     "@opentelemetry/sdk-trace-base": "^2.11.0",
