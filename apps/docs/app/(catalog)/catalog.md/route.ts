@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import {
   CATALOG,
@@ -9,8 +10,6 @@ import { installGuideUrl } from "@/lib/catalog/install-guide";
 import { checkoutEnabled } from "@/lib/checkout/config";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
-
-export const revalidate = false;
 
 const formatProduct = (product: (typeof CATALOG)[number]) =>
   [
@@ -40,8 +39,9 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
     ...product.requires.map((item) => `- ${item}`),
   ].join("\n");
 
-export function GET() {
-  if (!checkoutEnabled) return new Response("Not found", { status: 404 });
+async function getMarkdown() {
+  "use cache";
+  cacheLife("max");
   const markdown = [
     "# assistant-ui catalog",
     "",
@@ -58,7 +58,7 @@ export function GET() {
     "Each of these installs the same way, by slug:",
     "",
     ...CATALOG_ITEMS.filter(
-      (item) => !CATALOG.some((product) => product.slug === item.slug),
+      (item) => !item.hidden && !CATALOG.some((product) => product.slug === item.slug),
     ).map(
       (item) =>
         `- ${item.slug}: ${item.name} (${BASE_URL}${item.docs}.md, agent time ${formatMinutes(item.agentMinutes)})`,
@@ -66,5 +66,10 @@ export function GET() {
     "",
   ].join("\n");
 
-  return createMarkdownResponse(markdown);
+  return markdown;
+}
+
+export async function GET() {
+  if (!checkoutEnabled) return new Response("Not found", { status: 404 });
+  return createMarkdownResponse(await getMarkdown());
 }

@@ -6,6 +6,7 @@ import type {
   PiClient,
   PiClientEvent,
   PiClientEventBody,
+  PiAgentMessage,
   PiAssistantMessage,
   PiHostUiRequest,
   PiSendMessageInput,
@@ -763,6 +764,51 @@ describe("PiThreadController", () => {
     await send;
   });
 
+  it("removes a cold-cancelled optimistic message before the next send", async () => {
+    const client = createFakeClient();
+    let resolveFirstSend!: () => void;
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      if (client.sent.length === 1) {
+        await new Promise<void>((resolve) => {
+          resolveFirstSend = resolve;
+        });
+      }
+    };
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(userMessage("cancelled"));
+    client.emit(ev({ type: "agent_end", cancelledBeforeStart: true }, 1));
+    resolveFirstSend();
+    await first;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "idle",
+      lastError: undefined,
+    });
+    expect(controller.getProjectedMessages()).toHaveLength(0);
+
+    await controller.sendMessage(userMessage("next"));
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: { role: "user", content: "next", timestamp: 1 },
+        },
+        2,
+      ),
+    );
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("reply") }, 3),
+    );
+    client.emit(ev({ type: "agent_end" }, 4));
+
+    expect(controller.getProjectedMessages()).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "next" }] },
+      { role: "assistant", content: [{ type: "text", text: "reply" }] },
+    ]);
+  });
+
   it("rolls back the optimistic running mark when a send rejects", async () => {
     const client = createFakeClient();
     client.sendMessage = async () => {
@@ -1103,6 +1149,7 @@ describe("PiThreadController", () => {
 
     const before = controller.getProjectedMessages();
     const stableUser = before[0]!;
+    const stableRepositoryItem = controller.getMessageRepository().messages[0];
 
     client.emit(
       ev(
@@ -1125,6 +1172,63 @@ describe("PiThreadController", () => {
     expect(after[0]).toBe(stableUser);
     expect(after[1]).not.toBe(before[1]);
     expect(after[1]!.content).toMatchObject([{ type: "text", text: "ab" }]);
+    expect(controller.getMessageRepository().messages[0]).toBe(
+      stableRepositoryItem,
+    );
+    expect(controller.getMessageRepository().messages[1]!.parentId).toBe(
+      stableRepositoryItem!.message.id,
+    );
+  });
+
+  it("does not revisit the unchanged transcript prefix for a stream delta", () => {
+    let prefixRoleReads = 0;
+    const stableMessages = Array.from({ length: 500 }, (_, index) => {
+      const message = {
+        content: `message-${index}`,
+        timestamp: index,
+      };
+      Object.defineProperty(message, "role", {
+        enumerable: true,
+        get: () => {
+          prefixRoleReads += 1;
+          return "user";
+        },
+      });
+      return message as PiAgentMessage;
+    });
+    const client = createFakeClient(snapshot({ messages: stableMessages }));
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    controller.connect();
+
+    client.emit(
+      ev({ type: "snapshot", snapshot: client.getThreadSnapshot }, 1),
+    );
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("a", 501) }, 2),
+    );
+    prefixRoleReads = 0;
+
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("ab", 501),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "b",
+            partial: assistantMessage("ab", 501),
+          },
+        },
+        3,
+      ),
+    );
+    scheduled.at(-1)!();
+
+    expect(prefixRoleReads).toBe(2);
   });
 });
 
