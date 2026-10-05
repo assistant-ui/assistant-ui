@@ -30,6 +30,8 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/coverage-summary.mjs"
+      - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -69,6 +71,8 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/coverage-summary.mjs"
+      - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -522,6 +526,97 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
+
+  coverage:
+    name: Coverage of Changed Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      redis:
+        image: redis:8-alpine # ratchet:exclude
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE=HEAD^1
+          fi
+          if git diff --quiet "$BASE" HEAD -- \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            turbo.json \
+            packages/x-buildutils; then
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
+          else
+            pnpm install --frozen-lockfile
+          fi
+
+      - name: Test the coverage summary
+        run: pnpm run coverage:test
+
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          else
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          fi
+
+      # Concurrency 1 for the same reason as the Test job; coverage instrumentation slows each file further.
+      - name: Run tests with coverage
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILTER="...[origin/${{ github.base_ref }}]"
+          else
+            FILTER="...[HEAD^1]"
+          fi
+          pnpm turbo test:coverage --concurrency=1 --filter="$FILTER"
+
+      - name: Write the coverage summary
+        if: always()
+        run: pnpm run coverage:summary -- --report "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
+        with:
+          name: coverage
+          path: |
+            packages/*/coverage/
+            apps/*/coverage/
+            examples/*/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
 
   typecheck:
     name: Typecheck Changed Packages
