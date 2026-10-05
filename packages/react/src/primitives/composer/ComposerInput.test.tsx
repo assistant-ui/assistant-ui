@@ -133,6 +133,7 @@ const fireKeyDown = (
     ctrlKey?: boolean;
     metaKey?: boolean;
     isComposing?: boolean;
+    keyCode?: number;
   } = {},
 ): KeyboardEvent => {
   const event = new KeyboardEvent("keydown", {
@@ -143,6 +144,7 @@ const fireKeyDown = (
     ctrlKey: opts.ctrlKey ?? false,
     metaKey: opts.metaKey ?? false,
     isComposing: opts.isComposing ?? false,
+    keyCode: opts.keyCode ?? 0,
   });
   textarea.dispatchEvent(event);
   return event;
@@ -441,6 +443,20 @@ describe("ComposerPrimitiveInput", () => {
       expect(event.defaultPrevented).toBe(false);
     });
 
+    it("ignores the Enter that commits an IME composition after compositionend (Safari)", async () => {
+      const textarea = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        fireCompositionStart(textarea);
+        fireCompositionEnd(textarea, "日本語");
+        event = fireKeyDown(textarea, { key: "Enter", keyCode: 229 });
+      });
+
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
     it("submitMode='ctrlEnter' submits on Cmd/Ctrl+Enter but not on plain Enter", async () => {
       const textarea = await mount({ submitMode: "ctrlEnter" });
 
@@ -566,13 +582,14 @@ describe("ComposerPrimitiveInput", () => {
   describe("escape behavior", () => {
     const fireEscape = (
       textarea: HTMLTextAreaElement,
-      opts: { isComposing?: boolean } = {},
+      opts: { isComposing?: boolean; keyCode?: number } = {},
     ): KeyboardEvent => {
       const event = new KeyboardEvent("keydown", {
         bubbles: true,
         cancelable: true,
         key: "Escape",
         isComposing: opts.isComposing ?? false,
+        keyCode: opts.keyCode ?? 0,
       });
       textarea.dispatchEvent(event);
       escapeKeydownHandler?.(event);
@@ -599,6 +616,21 @@ describe("ComposerPrimitiveInput", () => {
       let event!: KeyboardEvent;
       await act(async () => {
         event = fireEscape(textarea, { isComposing: true });
+      });
+
+      expect(cancelSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("ignores the Escape that cancels an IME composition after compositionend (Safari)", async () => {
+      composerState.canCancel = true;
+      const textarea = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        fireCompositionStart(textarea);
+        fireCompositionEnd(textarea, "");
+        event = fireEscape(textarea, { keyCode: 229 });
       });
 
       expect(cancelSpy).not.toHaveBeenCalled();

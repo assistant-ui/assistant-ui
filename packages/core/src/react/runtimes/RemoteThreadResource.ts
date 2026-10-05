@@ -24,6 +24,7 @@ import {
 } from "./RuntimeAdapterProvider";
 import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
+import { useRemoteThreadRuntimeHostProvider } from "./RemoteThreadRuntimeHostContext";
 
 export type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -83,7 +84,7 @@ const useRemoteThreadBinder = ({
   publish: RemoteThreadResourceProps["publish"];
   itemRuntime: ThreadListItemRuntime;
 }) => {
-  const runtime = runtimeHook();
+  const runtime = useRemoteThreadRuntimeHostProvider(runtimeHook);
   const threadBinding = (runtime?.thread as ThreadRuntimeImpl | undefined)
     ?.__internal_threadBinding;
 

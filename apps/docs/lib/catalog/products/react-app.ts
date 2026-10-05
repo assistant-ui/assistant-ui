@@ -10,5 +10,5 @@ export const reactApp: CatalogItem = {
   purchase: "setup",
   glyph: "react",
   docs: "/docs/installation",
-  agentMinutes: [2, 8],
+  agentMinutes: [2, 5],
 };

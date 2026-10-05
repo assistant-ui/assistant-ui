@@ -147,6 +147,7 @@ describe("against the real workspace", () => {
         "bench/from-thread-message-like.bench.ts",
         "bench/interactable-array-patches.bench.ts",
         "bench/markdown-streaming.bench.tsx",
+        "bench/react-langgraph.bench.ts",
         "bench/react-pi-message-projection.bench.ts",
         "bench/thread-scaling.bench.tsx",
       ],

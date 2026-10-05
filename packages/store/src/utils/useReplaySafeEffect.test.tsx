@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 
-import { Activity, StrictMode, act } from "react";
+import { Activity, StrictMode, act, version } from "react";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import { useReplaySafeEffect } from "./useReplaySafeEffect";
+
+const onReact18 = version.startsWith("18.");
 
 type Family = { current: unknown };
 type RendererInternals = {
@@ -112,25 +114,29 @@ it("cleans up an unmount after a microtask", async () => {
   expect(cleanupEffect).toHaveBeenCalledOnce();
 });
 
-it("cleans up an Activity hide after a microtask and sets up on reveal", async () => {
-  const events: string[] = [];
-  const App = () => {
-    useReplaySafeEffect(() => {
-      events.push("setup");
-      return () => events.push("cleanup");
-    }, []);
-    return null;
-  };
-  const tree = (mode: "visible" | "hidden") => (
-    <Activity mode={mode}>
-      <App />
-    </Activity>
-  );
-  const view = render(tree("visible"));
-  act(() => view.rerender(tree("hidden")));
-  expect(events).toEqual(["setup"]);
-  await act(async () => {});
-  expect(events).toEqual(["setup", "cleanup"]);
-  act(() => view.rerender(tree("visible")));
-  expect(events).toEqual(["setup", "cleanup", "setup"]);
-});
+// Activity is React 19 only.
+it.skipIf(onReact18)(
+  "cleans up an Activity hide after a microtask and sets up on reveal",
+  async () => {
+    const events: string[] = [];
+    const App = () => {
+      useReplaySafeEffect(() => {
+        events.push("setup");
+        return () => events.push("cleanup");
+      }, []);
+      return null;
+    };
+    const tree = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <App />
+      </Activity>
+    );
+    const view = render(tree("visible"));
+    act(() => view.rerender(tree("hidden")));
+    expect(events).toEqual(["setup"]);
+    await act(async () => {});
+    expect(events).toEqual(["setup", "cleanup"]);
+    act(() => view.rerender(tree("visible")));
+    expect(events).toEqual(["setup", "cleanup", "setup"]);
+  },
+);
