@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, StrictMode, useEffect } from "react";
+import { Activity, StrictMode, useEffect, version } from "react";
 import { act, render, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
@@ -13,9 +13,14 @@ import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import { useLocalRuntime } from "./useLocalRuntime";
-import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
+import {
+  actSettled,
+  makeAdapter,
+} from "../../tests/remote-thread-list-test-helpers";
 import { captureThreadRuntimeDisposal } from "../../runtime/utils/thread-runtime-lifecycle";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+
+const onReact18 = version.startsWith("18.");
 
 const userMessage: ThreadMessage = {
   id: "user-1",
@@ -62,29 +67,33 @@ describe("useExternalStoreRuntime lifecycle", () => {
     expect(disconnect).toHaveBeenCalledOnce();
   });
 
-  it("keeps a bare voice session through Activity hide and reveal", async () => {
-    const { session, disconnect } = createVoiceSession();
-    let runtime!: AssistantRuntime;
-    const App = () => {
-      runtime = useExternalStoreRuntime<ThreadMessage>({
-        messages: [],
-        onNew: async () => {},
-        adapters: { voice: { connect: () => session } },
-      });
-      return null;
-    };
-    const tree = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>
-        <App />
-      </Activity>
-    );
-    const view = render(tree("visible"));
-    act(() => runtime.thread.connectVoice());
-    await act(async () => view.rerender(tree("hidden")));
-    expect(disconnect).not.toHaveBeenCalled();
-    await act(async () => view.rerender(tree("visible")));
-    expect(disconnect).not.toHaveBeenCalled();
-  });
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "keeps a bare voice session through Activity hide and reveal",
+    async () => {
+      const { session, disconnect } = createVoiceSession();
+      let runtime!: AssistantRuntime;
+      const App = () => {
+        runtime = useExternalStoreRuntime<ThreadMessage>({
+          messages: [],
+          onNew: async () => {},
+          adapters: { voice: { connect: () => session } },
+        });
+        return null;
+      };
+      const tree = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <App />
+        </Activity>
+      );
+      const view = render(tree("visible"));
+      act(() => runtime.thread.connectVoice());
+      await act(async () => view.rerender(tree("hidden")));
+      expect(disconnect).not.toHaveBeenCalled();
+      await act(async () => view.rerender(tree("visible")));
+      expect(disconnect).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps a bare voice session through StrictMode replay", async () => {
     const { session, disconnect } = createVoiceSession();
@@ -230,7 +239,7 @@ describe("useExternalStoreRuntime lifecycle", () => {
     const signal = send.mock.lastCall?.[1]?.signal;
     expect(signal?.aborted).toBe(false);
 
-    await act(() => runtime.threads.reloadMainThread());
+    await actSettled(() => runtime.threads.reloadMainThread());
 
     const disposedAfterRestart = disposal.aborted;
     const abortedAfterRestart = signal?.aborted;
@@ -273,105 +282,113 @@ describe("useExternalStoreRuntime lifecycle", () => {
     expect(runtime.thread.getState().voice).toBeDefined();
   });
 
-  it("keeps hosted voice connected through an Activity hide around its provider", async () => {
-    const { session, disconnect } = createVoiceSession();
-    let runtime!: AssistantRuntime;
-    const App = () => {
-      runtime = useLocalRuntime(
-        { run: async () => ({ content: [] }) },
-        {
-          adapters: { voice: { connect: () => session } },
-        },
-      );
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <div />
-        </AssistantRuntimeProvider>
-      );
-    };
-    const tree = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>
-        <App />
-      </Activity>
-    );
-    const view = render(tree("visible"));
-    act(() => runtime.thread.connectVoice());
-    await act(async () => view.rerender(tree("hidden")));
-    expect(disconnect).not.toHaveBeenCalled();
-    await act(async () => view.rerender(tree("visible")));
-    expect(disconnect).not.toHaveBeenCalled();
-  });
-
-  it("keeps voice through Activity hide and reveal when hosted by a remote thread list", async () => {
-    const disconnect = vi.fn();
-    const onVoiceTranscript = vi.fn();
-    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
-    const session: RealtimeVoiceAdapter.Session = {
-      status: { type: "running" },
-      isMuted: false,
-      disconnect,
-      mute: vi.fn(),
-      unmute: vi.fn(),
-      onStatusChange: () => () => {},
-      onTranscript: (callback) => {
-        emitTranscript = callback;
-        return () => {};
-      },
-      onModeChange: () => () => {},
-      onVolumeChange: () => () => {},
-    };
-    const adapter = new InMemoryThreadListAdapter();
-    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
-    let connected = false;
-    const App = () => {
-      const runtime = useRemoteThreadListRuntime({
-        runtimeHook: function RuntimeHook() {
-          return useExternalStoreRuntime<ThreadMessage>({
-            messages: [],
-            onNew: async () => {},
-            onVoiceTranscript,
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "keeps hosted voice connected through an Activity hide around its provider",
+    async () => {
+      const { session, disconnect } = createVoiceSession();
+      let runtime!: AssistantRuntime;
+      const App = () => {
+        runtime = useLocalRuntime(
+          { run: async () => ({ content: [] }) },
+          {
             adapters: { voice: { connect: () => session } },
-          });
-        },
-        adapter,
-      });
-      capture.runtime = runtime;
-      useEffect(() => {
-        if (connected) return;
-        connected = true;
-        runtime.thread.connectVoice();
-      }, [runtime]);
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <div />
-        </AssistantRuntimeProvider>
+          },
+        );
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <div />
+          </AssistantRuntimeProvider>
+        );
+      };
+      const tree = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <App />
+        </Activity>
       );
-    };
-    const renderApp = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>
-        <App />
-      </Activity>
-    );
+      const view = render(tree("visible"));
+      act(() => runtime.thread.connectVoice());
+      await act(async () => view.rerender(tree("hidden")));
+      expect(disconnect).not.toHaveBeenCalled();
+      await act(async () => view.rerender(tree("visible")));
+      expect(disconnect).not.toHaveBeenCalled();
+    },
+  );
 
-    const view = render(renderApp("visible"));
-    await act(async () => Promise.resolve());
-    view.rerender(renderApp("hidden"));
-    await act(async () => Promise.resolve());
-    view.rerender(renderApp("visible"));
-    await act(async () => Promise.resolve());
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "keeps voice through Activity hide and reveal when hosted by a remote thread list",
+    async () => {
+      const disconnect = vi.fn();
+      const onVoiceTranscript = vi.fn();
+      let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+      const session: RealtimeVoiceAdapter.Session = {
+        status: { type: "running" },
+        isMuted: false,
+        disconnect,
+        mute: vi.fn(),
+        unmute: vi.fn(),
+        onStatusChange: () => () => {},
+        onTranscript: (callback) => {
+          emitTranscript = callback;
+          return () => {};
+        },
+        onModeChange: () => () => {},
+        onVolumeChange: () => () => {},
+      };
+      const adapter = new InMemoryThreadListAdapter();
+      const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+      let connected = false;
+      const App = () => {
+        const runtime = useRemoteThreadListRuntime({
+          runtimeHook: function RuntimeHook() {
+            return useExternalStoreRuntime<ThreadMessage>({
+              messages: [],
+              onNew: async () => {},
+              onVoiceTranscript,
+              adapters: { voice: { connect: () => session } },
+            });
+          },
+          adapter,
+        });
+        capture.runtime = runtime;
+        useEffect(() => {
+          if (connected) return;
+          connected = true;
+          runtime.thread.connectVoice();
+        }, [runtime]);
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <div />
+          </AssistantRuntimeProvider>
+        );
+      };
+      const renderApp = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <App />
+        </Activity>
+      );
 
-    expect(disconnect).not.toHaveBeenCalled();
-    expect(capture.runtime!.thread.getState().voice).toBeDefined();
+      const view = render(renderApp("visible"));
+      await act(async () => Promise.resolve());
+      view.rerender(renderApp("hidden"));
+      await act(async () => Promise.resolve());
+      view.rerender(renderApp("visible"));
+      await act(async () => Promise.resolve());
 
-    act(() =>
-      emitTranscript({ role: "user", text: "after reveal", isFinal: true }),
-    );
-    expect(onVoiceTranscript).toHaveBeenCalledOnce();
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(capture.runtime!.thread.getState().voice).toBeDefined();
 
-    view.unmount();
-    await act(async () => Promise.resolve());
-    expect(disconnect).toHaveBeenCalledOnce();
-  });
+      act(() =>
+        emitTranscript({ role: "user", text: "after reveal", isFinal: true }),
+      );
+      expect(onVoiceTranscript).toHaveBeenCalledOnce();
+
+      view.unmount();
+      await act(async () => Promise.resolve());
+      expect(disconnect).toHaveBeenCalledOnce();
+    },
+  );
 
   it("uses feedback supplied by the per-thread adapter context", () => {
     const submit = vi.fn();

@@ -1,5 +1,15 @@
 import type { UIElement } from "../ir";
 
+export type FieldMapping = {
+  readonly actionId: string;
+  readonly name: string;
+  readonly component: string;
+  readonly inputType?: "time" | "datetime";
+  readonly offset?: string;
+  readonly part?: "date" | "time";
+  readonly pairId?: number;
+};
+
 /** A Slack plain-text composition object. */
 export interface SlackPlainText {
   readonly type: "plain_text";
@@ -46,6 +56,18 @@ export interface SlackDatePickerElement {
   readonly initial_date?: string;
 }
 
+export interface SlackTimePickerElement {
+  readonly type: "timepicker";
+  readonly action_id: string;
+  readonly initial_time?: string;
+}
+
+export interface SlackDateTimePickerElement {
+  readonly type: "datetimepicker";
+  readonly action_id: string;
+  readonly initial_date_time?: number;
+}
+
 /** A Slack checkbox-group element. */
 export interface SlackCheckboxesElement {
   readonly type: "checkboxes";
@@ -76,6 +98,8 @@ export type SlackActionElement =
   | SlackButtonElement
   | SlackStaticSelectElement
   | SlackDatePickerElement
+  | SlackTimePickerElement
+  | SlackDateTimePickerElement
   | SlackCheckboxesElement
   | SlackRadioButtonsElement;
 

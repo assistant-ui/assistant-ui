@@ -13,6 +13,8 @@ import {
   isMcpAppUri,
   type ReasoningMessagePart,
   type ToolApprovalOption,
+  type ToolApprovalQuestion,
+  type ToolApprovalQuestionOption,
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
@@ -26,6 +28,7 @@ import {
   type RespondToToolApprovalOptions,
   type Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
+import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
   parsePartialJsonObject,
@@ -221,6 +224,51 @@ const normalizeToolApprovalOptions = (
   });
 };
 
+const normalizeToolApprovalQuestions = (
+  questions: unknown,
+): readonly ToolApprovalQuestion[] | undefined => {
+  if (!Array.isArray(questions)) return undefined;
+
+  return questions.flatMap<ToolApprovalQuestion>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const question = value as Record<string, unknown>;
+    if (typeof question.id !== "string" || typeof question.prompt !== "string")
+      return [];
+    const options = Array.isArray(question.options)
+      ? question.options.flatMap<ToolApprovalQuestionOption>((option) => {
+          if (!option || typeof option !== "object" || Array.isArray(option))
+            return [];
+          const { id, label, description } = option as Record<string, unknown>;
+          if (typeof id !== "string" || typeof label !== "string") return [];
+          return [
+            {
+              id,
+              label,
+              ...(typeof description === "string" && { description }),
+            },
+          ];
+        })
+      : undefined;
+
+    return [
+      {
+        id: question.id,
+        prompt: question.prompt,
+        ...(typeof question.header === "string" && {
+          header: question.header,
+        }),
+        ...(options && { options }),
+        ...(typeof question.multiple === "boolean" && {
+          multiple: question.multiple,
+        }),
+        ...(typeof question.allowFreeform === "boolean" && {
+          allowFreeform: question.allowFreeform,
+        }),
+      },
+    ];
+  });
+};
+
 const APPROVAL_DESCRIPTOR_FIELDS = [
   "prompt",
   "display",
@@ -229,6 +277,8 @@ const APPROVAL_DESCRIPTOR_FIELDS = [
   "options",
   "optionId",
   "text",
+  "questions",
+  "answers",
   "resolution",
 ] as const;
 
@@ -302,6 +352,8 @@ function getToolApprovalAndInterrupt(
       options,
       optionId,
       text,
+      questions,
+      answers,
       ...additionalApprovalFields
     } = response
       ? {
@@ -310,10 +362,17 @@ function getToolApprovalAndInterrupt(
           ...(response.reason != null && { reason: response.reason }),
           ...(response.optionId != null && { optionId: response.optionId }),
           ...(response.text != null && { text: response.text }),
+          ...(response.answers != null && { answers: response.answers }),
         }
       : approval;
     const normalizedOptions = supportsRichToolApprovalResponses
       ? normalizeToolApprovalOptions(options)
+      : undefined;
+    const normalizedQuestions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalQuestions(questions)
+      : undefined;
+    const normalizedAnswers = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalAnswers(answers)
       : undefined;
     const requestReason = additionalApprovalFields.requestReason;
     if (typeof id === "string")
@@ -332,12 +391,15 @@ function getToolApprovalAndInterrupt(
           ...(supportsRichToolApprovalResponses && {
             ...((display === "decision" ||
               display === "select" ||
-              display === "text") && { display }),
+              display === "text" ||
+              display === "questions") && { display }),
             ...(typeof allowFreeform === "boolean" && { allowFreeform }),
             ...(typeof dismissible === "boolean" && { dismissible }),
             ...(normalizedOptions && { options: normalizedOptions }),
             ...(typeof optionId === "string" && { optionId }),
             ...(typeof text === "string" && { text }),
+            ...(normalizedQuestions && { questions: normalizedQuestions }),
+            ...(normalizedAnswers && { answers: normalizedAnswers }),
           }),
           ...((resolution === "cancelled" || resolution === "expired") && {
             resolution,
@@ -585,6 +647,9 @@ function convertParts(
       if (part.type.startsWith("data-")) {
         return {
           type: "data",
+          ...("id" in part && typeof part.id === "string"
+            ? { id: part.id }
+            : undefined),
           name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;

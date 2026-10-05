@@ -74,7 +74,7 @@ export const cliSurface: CliSurfaceSnapshot = {
       "options": [
         {
           "flags": "-t, --template <template>",
-          "description": "template to use (default, minimal, cloud, cloud-clerk, langchain, mcp, eve, vscode)",
+          "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve, vscode)",
           "required": true
         },
         {
@@ -329,6 +329,143 @@ export const cliSurface: CliSurfaceSnapshot = {
         }
       ],
       "commands": []
+    },
+    {
+      "name": "cloud",
+      "description": "sign in and set up a multiplayer Assistant Cloud chat",
+      "usage": "[options] [command]",
+      "arguments": [],
+      "options": [],
+      "commands": [
+        {
+          "name": "login",
+          "description": "sign in to Assistant Cloud using your browser",
+          "usage": "[options]",
+          "arguments": [],
+          "options": [
+            {
+              "flags": "--no-open",
+              "description": "print the device sign-in URL without opening a browser"
+            },
+            {
+              "flags": "--setup-url <url>",
+              "description": "show device sign-in in an active setup wizard",
+              "required": true
+            }
+          ],
+          "commands": []
+        },
+        {
+          "name": "logout",
+          "description": "revoke your CLI login and remove saved credentials",
+          "usage": "[options]",
+          "arguments": [],
+          "options": [],
+          "commands": []
+        },
+        {
+          "name": "setup",
+          "description": "create a shared AI chat and provision its cloud harness",
+          "usage": "[options] [directory]",
+          "arguments": [
+            {
+              "syntax": "[directory]",
+              "description": "new project directory",
+              "required": false,
+              "defaultValue": "multiplayer-chat"
+            }
+          ],
+          "options": [
+            {
+              "flags": "--org <id-or-slug>",
+              "description": "use an existing organization",
+              "required": true
+            },
+            {
+              "flags": "--new-org <slug>",
+              "description": "create an organization",
+              "required": true
+            },
+            {
+              "flags": "--project <id-or-slug>",
+              "description": "use an existing project",
+              "required": true
+            },
+            {
+              "flags": "--new-project <slug>",
+              "description": "create a project",
+              "required": true
+            },
+            {
+              "flags": "--name <name>",
+              "description": "display name for a new project or organization",
+              "required": true
+            },
+            {
+              "flags": "--harness-name <name>",
+              "description": "name for the multiplayer harness",
+              "required": true
+            },
+            {
+              "flags": "--backend-url <url>",
+              "description": "absolute URL of the app's chat route",
+              "required": true,
+              "defaultValue": "http://localhost:3000/api/chat"
+            },
+            {
+              "flags": "--api-url <url>",
+              "description": "Assistant Cloud management URL",
+              "required": true,
+              "defaultValue": "https://cloud.assistant-ui.com"
+            },
+            {
+              "flags": "--access-code <code>",
+              "description": "redeem your hackathon harness access code",
+              "required": true
+            },
+            {
+              "flags": "--no-open",
+              "description": "print the device sign-in URL without opening a browser"
+            },
+            {
+              "flags": "--setup-url <url>",
+              "description": "show device sign-in in an active setup wizard",
+              "required": true
+            },
+            {
+              "flags": "--yes",
+              "description": "skip prompts; select resources with flags"
+            },
+            {
+              "flags": "--skip-install",
+              "description": "skip installing scaffold dependencies"
+            },
+            {
+              "flags": "--use-npm",
+              "description": "install with npm"
+            },
+            {
+              "flags": "--use-pnpm",
+              "description": "install with pnpm"
+            },
+            {
+              "flags": "--use-yarn",
+              "description": "install with yarn"
+            },
+            {
+              "flags": "--use-bun",
+              "description": "install with bun"
+            },
+            {
+              "flags": "--debug-source-root <path>",
+              "description": "local assistant-ui source root",
+              "required": true,
+              "hidden": true
+            }
+          ],
+          "commands": []
+        }
+      ]
     },
     {
       "name": "info",

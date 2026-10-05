@@ -5,7 +5,10 @@ import {
   cleanupCells,
   reconcileEffects,
 } from "./helpers/commit";
-import { withResourceFiber } from "./helpers/execution-context";
+import {
+  peekResourceFiber,
+  withResourceFiber,
+} from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 import { commitRoot } from "./helpers/root";
@@ -32,10 +35,12 @@ export function createResourceFiber<R>(
     memoCache: {
       current: null,
       workInProgress: null,
+      refreshedIndices: null,
       index: 0,
     },
     renderPendingCells: null,
     currentIndex: 0,
+    isRefreshing: false,
     isFirstRender: true,
     isMounted: false,
     isReleased: false,
@@ -49,6 +54,7 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.wipCommitCallbacks = null;
   fiber.wipContextDeps = null;
   fiber.memoCache.workInProgress = null;
+  fiber.memoCache.refreshedIndices = null;
 }
 
 function cleanupResourceFiber<R>(
@@ -117,6 +123,9 @@ export function renderResourceFiber<R>(
 
   let passes = 0;
   let value: R;
+  const wasRefreshing = fiber.isRefreshing;
+  fiber.isRefreshing =
+    wasRefreshing || (peekResourceFiber()?.isRefreshing ?? false);
   try {
     do {
       if (++passes > 25) {
@@ -134,6 +143,8 @@ export function renderResourceFiber<R>(
   } catch (error) {
     discardWipRender(fiber);
     throw error;
+  } finally {
+    fiber.isRefreshing = wasRefreshing;
   }
 
   bubbleContextDeps(fiber);
@@ -157,6 +168,7 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
     if (fiber.memoCache.workInProgress !== null) {
       fiber.memoCache.current = fiber.memoCache.workInProgress;
       fiber.memoCache.workInProgress = null;
+      fiber.memoCache.refreshedIndices = null;
     }
 
     commitAllCallbacks(commitCallbacks);

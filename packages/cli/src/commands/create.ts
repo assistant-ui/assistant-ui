@@ -70,6 +70,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "cloud-harness",
+    label: "Shared cloud chat",
+    description: "A hosted harness with a shared conversation across browsers",
+    category: "template",
+    path: "templates/cloud-harness",
+    hasLocalComponents: true,
+  },
+  {
     name: "langchain",
     label: "LangChain",
     description: "LangGraph starter with the react-langchain adapter",
