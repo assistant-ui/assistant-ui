@@ -1,12 +1,7 @@
-import {
-  computed,
-  defineComponent,
-  h,
-  type SlotsType,
-  type VNodeChild,
-} from "vue";
+import { defineComponent, h, type SlotsType, type VNodeChild } from "vue";
 import { useAuiState } from "../useAuiState";
 import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
+import { useStableKeys } from "./stableKeys";
 
 /**
  * Renders the current message's attachments in order, each scoped through
@@ -22,7 +17,7 @@ export const MessagePrimitiveAttachments = defineComponent({
         ? (s.message.submission?.attachments ?? s.message.attachments)
         : undefined,
     );
-    const attachmentIds = computed(
+    const attachmentIds = useStableKeys(
       () => attachments.value?.map((attachment) => attachment.id) ?? [],
     );
     return () =>

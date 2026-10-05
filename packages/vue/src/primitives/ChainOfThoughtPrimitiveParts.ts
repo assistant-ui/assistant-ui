@@ -13,6 +13,7 @@ import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
+import { useStableKeys } from "./stableKeys";
 
 type ChainOfThoughtPartsSlots = {
   default?: (props: { part: PartState }) => VNodeChild[];
@@ -94,9 +95,8 @@ export const ChainOfThoughtPrimitiveParts = defineComponent({
   name: "ChainOfThoughtPrimitiveParts",
   slots: Object as SlotsType<ChainOfThoughtPartsSlots>,
   setup(_, { slots }) {
-    const partKeys = useAuiState((s) =>
-      getMessagePartKeys(s.chainOfThought.parts),
-    );
+    const parts = useAuiState((s) => s.chainOfThought.parts);
+    const partKeys = useStableKeys(() => getMessagePartKeys(parts.value));
     return () =>
       partKeys.value.map((key, index) =>
         h(

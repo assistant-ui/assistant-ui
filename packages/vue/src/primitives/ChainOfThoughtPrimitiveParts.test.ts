@@ -154,8 +154,10 @@ afterEach(() => {
 
 describe("ChainOfThoughtPrimitiveParts", () => {
   it("keeps tool-call slot state with its part when chain parts swap", async () => {
+    const mounts = vi.fn();
     const Tool = defineComponent({
       setup() {
+        mounts();
         const initialName = useAuiState((s) =>
           s.part.type === "tool-call" ? s.part.toolName : "",
         ).value;
@@ -176,12 +178,14 @@ describe("ChainOfThoughtPrimitiveParts", () => {
       await nextTick();
       expect(partTexts(el)).toEqual(["alpha", "beta"]);
     });
+    expect(mounts).toHaveBeenCalledTimes(2);
 
     setParts([second, first]);
     await vi.waitFor(async () => {
       await nextTick();
       expect(partTexts(el)).toEqual(["beta", "alpha"]);
     });
+    expect(mounts).toHaveBeenCalledTimes(2);
     unmount();
   });
 

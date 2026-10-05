@@ -18,6 +18,7 @@ import {
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
+import { useStableKeys } from "./stableKeys";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -80,7 +81,9 @@ export const ThreadPrimitiveSuggestions = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
     const suggestions = useAuiState((s) => s.suggestions.suggestions);
-    const suggestionKeys = computed(() => getSuggestionKeys(suggestions.value));
+    const suggestionKeys = useStableKeys(() =>
+      getSuggestionKeys(suggestions.value),
+    );
     return () =>
       suggestionKeys.value.map((key, index) =>
         h(

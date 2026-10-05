@@ -16,6 +16,7 @@ import type { AssistantState } from "@assistant-ui/store/client";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
+import { useStableKeys } from "./stableKeys";
 
 const warnedTypes = new Set<string>();
 
@@ -65,7 +66,8 @@ export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
   slots: Object as SlotsType<Record<string, (() => VNodeChild[]) | undefined>>,
   setup(_, { slots }) {
-    const partKeys = useAuiState((s) => getMessagePartKeys(s.message.parts));
+    const parts = useAuiState((s) => s.message.parts);
+    const partKeys = useStableKeys(() => getMessagePartKeys(parts.value));
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
