@@ -179,11 +179,17 @@ export async function POST(req: Request) {
     case "mcp-apps/read-resource": {
       const { contents } = await client.readResource({ uri: params.uri });
       const c = contents.find((x: { uri: string }) => x.uri === params.uri);
+      const readMeta = c?._meta?.ui;
+      const listed = readMeta
+        ? undefined
+        : (await client.listResources()).resources.find(
+            (x: { uri: string }) => x.uri === params.uri,
+          );
       return Response.json({
         uri: params.uri,
         mimeType: "text/html;profile=mcp-app",
         html: c?.text ?? "",
-        meta: c?._meta?.ui,
+        meta: readMeta ?? listed?._meta?.ui,
       });
     }
     case "tools/call": {
@@ -213,7 +219,7 @@ export async function POST(req: Request) {
 
 The renderer POSTs four method names: `mcp-apps/read-resource`, `tools/call`, `resources/read`, `resources/list`. Reject anything else server-side and apply your own auth / rate limiting in the route.
 
-Forward the resource's `_meta.ui` object as `meta`. The renderer enforces its `csp` declarations before any widget code runs. `connectDomains`, `resourceDomains`, `frameDomains`, and `baseUriDomains` accept HTTP(S) origins (`connectDomains` also accepts WebSocket origins); malformed entries are ignored. When the resource omits a declaration, the corresponding capability stays restricted, including `connect-src 'none'` and `frame-src 'none'` defaults.
+Forward the resource's `_meta.ui` object as `meta`. Metadata on the `resources/read` content item overrides metadata on the matching `resources/list` entry, so fall back to the list entry only when the content item omits it. The renderer enforces its `csp` declarations before any widget code runs. `connectDomains`, `resourceDomains`, `frameDomains`, and `baseUriDomains` accept HTTP(S) origins (`connectDomains` also accepts WebSocket origins); malformed entries are ignored. When the resource omits a declaration, the corresponding capability stays restricted, including `connect-src 'none'` and `frame-src 'none'` defaults.
 
 ### Multiple MCP servers
 

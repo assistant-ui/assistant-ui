@@ -76,9 +76,22 @@ const findDoctypeEnd = (html: string): number => {
       continue;
     }
     if (!html.startsWith("<!--", offset)) break;
+    if (html.startsWith("<!-->", offset)) {
+      offset += 5;
+      continue;
+    }
+    if (html.startsWith("<!--->", offset)) {
+      offset += 6;
+      continue;
+    }
     const commentEnd = html.indexOf("-->", offset + 4);
-    if (commentEnd === -1) return 0;
-    offset = commentEnd + 3;
+    const bangCommentEnd = html.indexOf("--!>", offset + 4);
+    if (commentEnd === -1 && bangCommentEnd === -1) return 0;
+    offset =
+      bangCommentEnd !== -1 &&
+      (commentEnd === -1 || bangCommentEnd < commentEnd)
+        ? bangCommentEnd + 4
+        : commentEnd + 3;
   }
 
   if (html.slice(offset, offset + 9).toLowerCase() !== "<!doctype") {

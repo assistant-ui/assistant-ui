@@ -33,10 +33,22 @@ export async function POST(req: Request) {
               (c) => c.uri === params.uri,
             )
           : undefined;
+        const readMeta = (match?.["_meta"] as Record<string, unknown>)?.["ui"];
+        const listedResult = readMeta
+          ? undefined
+          : await client.listResources();
+        const listedResources = (
+          listedResult as { resources?: Array<Record<string, unknown>> }
+        )?.resources;
+        const listed = listedResources?.find((c) => c.uri === params.uri);
+        const listedMeta = (listed?.["_meta"] as Record<string, unknown>)?.[
+          "ui"
+        ];
         return Response.json({
           uri: params.uri,
           mimeType: MCP_APP_MIME,
           html: typeof match?.["text"] === "string" ? match["text"] : "",
+          meta: readMeta ?? listedMeta,
         });
       }
       case "tools/call": {

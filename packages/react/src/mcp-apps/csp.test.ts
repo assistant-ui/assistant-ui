@@ -69,4 +69,16 @@ describe("MCP App CSP", () => {
       secured.indexOf("<script"),
     );
   });
+
+  it.each([
+    "<!--><script>run()</script>-->",
+    "<!---><script>run()</script>",
+    "<!-- license --!><script>run()</script>",
+  ])("places the policy before scripts after HTML comment closers", (html) => {
+    const secured = applyMcpAppCsp(html);
+
+    expect(secured.indexOf("Content-Security-Policy")).toBeLessThan(
+      secured.indexOf("<script"),
+    );
+  });
 });
