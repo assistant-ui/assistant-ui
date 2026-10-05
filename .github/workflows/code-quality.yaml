@@ -41,6 +41,8 @@ on:
       - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/turbo-redis-env.test.mjs"
+      - "scripts/run-ci-tests.mjs"
+      - "scripts/run-ci-tests.test.mjs"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -86,6 +88,8 @@ on:
       - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/turbo-redis-env.test.mjs"
+      - "scripts/run-ci-tests.mjs"
+      - "scripts/run-ci-tests.test.mjs"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -489,7 +493,7 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
@@ -505,7 +509,9 @@ jobs:
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
           fi
 
-      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner and push tests past vitest's 5s timeout; the builds above keep turbo's default concurrency.
+      - name: Test CI scheduling
+        run: node --test scripts/run-ci-tests.test.mjs
+
       - name: Run tests
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -513,10 +519,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Test packages changed compared to base branch
-            pnpm turbo test --concurrency=1 --filter="...[origin/${{ github.base_ref }}]"
+            node scripts/run-ci-tests.mjs --filter="...[origin/${{ github.base_ref }}]"
           else
             # Push to main: Test packages changed in last commit
-            pnpm turbo test --concurrency=1 --filter="...[HEAD^1]"
+            node scripts/run-ci-tests.mjs --filter="...[HEAD^1]"
           fi
 
       - name: Run React Compiler tests
@@ -647,7 +653,7 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..."
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
