@@ -164,6 +164,10 @@ async function redis() {
     if (variant === "after") assert.deepEqual(hashes(before), hashes(after));
     else assert.notDeepEqual(hashes(before), hashes(after));
     const initial = fingerprints(dir, before.tasks);
+    for (const task of before.tasks) {
+      const dist = join(dir, task.directory, "dist");
+      if (existsSync(dist)) rmSync(dist, { recursive: true });
+    }
     run(
       dir,
       `${variant}-reuse-with-redis`,
@@ -176,7 +180,14 @@ async function redis() {
       dir,
       `${variant}-force-with-redis`,
       "pnpm",
-      ["exec", "turbo", "run", ...args, "--force"],
+      [
+        "exec",
+        "turbo",
+        "run",
+        ...args.map((arg) =>
+          arg === "--cache=local:rw" ? "--cache=local:w" : arg,
+        ),
+      ],
       redisEnv,
     );
     assert.deepEqual(fingerprints(dir, before.tasks), initial);

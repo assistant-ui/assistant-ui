@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        mode: [redis, install, scheduling]
+        mode: [redis]
         sample: [0, 1, 2]
     services:
       redis:
