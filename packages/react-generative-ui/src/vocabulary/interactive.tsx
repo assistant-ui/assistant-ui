@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   CHECKBOX_GROUP_ATTR,
   FIELD_NAME_ATTR,
+  FIELD_VALUE_ATTR,
   GENERATED_NAME_ATTR,
 } from "../constants";
 import type { Action } from "../ir";
@@ -12,10 +13,19 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
+import { A2uiBindingContext, useA2uiBinding } from "../a2ui/BindingContext";
 import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
 import { useRadioGroupName } from "../RadioGroupScope";
+import {
+  classifyTemporal,
+  fromLocalDateTime,
+  getTemporalInputStep,
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+  toPickerLocalDateTime,
+} from "../temporal";
 
 const optionSchema = z.object({
   label: z.string(),
@@ -51,6 +61,7 @@ const mapOptions = (
 };
 
 type RadioGroupRenderProps = {
+  value?: string;
   options: Option[];
   name?: string;
   label?: string;
@@ -62,6 +73,7 @@ type RadioGroupRenderProps = {
 };
 
 function RadioGroupRender({
+  value,
   options,
   name,
   label,
@@ -72,6 +84,8 @@ function RadioGroupRender({
 }: RadioGroupRenderProps) {
   const groupName = useRadioGroupName(name);
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : defaultValue;
   return (
@@ -89,10 +103,13 @@ function RadioGroupRender({
             {...{ [FIELD_NAME_ATTR]: name }}
             {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
             value={option.value}
-            defaultChecked={initialValue === option.value}
-            onChange={(e) =>
-              fire($action, $dispatch, option.value, e.currentTarget)
-            }
+            {...(isBound
+              ? { checked: (answeredValue ?? value) === option.value }
+              : { defaultChecked: initialValue === option.value })}
+            onChange={(e) => {
+              updateBinding?.(option.value);
+              fire($action, $dispatch, option.value, e.currentTarget);
+            }}
           />
           {option.description ? (
             <span data-aui="option-content">
@@ -110,6 +127,7 @@ function RadioGroupRender({
 }
 
 type CheckboxGroupRenderProps = {
+  value?: string[];
   options: Option[];
   name?: string;
   label?: string;
@@ -131,6 +149,7 @@ const checkedGroupValues = (input: HTMLInputElement): string[] =>
   );
 
 function CheckboxGroupRender({
+  value,
   options,
   name,
   label,
@@ -142,6 +161,8 @@ function CheckboxGroupRender({
   const generatedName = React.useId();
   const fieldName = name ?? generatedName;
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const checkedValues =
     Array.isArray(answeredValue) &&
     answeredValue.every((value): value is string => typeof value === "string")
@@ -164,15 +185,19 @@ function CheckboxGroupRender({
             {...{ [CHECKBOX_GROUP_ATTR]: "" }}
             {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
             value={option.value}
-            defaultChecked={checkedValues.includes(option.value)}
-            onChange={(e) =>
-              fire(
-                $action,
-                $dispatch,
-                checkedGroupValues(e.currentTarget),
-                e.currentTarget,
-              )
-            }
+            {...(isBound
+              ? {
+                  checked: (Array.isArray(answeredValue)
+                    ? checkedValues
+                    : (value ?? [])
+                  ).includes(option.value),
+                }
+              : { defaultChecked: checkedValues.includes(option.value) })}
+            onChange={(e) => {
+              const selected = checkedGroupValues(e.currentTarget);
+              updateBinding?.(selected);
+              fire($action, $dispatch, selected, e.currentTarget);
+            }}
           />
           {option.description ? (
             <span data-aui="option-content">
@@ -190,6 +215,7 @@ function CheckboxGroupRender({
 }
 
 type SelectRenderProps = {
+  value?: string;
   options: Option[];
   placeholder?: string;
   label?: string;
@@ -202,6 +228,7 @@ type SelectRenderProps = {
 };
 
 function SelectRender({
+  value,
   options,
   placeholder,
   label,
@@ -212,6 +239,8 @@ function SelectRender({
   children,
 }: SelectRenderProps) {
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const placeholderText = toTextContent(placeholder);
   const initialValue =
     typeof answeredValue === "string"
@@ -226,10 +255,16 @@ function SelectRender({
       data-aui-action={actionAttr($action)}
       name={name}
       aria-label={label}
-      defaultValue={initialValue}
-      onChange={(e) =>
-        fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
-      }
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      onChange={(e) => {
+        updateBinding?.(e.currentTarget.value);
+        fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
+      }}
     >
       {placeholderText ? (
         <option value="" disabled>
@@ -247,6 +282,8 @@ function SelectRender({
 }
 
 type InputRenderProps = {
+  value?: string;
+  inputType?: "text" | "password" | "number";
   placeholder?: string;
   multiline?: boolean;
   label?: string;
@@ -258,6 +295,8 @@ type InputRenderProps = {
 };
 
 function InputRender({
+  value,
+  inputType,
   placeholder,
   multiline,
   label,
@@ -267,11 +306,13 @@ function InputRender({
   $dispatch,
 }: InputRenderProps) {
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : defaultValue;
   const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
     fire($action, $dispatch, control.value, control);
-  return multiline ? (
+  return multiline && (inputType === undefined || inputType === "text") ? (
     <textarea
       key={initialValue}
       data-aui="input"
@@ -280,7 +321,15 @@ function InputRender({
       name={name}
       aria-label={label}
       placeholder={placeholder}
-      defaultValue={initialValue}
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      onChange={
+        updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
+      }
       onKeyDown={(e) => {
         if (
           e.key !== "Enter" ||
@@ -299,12 +348,22 @@ function InputRender({
   ) : (
     <input
       key={initialValue}
+      type={inputType}
+      step={inputType === "number" ? "any" : undefined}
       data-aui="input"
       data-aui-action={actionAttr($action)}
       name={name}
       aria-label={label}
       placeholder={placeholder}
-      defaultValue={initialValue}
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      onChange={
+        updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
+      }
       onKeyDown={(e) => {
         if (
           e.key === "Enter" &&
@@ -318,6 +377,7 @@ function InputRender({
 }
 
 type DatePickerRenderProps = {
+  inputType?: "date" | "datetime" | "time";
   value?: string;
   min?: string;
   max?: string;
@@ -328,7 +388,12 @@ type DatePickerRenderProps = {
   $dispatch?: GenerativeUIDispatch;
 };
 
+const subscribeToHydration = () => () => {};
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
+
 function DatePickerRender({
+  inputType = "date",
   value,
   min,
   max,
@@ -338,27 +403,197 @@ function DatePickerRender({
   $dispatch,
 }: DatePickerRenderProps) {
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : value;
+  const [selection, setSelection] = React.useState({
+    initialValue,
+    value: initialValue,
+    anchor: initialValue,
+    committedValue: initialValue,
+    edited: false,
+  });
+  if (selection.initialValue !== initialValue) {
+    const isEcho = isBound && initialValue === selection.value;
+    setSelection({
+      initialValue,
+      value: initialValue,
+      anchor: isEcho ? selection.anchor : initialValue,
+      committedValue: isEcho ? selection.committedValue : initialValue,
+      edited: isEcho && selection.edited,
+    });
+  }
+  const currentValue = isBound ? initialValue : selection.value;
+  const temporal = classifyTemporal(currentValue ?? "");
+  const anchor = classifyTemporal(selection.anchor ?? "");
+  const hasInstantAnchor =
+    inputType === "datetime" && anchor.kind === "instant";
+  const canonicalFieldValue = (value: string | undefined) => {
+    const current = value ?? "";
+    const kind = classifyTemporal(current).kind;
+    if (inputType === "time")
+      return kind === "time" && normalizeTemporalInputValue(current) !== current
+        ? value
+        : undefined;
+    if (inputType !== "datetime") return undefined;
+    if (kind === "instant") return value;
+    if (hasInstantAnchor) return selection.anchor;
+    return kind === "floating" &&
+      normalizeTemporalInputValue(current) !== current
+      ? value
+      : undefined;
+  };
+  const minimum = classifyTemporal(min ?? "");
+  const maximum = classifyTemporal(max ?? "");
+  const hydrated = React.useSyncExternalStore(
+    subscribeToHydration,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
+  const showRawValue =
+    inputType === "datetime" && temporal.kind === "instant" && !hydrated;
+  const displayValue =
+    currentValue === undefined
+      ? undefined
+      : inputType === "datetime" && hydrated
+        ? toPickerLocalDateTime(currentValue)
+        : normalizeTemporalInputValue(currentValue);
+  const keyboardActive = React.useRef(false);
+  const valueFromInput = (input: HTMLInputElement) => {
+    const inputValue = normalizeTemporalInputValue(input.value);
+    return inputType === "datetime"
+      ? fromLocalDateTime(inputValue, selection.anchor)
+      : inputValue;
+  };
+  const commit = (input: HTMLInputElement) => {
+    if (!selection.edited) return;
+    const nextValue = valueFromInput(input);
+    setSelection({ ...selection, committedValue: nextValue, edited: false });
+    if (nextValue !== selection.committedValue)
+      fire($action, $dispatch, nextValue, input);
+  };
   return (
     <input
-      key={initialValue}
-      type="date"
+      key={isBound ? undefined : initialValue}
+      type={
+        showRawValue
+          ? "text"
+          : inputType === "datetime"
+            ? "datetime-local"
+            : inputType
+      }
+      readOnly={showRawValue || undefined}
       data-aui="datepicker"
       data-aui-action={actionAttr($action)}
+      {...{
+        [FIELD_VALUE_ATTR]: canonicalFieldValue(currentValue),
+      }}
       name={name}
       aria-label={label}
-      defaultValue={initialValue}
-      min={min}
-      max={max}
-      onChange={(e) =>
-        fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+      {...(isBound || inputType === "datetime"
+        ? { value: displayValue ?? "" }
+        : { defaultValue: displayValue })}
+      min={
+        inputType === "datetime" && hydrated && min !== undefined
+          ? normalizeTemporalInputValue(
+              toLocalDateTime(
+                min,
+                minimum.kind === "instant" ? minimum.precision : undefined,
+              ),
+            )
+          : min === undefined
+            ? undefined
+            : normalizeTemporalInputValue(min)
       }
+      max={
+        inputType === "datetime" && hydrated && max !== undefined
+          ? normalizeTemporalInputValue(
+              toLocalDateTime(
+                max,
+                maximum.kind === "instant" ? maximum.precision : undefined,
+              ),
+            )
+          : max === undefined
+            ? undefined
+            : normalizeTemporalInputValue(max)
+      }
+      step={
+        inputType !== "date"
+          ? getTemporalInputStep(
+              selection.anchor,
+              hasInstantAnchor ? displayValue : currentValue,
+              min,
+              max,
+            )
+          : undefined
+      }
+      onChange={(e) => {
+        const nextValue = valueFromInput(e.currentTarget);
+        const canonical = canonicalFieldValue(nextValue);
+        if (canonical !== undefined) {
+          e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
+        } else {
+          e.currentTarget.removeAttribute(FIELD_VALUE_ATTR);
+        }
+        // A change without an editing key down is a pick from the native picker, which commits at once; a typed value waits for blur or Enter.
+        const typed = keyboardActive.current;
+        keyboardActive.current = false;
+        setSelection({
+          initialValue,
+          value: nextValue,
+          anchor: selection.anchor,
+          committedValue: typed ? selection.committedValue : nextValue,
+          edited: typed,
+        });
+        updateBinding?.(nextValue);
+        if (!typed && nextValue !== selection.committedValue)
+          fire($action, $dispatch, nextValue, e.currentTarget);
+      }}
+      onBlur={(e) => {
+        keyboardActive.current = false;
+        commit(e.currentTarget);
+      }}
+      onKeyDown={(e) => {
+        if (
+          e.key === "Enter" &&
+          !e.nativeEvent.isComposing &&
+          !e.currentTarget.form
+        ) {
+          commit(e.currentTarget);
+          return;
+        }
+        keyboardActive.current =
+          !e.altKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          (e.key.length === 1 ||
+            [
+              "ArrowDown",
+              "ArrowUp",
+              "Backspace",
+              "Delete",
+              "End",
+              "Home",
+              "PageDown",
+              "PageUp",
+            ].includes(e.key));
+      }}
+      onKeyUp={() => {
+        keyboardActive.current = false;
+      }}
+      onPaste={() => {
+        keyboardActive.current = true;
+      }}
+      onCut={() => {
+        keyboardActive.current = true;
+      }}
     />
   );
 }
 
 type CheckboxRenderProps = {
+  checked?: boolean;
   label: string;
   name?: string;
   defaultChecked?: boolean;
@@ -369,6 +604,7 @@ type CheckboxRenderProps = {
 };
 
 function CheckboxRender({
+  checked,
   label,
   name,
   defaultChecked,
@@ -377,6 +613,8 @@ function CheckboxRender({
   $dispatch,
 }: CheckboxRenderProps) {
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialChecked =
     typeof answeredValue === "boolean" ? answeredValue : defaultChecked;
   return (
@@ -390,10 +628,18 @@ function CheckboxRender({
         role={variant === "switch" ? "switch" : undefined}
         data-aui-action={actionAttr($action)}
         name={name}
-        defaultChecked={initialChecked}
-        onChange={(e) =>
-          fire($action, $dispatch, e.currentTarget.checked, e.currentTarget)
-        }
+        {...(isBound
+          ? {
+              checked:
+                typeof answeredValue === "boolean"
+                  ? answeredValue
+                  : checked === true,
+            }
+          : { defaultChecked: initialChecked })}
+        onChange={(e) => {
+          updateBinding?.(e.currentTarget.checked);
+          fire($action, $dispatch, e.currentTarget.checked, e.currentTarget);
+        }}
       />
       <span data-aui="checkbox-label">{toTextContent(label)}</span>
     </label>
@@ -407,6 +653,7 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
 type SliderRenderProps = {
+  value?: number;
   name?: string;
   label?: string;
   min: number;
@@ -420,6 +667,7 @@ type SliderRenderProps = {
 };
 
 type SliderControlProps = {
+  controlledValue?: number;
   name?: string;
   label?: string;
   min: number;
@@ -432,6 +680,7 @@ type SliderControlProps = {
 };
 
 function SliderControl({
+  controlledValue,
   name,
   label,
   min,
@@ -442,13 +691,16 @@ function SliderControl({
   $action,
   $dispatch,
 }: SliderControlProps) {
-  const [value, setValue] = React.useState(initialValue);
+  const updateBinding = useA2uiBinding(name);
+  const [localValue, setValue] = React.useState(initialValue);
+  const value = controlledValue ?? localValue;
   const pointerActive = React.useRef(false);
   const keyboardActive = React.useRef(false);
   const lastCommitted = React.useRef(initialValue);
   const currentValue = (input: HTMLInputElement) =>
     clamp(Number(input.value), min, max);
   const commit = (input: HTMLInputElement) => {
+    if (controlledValue !== undefined) return;
     const nextValue = currentValue(input);
     setValue(nextValue);
     if (lastCommitted.current === nextValue) return;
@@ -469,8 +721,14 @@ function SliderControl({
         min={min}
         max={max}
         step={step}
-        defaultValue={initialValue}
-        onInput={(e) => setValue(currentValue(e.currentTarget))}
+        {...(controlledValue !== undefined
+          ? { value }
+          : { defaultValue: initialValue })}
+        onInput={(e) => {
+          const nextValue = currentValue(e.currentTarget);
+          if (controlledValue !== undefined) updateBinding?.(nextValue);
+          else setValue(nextValue);
+        }}
         onPointerDown={() => {
           pointerActive.current = true;
         }}
@@ -509,6 +767,7 @@ function SliderControl({
 }
 
 function SliderRender({
+  value,
   name,
   label,
   min,
@@ -520,10 +779,16 @@ function SliderRender({
   $dispatch,
 }: SliderRenderProps) {
   const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const safeMin = finiteNumber(min) ? min : 0;
   const safeMax = finiteNumber(max) ? Math.max(max, safeMin) : safeMin + 100;
   const safeStep = finiteNumber(step) && step > 0 ? step : 1;
-  const defaultNumber = finiteNumber(defaultValue) ? defaultValue : safeMin;
+  const defaultNumber = finiteNumber(isBound ? value : defaultValue)
+    ? isBound
+      ? value!
+      : defaultValue!
+    : safeMin;
   const initialValue = clamp(
     finiteNumber(answeredValue) ? answeredValue : defaultNumber,
     safeMin,
@@ -531,7 +796,8 @@ function SliderRender({
   );
   return (
     <SliderControl
-      key={`${safeMin}:${safeMax}:${safeStep}:${initialValue}`}
+      key={`${safeMin}:${safeMax}:${safeStep}:${isBound ? "bound" : initialValue}`}
+      {...(isBound ? { controlledValue: initialValue } : {})}
       min={safeMin}
       max={safeMax}
       step={safeStep}
@@ -569,6 +835,9 @@ function ButtonRender({
   $action,
   $dispatch,
 }: ButtonRenderProps) {
+  const bindings = React.useContext(A2uiBindingContext!)?.fields;
+  const bindingsRef = React.useRef(bindings);
+  bindingsRef.current = bindings;
   const [remaining, setRemaining] = React.useState<number | undefined>(
     undefined,
   );
@@ -596,7 +865,13 @@ function ButtonRender({
       pendingAction.current = undefined;
       setRemaining(undefined);
       if (action)
-        fire(action.$action, action.$dispatch, undefined, action.source);
+        fire(
+          action.$action,
+          action.$dispatch,
+          undefined,
+          action.source,
+          bindingsRef.current,
+        );
     }, 1_000);
     return () => clearTimeout(timer);
   }, [remaining]);
@@ -638,7 +913,8 @@ function ButtonRender({
                 };
                 setRemaining(UNDO_WINDOW_SECONDS);
               }
-            : (e) => fire($action, $dispatch, undefined, e.currentTarget)
+            : (e) =>
+                fire($action, $dispatch, undefined, e.currentTarget, bindings)
       }
       onKeyDown={
         canUndo
@@ -715,11 +991,17 @@ export const interactiveVocabulary = {
     description:
       "A text input. Carries `$action` describing the on-submit behavior.",
     properties: z.object({
+      inputType: z
+        .enum(["text", "password", "number"])
+        .optional()
+        .describe("Single-line input type. Values remain strings."),
       placeholder: z.string().optional().describe("Placeholder text."),
       multiline: z
         .boolean()
         .optional()
-        .describe("Render a textarea instead of a single-line input."),
+        .describe(
+          'Render a textarea instead of a single-line input; ignored when `inputType` is `"password"` or `"number"`.',
+        ),
       label: z
         .string()
         .optional()
@@ -731,11 +1013,32 @@ export const interactiveVocabulary = {
   },
   DatePicker: {
     description:
-      "A date input. Carries `$action` describing the on-select behavior.",
+      "A date, datetime, or time input. Carries `$action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
     properties: z.object({
-      value: z.string().optional().describe("Initial date (YYYY-MM-DD)."),
-      min: z.string().optional().describe("Minimum date (YYYY-MM-DD)."),
-      max: z.string().optional().describe("Maximum date (YYYY-MM-DD)."),
+      inputType: z
+        .enum(["date", "datetime", "time"])
+        .optional()
+        .describe(
+          'Temporal input type. Defaults to "date". Values remain strings.',
+        ),
+      value: z
+        .string()
+        .optional()
+        .describe(
+          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
+        ),
+      min: z
+        .string()
+        .optional()
+        .describe(
+          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+        ),
+      max: z
+        .string()
+        .optional()
+        .describe(
+          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+        ),
       label: z
         .string()
         .optional()

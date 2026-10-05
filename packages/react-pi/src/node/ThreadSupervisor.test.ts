@@ -613,8 +613,28 @@ describe("PiThreadSupervisor", () => {
 
   it("emits an immediate prompt rejection once", async () => {
     const error = new Error("prompt failed");
+    const session = createLiveSession(async () => {
+      throw error;
+    });
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.createThread();
+    const errors = await subscribeToErrors(supervisor);
+
+    await expect(
+      supervisor.sendMessage("t1", { content: "hello" }),
+    ).rejects.toBe(error);
+
+    expect(errors).toEqual(["prompt failed"]);
+  });
+
+  it("emits a prompt rejection once after a legacy boolean preflight failure", async () => {
+    const error = new Error("prompt failed");
     const session = createLiveSession(async (_content, options) => {
-      options?.preflightResult?.(false);
+      (options?.preflightResult as ((accepted: boolean) => void) | undefined)?.(
+        false,
+      );
       throw error;
     });
     sdk.create.mockReturnValue({});
@@ -633,7 +653,7 @@ describe("PiThreadSupervisor", () => {
   it("still emits a prompt rejection after preflight acceptance", async () => {
     let rejectPrompt!: (error: Error) => void;
     const session = createLiveSession((_content, options) => {
-      options?.preflightResult?.(true);
+      options?.preflightResult?.("started");
       return new Promise<void>((_resolve, reject) => {
         rejectPrompt = reject;
       });
@@ -650,5 +670,26 @@ describe("PiThreadSupervisor", () => {
     await Promise.resolve();
 
     expect(errors).toEqual(["run failed"]);
+  });
+
+  it("accepts the legacy boolean preflight callback", async () => {
+    let resolvePrompt!: () => void;
+    const session = createLiveSession((_content, options) => {
+      (options?.preflightResult as ((accepted: boolean) => void) | undefined)?.(
+        true,
+      );
+      return new Promise<void>((resolve) => {
+        resolvePrompt = resolve;
+      });
+    });
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.createThread();
+
+    await expect(
+      supervisor.sendMessage("t1", { content: "hello" }),
+    ).resolves.toBeUndefined();
+    resolvePrompt();
   });
 });

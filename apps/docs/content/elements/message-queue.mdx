@@ -65,7 +65,7 @@ export function MessageQueue() {
 
 ### Show what's running
 
-There's no single selector for the running prompt's text the way there is for the queue; while `s.thread.isRunning` is true it's simply the most recently sent user message.
+There's no single selector for the running prompt's text the way there is for the queue; while `s.thread.isRunning` is true it's the most recently sent user message.
 
 ```tsx
 const running = useAuiState((s) =>
@@ -82,7 +82,7 @@ Render the same pulsing-dot row the standalone element uses once `running` resol
 
 <StandaloneMode>
 
-Standalone, `MessageQueue` renders exactly the two arrays you hand it: the running message's text, and the queued messages behind it.
+Standalone, `MessageQueue` renders what you hand it: the running message's text, and the array of queued messages behind it.
 
 <Steps>
   <Step>
@@ -182,7 +182,7 @@ Both lanes take `className` on the root, and the `field`, `ghostButton`, and `mo
 | Part | Renders | Notes |
 |------|---------|-------|
 | `ComposerPrimitive.Queue` | fragment | Render-prop over every pending queue item, in order. |
-| `QueueItemPrimitive.Text` | `span` | The item's text parts, joined. |
+| `QueueItemPrimitive.Text` | `span` | The item's text parts, joined with a blank line between them. |
 | `QueueItemPrimitive.Remove` | `button` | Removes this item from the queue. |
 | `QueueItemPrimitive.Steer` | `button` | Runs this item next instead of waiting its turn. |
 

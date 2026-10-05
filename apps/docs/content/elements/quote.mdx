@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
 <StandaloneMode>
 
-Standalone, build the same flow yourself: hold the quoted text in state, show it above your composer, and clear it on send or dismiss. [The quote-reply design](#the-quote-reply-design) below is a ready-made version of exactly that, with no runtime underneath it.
+Standalone, build the same flow yourself: hold the quoted text in state, show it above your composer, and clear it on send or dismiss. [The quote-reply design](#the-quote-reply-design) below is a ready-made version of that flow with no runtime dependency.
 
 </StandaloneMode>
 
@@ -145,7 +145,7 @@ Each of the three pieces mounts or renders empty on its own condition: the block
 
 ### Restyle the pieces
 
-All three components expose their sub-parts for full control over styling; each takes `className`.
+All three components expose their sub-parts, and each part takes `className`.
 
 ```tsx
 <QuoteBlock.Root className="my-custom-class">
@@ -250,7 +250,7 @@ npx shadcn@latest add "@assistant-ui/elements-quote-reply"
 
 <RuntimeMode>
 
-The design's toolbar shows three actions; the runtime `SelectionToolbar` ships only `Quote`, since explain and rewrite have no defined runtime behavior to call. Add a sibling button inside the same `Root` that reads the live selection itself: only `Root`'s own mousedown handling keeps the browser from clearing the selection before the click lands.
+The design's toolbar shows three actions; the runtime `SelectionToolbar` ships only `Quote`, since explain and rewrite have no defined runtime behavior to call. To add one, put a sibling button inside the same `Root` and read the live selection in its handler. `Root` prevents the default `mousedown`, which keeps the browser from clearing the selection before the click lands.
 
 ```tsx
 <SelectionToolbar.Root>
@@ -298,7 +298,7 @@ export function Answer() {
 
 </StandaloneMode>
 
-The toolbar here is entirely presentational: `selection` and `toolbarVisible` are just props, and nothing in `QuoteReply` reads an actual browser selection. At runtime, `SelectionToolbar` listens for it on `mouseup`, `keyup`, and selection change instead of taking it as a prop.
+The toolbar here is presentational: `selection` and `toolbarVisible` are props, and nothing in `QuoteReply` reads a browser selection. The runtime `SelectionToolbar` reads the live selection on `mouseup` and `selectionchange` instead of taking it as a prop.
 
 ### QuoteReply
 
