@@ -14,11 +14,18 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
-// Enter and Space activate a focused control, which is how a collapsible tool
-// call expands without a pointer event ever firing. No other key changes thread
-// content: the keys that scroll the viewport reach handleScroll, which already
-// clears the intent when the user scrolls up.
-const ACTIVATION_KEYS = new Set(["Enter", " "]);
+// Enter and Space activate focused controls, while navigation keys can
+// interrupt scrolling without producing a scroll event.
+const INTENT_CANCEL_KEYS = new Set([
+  "Enter",
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
 
 // A control that consumes the activation key itself instead of acting on thread
 // content. `contenteditable="false"` marks a non-editable island inside an
@@ -321,12 +328,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // ref alone leaves the gesture undone.
       cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
+      handleScroll();
     };
     // The composer renders inside the viewport, so its keystrokes bubble here;
-    // only an activation key aimed at something other than a text field is a
-    // gesture on thread content.
+    // cancellation keys only represent a gesture on thread content when they
+    // originate outside text entry.
     const cancelOnKeyDown = (event: KeyboardEvent) => {
-      if (!ACTIVATION_KEYS.has(event.key)) return;
+      if (!INTENT_CANCEL_KEYS.has(event.key)) return;
       const target = event.target as Element | null;
       if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
       cancelPendingScrollToBottom();

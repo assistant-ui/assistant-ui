@@ -393,8 +393,6 @@ describe("useThreadViewportAutoScroll", () => {
 
       act(() => {
         viewport.dispatchEvent(new WheelEvent("wheel"));
-        viewport.scrollTop = 120;
-        viewport.dispatchEvent(new Event("scroll"));
       });
 
       expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
@@ -543,6 +541,7 @@ describe("useThreadViewportAutoScroll", () => {
 
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
+    { label: "wheel", make: () => new WheelEvent("wheel") },
     {
       label: "Enter keydown",
       make: () => new KeyboardEvent("keydown", { key: "Enter" }),
@@ -551,6 +550,12 @@ describe("useThreadViewportAutoScroll", () => {
       label: "Space keydown",
       make: () => new KeyboardEvent("keydown", { key: " " }),
     },
+    ...["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].map(
+      (key) => ({
+        label: `${key} keydown`,
+        make: () => new KeyboardEvent("keydown", { key }),
+      }),
+    ),
   ])(
     "drops pending bottom-scroll intent after a $label in a thread that cannot scroll",
     async ({ make }) => {
@@ -586,6 +591,7 @@ describe("useThreadViewportAutoScroll", () => {
 
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
+    { label: "wheel", make: () => new WheelEvent("wheel") },
     {
       label: "Enter keydown",
       make: () => new KeyboardEvent("keydown", { key: "Enter" }),
@@ -593,6 +599,10 @@ describe("useThreadViewportAutoScroll", () => {
     {
       label: "Space keydown",
       make: () => new KeyboardEvent("keydown", { key: " " }),
+    },
+    {
+      label: "ArrowDown keydown",
+      make: () => new KeyboardEvent("keydown", { key: "ArrowDown" }),
     },
   ])(
     "cancels the frame a pending bottom scroll queued when a $label arrives first",
@@ -649,73 +659,66 @@ describe("useThreadViewportAutoScroll", () => {
     },
   );
 
-  it.each([
-    "Shift",
-    "Control",
-    "Meta",
-    "Tab",
-    "ArrowDown",
-    "PageDown",
-    "Escape",
-    "a",
-  ])("keeps pending bottom-scroll intent through a %s press", async (key) => {
-    forceShortViewportMeasurement = true;
+  it.each(["Shift", "Control", "Meta", "Tab", "Escape", "a"])(
+    "keeps pending bottom-scroll intent through a %s press",
+    async (key) => {
+      forceShortViewportMeasurement = true;
 
-    render(
-      <AsyncRuntimeProvider>
-        <Thread />
-      </AsyncRuntimeProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("thread-message")).toHaveLength(
-        messages.length,
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
       );
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // neither an activation key nor consumed by a text field
-    act(() => {
-      getViewport().dispatchEvent(new KeyboardEvent("keydown", { key }));
-    });
-
-    forceShortViewportMeasurement = false;
-    act(notifyResizeObservers);
-
-    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
-  });
-
-  it("keeps pending bottom-scroll intent while the user types in the composer", async () => {
-    forceShortViewportMeasurement = true;
-
-    render(
-      <AsyncRuntimeProvider>
-        <Thread />
-      </AsyncRuntimeProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("thread-message")).toHaveLength(
-        messages.length,
-      );
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    act(() => {
-      screen
-        .getByTestId("composer")
-        // Space is an activation key, so this reaches the text-entry check
-        // instead of short-circuiting on the allowlist
-        .dispatchEvent(
-          new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
         );
-    });
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    forceShortViewportMeasurement = false;
-    act(notifyResizeObservers);
+      // neither an activation key nor consumed by a text field
+      act(() => {
+        getViewport().dispatchEvent(new KeyboardEvent("keydown", { key }));
+      });
 
-    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
-  });
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+    },
+  );
+
+  it.each([" ", "ArrowDown"])(
+    "keeps pending bottom-scroll intent through a %s press in the composer",
+    async (key) => {
+      forceShortViewportMeasurement = true;
+
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      act(() => {
+        screen
+          .getByTestId("composer")
+          .dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      });
+
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+    },
+  );
 
   it.each([
     { label: "a checkbox", testid: "checkbox" },
