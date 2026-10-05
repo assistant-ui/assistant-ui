@@ -31,6 +31,9 @@ const refPlugins: Plugin[] = refRoot
 export default defineConfig({
   plugins: refPlugins,
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx,mjs}", "bin/**/*.mjs"],
+    },
     environment: "jsdom",
     pool: "forks",
     execArgv: ["--expose-gc"],
@@ -51,7 +54,7 @@ export default defineConfig({
         // Benches import built packages; serve dist as plain Node modules so
         // vitest's evaluator doesn't skew numbers.
         external: [
-          /\/packages\/(tap|core|store|assistant-stream|react|react-markdown|ai-sdk)\/dist\//,
+          /\/packages\/(tap|core|store|assistant-stream|react|react-markdown|react-langgraph|ai-sdk)\/dist\//,
         ],
       },
     },

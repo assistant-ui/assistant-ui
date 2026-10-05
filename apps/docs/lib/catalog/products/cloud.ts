@@ -27,7 +27,7 @@ export const cloud: CatalogProduct = {
     "A project at cloud.assistant-ui.com",
   ],
   preview: "thread-list",
-  agentMinutes: [5, 10],
+  agentMinutes: [4, 6],
   steps: [
     {
       title: "Create a cloud project",

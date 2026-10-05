@@ -1,5 +1,22 @@
 # @assistant-ui/react
 
+## 0.15.24
+
+### Patch Changes
+
+- [#8148](https://github.com/assistant-ui/assistant-ui/pull/8148) [`b400b75`](https://github.com/assistant-ui/assistant-ui/commit/b400b757a9993d8fc2c104134bd28b14df5d5e64) - fix(react): ignore the Enter or Escape that ends an IME composition, so committing a conversion in Safari no longer sends the message, and cancelling one no longer cancels the run or stops read-aloud ([@samdickson22](https://github.com/samdickson22))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8684](https://github.com/assistant-ui/assistant-ui/pull/8684) [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd) - key message parts by their id when no other part of the same type in the message shares it, so a replaced or reordered part no longer keeps another part's component state ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c), [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc), [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a), [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9), [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd), [`3ea546a`](https://github.com/assistant-ui/assistant-ui/commit/3ea546a3e3d8b04253e095972a007ffc789d895d), [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc), [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4)]:
+  - @assistant-ui/core@0.3.23
+  - assistant-stream@0.3.47
+  - assistant-cloud@0.2.5
+  - safe-content-frame@0.0.32
+  - @assistant-ui/store@0.3.17
+  - @assistant-ui/tap@0.9.21
+
 ## 0.15.23
 
 ### Patch Changes

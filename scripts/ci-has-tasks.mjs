@@ -17,15 +17,10 @@ export function hasTasks(base, args, exec = execFileSync) {
         base,
         "HEAD",
         "--",
-        "package.json",
-        "pnpm-lock.yaml",
-        "pnpm-workspace.yaml",
-        ".npmrc",
-        "turbo.json",
-        ":(glob)**/turbo.json",
-        ":(glob)**/tsconfig*.json",
-        "packages/x-buildutils",
-        "scripts/typecheck.sh",
+        "packages",
+        "apps",
+        "examples",
+        "templates",
         "scripts/ci-has-tasks.mjs",
         "scripts/ci-has-tasks.test.mjs",
         ".github/workflows/code-quality.yaml",
@@ -50,11 +45,10 @@ export function hasTasks(base, args, exec = execFileSync) {
     if (!/^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/.test(version))
       return true;
     const plan = JSON.parse(
-      exec(
-        "pnpm",
-        ["dlx", `turbo@${version}`, "run", ...args, "--dry=json"],
-        options,
-      ),
+      exec("pnpm", ["dlx", `turbo@${version}`, "run", ...args, "--dry=json"], {
+        ...options,
+        timeout: 120_000,
+      }),
     );
     if (!Array.isArray(plan.tasks)) return true;
     return plan.tasks.some((task) => task.command !== "<NONEXISTENT>");
