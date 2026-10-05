@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-opencode",
-  "version": "0.2.26",
+  "version": "0.2.27",
   "description": "OpenCode runtime adapter for assistant-ui",
   "keywords": [
     "opencode",
@@ -43,14 +43,15 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.22",
-    "@assistant-ui/store": "^0.3.16",
+    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/store": "^0.3.17",
     "@opencode-ai/sdk": "^1.18.33",
     "assistant-cloud": "*"
   },

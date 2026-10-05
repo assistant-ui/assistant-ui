@@ -1,5 +1,7 @@
+import { cacheLife } from "next/cache";
 import {
   type GitHubContributor,
+  getCoAuthorUser,
   getCommitActivityStats,
   getCommitCoAuthors,
   getCommitsSince,
@@ -7,7 +9,6 @@ import {
   getReleases,
   getStarHistory,
   getUser,
-  getUserById,
 } from "./github";
 import {
   FLAGSHIP_PACKAGE,
@@ -356,7 +357,8 @@ export type PackageDownloads = {
 };
 
 export type NpmDownloads = {
-  totalWeekly: number;
+  flagshipWeekly: number | null;
+  totalWeekly: number | null;
   perPackage: Record<string, PackageDownloads>;
 };
 
@@ -443,22 +445,38 @@ const toContributor = (c: GitHubContributor): Contributor => ({
   contributions: c.contributions,
 });
 
-export async function fetchContributors(
-  revalidate?: number,
-): Promise<Contributor[] | null> {
-  const raw = await getContributors(undefined, revalidate);
-  if (raw === null) return null;
+export async function fetchContributors(): Promise<Contributor[] | null> {
+  try {
+    return await getCachedContributors();
+  } catch {
+    return null;
+  }
+}
+
+async function getCachedContributors(): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
+  const raw = await getContributors();
+  if (raw === null) throw new Error("Contributors read incomplete");
   return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
 }
 
 /* Claude has no GitHub account, so it never resolves as a "Bot"; it is matched by the co-author email every model variant shares. */
 const CLAUDE_CO_AUTHOR_EMAIL = "noreply@anthropic.com";
 
-export async function fetchBotCoAuthors(
-  revalidate?: number,
-): Promise<Contributor[]> {
-  const coAuthors = await getCommitCoAuthors(revalidate);
-  if (coAuthors === null) return [];
+export async function fetchBotCoAuthors(): Promise<Contributor[]> {
+  try {
+    return await getCachedBotCoAuthors();
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedBotCoAuthors(): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
+  const coAuthors = await getCommitCoAuthors();
+  if (coAuthors === null) throw new Error("Co-author scan incomplete");
 
   let claudeCount = 0;
   const accounts = new Map<
@@ -487,10 +505,7 @@ export async function fetchBotCoAuthors(
 
   const resolved = await Promise.all(
     Array.from(accounts.values()).map(async ({ id, login, count }) => {
-      const user =
-        id != null
-          ? await getUserById(id, revalidate)
-          : await getUser(login!, revalidate);
+      const user = await getCoAuthorUser(id ?? login!);
       if (!user || user.type !== "Bot") return null;
       return {
         login: user.login,
@@ -512,7 +527,7 @@ export async function fetchBotCoAuthors(
   const result = Array.from(byLogin.values());
 
   if (claudeCount > 0) {
-    const anthropic = await getUser("anthropics", revalidate);
+    const anthropic = await getUser("anthropics");
     result.push({
       login: "Claude",
       avatarUrl: anthropic?.avatarUrl ?? "/icons/anthropic.svg",
@@ -537,17 +552,16 @@ async function fetchPackageDownloadRange(
   name: string,
   end: string,
   revalidate?: number,
-): Promise<PackageDownloads> {
+): Promise<PackageDownloads | null> {
   const downloads = await getDownloadsRange(
     name,
     shiftDays(end, -60),
     end,
     revalidate,
   );
-  const all = downloads.map((d) => d.downloads);
-  if (all.length === 0) return EMPTY_DOWNLOADS;
+  if (downloads === null) return null;
 
-  const last60 = all.slice(-60);
+  const last60 = downloads.map((d) => d.downloads).slice(-60);
   const last30 = last60.slice(-30);
   const prior30 = last60.slice(-60, -30);
   const last7 = last60.slice(-7);
@@ -571,17 +585,21 @@ export async function fetchNpmDownloads(
           pkg.name,
           end
             ? await fetchPackageDownloadRange(pkg.name, end, revalidate)
-            : EMPTY_DOWNLOADS,
+            : null,
         ] as const,
     ),
   );
   const perPackage: Record<string, PackageDownloads> = {};
-  let totalWeekly = 0;
+  let flagshipWeekly: number | null = null;
+  let totalWeekly: number | null = 0;
   for (const [name, downloads] of entries) {
-    perPackage[name] = downloads;
-    totalWeekly += downloads.weekly;
+    perPackage[name] = downloads ?? EMPTY_DOWNLOADS;
+    totalWeekly =
+      downloads && totalWeekly !== null ? totalWeekly + downloads.weekly : null;
+    if (name === FLAGSHIP_PACKAGE && downloads)
+      flagshipWeekly = downloads.weekly;
   }
-  return { totalWeekly, perPackage };
+  return { flagshipWeekly, totalWeekly, perPackage };
 }
 
 export const TIMELINE_PACKAGES = [
@@ -743,7 +761,7 @@ async function fetchDownloadsTimelineForEnd(
       monthEnd(settled),
       revalidate ?? NPM_REVALIDATE.COLD,
     );
-    if (!settledDailies.length) return { points: [], complete: false };
+    if (!settledDailies?.length) return { points: [], complete: false };
     dailies.push(...settledDailies);
   }
   let complete = true;
@@ -755,7 +773,7 @@ async function fetchDownloadsTimelineForEnd(
       npmEnd,
       revalidate ?? NPM_REVALIDATE.WARM,
     );
-    if (tailDailies.length) dailies.push(...tailDailies);
+    if (tailDailies?.length) dailies.push(...tailDailies);
     else complete = false;
   }
   if (!dailies.length) return { points: [], complete: false };
@@ -823,11 +841,19 @@ function projectInflightMonth(
   return Math.round(blended);
 }
 
-export async function fetchStarHistory(
-  revalidate?: number,
-): Promise<TimelinePoint[]> {
-  const weeks = await getStarHistory(revalidate);
-  if (!weeks || weeks.length < 2) return [];
+export async function fetchStarHistory(): Promise<TimelinePoint[]> {
+  try {
+    return await getCachedStarHistory();
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedStarHistory(): Promise<TimelinePoint[]> {
+  "use cache";
+  cacheLife("hours");
+  const weeks = await getStarHistory();
+  if (!weeks || weeks.length < 2) throw new Error("Star history incomplete");
 
   const ordered = [...weeks].sort((a, b) => a.week - b.week);
   const now = Date.now();

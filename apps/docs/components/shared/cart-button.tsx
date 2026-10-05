@@ -267,10 +267,6 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
               </dt>
               <dd className="tabular-nums">{countLabel}</dd>
             </div>
-            <div className="flex justify-between gap-4 font-medium">
-              <dt>Total</dt>
-              <dd className="tabular-nums">$0.00</dd>
-            </div>
           </dl>
           <div
             className={cn(

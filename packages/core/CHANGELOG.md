@@ -1,5 +1,27 @@
 # @assistant-ui/core
 
+## 0.3.23
+
+### Patch Changes
+
+- [#8680](https://github.com/assistant-ui/assistant-ui/pull/8680) [`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c) - keep pending history writes from restoring deleted messages without delaying deletion ([@okisdev](https://github.com/okisdev))
+
+- [#8723](https://github.com/assistant-ui/assistant-ui/pull/8723) [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc) - report a history write that fails in the background through a thread historyWriteError event instead of dropping it silently ([@okisdev](https://github.com/okisdev))
+
+- [#8724](https://github.com/assistant-ui/assistant-ui/pull/8724) [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a) - name a remote thread list's first new thread from React's useId during a server render, so a Next.js cacheComponents prerender no longer reads Math.random; the browser keeps a random id ([@okisdev](https://github.com/okisdev))
+
+- [#8684](https://github.com/assistant-ui/assistant-ui/pull/8684) [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd) - preserve message part state by host-supplied identity across renderers and store lookups, and carry part identity through cloud persistence; a part whose type changes at the same position now mounts fresh state. ([@okisdev](https://github.com/okisdev))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8702](https://github.com/assistant-ui/assistant-ui/pull/8702) [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd) - fix: the remaining runtime hooks keep their thread loads, runs, queued messages, subagent transcripts and event streams across a fast refresh or a StrictMode replay instead of tearing them down ([@okisdev](https://github.com/okisdev))
+
+- [#8707](https://github.com/assistant-ui/assistant-ui/pull/8707) [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc) - fix(core): resolve `aui.threads.getLoadThreadsPromise()`, `reload()` and `loadMore()` once `getState()` reports the result: the loaded list, or `loadError` when the initial load or `reload()` fails. A failed `loadMore()` request is logged and its promise still resolves. If the client can't commit within 100ms, as inside the `act()` that completes the load in a test or under a Suspense boundary that hides the client, the promises resolve anyway. In tests, await them outside that `act()` to read the loaded list. ([@bnb](https://github.com/bnb))
+
+- [#8323](https://github.com/assistant-ui/assistant-ui/pull/8323) [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4) - fix(core): end the voice session on hang up even when committing the unfinished reply throws; a synchronous voice commit failure is reported like a rejected one ([@samdickson22](https://github.com/samdickson22))
+- Updated dependencies [[`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - assistant-stream@0.3.47
+
 ## 0.3.22
 
 ### Patch Changes

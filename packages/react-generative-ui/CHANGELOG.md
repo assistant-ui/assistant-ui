@@ -1,5 +1,17 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.23
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8686](https://github.com/assistant-ui/assistant-ui/pull/8686) [`c0fc010`](https://github.com/assistant-ui/assistant-ui/commit/c0fc01067497e71e74b5b24bb5f1221b0c2319be) - give DatePicker time and datetime modes on the web, Slack and Teams, and map a2ui DateTimeInput onto them; a datetime with an offset is an instant that shows in the viewer's zone where the client knows it and submits with its original offset ([@okisdev](https://github.com/okisdev))
+
+- [#8701](https://github.com/assistant-ui/assistant-ui/pull/8701) [`a1ce9e0`](https://github.com/assistant-ui/assistant-ui/commit/a1ce9e0ff564d63232954aaa1c6a944324af961e) - submit edited DatePicker times in the browser's normalized form, so .500 goes out as .5 whichever spelling the browser reports ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - assistant-stream@0.3.47
+
 ## 0.0.22
 
 ### Patch Changes

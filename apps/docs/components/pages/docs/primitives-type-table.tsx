@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { Fragment, type FC, type ReactNode } from "react";
 import { highlight } from "fumadocs-core/highlight";
 import Link from "next/link";
@@ -39,6 +40,8 @@ const COMMON_PARAMS: Record<string, Partial<PropDef>> = {
 };
 
 async function highlightType(type: string): Promise<ReactNode> {
+  "use cache";
+  cacheLife("max");
   if (!type) return null;
   return highlight(type, {
     lang: "typescript",

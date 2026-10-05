@@ -48,19 +48,19 @@ const ASSETS = [
     name: "Brand kit",
     href: "/assistant-ui-brand.zip",
     file: "assistant-ui-brand.zip",
-    size: "67 KB",
+    size: "36.6 KB",
   },
   {
     name: "Logomark",
     href: "/favicon/icon.svg",
     file: "icon.svg",
-    size: "379 B",
+    size: "1.4 KB",
   },
   {
     name: "Logotype",
     href: "/brand/logotype.svg",
     file: "logotype.svg",
-    size: "9 KB",
+    size: "9.8 KB",
   },
 ];
 

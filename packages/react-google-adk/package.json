@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-google-adk",
-  "version": "0.0.33",
+  "version": "0.0.34",
   "description": "Google ADK adapter for assistant-ui",
   "keywords": [
     "google-adk",
@@ -36,16 +36,17 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.22",
-    "@assistant-ui/store": "^0.3.16",
+    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/store": "^0.3.17",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.46"
+    "assistant-stream": "^0.3.47"
   },
   "peerDependencies": {
     "@google/adk": ">=0.5.0",
