@@ -559,10 +559,9 @@ async function fetchPackageDownloadRange(
     end,
     revalidate,
   );
-  const all = downloads.map((d) => d.downloads);
-  if (all.length === 0) return null;
+  if (downloads === null) return null;
 
-  const last60 = all.slice(-60);
+  const last60 = downloads.map((d) => d.downloads).slice(-60);
   const last30 = last60.slice(-30);
   const prior30 = last60.slice(-60, -30);
   const last7 = last60.slice(-7);
@@ -762,7 +761,7 @@ async function fetchDownloadsTimelineForEnd(
       monthEnd(settled),
       revalidate ?? NPM_REVALIDATE.COLD,
     );
-    if (!settledDailies.length) return { points: [], complete: false };
+    if (!settledDailies?.length) return { points: [], complete: false };
     dailies.push(...settledDailies);
   }
   let complete = true;
@@ -774,7 +773,7 @@ async function fetchDownloadsTimelineForEnd(
       npmEnd,
       revalidate ?? NPM_REVALIDATE.WARM,
     );
-    if (tailDailies.length) dailies.push(...tailDailies);
+    if (tailDailies?.length) dailies.push(...tailDailies);
     else complete = false;
   }
   if (!dailies.length) return { points: [], complete: false };

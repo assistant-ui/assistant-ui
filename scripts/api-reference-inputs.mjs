@@ -27,8 +27,10 @@ export const API_REFERENCE_INPUTS = [
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 
 export function hasApiReferenceInputs(changedFiles) {
-  return changedFiles.some((file) =>
-    API_REFERENCE_INPUTS.some((input) => touches(file, input)),
+  return changedFiles.some(
+    (file) =>
+      !/^packages\/[^/]+\/README\.md$/.test(file) &&
+      API_REFERENCE_INPUTS.some((input) => touches(file, input)),
   );
 }
 
