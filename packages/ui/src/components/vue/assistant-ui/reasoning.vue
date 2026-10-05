@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useAuiState } from "@assistant-ui/vue";
+import { PartByIndexProvider, useAui, useAuiState } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
 import {
   CollapsibleContent,
@@ -10,9 +10,32 @@ import {
 import { BrainIcon, ChevronDownIcon } from "@lucide/vue";
 import MarkdownText from "./markdown-text.vue";
 
-const streaming = useAuiState(
-  (s) =>
-    s.message.status?.type === "running" && s.part.status.type === "running",
+const aui = useAui();
+const index = useAuiState(() => {
+  const query = aui.part.query;
+  return query && "index" in query && typeof query.index === "number"
+    ? query.index
+    : -1;
+});
+const parts = useAuiState((s) => s.message.parts);
+const messageRunning = useAuiState((s) => s.message.status?.type === "running");
+const indices = computed(() => {
+  const start = index.value;
+  if (
+    parts.value[start]?.type !== "reasoning" ||
+    parts.value[start - 1]?.type === "reasoning"
+  )
+    return [];
+  let end = start + 1;
+  while (parts.value[end]?.type === "reasoning") end++;
+  return Array.from({ length: end - start }, (_, offset) => start + offset);
+});
+const streaming = computed(
+  () =>
+    messageRunning.value &&
+    indices.value.some(
+      (partIndex) => parts.value[partIndex]?.status.type === "running",
+    ),
 );
 
 const userOpen = ref<boolean | null>(null);
@@ -69,6 +92,7 @@ watch(
 
 <template>
   <CollapsibleRoot
+    v-if="indices.length"
     :open="open"
     data-slot="aui_reasoning-root"
     class="group/reasoning-root mb-4 w-full rounded-lg border px-3 py-2"
@@ -103,7 +127,13 @@ watch(
         class="relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed text-pretty"
       >
         <div ref="content">
-          <MarkdownText />
+          <PartByIndexProvider
+            v-for="partIndex in indices"
+            :key="partIndex"
+            :index="partIndex"
+          >
+            <MarkdownText />
+          </PartByIndexProvider>
         </div>
       </div>
       <div

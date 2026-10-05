@@ -557,4 +557,137 @@ describe("vue thread", () => {
 
     unmount();
   });
+
+  it("groups consecutive reasoning before text in one disclosure", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first **thought**" },
+          { type: "reasoning", text: "second *thought*" },
+          { type: "text", text: "answer" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(1),
+    );
+    trigger(el, "aui_reasoning-trigger").click();
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-text"] .aui-md'),
+      ).toHaveLength(2),
+    );
+    const reasoning = el.querySelector('[data-slot="aui_reasoning-text"]')!;
+    expect(reasoning.textContent).toContain("first thought");
+    expect(reasoning.textContent).toContain("second thought");
+    expect(reasoning.querySelector("strong")?.textContent).toBe("thought");
+    expect(reasoning.querySelector("em")?.textContent).toBe("thought");
+    expect(el.querySelector('li[data-role="assistant"]')?.textContent).toMatch(
+      /first thought.*second thought.*answer/s,
+    );
+
+    unmount();
+  });
+
+  it("separates reasoning runs interrupted by text", async () => {
+    const { el, update, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first thought" },
+          { type: "text", text: "middle answer" },
+          { type: "reasoning", text: "last thought" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(2),
+    );
+    el.querySelectorAll<HTMLButtonElement>(
+      '[data-slot="aui_reasoning-trigger"]',
+    ).forEach((item) => item.click());
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-text"]'),
+      ).toHaveLength(2),
+    );
+    expect(el.querySelector('li[data-role="assistant"]')?.textContent).toMatch(
+      /first thought.*middle answer.*last thought/s,
+    );
+
+    update([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first thought" },
+          { type: "reasoning", text: "continued thought" },
+          { type: "text", text: "middle answer" },
+          { type: "reasoning", text: "last thought" },
+        ],
+      },
+    ]);
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(2),
+    );
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-text"]')[0]?.textContent,
+      ).toContain("continued thought"),
+    );
+
+    unmount();
+  });
+
+  it("streams a reasoning run when a later part is running and collapses on completion", async () => {
+    const content = [
+      { type: "reasoning" as const, text: "first thought" },
+      { type: "reasoning" as const, text: "live thought" },
+    ];
+    const { el, update, unmount } = mountThread(
+      [{ role: "assistant", content }],
+      { isRunning: true },
+    );
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(1),
+    );
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-text"]')?.textContent,
+      ).toContain("live thought"),
+    );
+    expect(
+      el
+        .querySelector('[data-slot="aui_reasoning-content"]')
+        ?.getAttribute("aria-busy"),
+    ).toBe("true");
+
+    update([
+      {
+        role: "assistant",
+        content: [...content, { type: "text", text: "done" }],
+      },
+    ]);
+    await settle(() =>
+      expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull(),
+    );
+    expect(
+      el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+    ).toHaveLength(1);
+
+    unmount();
+  });
 });
