@@ -31,6 +31,7 @@ import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
+import { getIncrementalToolCallArgs } from "./incrementalToolCallArgs";
 
 type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
@@ -123,7 +124,10 @@ const resolveToolCallArgs = ({
     argsText = serialized.argsText;
   }
 
-  const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
+  const parsedPartialArgs = argsText
+    ? (getIncrementalToolCallArgs(chunk, argsText) ??
+      parsePartialJsonObject(argsText))
+    : null;
   let args = (
     argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
