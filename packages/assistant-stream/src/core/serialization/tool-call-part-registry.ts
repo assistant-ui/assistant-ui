@@ -7,6 +7,7 @@ export const createToolCallPartRegistry = () => {
     ToolCallStreamController,
     Promise<void>
   >();
+  let closeChain = Promise.resolve();
 
   const tryGet = (toolCallId: string) => toolCallControllers.get(toolCallId);
 
@@ -21,6 +22,19 @@ export const createToolCallPartRegistry = () => {
   const closeArgsText = (toolCallController: ToolCallStreamController) => {
     toolCallController.argsText.close();
     closedToolCallArgs.add(toolCallController);
+  };
+
+  const scheduleClose = (
+    toolCallController: ToolCallStreamController,
+    close: () => void,
+  ) => {
+    const existing = closingToolCalls.get(toolCallController);
+    if (existing) return existing;
+
+    const closeTask = closeChain.then(close);
+    closingToolCalls.set(toolCallController, closeTask);
+    closeChain = closeTask;
+    return closeTask;
   };
 
   return {
@@ -48,14 +62,14 @@ export const createToolCallPartRegistry = () => {
       toolCallController: ToolCallStreamController,
       response: Parameters<ToolCallStreamController["setResponse"]>[0],
     ) => {
-      const responseTask = Promise.resolve(
-        toolCallController.setResponse(response),
-      );
-      if (
-        !response.isPreliminary &&
-        !closingToolCalls.has(toolCallController)
-      ) {
-        closingToolCalls.set(toolCallController, responseTask);
+      if (closingToolCalls.has(toolCallController)) return;
+
+      if (response.isPreliminary) {
+        toolCallController.setResponse(response);
+      } else {
+        scheduleClose(toolCallController, () =>
+          toolCallController.setResponse(response),
+        );
       }
       closedToolCallArgs.add(toolCallController);
     },
@@ -68,11 +82,9 @@ export const createToolCallPartRegistry = () => {
     closeAll: async () => {
       for (const toolCallController of toolCallControllers.values()) {
         closedToolCallArgs.add(toolCallController);
-        const closeTask =
-          closingToolCalls.get(toolCallController) ??
-          Promise.resolve(toolCallController.close());
-        closingToolCalls.set(toolCallController, closeTask);
-        await closeTask;
+        await scheduleClose(toolCallController, () =>
+          toolCallController.close(),
+        );
       }
       toolCallControllers.clear();
       closedToolCallArgs.clear();

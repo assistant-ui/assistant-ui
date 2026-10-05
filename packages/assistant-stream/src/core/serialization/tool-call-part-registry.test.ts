@@ -32,17 +32,21 @@ function decodeDataStream(lines: string[]) {
   return decodeDataStreamChunks(lines.map((line) => `${line}\n`));
 }
 
-function decodeUIMessageStream(events: string[]) {
+function decodeUIMessageStreamChunks(chunks: string[]) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(
-        encoder.encode(events.map((event) => `data: ${event}\n\n`).join("")),
-      );
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
   return collectChunks(stream.pipeThrough(new UIMessageStreamDecoder()));
+}
+
+function decodeUIMessageStream(events: string[]) {
+  return decodeUIMessageStreamChunks([
+    events.map((event) => `data: ${event}\n\n`).join(""),
+  ]);
 }
 
 async function getErrorMessage(promise: Promise<unknown>) {
@@ -147,9 +151,94 @@ describe("registry-backed decoders", () => {
         .map((chunk) => chunk.path),
     ).toEqual([[0], [1]]);
   });
+
+  it.each([
+    {
+      label: "Data Stream",
+      frames: [
+        '9:{"toolCallId":"t0","toolName":"search","args":{}}\n',
+        '9:{"toolCallId":"t1","toolName":"search","args":{}}\n',
+        'a:{"toolCallId":"t0","result":"first"}\n',
+        'a:{"toolCallId":"t1","result":"second"}\n',
+      ],
+      decode: decodeDataStreamChunks,
+    },
+    {
+      label: "UI Message Stream",
+      frames: [
+        { type: "tool-input-available", toolCallId: "t0", input: {} },
+        { type: "tool-input-available", toolCallId: "t1", input: {} },
+        { type: "tool-output-available", toolCallId: "t0", output: "first" },
+        {
+          type: "tool-output-available",
+          toolCallId: "t1",
+          output: "second",
+        },
+        "[DONE]",
+      ].map(
+        (event) =>
+          `data: ${typeof event === "string" ? event : JSON.stringify(event)}\n\n`,
+      ),
+      decode: decodeUIMessageStreamChunks,
+    },
+  ])(
+    "keeps two final-result finishes stable across $label byte partitions",
+    async ({ frames, decode }) => {
+      const selectOrder = (chunks: AssistantStreamChunk[]) =>
+        chunks.map(({ type, path }) => ({ type, path }));
+
+      const combined = await decode([frames.join("")]);
+      const split = await decode(frames);
+
+      expect(selectOrder(split)).toEqual(selectOrder(combined));
+      expect(
+        combined
+          .filter((chunk) => chunk.type === "part-finish")
+          .map((chunk) => chunk.path),
+      ).toEqual([[0], [1]]);
+    },
+  );
 });
 
 describe("createToolCallPartRegistry", () => {
+  it("serializes final responses before their closes start", async () => {
+    const registry = createToolCallPartRegistry();
+    const order: string[] = [];
+    let releaseFirst!: () => void;
+    const firstReady = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const controller = (setResponse: () => void): ToolCallStreamController => ({
+      argsText: {
+        append() {},
+        close() {},
+      },
+      close() {},
+      setResponse,
+    });
+    const first = registry.start("t0", () =>
+      controller(async () => {
+        await firstReady;
+        order.push("t0");
+      }),
+    );
+    const second = registry.start("t1", () =>
+      controller(() => {
+        order.push("t1");
+      }),
+    );
+
+    registry.setResponse(first, { result: "first" });
+    registry.setResponse(second, { result: "second" });
+    await Promise.resolve();
+    const beforeRelease = [...order];
+    releaseFirst();
+    await registry.closeAll();
+
+    expect(beforeRelease).toEqual([]);
+    expect(order).toEqual(["t0", "t1"]);
+  });
+
   it("awaits a final response already closing before the next controller", async () => {
     const registry = createToolCallPartRegistry();
     const order: string[] = [];
