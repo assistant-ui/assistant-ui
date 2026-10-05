@@ -39,6 +39,7 @@ export default {
   },
   resolve: {
     alias: {
+      "@assistant-ui/ui": resolve(__dirname, "../../packages/ui/src"),
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
