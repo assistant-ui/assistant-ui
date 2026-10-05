@@ -65,7 +65,7 @@ export default function Chat() {
 
 <StandaloneMode>
 
-Standalone, `VoiceOrb` is an uncontrolled visual: you own the state and the volume, it owns the WebGL animation.
+Standalone, `VoiceOrb` is a controlled visual: you own the state and the volume, and it owns the WebGL animation.
 
 <Steps>
   <Step>
@@ -215,7 +215,7 @@ Standalone, you own the session lifecycle end to end: wire your own connect, mut
 
 | Export | Description |
 |--------|-------------|
-| `VoiceOrb` | Animated orb. Derives `state` and `volume` from the session unless you pass them; `state` alone can be overridden while `volume` still tracks live audio. |
+| `VoiceOrb` | Animated orb. Derives `state` and `volume` from the session. Pass `state` to override the derived one; `volume` always tracks live audio. |
 | `VoiceControl` | Status dot plus connect, "Connecting...", mute, and disconnect, switched by session status. |
 | `VoiceStatusDot` | The colored status dot on its own. |
 | `VoiceConnectButton` | Calls `connect()`. |

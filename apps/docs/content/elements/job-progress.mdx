@@ -128,7 +128,7 @@ export function CiJob() {
 />
 ```
 
-An outcome always removes cancellation, even if the reported stage is short of the end, but only a `success` outcome fills the bar; `partial`, `failed`, and `cancelled` keep it at the progress the job actually reached. Use it for failure, cancellation, and partial work. A fully finished job can still omit `outcome` and use `stageIndex={stages.length}` as before.
+An outcome always removes cancellation, even if the reported stage is short of the end, but only a `success` outcome fills the bar; `partial`, `failed`, and `cancelled` keep it at the progress the job actually reached. Use it for failure, cancellation, and partial work. A fully finished job can omit `outcome` and use `stageIndex={stages.length}`.
 
   </Step>
 </Steps>
@@ -212,7 +212,7 @@ An outcome wins over numeric progress. `success` uses a green check and `done`; 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `stageIndex` | `number` | The current or final stage. `stages.length` remains the legacy success signal. |
+| `stageIndex` | `number` | The current or final stage. `stages.length` means success when no `outcome` is set. |
 | `stageProgress` | `number` | Progress through that stage, from `0` to `1`. |
 | `eta` | `string` | The running label displayed before a receipt or finished state. |
 | `outcome` | `{ status: "success" \| "partial" \| "failed" \| "cancelled"; summary?: string }` | Optional final receipt status and summary. |

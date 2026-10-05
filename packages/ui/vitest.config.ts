@@ -5,36 +5,50 @@ import { defineConfig } from "vitest/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const newYorkTests = ["src/components/vue/assistant-ui/thread-list.test.ts"];
+
+const web = {
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      "@/components/assistant-ui": resolve(
+        __dirname,
+        "src/components/react/assistant-ui",
+      ),
+      "@/components/ui/radix": resolve(
+        __dirname,
+        "src/components/react/ui/radix",
+      ),
+      "@/components/ui": resolve(__dirname, "src/components/react/ui/base"),
+      "@": resolve(__dirname, "src"),
+    },
+  },
+};
+
 export default defineConfig({
   test: {
     fsModuleCache: true,
     projects: [
       {
-        plugins: [vue()],
-        resolve: {
-          alias: {
-            "@/components/assistant-ui": resolve(
-              __dirname,
-              "src/components/react/assistant-ui",
-            ),
-            "@/components/ui/radix": resolve(
-              __dirname,
-              "src/components/react/ui/radix",
-            ),
-            "@/components/ui": resolve(
-              __dirname,
-              "src/components/react/ui/base",
-            ),
-            "@": resolve(__dirname, "src"),
-          },
-        },
+        ...web,
         test: {
           name: "web",
           environment: "jsdom",
           pool: "threads",
           globals: true,
           include: ["src/**/*.test.{ts,tsx}"],
-          exclude: ["src/components/react-native/**"],
+          exclude: ["src/components/react-native/**", ...newYorkTests],
+        },
+      },
+      {
+        ...web,
+        test: {
+          name: "web-new-york",
+          environment: "jsdom",
+          pool: "forks",
+          globals: true,
+          include: newYorkTests,
+          env: { TZ: "America/New_York" },
         },
       },
       {

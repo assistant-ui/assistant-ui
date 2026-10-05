@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, act } from "react";
+import { Activity, act, version } from "react";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -8,8 +8,11 @@ import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
 import type { ThreadMessage } from "../../types/message";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
+
+const onReact18 = version.startsWith("18.");
 
 type Family = { current: unknown };
 type RendererInternals = {
@@ -51,6 +54,44 @@ const refresh = (before: unknown, after: unknown) => {
   }
 };
 
+it("keeps a bare voice session connected through a real Fast Refresh", async () => {
+  const disconnect = vi.fn();
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect,
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    onStatusChange: () => () => {},
+    onTranscript: () => () => {},
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  let runtime!: AssistantRuntime;
+  const useRuntime = () =>
+    useExternalStoreRuntime<ThreadMessage>({
+      messages: [],
+      onNew: async () => {},
+      adapters: { voice: { connect: () => session } },
+    });
+  const Before = () => {
+    runtime = useRuntime();
+    return null;
+  };
+  const After = () => {
+    runtime = useRuntime();
+    return null;
+  };
+  const view = render(<Before />);
+  act(() => runtime.thread.connectVoice());
+  await act(async () => refresh(Before, After));
+  expect(disconnect).not.toHaveBeenCalled();
+  expect(runtime.thread.getState().voice).toBeDefined();
+  view.unmount();
+  await act(async () => Promise.resolve());
+  expect(disconnect).toHaveBeenCalledOnce();
+});
+
 it("dispatches an in-flight append through a Fast Refresh and invalidates on unmount", async () => {
   const onNew = vi.fn(async () => {});
   let runtime!: AssistantRuntime;
@@ -80,85 +121,89 @@ it("dispatches an in-flight append through a Fast Refresh and invalidates on unm
   expect(generation.aborted).toBe(true);
 });
 
-it("keeps a pending history copy through a Fast Refresh and detaches on Activity hide", async () => {
-  const message = {
-    id: "assistant-1",
-    role: "assistant",
-    content: [
-      {
-        type: "tool-call",
-        toolCallId: "call-1",
-        toolName: "choose",
-        args: {},
-        argsText: "{}",
+// Activity is React 19 only.
+it.skipIf(onReact18)(
+  "keeps a pending history copy through a Fast Refresh and detaches on Activity hide",
+  async () => {
+    const message = {
+      id: "assistant-1",
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "choose",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
       },
-    ],
-    status: { type: "complete", reason: "stop" },
-    createdAt: new Date(0),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      steps: [],
-      custom: {},
-    },
-  } as ThreadMessage;
-  const unstable_copy = vi.fn(async () => {});
-  const history: ThreadHistoryAdapter = {
-    load: async () => ExportedMessageRepository.fromArray([]),
-    append: async () => {},
-    unstable_copy,
-  };
-  let runtime!: AssistantRuntime;
-  const Before = () => {
-    runtime = useExternalStoreRuntime({
-      messages: [message],
-      onNew: async () => {},
-    });
-    return null;
-  };
-  const After = () => {
-    runtime = useExternalStoreRuntime({
-      messages: [message],
-      onNew: async () => {},
-    });
-    return null;
-  };
-  const tree = (mode: "visible" | "hidden") => (
-    <Activity mode={mode}>
-      <RuntimeAdapterProvider adapters={{ history }}>
-        <Before />
-      </RuntimeAdapterProvider>
-    </Activity>
-  );
-  const view = render(tree("visible"));
-  const generation = captureThreadRuntimeGeneration(
-    (runtime.thread as ThreadRuntimeImpl).__internal_threadBinding.getState(),
-  );
-  const record = () =>
-    runtime.thread
-      .getMessageById("assistant-1")
-      .getMessagePartByToolCallId("call-1").unstable_recordInteraction!({
-      type: "action",
-      payload: {},
-    });
-  const pending = record();
-  const firstResult = pending.then(
-    () => "copied",
-    () => "detached",
-  );
-  await act(async () => refresh(Before, After));
-  expect(await firstResult).toBe("copied");
-  expect(unstable_copy).toHaveBeenCalledOnce();
+    } as ThreadMessage;
+    const unstable_copy = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => ExportedMessageRepository.fromArray([]),
+      append: async () => {},
+      unstable_copy,
+    };
+    let runtime!: AssistantRuntime;
+    const Before = () => {
+      runtime = useExternalStoreRuntime({
+        messages: [message],
+        onNew: async () => {},
+      });
+      return null;
+    };
+    const After = () => {
+      runtime = useExternalStoreRuntime({
+        messages: [message],
+        onNew: async () => {},
+      });
+      return null;
+    };
+    const tree = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <RuntimeAdapterProvider adapters={{ history }}>
+          <Before />
+        </RuntimeAdapterProvider>
+      </Activity>
+    );
+    const view = render(tree("visible"));
+    const generation = captureThreadRuntimeGeneration(
+      (runtime.thread as ThreadRuntimeImpl).__internal_threadBinding.getState(),
+    );
+    const record = () =>
+      runtime.thread
+        .getMessageById("assistant-1")
+        .getMessagePartByToolCallId("call-1").unstable_recordInteraction!({
+        type: "action",
+        payload: {},
+      });
+    const pending = record();
+    const firstResult = pending.then(
+      () => "copied",
+      () => "detached",
+    );
+    await act(async () => refresh(Before, After));
+    expect(await firstResult).toBe("copied");
+    expect(unstable_copy).toHaveBeenCalledOnce();
 
-  const second = record();
-  const result = second.then(
-    () => "copied",
-    () => "detached",
-  );
-  act(() => view.rerender(tree("hidden")));
-  expect(generation.aborted).toBe(false);
-  await act(async () => {});
-  expect(await result).toBe("detached");
-  expect(generation.aborted).toBe(true);
-});
+    const second = record();
+    const result = second.then(
+      () => "copied",
+      () => "detached",
+    );
+    act(() => view.rerender(tree("hidden")));
+    expect(generation.aborted).toBe(false);
+    await act(async () => {});
+    expect(await result).toBe("detached");
+    expect(generation.aborted).toBe(true);
+  },
+);

@@ -11,7 +11,7 @@ import { RENDERER_PATH } from "@/lib/renderer";
 
 export function SiteAssistant({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const hidden = pathname === "/shop/setup" || pathname === RENDERER_PATH;
+  const hidden = pathname === "/components/setup" || pathname === RENDERER_PATH;
   return (
     <CurrentPageProvider>
       <AssistantPanelProvider>

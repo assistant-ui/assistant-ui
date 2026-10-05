@@ -1,5 +1,19 @@
 # @assistant-ui/tap
 
+## 0.9.21
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8688](https://github.com/assistant-ui/assistant-ui/pull/8688) [`3ea546a`](https://github.com/assistant-ui/assistant-ui/commit/3ea546a3e3d8b04253e095972a007ffc789d895d) - tap gains an internal refresh scope that recomputes memos and replays effects for hooks it wraps when its token changes ([@okisdev](https://github.com/okisdev))
+
+## 0.9.20
+
+### Patch Changes
+
+- [#8590](https://github.com/assistant-ui/assistant-ui/pull/8590) [`c980b36`](https://github.com/assistant-ui/assistant-ui/commit/c980b36c33a0b8c384184eded99acc46122484e3) - fix: run `useInsertionEffect` cleanups only when a resource is released for good, as React does, let `createTapRoot().unmount()` release a `mountOnSubscribe` root instead of throwing, and have `destroy()` release an assistant client's resources for good ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.19
 
 ### Patch Changes

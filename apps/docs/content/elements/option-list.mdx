@@ -67,12 +67,16 @@ export const toolkit = defineToolkit({
 ### Register the toolkit
 
 ```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { toolkit } from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
@@ -205,9 +209,9 @@ See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `options` | `OptionListOption[]` | required | `{ id, label, description?, disabled? }` rows, in display order. |
+| `options` | `readonly OptionListOption[]` | required | `{ id, label, description?, disabled? }` rows, in display order. |
 | `selectionMode` | `"single" \| "multiple"` | `"single"` | A single pick commits on the spot; a multiple selection commits on confirm. |
-| `defaultValue` | `string[]` | | Ids a multiple selection starts with. Unknown ids are ignored. |
+| `defaultValue` | `readonly string[]` | | Ids the list starts selected: checked in a multiple selection, marked as the current answer in a single one. Unknown ids are ignored. |
 | `minSelections` | `number` | `1` | The fewest options a multiple selection confirms with. |
 | `maxSelections` | `number` | `options.length` | The most options a multiple selection may hold. |
 | `onConfirm` | `(ids: string[]) => void \| Promise<void>` | | Commits the answer. A fulfilled confirmation becomes a receipt; without it the list only displays its options. |

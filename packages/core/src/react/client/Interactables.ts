@@ -525,10 +525,10 @@ const useInteractablesResource = ({
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
+      if (!stateRef.current.definitions[id]) return;
       touchedIdsRef.current.add(id);
       setStateAndRef((prev) => {
-        const existing = prev.definitions[id];
-        if (!existing) return prev;
+        const existing = prev.definitions[id]!;
         return {
           ...prev,
           definitions: nullProtoRecord(prev.definitions, {

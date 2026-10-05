@@ -1,3 +1,4 @@
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invokeUserCallback } from "../../../utils/invoke-user-callback";
 import { useLatestRef } from "./useLatestRef";
@@ -47,7 +48,7 @@ export function useRunManager(config: {
 
     queueMicrotask(async () => {
       try {
-        if (!disposeAborted()) {
+        if (!disposeAborted() && !stateRef.current.disposed) {
           await onRunRef.current(ac.signal);
           // A fully received body is not errored by abort(), so a cancelled
           // run can still resolve.
@@ -90,16 +91,22 @@ export function useRunManager(config: {
     startRun();
   }, [startRun]);
 
-  // Strict-mode effects run setup / cleanup / setup on the same instance;
-  // arming on setup undoes the cleanup's dispose.
+  // Disposal is flagged synchronously so a run settling after unmount stays
+  // silent; only the abort waits out a replay, so a refresh keeps the run.
   useEffect(() => {
     stateRef.current.disposed = false;
     return () => {
       stateRef.current.disposed = true;
-      stateRef.current.pending = false;
-      stateRef.current.abortController?.abort(disposeReason);
     };
   }, []);
+
+  useReplaySafeEffect(
+    () => () => {
+      stateRef.current.pending = false;
+      stateRef.current.abortController?.abort(disposeReason);
+    },
+    [],
+  );
 
   const cancel = useCallback(() => {
     stateRef.current.pending = false;
