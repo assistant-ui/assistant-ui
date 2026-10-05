@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
     "test": "node --test history.test.mjs",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit",
     "preview:build": "node ../../scripts/build-example-bundle.mjs"
   },
