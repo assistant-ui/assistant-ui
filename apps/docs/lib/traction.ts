@@ -231,6 +231,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "platforms",
   },
   {
+    name: "@assistant-ui/vue",
+    description: "Vue bindings.",
+    category: "platforms",
+  },
+  {
     name: "@assistant-ui/react-markdown",
     description: "Streaming-aware markdown renderer.",
     category: "ui",

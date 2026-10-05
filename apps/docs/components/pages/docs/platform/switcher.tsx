@@ -10,6 +10,7 @@ import {
   Cloud,
   Droplet,
   Monitor,
+  PanelsTopLeft,
   Smartphone,
   Terminal,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
   react: Monitor,
   rn: Smartphone,
   ink: Terminal,
+  vue: PanelsTopLeft,
   tap: Droplet,
   cloud: Cloud,
 };
