@@ -2054,6 +2054,44 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     });
   });
 
+  it("records questionnaire answers alongside the decision", async () => {
+    const questions = [
+      {
+        id: "scope",
+        prompt: "Which files?",
+        options: [{ id: "src", label: "src" }],
+      },
+    ];
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("send_email", {
+        id: "a1",
+        display: "questions",
+        questions,
+      }),
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    await thread.respondToToolApproval({
+      approvalId: "a1",
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+    await flush();
+
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.approval).toEqual({
+      id: "a1",
+      display: "questions",
+      questions,
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+  });
+
   it("treats a terminal resolution as non-pending and continues the run", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("deploy", { id: "a1", resolution: "expired" }),

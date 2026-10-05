@@ -5,13 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeftIcon, BotIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SetupLink } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -28,20 +21,11 @@ import {
   useCartInstructions,
   setCartInstructions,
 } from "@/lib/catalog/cart-store";
-import {
-  SHIPPING_METHODS,
-  setShippingMethod,
-  useShippingMethod,
-} from "@/lib/catalog/shipping-store";
+import { AgentMarks } from "@/components/pages/shop/agent-status";
 import { checkoutCart } from "@/lib/checkout/flow";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
-
-const shippingOptions = SHIPPING_METHODS.map((method) => ({
-  value: method.id,
-  label: method.name,
-}));
 
 function ActiveCheckoutBanner() {
   return (
@@ -72,7 +56,6 @@ export function CartView() {
   const slugs = useCart();
   const session = useCheckoutSession();
   const products = resolveProducts(slugs);
-  const shipping = useShippingMethod();
   const instructions = useCartInstructions();
 
   // A shared link restores the cart it describes, then the cart owns the state
@@ -125,7 +108,7 @@ export function CartView() {
           {products.map((product) => (
             <li
               key={product.slug}
-              className="group/navlink grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-5 gap-y-3 py-6 sm:grid-cols-[auto_minmax(0,1fr)_5rem_4rem] sm:gap-x-8"
+              className="group/navlink grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-5 gap-y-3 py-6 sm:gap-x-8"
             >
               <NavGlyph kind={product.glyph} />
               <div className="min-w-0">
@@ -153,12 +136,6 @@ export function CartView() {
                   Remove
                 </Button>
               </div>
-              <p className="text-muted-foreground text-sm tabular-nums max-sm:col-start-2 sm:text-right">
-                Qty 1
-              </p>
-              <p className="text-sm tabular-nums max-sm:col-start-3 max-sm:row-start-1 sm:text-right">
-                $0.00
-              </p>
             </li>
           ))}
         </ul>
@@ -231,46 +208,15 @@ export function CartView() {
           Summary
         </h2>
         <dl className="divide-foreground/10 mt-4 divide-y text-sm">
-          <div className="flex justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Subtotal</dt>
-            <dd className="tabular-nums">$0.00</dd>
-          </div>
-          <div className="flex items-center justify-between gap-4 py-2">
-            <dt className="text-muted-foreground">
-              <label htmlFor="shipping-method">Shipping</label>
-            </dt>
+          <div className="flex items-center justify-between gap-4 py-3">
+            <dt className="text-muted-foreground">Works with</dt>
             <dd>
-              <Select
-                value={shipping.id}
-                onValueChange={(id) => {
-                  if (id !== null) setShippingMethod(id);
-                }}
-                items={shippingOptions}
-              >
-                <SelectTrigger
-                  id="shipping-method"
-                  size="sm"
-                  className="h-7 flex-row-reverse border-0 bg-transparent pr-0 pl-1 shadow-none hover:bg-transparent"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {SHIPPING_METHODS.map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      {method.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AgentMarks className="size-4" />
             </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">
             <dt className="text-muted-foreground">ETA</dt>
             <dd className="tabular-nums">{estimate}</dd>
-          </div>
-          <div className="flex justify-between gap-4 py-3 font-medium">
-            <dt>Total</dt>
-            <dd className="tabular-nums">$0.00</dd>
           </div>
         </dl>
         {session !== null ? (

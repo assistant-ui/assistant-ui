@@ -27,11 +27,13 @@ import {
   TrashIcon,
 } from "@lucide/vue";
 
-const DAY_IN_MS = 86_400_000;
-
-const dateGroupLabel = (date: Date | undefined, startOfToday: number) => {
+const dateGroupLabel = (
+  date: Date | undefined,
+  startOfToday: number,
+  startOfYesterday: number,
+) => {
   if (!date || date.getTime() >= startOfToday) return "Today";
-  if (date.getTime() >= startOfToday - DAY_IN_MS) return "Yesterday";
+  if (date.getTime() >= startOfYesterday) return "Yesterday";
   return "Earlier";
 };
 
@@ -81,13 +83,20 @@ const threadListGroups = computed(() => {
     return { filteredIndices, groups: null };
   }
 
+  const yesterday = new Date(startOfToday.value);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const startOfYesterday = yesterday.getTime();
   const time = (index: number) =>
     dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER;
   const sorted = [...filteredIndices].sort((a, b) => time(b) - time(a));
   const groups: { label: string; indices: number[] }[] = [];
 
   for (const index of sorted) {
-    const label = dateGroupLabel(dates[index], startOfToday.value);
+    const label = dateGroupLabel(
+      dates[index],
+      startOfToday.value,
+      startOfYesterday,
+    );
     const lastGroup = groups[groups.length - 1];
 
     if (lastGroup?.label === label) {

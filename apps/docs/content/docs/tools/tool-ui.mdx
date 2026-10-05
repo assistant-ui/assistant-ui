@@ -623,6 +623,45 @@ The runtime records that as `{ approvalId, approved: true, text }`, because answ
 
 An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no refusal of its own, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision; a `dismissible` question gets a Dismiss control instead, which sends `{ approved: false }` and drops whatever was typed. The text field submits the answer as typed, an empty one included, because the request declared no constraint on it; a host that cannot record an empty answer rejects the response, and the controls come back with its error.
 
+#### Several questions or several answers
+
+`display: "questions"` asks several questions at once, or lets one question take several answers. `approval.questions` lists them, each with an `id`, a `prompt`, an optional `header`, and either `options` (each an `id`, a `label` and an optional `description`) or none, in which case the question takes a typed answer. `multiple` lets a question take more than one option, and `allowFreeform` accepts a typed answer alongside its options. The request's own `options`, `allowFreeform` and `text` are unused here.
+
+```ts
+const approval = {
+  id: "a2",
+  prompt: "Before I refactor:",
+  display: "questions",
+  dismissible: true,
+  questions: [
+    {
+      id: "scope",
+      header: "Scope",
+      prompt: "Which folders should change?",
+      options: [
+        { id: "src", label: "src" },
+        { id: "tests", label: "tests" },
+      ],
+      multiple: true,
+    },
+    { id: "note", prompt: "Anything I should avoid?" },
+  ],
+};
+```
+
+A renderer answers every question together, keyed by question id:
+
+```tsx
+respondToApproval({
+  answers: {
+    scope: { optionIds: ["src", "tests"] },
+    note: { text: "keep the public API" },
+  },
+});
+```
+
+The runtime records that as `{ approvalId, approved: true, answers }`, and the answers stay on `approval.answers` once it settles. Every question needs an answer: at least one of its options, or typed text where it accepts some. A response that misses a question, picks an option the question does not declare, picks several on a question without `multiple`, or types an answer a question does not accept throws, as does any `approved`, `optionId` or `text` sent alongside `answers`; `{ approved: false }` dismisses the whole request. The default `ToolFallback` renders each question with its options as toggle buttons and a text field where it accepts one, keeps Send disabled until every question is answered, adds Dismiss only when the request is `dismissible`, and lists each question's answer once it settles.
+
 Not every runtime emits these fields. The Eve runtime projects its input requests onto `prompt`, `display`, `allowFreeform` and `options` and never marks one dismissible, because it rejects a refusal to a question. The Pi runtime projects `select`, `input` and `editor` requests as dismissible questions because Pi resolves a cancelled one with `undefined`. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
 
 Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny. `LocalRuntime` records `cancelled` itself when the user sends another message instead of answering.

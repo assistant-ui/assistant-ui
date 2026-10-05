@@ -401,6 +401,47 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
   });
 
+  it("should record reasoning timing on the part", async () => {
+    const before = Date.now();
+    const chunks: AssistantStreamChunk[] = [
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "text-delta", path: [0], textDelta: "thinking" },
+      { type: "part-finish", path: [0] },
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "text-delta", path: [1], textDelta: "answer" },
+      { type: "part-finish", path: [1] },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const after = Date.now();
+
+    const streamingPart = messages
+      .find((m) =>
+        m.parts.some(
+          (p) => p.type === "reasoning" && p.status.type === "running",
+        ),
+      )!
+      .parts.find((p) => p.type === "reasoning")!;
+    expect(streamingPart.timing!.startedAt).toBeGreaterThanOrEqual(before);
+    expect(streamingPart.timing!.completedAt).toBeUndefined();
+
+    const last = messages.at(-1)!;
+    const settledPart = last.parts.find((p) => p.type === "reasoning")!;
+    expect(settledPart.timing!.completedAt).toBeGreaterThanOrEqual(
+      settledPart.timing!.startedAt,
+    );
+    expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
+    expect(last.parts.find((p) => p.type === "text")).not.toHaveProperty(
+      "timing",
+    );
+  });
+
   it("should include timing on flush when stream closes without message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [
       { type: "part-start", path: [0], part: { type: "text" } },

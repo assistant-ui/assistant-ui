@@ -59,10 +59,7 @@ export default async function ProductPage({
           {product.oss ? " · Open source" : ""} · For {product.audience}. Agent
           time {formatMinutes(product.agentMinutes)}.
         </p>
-        <p className="mt-8 text-2xl font-medium tracking-tight tabular-nums">
-          $0.00
-        </p>
-        <div className="mt-4">
+        <div className="mt-8">
           {product.purchase === "cart" ? (
             <AddToCartButton
               slug={product.slug}
