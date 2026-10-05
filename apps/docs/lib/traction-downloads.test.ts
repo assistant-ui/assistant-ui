@@ -112,7 +112,7 @@ describe("fetchNpmDownloads", () => {
       Promise.resolve(
         name === FLAGSHIP_PACKAGE
           ? rangeRows(start, end).map(({ day }) => ({ day, downloads: 0 }))
-          : [],
+          : null,
       ),
     );
 
@@ -120,5 +120,16 @@ describe("fetchNpmDownloads", () => {
 
     expect(downloads.flagshipWeekly).toBe(0);
     expect(downloads.totalWeekly).toBeNull();
+  });
+
+  it("counts a package npm has no downloads for as zero in the ecosystem total", async () => {
+    getDownloadsRange.mockImplementation((name, start, end) =>
+      Promise.resolve(name === FLAGSHIP_PACKAGE ? rangeRows(start, end) : []),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.flagshipWeekly).toBeGreaterThan(0);
+    expect(downloads.totalWeekly).toBe(downloads.flagshipWeekly);
   });
 });
