@@ -504,8 +504,8 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0(supports-color@10.2.2)
       katex:
-        specifier: ^0.19.0
-        version: 0.19.0
+        specifier: ^0.16.47
+        version: 0.16.47
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -16603,10 +16603,6 @@ packages:
 
   katex@0.16.47:
     resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
-    hasBin: true
-
-  katex@0.19.0:
-    resolution: {integrity: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==}
     hasBin: true
 
   khroma@2.1.0:
@@ -33132,10 +33128,6 @@ snapshots:
   katex@0.16.47:
     dependencies:
       commander: 8.3.0
-
-  katex@0.19.0:
-    dependencies:
-      commander: 15.0.0
 
   khroma@2.1.0: {}
 
