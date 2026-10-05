@@ -2,7 +2,7 @@ import "@standard-schema/spec";
 
 import "json-schema";
 
-import { ComputedRef, PropType, SlotsType, VNodeChild } from "vue";
+import { ComputedRef, PropType, Ref, SlotsType, VNodeChild } from "vue";
 
 declare const ActionBarPrimitiveCopy: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   copiedDuration: {
@@ -1235,7 +1235,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ActionBarPrimitiveCopy, ActionBarPrimitiveEdit, ActionBarPrimitiveReload, AssistantClient, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventSelector, AssistantState, AttachmentByIndexProvider, AttachmentPrimitiveName, AttachmentPrimitiveRemove, AttachmentPrimitiveRoot, AttachmentPrimitiveThumb, AuiConfig, AuiIf, AuiProvider, BranchPickerPrimitiveCount, BranchPickerPrimitiveNext, BranchPickerPrimitiveNumber, BranchPickerPrimitivePrevious, ChainOfThoughtPrimitiveAccordionTrigger, ChainOfThoughtPrimitiveParts, ComposerPrimitiveAddAttachment, ComposerPrimitiveAttachmentDropzone, ComposerPrimitiveAttachments, ComposerPrimitiveCancel, ComposerPrimitiveInput, ComposerPrimitiveSend, DataUIProps, Derived, ErrorPrimitiveMessage, ErrorPrimitiveRoot, MessageByIdProvider, MessagePrimitiveAttachments, MessagePrimitiveParts, MessagePrimitiveRoot, PartByIndexProvider, SuggestionByIndexProvider, SuggestionPrimitiveDescription, SuggestionPrimitiveTitle, SuggestionPrimitiveTrigger, ThreadListItemByIndexProvider, ThreadListItemPrimitiveArchive, ThreadListItemPrimitiveDelete, ThreadListItemPrimitiveRoot, ThreadListItemPrimitiveTitle, ThreadListItemPrimitiveTrigger, ThreadListItemPrimitiveUnarchive, ThreadListPrimitiveItems, ThreadListPrimitiveLoadMore, ThreadListPrimitiveNew, ThreadListPrimitiveRoot, ThreadPrimitiveMessages, ThreadPrimitiveRoot, ThreadPrimitiveScrollToBottom, ThreadPrimitiveSuggestions, ThreadPrimitiveViewport, ThreadPrimitiveViewportFooter, ToolUIProps, Unsubscribe$1 as Unsubscribe, createAssistantClient, useAui, useAuiEvent, useAuiState };
+  export { ActionBarPrimitiveCopy, ActionBarPrimitiveEdit, ActionBarPrimitiveReload, AssistantClient, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventSelector, AssistantState, AttachmentByIndexProvider, AttachmentPrimitiveName, AttachmentPrimitiveRemove, AttachmentPrimitiveRoot, AttachmentPrimitiveThumb, AuiConfig, AuiIf, AuiProvider, BranchPickerPrimitiveCount, BranchPickerPrimitiveNext, BranchPickerPrimitiveNumber, BranchPickerPrimitivePrevious, ChainOfThoughtPrimitiveAccordionTrigger, ChainOfThoughtPrimitiveParts, ComposerPrimitiveAddAttachment, ComposerPrimitiveAttachmentDropzone, ComposerPrimitiveAttachments, ComposerPrimitiveCancel, ComposerPrimitiveInput, ComposerPrimitiveSend, DataUIProps, Derived, ErrorPrimitiveMessage, ErrorPrimitiveRoot, MessageByIdProvider, MessagePrimitiveAttachments, MessagePrimitiveParts, MessagePrimitiveRoot, PartByIndexProvider, SuggestionByIndexProvider, SuggestionPrimitiveDescription, SuggestionPrimitiveTitle, SuggestionPrimitiveTrigger, ThreadListItemByIndexProvider, ThreadListItemPrimitiveArchive, ThreadListItemPrimitiveDelete, ThreadListItemPrimitiveRoot, ThreadListItemPrimitiveTitle, ThreadListItemPrimitiveTrigger, ThreadListItemPrimitiveUnarchive, ThreadListPrimitiveItems, ThreadListPrimitiveLoadMore, ThreadListPrimitiveNew, ThreadListPrimitiveRoot, ThreadPrimitiveMessages, ThreadPrimitiveRoot, ThreadPrimitiveScrollToBottom, ThreadPrimitiveSuggestions, ThreadPrimitiveViewport, ThreadPrimitiveViewportFooter, ToolUIProps, Unsubscribe$1 as Unsubscribe, createAssistantClient, useAui, useAuiEvent, useAuiState, useScrollLock };
 }
 
 declare const useAui: () => AssistantClient;
@@ -1243,5 +1243,7 @@ declare const useAui: () => AssistantClient;
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
 declare const useAuiState: <T>(selector: (state: AssistantState) => T) => ComputedRef<T>;
+
+declare const useScrollLock: (target: Ref<HTMLElement | null | undefined>, animationDuration: number) => () => void;
 
 export { entry_root_exports as entry_root };
