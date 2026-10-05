@@ -49,8 +49,6 @@ export function CommandTabs({
     undefined,
   );
   const copyScope = useRef(0);
-  const copyAttempt = useRef(0);
-  const latestSuccessfulCopy = useRef(0);
 
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
@@ -140,18 +138,12 @@ export function CommandTabs({
           aria-label="Copy command"
           onClick={async () => {
             const scope = copyScope.current;
-            const attempt = ++copyAttempt.current;
             try {
               await navigator.clipboard.writeText(command);
             } catch {
               return;
             }
-            if (
-              scope !== copyScope.current ||
-              attempt < latestSuccessfulCopy.current
-            )
-              return;
-            latestSuccessfulCopy.current = attempt;
+            if (scope !== copyScope.current) return;
 
             setCopied(true);
             clearTimeout(copyTimer.current);

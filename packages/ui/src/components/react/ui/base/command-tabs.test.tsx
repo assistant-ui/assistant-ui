@@ -69,52 +69,6 @@ describe.each(flavors)(
       expect(isCopied()).toBe(false);
     });
 
-    it("keeps the newer successful write timer when an older write settles later", async () => {
-      let resolveOlder!: () => void;
-      let resolveNewer!: () => void;
-      const older = new Promise<void>((resolve) => {
-        resolveOlder = resolve;
-      });
-      const newer = new Promise<void>((resolve) => {
-        resolveNewer = resolve;
-      });
-      const writeText = vi
-        .fn()
-        .mockImplementationOnce(() => older)
-        .mockImplementationOnce(() => newer);
-      stubClipboard(writeText);
-      renderTabs();
-
-      await clickCopy();
-      await clickCopy();
-      await act(async () => resolveNewer());
-      await act(async () => vi.advanceTimersByTimeAsync(1000));
-      await act(async () => resolveOlder());
-      await act(async () => vi.advanceTimersByTimeAsync(500));
-
-      expect(isCopied()).toBe(false);
-    });
-
-    it("accepts an older success after a newer write rejects", async () => {
-      let resolveOlder!: () => void;
-      const older = new Promise<void>((resolve) => {
-        resolveOlder = resolve;
-      });
-      const writeText = vi
-        .fn()
-        .mockImplementationOnce(() => older)
-        .mockRejectedValueOnce(new Error("copy failed"));
-      stubClipboard(writeText);
-      renderTabs();
-
-      await clickCopy();
-      await clickCopy();
-      await act(async () => resolveOlder());
-
-      expect(isCopied()).toBe(true);
-      expect(vi.getTimerCount()).toBe(1);
-    });
-
     it("cancels its pending reset timer on unmount", async () => {
       const view = renderTabs();
 
