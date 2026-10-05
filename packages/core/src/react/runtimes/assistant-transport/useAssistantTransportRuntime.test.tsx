@@ -149,15 +149,24 @@ describe("useAssistantTransportRuntime", () => {
   it.each([
     {
       name: "line",
+      protocol: "assistant-transport" as const,
       response: "data: [DONE]\n\n",
       limits: { maxStreamLineLength: 5 },
       expectedError: "maxLineLength",
     },
     {
       name: "event",
+      protocol: "assistant-transport" as const,
       response: "data: a\ndata: b\n\n",
       limits: { maxStreamLineLength: 7, maxStreamEventLength: 2 },
       expectedError: "maxEventLength",
+    },
+    {
+      name: "data-stream line",
+      protocol: "data-stream" as const,
+      response: '0:"hello"\n',
+      limits: { maxStreamLineLength: 4 },
+      expectedError: "maxLineLength",
     },
   ])("forwards the configured $name limit", async (testCase) => {
     const onError = vi.fn();
@@ -167,7 +176,7 @@ describe("useAssistantTransportRuntime", () => {
     );
 
     const { aui, sendCommand } = mountRuntime({
-      protocol: "assistant-transport",
+      protocol: testCase.protocol,
       ...testCase.limits,
       onError,
     });

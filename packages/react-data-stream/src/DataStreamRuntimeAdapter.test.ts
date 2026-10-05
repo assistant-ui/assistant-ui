@@ -105,6 +105,34 @@ describe("DataStreamRuntimeAdapter response handling", () => {
     expect(onError).toHaveBeenCalledOnce();
   });
 
+  it("applies the configured line limit to data streams", async () => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response('0:"hello"\n')),
+    );
+
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "data-stream",
+      maxStreamLineLength: 4,
+      onError,
+    });
+
+    const consumeRun = async () => {
+      for await (const chunk of adapter.run(
+        createRunOptions(new AbortController().signal),
+      ) as AsyncGenerator) {
+        void chunk;
+      }
+    };
+
+    await expect(consumeRun()).rejects.toThrow(
+      "Stream line exceeds maxLineLength",
+    );
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
   it("reports a response that carries no body", async () => {
     const onError = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null)));
