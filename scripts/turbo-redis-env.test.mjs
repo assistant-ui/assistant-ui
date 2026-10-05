@@ -33,7 +33,7 @@ const withRedis = plan({ REDIS_URL: "redis://127.0.0.1:6379" });
 
 test("Redis configuration does not change library build cache keys", () => {
   const builds = [...withoutRedis.values()].filter(
-    (task) => task.task === "build" && task.command === "aui-build",
+    (task) => task.task === "build" && /\baui-build\b/.test(task.command),
   );
   assert(builds.length > 0);
   for (const task of builds) {
