@@ -1,0 +1,47 @@
+name: CI Redis, Performance, and scheduling benchmark
+on:
+  push:
+    branches: [perf/ci-redis-perf-scheduling-bench]
+permissions:
+  contents: read
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        mode: [redis, install, scheduling]
+        sample: [0, 1, 2]
+    services:
+      redis:
+        image: redis:8-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Measure paired variants and verify their outputs
+        env:
+          BENCH_MODE: ${{ matrix.mode }}
+          BENCH_SAMPLE: ${{ matrix.sample }}
+          REDIS_URL: redis://127.0.0.1:6379
+        run: node scripts/bench-ci-redis-perf-scheduling.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: ${{ matrix.mode }}-${{ matrix.sample }}
+          path: bench-results/
+          retention-days: 7
