@@ -34,6 +34,7 @@ on:
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
+      - "scripts/turbo-redis-env.test.mjs"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -72,6 +73,7 @@ on:
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
+      - "scripts/turbo-redis-env.test.mjs"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -284,6 +286,10 @@ jobs:
 
       - name: Test package build input detector
         run: node --test scripts/package-build-inputs.test.mjs
+
+      - name: Test Redis build cache isolation
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: node --test scripts/turbo-redis-env.test.mjs
 
       # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
       - name: Measure bundle sizes against the base

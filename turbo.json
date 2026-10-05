@@ -36,7 +36,6 @@
         "ENTELLIGENCE_*",
         "KV_*",
         "SENTRY_*",
-        "REDIS_*",
         "ASSISTANT_*",
         "AUIX_*",
         "WEBMCP_ORIGIN_TRIAL_TOKEN"
