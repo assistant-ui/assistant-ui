@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -29,7 +30,6 @@ import {
 } from "@/lib/xulux/template-service";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
-export const revalidate = false;
 // One sandbox call bounds the template tools at 30s and the rest is in-process
 // rendering, so this sits well under the platform default and an overrun
 // surfaces here rather than at the CDN in front of it.
@@ -612,6 +612,20 @@ function acceptsEventStream(request: NextRequest) {
     .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
 }
 
+async function getManifest() {
+  "use cache";
+  cacheLife("max");
+  return {
+    name: "assistant-ui-docs",
+    protocol: "mcp",
+    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
+    tools: toolDefinitions.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+    })),
+  };
+}
+
 export async function GET(request: NextRequest) {
   // `Accept: text/event-stream` opens the Streamable HTTP server-to-client
   // stream, which this stateless endpoint does not offer; a 200 reads as a
@@ -627,15 +641,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return jsonResponse({
-    name: "assistant-ui-docs",
-    protocol: "mcp",
-    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
-    tools: toolDefinitions.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-    })),
-  });
+  return jsonResponse(await getManifest());
 }
 
 export async function POST(request: NextRequest) {

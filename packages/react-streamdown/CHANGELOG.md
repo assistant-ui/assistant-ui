@@ -1,5 +1,15 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.19
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8725](https://github.com/assistant-ui/assistant-ui/pull/8725) [`4f0f4f5`](https://github.com/assistant-ui/assistant-ui/commit/4f0f4f573c3cd0599bb7df57da691e811e92001b) - require streamdown 2.7 and remend 1.4, and keep the tail-bounded remend repair in step with remend 1.4's code spans, so a comparison after an escaped backtick still gets escaped ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/react-markdown@0.14.19
+
 ## 0.3.18
 
 ### Patch Changes

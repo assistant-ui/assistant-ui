@@ -1,5 +1,26 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.34
+
+### Patch Changes
+
+- [#8143](https://github.com/assistant-ui/assistant-ui/pull/8143) [`e62ec7a`](https://github.com/assistant-ui/assistant-ui/commit/e62ec7a01e734f8cfbdfc70964226cffddb95818) - fix: skip ADK messages, tool calls, and media parts that are missing required fields instead of crashing the thread or rendering broken images and files ([@samdickson22](https://github.com/samdickson22))
+
+- [#8257](https://github.com/assistant-ui/assistant-ui/pull/8257) [`5b14a1c`](https://github.com/assistant-ui/assistant-ui/commit/5b14a1cbe8936dc9609be4b6581a65d140ac30ce) - fix: skip null tool call entries when projecting approvals, collecting confirmation and credential requests, cancelling pending calls, and sending messages ([@samdickson22](https://github.com/samdickson22))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8702](https://github.com/assistant-ui/assistant-ui/pull/8702) [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd) - fix: the remaining runtime hooks keep their thread loads, runs, queued messages, subagent transcripts and event streams across a fast refresh or a StrictMode replay instead of tearing them down ([@okisdev](https://github.com/okisdev))
+
+- [#8662](https://github.com/assistant-ui/assistant-ui/pull/8662) [`4bc3ca1`](https://github.com/assistant-ui/assistant-ui/commit/4bc3ca160409a4ebb3b5f0bb3680530e847fa01a) - Mark unfinished assistant messages as cancelled when an ADK run is stopped, including finalized tool-call and long-running tool messages. ([@eito-katagiri-LITALICO](https://github.com/eito-katagiri-LITALICO))
+  
+  Clear pending long-running tool IDs introduced by the stopped run while retaining unanswered interrupts inherited from earlier turns.
+- Updated dependencies [[`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c), [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc), [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a), [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9), [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd), [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc), [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4)]:
+  - @assistant-ui/core@0.3.23
+  - assistant-stream@0.3.47
+  - assistant-cloud@0.2.5
+  - @assistant-ui/store@0.3.17
+
 ## 0.0.33
 
 ### Patch Changes

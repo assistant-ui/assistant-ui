@@ -2054,6 +2054,44 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     });
   });
 
+  it("records questionnaire answers alongside the decision", async () => {
+    const questions = [
+      {
+        id: "scope",
+        prompt: "Which files?",
+        options: [{ id: "src", label: "src" }],
+      },
+    ];
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("send_email", {
+        id: "a1",
+        display: "questions",
+        questions,
+      }),
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    await thread.respondToToolApproval({
+      approvalId: "a1",
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+    await flush();
+
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.approval).toEqual({
+      id: "a1",
+      display: "questions",
+      questions,
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+  });
+
   it("treats a terminal resolution as non-pending and continues the run", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("deploy", { id: "a1", resolution: "expired" }),
@@ -6069,6 +6107,46 @@ describe("LocalThreadRuntimeCore runs", () => {
       expect.objectContaining({ type: "text", text: "Hello world" }),
     );
     expect(assistant.status).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("keeps the branch the user switched to while a multi-step answer runs", async () => {
+    let releaseToolStep!: () => void;
+    const toolStep = new Promise<void>(
+      (resolve) => (releaseToolStep = resolve),
+    );
+    let calls = 0;
+    const thread = createPlainThread({
+      async run(): Promise<ChatModelRunResult> {
+        calls++;
+        if (calls === 2) {
+          await toolStep;
+          return {
+            content: [{ ...toolCallPart("search"), result: "found" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        }
+        return { content: [{ type: "text", text: "answer" }] };
+      },
+    });
+    await thread.append(userMessage("hi"));
+    const [question, firstAnswer] = thread.messages.map(
+      (message) => message.id,
+    );
+
+    void thread.startRun({
+      parentId: question!,
+      sourceId: firstAnswer!,
+      runConfig: {},
+    });
+    await flush();
+    expect(thread.messages.at(-1)?.id).not.toBe(firstAnswer);
+
+    thread.switchToBranch(firstAnswer!);
+    releaseToolStep();
+    await flush();
+
+    expect(calls).toBe(3);
+    expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
   });
 
   it("marks the message errored when the adapter rejects", async () => {

@@ -411,15 +411,17 @@ function DatePickerRender({
     initialValue,
     value: initialValue,
     anchor: initialValue,
+    committedValue: initialValue,
+    edited: false,
   });
   if (selection.initialValue !== initialValue) {
+    const isEcho = isBound && initialValue === selection.value;
     setSelection({
       initialValue,
       value: initialValue,
-      anchor:
-        isBound && initialValue === selection.value
-          ? selection.anchor
-          : initialValue,
+      anchor: isEcho ? selection.anchor : initialValue,
+      committedValue: isEcho ? selection.committedValue : initialValue,
+      edited: isEcho && selection.edited,
     });
   }
   const currentValue = isBound ? initialValue : selection.value;
@@ -457,6 +459,20 @@ function DatePickerRender({
       : inputType === "datetime" && hydrated
         ? toPickerLocalDateTime(currentValue)
         : normalizeTemporalInputValue(currentValue);
+  const keyboardActive = React.useRef(false);
+  const valueFromInput = (input: HTMLInputElement) => {
+    const inputValue = normalizeTemporalInputValue(input.value);
+    return inputType === "datetime"
+      ? fromLocalDateTime(inputValue, selection.anchor)
+      : inputValue;
+  };
+  const commit = (input: HTMLInputElement) => {
+    if (!selection.edited) return;
+    const nextValue = valueFromInput(input);
+    setSelection({ ...selection, committedValue: nextValue, edited: false });
+    if (nextValue !== selection.committedValue)
+      fire($action, $dispatch, nextValue, input);
+  };
   return (
     <input
       key={isBound ? undefined : initialValue}
@@ -504,28 +520,73 @@ function DatePickerRender({
       }
       step={
         inputType !== "date"
-          ? getTemporalInputStep(selection.anchor, currentValue, min, max)
+          ? getTemporalInputStep(
+              selection.anchor,
+              hasInstantAnchor ? displayValue : currentValue,
+              min,
+              max,
+            )
           : undefined
       }
       onChange={(e) => {
-        const inputValue = normalizeTemporalInputValue(e.currentTarget.value);
-        const nextValue =
-          inputType === "datetime"
-            ? fromLocalDateTime(inputValue, selection.anchor)
-            : inputValue;
+        const nextValue = valueFromInput(e.currentTarget);
         const canonical = canonicalFieldValue(nextValue);
         if (canonical !== undefined) {
           e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
         } else {
           e.currentTarget.removeAttribute(FIELD_VALUE_ATTR);
         }
+        // A change without an editing key down is a pick from the native picker, which commits at once; a typed value waits for blur or Enter.
+        const typed = keyboardActive.current;
+        keyboardActive.current = false;
         setSelection({
           initialValue,
           value: nextValue,
           anchor: selection.anchor,
+          committedValue: typed ? selection.committedValue : nextValue,
+          edited: typed,
         });
         updateBinding?.(nextValue);
-        fire($action, $dispatch, nextValue, e.currentTarget);
+        if (!typed && nextValue !== selection.committedValue)
+          fire($action, $dispatch, nextValue, e.currentTarget);
+      }}
+      onBlur={(e) => {
+        keyboardActive.current = false;
+        commit(e.currentTarget);
+      }}
+      onKeyDown={(e) => {
+        if (
+          e.key === "Enter" &&
+          !e.nativeEvent.isComposing &&
+          !e.currentTarget.form
+        ) {
+          commit(e.currentTarget);
+          return;
+        }
+        keyboardActive.current =
+          !e.altKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          (e.key.length === 1 ||
+            [
+              "ArrowDown",
+              "ArrowUp",
+              "Backspace",
+              "Delete",
+              "End",
+              "Home",
+              "PageDown",
+              "PageUp",
+            ].includes(e.key));
+      }}
+      onKeyUp={() => {
+        keyboardActive.current = false;
+      }}
+      onPaste={() => {
+        keyboardActive.current = true;
+      }}
+      onCut={() => {
+        keyboardActive.current = true;
       }}
     />
   );
@@ -952,7 +1013,7 @@ export const interactiveVocabulary = {
   },
   DatePicker: {
     description:
-      "A date, datetime, or time input. Carries `$action` describing the on-select behavior.",
+      "A date, datetime, or time input. Carries `$action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
     properties: z.object({
       inputType: z
         .enum(["date", "datetime", "time"])

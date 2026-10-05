@@ -7,7 +7,6 @@ import {
   useRef,
   useEffectEvent,
   useId,
-  useSyncExternalStore,
 } from "react";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
@@ -18,6 +17,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
+import { useIsServerRender } from "../utils/useIsServerRender";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -42,18 +42,12 @@ class RemoteThreadListRuntimeCore
   }
 }
 
-const subscribeNever = () => () => {};
-
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   // A server render must not read Math.random, and its runtime never reaches an adapter, so it names the first thread from useId; the client keeps a random id because adapters store it.
   const serverThreadIdSeed = useId();
-  const isServerRender = useSyncExternalStore(
-    subscribeNever,
-    () => false,
-    () => typeof document === "undefined",
-  );
+  const isServerRender = useIsServerRender();
   const [runtime] = useState(
     () =>
       new RemoteThreadListRuntimeCore(

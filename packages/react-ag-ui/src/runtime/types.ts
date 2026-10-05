@@ -180,16 +180,22 @@ export type AgUiEvent =
       delta: string;
       subagentRunId?: string;
     }
-  | { type: "THINKING_START"; title?: string }
-  | { type: "THINKING_TEXT_MESSAGE_START" }
+  | { type: "THINKING_START"; title?: string; timestamp?: number }
+  | { type: "THINKING_TEXT_MESSAGE_START"; timestamp?: number }
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
-  | { type: "THINKING_TEXT_MESSAGE_END" }
-  | { type: "THINKING_END" }
-  | { type: "REASONING_START"; messageId?: string; subagentRunId?: string }
+  | { type: "THINKING_TEXT_MESSAGE_END"; timestamp?: number }
+  | { type: "THINKING_END"; timestamp?: number }
+  | {
+      type: "REASONING_START";
+      messageId?: string;
+      subagentRunId?: string;
+      timestamp?: number;
+    }
   | {
       type: "REASONING_MESSAGE_START";
       messageId?: string;
       subagentRunId?: string;
+      timestamp?: number;
     }
   | {
       type: "REASONING_MESSAGE_CONTENT";
@@ -201,6 +207,7 @@ export type AgUiEvent =
       type: "REASONING_MESSAGE_END";
       messageId?: string;
       subagentRunId?: string;
+      timestamp?: number;
     }
   | {
       type: "REASONING_ENCRYPTED_VALUE";
@@ -209,7 +216,12 @@ export type AgUiEvent =
       encryptedValue: string;
       subagentRunId?: string;
     }
-  | { type: "REASONING_END"; messageId?: string; subagentRunId?: string }
+  | {
+      type: "REASONING_END";
+      messageId?: string;
+      subagentRunId?: string;
+      timestamp?: number;
+    }
   | {
       type: "TOOL_CALL_START";
       toolCallId: string;

@@ -25,10 +25,13 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/coverage-summary.mjs"
+      - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -62,10 +65,13 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/coverage-summary.mjs"
+      - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -182,8 +188,10 @@ jobs:
             run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
           else
             run=true
+            BASE=""
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -195,26 +203,25 @@ jobs:
 
       - name: Install dependencies
         if: steps.package_build_inputs.outputs.run == 'true'
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
+          if [ -n "$BASE" ] && git diff --quiet "$BASE" HEAD -- \
             package.json \
             pnpm-lock.yaml \
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
+            plan=$(node scripts/update-api-surface.mjs --base "$BASE" --print-filters)
+            mapfile -t filters < <(jq -r 'if length == 0 then "--filter=./packages/*..." else .[] | "--filter=\(.)..." end' <<< "$plan")
             pnpm install --frozen-lockfile \
               --filter="." \
               --filter="@assistant-ui/api-surface" \
               --filter="@assistant-ui/react-devtools..." \
               --filter="@assistant-ui/x-buildutils..." \
               --filter="@assistant-ui/x-performance" \
-              --filter="...[$BASE]..." \
+              "${filters[@]}" \
               --filter="!./apps/*" \
               --filter="!./examples/*" \
               --filter="!./templates/*"
@@ -225,27 +232,16 @@ jobs:
       - name: Build packages
         if: steps.package_build_inputs.outputs.run == 'true'
         env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build packages changed compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          else
-            # Push to main: Build packages changed in last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          fi
+        run: pnpm api-surface -- --base="$BASE" --build-only
 
       - name: Check API surface
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Check API surface for packages changed compared to base branch
-            pnpm run api-surface:check -- --skip-build --filter="...[origin/${{ github.base_ref }}]"
-          else
-            # Push to main: Check API surface for packages changed in last commit
-            pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
-          fi
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+        run: pnpm run api-surface:check -- --skip-build --base="$BASE"
 
       - name: Check distribution barrels
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -371,6 +367,13 @@ jobs:
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
             pnpm turbo build --filter="{./examples/*}[HEAD^1]"
           fi
+
+      - name: Verify standalone example bundle contracts
+        if: steps.app_build_inputs.outputs.run == 'true'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm test:bundles
 
   api-reference-drift:
     name: API Reference Drift
@@ -507,6 +510,97 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
+
+  coverage:
+    name: Coverage of Changed Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      redis:
+        image: redis:8-alpine # ratchet:exclude
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE=HEAD^1
+          fi
+          if git diff --quiet "$BASE" HEAD -- \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            turbo.json \
+            packages/x-buildutils; then
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
+          else
+            pnpm install --frozen-lockfile
+          fi
+
+      - name: Test the coverage summary
+        run: pnpm run coverage:test
+
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          else
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          fi
+
+      # Concurrency 1 for the same reason as the Test job; coverage instrumentation slows each file further.
+      - name: Run tests with coverage
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILTER="...[origin/${{ github.base_ref }}]"
+          else
+            FILTER="...[HEAD^1]"
+          fi
+          pnpm turbo test:coverage --concurrency=1 --filter="$FILTER"
+
+      - name: Write the coverage summary
+        if: always()
+        run: pnpm run coverage:summary -- --report "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
+        with:
+          name: coverage
+          path: |
+            packages/*/coverage/
+            apps/*/coverage/
+            examples/*/coverage/
+          if-no-files-found: ignore
+          retention-days: 14
 
   typecheck:
     name: Typecheck Changed Packages
