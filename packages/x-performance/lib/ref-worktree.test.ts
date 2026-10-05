@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
 import { distFingerprint, ensureRefWorktree } from "./ref-worktree.mjs";
+import { pkgRoot } from "./suite.mjs";
 
 const mocks = vi.hoisted(() => ({ sha: "", root: "" }));
 vi.mock("./suite.mjs", async (importOriginal) => ({
@@ -109,7 +110,7 @@ describe("ensureRefWorktree", () => {
       }),
     ]);
     expect(existsSync(`${wt}.built`)).toBe(true);
-    const require = createRequire(new URL("../package.json", import.meta.url));
+    const require = createRequire(join(pkgRoot, "package.json"));
     for (const dependency of ["react", "react-dom"]) {
       expect(
         realpathSync(join(wt, "packages/core/node_modules", dependency)),
