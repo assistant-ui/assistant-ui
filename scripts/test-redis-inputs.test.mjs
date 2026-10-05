@@ -55,6 +55,8 @@ test("coverage selection does not change report or artifact collection", () => {
     job,
     /pnpm exec turbo run test:coverage --dry=json --filter="\.\.\.\[\$BASE\]" \| node scripts\/test-redis-inputs\.mjs/,
   );
+  assert.match(job, /Select Redis coverage service\n        id: redis/);
+  assert.match(job, /echo "run=\$run" >> "\$GITHUB_OUTPUT"/);
   assert.match(job, /steps\.redis\.outputs\.run == 'true'/);
   assert.match(job, /docker exec aui-coverage-redis redis-cli ping/);
   assert.match(
@@ -136,6 +138,8 @@ test("the workflow keeps selection, readiness, cleanup and test commands wired",
     job,
     /pnpm exec turbo run test --dry=json --filter="\.\.\.\[\$BASE\]"/,
   );
+  assert.match(job, /Select Redis test service\n        id: redis/);
+  assert.match(job, /echo "run=\$run" >> "\$GITHUB_OUTPUT"/);
   assert.match(job, /steps\.redis\.outputs\.run == 'true'/);
   assert.match(job, /docker exec aui-test-redis redis-cli ping/);
   assert.match(job, /always\(\)/);
