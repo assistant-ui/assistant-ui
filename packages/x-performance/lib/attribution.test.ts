@@ -100,6 +100,12 @@ describe("against the real workspace", () => {
       "@assistant-ui/store",
       "assistant-stream",
     ]);
+    expect([...(graph.get("@assistant-ui/ai-sdk") ?? [])].sort()).toEqual([
+      "@assistant-ui/core",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+      "assistant-stream",
+    ]);
   });
 
   it("attributes each bench file to the dists it exercises", () => {
@@ -138,11 +144,19 @@ describe("against the real workspace", () => {
       "@assistant-ui/tap",
       "assistant-stream",
     ]);
+    expect(covers("bench/ai-sdk-toolkit.bench.ts")).toEqual([
+      "@assistant-ui/ai-sdk",
+      "@assistant-ui/core",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+      "assistant-stream",
+    ]);
   });
 
   it("plans a core change as its own benches plus three controls", () => {
     expect(planBenches(coverage, ["@assistant-ui/core"])).toEqual({
       measured: [
+        "bench/ai-sdk-toolkit.bench.ts",
         "bench/external-message-conversion.bench.ts",
         "bench/from-thread-message-like.bench.ts",
         "bench/interactable-array-patches.bench.ts",

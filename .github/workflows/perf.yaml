@@ -12,6 +12,7 @@ on:
       - "packages/assistant-stream/**"
       - "packages/react/**"
       - "packages/react-markdown/**"
+      - "packages/ai-sdk/**"
       - "packages/react-langgraph/**"
       - "packages/react-pi/**"
       - "packages/tw-shimmer/**"
@@ -51,7 +52,7 @@ jobs:
           changed=$(git diff --name-only "$BASE_SHA...HEAD")
           bench=false
           trace=false
-          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown|react-langgraph|react-pi)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
+          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown|ai-sdk|react-langgraph|react-pi)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
           if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
           echo "bench=$bench" >> "$GITHUB_OUTPUT"
           echo "trace=$trace" >> "$GITHUB_OUTPUT"
@@ -62,19 +63,19 @@ jobs:
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
         if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
 
       - name: Build measured packages
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         if: steps.lanes.outputs.bench == 'true'
-        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown --filter=@assistant-ui/react-langgraph --filter=@assistant-ui/react-pi
+        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/react-langgraph --filter=@assistant-ui/react-pi
 
       - name: Bench PR head against the base commit
         if: steps.lanes.outputs.bench == 'true'
