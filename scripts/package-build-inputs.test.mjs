@@ -141,10 +141,20 @@ test("the workflow gates dependency-backed package steps", () => {
 test("the build install follows the affected package graph", () => {
   assert.match(step("Setup pnpm and node.js"), /cache: false/);
   const install = step("Install dependencies");
-  assert.match(install, /BASE="origin\/\$\{\{ github\.base_ref \}\}"/);
-  assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  for (const name of [
+    "Install dependencies",
+    "Build packages",
+    "Check API surface",
+  ]) {
+    assert.match(
+      step(name),
+      /BASE: \$\{\{ steps\.package_build_inputs\.outputs\.base \}\}/,
+    );
+  }
+  assert.match(step("Detect package build inputs"), /echo "base=\$BASE"/);
+  assert.match(step("Detect package build inputs"), /run=true\n\s+BASE=""/);
   const guardedInstall = install.match(
-    /if git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
+    /if \[ -n "\$BASE" \] && git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
   );
   assert.ok(guardedInstall?.groups);
   for (const input of [
@@ -166,7 +176,6 @@ test("the build install follows the affected package graph", () => {
     "@assistant-ui/react-devtools...",
     "@assistant-ui/x-buildutils...",
     "@assistant-ui/x-performance",
-    "...[$BASE]...",
     "!./apps/*",
     "!./examples/*",
     "!./templates/*",
@@ -176,5 +185,16 @@ test("the build install follows the affected package graph", () => {
       filter,
     );
   }
+  assert.match(guardedInstall.groups.filteredInstall, /\$\{filters\[@\]\}/);
+  assert.match(
+    install,
+    /node scripts\/update-api-surface\.mjs --base "\$BASE" --print-filters/,
+  );
+  assert.match(install, /--filter=\.\/packages\/\*\.\.\./);
+  assert.match(
+    step("Build packages"),
+    /pnpm api-surface -- --base=.* --build-only/,
+  );
+  assert.match(step("Check API surface"), /--skip-build --base=/);
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
 });

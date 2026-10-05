@@ -10,6 +10,7 @@ import {
   splitTemporalMinutes,
   temporalOffsetLabel,
   toLocalDateTime,
+  toPickerLocalDateTime,
 } from "./temporal";
 
 describe("temporal values", () => {
@@ -137,6 +138,23 @@ describe("temporal values", () => {
     );
     expect(new Date("2026-01-15T12:00Z").getTimezoneOffset()).toBe(300);
     expect(new Date("2026-07-15T12:00Z").getTimezoneOffset()).toBe(240);
+  });
+
+  it.each(["0002", "0020", "0202"])(
+    "preserves minute edits in %s when the zone offset has seconds",
+    (year) => {
+      const local = `${year}-12-15T12:00`;
+      const value = fromLocalDateTime(local, "2025-12-15T17:00Z");
+      expect(value).toBe(`${year}-12-15T16:56:02Z`);
+      expect(toPickerLocalDateTime(value)).toBe(local);
+    },
+  );
+
+  it("preserves entered seconds with a minute precision anchor", () => {
+    const local = "2025-12-15T12:00:30";
+    const value = fromLocalDateTime(local, "2025-12-15T17:00Z");
+    expect(value).toBe("2025-12-15T17:00:30Z");
+    expect(toPickerLocalDateTime(value)).toBe(local);
   });
 
   it.each([

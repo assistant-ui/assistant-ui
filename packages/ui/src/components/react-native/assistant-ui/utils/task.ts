@@ -2,7 +2,7 @@ import type {
   ToolCallMessagePart,
   ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 export type TaskViewState =
   | "working"
@@ -89,15 +89,14 @@ export function useTaskElapsed(
 ) {
   const ticking =
     timing !== undefined && timing.completedAt === undefined && running;
-  const [now, setNow] = useState(() => Date.now());
-  const [wasTicking, setWasTicking] = useState(ticking);
-  if (wasTicking !== ticking) {
-    setWasTicking(ticking);
-    if (ticking) setNow(Date.now());
-  }
+  const [now, setNow] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ticking) return undefined;
+    // The clock is read only after mount so a prerender never reads it; the
+    // layout effect still catches the elapsed value up before the first paint.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [ticking]);
@@ -106,6 +105,6 @@ export function useTaskElapsed(
   if (timing.completedAt !== undefined) {
     return Math.max(0, timing.completedAt - timing.startedAt);
   }
-  if (!ticking) return undefined;
+  if (!ticking || now === undefined) return undefined;
   return Math.max(0, now - timing.startedAt);
 }

@@ -64,6 +64,10 @@ export function collectFormValues(
       element.type === "datetime-local" || element.type === "time"
         ? element.type
         : element.getAttribute?.("type");
+    const inputValue =
+      temporalType === "datetime-local" || temporalType === "time"
+        ? normalizeTemporalInputValue(element.value)
+        : element.value;
     const fieldValue =
       temporalType === "datetime-local" || temporalType === "time"
         ? element.getAttribute?.(FIELD_VALUE_ATTR)
@@ -73,8 +77,8 @@ export function collectFormValues(
         ? (element.checked ?? false)
         : element.type === "range"
           ? Number(element.value)
-          : fieldValue && element.value !== ""
-            ? normalizeTemporalInputValue(element.value) ===
+          : fieldValue && inputValue !== ""
+            ? normalizeTemporalInputValue(inputValue) ===
               normalizeTemporalInputValue(
                 temporalType === "time"
                   ? fieldValue
@@ -82,9 +86,9 @@ export function collectFormValues(
               )
               ? fieldValue
               : temporalType === "datetime-local"
-                ? fromLocalDateTime(element.value, fieldValue)
-                : element.value
-            : element.value;
+                ? fromLocalDateTime(inputValue, fieldValue)
+                : inputValue
+            : inputValue;
 
     if (Object.hasOwn(values, name)) {
       const existing = values[name];

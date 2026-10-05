@@ -3,6 +3,8 @@
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   ComposerPrimitive,
+  createThreadRowsSelector,
+  groupPartByType,
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
@@ -15,56 +17,22 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 
-const ESTIMATED_TURN_HEIGHT = 200;
+const ESTIMATED_ROW_HEIGHT = 80;
 const AT_BOTTOM_THRESHOLD = 4;
 
-type MessageComponents = ComponentProps<
-  typeof ThreadPrimitive.Unstable_MessageById
->["components"];
+const selectRows = createThreadRowsSelector({
+  groupBy: groupPartByType({ reasoning: ["group-reasoning"] }),
+});
 
-type MessageRow = {
-  id: string;
-  role: "user" | "assistant" | "system";
-};
-
-type Turn = { id: string; messageIds: string[] };
-
-const useThreadMessageRows = (): readonly MessageRow[] => {
-  const prevRowsRef = useRef<readonly MessageRow[]>([]);
-
-  return useAuiState((s) => {
-    const messages = s.thread.messages;
-    const prev = prevRowsRef.current;
-    if (
-      prev.length === messages.length &&
-      prev.every((row, index) => {
-        const message = messages[index]!;
-        return row.id === message.id && row.role === message.role;
-      })
-    ) {
-      return prev;
-    }
-
-    const next = messages.map(({ id, role }) => ({ id, role }));
-    prevRowsRef.current = next;
-    return next;
-  });
-};
-
-const buildTurns = (messages: readonly MessageRow[]): Turn[] => {
-  if (messages.length === 0) return [];
-  const turns: Turn[] = [];
-  for (const { id, role } of messages) {
-    const last = turns.at(-1);
-    if (role === "user" || !last) turns.push({ id, messageIds: [id] });
-    else last.messageIds.push(id);
-  }
-  return turns;
+const formatDuration = (ms: number) => {
+  const seconds = Math.round(ms / 1000);
+  return seconds < 60
+    ? `${seconds}s`
+    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 };
 
 const UserMessage: FC = () => (
@@ -76,16 +44,66 @@ const UserMessage: FC = () => (
   </MessagePrimitive.Root>
 );
 
-const AssistantMessage: FC = () => (
+const SystemMessage: FC = () => (
   <MessagePrimitive.Root
-    data-role="assistant"
-    className="text-foreground leading-relaxed"
+    data-role="system"
+    className="text-muted-foreground text-center text-xs"
   >
-    <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+    <MessagePrimitive.Parts />
   </MessagePrimitive.Root>
 );
 
-const MESSAGE_COMPONENTS: MessageComponents = { UserMessage, AssistantMessage };
+const renderRow: ComponentProps<typeof ThreadPrimitive.Row>["children"] = (
+  info,
+) => {
+  switch (info.type) {
+    case "message":
+      return info.message.role === "system" ? (
+        <SystemMessage />
+      ) : (
+        <UserMessage />
+      );
+    case "turn-end": {
+      const { startedAt, completedAt } = info.row;
+      if (completedAt === undefined) return null;
+      return (
+        <p className="text-muted-foreground text-xs">
+          Worked for {formatDuration(completedAt - startedAt)}
+        </p>
+      );
+    }
+    case "part": {
+      const { part } = info;
+      switch (part.type) {
+        case "group-reasoning":
+          return (
+            <details className="text-muted-foreground text-sm">
+              <summary>Reasoning</summary>
+              {info.children}
+            </details>
+          );
+        case "reasoning":
+          return <p className="whitespace-pre-line">{part.text}</p>;
+        case "text":
+          return (
+            <div className="text-foreground leading-relaxed">
+              <MarkdownText />
+            </div>
+          );
+        case "tool-call":
+          return (
+            part.toolUI ?? (
+              <p className="text-muted-foreground font-mono text-xs">
+                {part.toolName} {part.argsText}
+              </p>
+            )
+          );
+        default:
+          return null;
+      }
+    }
+  }
+};
 
 const Composer: FC = () => (
   <ComposerPrimitive.Root className="border-border bg-background focus-within:ring-ring flex items-end rounded-xl border shadow-sm focus-within:ring-1">
@@ -105,9 +123,8 @@ const Composer: FC = () => (
 );
 
 export const VirtualizedThread: FC = () => {
-  const messages = useThreadMessageRows();
+  const rows = useAuiState(selectRows);
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const turns = useMemo(() => buildTurns(messages), [messages]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -115,36 +132,34 @@ export const VirtualizedThread: FC = () => {
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const virtualizer = useVirtualizer({
-    count: turns.length,
-    estimateSize: () => ESTIMATED_TURN_HEIGHT,
-    getItemKey: (index) => turns[index]!.id,
+    count: rows.length,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    getItemKey: (index) => rows[index]!.key,
     getScrollElement: () => scrollerRef.current,
     initialRect: { height: 800, width: 800 },
     overscan: 4,
-    scrollToFn: (offset, _options, instance) => {
+    scrollToFn: (offset, { adjustments = 0, behavior }, instance) => {
       const el = instance.scrollElement;
       if (!el) return;
+      const top = offset + adjustments;
       if (stickyRef.current) {
         const maxScroll = el.scrollHeight - el.clientHeight;
-        if (
-          maxScroll - el.scrollTop <= AT_BOTTOM_THRESHOLD &&
-          offset < maxScroll
-        )
+        if (maxScroll - el.scrollTop <= AT_BOTTOM_THRESHOLD && top < maxScroll)
           return;
       }
-      el.scrollTo(0, offset);
+      el.scrollTo({ top, ...(behavior && { behavior }) });
     },
   });
 
   const jumpToBottom = useCallback(() => {
     stickyRef.current = true;
-    if (turns.length > 0)
-      virtualizer.scrollToIndex(turns.length - 1, { align: "end" });
+    if (rows.length > 0)
+      virtualizer.scrollToIndex(rows.length - 1, { align: "end" });
     requestAnimationFrame(() => {
       const el = scrollerRef.current;
       if (el && stickyRef.current) el.scrollTop = el.scrollHeight;
     });
-  }, [turns.length, virtualizer]);
+  }, [rows.length, virtualizer]);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -204,10 +219,10 @@ export const VirtualizedThread: FC = () => {
 
   const didInitialJumpRef = useRef(false);
   useLayoutEffect(() => {
-    if (didInitialJumpRef.current || turns.length === 0) return;
+    if (didInitialJumpRef.current || rows.length === 0) return;
     didInitialJumpRef.current = true;
     jumpToBottom();
-  }, [turns.length, jumpToBottom]);
+  }, [rows.length, jumpToBottom]);
 
   const items = virtualizer.getVirtualItems();
   const paddingTop = items[0]?.start ?? 0;
@@ -229,15 +244,11 @@ export const VirtualizedThread: FC = () => {
                 key={item.key}
                 data-index={item.index}
                 ref={virtualizer.measureElement}
-                className="flex flex-col gap-4 py-3"
+                className="py-2"
               >
-                {turns[item.index]!.messageIds.map((messageId) => (
-                  <ThreadPrimitive.Unstable_MessageById
-                    key={messageId}
-                    messageId={messageId}
-                    components={MESSAGE_COMPONENTS}
-                  />
-                ))}
+                <ThreadPrimitive.Row row={rows[item.index]!}>
+                  {renderRow}
+                </ThreadPrimitive.Row>
               </div>
             ))}
           </div>

@@ -85,7 +85,7 @@ Ids are a prefix and 24 characters: `thread_0…`, `msg_0…`, `run_0…`, `scor
 
 ## Errors
 
-Errors return JSON. The message is in a string `error`, such as `{ "error": "Thread not found" }`, except for the `/v1/mcp` transport's `406` response, which uses a JSON-RPC error object as [MCP](/docs/cloud/api/mcp) describes. Branch on the status code, not the text: the message is for people. A body or query that fails the route's schema answers 400 with `{ "error": "Schema validation error", "details": […] }`, where `details` lists the failed checks. The 402 and 429 bodies below carry more fields beside `error`, and an unexpected failure answers 500 with `{ "error": "Internal Server Error" }`.
+Errors return JSON. The message is in a string `error`, such as `{ "error": "Thread not found" }`, except for the `/v1/mcp` transport's `401` and `406` responses, which [MCP](/docs/cloud/api/mcp) describes. Branch on the status code, not the text: the message is for people. A body or query that fails the route's schema answers 400 with `{ "error": "Schema validation error", "details": […] }`, where `details` lists the failed checks. An unknown route answers 404 with `{ "error": "Not Found" }`. The 402 and 429 bodies below carry more fields beside `error`, and an unexpected failure answers 500 with `{ "error": "Internal Server Error" }`.
 
 | Status | When |
 |---|---|
@@ -93,7 +93,7 @@ Errors return JSON. The message is in a string `error`, such as `{ "error": "Thr
 | 401 | No or malformed `Authorization`, an expired token, a token not yet valid |
 | 402 | `{ "error": "plan_limit_reached", "plan", "cap", "period_end" }`: a new end user past the plan's active user cap, on `POST /v1/threads/{thread_id}/messages` with a user message only |
 | 403 | A credential on the wrong host, an unknown or expired key, an invalid token, a rule that matches no token, a route the credential may not use, anonymous access turned off, an anonymous caller claiming threads |
-| 404 | `Thread not found`, `Message not found`, `Messages not found`, `Run not found`, `Assistant not found`, `Attachment not found`, `Project not found` |
+| 404 | `Thread not found`, `Message not found`, `Messages not found`, `Run not found`, `Assistant not found`, `Attachment not found`, `Project not found`, and `Not Found` for an unknown route |
 | 405 | Any method other than `POST` on `/v1/mcp` |
 | 409 | `Message role cannot change` |
 | 413, 415 | A trace export over 4 MB, or in a content type or encoding the receiver does not take |
