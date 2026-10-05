@@ -6,6 +6,7 @@ import {
   type VNodeChild,
 } from "vue";
 import { isMcpAppUri } from "@assistant-ui/core";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import {
   resolveToolCallText,
   type PartMethods,
@@ -64,7 +65,7 @@ export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
   slots: Object as SlotsType<Record<string, (() => VNodeChild[]) | undefined>>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.message.parts.length);
+    const partKeys = useAuiState((s) => getMessagePartKeys(s.message.parts));
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
@@ -156,12 +157,8 @@ export const MessagePrimitiveParts = defineComponent({
       },
     });
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
-        h(
-          PartByIndexProvider,
-          { index, key: index },
-          { default: () => h(PartView) },
-        ),
+      partKeys.value.map((key, index) =>
+        h(PartByIndexProvider, { index, key }, { default: () => h(PartView) }),
       );
   },
 });

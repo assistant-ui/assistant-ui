@@ -10,6 +10,7 @@ import {
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
+import { getSuggestionKeys } from "@assistant-ui/core/internal";
 import {
   suggestionSendMode,
   suggestionTriggerDisabled,
@@ -78,12 +79,13 @@ export const ThreadPrimitiveSuggestions = defineComponent({
   name: "ThreadPrimitiveSuggestions",
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.suggestions.suggestions.length);
+    const suggestions = useAuiState((s) => s.suggestions.suggestions);
+    const suggestionKeys = computed(() => getSuggestionKeys(suggestions.value));
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      suggestionKeys.value.map((key, index) =>
         h(
           SuggestionByIndexProvider,
-          { index, key: index },
+          { index, key },
           { default: () => slots.default?.() },
         ),
       );
