@@ -56,10 +56,10 @@
     "oxlint": "^1.86.0",
     "pkg-pr-new": "^0.0.88",
     "sharp": "^0.35.5",
-    "turbo": "^2.11.5",
+    "turbo": "^2.11.7",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@12.4.2",
+  "packageManager": "pnpm@12.9.1",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",
