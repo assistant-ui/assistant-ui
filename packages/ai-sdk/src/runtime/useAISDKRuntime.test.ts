@@ -1783,12 +1783,12 @@ describe("useAISDKRuntime", () => {
     });
   });
 
-  it("keeps an inline suggestion adapter stable across rerenders", async () => {
-    let resolveComplete!: (value: readonly string[]) => void;
-    const complete = vi.fn(
-      ({ signal: _signal }: { prompt: string; signal?: AbortSignal }) =>
-        new Promise<readonly string[]>((resolve) => {
-          resolveComplete = resolve;
+  it("keeps a keyless inline suggestion adapter stable across rerenders", async () => {
+    let resolveGenerate!: (value: readonly { prompt: string }[]) => void;
+    const generate = vi.fn(
+      ({ signal: _signal }: { signal?: AbortSignal }) =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveGenerate = resolve;
         }),
     );
     const chat = createChatHelpers([
@@ -1805,7 +1805,13 @@ describe("useAISDKRuntime", () => {
         chat.status = status;
         return useAISDKRuntime(chat, {
           adapters: {
-            suggestion: createSuggestionAdapter({ complete }),
+            suggestion: {
+              async generate({ signal }) {
+                return generate({
+                  ...(signal !== undefined && { signal }),
+                });
+              },
+            },
           },
         });
       },
@@ -1813,14 +1819,14 @@ describe("useAISDKRuntime", () => {
     );
 
     rerender({ status: "ready" });
-    await waitFor(() => expect(complete).toHaveBeenCalledOnce());
-    const signal = complete.mock.calls[0]![0].signal;
+    await waitFor(() => expect(generate).toHaveBeenCalledOnce());
+    const signal = generate.mock.calls[0]![0].signal;
 
     rerender({ status: "ready" });
-    expect(complete).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce();
     expect(signal?.aborted).toBe(false);
 
-    resolveComplete(["next"]);
+    resolveGenerate([{ prompt: "next" }]);
     await waitFor(() => {
       expect(result.current.thread.getState().suggestions).toEqual([
         { prompt: "next" },
@@ -1829,7 +1835,7 @@ describe("useAISDKRuntime", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(complete).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce();
   });
 
   it("does not generate for an inline adapter on mount or parent rerender", async () => {
@@ -1938,9 +1944,9 @@ describe("useAISDKRuntime", () => {
         }),
     );
     const thirdGenerate = vi.fn().mockResolvedValue([{ prompt: "third" }]);
-    const firstAdapter = { generate: firstGenerate };
-    const secondAdapter = { generate: secondGenerate };
-    const thirdAdapter = { generate: thirdGenerate };
+    const firstAdapter = { key: "first", generate: firstGenerate };
+    const secondAdapter = { key: "second", generate: secondGenerate };
+    const thirdAdapter = { key: "third", generate: thirdGenerate };
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
       {

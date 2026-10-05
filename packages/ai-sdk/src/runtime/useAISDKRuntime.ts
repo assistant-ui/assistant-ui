@@ -203,19 +203,19 @@ const useGeneratedSuggestions = (
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-  const adapterKey =
-    suggestionAdapter?.key ?? suggestionAdapter?.generate ?? null;
+  const adapterKey = suggestionAdapter?.key;
   const adapterRef = useRef(suggestionAdapter);
   const lastAdapterKeyRef = useRef(adapterKey);
   const adapterReplacedRef = useRef(false);
   useInsertionEffect(() => {
+    const previousAdapter = adapterRef.current;
     adapterRef.current = suggestionAdapter;
     const adapterReplaced =
-      lastAdapterKeyRef.current !== null &&
-      adapterKey !== null &&
+      previousAdapter !== undefined &&
+      suggestionAdapter !== undefined &&
       lastAdapterKeyRef.current !== adapterKey;
     adapterReplacedRef.current ||= adapterReplaced;
-    if (adapterKey === null || adapterReplaced) {
+    if (suggestionAdapter === undefined || adapterReplaced) {
       controllerRef.current?.abort();
     }
     lastAdapterKeyRef.current = adapterKey;

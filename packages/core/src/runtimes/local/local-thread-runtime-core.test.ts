@@ -2840,6 +2840,9 @@ describe("LocalThreadRuntimeCore suggestions", () => {
       },
     };
     const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+    const replacementGenerate = vi
+      .fn()
+      .mockResolvedValue([{ prompt: "replacement" }]);
     const thread = createThread(chatModel, { suggestion: { generate } });
 
     await thread.append(userMessage("hi"));
@@ -2849,14 +2852,83 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     thread.__internal_setOptions({
       adapters: {
         chatModel,
-        suggestion: { generate },
+        suggestion: { generate: replacementGenerate },
       },
     });
 
     expect(signal.aborted).toBe(false);
+    expect(replacementGenerate).not.toHaveBeenCalled();
     resolveSuggestions([{ prompt: "follow up" }]);
     await flush();
     expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+
+  it("regenerates settled suggestions when the adapter key changes", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockResolvedValue([{ prompt: "first" }]);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "first" }]);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+
+    expect(thread.suggestions).toEqual([]);
+    await flush();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+  });
+
+  it("aborts pending suggestions when the adapter key changes", async () => {
+    let resolveFirst!: (value: readonly ThreadSuggestion[]) => void;
+    const firstDeferred = new Promise<readonly ThreadSuggestion[]>(
+      (resolve) => {
+        resolveFirst = resolve;
+      },
+    );
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockReturnValue(firstDeferred);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+
+    expect(firstSignal.aborted).toBe(true);
+    await flush();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+
+    resolveFirst([{ prompt: "stale" }]);
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
   });
 
   it("ignores suggestion generation from a superseded run", async () => {
