@@ -33,7 +33,9 @@ OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 ### Install the styled components
 
-Add the Vue assistant-ui registry once in `components.json`:
+The styled components install with the [shadcn-vue](https://www.shadcn-vue.com) CLI. If the app does not use shadcn-vue yet, set up Tailwind CSS and run `npx shadcn-vue@latest init` as the [shadcn-vue Nuxt guide](https://www.shadcn-vue.com/docs/installation/nuxt) describes.
+
+Then add the assistant-ui registry once in `components.json`:
 
 ```json title="components.json"
 {
@@ -46,10 +48,10 @@ Add the Vue assistant-ui registry once in `components.json`:
 Install the chat surface:
 
 ```sh
-npx shadcn@latest add @assistant-ui/thread @assistant-ui/thread-list
+npx shadcn-vue@latest add @assistant-ui/thread @assistant-ui/thread-list
 ```
 
-This writes Vue components under `components/assistant-ui`. The registry installs their assistant-ui, Vue, and UI dependencies.
+This writes the Vue components to `app/components/assistant-ui` and installs their dependencies.
 
   </Step>
   <Step>
