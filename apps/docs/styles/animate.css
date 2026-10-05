@@ -218,3 +218,202 @@
       color-mix(in oklab, var(--foreground) 14%, transparent);
   }
 }
+
+@keyframes nav-glyph-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes nav-glyph-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes nav-glyph-blip {
+  from {
+    opacity: 1;
+    stroke-dashoffset: 9;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes nav-glyph-march {
+  to {
+    stroke-dashoffset: -8;
+  }
+}
+
+@keyframes nav-glyph-pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes nav-glyph-spin {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.3);
+  }
+}
+
+@keyframes nav-glyph-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes nav-glyph-settle {
+  40% {
+    transform: translateY(0.8px);
+  }
+}
+
+@keyframes nav-glyph-shift {
+  50% {
+    transform: translate(var(--glyph-dx, 0), var(--glyph-dy, 0));
+  }
+}
+
+@keyframes nav-glyph-bob {
+  40% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes nav-glyph-tilt {
+  40% {
+    transform: rotate(-9deg);
+  }
+}
+
+@keyframes nav-glyph-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes nav-glyph-twinkle {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes nav-glyph-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes nav-glyph-orbit {
+  25% {
+    transform: translate(-4px, -1.2px);
+  }
+  50% {
+    transform: translate(4px, -1.2px);
+  }
+  75% {
+    transform: translate(4px, 1.2px);
+  }
+}
+
+[data-glyph-motion] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+[data-glyph-motion="draw"] {
+  --glyph-animation: nav-glyph-draw 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  stroke-dasharray: 100;
+}
+
+[data-glyph-motion="fade"] {
+  --glyph-animation: nav-glyph-fade 0.6s ease-out both;
+}
+
+[data-glyph-motion="blip"] {
+  --glyph-animation: nav-glyph-blip 1.3s linear infinite;
+  opacity: 0;
+  stroke-dasharray: 9 150;
+  stroke-dashoffset: 9;
+}
+
+[data-glyph-motion="march"] {
+  --glyph-animation: nav-glyph-march 0.6s linear infinite;
+}
+
+[data-glyph-motion="pop"] {
+  --glyph-animation: nav-glyph-pop 0.4s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+[data-glyph-motion="spin"] {
+  --glyph-animation: nav-glyph-spin 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+[data-glyph-motion="drop"] {
+  --glyph-animation: nav-glyph-drop 0.5s cubic-bezier(0.3, 1.35, 0.5, 1) both;
+}
+
+[data-glyph-motion="settle"] {
+  --glyph-animation: nav-glyph-settle 0.35s ease-out both;
+}
+
+[data-glyph-motion="shift"] {
+  --glyph-animation: nav-glyph-shift 0.7s ease-in-out both;
+}
+
+[data-glyph-motion="bob"] {
+  --glyph-animation: nav-glyph-bob 0.6s ease-in-out both;
+}
+
+[data-glyph-motion="tilt"] {
+  --glyph-animation: nav-glyph-tilt 0.7s ease-in-out both;
+}
+
+[data-glyph-motion="rise"] {
+  --glyph-animation: nav-glyph-rise 1.1s ease-in-out infinite;
+}
+
+[data-glyph-motion="twinkle"] {
+  --glyph-animation: nav-glyph-twinkle 1.2s ease-in-out infinite;
+}
+
+[data-glyph-motion="blink"] {
+  --glyph-animation: nav-glyph-blink 0.9s step-end infinite;
+}
+
+[data-glyph-motion="orbit"] {
+  --glyph-animation: nav-glyph-orbit 1.6s ease-in-out infinite;
+}
+
+@media (hover: hover) {
+  .group\/navlink:hover [data-glyph-motion] {
+    animation: var(--glyph-animation);
+    animation-delay: var(--glyph-delay, 0ms);
+  }
+}
+
+.group\/navlink:focus-visible [data-glyph-motion] {
+  animation: var(--glyph-animation);
+  animation-delay: var(--glyph-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-glyph-motion] {
+    animation: none !important;
+  }
+}
