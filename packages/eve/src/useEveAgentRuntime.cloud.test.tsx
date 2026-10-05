@@ -135,6 +135,20 @@ const settle = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
+// switchToThread resolves once the thread's runtime mounts, which React 18's act holds back until its callback settles, so the switch starts inside act and settles outside it.
+const settled = () => {};
+
+const switchTo = async (runtime: AssistantRuntime, threadId: string) => {
+  let switched!: Promise<void>;
+  await act(async () => {
+    switched = runtime.threads.switchToThread(threadId);
+    switched.catch(() => {});
+  });
+  await waitFor(() => switched.then(settled, settled));
+  await act(async () => {});
+  await switched;
+};
+
 const setup = (
   options: UseEveAgentRuntimeOptions,
   { strict = false }: { strict?: boolean } = {},
@@ -334,7 +348,7 @@ describe("useEveAgentRuntime with cloud", () => {
       expect(app.runtime().threads.getState().threadIds).toContain("cloud-9"),
     );
 
-    await act(() => app.runtime().threads.switchToThread("cloud-9"));
+    await switchTo(app.runtime(), "cloud-9");
     await settle();
 
     const agent = lastAgent();
@@ -352,7 +366,7 @@ describe("useEveAgentRuntime with cloud", () => {
       expect(app.runtime().threads.getState().threadIds).toContain("cloud-9"),
     );
 
-    await act(() => app.runtime().threads.switchToThread("cloud-9"));
+    await switchTo(app.runtime(), "cloud-9");
     await settle();
 
     const replays = agents
@@ -367,7 +381,7 @@ describe("useEveAgentRuntime with cloud", () => {
     await waitFor(() =>
       expect(app.runtime().threads.getState().threadIds).toContain("cloud-7"),
     );
-    await act(() => app.runtime().threads.switchToThread("cloud-7"));
+    await switchTo(app.runtime(), "cloud-7");
     await settle();
 
     const composer = app.runtime().thread.composer;

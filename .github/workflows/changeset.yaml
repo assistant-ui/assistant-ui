@@ -34,7 +34,7 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-changelog... --filter @assistant-ui/react-devtools...
 
       - name: Create version PR
         id: changesets

@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { highlight } from "codehike/code";
 import { CodeSlideshowClient, type CodeSlideshowClientStep } from "./client";
 
@@ -10,6 +11,15 @@ export type CodeSlideshowStep = {
   cut?: boolean;
 };
 
+async function highlightStep(code: string, language: string) {
+  "use cache";
+  cacheLife("max");
+  return highlight(
+    { value: code, lang: language, meta: "" },
+    "github-from-css",
+  );
+}
+
 export const CodeSlideshow = async ({
   steps,
   testId,
@@ -20,10 +30,7 @@ export const CodeSlideshow = async ({
   const highlighted: CodeSlideshowClientStep[] = await Promise.all(
     steps.map(async ({ language, code, ...rest }) => ({
       ...rest,
-      code: await highlight(
-        { value: code, lang: language, meta: "" },
-        "github-from-css",
-      ),
+      code: await highlightStep(code, language),
     })),
   );
 

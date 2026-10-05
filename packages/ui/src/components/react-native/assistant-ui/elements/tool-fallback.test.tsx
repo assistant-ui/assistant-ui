@@ -140,18 +140,67 @@ describe("ToolFallback", () => {
     expect(container.textContent).toBe("Failed search");
   });
 
-  it("shows the arguments while a decision is pending and drops them once it resolves", async () => {
+  it("shows the arguments while a decision is pending and a receipt once it resolves", async () => {
     await renderTool({ approval: pendingApproval });
     expect(container.textContent).toContain('{"query":"docs"}');
     expect(buttonNames()).toEqual(["Allow", "Deny"]);
 
     await renderTool({ approval: { ...pendingApproval, approved: true } });
-    expect(container.textContent).toBe("Waiting on search");
+    expect(container.textContent).toBe("Waiting on searchAllowed");
 
     await renderTool({
       approval: { ...pendingApproval, resolution: "expired" },
     });
     expect(buttonNames()).toEqual([]);
+    expect(container.textContent).toContain("Expired before a decision");
+  });
+
+  it("keeps the receipt of a settled approval after the call completes", async () => {
+    await renderTool({
+      status: { type: "complete" },
+      approval: {
+        id: "req_1",
+        approved: true,
+        optionId: "always",
+        options: [{ id: "always", kind: "allow-always" }],
+      },
+    });
+    expect(container.textContent).toBe("Used searchAllowed · Always allow");
+
+    await renderTool({
+      status: { type: "incomplete", reason: "error" },
+      approval: { id: "req_1", approved: false, text: "Not on production" },
+    });
+    expect(container.textContent).toContain("Denied");
+    expect(container.textContent).toContain("Not on production");
+  });
+
+  it("records answers to questions as answers, not decisions", async () => {
+    await renderTool({
+      status: { type: "complete" },
+      approval: {
+        id: "req_1",
+        prompt: "Which environment?",
+        display: "select",
+        approved: true,
+        optionId: "staging",
+        options: [{ id: "staging", kind: "_staging", label: "Staging" }],
+      },
+    });
+    expect(container.textContent).toBe(
+      "Used searchWhich environment?Answered · Staging",
+    );
+
+    await renderTool({
+      status: { type: "complete" },
+      approval: {
+        id: "req_1",
+        display: "text",
+        dismissible: true,
+        approved: false,
+      },
+    });
+    expect(container.textContent).toBe("Used searchDismissed");
   });
 
   it("does not offer a fabricated result for an unprojected interrupt", async () => {
@@ -551,5 +600,112 @@ describe("ToolFallbackApproval", () => {
 
     expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  describe('display "questions"', () => {
+    const questions = [
+      {
+        id: "scope",
+        header: "Scope",
+        prompt: "Which files?",
+        options: [
+          { id: "src", label: "src" },
+          { id: "tests", label: "tests" },
+        ],
+        multiple: true,
+      },
+      { id: "note", prompt: "Anything else?" },
+    ];
+
+    it("sends every question's answer once each is answered, without an allow or deny path", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      await show(
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, display: "questions", questions }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      expect(buttonNames()).toEqual(["src", "tests", "Send"]);
+      expect(isDisabled("Send")).toBe(true);
+
+      await press("src");
+      await press("tests");
+      expect(button("src")?.getAttribute("aria-pressed")).toBe("true");
+      expect(isDisabled("Send")).toBe(true);
+      await type("Anything else?", "keep it short");
+      expect(isDisabled("Send")).toBe(false);
+
+      await press("Send");
+      await settle();
+      expect(respondToApproval).toHaveBeenCalledWith({
+        answers: {
+          scope: { optionIds: ["src", "tests"] },
+          note: { text: "keep it short" },
+        },
+      });
+    });
+
+    it("renders a pending questionnaire and its settled answers through the tool fallback", async () => {
+      await renderTool({
+        status: { type: "requires-action", reason: "interrupt" },
+        approval: { ...pendingApproval, display: "questions", questions },
+      } as never);
+      expect(buttonNames()).toContain("Send");
+      expect(buttonNames()).not.toContain("Allow");
+
+      await renderTool({
+        status: { type: "complete" },
+        approval: {
+          ...pendingApproval,
+          display: "questions",
+          questions,
+          approved: true,
+          answers: { scope: { optionIds: ["tests"] }, note: { text: "ok" } },
+        },
+      } as never);
+      expect(container.textContent).toContain("Scope · tests");
+      expect(buttonNames()).not.toContain("Send");
+    });
+
+    it("offers a dismissal only when the request is dismissible", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      await show(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            dismissible: true,
+            questions,
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      await press("Dismiss");
+      await settle();
+      expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+    });
+
+    it("records each answer under its question once answered", async () => {
+      await show(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions,
+            approved: true,
+            answers: {
+              scope: { optionIds: ["src"] },
+              note: { text: "keep it short" },
+            },
+          }}
+        />,
+      );
+
+      expect(container.textContent).toContain("Answered");
+      expect(container.textContent).toContain("Scope · src");
+      expect(container.textContent).toContain("Anything else? · keep it short");
+    });
   });
 });

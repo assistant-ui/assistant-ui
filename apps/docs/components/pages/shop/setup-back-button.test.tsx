@@ -6,7 +6,7 @@ import { SetupBackdropButton } from "./setup-back-button";
 import { SetupNavigationProvider } from "../../shared/setup-navigation";
 
 const navigation = vi.hoisted(() => ({
-  pathname: "/shop/setup",
+  pathname: "/components/setup",
   back: vi.fn(),
   replace: vi.fn(),
 }));
@@ -32,7 +32,7 @@ const app = () =>
     </SetupNavigationProvider>,
   );
 beforeEach(() => {
-  sessionStorage.setItem("aui-setup-return-to", "/shop");
+  sessionStorage.setItem("aui-setup-return-to", "/components");
   store.session = { id: "test-session" };
 });
 afterEach(cleanup);
@@ -43,7 +43,7 @@ describe("SetupBackdropButton", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Back, setup keeps running" }),
     );
-    expect(navigation.replace).toHaveBeenCalledWith("/shop");
+    expect(navigation.replace).toHaveBeenCalledWith("/components");
   });
 
   it("does not leave on Escape", () => {
