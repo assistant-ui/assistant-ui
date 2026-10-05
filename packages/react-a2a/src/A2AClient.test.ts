@@ -1193,6 +1193,31 @@ describe("A2AClient", () => {
       ).resolves.toHaveLength(1);
     });
 
+    it("releases the response reader when decoder limits are invalid", async () => {
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({ cancel });
+      fetchMock.mockResolvedValueOnce(
+        new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+      const limitedClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        maxStreamLineLength: 0,
+      });
+      const consume = async () => {
+        for await (const _event of limitedClient.streamMessage(userMessage)) {
+          void _event;
+        }
+      };
+
+      await expect(consume()).rejects.toThrow(
+        "maxLineLength must be a positive safe integer",
+      );
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(body.locked).toBe(false);
+    });
+
     it("drops a wrapped task or message whose ids are not strings", async () => {
       const frames = [
         {

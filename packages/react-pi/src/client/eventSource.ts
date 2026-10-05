@@ -17,7 +17,7 @@
  *
  * Browser-safe: imports no `@earendil-works/pi-*`.
  */
-import { SSEEventDecoder } from "assistant-stream/utils";
+import { SSEEventDecoder, SSEEventDecoderError } from "assistant-stream/utils";
 import { isRecord } from "@assistant-ui/core/internal";
 import { isKnownPiClientEventType } from "../eventTypes";
 import type { PiAnyClientEvent } from "../types";
@@ -66,8 +66,8 @@ export interface PiEventStreamOptions {
   onEvent: (event: PiAnyClientEvent) => void;
   /** Called after each successful SSE response is opened, before events. */
   onConnect?: () => void;
-  /** Non-fatal stream errors (network drop, bad JSON, reconnect-delay failures).
-   * The loop reconnects after each; surface these for logging, not control flow. */
+  /** Stream errors surfaced for logging. Transport failures reconnect; decoder
+   * configuration and size-limit failures terminate the connection. */
   onError?: (error: unknown) => void;
   /** Injected `fetch` (defaults to the global). */
   fetchImpl?: typeof fetch;
@@ -345,6 +345,10 @@ export const createPiEventStreamConnection = (
   const run = async () => {
     while (!closed) {
       try {
+        const sseDecoder = createSseDecoder({
+          maxLineLength: maxStreamLineLength,
+          maxEventLength: maxStreamEventLength,
+        });
         const requestUrl =
           needsSnapshotRecovery && snapshotRecoveryUrl
             ? snapshotRecoveryUrl
@@ -361,10 +365,6 @@ export const createPiEventStreamConnection = (
         validateEventStreamContentType(response);
         emitConnect();
 
-        const sseDecoder = createSseDecoder({
-          maxLineLength: maxStreamLineLength,
-          maxEventLength: maxStreamEventLength,
-        });
         const reader = response.body.getReader();
         const textDecoder = new TextDecoder();
         const handleFrame = (frame: { event?: string; data: string }) => {
@@ -425,8 +425,10 @@ export const createPiEventStreamConnection = (
         }
       } catch (error) {
         if (closed || abort.signal.aborted) break;
-        reconnectPending = true;
+        const terminal = error instanceof SSEEventDecoderError;
+        reconnectPending = !terminal;
         reportError(error);
+        if (terminal) break;
       }
       if (closed) break;
       needsSnapshotRecovery = true;

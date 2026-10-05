@@ -8,6 +8,19 @@ export type SSEEvent = {
 const DEFAULT_MAX_LINE_LENGTH = 16 * 1024 * 1024;
 const DEFAULT_MAX_EVENT_LENGTH = 16 * 1024 * 1024;
 
+export class SSEEventDecoderError extends Error {
+  readonly code: "invalid-limit" | "line-too-long" | "event-too-long";
+
+  constructor(
+    code: "invalid-limit" | "line-too-long" | "event-too-long",
+    message: string,
+  ) {
+    super(message);
+    this.name = "SSEEventDecoderError";
+    this.code = code;
+  }
+}
+
 export type SSEEventDecoderOptions = {
   trailing?: "drop" | "dispatch";
   /** Maximum UTF-16 code units retained for one unterminated SSE line. */
@@ -23,7 +36,10 @@ const readLimit = (
 ) => {
   const limit = value ?? fallback;
   if (!Number.isSafeInteger(limit) || limit <= 0) {
-    throw new RangeError(`${name} must be a positive safe integer`);
+    throw new SSEEventDecoderError(
+      "invalid-limit",
+      `${name} must be a positive safe integer`,
+    );
   }
   return limit;
 };
@@ -84,7 +100,8 @@ export class SSEEventDecoder {
       } else if (line.length > this.maxLineLength) {
         this.resetFrame();
         this.resetLine();
-        throw new Error(
+        throw new SSEEventDecoderError(
+          "line-too-long",
           `SSE line exceeds maxLineLength (${line.length} > ${this.maxLineLength})`,
         );
       }
@@ -128,7 +145,8 @@ export class SSEEventDecoder {
           this.eventLength + value.length + (this.dataLines.length > 0 ? 1 : 0);
         if (nextEventLength > this.maxEventLength) {
           this.resetFrame();
-          throw new Error(
+          throw new SSEEventDecoderError(
+            "event-too-long",
             `SSE event exceeds maxEventLength (${nextEventLength} > ${this.maxEventLength})`,
           );
         }
@@ -179,7 +197,8 @@ export class SSEEventDecoder {
     if (nextLineLength > this.maxLineLength) {
       this.resetFrame();
       this.resetLine();
-      throw new Error(
+      throw new SSEEventDecoderError(
+        "line-too-long",
         `SSE line exceeds maxLineLength (${nextLineLength} > ${this.maxLineLength})`,
       );
     }
@@ -198,7 +217,8 @@ export class SSEEventDecoder {
       if (nextEventLength > this.maxEventLength) {
         this.resetFrame();
         this.resetLine();
-        throw new Error(
+        throw new SSEEventDecoderError(
+          "event-too-long",
           `SSE event exceeds maxEventLength (${nextEventLength} > ${this.maxEventLength})`,
         );
       }

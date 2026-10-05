@@ -635,6 +635,29 @@ describe("createAdkStream - SSE parsing", () => {
     ).resolves.toEqual([event]);
   });
 
+  it("releases the response reader when decoder limits are invalid", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
+    const stream = createAdkStream({
+      api: "/api/adk",
+      maxStreamLineLength: 0,
+    });
+    const consume = async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _event of gen) void _event;
+    };
+
+    await expect(consume()).rejects.toThrow(
+      "maxLineLength must be a positive safe integer",
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(body.locked).toBe(false);
+  });
+
   it.each(["{}", "null", "[]", '["event"]', '"event"'])(
     "rejects empty or non-object stream events: %s",
     async (payload) => {

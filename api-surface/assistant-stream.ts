@@ -715,6 +715,11 @@ declare class SSEEventDecoder {
   flush(): SSEEvent | null;
 }
 
+declare class SSEEventDecoderError extends Error {
+  readonly code: "event-too-long" | "invalid-limit" | "line-too-long";
+  constructor(code: "event-too-long" | "invalid-limit" | "line-too-long", message: string);
+}
+
 type SSEEventDecoderOptions = {
   trailing?: "dispatch" | "drop";
   maxLineLength?: number | undefined;
@@ -1150,7 +1155,7 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
 declare namespace entry_utils_exports {
-  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, SSEEventDecoderOptions, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, SSEEventDecoderError, SSEEventDecoderOptions, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
 export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

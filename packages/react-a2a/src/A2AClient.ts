@@ -1120,10 +1120,6 @@ export class A2AClient {
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    const sseDecoder = new SSEEventDecoder({
-      maxLineLength: this.maxStreamLineLength,
-      maxEventLength: this.maxStreamEventLength,
-    });
 
     let firstSkipReason: string | undefined;
     const noteSkip = (data: string, reason: string) => {
@@ -1159,6 +1155,10 @@ export class A2AClient {
 
     let shouldCancel = true;
     try {
+      const sseDecoder = new SSEEventDecoder({
+        maxLineLength: this.maxStreamLineLength,
+        maxEventLength: this.maxStreamEventLength,
+      });
       while (true) {
         let result: ReadableStreamReadResult<Uint8Array>;
         try {

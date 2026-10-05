@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SSEEventDecoder } from "./SSEEventDecoder";
+import { SSEEventDecoder, SSEEventDecoderError } from "./SSEEventDecoder";
 
 describe("SSEEventDecoder", () => {
   it("decodes LF terminated events", () => {
@@ -234,8 +234,8 @@ describe("SSEEventDecoder", () => {
   });
 
   it("validates configured limits", () => {
-    expect(() => new SSEEventDecoder({ maxLineLength: 0 })).toThrow(
-      "maxLineLength must be a positive safe integer",
+    expect(() => new SSEEventDecoder({ maxLineLength: 0 })).toThrowError(
+      SSEEventDecoderError,
     );
     expect(() => new SSEEventDecoder({ maxEventLength: Infinity })).toThrow(
       "maxEventLength must be a positive safe integer",

@@ -273,14 +273,14 @@ async function* parseSSEResponse(
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  const sseDecoder = new SSEEventDecoder({
-    trailing: "dispatch",
-    maxLineLength: options.maxStreamLineLength,
-    maxEventLength: options.maxStreamEventLength,
-  });
 
   let shouldCancel = true;
   try {
+    const sseDecoder = new SSEEventDecoder({
+      trailing: "dispatch",
+      maxLineLength: options.maxStreamLineLength,
+      maxEventLength: options.maxStreamEventLength,
+    });
     while (true) {
       let result: ReadableStreamReadResult<Uint8Array>;
       try {
