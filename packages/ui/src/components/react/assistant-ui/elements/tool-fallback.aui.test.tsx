@@ -1094,6 +1094,59 @@ describe("ToolFallbackApproval", () => {
 });
 
 describe("approval request state", () => {
+  it("preserves questionnaire answers for the same request and resets them for a new request", () => {
+    const approval = {
+      ...pendingApproval,
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Scope",
+          options: [{ id: "src", label: "src" }],
+        },
+        { id: "note", prompt: "Notes" },
+      ],
+    };
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("src"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Notes" }), {
+      target: { value: "first request" },
+    });
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, prompt: "Updated prompt" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("src").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      (screen.getByRole("textbox", { name: "Notes" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe("first request");
+    expect(button("Send").disabled).toBe(false);
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("src").getAttribute("aria-pressed")).toBe("false");
+    expect(
+      (screen.getByRole("textbox", { name: "Notes" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe("");
+    expect(button("Send").disabled).toBe(true);
+    expect(respondToApproval).not.toHaveBeenCalled();
+  });
+
   const confirmationApproval = {
     ...pendingApproval,
     options: [{ id: "once", kind: "allow-once", confirm: true }],

@@ -729,6 +729,51 @@ describe("ToolFallbackApproval", () => {
 });
 
 describe("approval request state", () => {
+  it("preserves questionnaire answers for the same request and resets them for a new request", async () => {
+    const approval = {
+      ...pendingApproval,
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Scope",
+          options: [{ id: "src", label: "src" }],
+        },
+        { id: "note", prompt: "Notes" },
+      ],
+    };
+    const respondToApproval = vi.fn(async () => {});
+    await show(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    await press("src");
+    await type("Notes", "first request");
+
+    await show(
+      <ToolFallbackApproval
+        approval={{ ...approval, prompt: "Updated prompt" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("src")?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector("textarea")?.value).toBe("first request");
+    expect(isDisabled("Send")).toBe(false);
+
+    await show(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("src")?.getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector("textarea")?.value).toBe("");
+    expect(isDisabled("Send")).toBe(true);
+    expect(respondToApproval).not.toHaveBeenCalled();
+  });
+
   it.each(["default", "composed"])(
     "clears the submission lock for a new request in the %s renderer",
     async (renderer) => {
