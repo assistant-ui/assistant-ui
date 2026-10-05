@@ -49,6 +49,7 @@ export class LineDecoderStream extends TransformStream<string, string> {
   private append(value: string, maxLineLength: number) {
     const nextLength = this.buffer.length + value.length;
     if (nextLength > maxLineLength) {
+      this.buffer = "";
       throw new Error(
         `Stream line exceeds maxLineLength (${nextLength} > ${maxLineLength})`,
       );

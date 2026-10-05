@@ -114,11 +114,11 @@ describe("LineDecoderStream", () => {
 
   it("should reject a fragmented line that exceeds the configured limit", async () => {
     const stream = createTextStream(["1234", "5"]);
-    await expect(
-      collectLines(
-        stream.pipeThrough(new LineDecoderStream({ maxLineLength: 4 })),
-      ),
-    ).rejects.toThrow("Stream line exceeds maxLineLength (5 > 4)");
+    const decoder = new LineDecoderStream({ maxLineLength: 4 });
+    await expect(collectLines(stream.pipeThrough(decoder))).rejects.toThrow(
+      "Stream line exceeds maxLineLength (5 > 4)",
+    );
+    expect((decoder as unknown as { buffer: string }).buffer).toBe("");
   });
 
   it("should reject a complete line that exceeds the configured limit", async () => {
