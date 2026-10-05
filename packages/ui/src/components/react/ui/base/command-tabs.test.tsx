@@ -6,10 +6,17 @@ import { CommandTabs as RadixCommandTabs } from "../radix/command-tabs";
 
 const onReact18 = version.startsWith("18.");
 
-vi.mock("react-shiki", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react-shiki")>()),
+const mocks = vi.hoisted(() => ({
   useShikiHighlighter: vi.fn(() => null),
 }));
+
+vi.mock("react-shiki", async (importOriginal) => {
+  const original = await importOriginal<typeof import("react-shiki")>();
+  return {
+    ...original,
+    useShikiHighlighter: mocks.useShikiHighlighter,
+  };
+});
 
 const flavors = [
   ["base", BaseCommandTabs],
@@ -60,6 +67,52 @@ describe.each(flavors)(
 
       await act(async () => vi.advanceTimersByTimeAsync(1000));
       expect(isCopied()).toBe(false);
+    });
+
+    it("keeps the newer successful write timer when an older write settles later", async () => {
+      let resolveOlder!: () => void;
+      let resolveNewer!: () => void;
+      const older = new Promise<void>((resolve) => {
+        resolveOlder = resolve;
+      });
+      const newer = new Promise<void>((resolve) => {
+        resolveNewer = resolve;
+      });
+      const writeText = vi
+        .fn()
+        .mockImplementationOnce(() => older)
+        .mockImplementationOnce(() => newer);
+      stubClipboard(writeText);
+      renderTabs();
+
+      await clickCopy();
+      await clickCopy();
+      await act(async () => resolveNewer());
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      await act(async () => resolveOlder());
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+
+      expect(isCopied()).toBe(false);
+    });
+
+    it("accepts an older success after a newer write rejects", async () => {
+      let resolveOlder!: () => void;
+      const older = new Promise<void>((resolve) => {
+        resolveOlder = resolve;
+      });
+      const writeText = vi
+        .fn()
+        .mockImplementationOnce(() => older)
+        .mockRejectedValueOnce(new Error("copy failed"));
+      stubClipboard(writeText);
+      renderTabs();
+
+      await clickCopy();
+      await clickCopy();
+      await act(async () => resolveOlder());
+
+      expect(isCopied()).toBe(true);
+      expect(vi.getTimerCount()).toBe(1);
     });
 
     it("cancels its pending reset timer on unmount", async () => {
