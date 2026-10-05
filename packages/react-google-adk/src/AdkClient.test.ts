@@ -603,6 +603,38 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected[1]!.id).toBe("e2");
   });
 
+  it("forwards configurable SSE line and event limits", async () => {
+    const event: AdkEvent = {
+      id: "e1",
+      content: { parts: [{ text: "x".repeat(64) }] },
+    };
+    const text = `data: ${JSON.stringify(event)}\n\n`;
+    const consume = async (options: {
+      maxStreamLineLength: number;
+      maxStreamEventLength: number;
+    }) => {
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
+      const stream = createAdkStream({ api: "/api/adk", ...options });
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      const events: AdkEvent[] = [];
+      for await (const parsedEvent of gen) events.push(parsedEvent);
+      return events;
+    };
+
+    await expect(
+      consume({ maxStreamLineLength: 32, maxStreamEventLength: 1_024 }),
+    ).rejects.toThrow("SSE line exceeds maxLineLength");
+    await expect(
+      consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 32 }),
+    ).rejects.toThrow("SSE event exceeds maxEventLength");
+    await expect(
+      consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 1_024 }),
+    ).resolves.toEqual([event]);
+  });
+
   it.each(["{}", "null", "[]", '["event"]', '"event"'])(
     "rejects empty or non-object stream events: %s",
     async (payload) => {

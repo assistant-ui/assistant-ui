@@ -527,6 +527,55 @@ describe("createPiHttpClient", () => {
     expect(events).toEqual([event]);
   });
 
+  it("forwards configurable SSE line and event limits", async () => {
+    const event: PiAnyClientEvent = {
+      type: "error",
+      threadId: "t1",
+      seq: 1,
+      error: "x".repeat(64),
+    };
+    const consume = (options: {
+      maxStreamLineLength: number;
+      maxStreamEventLength: number;
+    }) =>
+      new Promise<PiAnyClientEvent | Error>((resolve) => {
+        let unsubscribe = () => {};
+        const { fn } = fakeFetch(() => sseResponse(event));
+        const client = createPiHttpClient({
+          fetchImpl: fn,
+          reconnectDelay: () => new Promise(() => {}),
+          streamCloseDelayMs: 0,
+          ...options,
+          onStreamError: (error) => {
+            unsubscribe();
+            resolve(error as Error);
+          },
+        });
+        unsubscribe = client.subscribe("t1", (parsedEvent) => {
+          unsubscribe();
+          resolve(parsedEvent);
+        });
+      });
+
+    await expect(
+      consume({ maxStreamLineLength: 32, maxStreamEventLength: 1_024 }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("SSE line exceeds maxLineLength"),
+      }),
+    );
+    await expect(
+      consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 32 }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("SSE event exceeds maxEventLength"),
+      }),
+    );
+    await expect(
+      consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 1_024 }),
+    ).resolves.toEqual(event);
+  });
+
   it("reconnects promptly when a listener joins during backoff", async () => {
     let finishBackoff!: () => void;
     const reconnectDelay = vi.fn(

@@ -165,6 +165,10 @@ export interface PiHttpClientOptions {
   reconnectDelay?: () => Promise<void>;
   /** Delay before closing an idle shared event stream. Defaults to 30s. */
   streamCloseDelayMs?: number;
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 }
 
 const trimTrailingSlash = (value: string): string =>
@@ -283,6 +287,8 @@ export const createPiHttpClient = (
     onStreamError,
     reconnectDelay,
     streamCloseDelayMs = 30_000,
+    maxStreamLineLength,
+    maxStreamEventLength,
   } = options;
 
   const base = trimTrailingSlash(baseUrl);
@@ -434,6 +440,8 @@ export const createPiHttpClient = (
             ...(headers ? { headers } : {}),
             ...(reconnectDelay ? { reconnectDelay } : {}),
             ...(onStreamError ? { onError: onStreamError } : {}),
+            maxStreamLineLength,
+            maxStreamEventLength,
             onConnect: () => {
               createdStream.reconnectOnReturnAvailable = true;
               createdStream.awaitingLiveSnapshot = true;
@@ -609,6 +617,8 @@ export const createPiHttpClient = (
             ...(headers ? { headers } : {}),
             ...(reconnectDelay ? { reconnectDelay } : {}),
             ...(onStreamError ? { onError: onStreamError } : {}),
+            maxStreamLineLength,
+            maxStreamEventLength,
             onEvent: (event) => {
               if (stream.snapshotLoad !== snapshotLoad) return;
               if (event.type === "snapshot") {

@@ -41,6 +41,12 @@ export type CreateAdkStreamOptions = {
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>)
     | undefined;
+
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 };
 
 /**
@@ -114,7 +120,7 @@ export function createAdkStream(
     }
 
     validateEventStreamContentType(response);
-    yield* parseSSEResponse(response);
+    yield* parseSSEResponse(response, options);
   };
 }
 
@@ -255,13 +261,23 @@ function messagesToProxyBody(
   return body;
 }
 
-async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
+async function* parseSSEResponse(
+  response: Response,
+  options: Pick<
+    CreateAdkStreamOptions,
+    "maxStreamLineLength" | "maxStreamEventLength"
+  >,
+): AsyncGenerator<AdkEvent> {
   if (!response.body) {
     throw new Error("Expected ADK stream response body, received no body");
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
+  const sseDecoder = new SSEEventDecoder({
+    trailing: "dispatch",
+    maxLineLength: options.maxStreamLineLength,
+    maxEventLength: options.maxStreamEventLength,
+  });
 
   let shouldCancel = true;
   try {

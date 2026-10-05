@@ -1050,6 +1050,8 @@ type CreateAdkStreamOptions = {
   appName?: string | undefined;
   userId?: string | undefined;
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) | undefined;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 };
 
 type CreateAppendMessage = string | {

@@ -1149,6 +1149,50 @@ describe("A2AClient", () => {
       expect(evt.event.status.message?.role).toBe("agent");
     });
 
+    it("forwards configurable SSE line and event limits", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: {
+            state: "TASK_STATE_WORKING",
+            message: {
+              message_id: "s1",
+              role: "ROLE_AGENT",
+              parts: [{ text: "x".repeat(64) }],
+            },
+          },
+        },
+      });
+      const consume = async (options: {
+        maxStreamLineLength: number;
+        maxStreamEventLength: number;
+      }) => {
+        fetchMock.mockResolvedValueOnce(
+          mockSSEResponse([`data: ${sseData}`, "", ""]),
+        );
+        const limitedClient = new A2AClient({
+          baseUrl: "https://agent.test",
+          ...options,
+        });
+        const events: A2AStreamEvent[] = [];
+        for await (const event of limitedClient.streamMessage(userMessage)) {
+          events.push(event);
+        }
+        return events;
+      };
+
+      await expect(
+        consume({ maxStreamLineLength: 32, maxStreamEventLength: 1_024 }),
+      ).rejects.toThrow("SSE line exceeds maxLineLength");
+      await expect(
+        consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 32 }),
+      ).rejects.toThrow("SSE event exceeds maxEventLength");
+      await expect(
+        consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 1_024 }),
+      ).resolves.toHaveLength(1);
+    });
+
     it("drops a wrapped task or message whose ids are not strings", async () => {
       const frames = [
         {
