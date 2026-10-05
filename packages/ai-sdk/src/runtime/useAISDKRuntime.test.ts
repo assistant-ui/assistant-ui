@@ -5,7 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
 import { ToolResponse } from "assistant-stream";
 import type { UIMessage } from "@ai-sdk/react";
-import type { MessageFormatRepository } from "@assistant-ui/core";
+import {
+  createSuggestionAdapter,
+  type MessageFormatRepository,
+} from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -1695,6 +1698,138 @@ describe("useAISDKRuntime", () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
     expect(result.current.thread.getState().suggestions).toEqual([]);
+  });
+
+  it("regenerates suggestions when the same adapter is restored", async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce([{ prompt: "first" }])
+      .mockResolvedValueOnce([{ prompt: "second" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, withAdapter }) => {
+        chat.status = status;
+        return useAISDKRuntime(
+          chat,
+          withAdapter ? { adapters: { suggestion: { generate } } } : {},
+        );
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          withAdapter: true,
+        },
+      },
+    );
+
+    rerender({ status: "ready", withAdapter: true });
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "first" },
+      ]);
+    });
+
+    rerender({ status: "ready", withAdapter: false });
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+
+    rerender({ status: "ready", withAdapter: true });
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "second" },
+      ]);
+    });
+  });
+
+  it("preserves the suggestion adapter receiver", async () => {
+    const adapter = {
+      prompt: "bound",
+      async generate() {
+        return [{ prompt: this.prompt }];
+      },
+    };
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: adapter },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "bound" },
+      ]);
+    });
+  });
+
+  it("keeps an inline suggestion adapter stable across rerenders", async () => {
+    let resolveComplete!: (value: readonly string[]) => void;
+    const complete = vi.fn(
+      ({ signal: _signal }: { prompt: string; signal?: AbortSignal }) =>
+        new Promise<readonly string[]>((resolve) => {
+          resolveComplete = resolve;
+        }),
+    );
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: {
+            suggestion: createSuggestionAdapter({ complete }),
+          },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+    await waitFor(() => expect(complete).toHaveBeenCalledOnce());
+    const signal = complete.mock.calls[0]![0].signal;
+
+    rerender({ status: "ready" });
+    expect(complete).toHaveBeenCalledOnce();
+    expect(signal?.aborted).toBe(false);
+
+    resolveComplete(["next"]);
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "next" },
+      ]);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(complete).toHaveBeenCalledOnce();
   });
 
   it("restarts suggestion generation when the adapter changes", async () => {

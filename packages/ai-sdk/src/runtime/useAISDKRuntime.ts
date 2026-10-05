@@ -203,20 +203,32 @@ const useGeneratedSuggestions = (
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-  const adapterRef = useRef(suggestionAdapter);
-  const suggestionGenerateRef = useRef(suggestionAdapter?.generate);
+  const lastGenerateRef = useRef(suggestionAdapter?.generate);
+  // A generator is a replacement key only after it remains stable across renders,
+  // so inline adapter factories do not turn every render into a restart.
+  const stableGenerateRef = useRef<SuggestionAdapter["generate"] | undefined>(
+    undefined,
+  );
+  const adapterReplacedRef = useRef(false);
   useInsertionEffect(() => {
-    const suggestionGenerate = suggestionAdapter?.generate;
-    if (suggestionGenerateRef.current !== suggestionGenerate) {
-      controllerRef.current?.abort();
+    const generate = suggestionAdapter?.generate;
+    if (lastGenerateRef.current === generate) {
+      stableGenerateRef.current = generate;
+    } else {
+      const replacedStableGenerator =
+        lastGenerateRef.current !== undefined &&
+        stableGenerateRef.current === lastGenerateRef.current &&
+        generate !== undefined;
+      stableGenerateRef.current = undefined;
+      adapterReplacedRef.current ||= replacedStableGenerator;
+      if (generate === undefined || replacedStableGenerator) {
+        controllerRef.current?.abort();
+      }
     }
-    suggestionGenerateRef.current = suggestionGenerate;
-    adapterRef.current = suggestionAdapter;
+    lastGenerateRef.current = generate;
   }, [suggestionAdapter]);
-  const activeSuggestionGenerateRef = useRef<
-    SuggestionAdapter["generate"] | undefined
-  >(undefined);
-  const suggestionGenerate = suggestionAdapter?.generate;
+  const hasAdapter = suggestionAdapter !== undefined;
+  const adapterPresentRef = useRef(hasAdapter);
 
   useEffect(() => {
     const clearSuggestions = () => {
@@ -225,17 +237,18 @@ const useGeneratedSuggestions = (
       setSuggestions((prev) => (prev.length === 0 ? prev : EMPTY_SUGGESTIONS));
     };
 
-    const adapter = adapterRef.current;
+    const adapter = suggestionAdapter;
+    const adapterRestored = hasAdapter && !adapterPresentRef.current;
+    adapterPresentRef.current = hasAdapter;
+    const adapterReplaced = adapterReplacedRef.current;
+    adapterReplacedRef.current = false;
     if (!adapter) {
       clearSuggestions();
       wasRunningRef.current = isRunning;
       return;
     }
 
-    const adapterChanged =
-      activeSuggestionGenerateRef.current !== undefined &&
-      activeSuggestionGenerateRef.current !== adapter.generate;
-    if (adapterChanged) clearSuggestions();
+    if (adapterReplaced) clearSuggestions();
 
     if (isRunning) {
       if (!wasRunningRef.current) {
@@ -245,29 +258,21 @@ const useGeneratedSuggestions = (
       return;
     }
 
-    if (!wasRunningRef.current && !adapterChanged) return;
+    if (!wasRunningRef.current && !adapterReplaced && !adapterRestored) return;
     wasRunningRef.current = false;
 
     const currentMessages = messagesRef.current;
     const last = currentMessages.at(-1);
-    if (last?.role !== "assistant") {
-      activeSuggestionGenerateRef.current = undefined;
-      return;
-    }
-    if (last.status?.type === "requires-action") {
-      activeSuggestionGenerateRef.current = undefined;
-      return;
-    }
+    if (last?.role !== "assistant") return;
+    if (last.status?.type === "requires-action") return;
 
     const controller = new AbortController();
     controllerRef.current = controller;
     const { signal } = controller;
-    const generate = adapter.generate;
-    activeSuggestionGenerateRef.current = generate;
 
     void (async () => {
       try {
-        const promiseOrGenerator = generate({
+        const promiseOrGenerator = adapter.generate({
           messages: currentMessages,
           signal,
         });
@@ -275,13 +280,13 @@ const useGeneratedSuggestions = (
         await consumeSuggestionResult(promiseOrGenerator, {
           signal,
           onUpdate: (nextSuggestions) => {
-            if (suggestionGenerateRef.current !== generate) return;
+            if (controllerRef.current !== controller) return;
             setSuggestions(nextSuggestions);
           },
         });
       } catch {}
     })();
-  }, [isRunning, suggestionGenerate]);
+  }, [hasAdapter, isRunning, suggestionAdapter]);
 
   useReplaySafeEffect(() => {
     return () => {
