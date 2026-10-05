@@ -156,7 +156,6 @@ With the deprecated `components` prop, tool call parts resolve in this order:
 3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides
 4. **`tools.mcpApp`**: the generic MCP App renderer registered via `Tools({ mcpApp })`, which claims only a call whose `mcp.app.resourceUri` is a `ui://` app
 5. **`tools.Fallback`**: catch-all for unmatched tool calls
-6. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function
 
 In the children API, `part.toolUI` is the registered tool UI, or `null` when no tool UI is registered for the call. Data parts expose `part.dataRendererUI` the same way:
 
