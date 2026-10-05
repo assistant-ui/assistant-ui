@@ -2,7 +2,7 @@
 
 import { resource, useResource } from "@assistant-ui/tap";
 import { useState } from "react";
-import { generateId, type ChatTransport } from "ai";
+import { generateId } from "ai";
 import type { UIMessage } from "@ai-sdk/react";
 import {
   RuntimeAdapter,
@@ -11,45 +11,22 @@ import {
 import { attachTransformScopes } from "@assistant-ui/store/client";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
 
-export type AISDKChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
-  ChatThreadOptions<UI_MESSAGE>,
-  "transport"
-> & {
-  /**
-   * The transport the chat sends through. An `AssistantChatTransport` is
-   * cloned so its assistant-ui runtime wiring stays private to this chat;
-   * subclasses with additional state should override `__internal_clone()`.
-   * Other transport implementations are used as-is.
-   */
-  transport?: ChatTransport<UI_MESSAGE> | undefined;
-};
+export type AISDKChatOptions<UI_MESSAGE extends UIMessage = UIMessage> =
+  ChatThreadOptions<UI_MESSAGE>;
 
 const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKChatOptions<UI_MESSAGE>,
 ) => {
   const [id] = useState(() => options?.id ?? generateId());
-  const { transport, ...chatOptions } = options ?? {};
-  // The transport resolves the request id from the thread list item, falling
-  // back to the runtime's main item, whose id here is the external store's
-  // placeholder constant. The single thread of this entry is the chat itself,
-  // so the handed-over item initializes to the chat id.
   const [threadListItem] = useState(() => ({
     initialize: async () => ({ remoteId: id, externalId: undefined }),
   }));
-  const runtime = useChatThread(
-    options === undefined
-      ? undefined
-      : {
-          ...chatOptions,
-          ...(transport !== undefined && { transport }),
-        },
-    {
-      id,
-      isMainThread: true,
-      getThreadListItem: () => threadListItem,
-      stopOnClientDestroy: true,
-    },
-  );
+  const runtime = useChatThread(options, {
+    id,
+    isMainThread: true,
+    getThreadListItem: () => threadListItem,
+    stopOnClientDestroy: true,
+  });
   return useResource(RuntimeAdapter(runtime));
 };
 

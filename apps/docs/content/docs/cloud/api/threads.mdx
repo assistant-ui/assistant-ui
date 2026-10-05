@@ -68,7 +68,7 @@ curl https://backend.assistant-api.com/v1/threads \
 |---|---|---|
 | `201` | `{ "thread_id" }` | Created. |
 | `200` | `{ "thread_id" }` | `upsert` was set and a thread with that `external_id` already existed in the workspace. The oldest such thread is answered. |
-| `400` | `{ "success": false, "error": … }` | A field failed validation, or an unknown field was sent. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | A field failed validation, or an unknown field was sent. |
 | `400` | `{ "error": "upsert requires external_id" }` | `upsert` without an `external_id`. |
 
 An upsert is serialized per workspace and external id, so two concurrent creations of the same conversation answer the same thread. Creating a thread also creates the caller's workspace row when it is the first thread of that workspace.
@@ -175,7 +175,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | Status | Body | When |
 |---|---|---|
 | `200` | `{}` | Written. |
-| `400` | `{ "success": false, "error": … }` | A field failed validation, or an unknown field was sent. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | A field failed validation, or an unknown field was sent. |
 | `404` | `{ "error": "Thread not found" }` | No such thread in this workspace. |
 
 ## Delete a thread
@@ -227,8 +227,8 @@ curl https://backend.assistant-api.com/v1/threads/claim \
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "moved": n }` | The threads moved. `0` when the anonymous identity had no workspace, or when the caller is that identity's own workspace. |
-| `403` | Plain text: `Anonymous sessions cannot claim threads` | The caller is an anonymous identity. |
-| `403` | Plain text: `Invalid refresh token format` | The token does not start with `refresh_0`. |
-| `403` | Plain text: `Invalid refresh token` | No live anonymous token of this project matches. |
+| `403` | `{ "error": "Anonymous sessions cannot claim threads" }` | The caller is an anonymous identity. |
+| `403` | `{ "error": "Invalid refresh token format" }` | The token does not start with `refresh_0`. |
+| `403` | `{ "error": "Invalid refresh token" }` | No live anonymous token of this project matches. |
 
 The moved threads keep their ids and messages; only their workspace changes, and the anonymous identity's own workspace is left empty.

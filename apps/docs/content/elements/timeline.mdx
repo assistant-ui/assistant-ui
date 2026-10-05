@@ -3,13 +3,13 @@ title: "Timeline"
 description: "Events on a time axis, with what already happened and what is still coming."
 ---
 
-A sequence of events on a vertical axis, each dated, joined by a connecting line that runs solid through the past and turns hollow once it crosses into the future. With a runtime the events come from a tool result; standalone you hold the event list yourself.
+A sequence of events on a vertical axis, each dated, joined by a connecting line that dims once it crosses into the future, where the dots turn hollow. With a runtime the events come from a tool result; standalone you hold the event list yourself.
 
 ## Getting started
 
 <RuntimeMode>
 
-This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A timeline is usually a genuine lookup against something you track elsewhere, so the events belong on the tool's `result` rather than on its streamed `args`.
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A timeline is usually a lookup against something you track elsewhere, so the events belong on the tool's `result` rather than on its streamed `args`.
 
 <Steps>
   <Step>
@@ -38,7 +38,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Because the whole timeline lands as one result rather than as streamed steps, `visibleCount` is simply `result.events.length`; there is no partial state to size it against.
+Because the whole timeline lands as one result rather than as streamed steps, `visibleCount` is `result.events.length`; there is no partial state to size it against.
 
   </Step>
   <Step>

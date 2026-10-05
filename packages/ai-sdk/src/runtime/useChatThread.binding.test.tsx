@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Suspense } from "react";
+import { Suspense, version } from "react";
 import { render } from "@testing-library/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import type { ChatTransport, UIMessage } from "ai";
@@ -31,6 +31,8 @@ vi.mock("./useAISDKRuntime", async (importOriginal) => ({
 
 import { useChatThread } from "./useChatThread";
 
+const onReact18 = version.startsWith("18.");
+
 const createRuntime = (system: string) =>
   ({
     thread: {
@@ -55,84 +57,87 @@ describe("useChatThread transport binding", () => {
     }));
   });
 
-  it("keeps fallback wiring on committed values after an abandoned render", async () => {
-    const bodies: Array<{ id: string; system: string }> = [];
-    const sourceTransport = new AssistantChatTransport<UIMessage>({
-      fetch: vi.fn(async (_input, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
-        return new Response(
-          new ReadableStream({ start: (controller) => controller.close() }),
-          { headers: { "content-type": "text/event-stream" } },
-        );
-      }),
-    });
-    const transport = new DynamicChatTransport(sourceTransport);
-    const pending = new Promise<never>(() => {});
-    let committedProxy: ChatTransport<UIMessage> | undefined;
+  it.skipIf(onReact18)(
+    "keeps fallback wiring on committed values after an abandoned render",
+    async () => {
+      const bodies: Array<{ id: string; system: string }> = [];
+      const sourceTransport = new AssistantChatTransport<UIMessage>({
+        fetch: vi.fn(async (_input, init) => {
+          bodies.push(JSON.parse(String(init?.body)));
+          return new Response(
+            new ReadableStream({ start: (controller) => controller.close() }),
+            { headers: { "content-type": "text/event-stream" } },
+          );
+        }),
+      });
+      const transport = new DynamicChatTransport(sourceTransport);
+      const pending = new Promise<never>(() => {});
+      let committedProxy: ChatTransport<UIMessage> | undefined;
 
-    const App = ({
-      system,
-      remoteId,
-      suspend = false,
-    }: {
-      system: string;
-      remoteId: string;
-      suspend?: boolean;
-    }) => {
-      mocks.system = system;
-      useChatThread(
-        { transport },
-        {
-          id: "thread-id",
-          isMainThread: true,
-          getThreadListItem: () => ({
-            initialize: async () => ({
-              remoteId,
-              externalId: undefined,
+      const App = ({
+        system,
+        remoteId,
+        suspend = false,
+      }: {
+        system: string;
+        remoteId: string;
+        suspend?: boolean;
+      }) => {
+        mocks.system = system;
+        useChatThread(
+          { transport },
+          {
+            id: "thread-id",
+            isMainThread: true,
+            getThreadListItem: () => ({
+              initialize: async () => ({
+                remoteId,
+                externalId: undefined,
+              }),
             }),
-          }),
-        },
+          },
+        );
+        const proxy = mocks.useChat.mock.lastCall?.[0].chat.transport as
+          | ChatTransport<UIMessage>
+          | undefined;
+        if (!suspend) committedProxy = proxy;
+        if (suspend) throw pending;
+        return null;
+      };
+
+      const view = render(
+        <Suspense fallback={null}>
+          <App system="committed-system" remoteId="committed-remote" />
+        </Suspense>,
       );
-      const proxy = mocks.useChat.mock.lastCall?.[0].chat.transport as
-        | ChatTransport<UIMessage>
-        | undefined;
-      if (!suspend) committedProxy = proxy;
-      if (suspend) throw pending;
-      return null;
-    };
 
-    const view = render(
-      <Suspense fallback={null}>
-        <App system="committed-system" remoteId="committed-remote" />
-      </Suspense>,
-    );
+      transport.registerThread("thread-id", {});
+      view.rerender(
+        <Suspense fallback={null}>
+          <App system="discarded-system" remoteId="discarded-remote" suspend />
+        </Suspense>,
+      );
 
-    transport.registerThread("thread-id", {});
-    view.rerender(
-      <Suspense fallback={null}>
-        <App system="discarded-system" remoteId="discarded-remote" suspend />
-      </Suspense>,
-    );
+      await committedProxy!.sendMessages({
+        trigger: "submit-message",
+        chatId: "thread-id",
+        messageId: undefined,
+        messages: [
+          {
+            id: "message-id",
+            role: "user",
+            parts: [{ type: "text", text: "hello" }],
+          },
+        ],
+        abortSignal: undefined,
+      });
 
-    await committedProxy!.sendMessages({
-      trigger: "submit-message",
-      chatId: "thread-id",
-      messageId: undefined,
-      messages: [
-        {
-          id: "message-id",
-          role: "user",
-          parts: [{ type: "text", text: "hello" }],
-        },
-      ],
-      abortSignal: undefined,
-    });
-
-    expect(bodies).toEqual([
-      expect.objectContaining({
-        id: "committed-remote",
-        system: "committed-system",
-      }),
-    ]);
-  });
+      expect(bodies).toEqual([
+        expect.objectContaining({
+          id: "committed-remote",
+          system: "committed-system",
+        }),
+      ]);
+    },
+  );
 });

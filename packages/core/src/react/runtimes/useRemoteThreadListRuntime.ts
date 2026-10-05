@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useEffectEvent,
+  useId,
 } from "react";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
@@ -16,6 +17,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
+import { useIsServerRender } from "../utils/useIsServerRender";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -23,11 +25,15 @@ class RemoteThreadListRuntimeCore
 {
   public readonly threads;
 
-  constructor(options: RemoteThreadListOptions) {
+  constructor(
+    options: RemoteThreadListOptions,
+    initialThreadIdSeed: string | undefined,
+  ) {
     super();
     this.threads = new RemoteThreadListThreadListRuntimeCore(
       options,
       this._contextProvider,
+      initialThreadIdSeed,
     );
   }
 
@@ -39,7 +45,16 @@ class RemoteThreadListRuntimeCore
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
-  const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+  // A server render must not read Math.random, and its runtime never reaches an adapter, so it names the first thread from useId; the client keeps a random id because adapters store it.
+  const serverThreadIdSeed = useId();
+  const isServerRender = useIsServerRender();
+  const [runtime] = useState(
+    () =>
+      new RemoteThreadListRuntimeCore(
+        options,
+        isServerRender ? serverThreadIdSeed : undefined,
+      ),
+  );
   const [lifetime] = useState(() => ({ generation: 0 }));
 
   // Insertion-effect cleanup runs when React deletes the fiber, so a hidden <Activity> or a re-suspended boundary keeps the threads alive. Fast Refresh re-runs the effect of an edited host, cleanup then setup in the same commit, so a setup cancels the disposal its preceding cleanup queued. The disposal is deferred to a microtask because it notifies subscribers and React forbids scheduling updates from an insertion effect.
