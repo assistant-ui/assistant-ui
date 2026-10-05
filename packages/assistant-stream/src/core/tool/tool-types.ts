@@ -159,6 +159,7 @@ export type ToolExecuteFunction<TArgs, TResult> = (
  * Starts work while a frontend tool's arguments are streamed.
  *
  * Async failures are logged. Callback completion does not delay the assistant stream.
+ * Synchronous exceptions terminate the assistant stream.
  */
 export type ToolStreamCallFunction<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
@@ -210,6 +211,7 @@ type ToolBase<
    * @deprecated Experimental, API may change.
    *
    * Async failures are logged. Callback completion does not delay the assistant stream.
+   * Synchronous exceptions terminate the assistant stream.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 

@@ -1585,6 +1585,43 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
+  it("preserves synchronous streamCall failures", async () => {
+    const callbackError = new Error("stream callback failed");
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-sync-error",
+            toolName: "lookup",
+          },
+        });
+        controller.close();
+      },
+    });
+
+    await expect(
+      input
+        .pipeThrough(
+          unstable_toolResultStream(
+            {
+              lookup: {
+                parameters: { type: "object", properties: {} },
+                streamCall: () => {
+                  throw callbackError;
+                },
+              },
+            },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(new WritableStream<AssistantStreamChunk>()),
+    ).rejects.toBe(callbackError);
+  });
+
   it.each(["during input", "after completion"] as const)(
     "reports async streamCall failures %s without failing the stream",
     async (timing) => {
