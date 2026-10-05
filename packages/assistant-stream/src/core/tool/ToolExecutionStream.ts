@@ -33,7 +33,7 @@ type ToolStreamCallback = <
   reader: ToolCallReader<TArgs, TResult>;
   toolCallId: string;
   toolName: string;
-}) => void | Promise<void>;
+}) => void;
 
 type ToolExecutionOptions = {
   execute: ToolCallback;
@@ -62,7 +62,7 @@ type InternalToolExecutionOptions = {
     toolCallId: string;
     toolName: string;
     executionId: symbol;
-  }) => void | Promise<void>;
+  }) => unknown;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;
@@ -114,7 +114,6 @@ export class ToolExecutionStream extends PipeableTransformStream<
   constructor(options: ToolExecutionOptions) {
     const internalOptions = options as unknown as InternalToolExecutionOptions;
     const toolCallPromises = new Map<symbol, PromiseLike<void>>();
-    const streamCallPromises = new Set<Promise<void>>();
     const toolCallControllers = new Map<
       symbol,
       ToolCallReaderImpl<ReadonlyJSONObject, ReadonlyJSONValue>
@@ -160,9 +159,12 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   executionId,
                 });
                 if (streamCallResult) {
-                  const promise = Promise.resolve(streamCallResult);
-                  void promise.catch(() => {});
-                  streamCallPromises.add(promise);
+                  void Promise.resolve(streamCallResult).catch((error) => {
+                    console.error(
+                      "[assistant-stream] streamCall callback threw an error",
+                      error,
+                    );
+                  });
                 }
               }
               break;
@@ -356,10 +358,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
           }
         },
         async flush() {
-          await Promise.all([
-            ...toolCallPromises.values(),
-            ...streamCallPromises,
-          ]);
+          await Promise.all(toolCallPromises.values());
         },
       });
 

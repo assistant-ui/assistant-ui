@@ -158,7 +158,7 @@ export type ToolExecuteFunction<TArgs, TResult> = (
 /**
  * Starts work while a frontend tool's arguments are streamed.
  *
- * A rejected promise terminates the containing assistant stream.
+ * Async failures are logged. Callback completion does not delay the assistant stream.
  */
 export type ToolStreamCallFunction<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
@@ -166,7 +166,7 @@ export type ToolStreamCallFunction<
 > = (
   reader: ToolCallReader<TArgs, TResult>,
   context: ToolExecutionContext,
-) => void | Promise<void>;
+) => void;
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   unknown,
@@ -209,7 +209,7 @@ type ToolBase<
   /**
    * @deprecated Experimental, API may change.
    *
-   * A rejected promise terminates the containing assistant stream.
+   * Async failures are logged. Callback completion does not delay the assistant stream.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 

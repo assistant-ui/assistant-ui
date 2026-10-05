@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix: keep streaming tool arguments while surfacing asynchronous callback errors
+fix: report asynchronous streamCall errors without blocking streamed arguments or waiting for callbacks that outlive the assistant stream

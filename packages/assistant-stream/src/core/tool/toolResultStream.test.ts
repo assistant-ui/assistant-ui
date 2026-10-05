@@ -1585,33 +1585,31 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
-  it("propagates asynchronous streamCall failures through the stream", async () => {
-    const streamCallError = new Error("stream callback failed");
-    const inputStream = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
-        controller.enqueue({
-          type: "part-start",
-          path: [],
-          part: {
-            type: "tool-call",
-            toolCallId: "tc-stream-call",
-            toolName: "broken",
-          },
-        });
-        controller.close();
-      },
-    });
+  it.each(["during input", "after completion"] as const)(
+    "reports async streamCall failures %s without failing the stream",
+    async (timing) => {
+      const callbackError = new Error("stream callback failed");
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const callbackStarted = promiseWithResolvers<void>();
+      const callbackResult = promiseWithResolvers<void>();
+      let controller!: ReadableStreamDefaultController<AssistantStreamChunk>;
+      const input = new ReadableStream<AssistantStreamChunk>({
+        start(value) {
+          controller = value;
+        },
+      });
+      const output: AssistantStreamChunk[] = [];
 
-    const unhandledRejections = await captureUnhandledRejections(async () => {
-      await expect(
-        inputStream
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const drain = input
           .pipeThrough(
             unstable_toolResultStream(
               {
-                broken: {
+                lookup: {
                   parameters: { type: "object", properties: {} },
                   streamCall: async () => {
-                    throw streamCallError;
+                    callbackStarted.resolve();
+                    await callbackResult.promise;
                   },
                 },
               },
@@ -1619,63 +1617,191 @@ describe("unstable_runPendingTools", () => {
               async () => {},
             ),
           )
-          .pipeTo(new WritableStream<AssistantStreamChunk>()),
-      ).rejects.toThrow(streamCallError);
-    });
-
-    expect(unhandledRejections).toEqual([]);
-  });
-
-  it("continues streaming arguments while an async streamCall is pending", async () => {
-    const values: unknown[] = [];
-    const inputStream = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
+          .pipeTo(
+            new WritableStream<AssistantStreamChunk>({
+              write(chunk) {
+                output.push(chunk);
+              },
+            }),
+          );
+        void drain.catch(() => {});
         controller.enqueue({
           type: "part-start",
           path: [],
           part: {
             type: "tool-call",
-            toolCallId: "tc-stream-args",
-            toolName: "streaming",
+            toolCallId: "tc-stream-call",
+            toolName: "lookup",
           },
         });
-        controller.enqueue({
-          type: "text-delta",
-          path: [0],
-          textDelta: '{"value":"done"}',
-        });
-        controller.enqueue({
-          type: "tool-call-args-text-finish",
-          path: [0],
-        });
-        controller.enqueue({ type: "part-finish", path: [0] });
-        controller.close();
+        await callbackStarted.promise;
+        if (timing === "after completion") {
+          controller.close();
+          await drain;
+        }
+
+        callbackResult.reject(callbackError);
+        try {
+          await vi.waitFor(() => {
+            expect(error).toHaveBeenCalledExactlyOnceWith(
+              "[assistant-stream] streamCall callback threw an error",
+              callbackError,
+            );
+          });
+          if (timing === "during input") {
+            controller.enqueue({
+              type: "part-start",
+              path: [],
+              part: { type: "text" },
+            });
+            controller.enqueue({
+              type: "text-delta",
+              path: [1],
+              textDelta: "still streaming",
+            });
+            controller.enqueue({ type: "part-finish", path: [1] });
+          }
+        } finally {
+          if (timing === "during input") controller.close();
+        }
+        await drain;
+      });
+
+      expect(unhandledRejections).toEqual([]);
+      if (timing === "during input") {
+        expect(output).toContainEqual(
+          expect.objectContaining({
+            type: "text-delta",
+            path: [1],
+            textDelta: "still streaming",
+          }),
+        );
+      }
+    },
+  );
+
+  it("keeps later arguments flowing without waiting for callback completion", async () => {
+    const callbackStarted = promiseWithResolvers<void>();
+    const callbackReachedArgs = promiseWithResolvers<void>();
+    const releaseCallback = promiseWithResolvers<void>();
+    const callbackFinished = vi.fn();
+    let controller!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(value) {
+        controller = value;
       },
     });
+    const drain = input
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            lookup: {
+              parameters: { type: "object", properties: {} },
+              streamCall: async (reader) => {
+                callbackStarted.resolve();
+                expect(await reader.args.get("x")).toBe("later");
+                callbackReachedArgs.resolve();
+                await releaseCallback.promise;
+                callbackFinished();
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(new WritableStream<AssistantStreamChunk>());
+    controller.enqueue({
+      type: "part-start",
+      path: [],
+      part: {
+        type: "tool-call",
+        toolCallId: "tc-stream-args",
+        toolName: "lookup",
+      },
+    });
+    await callbackStarted.promise;
+    controller.enqueue({
+      type: "text-delta",
+      path: [0],
+      textDelta: '{"x":"later"}',
+    });
+    controller.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+    controller.enqueue({ type: "part-finish", path: [0] });
+    controller.close();
+    await callbackReachedArgs.promise;
+    try {
+      await drain;
+      expect(callbackFinished).not.toHaveBeenCalled();
+    } finally {
+      releaseCallback.resolve();
+    }
+    await vi.waitFor(() => expect(callbackFinished).toHaveBeenCalledOnce());
+  });
 
-    const unhandledRejections = await captureUnhandledRejections(async () => {
-      await inputStream
+  it.each(["response", "result", "human", "incomplete args"] as const)(
+    "finishes while streamCall awaits %s",
+    async (pending) => {
+      const humanResponse = promiseWithResolvers<unknown>();
+      const callbackFinished = vi.fn();
+      const input = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          controller.enqueue({
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "tc-pending",
+              toolName: "lookup",
+            },
+          });
+          if (pending !== "incomplete args") {
+            controller.enqueue({
+              type: "text-delta",
+              path: [0],
+              textDelta: "{}",
+            });
+            controller.enqueue({
+              type: "tool-call-args-text-finish",
+              path: [0],
+            });
+            controller.enqueue({ type: "part-finish", path: [0] });
+          }
+          controller.close();
+        },
+      });
+      await input
         .pipeThrough(
           unstable_toolResultStream(
             {
-              streaming: {
-                parameters: {
-                  type: "object",
-                  properties: { value: { type: "string" } },
-                },
-                streamCall: async (reader) => {
-                  values.push(await reader.args.get("value"));
+              lookup: {
+                parameters: { type: "object", properties: {} },
+                streamCall: async (reader, context) => {
+                  switch (pending) {
+                    case "response":
+                      await reader.response.get();
+                      break;
+                    case "result":
+                      await reader.result.get();
+                      break;
+                    case "human":
+                      await context.human("confirm");
+                      break;
+                    case "incomplete args":
+                      await reader.args.get("missing");
+                      break;
+                  }
+                  callbackFinished();
                 },
               },
             },
             new AbortController().signal,
-            async () => {},
+            () => humanResponse.promise,
           ),
         )
         .pipeTo(new WritableStream<AssistantStreamChunk>());
-    });
-
-    expect(unhandledRejections).toEqual([]);
-    expect(values).toEqual(["done"]);
-  });
+      expect(callbackFinished).not.toHaveBeenCalled();
+      humanResponse.resolve(undefined);
+    },
+  );
 });
