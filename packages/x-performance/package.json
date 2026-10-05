@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "bench": "vitest bench --run",
     "perf:record": "node ./bin/aui-perf.mjs record",
@@ -21,6 +22,7 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-streamdown": "workspace:*",
     "@assistant-ui/store": "workspace:*",
