@@ -40,6 +40,8 @@ on:
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
+      - "scripts/test-redis-inputs.mjs"
+      - "scripts/test-redis-inputs.test.mjs"
       - "scripts/run-ci-tests.mjs"
       - "scripts/run-ci-tests.test.mjs"
       - "turbo.json"
@@ -86,6 +88,8 @@ on:
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
+      - "scripts/test-redis-inputs.mjs"
+      - "scripts/test-redis-inputs.test.mjs"
       - "scripts/run-ci-tests.mjs"
       - "scripts/run-ci-tests.test.mjs"
       - "turbo.json"
@@ -445,18 +449,6 @@ jobs:
     name: Test Changed Packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # assistant-stream's resumable store advertises a peer union over ioredis 5
-    # and 6 and node-redis; both legs need a live server or their suites skip.
-    services:
-      redis:
-        image: redis:8-alpine # ratchet:exclude
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
     env:
       REDIS_URL: redis://127.0.0.1:6379
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
@@ -503,6 +495,35 @@ jobs:
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
           fi
 
+      - name: Test Redis service selection
+        run: node --test scripts/test-redis-inputs.test.mjs
+
+      - name: Select Redis test service
+        id: redis
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE=HEAD^1
+          fi
+          run=$(pnpm exec turbo run test --dry=json --filter="...[$BASE]" | node scripts/test-redis-inputs.mjs)
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Start Redis for selected tests
+        if: steps.redis.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          docker run --detach --name aui-test-redis --publish 6379:6379 redis:8-alpine
+          for attempt in {1..50}; do
+            if docker exec aui-test-redis redis-cli ping | grep -qx PONG; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs aui-test-redis
+          exit 1
+
       - name: Test CI scheduling
         run: node --test scripts/run-ci-tests.test.mjs
 
@@ -525,20 +546,17 @@ jobs:
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
 
+      - name: Stop Redis
+        if: always() && steps.redis.outputs.run == 'true'
+        run: |
+          if docker inspect aui-test-redis > /dev/null 2>&1; then
+            docker rm --force aui-test-redis
+          fi
+
   coverage:
     name: Coverage of Changed Packages
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    services:
-      redis:
-        image: redis:8-alpine # ratchet:exclude
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
     env:
       REDIS_URL: redis://127.0.0.1:6379
     steps:
@@ -587,6 +605,35 @@ jobs:
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
           fi
 
+      - name: Test Redis service selection
+        run: node --test scripts/test-redis-inputs.test.mjs
+
+      - name: Select Redis coverage service
+        id: redis
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE=HEAD^1
+          fi
+          run=$(pnpm exec turbo run test:coverage --dry=json --filter="...[$BASE]" | node scripts/test-redis-inputs.mjs)
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Start Redis for selected coverage tests
+        if: steps.redis.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          docker run --detach --name aui-coverage-redis --publish 6379:6379 redis:8-alpine
+          for attempt in {1..50}; do
+            if docker exec aui-coverage-redis redis-cli ping | grep -qx PONG; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs aui-coverage-redis
+          exit 1
+
       # Concurrency 1 for the same reason as the Test job; coverage instrumentation slows each file further.
       - name: Run tests with coverage
         env:
@@ -615,6 +662,13 @@ jobs:
             examples/*/coverage/
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Stop Redis
+        if: always() && steps.redis.outputs.run == 'true'
+        run: |
+          if docker inspect aui-coverage-redis > /dev/null 2>&1; then
+            docker rm --force aui-coverage-redis
+          fi
 
   typecheck:
     name: Typecheck Changed Packages
