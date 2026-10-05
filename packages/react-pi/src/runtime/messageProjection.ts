@@ -599,13 +599,14 @@ const updateToolCallIndices = (
   next: readonly PiAgentMessage[],
   startIndex: number,
 ) => {
-  const removedIds = new Set<string>();
   for (let index = startIndex; index < previous.length; index++) {
     const message = previous[index]!;
     if (message.role !== "assistant") continue;
     for (const part of (message as PiAssistantMessage).content) {
-      if (part.type === "toolCall") {
-        removedIds.add(part.id);
+      if (
+        part.type === "toolCall" &&
+        (indices.get(part.id) ?? -1) >= startIndex
+      ) {
         indices.delete(part.id);
       }
     }
@@ -614,27 +615,8 @@ const updateToolCallIndices = (
     const message = next[index]!;
     if (message.role !== "assistant") continue;
     for (const part of (message as PiAssistantMessage).content) {
-      if (part.type === "toolCall") {
-        removedIds.delete(part.id);
+      if (part.type === "toolCall" && !indices.has(part.id)) {
         indices.set(part.id, index);
-      }
-    }
-  }
-  for (const id of removedIds) {
-    for (
-      let index = Math.min(startIndex, next.length) - 1;
-      index >= 0;
-      index--
-    ) {
-      const message = next[index]!;
-      if (message.role !== "assistant") continue;
-      if (
-        (message as PiAssistantMessage).content.some(
-          (part) => part.type === "toolCall" && part.id === id,
-        )
-      ) {
-        indices.set(id, index);
-        break;
       }
     }
   }

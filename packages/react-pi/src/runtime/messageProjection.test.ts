@@ -913,6 +913,38 @@ describe("messageProjection", () => {
     expect(contentParts(projected[0]!)[0]).toMatchObject({ result: "partial" });
   });
 
+  it("updates every duplicate tool-call when execution state changes", () => {
+    const projector = new PiThreadMessageProjector();
+    const firstCall = assistant([toolCall("tc1", "bash", {})]);
+    const separator: PiAgentMessage = {
+      role: "user",
+      content: "continue",
+      timestamp: 2,
+    };
+    const duplicateCall = assistant([toolCall("tc1", "bash", {})], {
+      timestamp: 3,
+    });
+    const messages = [firstCall, separator, duplicateCall];
+
+    projector.project(input(messages));
+    const next = input(messages, {
+      toolExecutions: {
+        tc1: {
+          toolCallId: "tc1",
+          status: "running",
+          partialResult: {
+            content: [{ type: "text", text: "partial" }],
+          },
+        },
+      },
+    });
+    const projected = projector.project(next);
+
+    expect(projected).toEqual(projectPiThreadMessages(next));
+    expect(contentParts(projected[0]!)[0]).toMatchObject({ result: "partial" });
+    expect(contentParts(projected[2]!)[0]).toMatchObject({ result: "partial" });
+  });
+
   it("falls back to full projection for an unexpected cached message id", () => {
     const projector = new PiThreadMessageProjector();
     const first: PiAgentMessage = {
