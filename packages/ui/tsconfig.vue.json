@@ -1,12 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "jsx": "preserve",
-    "typeRoots": [
-      "./node_modules/@types",
-      "../../node_modules/@types",
-      "../x-buildutils/types"
-    ]
+    "jsx": "preserve"
   },
   "include": ["src/components/vue/**/*.vue"],
   "exclude": ["node_modules"]
