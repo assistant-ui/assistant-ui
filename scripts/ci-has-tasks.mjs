@@ -23,6 +23,7 @@ export function hasTasks(base, args, exec = execFileSync) {
         "templates",
         "scripts/ci-has-tasks.mjs",
         "scripts/ci-has-tasks.test.mjs",
+        "scripts/typecheck.sh",
         ".github/workflows/code-quality.yaml",
       ],
       options,

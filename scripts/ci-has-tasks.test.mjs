@@ -103,6 +103,20 @@ test("runs normally when the locked Turbo version cannot be read", () => {
   }
 });
 
+test("typecheck wrapper changes cannot skip execution", () => {
+  const { exec, calls } = fixture([]);
+  assert.equal(
+    hasTasks("HEAD^1", ["typecheck"], (command, args, options) => {
+      if (command === "git" && args.includes("scripts/typecheck.sh")) {
+        throw new Error("changed wrapper");
+      }
+      return exec(command, args, options);
+    }),
+    true,
+  );
+  assert.equal(calls.length, 0);
+});
+
 test("workspace changes avoid planner overhead without skipping checks", () => {
   const { exec, calls } = fixture([], 1);
   assert.equal(hasTasks("HEAD^1", ["typecheck"], exec), true);
@@ -114,6 +128,7 @@ test("workspace changes avoid planner overhead without skipping checks", () => {
     "templates",
     "scripts/ci-has-tasks.mjs",
     "scripts/ci-has-tasks.test.mjs",
+    "scripts/typecheck.sh",
     ".github/workflows/code-quality.yaml",
   ]);
 });
