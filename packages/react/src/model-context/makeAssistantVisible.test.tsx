@@ -8,7 +8,11 @@ import {
   type ChangeEvent,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mergeModelContexts } from "@assistant-ui/core";
+import {
+  mergeModelContexts,
+  type ModelContextProvider,
+} from "@assistant-ui/core";
+import type { Tool } from "assistant-stream";
 
 const { registerMock, auiMock } = vi.hoisted(() => {
   const register = vi.fn((_provider: unknown) => () => {});
@@ -35,7 +39,7 @@ type ClickTool = {
   execute: (args: { clickId: string }) => Promise<unknown>;
 };
 
-type ModelContextProvider = {
+type VisibleToolsProvider = {
   getModelContext: () => {
     tools: {
       edit?: EditTool;
@@ -98,8 +102,21 @@ const SplitRefButton = forwardRef<HTMLButtonElement, ComponentProps<"div">>(
 );
 
 const getRegisteredTools = () => {
-  const provider = registerMock.mock.calls[0]![0] as ModelContextProvider;
+  const provider = registerMock.mock.calls[0]![0] as VisibleToolsProvider;
   return provider.getModelContext().tools;
+};
+
+const executeTool = (tool: Tool | undefined, args: Record<string, unknown>) => {
+  if (!tool?.execute) throw new Error("Missing executable tool");
+  return Promise.resolve(
+    tool.execute(args, {
+      toolCallId: "test-call",
+      abortSignal: new AbortController().signal,
+      human: async () => {
+        throw new Error("Unexpected human input request");
+      },
+    }),
+  );
 };
 
 const runEditTool = async (
@@ -322,24 +339,24 @@ describe("makeAssistantVisible", () => {
     const mergedContext = mergeModelContexts(new Set(providers));
 
     expect(mergedContext.tools?.click).toBe(
-      providers[0]!.getModelContext().tools.click,
+      providers[0]!.getModelContext().tools?.click,
     );
     expect(mergedContext.tools?.click).toBe(
-      providers[1]!.getModelContext().tools.click,
+      providers[1]!.getModelContext().tools?.click,
     );
     expect(mergedContext.tools?.edit).toBe(
-      providers[0]!.getModelContext().tools.edit,
+      providers[0]!.getModelContext().tools?.edit,
     );
     expect(mergedContext.tools?.edit).toBe(
-      providers[1]!.getModelContext().tools.edit,
+      providers[1]!.getModelContext().tools?.edit,
     );
 
     const [slowButton, immediateButton] = view.getAllByRole("button");
     const click = mergedContext.tools!.click!;
-    const slowTask = click.execute({
+    const slowTask = executeTool(click, {
       clickId: (slowButton as HTMLButtonElement).dataset.clickId!,
     });
-    const immediateTask = click.execute({
+    const immediateTask = executeTool(click, {
       clickId: (immediateButton as HTMLButtonElement).dataset.clickId!,
     });
 
@@ -375,20 +392,20 @@ describe("makeAssistantVisible", () => {
     const mergedContext = mergeModelContexts(new Set(providers));
 
     expect(mergedContext.tools?.edit).toBe(
-      providers[0]!.getModelContext().tools.edit,
+      providers[0]!.getModelContext().tools?.edit,
     );
     expect(mergedContext.tools?.edit).toBe(
-      providers[1]!.getModelContext().tools.edit,
+      providers[1]!.getModelContext().tools?.edit,
     );
 
     const slowInput = view.getByRole("textbox", { name: "Slow" });
     const immediateInput = view.getByRole("textbox", { name: "Immediate" });
     const edit = mergedContext.tools!.edit!;
-    const slowTask = edit.execute({
+    const slowTask = executeTool(edit, {
       editId: (slowInput as HTMLInputElement).dataset.editId!,
       value: "slow update",
     });
-    const immediateTask = edit.execute({
+    const immediateTask = executeTool(edit, {
       editId: (immediateInput as HTMLInputElement).dataset.editId!,
       value: "immediate update",
     });
