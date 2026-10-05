@@ -1,0 +1,71 @@
+name: Coverage Redis validation
+on:
+  push:
+    branches: [perf/ci-coverage-redis-validation]
+permissions:
+  contents: read
+jobs:
+  consumers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [assistant-stream, '@assistant-ui/docs']
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+      PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 3c459ca79d99680d1853a5a6ad6fc7979ddd3a9b
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Install the coverage graph
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter "$PACKAGE..."
+      - name: Verify real consumer selection
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          node --test scripts/test-redis-inputs.test.mjs scripts/coverage-summary.test.mjs
+          selected=$(pnpm exec turbo run test:coverage --dry=json --filter="$PACKAGE" | node scripts/test-redis-inputs.mjs)
+          test "$selected" = true
+      - name: Start Redis and await readiness
+        run: |
+          set -euo pipefail
+          docker run --detach --name aui-coverage-redis --publish 6379:6379 redis:8-alpine
+          for attempt in {1..50}; do
+            if docker exec aui-coverage-redis redis-cli ping | grep -qx PONG; then exit 0; fi
+            sleep 1
+          done
+          docker logs aui-coverage-redis
+          exit 1
+      - name: Execute real coverage with no remote cache
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: pnpm exec turbo run test:coverage --concurrency=1 --filter="$PACKAGE" --cache=local:rw
+      - name: Exercise both supported Redis client versions
+        if: matrix.package == 'assistant-stream'
+        run: pnpm -C packages/assistant-stream test
+      - name: Write the coverage summary
+        if: always()
+        run: node scripts/coverage-summary.mjs --report "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: redis-coverage-${{ strategy.job-index }}
+          path: |
+            packages/assistant-stream/coverage/
+            apps/docs/coverage/
+          retention-days: 7
+      - name: Stop Redis
+        if: always()
+        run: |
+          if docker inspect aui-coverage-redis > /dev/null 2>&1; then docker rm --force aui-coverage-redis; fi
