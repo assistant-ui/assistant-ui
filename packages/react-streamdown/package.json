@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -31,6 +31,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
@@ -38,7 +39,7 @@
     "bench": "vitest bench --run"
   },
   "dependencies": {
-    "@assistant-ui/react-markdown": "^0.14.18",
+    "@assistant-ui/react-markdown": "^0.14.19",
     "@types/hast": "^3.0.5",
     "micromark-util-html-tag-name": "^2.0.1",
     "rehype-harden": "^1.1.8",

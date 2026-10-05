@@ -26,6 +26,7 @@ import type {
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
+import { toOpenCodeQuestionAnswers } from "./openCodeQuestionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import {
@@ -220,10 +221,25 @@ const useOpenCodeThreadStore = (
       },
       onRespondToToolApproval: async (response) => {
         try {
-          await controller.replyToPermission(
-            response.approvalId,
-            toOpenCodePermissionResponse(response),
-          );
+          const question =
+            state.interactions.questions.pending[response.approvalId];
+          if (question) {
+            if (!response.approved) {
+              await controller.rejectQuestion(response.approvalId);
+            } else if (response.answers) {
+              await controller.replyToQuestion(
+                response.approvalId,
+                toOpenCodeQuestionAnswers(question, response.answers),
+              );
+            } else {
+              throw new Error("OpenCode question approval requires answers");
+            }
+          } else {
+            await controller.replyToPermission(
+              response.approvalId,
+              toOpenCodePermissionResponse(response),
+            );
+          }
         } catch (error) {
           invokeErrorCallback(options.onError, error);
           throw error;

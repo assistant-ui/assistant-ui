@@ -96,7 +96,7 @@ test("the workflow keeps selection, readiness, cleanup and test commands wired",
     path.join(root, ".github/workflows/code-quality.yaml"),
     "utf8",
   );
-  const job = workflow.match(/\n  test:\n([\s\S]*?)(?=\n  typecheck:)/)[1];
+  const job = workflow.match(/\n  test:\n([\s\S]*?)(?=\n  [\w-]+:)/)[1];
   assert.doesNotMatch(job, /\n    services:/);
   assert.match(job, /REDIS_URL: redis:\/\/127\.0\.0\.1:6379/);
   assert.match(job, /set -euo pipefail/);
