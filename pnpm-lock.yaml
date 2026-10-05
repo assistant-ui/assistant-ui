@@ -6697,6 +6697,9 @@ importers:
       react:
         specifier: ^19.3.0
         version: 19.3.0
+      reka-ui:
+        specifier: ^2.10.5
+        version: 2.10.5(vue@3.5.43(@typescript/typescript6@6.0.2))
       vue:
         specifier: ^3.5.43
         version: 3.5.43(@typescript/typescript6@6.0.2)
@@ -23737,6 +23740,15 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
+  '@floating-ui/vue@1.1.11(vue@3.5.43(@typescript/typescript6@6.0.2))':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@floating-ui/utils': 0.2.12
+      vue-demi: 0.14.10(vue@3.5.43(@typescript/typescript6@6.0.2))
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
   '@floating-ui/vue@1.1.11(vue@3.5.43(typescript@7.0.2))':
     dependencies:
       '@floating-ui/dom': 1.8.0
@@ -28649,6 +28661,11 @@ snapshots:
 
   '@tanstack/virtual-file-routes@1.162.0': {}
 
+  '@tanstack/vue-virtual@3.13.39(vue@3.5.43(@typescript/typescript6@6.0.2))':
+    dependencies:
+      '@tanstack/virtual-core': 3.17.11
+      vue: 3.5.43(@typescript/typescript6@6.0.2)
+
   '@tanstack/vue-virtual@3.13.39(vue@3.5.43(typescript@7.0.2))':
     dependencies:
       '@tanstack/virtual-core': 3.17.11
@@ -29970,6 +29987,13 @@ snapshots:
 
   '@vue/shared@3.5.43': {}
 
+  '@vueuse/core@14.4.0(vue@3.5.43(@typescript/typescript6@6.0.2))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 14.4.0
+      '@vueuse/shared': 14.4.0(vue@3.5.43(@typescript/typescript6@6.0.2))
+      vue: 3.5.43(@typescript/typescript6@6.0.2)
+
   '@vueuse/core@14.4.0(vue@3.5.43(typescript@7.0.2))':
     dependencies:
       '@types/web-bluetooth': 0.0.21
@@ -29978,6 +30002,10 @@ snapshots:
       vue: 3.5.43(typescript@7.0.2)
 
   '@vueuse/metadata@14.4.0': {}
+
+  '@vueuse/shared@14.4.0(vue@3.5.43(@typescript/typescript6@6.0.2))':
+    dependencies:
+      vue: 3.5.43(@typescript/typescript6@6.0.2)
 
   '@vueuse/shared@14.4.0(vue@3.5.43(typescript@7.0.2))':
     dependencies:
@@ -37868,6 +37896,22 @@ snapshots:
       '@types/hast': 3.0.5
       hast-util-sanitize: 5.0.2
 
+  reka-ui@2.10.5(vue@3.5.43(@typescript/typescript6@6.0.2)):
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@floating-ui/vue': 1.1.11(vue@3.5.43(@typescript/typescript6@6.0.2))
+      '@internationalized/date': 3.12.4
+      '@internationalized/number': 3.6.8
+      '@tanstack/vue-virtual': 3.13.39(vue@3.5.43(@typescript/typescript6@6.0.2))
+      '@vueuse/core': 14.4.0(vue@3.5.43(@typescript/typescript6@6.0.2))
+      '@vueuse/shared': 14.4.0(vue@3.5.43(@typescript/typescript6@6.0.2))
+      aria-hidden: 1.2.6
+      defu: 6.1.7
+      ohash: 2.0.12
+      vue: 3.5.43(@typescript/typescript6@6.0.2)
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+
   reka-ui@2.10.5(vue@3.5.43(typescript@7.0.2)):
     dependencies:
       '@floating-ui/dom': 1.8.0
@@ -39845,6 +39889,10 @@ snapshots:
       ufo: 1.6.4
 
   vue-component-type-helpers@3.3.11: {}
+
+  vue-demi@0.14.10(vue@3.5.43(@typescript/typescript6@6.0.2)):
+    dependencies:
+      vue: 3.5.43(@typescript/typescript6@6.0.2)
 
   vue-demi@0.14.10(vue@3.5.43(typescript@7.0.2)):
     dependencies:
