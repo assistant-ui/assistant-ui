@@ -354,10 +354,10 @@ describe("TaskGroup", () => {
     expect(nestedActions.textContent).toBe("Tag v1.2.0?");
     expect(within(outer).getByText("Deploy to production?")).toBeTruthy();
     expect(
-      within(outer).getByRole("button", { name: "Used tool: lookup" }),
+      within(outer).getByRole("button", { name: "Waiting on tool: lookup" }),
     ).toBeTruthy();
     expect(
-      within(outer).getByRole("button", { name: "Used tool: confirm" }),
+      within(outer).getByRole("button", { name: "Waiting on tool: confirm" }),
     ).toBeTruthy();
     expect(
       within(outer).queryAllByRole("button", { name: /^(Allow|Deny)$/ }),

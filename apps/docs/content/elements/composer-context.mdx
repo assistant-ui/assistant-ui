@@ -47,7 +47,7 @@ function useThreadTokensUsed(): number {
 
 ### Feed the ring
 
-`ComposerContext` expects a category breakdown, and the runtime does not meter tokens by category. Your system prompt and tool schemas cost roughly the same fixed amount on every turn, so treat those as constants you already know; the number that actually grows is the conversation, and that is the one real figure above. The values are read as thousands (the ring appends `k` without dividing), and the total is the active model's context window, which you already picked and the thread state does not expose.
+`ComposerContext` expects a category breakdown, and the runtime does not meter tokens by category. Your system prompt and tool schemas cost roughly the same fixed amount on every turn, so treat those as constants you already know; the number that grows is the conversation, and that is the one measured figure above. The values are read as thousands (the ring appends `k` without dividing), and the total is the active model's context window, which you already picked and the thread state does not expose.
 
 ```tsx
 import { ComposerContext } from "@/components/assistant-ui/elements/composer";
