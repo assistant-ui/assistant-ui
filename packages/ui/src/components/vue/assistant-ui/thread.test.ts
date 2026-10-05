@@ -22,16 +22,19 @@ const mountThread = (
     adapter?: Partial<ExternalStoreAdapter<ThreadMessageLike>>;
   } = {},
 ) => {
-  const adapter: ExternalStoreAdapter<ThreadMessageLike> = {
-    messages: [...messages],
+  const createAdapter = (
+    current: readonly ThreadMessageLike[],
+    isRunning: boolean | undefined,
+  ): ExternalStoreAdapter<ThreadMessageLike> => ({
+    messages: [...current],
     convertMessage: (message) => message,
     onNew: async () => {},
-    ...(options.isRunning === undefined
-      ? {}
-      : { isRunning: options.isRunning }),
+    ...(isRunning === undefined ? {} : { isRunning }),
     ...options.adapter,
-  };
-  const core = new ExternalStoreRuntimeCore(adapter);
+  });
+  const core = new ExternalStoreRuntimeCore(
+    createAdapter(messages, options.isRunning),
+  );
   const runtime = new AssistantRuntimeImpl(core);
   const app = createApp(
     defineComponent({
@@ -47,6 +50,10 @@ const mountThread = (
   app.mount(el);
   return {
     el,
+    update: (
+      next: readonly ThreadMessageLike[],
+      nextOptions: { isRunning?: boolean } = {},
+    ) => core.setAdapter(createAdapter(next, nextOptions.isRunning)),
     unmount: () => {
       app.unmount();
       el.remove();
@@ -301,6 +308,42 @@ describe("vue thread", () => {
       approvalId: "approval-1",
       optionId: "always",
     });
+
+    unmount();
+  });
+
+  it("gives a later interrupt on the same call fresh controls", async () => {
+    const onResumeToolCall = vi.fn();
+    const toolCall = (interrupt?: string): ThreadMessageLike => ({
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "confirm_step",
+          args: {},
+          ...(interrupt && {
+            interrupt: { type: "human" as const, payload: interrupt },
+          }),
+        },
+      ],
+    });
+    const { el, update, unmount } = mountThread([toolCall("first")], {
+      adapter: { onResumeToolCall },
+    });
+
+    await settle(() => expect(button(el, "Allow").disabled).toBe(false));
+    button(el, "Allow").click();
+    await settle(() => expect(onResumeToolCall).toHaveBeenCalledTimes(1));
+    expect(button(el, "Allow").disabled).toBe(true);
+
+    update([toolCall()], { isRunning: true });
+    await settle(() =>
+      expect(el.textContent).toContain("Running tool: confirm_step"),
+    );
+
+    update([toolCall("second")]);
+    await settle(() => expect(button(el, "Allow").disabled).toBe(false));
 
     unmount();
   });

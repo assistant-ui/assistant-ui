@@ -382,6 +382,18 @@ const questions = computed(() => approval.value?.questions ?? []);
 const selected = ref<ReadonlyMap<string, readonly string[]>>(new Map());
 const typed = ref<ReadonlyMap<string, string>>(new Map());
 
+// A request that leaves the screen takes its controls' state with it, so a
+// later request on the same call starts unanswered.
+watch(showApproval, (shown) => {
+  if (shown) return;
+  submitted.value = false;
+  error.value = null;
+  confirmingId.value = null;
+  answer.value = "";
+  selected.value = new Map();
+  typed.value = new Map();
+});
+
 const isChosen = (item: ToolApprovalQuestion, optionId: string) =>
   (selected.value.get(item.id) ?? []).includes(optionId);
 const isDescribed = (item: ToolApprovalQuestion) =>
