@@ -2363,6 +2363,65 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 
+  // --- Runtime detachment ---
+
+  describe("runtime detachment", () => {
+    it("keeps an onCancel replacement run abortable", async () => {
+      const streamSignals: AbortSignal[] = [];
+      const releaseStreams: Array<() => void> = [];
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        const streamIndex = streamSignals.push(signal) - 1;
+        yield statusUpdateEvent("working");
+        if (signal.aborted) return;
+        await new Promise<void>((resolve) => {
+          releaseStreams[streamIndex] = resolve;
+          signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      let core!: A2AThreadRuntimeCore;
+      let replacementRun: Promise<void> | undefined;
+      let startReplacement = true;
+      core = createCore(
+        {
+          getAgentCard: vi.fn().mockResolvedValue({
+            name: "Agent",
+            url: "https://agent.example",
+          }),
+          streamMessage,
+        },
+        {
+          onCancel: () => {
+            if (!startReplacement) return;
+            startReplacement = false;
+            replacementRun = core.append(
+              createUserAppendMessage("Replacement"),
+            );
+          },
+        },
+      );
+
+      const firstRun = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(streamSignals).toHaveLength(1));
+
+      core.detachRuntime();
+      await vi.waitFor(() => expect(streamSignals).toHaveLength(2));
+      await vi.waitFor(() => expect(releaseStreams[1]).toBeTypeOf("function"));
+
+      await core.cancel();
+      const replacementWasAborted = streamSignals[1]!.aborted;
+      releaseStreams[1]!();
+      await Promise.all([firstRun, replacementRun]);
+
+      expect(streamSignals[0]!.aborted).toBe(true);
+      expect(replacementWasAborted).toBe(true);
+    });
+  });
+
   // --- Cancel ---
 
   describe("cancel", () => {
