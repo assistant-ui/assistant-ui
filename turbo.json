@@ -47,6 +47,10 @@
       "dependsOn": ["^build"],
       "passThroughEnv": ["VITEST_MAX_WORKERS"]
     },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     },

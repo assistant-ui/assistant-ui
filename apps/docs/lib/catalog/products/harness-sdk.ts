@@ -9,5 +9,5 @@ export const harnessSdk: CatalogItem = {
   hidden: true,
   glyph: "cloud",
   docs: "/harness-sdk",
-  agentMinutes: [10, 20],
+  agentMinutes: [8, 13],
 };

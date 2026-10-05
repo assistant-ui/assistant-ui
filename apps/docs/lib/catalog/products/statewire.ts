@@ -9,5 +9,5 @@ export const statewire: CatalogItem = {
   hidden: true,
   glyph: "cloud",
   docs: "/statewire",
-  agentMinutes: [10, 20],
+  agentMinutes: [8, 13],
 };

@@ -97,8 +97,8 @@ describe("catalog registry", () => {
     const both = estimateAgentMinutes(
       resolveProducts(["assistant-ui", "cloud"]),
     );
-    expect(both).toEqual([10, 25]);
-    expect(formatMinutes(both)).toBe("10–25 min");
+    expect(both).toEqual([8, 15]);
+    expect(formatMinutes(both)).toBe("8–15 min");
     expect(formatMinutes([5, 5])).toBe("5 min");
     expect(estimateAgentMinutes([])).toEqual([0, 0]);
   });
