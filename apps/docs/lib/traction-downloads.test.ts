@@ -124,12 +124,16 @@ describe("fetchNpmDownloads", () => {
 
   it("counts a package npm has no downloads for as zero in the ecosystem total", async () => {
     getDownloadsRange.mockImplementation((name, start, end) =>
-      Promise.resolve(name === FLAGSHIP_PACKAGE ? rangeRows(start, end) : []),
+      Promise.resolve(
+        name === FLAGSHIP_PACKAGE || name === "@assistant-ui/react-markdown"
+          ? rangeRows(start, end)
+          : [],
+      ),
     );
 
     const downloads = await fetchNpmDownloads();
 
     expect(downloads.flagshipWeekly).toBeGreaterThan(0);
-    expect(downloads.totalWeekly).toBe(downloads.flagshipWeekly);
+    expect(downloads.totalWeekly).toBe(2 * downloads.flagshipWeekly!);
   });
 });
