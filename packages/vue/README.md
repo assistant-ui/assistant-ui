@@ -15,7 +15,7 @@ Requires Vue 3.5 or newer.
 npm install @assistant-ui/vue @assistant-ui/ai-sdk ai react
 ```
 
-`@assistant-ui/ai-sdk` connects the [AI SDK](https://ai-sdk.dev). It runs the AI SDK's chat state on the shared runtime, so it needs `react` installed even though React renders nothing. When you type check, also install `@types/react` as a dev dependency, because the runtime's types reference React's.
+`@assistant-ui/ai-sdk` connects the [AI SDK](https://ai-sdk.dev). It runs the AI SDK's chat state on the shared runtime, so it needs `react` installed even though React renders nothing.
 
 ## Usage
 
