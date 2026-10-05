@@ -116,6 +116,7 @@ describe("MessagePrimitiveParts", () => {
   let root: Root;
 
   beforeEach(() => {
+    h.imageProps = null;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -132,13 +133,12 @@ describe("MessagePrimitiveParts", () => {
     const image = container.querySelector("img");
     expect(image).not.toBeNull();
     expect(image?.getAttribute("src")).toContain(IMAGE);
+    expect(h.imageProps?.source).toEqual({ uri: IMAGE });
   });
 
   it("gives the default image a sizing style, which native layout requires", async () => {
     await act(async () => root.render(<ImageApp />));
 
-    // a native Image derives no size from a remote or data URI, so the style
-    // reaching the host is the contract, not whatever the DOM shim renders
     expect(h.imageProps?.style).toEqual({ width: "100%", aspectRatio: 1 });
     expect(h.imageProps?.resizeMode).toBe("contain");
   });
@@ -152,6 +152,7 @@ describe("MessagePrimitiveParts", () => {
 
     expect(container.textContent).toBe("custom image");
     expect(container.querySelector("img")).toBeNull();
+    expect(h.imageProps).toBeNull();
   });
 
   it("renders generative UI and its fallback beside native text", async () => {
