@@ -15,7 +15,8 @@ export function needsRedisTestService(plan) {
   }
   return plan.tasks.some(
     (task) =>
-      task.task === "test" && REDIS_TEST_PACKAGES.includes(task.package),
+      (task.task === "test" || task.task === "test:coverage") &&
+      REDIS_TEST_PACKAGES.includes(task.package),
   );
 }
 

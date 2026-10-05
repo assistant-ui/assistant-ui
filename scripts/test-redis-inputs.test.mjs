@@ -14,13 +14,15 @@ const script = path.join(root, "scripts/test-redis-inputs.mjs");
 
 test("starts Redis for either consumer regardless of cache status", () => {
   for (const name of REDIS_TEST_PACKAGES) {
-    for (const status of ["HIT", "MISS"]) {
-      assert.equal(
-        needsRedisTestService({
-          tasks: [{ package: name, task: "test", cache: { status } }],
-        }),
-        true,
-      );
+    for (const task of ["test", "test:coverage"]) {
+      for (const status of ["HIT", "MISS", undefined]) {
+        assert.equal(
+          needsRedisTestService({
+            tasks: [{ package: name, task, cache: { status } }],
+          }),
+          true,
+        );
+      }
     }
   }
 });
@@ -31,12 +33,41 @@ test("does not start Redis for unrelated tests or consumer builds", () => {
     needsRedisTestService({
       tasks: [
         { package: "@assistant-ui/tap", task: "test" },
+        { package: "@assistant-ui/mcp-docs-server", task: "test:coverage" },
         { package: "assistant-stream", task: "build" },
         { package: "@assistant-ui/docs", task: "generate:type-docs" },
       ],
     }),
     false,
   );
+});
+
+test("coverage selection does not change report or artifact collection", () => {
+  const workflow = readFileSync(
+    path.join(root, ".github/workflows/code-quality.yaml"),
+    "utf8",
+  );
+  const job = workflow.match(/\n  coverage:\n([\s\S]*?)(?=\n  [\w-]+:)/)[1];
+  assert.doesNotMatch(job, /\n    services:/);
+  assert.match(job, /REDIS_URL: redis:\/\/127\.0\.0\.1:6379/);
+  assert.match(job, /set -euo pipefail/);
+  assert.match(
+    job,
+    /pnpm exec turbo run test:coverage --dry=json --filter="\.\.\.\[\$BASE\]" \| node scripts\/test-redis-inputs\.mjs/,
+  );
+  assert.match(job, /steps\.redis\.outputs\.run == 'true'/);
+  assert.match(job, /docker exec aui-coverage-redis redis-cli ping/);
+  assert.match(
+    job,
+    /pnpm turbo test:coverage --concurrency=1 --filter="\$FILTER"/,
+  );
+  assert.match(job, /Write the coverage summary\n        if: always\(\)/);
+  assert.match(job, /Upload coverage reports\n        if: always\(\)/);
+  assert.match(
+    job,
+    /Stop Redis\n        if: always\(\) && steps\.redis\.outputs\.run == 'true'/,
+  );
+  assert.match(job, /docker rm --force aui-coverage-redis/);
 });
 
 test("invalid task plans fail instead of silently skipping Redis", () => {
