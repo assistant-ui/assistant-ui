@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     sendMessage: vi.fn().mockResolvedValue(undefined),
     messages: [] as AdkMessage[],
     messageRunConfig: undefined as unknown,
+    streamedMessages: undefined as AdkMessage[] | undefined,
     applySnapshot: vi.fn(),
     threadListItem,
   };
@@ -51,6 +52,15 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
     onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
   }) => {
     options.onMessages?.(mocks.messages, mocks.messageRunConfig);
+    const sendMessage = async (
+      messages: AdkMessage[],
+      config: AdkSendMessageConfig,
+    ) => {
+      await mocks.sendMessage(messages, config);
+      if (mocks.streamedMessages) {
+        options.onMessages?.(mocks.streamedMessages, config.runConfig);
+      }
+    };
     return {
       messages: mocks.messages,
       stateDelta: {},
@@ -63,7 +73,7 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
       authRequests: [],
       escalated: false,
       messageMetadata: new Map(),
-      sendMessage: mocks.sendMessage,
+      sendMessage,
       cancel: vi.fn(),
       setMessages: vi.fn(),
       replaceMessages: vi.fn(),
@@ -143,6 +153,7 @@ afterEach(() => {
   mocks.sendMessage.mockClear();
   mocks.messages = [];
   mocks.messageRunConfig = undefined;
+  mocks.streamedMessages = undefined;
   mocks.applySnapshot.mockReset();
   mocks.threadListItem.source = null;
   mocks.threadListItem.externalId = undefined;
@@ -194,12 +205,21 @@ describe("useAdkRuntime tool approvals", () => {
 
   it("preserves pending tool ownership across a thread refetch", async () => {
     const runConfig = { custom: { model: "model-a" } };
-    const loadedMessages: AdkMessage[] = [
+    const currentMessages: AdkMessage[] = [
       {
         id: "ai-1",
         type: "ai",
         content: [],
         tool_calls: [{ id: "tool-a", name: "lookup", args: {} }],
+      },
+    ];
+    const loadedMessages: AdkMessage[] = [
+      ...currentMessages,
+      {
+        id: "ai-2",
+        type: "ai",
+        content: [],
+        tool_calls: [{ id: "tool-loaded", name: "lookup", args: {} }],
       },
     ];
     const load = vi.fn(async () => ({ messages: loadedMessages }));
@@ -212,7 +232,7 @@ describe("useAdkRuntime tool approvals", () => {
     await act(async () => {
       await latestAdapter().onNew!(makeUserMessage("first", runConfig));
     });
-    mocks.messages = loadedMessages;
+    mocks.messages = currentMessages;
     mocks.messageRunConfig = runConfig;
     rerender();
 
@@ -230,18 +250,35 @@ describe("useAdkRuntime tool approvals", () => {
         result: { value: "done" },
         isError: false,
       });
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-2",
+        toolCallId: "tool-loaded",
+        toolName: "lookup",
+        result: { value: "loaded" },
+        isError: false,
+      });
     });
 
-    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
+    expect(
+      mocks.sendMessage.mock.calls.slice(-2).map((call) => call[1]),
+    ).toEqual([{ runConfig }, { runConfig: undefined }]);
   });
 
   it("attributes new tool calls to an explicitly configured continuation", async () => {
     const runConfigA = { custom: { model: "model-a" } };
     const runConfigB = { custom: { model: "model-b" } };
-    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+    renderHook(() => useAdkRuntime({ stream: vi.fn() }));
 
     await act(async () => {
       await latestAdapter().onNew!(makeUserMessage("first", runConfigA));
+      mocks.streamedMessages = [
+        {
+          id: "ai-b",
+          type: "ai",
+          content: [],
+          tool_calls: [{ id: "tool-b", name: "lookup", args: {} }],
+        },
+      ];
       await latestAdapter().extras.send(
         [
           {
@@ -255,17 +292,6 @@ describe("useAdkRuntime tool approvals", () => {
         { runConfig: runConfigB },
       );
     });
-
-    mocks.messages = [
-      {
-        id: "ai-b",
-        type: "ai",
-        content: [],
-        tool_calls: [{ id: "tool-b", name: "lookup", args: {} }],
-      },
-    ];
-    mocks.messageRunConfig = runConfigB;
-    rerender();
 
     await act(async () => {
       await latestAdapter().onAddToolResult!({
