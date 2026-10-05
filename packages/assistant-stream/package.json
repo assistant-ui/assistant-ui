@@ -75,7 +75,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "ioredis": "^6.0.0",
-    "ioredis-v5": "npm:ioredis@^6.0.0",
+    "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.3.0",
     "vitest": "^5.0.3"
   },

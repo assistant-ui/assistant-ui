@@ -4083,8 +4083,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)
       ioredis-v5:
-        specifier: npm:ioredis@^6.0.0
-        version: ioredis@6.0.0(supports-color@10.2.2)
+        specifier: npm:ioredis@^5.11.1
+        version: ioredis@5.11.1(supports-color@10.2.2)
       redis:
         specifier: ^6.3.0
         version: 6.3.0(@opentelemetry/api@1.9.1)
@@ -4196,8 +4196,8 @@ importers:
         specifier: ^7.0.127
         version: 7.0.127(zod@4.6.5)
       ai-v6:
-        specifier: npm:ai@^7.0.127
-        version: ai@7.0.127(zod@4.6.5)
+        specifier: npm:ai@^6.0.277
+        version: ai@6.0.300(zod@4.6.5)
       jsdom:
         specifier: ^30.1.2
         version: 30.1.2
@@ -5975,17 +5975,17 @@ importers:
   packages/x-react18:
     dependencies:
       '@types/react-dom-v18':
-        specifier: npm:@types/react-dom@^19.3.0
-        version: '@types/react-dom@19.3.0(@types/react@19.3.0)'
+        specifier: npm:@types/react-dom@^18.3.0
+        version: '@types/react-dom@18.3.7(@types/react@18.3.31)'
       '@types/react-v18':
-        specifier: npm:@types/react@^19.3.0
-        version: '@types/react@19.3.0'
+        specifier: npm:@types/react@^18.3.0
+        version: '@types/react@18.3.31'
       react-dom-v18:
-        specifier: npm:react-dom@^19.3.0
-        version: react-dom@19.3.0(react@19.3.0)
+        specifier: npm:react-dom@^18.3.1
+        version: react-dom@18.3.1(react@18.3.1)
       react-v18:
-        specifier: npm:react@^19.3.0
-        version: react@19.3.0
+        specifier: npm:react@^18.3.1
+        version: react@18.3.1
     devDependencies:
       vitest:
         specifier: ^5.0.3
@@ -6749,6 +6749,12 @@ packages:
   '@ag-ui/proto@0.0.59':
     resolution: {integrity: sha512-X+uvDaegLEHw5kJu8tv2eSqHH8ouat+JCfFokGV1uuMquY8qCEQSlGsM7xzexwX9fujuxgHOWumg5kJDqa0+RA==}
 
+  '@ai-sdk/gateway@3.0.209':
+    resolution: {integrity: sha512-CjCBzC35lRZ0LnUYLDfTB92p0Fr1Fu9Wrivc+LI0u3ox/DyZ0wPOHjt8DKBKHD/R4aZ86+JCFFuD9f8MFjAQFg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@4.0.103':
     resolution: {integrity: sha512-nnGTUHzPRQ14jhv9CL4OQrzcRBIFTBMIPKGIi9Z9u/4GtwSRxa/nxUX6np2Iwp5phOzO0a0njj/j9Jolf5AEaA==}
     engines: {node: '>=22'}
@@ -6771,11 +6777,21 @@ packages:
     resolution: {integrity: sha512-hJY4V5E2LJeJxM1Eb6g+mkhdLHCRI/zcqDFE76diAOmHu/x+5Sj7q/0Tl1wDJGL/qZOGz3Fe+e549zFsvoxAOw==}
     engines: {node: '>=22'}
 
+  '@ai-sdk/provider-utils@4.0.57':
+    resolution: {integrity: sha512-89a7sPvZqXsP3PigcAQLWntu/duIVEcN/RyChAB+j6p3C7NwW767sVttvL8r0+BetTg63uAXQoYHCZZueQKBSw==}
+    engines: {node: '>=18.17'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@5.0.53':
     resolution: {integrity: sha512-VVe6UDd0y0/B4TfauuKKzcppqvhTmSluwwUVT4WG2/8h7gFbyFm7PM4UGM+ZXe3/RI6bv+Vl1cw/7aiBoQqdxg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider@3.0.18':
+    resolution: {integrity: sha512-IpefF5ssZVOZCD4Wu7zxt6PwZoGT2HLVjxpJ10Bjx6EAmRfLYJPjyrfxb0RYDlwvXnDb9nkQ7Do/oJVDuRFzew==}
+    engines: {node: '>=18'}
 
   '@ai-sdk/provider@4.0.21':
     resolution: {integrity: sha512-UpbC9C1oht8dhfKPbVXSLRZS3DI8uk8n5v2uMjBPNIYGsC2kL045ywq7D8Hh9KgnH9rP5W/GxQdYtWScRouqlA==}
@@ -12393,11 +12409,19 @@ packages:
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
 
+  '@types/prop-types@15.7.15':
+    resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
+
   '@types/qs@6.15.1':
     resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
 
   '@types/range-parser@1.2.7':
     resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
+
+  '@types/react-dom@18.3.7':
+    resolution: {integrity: sha512-MEe3UeoENYVFXzoXEWsvcpg6ZvlrFNlOQ7EOsvhI3CfAXwzPfO8Qwuxd40nepsYKqyyVQnTdEfv68q91yLcKrQ==}
+    peerDependencies:
+      '@types/react': ^18.0.0
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -12409,6 +12433,9 @@ packages:
 
   '@types/react-test-renderer@19.3.0':
     resolution: {integrity: sha512-TX4p2D4Z2oigM3SXU7+QyLSUnSR0vR1S1Pfxm/qFL9nHQ3jclgi6ioGoWQmlIr1DeKRVmPJrmNlhgM0JlWlLUg==}
+
+  '@types/react@18.3.31':
+    resolution: {integrity: sha512-vfEqpXTvwT91yhmwdfouStN2hSKwTvyRs8qpLfADyrq/kxDw0hZM7Wk9Ug1FELj8hIby+S/+kQCSRFF32nv2Qw==}
 
   '@types/react@19.2.18':
     resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
@@ -13410,6 +13437,12 @@ packages:
   agent-install@0.0.6:
     resolution: {integrity: sha512-7NRMZ/ZDz2vHevQTgJsocBFpakB1/Wx5ip19YSJuj4VOXpraWztTerViNtdSyARKZT9e2yVwUUB5JXXCE7mNrA==}
     hasBin: true
+
+  ai@6.0.300:
+    resolution: {integrity: sha512-ZBT30eQTy6exP+EWJJxm3DMb34m9td8STy+hfnvKdjhyEQoM8vQN5YfFLTRVVTCONHoM+y5K+Tudb6PTFrpikA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ai@7.0.127:
     resolution: {integrity: sha512-JNsNPk4ZvRGEJuqdVo2lYFkm7uAuf3p/RwKFWn1Wh/+IK3U1RyFWw2GXoFnhzqNfxEuj7XJB4WpIUhl1sHToWg==}
@@ -18774,6 +18807,11 @@ packages:
   react-devtools-core@6.1.5:
     resolution: {integrity: sha512-ePrwPfxAnB+7hgnEr8vpKxL9cmnp7F322t8oqcPshbIQQhDKgFDW4tjhF2wjVbdXF9O/nyuy3sQWd9JGpiLPvA==}
 
+  react-dom@18.3.1:
+    resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
+    peerDependencies:
+      react: ^18.3.1
+
   react-dom@19.2.3:
     resolution: {integrity: sha512-yELu4WmLPw5Mr/lmeEpox5rw3RETacE++JgHqQzd2dg+YbJuat3jH4ingc+WPZhxaoFzdv9y33G+F7Nl5O0GBg==}
     peerDependencies:
@@ -19066,6 +19104,10 @@ packages:
     peerDependencies:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
+
+  react@18.3.1:
+    resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+    engines: {node: '>=0.10.0'}
 
   react@19.2.3:
     resolution: {integrity: sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA==}
@@ -19469,6 +19511,9 @@ packages:
   saxes@6.0.0:
     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
     engines: {node: '>=v12.22.7'}
+
+  scheduler@0.23.2:
+    resolution: {integrity: sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
@@ -21363,6 +21408,13 @@ snapshots:
       '@bufbuild/protobuf': 2.16.0
       '@protobuf-ts/protoc': 2.11.1
 
+  '@ai-sdk/gateway@3.0.209(zod@4.6.5)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.18
+      '@ai-sdk/provider-utils': 4.0.57(zod@4.6.5)
+      '@vercel/oidc': 3.2.0
+      zod: 4.6.5
+
   '@ai-sdk/gateway@4.0.103(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.21
@@ -21392,6 +21444,14 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  '@ai-sdk/provider-utils@4.0.57(zod@4.6.5)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.18
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.1
+      undici: 6.29.0
+      zod: 4.6.5
+
   '@ai-sdk/provider-utils@5.0.53(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.21
@@ -21400,6 +21460,10 @@ snapshots:
       eventsource-parser: 3.1.1
       undici: 7.30.0
       zod: 4.6.5
+
+  '@ai-sdk/provider@3.0.18':
+    dependencies:
+      json-schema: 0.4.0
 
   '@ai-sdk/provider@4.0.21':
     dependencies:
@@ -28394,9 +28458,15 @@ snapshots:
 
   '@types/prismjs@1.26.6': {}
 
+  '@types/prop-types@15.7.15': {}
+
   '@types/qs@6.15.1': {}
 
   '@types/range-parser@1.2.7': {}
+
+  '@types/react-dom@18.3.7(@types/react@18.3.31)':
+    dependencies:
+      '@types/react': 18.3.31
 
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
@@ -28409,6 +28479,11 @@ snapshots:
   '@types/react-test-renderer@19.3.0':
     dependencies:
       '@types/react': 19.2.18
+
+  '@types/react@18.3.31':
+    dependencies:
+      '@types/prop-types': 15.7.15
+      csstype: 3.2.3
 
   '@types/react@19.2.18':
     dependencies:
@@ -29510,6 +29585,14 @@ snapshots:
       picocolors: 1.1.1
       prompts: 2.4.2
       yaml: 2.9.1
+
+  ai@6.0.300(zod@4.6.5):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.209(zod@4.6.5)
+      '@ai-sdk/provider': 3.0.18
+      '@ai-sdk/provider-utils': 4.0.57(zod@4.6.5)
+      '@opentelemetry/api': 1.9.1
+      zod: 4.6.5
 
   ai@7.0.127(zod@4.6.5):
     dependencies:
@@ -36519,6 +36602,12 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  react-dom@18.3.1(react@18.3.1):
+    dependencies:
+      loose-envify: 1.4.0
+      react: 18.3.1
+      scheduler: 0.23.2
+
   react-dom@19.2.3(react@19.2.3):
     dependencies:
       react: 19.2.3
@@ -36959,6 +37048,10 @@ snapshots:
       prop-types: 15.8.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
+
+  react@18.3.1:
+    dependencies:
+      loose-envify: 1.4.0
 
   react@19.2.3: {}
 
@@ -37552,6 +37645,10 @@ snapshots:
   saxes@6.0.0:
     dependencies:
       xmlchars: 2.2.0
+
+  scheduler@0.23.2:
+    dependencies:
+      loose-envify: 1.4.0
 
   scheduler@0.27.0: {}
 
