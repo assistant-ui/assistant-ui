@@ -323,6 +323,46 @@ describe("useThreadTokenUsage through useChatRuntime", () => {
 });
 
 describe("replacement transports", () => {
+  it("does not loop when the source transport is created inline", async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream({ start: (controller) => controller.close() }),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    );
+    let renders = 0;
+    let sent = false;
+    const SendOnLayout = ({ runtime }: { runtime: AssistantRuntime }) => {
+      useLayoutEffect(() => {
+        if (sent) return;
+        sent = true;
+        void runtime.thread.append("hello");
+      }, [runtime]);
+      return null;
+    };
+    const NestedChat = () => {
+      renders += 1;
+      const runtime = useChatRuntime({
+        transport: new AssistantChatTransport({ fetch }),
+      });
+      return <SendOnLayout runtime={runtime} />;
+    };
+
+    render(
+      <AuiProvider
+        config={AuiConfig({
+          threads: AISDKChat({ transport: new AssistantChatTransport() }),
+        })}
+      >
+        <NestedChat />
+      </AuiProvider>,
+    );
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+
+    expect(renders).toBeLessThan(10);
+  });
+
   it("routes sends through a replacement transport", async () => {
     const createEmptyStream = () =>
       new ReadableStream({ start: (controller) => controller.close() });

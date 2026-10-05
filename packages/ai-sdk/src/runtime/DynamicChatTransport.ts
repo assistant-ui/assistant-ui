@@ -5,6 +5,7 @@ import {
   AssistantChatTransport,
   type InitializableThreadListItem,
 } from "../transport/AssistantChatTransport";
+import type { ResumableClientStorage } from "../transport/resumable";
 import { getResumableAdapter } from "./getResumableAdapter";
 
 type ThreadTransportContext<UI_MESSAGE extends UIMessage> = {
@@ -32,9 +33,11 @@ export class DynamicChatTransport<
   >();
   private hasPendingNotification = false;
   private transport: ChatTransport<UI_MESSAGE>;
+  private resumableStorage: ResumableClientStorage | undefined;
 
   constructor(transport: ChatTransport<UI_MESSAGE>) {
     this.transport = transport;
+    this.resumableStorage = getResumableAdapter(transport)?.storage;
   }
 
   public readonly sendMessages: ChatTransport<UI_MESSAGE>["sendMessages"] = (
@@ -47,7 +50,7 @@ export class DynamicChatTransport<
   public readonly getCurrentTransport = (chatId: string) =>
     this.getThreadTransport(this.threadContexts.get(chatId)) ?? this.transport;
 
-  public readonly getCurrentSourceTransport = () => this.transport;
+  public readonly getCurrentResumableStorage = () => this.resumableStorage;
 
   public createThreadProxy(
     owner: object,
@@ -76,9 +79,10 @@ export class DynamicChatTransport<
 
   public setTransport(transport: ChatTransport<UI_MESSAGE>) {
     if (this.transport === transport) return;
-    const previousStorage = getResumableAdapter(this.transport)?.storage;
+    const previousStorage = this.resumableStorage;
     this.transport = transport;
-    if (previousStorage !== getResumableAdapter(transport)?.storage) {
+    this.resumableStorage = getResumableAdapter(transport)?.storage;
+    if (previousStorage !== this.resumableStorage) {
       this.hasPendingNotification = true;
     }
   }

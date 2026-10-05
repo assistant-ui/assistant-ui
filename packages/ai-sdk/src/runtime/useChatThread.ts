@@ -223,17 +223,24 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
         : () => {},
     [transport],
   );
-  const getSourceTransport = useCallback(
+  const staticResumableStorage = useMemo(
     () =>
       transport instanceof DynamicChatTransport
-        ? transport.getCurrentSourceTransport()
-        : transport,
+        ? undefined
+        : getResumableAdapter(transport)?.storage,
     [transport],
   );
-  const sourceTransport = useSyncExternalStore(
+  const getResumableStorage = useCallback(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.getCurrentResumableStorage()
+        : staticResumableStorage,
+    [staticResumableStorage, transport],
+  );
+  const resumableStorage = useSyncExternalStore(
     subscribeToTransport,
-    getSourceTransport,
-    getSourceTransport,
+    getResumableStorage,
+    getResumableStorage,
   );
 
   const transportBindingRef = useRef<ChatThreadTransportBinding | null>(null);
@@ -347,11 +354,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     subscribeToRuntime,
     getHistoryLoadingSnapshot,
     getHistoryLoadingSnapshot,
-  );
-
-  const resumableStorage = useMemo(
-    () => getResumableAdapter(sourceTransport)?.storage,
-    [sourceTransport],
   );
 
   const subscribeToResumableStorage = useCallback(
