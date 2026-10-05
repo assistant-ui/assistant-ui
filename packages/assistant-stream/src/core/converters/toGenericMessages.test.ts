@@ -271,6 +271,36 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("uses an image attachment's media type for extensionless URLs", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [],
+          attachments: [
+            {
+              contentType: "image/jpeg",
+              content: [
+                { type: "image", image: "https://cdn.example.com/image/123" },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/image/123"),
+              mediaType: "image/jpeg",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("keeps attachment parts when the message has no content", () => {
       const result = toGenericMessages([
         {
@@ -306,6 +336,44 @@ describe("toGenericMessages", () => {
           ],
         },
       ]);
+    });
+
+    it("lowercases a mixed-case attachment media type", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [],
+          attachments: [
+            {
+              contentType: "Image/JPEG",
+              content: [
+                { type: "image", image: "https://cdn.example.com/image/123" },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result[0]?.content[0]).toMatchObject({ mediaType: "image/jpeg" });
+    });
+
+    it("falls back past a wildcard attachment media type", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [],
+          attachments: [
+            {
+              contentType: "image/*",
+              content: [
+                { type: "image", image: "https://cdn.example.com/photo.webp" },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result[0]?.content[0]).toMatchObject({ mediaType: "image/webp" });
     });
 
     it("carries a file part filename through", () => {
