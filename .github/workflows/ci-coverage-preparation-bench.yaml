@@ -1,0 +1,34 @@
+name: Coverage preparation benchmark
+on:
+  push:
+    branches: [perf/ci-coverage-preparation-bench]
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Compare preparation and coverage output
+        env:
+          BENCH_SAMPLE: ${{ matrix.sample }}
+        run: node scripts/bench-coverage-preparation.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: coverage-${{ matrix.sample }}
+          path: bench-results/
+          retention-days: 7
