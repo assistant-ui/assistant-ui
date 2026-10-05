@@ -54,8 +54,6 @@ jobs:
           --health-retries 10
     env:
       REDIS_URL: redis://127.0.0.1:6379
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -74,9 +72,15 @@ jobs:
 
       # test:coverage runs one package at a time, so build every package first at turbo's default concurrency.
       - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo build --filter="./packages/*"
 
       - name: Run every package's tests with coverage
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:coverage --continue
 
       - name: Write the coverage summary
