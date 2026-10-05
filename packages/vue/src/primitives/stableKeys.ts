@@ -14,6 +14,8 @@ export const getAttachmentKeys = (
 ) => {
   const ids = attachments.map((attachment) => attachment.id);
   return ids.map((id, index) =>
-    ids.indexOf(id) === ids.lastIndexOf(id) ? id : `attachment@${index}`,
+    ids.indexOf(id) === ids.lastIndexOf(id)
+      ? `attachment:${id}`
+      : `attachment@${index}`,
   );
 };
