@@ -542,6 +542,7 @@ describe("useThreadViewportAutoScroll", () => {
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
     { label: "wheel", make: () => new WheelEvent("wheel") },
+    { label: "touchstart", make: () => new Event("touchstart") },
     {
       label: "Enter keydown",
       make: () => new KeyboardEvent("keydown", { key: "Enter" }),
@@ -592,6 +593,7 @@ describe("useThreadViewportAutoScroll", () => {
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
     { label: "wheel", make: () => new WheelEvent("wheel") },
+    { label: "touchstart", make: () => new Event("touchstart") },
     {
       label: "Enter keydown",
       make: () => new KeyboardEvent("keydown", { key: "Enter" }),

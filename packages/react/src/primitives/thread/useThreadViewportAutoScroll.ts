@@ -348,6 +348,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     el.addEventListener("wheel", cancelPendingScrollToBottom, {
       passive: true,
     });
+    el.addEventListener("touchstart", cancelPendingScrollToBottom, {
+      passive: true,
+    });
     el.addEventListener("keydown", cancelOnKeyDown);
     for (const gesture of gestures) {
       el.addEventListener(gesture, releasePrependAnchor, { passive: true });
@@ -356,6 +359,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
       el.removeEventListener("wheel", cancelPendingScrollToBottom);
+      el.removeEventListener("touchstart", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
       for (const gesture of gestures) {
         el.removeEventListener(gesture, releasePrependAnchor);
