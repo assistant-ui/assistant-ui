@@ -132,6 +132,18 @@ test("an unavailable base fails rather than skipping checks", (t) => {
   assert.throws(() => prepareCiBase("missing", shallow));
 });
 
+for (const { baseRef, article, label } of [
+  { baseRef: undefined, article: "a", label: "missing" },
+  { baseRef: "", article: "an", label: "empty" },
+]) {
+  test(`${article} ${label} base fails before running git`, () => {
+    assert.throws(
+      () => prepareCiBase(baseRef, "/not-a-repository"),
+      /Missing comparison base ref \(GITHUB_BASE_REF\)/,
+    );
+  });
+}
+
 test("invalid ref names fail before fetching", (t) => {
   const { shallow } = fixture(t);
   assert.throws(() => prepareCiBase("bad..ref", shallow));

@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export function prepareCiBase(baseRef, cwd = process.cwd()) {
+  if (!baseRef) {
+    throw new Error("Missing comparison base ref (GITHUB_BASE_REF)");
+  }
   const git = (...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
   const checked = (...args) => {
     const result = git(...args);
