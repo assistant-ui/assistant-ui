@@ -12,9 +12,9 @@ When a tool call includes a `messages` field (`ToolCallMessagePart.messages`), i
 
 Key behaviors:
 
-- **Scope inheritance** — Parent toolkit renderers are available in sub-agent messages. A `Tools({ toolkit })` registration at the top level works inside sub-agent conversations too.
-- **Recursive** — Sub-agent messages can contain tool calls that themselves have nested messages. Just use `MessagePartPrimitive.Messages` again.
-- **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, composing, or answering tool calls: `s.thread.capabilities.answerToolCall` is `false` there.
+- **Scope inheritance**: Parent toolkit renderers are available in sub-agent messages. A `Tools({ toolkit })` registration at the top level works inside sub-agent conversations too.
+- **Recursive**: Sub-agent messages can contain tool calls that themselves have nested messages. Use `MessagePartPrimitive.Messages` again to render them.
+- **Read-only**: Sub-agent messages are rendered in a readonly context, without editing, branching, composing, or answering tool calls; `s.thread.capabilities.answerToolCall` is `false` there.
 
 <Callout type="info">
   This renders a sub-agent's **messages**. To visualize a sub-agent's **execution trace** instead (timing, span hierarchy, waterfalls), see [react-o11y](/docs/utilities/react-o11y), which renders observability spans as collapsible trees and timelines.
@@ -29,6 +29,7 @@ Key behaviors:
 
 ```tsx
 import {
+  AuiConfig,
   defineToolkit,
   Tools,
   MessagePartPrimitive,
@@ -59,7 +60,7 @@ const toolkit = defineToolkit({
 
 ### Provide the Messages from the Backend
 
-The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. An AI SDK backend populates it from the tool result. The AG-UI runtime assembles it from the protocol's subagent lifecycle events, the LangChain runtime from the subagent discovered for each `task` tool call, and the OpenCode runtime from the child session behind each `task` tool call. The LangGraph runtime and Google ADK leave it unset: LangGraph streams subgraph messages into the parent thread and attributes them through the namespaced events, and an ADK long-running call is owned by the client and settles on `requires-action` until the function response is sent, see [long-running tools](/docs/runtimes/google-adk/hooks#long-running-tools).
+The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. An AI SDK backend populates it from the tool result. The AG-UI runtime assembles it from the protocol's subagent lifecycle events, the LangChain runtime from the subagent discovered for each `task` tool call, and the OpenCode runtime from the child session behind each `task` tool call. The LangGraph runtime and Google ADK leave it unset: LangGraph streams subgraph messages into the parent thread and attributes them through the namespaced events, and an ADK long-running call is owned by the client and settles on `requires-action` until the function response is sent; see [long-running tools](/docs/runtimes/google-adk/hooks#long-running-tools).
 
 <Tabs items={["AI SDK", "LangGraph", "LangChain", "AG-UI"]}>
 <Tab value="AI SDK">
@@ -161,10 +162,10 @@ See [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) for the fu
 
 ```tsx
 function App() {
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
-      <ResearchAgentToolUI />
     </AssistantRuntimeProvider>
   );
 }
@@ -291,10 +292,10 @@ function SubConversation({
 
 ## Related
 
-- [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
-- [react-o11y](/docs/utilities/react-o11y) — Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
-- [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
-- [Sub-Agent Model Tracking](/docs/cloud/traces#track-sub-agent-model-work) — Track delegated model usage and costs in the Cloud dashboard
-- [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) — Nested subagent messages attributed from the AG-UI event stream
-- [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
-- [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph
+- [Tool UI](/docs/tools/tool-ui): Creating tool call UIs
+- [react-o11y](/docs/utilities/react-o11y): Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
+- [MessagePartPrimitive](/docs/api-reference/primitives/message-part): API reference for message part primitives
+- [Sub-Agent Model Tracking](/docs/cloud/traces#track-sub-agent-model-work): Track delegated model usage and costs in the Cloud dashboard
+- [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents): Nested subagent messages attributed from the AG-UI event stream
+- [LangGraph Streaming](/docs/runtimes/langgraph/streaming): Event handlers, subgraph events, and message metadata
+- [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui): Structured UI components emitted by your graph

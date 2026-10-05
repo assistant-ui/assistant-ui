@@ -9,6 +9,7 @@ import {
   type ConcentrationSegment,
 } from "@/components/pages/packages/download-concentration";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type DirectoryRow = {
   name: string;
@@ -41,13 +42,14 @@ export function PackageDirectory({
 }: {
   categories: DirectoryCategory[];
   rows: DirectoryRow[];
+  /** `null` while npm has not answered yet. */
   concentration: {
     leaders: ConcentrationSegment[];
     tailNames: string[];
     tailCount: number;
     tailWeekly: number;
     total: number;
-  };
+  } | null;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -57,18 +59,22 @@ export function PackageDirectory({
 
   // The page owns the leader/tail split; re-deriving it here would let the
   // highlight and the segment it belongs to drift apart.
-  const tailNames = new Set(concentration.tailNames);
+  const tailNames = new Set(concentration?.tailNames);
   const isLit = (name: string) =>
     hovered === TAIL_KEY ? tailNames.has(name) : hovered === name;
 
   return (
     <div className="flex flex-col gap-12 md:gap-14">
       <section>
-        <DownloadConcentration
-          {...concentration}
-          hovered={hovered}
-          onHover={setHovered}
-        />
+        {concentration && concentration.total > 0 ? (
+          <DownloadConcentration
+            {...concentration}
+            hovered={hovered}
+            onHover={setHovered}
+          />
+        ) : (
+          <SharePlaceholder pending={concentration === null} />
+        )}
       </section>
 
       <nav
@@ -166,6 +172,24 @@ function FilterChip({
   );
 }
 
+function SharePlaceholder({ pending }: { pending: boolean }) {
+  const bar = cn("w-full motion-reduce:animate-none", !pending && "invisible");
+  return (
+    <div aria-busy={pending || undefined} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 className="text-sm font-medium">Share of weekly downloads</h2>
+        {pending ? (
+          <Skeleton className="h-4 w-56 motion-reduce:animate-none" />
+        ) : (
+          <p className="text-muted-foreground text-xs">unavailable right now</p>
+        )}
+      </div>
+      <Skeleton className={cn("h-2", bar)} />
+      <Skeleton className={cn("h-16 md:h-4", bar)} />
+    </div>
+  );
+}
+
 function PackageRow({
   row,
   lit,
@@ -216,7 +240,16 @@ function PackageRow({
             <Sparkline values={row.series} className="text-foreground/40" />
           </span>
         </span>
-      ) : null}
+      ) : row.deprecated ? null : (
+        <span
+          aria-hidden
+          className="invisible flex shrink-0 items-baseline gap-3 font-mono text-[11px]"
+        >
+          <span className="md:w-20">0 /wk</span>
+          <span className="md:w-12" />
+          <span className="hidden h-[18px] w-16 md:block" />
+        </span>
+      )}
     </a>
   );
 }

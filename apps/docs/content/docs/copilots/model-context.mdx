@@ -4,7 +4,7 @@ description: Configure assistant behavior through system instructions, tools, an
 platforms: ["react"]
 ---
 
-Model Context is the foundation of intelligence in assistant-ui components. It provides configuration and capabilities to the assistant through a context provider system.
+Model context is the set of system instructions and tools that components provide to the assistant through a context provider system.
 
 ## Core Concepts
 
@@ -32,7 +32,7 @@ const ReadableComponent = makeAssistantVisible(MyComponent);
 // Automatically provides component HTML as system context
 ```
 
-`useAssistantInstructions` takes a static string that re-registers when changed. `useAssistantContext` takes a callback that is evaluated fresh each time the model context is read, making it ideal for injecting frequently-changing application state without triggering re-registrations.
+`useAssistantInstructions` takes a static string that re-registers when changed. `useAssistantContext` takes a callback that is evaluated fresh each time the model context is read, so it suits frequently changing application state and does not trigger re-registration.
 
 ### Tools
 

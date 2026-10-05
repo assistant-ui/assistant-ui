@@ -1443,6 +1443,158 @@ describe("OpenCodeThreadController", () => {
     ).toBe(pendingQuestion);
   });
 
+  it.each(["constructor", "toString", "__proto__"])(
+    "reconciles the prototype-named interaction id %s across reconnect",
+    async (id) => {
+      const permission = {
+        id,
+        sessionID: "ses_1",
+        permission: "fs.read",
+        metadata: { title: "Read file" },
+      };
+      const question = {
+        id,
+        sessionID: "ses_1",
+        questions: [{ header: "Continue", question: "Continue?" }],
+      };
+      const createSubject = () => {
+        const eventSource = createEventSource();
+        const client = createReconnectClient({
+          permissions: vi.fn().mockResolvedValue({ data: [permission] }),
+          questions: vi.fn().mockResolvedValue({ data: [question] }),
+        });
+        const controller = new OpenCodeThreadController(
+          client as never,
+          () => eventSource,
+          "ses_1",
+        );
+        controller.subscribe(vi.fn());
+        return { client, controller, eventSource };
+      };
+      const reconnect = async (
+        subject: ReturnType<typeof createSubject>,
+      ): Promise<void> => {
+        subject.eventSource.emit(streamReconnected);
+        await vi.waitFor(() => {
+          expect(subject.client.permission.list).toHaveBeenCalledTimes(1);
+          expect(subject.client.question.list).toHaveBeenCalledTimes(1);
+        });
+      };
+      const askPermission = (subject: ReturnType<typeof createSubject>) => {
+        subject.eventSource.emit({
+          type: "permission.asked",
+          sessionId: "ses_1",
+          properties: permission,
+          raw: {},
+        });
+      };
+      const askQuestion = (subject: ReturnType<typeof createSubject>) => {
+        subject.eventSource.emit({
+          type: "question.asked",
+          sessionId: "ses_1",
+          properties: question,
+          raw: {},
+        });
+      };
+
+      const active = createSubject();
+      await reconnect(active);
+      expect(
+        Object.hasOwn(
+          active.controller.getState().interactions.permissions.pending,
+          id,
+        ),
+      ).toBe(true);
+      expect(
+        Object.hasOwn(
+          active.controller.getState().interactions.questions.pending,
+          id,
+        ),
+      ).toBe(true);
+
+      const pending = createSubject();
+      askPermission(pending);
+      askQuestion(pending);
+      const pendingPermission =
+        pending.controller.getState().interactions.permissions.pending[id];
+      const pendingQuestion =
+        pending.controller.getState().interactions.questions.pending[id];
+      await reconnect(pending);
+      expect(
+        pending.controller.getState().interactions.permissions.pending[id],
+      ).toBe(pendingPermission);
+      expect(
+        pending.controller.getState().interactions.questions.pending[id],
+      ).toBe(pendingQuestion);
+
+      const resolved = createSubject();
+      askPermission(resolved);
+      resolved.eventSource.emit({
+        type: "permission.replied",
+        sessionId: "ses_1",
+        properties: { requestID: id, reply: "once" },
+        raw: {},
+      });
+      await reconnect(resolved);
+      expect(
+        Object.hasOwn(
+          resolved.controller.getState().interactions.permissions.pending,
+          id,
+        ),
+      ).toBe(false);
+      expect(
+        Object.hasOwn(
+          resolved.controller.getState().interactions.permissions.resolved,
+          id,
+        ),
+      ).toBe(true);
+
+      const answered = createSubject();
+      askQuestion(answered);
+      answered.eventSource.emit({
+        type: "question.replied",
+        sessionId: "ses_1",
+        properties: { requestID: id, answers: [] },
+        raw: {},
+      });
+      await reconnect(answered);
+      expect(
+        Object.hasOwn(
+          answered.controller.getState().interactions.questions.pending,
+          id,
+        ),
+      ).toBe(false);
+      expect(
+        Object.hasOwn(
+          answered.controller.getState().interactions.questions.answered,
+          id,
+        ),
+      ).toBe(true);
+
+      const rejected = createSubject();
+      askQuestion(rejected);
+      rejected.eventSource.emit({
+        type: "question.rejected",
+        sessionId: "ses_1",
+        properties: { requestID: id },
+        raw: {},
+      });
+      await reconnect(rejected);
+      expect(
+        Object.hasOwn(
+          rejected.controller.getState().interactions.questions.pending,
+          id,
+        ),
+      ).toBe(false);
+      expect(
+        Object.hasOwn(
+          rejected.controller.getState().interactions.questions.rejected,
+          id,
+        ),
+      ).toBe(true);
+    },
+  );
+
   it("refreshes pending reconnect interactions with the latest payload", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({
