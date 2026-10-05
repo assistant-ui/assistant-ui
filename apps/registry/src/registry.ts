@@ -2659,12 +2659,25 @@ export const stagedVueRegistry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/vue/assistant-ui/markdown-text.vue",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/reasoning.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/reasoning.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tool-fallback.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/tool-fallback.vue",
+      },
     ],
     dependencies: [
       "@assistant-ui/core",
       "@assistant-ui/vue",
       "@lucide/vue",
       "markdown-it",
+      "reka-ui",
     ],
     devDependencies: ["@types/markdown-it"],
   },
