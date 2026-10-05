@@ -39,7 +39,7 @@
     "@assistant-ui/tap": "^0.9.21"
   },
   "peerDependencies": {
-    "@types/react": "^19.0.0",
+    "@types/react": "*",
     "vue": "^3.5.0"
   },
   "devDependencies": {
