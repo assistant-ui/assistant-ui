@@ -29,7 +29,7 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
 
       - name: Build measured packages
         env:

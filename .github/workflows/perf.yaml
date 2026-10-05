@@ -65,7 +65,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
 
       - name: Build measured packages
         env:
