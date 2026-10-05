@@ -1930,6 +1930,11 @@ type ExternalMessageConverterMetadata = {
   readonly messageTiming?: Record<string, MessageTiming>;
 };
 
+type ExternalMessageMetadataKeySelector<TMessage> = {
+  select: (message: TMessage, metadata: ExternalMessageConverterMetadata) => unknown;
+  isEqual?: (previous: unknown, current: unknown) => boolean;
+};
+
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
@@ -6479,6 +6484,8 @@ declare const createCloudThreadListAdapterCreateFallback: (create: (() => Promis
 
 declare const createExternalMessageConversionCache: () => ExternalMessageConversionCache;
 
+declare const createExternalMessageMetadataKey: <TMessage extends WeakKey>(selectors: readonly ExternalMessageMetadataKeySelector<TMessage>[]) => (message: TMessage, metadata: ExternalMessageConverterMetadata) => object;
+
 declare const createLocalStorageAdapter: (options: LocalStorageAdapterOptions) => RemoteThreadListAdapter;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
@@ -6653,7 +6660,7 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, TOOL_INTERACTION_LIMITS, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolCallTreeEntry, ToolInvocationTracker, abortableIterable, appendToolInteraction, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, createToolInteraction, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getMessagePartKeys, getSuggestionKeys, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isJSONValueEqual, isParsableUrl, isRecord, iterateToolCallParts, mapToolCallPartsDeep, notifyEventListeners, openAbortableIterable, parseDataUrl, promoteNewThreadReducer, readToolInteractionLog, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, scanPendingToolCalls, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer, walkToolCallTree };
+  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalMessageMetadataKeySelector, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, TOOL_INTERACTION_LIMITS, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolCallTreeEntry, ToolInvocationTracker, abortableIterable, appendToolInteraction, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createExternalMessageMetadataKey, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, createToolInteraction, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getMessagePartKeys, getSuggestionKeys, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isJSONValueEqual, isParsableUrl, isRecord, iterateToolCallParts, mapToolCallPartsDeep, notifyEventListeners, openAbortableIterable, parseDataUrl, promoteNewThreadReducer, readToolInteractionLog, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, scanPendingToolCalls, shallowArrayEqual, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer, walkToolCallTree };
 }
 
 declare namespace entry_store_internal_exports {
@@ -6735,6 +6742,8 @@ declare const resolveToolCallText: <TArgs extends Record<string, unknown>, TResu
 declare const runtimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 
 declare const scanPendingToolCalls: <TMessage, TToolCall>(messages: readonly TMessage[], getMessage: (message: TMessage) => PendingToolCallMessage<TToolCall>, getToolCallId: (toolCall: TToolCall) => string) => TToolCall[];
+
+declare const shallowArrayEqual: (a: readonly unknown[], b: readonly unknown[]) => boolean;
 
 declare const shouldContinue: (result: ThreadAssistantMessage, humanToolNames: string[] | undefined) => boolean;
 
@@ -6957,6 +6966,7 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param21: {
@@ -6965,6 +6975,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param21: {
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 declare const useExternalStoreRuntime: <T>(store: ExternalStoreAdapter<T>) => AssistantRuntime;

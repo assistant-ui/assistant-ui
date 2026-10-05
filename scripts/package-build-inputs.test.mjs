@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseWorkspaceGlobs } from "./check-changesets.mjs";
 import {
   PACKAGE_BUILD_INPUTS,
   hasPackageBuildInputs,
@@ -197,4 +198,61 @@ test("the build install follows the affected package graph", () => {
   );
   assert.match(step("Check API surface"), /--skip-build --base=/);
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+});
+
+test("test and typecheck installs exclude API snapshots without weakening the build check", () => {
+  for (const job of ["test", "typecheck"]) {
+    const content = workflow.match(
+      new RegExp(`\\n  ${job}:\\n[\\s\\S]*?(?=\\n  [a-z-]+:|$)`),
+    )?.[0];
+    assert.ok(content, job);
+    const install = content.match(
+      /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+    )?.[0];
+    assert.ok(install, job);
+    assert.match(install, /--filter="!@assistant-ui\/api-surface"/);
+    assert.match(install, /--filter="\.\.\.\[\$BASE\]\.\.\."/);
+    assert.match(install, /--filter="@assistant-ui\/react-devtools\.\.\."/);
+    assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+  }
+  assert.doesNotMatch(
+    step("Install dependencies"),
+    /!@assistant-ui\/api-surface/,
+  );
+  assert.match(step("Check API surface"), /api-surface:check/);
+});
+
+test("the excluded snapshot workspace has no build, test, typecheck, or workspace consumers", () => {
+  const manifest = JSON.parse(
+    readFileSync(path.join(repoRoot, "api-surface/package.json"), "utf8"),
+  );
+  for (const task of ["build", "test", "typecheck"]) {
+    assert.equal(manifest.scripts[task], undefined, task);
+  }
+  const workspaceGlobs = parseWorkspaceGlobs(
+    readFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8"),
+  );
+  const workspaceManifests = new Set([
+    "package.json",
+    ...workspaceGlobs.flatMap((glob) =>
+      globSync(`${glob}/package.json`, { cwd: repoRoot }),
+    ),
+  ]);
+  for (const workspaceManifest of workspaceManifests) {
+    const pkg = JSON.parse(
+      readFileSync(path.join(repoRoot, workspaceManifest), "utf8"),
+    );
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ]) {
+      assert.equal(
+        pkg[field]?.[manifest.name],
+        undefined,
+        `${workspaceManifest}: ${field}`,
+      );
+    }
+  }
 });

@@ -7,4 +7,5 @@ export const REF_PACKAGE_DIRS = {
   "@assistant-ui/react-markdown": "packages/react-markdown",
   "@assistant-ui/ai-sdk": "packages/ai-sdk",
   "@assistant-ui/react-langgraph": "packages/react-langgraph",
+  "@assistant-ui/react-pi": "packages/react-pi",
 };
