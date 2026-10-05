@@ -51,7 +51,7 @@ function run(cwd, label, command, args, overrides = {}) {
   save();
   console.log(JSON.stringify(row));
   assert.equal(p.status, 0, log.slice(-18000));
-  return log;
+  return p.stdout;
 }
 function clone(name) {
   const dir = join(scratch, name);
