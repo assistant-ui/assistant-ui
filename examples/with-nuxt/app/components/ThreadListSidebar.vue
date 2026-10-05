@@ -22,8 +22,16 @@ watch(
   (open, _, onCleanup) => {
     if (!open) return;
     void nextTick(() => panel.value?.querySelector("button")?.focus());
+    const wide = window.matchMedia("(width >= 48rem)");
+    const onWide = () => {
+      if (wide.matches) emit("close");
+    };
     window.addEventListener("keydown", onKeydown);
-    onCleanup(() => window.removeEventListener("keydown", onKeydown));
+    wide.addEventListener("change", onWide);
+    onCleanup(() => {
+      window.removeEventListener("keydown", onKeydown);
+      wide.removeEventListener("change", onWide);
+    });
   },
 );
 </script>
@@ -35,11 +43,11 @@ watch(
     aria-hidden="true"
     @click="emit('close')"
   />
-  <aside
+  <div
     id="thread-list-sidebar"
     ref="panel"
     aria-label="Conversations"
-    :role="open ? 'dialog' : undefined"
+    :role="open ? 'dialog' : 'complementary'"
     :aria-modal="open ? 'true' : undefined"
     class="border-border/60 bg-background fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col gap-3 border-r p-3 duration-200 md:visible md:static md:z-auto md:h-full md:translate-x-0"
     :class="
@@ -65,5 +73,5 @@ watch(
         </ThreadListItemPrimitiveTrigger>
       </ThreadListPrimitiveItems>
     </div>
-  </aside>
+  </div>
 </template>
