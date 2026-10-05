@@ -6686,8 +6686,12 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
 
   const createInitialization = () => {
     let resolve!: () => void;
-    const promise = new Promise<void>((r) => (resolve = r));
-    return { promise, resolve };
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
   };
 
   it("holds the next queued send when a regenerate ends while a queued send waits to start", async () => {
@@ -6929,6 +6933,110 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await flush();
     expect(dispatched).toEqual(["first", "second"]);
     pending.shift()!();
+  });
+
+  it("holds a send behind an append that was waiting to start when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    await flush();
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind an append that was waiting when the queue was enabled while a regenerate ends", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send, enableQueue } = createThread({
+      history: true,
+      queue: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("holds a send behind an append that was waiting when the queue was enabled during a run", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+
+    send("first");
+    await flush();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+    send("second");
+    await flush();
+    enableQueue();
+    send("third");
+    await gate.release();
+    expect(dispatched).toEqual(["first"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second", "third"]);
+    await gate.release();
+  });
+
+  it("sends after an append that was waiting when the queue was enabled fails to start", async () => {
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+    });
+    const initialization = createInitialization();
+    let initPromise: Promise<void> | undefined = initialization.promise;
+    thread.__internal_setGetInitializePromise(() => initPromise);
+
+    const first = thread.append({
+      ...userMessage("first"),
+      parentId: null,
+    });
+    await flush();
+    enableQueue();
+    initPromise = undefined;
+    send("second");
+    await flush();
+    expect(dispatched).toEqual([]);
+
+    initialization.reject(new Error("init failed"));
+    await expect(first).rejects.toSatisfy(isMessageNotSentError);
+    await flush();
+    expect(dispatched).toEqual(["second"]);
   });
 
   it("sends one at a time after cancelling a run that was active when the queue was enabled", async () => {

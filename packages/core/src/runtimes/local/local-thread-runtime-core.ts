@@ -197,6 +197,12 @@ export class LocalThreadRuntimeCore
   private _activeRun: LocalRun | null = null;
   private _settlingRuns = new Set<LocalRun>();
   private _parkedCancelledRun: LocalRun | null = null;
+  // appends not sent through the queue whose run has not started yet
+  private _waitingAppends = new Set<QueueDispatch>();
+  // A queue enabled while appends waited to start stays busy for them, the way
+  // it does for a queued send that has not started, until the last of them
+  // starts its run or ends without one.
+  private _queueHeldByAppends: MessageQueueController | null = null;
   private _runGeneration = 0;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
@@ -499,7 +505,9 @@ export class LocalThreadRuntimeCore
         },
       });
       if (this.voice) this._queue.hold();
-      if (this._activeRun) this._queue.notifyBusy();
+      if (this._waitingAppends.size > 0) this._queueHeldByAppends = this._queue;
+      if (this._activeRun || this._queueHeldByAppends === this._queue)
+        this._queue.notifyBusy();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -710,17 +718,37 @@ export class LocalThreadRuntimeCore
     rawMessage: AppendMessage,
     dispatch?: QueueDispatch,
   ): Promise<void> {
+    const start = dispatch ?? { started: false };
+    if (!dispatch) this._waitingAppends.add(start);
     this._pendingAppends += 1;
     try {
-      await this._runAppendInner(rawMessage, dispatch);
+      await this._runAppendInner(rawMessage, start);
     } finally {
       this._pendingAppends -= 1;
+      if (this._waitingAppends.delete(start)) this._releaseAppendHold();
     }
+  }
+
+  private _appendsHoldQueue(): boolean {
+    return (
+      this._queueHeldByAppends !== null &&
+      this._queueHeldByAppends === this._queue
+    );
+  }
+
+  private _releaseAppendHold() {
+    const queue = this._queueHeldByAppends;
+    if (this._waitingAppends.size > 0 || !queue || queue !== this._queue)
+      return;
+    this._queueHeldByAppends = null;
+    if (this._activeRun !== null) return;
+    this._parkedCancelledRun = null;
+    queue.notifyIdle();
   }
 
   private async _runAppendInner(
     rawMessage: AppendMessage,
-    dispatch: QueueDispatch | undefined,
+    dispatch: QueueDispatch,
   ): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
@@ -795,7 +823,7 @@ export class LocalThreadRuntimeCore
     if (startRun) {
       // startRun must reach _runLoop with no await in between, because only
       // _runLoop marks the dispatch started.
-      this._startingDispatch = dispatch ?? null;
+      this._startingDispatch = dispatch;
       const runPromise = this.startRun({
         parentId: newMessage.id,
         sourceId: message.sourceId,
@@ -943,7 +971,14 @@ export class LocalThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     const dispatch = this._startingDispatch;
     this._startingDispatch = null;
-    if (dispatch) dispatch.started = true;
+    if (dispatch) {
+      dispatch.started = true;
+      if (
+        this._waitingAppends.delete(dispatch) &&
+        this._waitingAppends.size === 0
+      )
+        this._queueHeldByAppends = null;
+    }
     this._notifyEventSubscribers("runStart", {});
 
     const replaced = this._activeRun ?? this._parkedCancelledRun;
@@ -1004,10 +1039,12 @@ export class LocalThreadRuntimeCore
       active = this._activeRun === run;
       if (active) this._activeRun = null;
       const pendingDispatch = this._queueRunInFlight;
-      // a queued send that has not started its run carries the settle instead
+      // a queued send or a holding append that has not started its run
+      // carries the settle instead
       if (
         (active || this._owesCancelSettle(run)) &&
-        (pendingDispatch === null || pendingDispatch.started)
+        (pendingDispatch === null || pendingDispatch.started) &&
+        !this._appendsHoldQueue()
       ) {
         const generation = this._runGeneration;
         this._settlingRuns.add(run);
