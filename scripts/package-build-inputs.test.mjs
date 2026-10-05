@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseWorkspaceGlobs } from "./check-changesets.mjs";
 import {
   PACKAGE_BUILD_INPUTS,
   hasPackageBuildInputs,
@@ -208,29 +209,30 @@ test("the excluded snapshot workspace has no build, test, typecheck, or workspac
   for (const task of ["build", "test", "typecheck"]) {
     assert.equal(manifest.scripts[task], undefined, task);
   }
-  for (const root of [".", "packages", "apps", "examples", "templates"]) {
-    const dirs =
-      root === "."
-        ? ["."]
-        : readdirSync(path.join(repoRoot, root)).map((name) =>
-            path.join(root, name),
-          );
-    for (const dir of dirs) {
-      const file = path.join(repoRoot, dir, "package.json");
-      if (!existsSync(file)) continue;
-      const pkg = JSON.parse(readFileSync(file, "utf8"));
-      for (const field of [
-        "dependencies",
-        "devDependencies",
-        "peerDependencies",
-        "optionalDependencies",
-      ]) {
-        assert.equal(
-          pkg[field]?.[manifest.name],
-          undefined,
-          `${dir}: ${field}`,
-        );
-      }
+  const workspaceGlobs = parseWorkspaceGlobs(
+    readFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8"),
+  );
+  const workspaceManifests = new Set([
+    "package.json",
+    ...workspaceGlobs.flatMap((glob) =>
+      globSync(`${glob}/package.json`, { cwd: repoRoot }),
+    ),
+  ]);
+  for (const workspaceManifest of workspaceManifests) {
+    const pkg = JSON.parse(
+      readFileSync(path.join(repoRoot, workspaceManifest), "utf8"),
+    );
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ]) {
+      assert.equal(
+        pkg[field]?.[manifest.name],
+        undefined,
+        `${workspaceManifest}: ${field}`,
+      );
     }
   }
 });
