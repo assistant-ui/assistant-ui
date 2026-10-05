@@ -53,6 +53,31 @@ describe("checkout flow", () => {
     );
   });
 
+  it.each(["statewire", "harness-sdk"])(
+    "carries the %s brief through reload and cancellation",
+    async (slug) => {
+      setupStorage();
+      const s = await load();
+      s.replaceCart([slug]);
+      s.setCartInstructions(
+        "Build a shared whiteboard. Preserve our existing authentication.",
+      );
+      expect(s.checkoutCart()?.instructions).toBe(
+        "Build a shared whiteboard. Preserve our existing authentication.",
+      );
+      const restored = await load();
+      expect(restored.getCheckoutSession()?.products).toEqual([slug]);
+      expect(restored.getCheckoutSession()?.instructions).toBe(
+        "Build a shared whiteboard. Preserve our existing authentication.",
+      );
+      restored.abandonCheckout();
+      expect(restored.getCart()).toEqual([slug]);
+      expect(restored.getCartInstructions()).toBe(
+        "Build a shared whiteboard. Preserve our existing authentication.",
+      );
+    },
+  );
+
   it("moves the cart into the checkout and back on abandon, merging", async () => {
     setupStorage();
     const s = await load();

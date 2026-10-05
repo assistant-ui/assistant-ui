@@ -23,7 +23,7 @@ export const agentTools: CatalogProduct = {
   ],
   requires: ["An assistant-ui app with a chat route on the AI SDK"],
   preview: "tool-call",
-  agentMinutes: [5, 15],
+  agentMinutes: [4, 9],
   steps: [
     {
       title: "Enable the compiler",

@@ -12,6 +12,11 @@ import { createActionRegistry, type ActionHandler } from "../actionRegistry";
 import { AnsweredValuesProvider } from "../answeredValues";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import { renderGenerativeUI } from "../renderGenerativeUI";
+import {
+  fromLocalDateTime,
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+} from "../temporal";
 import { defaultGenerativeUILibrary } from "./index";
 
 (
@@ -1533,11 +1538,19 @@ describe.each([
       type: "number",
     },
     {
-      title: "date and time",
+      title: "floating date and time",
       field: { component: "DateTimeInput", enableDate: true, enableTime: true },
-      initial: "2025-12-15T17:00:00Z",
-      edited: "2025-12-16T08:30:45+02:00",
-      type: "text",
+      initial: "2025-12-15T17:00",
+      edited: "2025-12-16T08:30",
+      type: "datetime-local",
+    },
+    {
+      title: "floating date and time with seconds",
+      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial: "2025-12-15T17:00:00",
+      displayed: "2025-12-15T17:00",
+      edited: "2025-12-16T08:30",
+      type: "datetime-local",
     },
     {
       title: "timestamp in date mode",
@@ -1550,8 +1563,17 @@ describe.each([
       title: "time only",
       field: { component: "DateTimeInput", enableTime: true },
       initial: "17:00:00",
+      displayed: "17:00",
       edited: "08:30:45",
-      type: "text",
+      type: "time",
+    },
+    {
+      title: "fractional time",
+      field: { component: "DateTimeInput", enableTime: true },
+      initial: "17:00:00.000",
+      displayed: "17:00",
+      edited: "08:30",
+      type: "time",
     },
     {
       title: "omitted temporal flags",
@@ -1593,15 +1615,15 @@ describe.each([
       type: "number",
     },
     {
-      title: "unresolved date and time",
-      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      title: "unresolved time",
+      field: { component: "DateTimeInput", enableTime: true },
       initial: undefined,
-      edited: "2025-12-15T17:00:00Z",
-      type: "text",
+      edited: "08:30",
+      type: "time",
     },
   ])(
     "preserves untouched, edited, and cleared $title values",
-    async ({ field, initial, edited, type }) => {
+    async ({ field, initial, displayed, edited, type }) => {
       const { container, render, submit } = await mountSurface(field, initial);
       const input = () =>
         container.querySelector<HTMLInputElement>('input[name="/form/value"]')!;
@@ -1620,7 +1642,7 @@ describe.each([
 
       expect(input().type).toBe(type);
       expect(input().getAttribute("aria-label")).toBe("Value");
-      expect(input().value).toBe(initial ?? "");
+      expect(input().value).toBe(displayed ?? initial ?? "");
       if (type === "number") expect(input().step).toBe("any");
       await submit(initial ?? "");
 
@@ -1645,6 +1667,32 @@ describe.each([
       await submit(edited);
     },
   );
+
+  it("preserves an instant offset in the A2UI button context", async () => {
+    const initial = "2025-12-15T17:00:00+02:00";
+    const { container, submit } = await mountSurface(
+      { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      'input[name="/form/value"]',
+    )!;
+    expect(input.type).toBe("datetime-local");
+    expect(input.value).toBe(
+      normalizeTemporalInputValue(toLocalDateTime(initial)),
+    );
+    await submit(initial);
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "2025-12-16T09:30");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(input.value).toBe("2025-12-16T09:30");
+    await submit(fromLocalDateTime("2025-12-16T09:30", initial));
+  });
 
   it.each([undefined, "Pick one"])(
     "keeps chips empty until selected with placeholder %s",

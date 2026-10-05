@@ -14,19 +14,19 @@ Composer trigger popover is the picker UI behind a character-triggered composer 
 
 ### Wrap the composer
 
-Place `ComposerPrimitive.Unstable_TriggerPopoverRoot` around the composer. Any number of `ComposerTriggerPopover` declarations can live inside, each with its own trigger character, adapter, and behavior.
+Place `ComposerPrimitive.TriggerPopoverRoot` around the composer. Any number of `ComposerTriggerPopover` declarations can live inside, each with its own trigger character, adapter, and behavior.
 
 ```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { ComposerPrimitive } from "@assistant-ui/react";
 
 const Composer = () => (
-  <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  <ComposerPrimitive.TriggerPopoverRoot>
     <ComposerPrimitive.Root>
       <ComposerPrimitive.Input placeholder="Type @ to mention..." />
       <ComposerPrimitive.Send />
       {/* triggers declared here */}
     </ComposerPrimitive.Root>
-  </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  </ComposerPrimitive.TriggerPopoverRoot>
 );
 ```
 
@@ -138,9 +138,9 @@ const mentions = unstable_useLiveCompletionAdapter({
 Whitespace closes a trigger query by default. Pass a stable `matcher` when a picker needs different syntax, such as multi-word names; the same matcher governs both the textarea and Lexical composer inputs.
 
 ```tsx
-import type { Unstable_TriggerMatcher } from "@assistant-ui/react";
+import type { TriggerMatcher } from "@assistant-ui/react";
 
-const matchMultiWord: Unstable_TriggerMatcher = (text, triggerChar, cursorPosition) => {
+const matchMultiWord: TriggerMatcher = (text, triggerChar, cursorPosition) => {
   const upToCursor = text.slice(0, cursorPosition);
   const offset = upToCursor.lastIndexOf(triggerChar);
   if (offset === -1) return null;
@@ -162,13 +162,13 @@ const matchMultiWord: Unstable_TriggerMatcher = (text, triggerChar, cursorPositi
 Multiple popovers share one `TriggerPopoverRoot`; each reads its own state from its `char`, so `@` and `/` never collide.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+<ComposerPrimitive.TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
     <MentionTrigger />
     <SlashTrigger />
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+</ComposerPrimitive.TriggerPopoverRoot>
 ```
 
 </RuntimeMode>
@@ -182,8 +182,8 @@ Multiple popovers share one `TriggerPopoverRoot`; each reads its own state from 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `char` | `string` | required | Trigger character, unique within the root. |
-| `matcher` | `Unstable_TriggerMatcher` | whitespace-terminated | Overrides trigger detection and the replaced text span. |
-| `adapter` | `Unstable_TriggerAdapter` | | Supplies categories, items, and search. The popover lists nothing without one. |
+| `matcher` | `TriggerMatcher` | whitespace-terminated | Overrides trigger detection and the replaced text span. |
+| `adapter` | `TriggerAdapter` | | Supplies categories, items, and search. The popover lists nothing without one. |
 | `directive` | `{ formatter?, onInserted? }` | | Inserts a directive chip on selection. Mutually exclusive with `action`. |
 | `action` | `{ formatter?, onExecute, removeOnExecute? }` | | Fires a handler on selection. Mutually exclusive with `directive`. |
 | `iconMap` | `Record<string, IconComponent>` | | Maps an item's `metadata.icon` string, or a category's `id`, to a component. |
@@ -196,15 +196,15 @@ Multiple popovers share one `TriggerPopoverRoot`; each reads its own state from 
 
 All other props forward to the popover's root `div`.
 
-### Unstable_TriggerAdapter
+### TriggerAdapter
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `categories()` | `() => readonly Unstable_TriggerCategory[]` | Top-level categories. Return `[]` for a flat, search-only adapter. |
-| `categoryItems(id)` | `(categoryId: string) => readonly Unstable_TriggerItem[]` | Items inside a category. |
-| `search(query)` | `(query: string) => readonly Unstable_TriggerItem[]` | Optional. Without it, a query filters the `categoryItems` of every category instead. |
+| `categories()` | `() => readonly TriggerCategory[]` | Top-level categories. Return `[]` for a flat, search-only adapter. |
+| `categoryItems(id)` | `(categoryId: string) => readonly TriggerItem[]` | Items inside a category. |
+| `search(query)` | `(query: string) => readonly TriggerItem[]` | Optional. Without it, a query filters the `categoryItems` of every category instead. |
 
-`Unstable_TriggerItem` is `{ id, type, label, description?, metadata? }`; the directive formatter's default serialization writes `:type[label]{name=id}`, omitting `{name=…}` when `id` equals `label`.
+`TriggerItem` is `{ id, type, label, description?, metadata? }`; the directive formatter's default serialization writes `:type[label]{name=id}`, omitting `{name=…}` when `id` equals `label`.
 
 ### Adapter hooks
 

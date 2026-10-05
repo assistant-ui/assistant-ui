@@ -55,7 +55,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
 <div> {/* ToolFallbackRoot, a Collapsible */}
   <button aria-expanded={/* open */}>
     {/* status icon: spinner / check / X-circle / alert */}
-    <span>{/* "Used tool: <name>" or "Cancelled tool: <name>" */}</span>
+    <span>{/* "Running tool: <name>", "Waiting on tool: <name>", "Failed tool: <name>", "Cancelled tool: <name>", or "Used tool: <name>" */}</span>
     <span>{/* elapsed duration, while known */}</span>
     {/* chevron, rotates open */}
   </button>
@@ -130,6 +130,30 @@ approval: {
 
 Send submits the text as typed, an empty answer included; a host that cannot record one rejects the response, and the controls come back with its error.
 
+### Several questions at once
+
+A `display: "questions"` request renders each of its `questions` with its options as toggle buttons (several stay pressed when the question allows `multiple`) and a text field where the question accepts a typed answer. One Send stays disabled until every question has an answer, then calls `respondToApproval({ answers })` keyed by question id; Dismiss appears only when the request is `dismissible`. Once settled, the receipt lists each question beside its answer.
+
+```tsx
+approval: {
+  id: "call-3",
+  display: "questions",
+  questions: [
+    {
+      id: "scope",
+      header: "Scope",
+      prompt: "Which folders should change?",
+      options: [
+        { id: "src", label: "src" },
+        { id: "tests", label: "tests" },
+      ],
+      multiple: true,
+    },
+    { id: "note", prompt: "Anything I should avoid?" },
+  ],
+}
+```
+
 ### Restyle a part
 
 Every piece is a named export you can recompose, and each carries its own `data-slot` for targeted styling.
@@ -174,7 +198,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
-| `approval` | object `\| undefined` | Server-side approval gate: `id`, `prompt?`, `display?`, `allowFreeform?`, `dismissible?`, `options?`, `approved?`, `optionId?`, `text?`, `resolution?`. |
+| `approval` | object `\| undefined` | Server-side approval gate: `id`, `prompt?`, `display?`, `allowFreeform?`, `dismissible?`, `options?`, `questions?`, `approved?`, `optionId?`, `text?`, `answers?`, `resolution?`. |
 
 ### Callbacks
 
@@ -182,7 +206,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 |----------|------|-------------|
 | `addResult` | `(result) => void` | Sets this part's result from the renderer instead of a tool's `execute`. |
 | `resume` | `(payload: unknown) => void` | Resumes a paused frontend tool execution with the requested payload. |
-| `respondToApproval` | `(response: ToolApprovalResponse) => Promise<void>` | Answers an approval gate: `{ approved }`, `{ optionId }`, both, or `{ text }` when the request takes a free-form answer. |
+| `respondToApproval` | `(response: ToolApprovalResponse) => Promise<void>` | Answers an approval gate: `{ approved }`, `{ optionId }`, both, `{ text }` when the request takes a free-form answer, or `{ answers }` for a `display: "questions"` request, a `ToolApprovalAnswer` (`optionIds` and/or `text`) per question id. |
 
 ### Composition
 

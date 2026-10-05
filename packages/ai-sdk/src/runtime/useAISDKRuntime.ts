@@ -870,6 +870,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     // different chat's state.
     const startedWith = ownedApprovals;
     const startedOwner = approvalOwner;
+    const startedResponses = toolApprovalResponsesRef.current;
     // Whether this response is currently applied, tracked here rather than
     // read back from the id ref: that ref follows the chat on screen and is
     // reseeded when the owner changes, so it cannot answer for this response.
@@ -916,11 +917,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       if (isApplied) applyResponse(false);
       throw error;
     }
-    if (
-      isApplied &&
-      lastApprovalOwnerRef.current === startedOwner &&
-      hostApprovalIdsRef.current.has(approvalId)
-    ) {
+    const remainsApplied =
+      startedWith?.has(approvalId) ?? startedResponses.has(approvalId);
+    if (isApplied && remainsApplied) {
       await persistToolApprovalResponses(requested.messageId);
     }
   };
