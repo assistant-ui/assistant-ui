@@ -265,6 +265,49 @@ describe("vue thread", () => {
     unmount();
   });
 
+  it("locks the thread viewport while the tool fallback toggles", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "get_weather",
+            args: { city: "sf" },
+            result: "sunny",
+          },
+        ],
+      },
+    ]);
+    const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    viewport.style.overflowY = "auto";
+    viewport.scrollTop = 120;
+
+    await settle(() =>
+      expect(trigger(el, "aui_tool-fallback-trigger")).toBeDefined(),
+    );
+    trigger(el, "aui_tool-fallback-trigger").click();
+    expect(viewport.style.scrollbarWidth).toBe("none");
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(120);
+
+    await settle(() =>
+      expect(
+        trigger(el, "aui_tool-fallback-trigger").getAttribute("data-state"),
+      ).toBe("open"),
+    );
+    viewport.scrollTop = 160;
+    trigger(el, "aui_tool-fallback-trigger").click();
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(160);
+
+    unmount();
+    expect(viewport.style.scrollbarWidth).toBe("");
+  });
+
   it("opens a tool call awaiting approval and answers it from the fallback", async () => {
     const onRespondToToolApproval = vi.fn();
     const { el, unmount } = mountThread([pendingApproval()], {
@@ -533,6 +576,41 @@ describe("vue thread", () => {
     unmount();
   });
 
+  it("locks the thread viewport while reasoning toggles", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [{ type: "reasoning", text: "weighing options" }],
+      },
+    ]);
+    const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    viewport.style.overflowY = "auto";
+    viewport.scrollTop = 120;
+
+    await settle(() =>
+      expect(trigger(el, "aui_reasoning-trigger")).toBeDefined(),
+    );
+    trigger(el, "aui_reasoning-trigger").click();
+    expect(viewport.style.scrollbarWidth).toBe("none");
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(120);
+
+    await settle(() =>
+      expect(
+        trigger(el, "aui_reasoning-trigger").getAttribute("data-state"),
+      ).toBe("open"),
+    );
+    viewport.scrollTop = 160;
+    trigger(el, "aui_reasoning-trigger").click();
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(160);
+
+    unmount();
+    expect(viewport.style.scrollbarWidth).toBe("");
+  });
+
   it("holds reasoning open while it streams", async () => {
     const { el, unmount } = mountThread(
       [
@@ -554,6 +632,46 @@ describe("vue thread", () => {
         .querySelector('[data-slot="aui_reasoning-content"]')
         ?.getAttribute("aria-busy"),
     ).toBe("true");
+
+    unmount();
+  });
+
+  it("locks the thread viewport when streaming reasoning collapses", async () => {
+    const { el, update, unmount } = mountThread(
+      [
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "still thinking" }],
+        },
+      ],
+      { isRunning: true },
+    );
+    const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    viewport.style.overflowY = "auto";
+    viewport.scrollTop = 120;
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-text"]'),
+      ).not.toBeNull(),
+    );
+    update([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "still thinking" },
+          { type: "text", text: "done" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull(),
+    );
+    expect(viewport.style.scrollbarWidth).toBe("none");
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(120);
 
     unmount();
   });

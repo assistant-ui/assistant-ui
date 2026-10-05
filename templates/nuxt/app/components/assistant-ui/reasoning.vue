@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { PartByIndexProvider, useAui, useAuiState } from "@assistant-ui/vue";
+import {
+  PartByIndexProvider,
+  useAui,
+  useAuiState,
+  useScrollLock,
+} from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
 import {
   CollapsibleContent,
@@ -45,9 +50,18 @@ const streaming = useAuiState((s) => {
 
 const userOpen = ref<boolean | null>(null);
 const open = computed(() => userOpen.value ?? streaming.value);
+const collapsibleRoot = ref<InstanceType<typeof CollapsibleRoot> | null>(null);
+const collapsible = computed<HTMLElement | null>(
+  () => collapsibleRoot.value?.$el ?? null,
+);
+const lockScroll = useScrollLock(collapsible, 200);
 const setOpen = (value: boolean) => {
+  lockScroll();
   userOpen.value = value;
 };
+watch(streaming, () => {
+  if (userOpen.value === null) lockScroll();
+});
 
 const preview = computed(() => streaming.value && open.value);
 const scroller = ref<HTMLElement | null>(null);
@@ -98,6 +112,7 @@ watch(
 <template>
   <CollapsibleRoot
     v-if="indices.length"
+    ref="collapsibleRoot"
     :open="open"
     data-slot="aui_reasoning-root"
     class="group/reasoning-root mb-4 w-full rounded-lg border px-3 py-2"
