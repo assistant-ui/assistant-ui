@@ -180,7 +180,7 @@ const AttachmentUI: FC = () => {
                     "after:ring-destructive/60 dark:after:ring-destructive/60",
                 )}
                 role={src ? "button" : "group"}
-                tabIndex={src ? 0 : undefined}
+                tabIndex={0}
                 onKeyDown={
                   src
                     ? (e) => {

@@ -76,12 +76,18 @@ Standalone, there is nothing to stage or upload: this element exists to reflect 
 
 ```tsx
 <div> {/* AttachmentPrimitive.Root */}
-  <button aria-label="Preview filename.png">
+  <div
+    role={hasPreview ? "button" : "group"}
+    tabIndex={0}
+    aria-label={hasPreview
+      ? `Preview ${filename}${uploadStateSuffix}`
+      : `${type} attachment ${filename}${uploadStateSuffix}`}
+  >
     {/* thumbnail: the image itself, or a file icon fallback */}
     {/* uploading: a blurred spinner overlay */}
     {/* error: a blurred alert overlay */}
-  </button>
-  {/* Attachments without a preview use a non-focusable group instead. */}
+  </div>
+  {/* uploadStateSuffix is "", ", uploading", or ", upload failed". */}
   <button aria-label="Remove filename.png">{/* composer only */}</button>
 </div>
 ```

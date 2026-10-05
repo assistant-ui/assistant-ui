@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -133,6 +134,8 @@ describe.each(flavors)("%s attachment element", (_, Attachments) => {
     const preview = await screen.findByRole("button", {
       name: "Preview screenshot.png",
     });
+    act(() => preview.focus());
+    expect(document.activeElement).toBe(preview);
     fireEvent.keyDown(preview, { key });
     fireEvent.keyUp(preview, { key });
 
@@ -154,7 +157,13 @@ describe.each(flavors)("%s attachment element", (_, Attachments) => {
     });
     expect(tile.className).toContain("cursor-default");
     expect(tile.className).not.toContain("active:scale-[0.96]");
-    expect(tile.getAttribute("tabindex")).toBeNull();
+    act(() => tile.focus());
+    expect(document.activeElement).toBe(tile);
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="tooltip-content"]')?.textContent,
+      ).toContain("report.txt"),
+    );
     expect(
       screen.queryByRole("button", { name: "Document attachment report.txt" }),
     ).toBeNull();
