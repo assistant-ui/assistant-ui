@@ -6,6 +6,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
   test: {
+    coverage: {
+      include: [
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "hooks/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx,mjs}",
+        "runtimes/**/*.{ts,tsx}",
+        "instrumentation.ts",
+        "instrumentation-client.ts",
+        "proxy.ts",
+        "mdx-components.tsx",
+      ],
+      exclude: [
+        "lib/xulux/learn/courses/*/shared/**",
+        "lib/xulux/learn/courses/*/stages/**",
+      ],
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,
@@ -22,6 +39,7 @@ export default {
   },
   resolve: {
     alias: {
+      "@assistant-ui/ui": resolve(__dirname, "../../packages/ui/src"),
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
