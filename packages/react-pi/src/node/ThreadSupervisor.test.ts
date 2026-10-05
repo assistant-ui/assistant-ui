@@ -234,14 +234,14 @@ describe("PiThreadSupervisor", () => {
     );
     try {
       const sending = controller.sendMessage({
-        role: "user",
-        content: [{ type: "text", text: "hello" }],
-        createdAt: new Date(0),
-        metadata: { custom: {} },
-        attachments: [],
         parentId: null,
         sourceId: null,
         runConfig: {},
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
       });
       await vi.waitFor(() =>
         expect(sdk.createAgentSession).toHaveBeenCalledOnce(),
