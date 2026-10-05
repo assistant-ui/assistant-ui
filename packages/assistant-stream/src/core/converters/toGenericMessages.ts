@@ -125,6 +125,20 @@ function inferImageMediaType(url: string): string {
   return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
 }
 
+function getImageMediaType(
+  url: string,
+  contentType: string | undefined,
+): string {
+  const declaredMediaType = contentType?.trim().toLowerCase();
+  if (
+    declaredMediaType?.startsWith("image/") &&
+    declaredMediaType !== "image/*"
+  ) {
+    return declaredMediaType;
+  }
+  return inferImageMediaType(url);
+}
+
 function toUrlOrString(value: string): string | URL {
   try {
     return new URL(value);
@@ -214,13 +228,27 @@ function convertUserMessage(
 ): void {
   const attachments = message.attachments ?? [];
   const allContent = [
-    ...(message.content ?? []),
-    ...attachments.flatMap((a) => a?.content ?? []),
+    ...(message.content ?? []).map((part) => ({
+      part,
+      contentType: undefined,
+    })),
+    ...attachments.flatMap((attachment) => {
+      if (typeof attachment !== "object" || attachment === null) return [];
+      const contentType =
+        "contentType" in attachment &&
+        typeof attachment.contentType === "string"
+          ? attachment.contentType
+          : undefined;
+      return (attachment.content ?? []).map((part) => ({
+        part,
+        contentType,
+      }));
+    }),
   ];
 
   const content: (GenericTextPart | GenericFilePart)[] = [];
 
-  for (const part of allContent) {
+  for (const { part, contentType } of allContent) {
     if (!part) continue;
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
@@ -228,7 +256,7 @@ function convertUserMessage(
       content.push({
         type: "file",
         data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
+        mediaType: getImageMediaType(part.image, contentType),
         ...(part.filename && { filename: part.filename }),
       });
     } else if (part.type === "file" && typeof part.data === "string") {

@@ -271,6 +271,82 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    describe("attachment image media types", () => {
+      const getAttachmentImageMediaType = (
+        contentType: string | undefined,
+        image: string,
+      ) => {
+        const attachment = {
+          ...(contentType === undefined ? {} : { contentType }),
+          content: [{ type: "image", image }],
+        };
+        const result = toGenericMessages([
+          { role: "user", content: [], attachments: [attachment] },
+        ]);
+        return (result[0] as { content: { mediaType: string }[] }).content[0]!
+          .mediaType;
+      };
+
+      it("preserves the declared type for an extensionless image URL", () => {
+        expect(
+          getAttachmentImageMediaType(
+            "image/jpeg",
+            "https://cdn.example.com/image/123",
+          ),
+        ).toBe("image/jpeg");
+      });
+
+      it("normalizes the declared image media type casing", () => {
+        expect(
+          getAttachmentImageMediaType(
+            "Image/JPEG",
+            "https://cdn.example.com/image/123",
+          ),
+        ).toBe("image/jpeg");
+      });
+
+      it("infers a URL or data URL media type for wildcard or missing types", () => {
+        expect(
+          getAttachmentImageMediaType(
+            "image/*",
+            "https://cdn.example.com/photo.jpg",
+          ),
+        ).toBe("image/jpeg");
+        expect(
+          getAttachmentImageMediaType(
+            undefined,
+            "data:image/gif;base64,abc123",
+          ),
+        ).toBe("image/gif");
+      });
+
+      it("keeps declared types scoped to each attachment", () => {
+        const jpegAttachment = {
+          contentType: "image/jpeg",
+          content: [{ type: "image", image: "https://cdn.example.com/first" }],
+        };
+        const gifAttachment = {
+          contentType: "image/gif",
+          content: [{ type: "image", image: "https://cdn.example.com/second" }],
+        };
+        const result = toGenericMessages([
+          {
+            role: "user",
+            content: [
+              { type: "image", image: "https://cdn.example.com/inline.png" },
+            ],
+            attachments: [jpegAttachment, gifAttachment],
+          },
+        ]);
+
+        expect(
+          (result[0] as { content: { mediaType: string }[] }).content.map(
+            (part) => part.mediaType,
+          ),
+        ).toEqual(["image/png", "image/jpeg", "image/gif"]);
+      });
+    });
+
     it("keeps attachment parts when the message has no content", () => {
       const result = toGenericMessages([
         {
@@ -284,7 +360,7 @@ describe("toGenericMessages", () => {
       ]);
     });
 
-    it("skips attachments without content and null attachments", () => {
+    it("skips attachments without content and non-object attachments", () => {
       const result = toGenericMessages([
         {
           role: "user",
@@ -292,6 +368,7 @@ describe("toGenericMessages", () => {
           attachments: [
             { id: "uploading" },
             null,
+            42,
             { content: [{ type: "text", text: "notes" }] },
           ],
         },
