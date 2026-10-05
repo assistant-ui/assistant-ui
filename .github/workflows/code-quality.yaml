@@ -34,6 +34,7 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/turbo-redis-env.test.mjs"
       - "scripts/prepare-ci-base.mjs"
       - "scripts/prepare-ci-base.test.mjs"
       - "scripts/coverage-summary.mjs"
@@ -86,6 +87,7 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/turbo-redis-env.test.mjs"
       - "scripts/prepare-ci-base.mjs"
       - "scripts/prepare-ci-base.test.mjs"
       - "scripts/coverage-summary.mjs"
@@ -309,6 +311,10 @@ jobs:
 
       - name: Test package build input detector
         run: node --test scripts/package-build-inputs.test.mjs
+
+      - name: Test Redis build cache isolation
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: node --test scripts/turbo-redis-env.test.mjs
 
       # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
       - name: Measure bundle sizes against the base
