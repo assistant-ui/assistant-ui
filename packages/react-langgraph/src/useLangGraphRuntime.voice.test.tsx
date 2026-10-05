@@ -10,6 +10,7 @@ import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { LangChainMessage } from "./types";
 import type { LangGraphStreamCallback } from "./useLangGraphMessages";
 
@@ -292,9 +293,9 @@ describe("useLangGraphRuntime voice transcripts", () => {
       voice,
       unstable_threadListAdapter: makeThreadListAdapter(),
     });
-    await act(async () => {
-      await result.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      result.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() =>
       expect(result.current.thread.getState().capabilities.voice).toBe(true),
     );
@@ -417,9 +418,9 @@ describe("useLangGraphRuntime voice transcripts", () => {
       voice,
       unstable_threadListAdapter: makeThreadListAdapter(),
     });
-    await act(async () => {
-      await result.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      result.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() =>
       expect(result.current.thread.getState().capabilities.voice).toBe(true),
     );

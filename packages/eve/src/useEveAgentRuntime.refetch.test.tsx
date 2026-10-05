@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HandleMessageStreamEvent } from "eve/client";
 
+import { createEveSessionFixture } from "./testUtils";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 
 const completedTurn = (
@@ -49,18 +50,24 @@ const completedTurn = (
 const knownTurn = completedTurn("t1", "hi", "hello", 1);
 const outOfBandTurn = completedTurn("t2", "answered elsewhere", "done", 6);
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("useEveAgentRuntime against a durable eve session", () => {
   it("surfaces a turn the server appended out of band after reloadMainThread", async () => {
-    const stream = vi.fn(async function* () {
-      yield* [...knownTurn, ...outOfBandTurn];
+    const { fetch, session } = createEveSessionFixture({
+      events: [
+        ...knownTurn,
+        ...outOfBandTurn,
+        {
+          type: "session.waiting",
+          data: {
+            continuationToken: "session_resumed",
+            wait: "next-user-message",
+          },
+          meta: { at: "2026-01-02T10:00:05.000Z", id: "waiting" },
+        },
+      ],
     });
-    const session = {
-      state: { sessionId: "s1" },
-      stream,
-      send: () => {
-        throw new Error("the refetch test must not send");
-      },
-    } as never;
 
     const { result } = renderHook(() =>
       useEveAgentRuntime({ initialEvents: knownTurn as never, session }),
@@ -73,7 +80,10 @@ describe("useEveAgentRuntime against a durable eve session", () => {
       await result.current.threads.reloadMainThread();
     });
 
-    expect(stream).toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalled();
+    expect(
+      fetch.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(0);
     const messages = result.current.thread.getState().messages;
     expect(messages.map((m) => m.role)).toEqual([
       "user",

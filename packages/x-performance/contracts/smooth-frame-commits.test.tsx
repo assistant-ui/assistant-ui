@@ -94,7 +94,12 @@ const drain = (smooth: boolean | SmoothOptions) => {
 describe("smooth streaming frame commits", () => {
   beforeEach(() => {
     vi.useFakeTimers({
-      toFake: ["Date", "requestAnimationFrame", "cancelAnimationFrame"],
+      toFake: [
+        "Date",
+        "performance",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+      ],
     });
   });
   afterEach(() => {

@@ -7,7 +7,7 @@ LangGraph's [Generative UI](https://docs.langchain.com/langsmith/generative-ui-r
 
 ## Enable the `custom` stream mode
 
-UI messages are emitted through LangGraph's `custom` stream channel. Make sure your `sendMessage` helper includes `"custom"` in `streamMode`:
+UI messages are emitted through LangGraph's `custom` stream channel. `unstable_createLangGraphStream` requests it by default. If you call `client.runs.stream` yourself, include `"custom"` in `streamMode`:
 
 ```ts
 streamMode: ["messages", "updates", "custom"];
@@ -70,7 +70,7 @@ export async function chartNode(state, config) {
 </Tab>
 </Tabs>
 
-Passing `message` (Python) or `{ message }` (TypeScript) is what links the UI component to a specific assistant message. The adapter reads `metadata.message_id` to attach the generated `DataMessagePart` to the correct message in the thread.
+Passing `message` (Python) or `{ message }` (TypeScript) is what links the UI component to a specific assistant message. The adapter reads `metadata.message_id`, falling back to `metadata.id`, to attach the generated `DataMessagePart` to the correct message in the thread.
 
 ## Register a renderer on the client
 
@@ -243,12 +243,12 @@ With this setup:
 
 ## Semantics
 
-The adapter mirrors the reducer in `@langchain/langgraph-sdk/react-ui` exactly:
+The adapter mirrors the reducer in `@langchain/langgraph-sdk/react-ui`:
 
 - UI messages are keyed by their own `id`. Pushing the same id again **replaces** the existing entry.
 - Passing `metadata: { merge: true }` shallow-merges `props` onto the previous entry.
 - Emitting `{ type: "remove-ui", id }` (via `delete_ui_message` or `ui.delete(id)`) removes the entry.
-- UI messages without `metadata.message_id` are held in the runtime but not injected into any message; use `useLangGraphUIMessages()` to access the raw list if needed.
+- UI messages without `metadata.message_id` or `metadata.id` are held in the runtime but not injected into any message; use `useLangGraphUIMessages()` to access the raw list if needed.
 
 ## Restore persisted UI messages on thread switch
 

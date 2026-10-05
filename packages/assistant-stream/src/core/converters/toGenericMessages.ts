@@ -209,7 +209,7 @@ function convertSystemMessage(
   message: ThreadMessageLike,
   result: GenericMessage[],
 ): void {
-  const textPart = message.content.find((p) => p.type === "text");
+  const textPart = message.content?.find((p) => p?.type === "text");
   if (textPart?.text) {
     result.push({ role: "system", content: textPart.text });
   }
@@ -221,9 +221,12 @@ function convertUserMessage(
 ): void {
   const attachments = message.attachments ?? [];
   const allContent = [
-    ...message.content.map((part) => ({ part, contentType: undefined })),
+    ...(message.content ?? []).map((part) => ({
+      part,
+      contentType: undefined,
+    })),
     ...attachments.flatMap((attachment) =>
-      attachment.content.map((part) => ({
+      (attachment?.content ?? []).map((part) => ({
         part,
         contentType: attachment.contentType,
       })),
@@ -233,6 +236,7 @@ function convertUserMessage(
   const content: (GenericTextPart | GenericFilePart)[] = [];
 
   for (const { part, contentType } of allContent) {
+    if (!part) continue;
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
     } else if (part.type === "image" && part.image) {
@@ -275,7 +279,8 @@ function convertAssistantMessage(
     message.status?.type !== "complete" &&
     message.status?.type !== "incomplete";
 
-  for (const part of message.content) {
+  for (const part of message.content ?? []) {
+    if (!part) continue;
     if (part.type === "text" && part.text) {
       // Flush pending tool results before adding more text
       if (hasPendingToolResults) {
@@ -301,8 +306,9 @@ export function toGenericMessages(
   messages: readonly ThreadMessageLike[],
 ): GenericMessage[] {
   const result: GenericMessage[] = [];
+  const present = messages.filter(Boolean);
 
-  for (const [index, message] of messages.entries()) {
+  for (const [index, message] of present.entries()) {
     switch (message.role) {
       case "system":
         convertSystemMessage(message, result);
@@ -311,7 +317,7 @@ export function toGenericMessages(
         convertUserMessage(message, result);
         break;
       case "assistant":
-        convertAssistantMessage(message, result, index === messages.length - 1);
+        convertAssistantMessage(message, result, index === present.length - 1);
         break;
     }
   }

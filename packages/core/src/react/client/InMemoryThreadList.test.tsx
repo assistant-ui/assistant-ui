@@ -127,6 +127,80 @@ const setup = () => {
 };
 
 describe("InMemoryThreadList selection events", () => {
+  it("emits item switch events once to both scopes after mount", async () => {
+    const starTo = vi.fn();
+    const starAway = vi.fn();
+    const itemTo = vi.fn();
+    const itemAway = vi.fn();
+    let aui!: ReturnType<typeof useAui>;
+    const Consumer = () => {
+      useAuiEvent(
+        { scope: "*", event: "threadListItem.switchedTo" } as never,
+        starTo as never,
+      );
+      useAuiEvent(
+        { scope: "*", event: "threadListItem.switchedAway" } as never,
+        starAway as never,
+      );
+      useAuiEvent("threadListItem.switchedTo" as never, itemTo as never);
+      useAuiEvent("threadListItem.switchedAway" as never, itemAway as never);
+      return null;
+    };
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) => StubThread({ threadId }) as never,
+        }),
+      } as never);
+      return (
+        <AuiProvider value={aui}>
+          <Consumer />
+        </AuiProvider>
+      );
+    };
+    const view = render(<Harness />);
+    await act(async () => {});
+    expect(starTo).not.toHaveBeenCalled();
+    expect(starAway).not.toHaveBeenCalled();
+    expect(itemTo).not.toHaveBeenCalled();
+    expect(itemAway).not.toHaveBeenCalled();
+
+    await act(async () => {
+      aui.threads.switchToNewThread();
+    });
+    const secondId = aui.threads.getState().mainThreadId;
+    expect(secondId).not.toBe("main");
+    expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+    expect(itemAway).not.toHaveBeenCalled();
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+
+    starTo.mockClear();
+    starAway.mockClear();
+    itemTo.mockClear();
+    await act(async () => {
+      aui.threads.switchToThread("main");
+    });
+    expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+    expect(itemAway).not.toHaveBeenCalled();
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+
+    await act(async () => {
+      aui.threads.item({ id: secondId }).delete();
+    });
+    starTo.mockClear();
+    itemTo.mockClear();
+    await act(async () => {
+      aui.threads.item({ id: "main" }).delete();
+    });
+    const fallbackId = aui.threads.getState().mainThreadId;
+    expect(fallbackId).not.toBe("main");
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: fallbackId });
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: fallbackId });
+    view.unmount();
+  });
+
   it("does not emit for the initially selected thread on mount", async () => {
     const { selectionChanged } = setup();
     await act(async () => {});

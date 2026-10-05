@@ -141,7 +141,7 @@ An image can carry a caption and source. The source becomes an external link onl
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `images` | `GalleryImage[]` | required | Images in grid and lightbox order. An empty list renders nothing. |
+| `images` | `readonly GalleryImage[]` | required | Images in grid and lightbox order. An empty list renders nothing. |
 | `maxVisible` | `number` | `6` | Number of tiles before the final tile displays the remaining count. |
 | `onOpen` | `(id: string) => void` | | Receives the opened image id. |
 | `className` | `string` | | Merged onto the gallery root. |

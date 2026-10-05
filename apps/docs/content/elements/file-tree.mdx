@@ -175,7 +175,7 @@ useEffect(() => {
 </div>
 ```
 
-`path` is used only as the React key; nothing about a row's position is derived from it. `depth` and `kind` are independent fields you assign to every node yourself, so a folder row is a static, non-interactive header, never a real parent of the rows beneath it, and it never collapses. The "N files changed" count only tallies `kind: "file"` nodes, so folder headers never inflate it. A file's own additions or deletions badge is omitted, not shown as zero, when that field is `undefined`; the header's totals always render, even at zero.
+`path` is used only as the React key; nothing about a row's position is derived from it. `depth` and `kind` are independent fields you assign to every node yourself, so a folder row is a static, non-interactive header, never a real parent of the rows beneath it, and it never collapses. The "N files changed" count only tallies `kind: "file"` nodes, so folder headers never inflate it. A file's own additions or deletions badge is omitted, not shown as zero, when that field is `undefined` or `0`; the header's totals always render, even at zero.
 
 ## Examples
 
