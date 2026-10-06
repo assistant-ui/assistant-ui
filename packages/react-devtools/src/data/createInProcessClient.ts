@@ -40,7 +40,8 @@ export const createInProcessClient = (): DevToolsClient => {
         rebuild();
         unsubscribeRegistry = DevToolsHooks.subscribe(() => {
           rebuild();
-          for (const notify of listeners) {
+          for (const notify of [...listeners]) {
+            if (!listeners.has(notify)) continue;
             try {
               notify();
             } catch (error) {

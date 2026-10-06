@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createInProcessClient } from "./createInProcessClient";
 
 const { registry, projectApi } = vi.hoisted(() => {
@@ -27,6 +27,10 @@ vi.mock("./projectApi", async (importOriginal) => ({
 }));
 
 describe("createInProcessClient", () => {
+  afterEach(() => {
+    registry.callbacks.clear();
+  });
+
   it("shares projection and the registry subscription across listeners", () => {
     const client = createInProcessClient();
     const first = vi.fn();
@@ -52,5 +56,44 @@ describe("createInProcessClient", () => {
 
     unsubscribeSecond();
     expect(registry.callbacks.size).toBe(0);
+  });
+
+  it("keeps notifying the other listeners when one throws", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const client = createInProcessClient();
+    const failure = new Error("listener failed");
+    const second = vi.fn();
+    client.subscribe(() => {
+      throw failure;
+    });
+    client.subscribe(second);
+
+    for (const callback of registry.callbacks) callback();
+
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] DevTools listener threw an error",
+      failure,
+    );
+    consoleError.mockRestore();
+  });
+
+  it("notifies only the listeners subscribed when the change arrives", () => {
+    const client = createInProcessClient();
+    let unsubscribeSecond = () => {};
+    const late = vi.fn();
+    const second = vi.fn();
+    client.subscribe(() => {
+      unsubscribeSecond();
+      client.subscribe(late);
+    });
+    unsubscribeSecond = client.subscribe(second);
+
+    for (const callback of registry.callbacks) callback();
+
+    expect(second).not.toHaveBeenCalled();
+    expect(late).not.toHaveBeenCalled();
   });
 });
