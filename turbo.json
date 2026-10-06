@@ -36,7 +36,6 @@
         "ENTELLIGENCE_*",
         "KV_*",
         "SENTRY_*",
-        "REDIS_*",
         "ASSISTANT_*",
         "AUIX_*",
         "WEBMCP_ORIGIN_TRIAL_TOKEN"
@@ -44,7 +43,8 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["VITEST_MAX_WORKERS"]
     },
     "test:coverage": {
       "dependsOn": ["^build"],

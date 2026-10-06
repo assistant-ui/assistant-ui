@@ -5,6 +5,8 @@ import { defaultExclude } from "vitest/config";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
+  // Vite rejects Next's string-valued PostCSS plugins; DOM tests do not assert transformed styles.
+  css: { postcss: { plugins: [] } },
   test: {
     coverage: {
       include: [
@@ -46,6 +48,7 @@ export default {
   },
   resolve: {
     alias: {
+      "@assistant-ui/ui": resolve(__dirname, "../../packages/ui/src"),
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
@@ -56,6 +59,10 @@ export default {
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",
+      ),
+      "@/hooks/use-attachment-src": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-attachment-src",
       ),
       "@/components/ui": resolve(
         __dirname,

@@ -421,6 +421,7 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    const previousSuggestion = this._options?.adapters.suggestion;
     this._options = options;
     if (!options.adapters.voice && this.voice) {
       try {
@@ -435,13 +436,25 @@ export class LocalThreadRuntimeCore
 
     let hasUpdates = false;
 
-    if (!options.adapters.suggestion) {
+    const suggestion = options.adapters.suggestion;
+    if (!suggestion) {
       this._suggestionsController?.abort();
       this._suggestionsController = null;
       if (this._suggestions.length > 0) {
         this._suggestions = [];
         hasUpdates = true;
       }
+    } else if (
+      !previousSuggestion ||
+      previousSuggestion.key !== suggestion.key
+    ) {
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+      if (this._suggestions.length > 0) {
+        this._suggestions = [];
+        hasUpdates = true;
+      }
+      this._generateSuggestions();
     }
 
     const canSpeak = options.adapters?.speech !== undefined;
@@ -939,6 +952,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
@@ -993,28 +1007,44 @@ export class LocalThreadRuntimeCore
 
     if (
       active &&
-      this.adapters.suggestion &&
+      !generation.aborted &&
       message.status?.type !== "requires-action"
     ) {
-      this._suggestionsController = new AbortController();
-      const signal = this._suggestionsController.signal;
-      const adapter = this.adapters.suggestion;
-      void (async () => {
-        try {
-          const promiseOrGenerator = adapter.generate({
-            messages: this.messages,
-            signal,
-          });
-          await consumeSuggestionResult(promiseOrGenerator, {
-            signal,
-            onUpdate: (r) => {
-              this._suggestions = r;
-              this._notifySubscribers();
-            },
-          });
-        } catch {}
-      })();
+      this._generateSuggestions();
     }
+  }
+
+  private _generateSuggestions() {
+    const adapter = this.adapters.suggestion;
+    const last = this.messages.at(-1);
+    if (
+      !adapter ||
+      this._activeRun ||
+      last?.role !== "assistant" ||
+      (last.status.type !== "complete" && last.status.type !== "incomplete")
+    )
+      return;
+
+    this._suggestionsController?.abort();
+    const controller = new AbortController();
+    this._suggestionsController = controller;
+    const { signal } = controller;
+    void (async () => {
+      try {
+        const promiseOrGenerator = adapter.generate({
+          messages: this.messages,
+          signal,
+        });
+        await consumeSuggestionResult(promiseOrGenerator, {
+          signal,
+          onUpdate: (suggestions) => {
+            if (this._suggestionsController !== controller) return;
+            this._suggestions = suggestions;
+            this._notifySubscribers();
+          },
+        });
+      } catch {}
+    })();
   }
 
   private async performRoundtrip(
@@ -1216,6 +1246,7 @@ export class LocalThreadRuntimeCore
         return message;
       }
 
+      const isNewMessage = !hasStoredMessage;
       updateMessage({
         status: {
           type: "running",
@@ -1223,8 +1254,10 @@ export class LocalThreadRuntimeCore
       });
 
       // Switch to the new message branch right after adding it for the first time
-      this.repository.switchToBranch(message.id);
-      this._notifySubscribers();
+      if (isNewMessage) {
+        this.repository.switchToBranch(message.id);
+        this._notifySubscribers();
+      }
 
       this._lastRunConfig = runConfig ?? {};
       // unstable_composerMetadata is composer-only (stamped onto the outgoing

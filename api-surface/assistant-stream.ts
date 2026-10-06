@@ -228,6 +228,7 @@ type AssistantTransportStateOperation = {
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -319,7 +320,7 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 type GenericFilePart = {

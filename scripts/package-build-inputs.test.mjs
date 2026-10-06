@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseWorkspaceGlobs } from "./lib/workspace.mjs";
 import {
   PACKAGE_BUILD_INPUTS,
   hasPackageBuildInputs,
@@ -33,6 +34,8 @@ test("detects package build and checker inputs", () => {
     ".github/workflows/code-quality.yaml",
     ".github/workflows/deploy-examples.yaml",
     "examples/with-expo/package.json",
+    "apps/docs/turbo.json",
+    "examples/with-resumable-stream/turbo.json",
   ]) {
     assert.equal(hasPackageBuildInputs([file]), true, file);
   }
@@ -46,6 +49,8 @@ test("ignores changes outside the package build job", () => {
     ".changeset/example.md",
     "README.md",
     "packages-extra/react/src/index.ts",
+    "apps/docs/turbo.json.bak",
+    "examples/with-resumable-stream/turbo.json.bak",
   ]) {
     assert.equal(hasPackageBuildInputs([file]), false, file);
   }
@@ -141,10 +146,20 @@ test("the workflow gates dependency-backed package steps", () => {
 test("the build install follows the affected package graph", () => {
   assert.match(step("Setup pnpm and node.js"), /cache: false/);
   const install = step("Install dependencies");
-  assert.match(install, /BASE="origin\/\$\{\{ github\.base_ref \}\}"/);
-  assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  for (const name of [
+    "Install dependencies",
+    "Build packages",
+    "Check API surface",
+  ]) {
+    assert.match(
+      step(name),
+      /BASE: \$\{\{ steps\.package_build_inputs\.outputs\.base \}\}/,
+    );
+  }
+  assert.match(step("Detect package build inputs"), /echo "base=\$BASE"/);
+  assert.match(step("Detect package build inputs"), /run=true\n\s+BASE=""/);
   const guardedInstall = install.match(
-    /if git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
+    /if \[ -n "\$BASE" \] && git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
   );
   assert.ok(guardedInstall?.groups);
   for (const input of [
@@ -166,7 +181,6 @@ test("the build install follows the affected package graph", () => {
     "@assistant-ui/react-devtools...",
     "@assistant-ui/x-buildutils...",
     "@assistant-ui/x-performance",
-    "...[$BASE]...",
     "!./apps/*",
     "!./examples/*",
     "!./templates/*",
@@ -176,5 +190,73 @@ test("the build install follows the affected package graph", () => {
       filter,
     );
   }
+  assert.match(guardedInstall.groups.filteredInstall, /\$\{filters\[@\]\}/);
+  assert.match(
+    install,
+    /node scripts\/update-api-surface\.mjs --base "\$BASE" --print-filters/,
+  );
+  assert.match(install, /--filter=\.\/packages\/\*\.\.\./);
+  assert.match(
+    step("Build packages"),
+    /pnpm api-surface -- --base=.* --build-only/,
+  );
+  assert.match(step("Check API surface"), /--skip-build --base=/);
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+});
+
+test("test and typecheck installs exclude API snapshots without weakening the build check", () => {
+  for (const job of ["test", "typecheck"]) {
+    const content = workflow.match(
+      new RegExp(`\\n  ${job}:\\n[\\s\\S]*?(?=\\n  [a-z-]+:|$)`),
+    )?.[0];
+    assert.ok(content, job);
+    const install = content.match(
+      /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+    )?.[0];
+    assert.ok(install, job);
+    assert.match(install, /--filter="!@assistant-ui\/api-surface"/);
+    assert.match(install, /--filter="\.\.\.\[\$BASE\]\.\.\."/);
+    assert.match(install, /--filter="@assistant-ui\/react-devtools\.\.\."/);
+    assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+  }
+  assert.doesNotMatch(
+    step("Install dependencies"),
+    /!@assistant-ui\/api-surface/,
+  );
+  assert.match(step("Check API surface"), /api-surface:check/);
+});
+
+test("the excluded snapshot workspace has no build, test, typecheck, or workspace consumers", () => {
+  const manifest = JSON.parse(
+    readFileSync(path.join(repoRoot, "api-surface/package.json"), "utf8"),
+  );
+  for (const task of ["build", "test", "typecheck"]) {
+    assert.equal(manifest.scripts[task], undefined, task);
+  }
+  const workspaceGlobs = parseWorkspaceGlobs(
+    readFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8"),
+  );
+  const workspaceManifests = new Set([
+    "package.json",
+    ...workspaceGlobs.flatMap((glob) =>
+      globSync(`${glob}/package.json`, { cwd: repoRoot }),
+    ),
+  ]);
+  for (const workspaceManifest of workspaceManifests) {
+    const pkg = JSON.parse(
+      readFileSync(path.join(repoRoot, workspaceManifest), "utf8"),
+    );
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ]) {
+      assert.equal(
+        pkg[field]?.[manifest.name],
+        undefined,
+        `${workspaceManifest}: ${field}`,
+      );
+    }
+  }
 });

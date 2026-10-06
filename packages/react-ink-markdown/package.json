@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink-markdown",
-  "version": "0.0.46",
+  "version": "0.0.47",
   "description": "Terminal markdown rendering for @assistant-ui/react-ink",
   "keywords": [
     "markdown",
@@ -40,12 +40,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/core": "^0.3.24",
     "@assistant-ui/store": "^0.3.17",
     "markdansi": "^0.3.4"
   },
   "peerDependencies": {
-    "@assistant-ui/react-ink": "^0.0.47",
+    "@assistant-ui/react-ink": "^0.0.48",
     "@types/react": "*",
     "ink": ">=6",
     "react": "^19",
