@@ -21,11 +21,10 @@ import {
   MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
-} from "./run-aggregator";
+} from "../types";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
@@ -693,27 +692,17 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
-// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
-// assistant message from a bucket of rebuilt surface state, mirroring the
-// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
-// other tool calls) are preserved; existing a2ui parts are replaced wholesale
-// so create/update/delete within the bucket all converge on the rebuilt set.
 function attachA2uiSurfaces(
   message: CoreThreadMessageLike,
   state: A2uiState,
 ): CoreThreadMessageLike {
   const a2uiParts: ToolCallPart[] = [];
   for (const [surfaceId, surface] of state) {
-    const { spec } = convertSurfaceToUISpec(surface);
-    if (!spec) continue;
+    const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+    if (!toolCall) continue;
     a2uiParts.push({
       type: "tool-call",
-      toolCallId: `a2ui:${surfaceId}`,
-      toolName: "present",
-      args: spec as unknown as ReadonlyJSONObject,
-      argsText: JSON.stringify(spec),
-      result: {},
-      artifact: { a2ui: surfaceToOperations(surface) },
+      ...toolCall,
     });
   }
 
