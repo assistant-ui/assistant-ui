@@ -80,6 +80,25 @@ function GlyphInk() {
   );
 }
 
+function GlyphVue() {
+  return (
+    <span className="flex w-7 flex-col gap-[3px]">
+      <span className="flex items-center gap-[2px]">
+        <span className="bg-foreground/40 h-[3px] w-[5px]" />
+        <span className="bg-foreground/15 h-[3px] flex-1" />
+      </span>
+      <span className="border-foreground/25 flex h-[9px] flex-col justify-center gap-[2px] border px-[3px]">
+        <span className="bg-foreground/25 h-[2px] w-3/4" />
+        <span className={cn("bg-foreground/40 h-[2px] w-1/2", ACCENT)} />
+      </span>
+      <span className="flex items-center gap-[2px]">
+        <span className="bg-foreground/40 h-[3px] w-[5px]" />
+        <span className="bg-foreground/15 h-[3px] flex-1" />
+      </span>
+    </span>
+  );
+}
+
 function GlyphCloud() {
   return (
     <span className="flex w-7 flex-col gap-[3px]">
@@ -317,6 +336,7 @@ const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   react: GlyphReact,
   native: GlyphNative,
   ink: GlyphInk,
+  vue: GlyphVue,
   cloud: GlyphCloud,
   playground: GlyphPlayground,
   shimmer: GlyphShimmer,

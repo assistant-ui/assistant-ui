@@ -22,7 +22,10 @@ export function buildInstallPrompt(products: readonly CatalogItem[]): string {
     if (prompt === undefined) {
       throw new Error(`Missing agent prompt for catalog item: ${product.slug}`);
     }
-    return `## ${index + 1}. ${product.name}\n\nDocs: ${BASE_URL}${product.docs}.md\n\n${prompt}`;
+    const docs = product.docs.startsWith("https://")
+      ? product.docs
+      : `${BASE_URL}${product.docs}.md`;
+    return `## ${index + 1}. ${product.name}\n\nDocs: ${docs}\n\n${prompt}`;
   });
   return [`# Install assistant-ui`, preamble, ...sections, closing].join(
     "\n\n",

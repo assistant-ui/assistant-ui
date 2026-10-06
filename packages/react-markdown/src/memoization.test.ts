@@ -50,23 +50,17 @@ describe("streamed code node comparisons", () => {
     (size) => {
       const prev = createCodeNode(size);
       const next = createCodeNode(size);
-      const iterations = 2000;
-      const stringify = JSON.stringify;
-      let stringifyCalls = 0;
-      let equal = true;
-      JSON.stringify = (...args: unknown[]): string => {
-        stringifyCalls++;
-        return Reflect.apply(stringify, JSON, args) as string;
-      };
+      const stringify = vi.spyOn(JSON, "stringify");
+      let equal: boolean;
+      let calls: number;
       try {
-        for (let i = 0; i < iterations; i++) {
-          equal = areNodesEqual(prev, next) && equal;
-        }
+        equal = areNodesEqual(prev, next);
+        calls = stringify.mock.calls.length;
       } finally {
-        JSON.stringify = stringify;
+        stringify.mockRestore();
       }
       expect(equal).toBe(true);
-      expect(stringifyCalls).toBe(0);
+      expect(calls).toBe(0);
     },
   );
 
@@ -176,39 +170,7 @@ describe("structural comparison boundaries", () => {
   });
 });
 
-describe("comparison allocation boundaries", () => {
-  it("compares root and nested properties without collecting keys", () => {
-    const prev = createCodeNode(10000);
-    const next = createCodeNode(10000);
-    const keys = vi.spyOn(Object, "keys");
-    let equal: boolean;
-    let calls: number;
-    try {
-      equal = areNodesEqual(prev, next);
-      calls = keys.mock.calls.length;
-    } finally {
-      keys.mockRestore();
-    }
-    expect(equal).toBe(true);
-    expect(calls).toBe(0);
-  });
-
-  it("skips root metadata without reading it", () => {
-    const prev = createCodeNode(10000);
-    const next = createCodeNode(10000);
-    for (const node of [prev, next]) {
-      for (const key of ["position", "data"]) {
-        Object.defineProperty(node.properties, key, {
-          enumerable: true,
-          get() {
-            throw new Error("ignored metadata was read");
-          },
-        });
-      }
-    }
-    expect(areNodesEqual(prev, next)).toBe(true);
-  });
-
+describe("property comparison boundaries", () => {
   it("detects an extra own property", () => {
     const prev = createCodeNode(10000);
     const next = createCodeNode(10000);

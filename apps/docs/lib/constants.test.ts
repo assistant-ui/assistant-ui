@@ -64,6 +64,7 @@ describe("NAV_ITEMS", () => {
       "React",
       "React Native",
       "Ink",
+      "Vue",
       "Cloud",
       "Playground",
       "tw-shimmer",
