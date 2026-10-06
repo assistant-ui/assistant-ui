@@ -144,6 +144,26 @@ describe("askSeed", () => {
 });
 
 describe("upsertEnvLine", () => {
+  it.each(["", "1KEY", "KEY.*", "(A+)+$", "KEY=VALUE", "KEY\nOTHER", "KEY "])(
+    "rejects invalid environment keys in the exported helper: %j",
+    (key) => {
+      expect(() => upsertEnvLine("KEY=old\n", key, "new")).toThrow(
+        "not an environment variable name",
+      );
+    },
+  );
+
+  it("matches assignment keys literally, including export and whitespace", () => {
+    expect(
+      upsertEnvLine("KEY_LONG=keep\nexport KEY \t=old\n", "KEY", "new"),
+    ).toBe("KEY_LONG=keep\nKEY=new\n");
+    expect(upsertEnvLine("KEY_LONG=keep\n", "KEY", "new")).toBe(
+      "KEY_LONG=keep\nKEY=new\n",
+    );
+    expect(upsertEnvLine("export =old\n", "export", "new")).toBe(
+      "export=new\n",
+    );
+  });
   it("appends, replaces, and keeps the rest of the file", () => {
     expect(upsertEnvLine("", "OPENAI_API_KEY", "sk-1")).toBe(
       "OPENAI_API_KEY=sk-1\n",

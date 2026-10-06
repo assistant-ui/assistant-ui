@@ -13,7 +13,7 @@ import {
   isAgentPresent,
   isClosed,
   isOptionIcon,
-  parseModelAnswer,
+  isValidModelAnswer,
   parseMultipleAnswer,
   stepProgress,
 } from "./protocol";
@@ -587,10 +587,14 @@ export const askSeed = (
 
 /** Sets `key=value` in dotenv text, replacing an existing line for the key. */
 export const upsertEnvLine = (content: string, key: string, value: string) => {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+    throw new Error(`"${key}" is not an environment variable name`);
+  }
   const line = `${key}=${value}`;
   const lines = content === "" ? [] : content.replace(/\n$/, "").split("\n");
-  const index = lines.findIndex((entry) =>
-    new RegExp(`^(export\\s+)?${key}\\s*=`).test(entry),
+  const index = lines.findIndex(
+    (entry) =>
+      /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(entry)?.[1] === key,
   );
   if (index === -1) lines.push(line);
   else lines[index] = line;
@@ -737,19 +741,26 @@ export const main = async (argv: readonly string[]) => {
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(envKey)) {
           fail(`"${envKey}" is not an environment variable name`);
         }
+        const state = requireState(client);
         const input =
-          requireState(client).inputs.find(
-            (candidate) => candidate.id === inputId,
-          ) ?? fail(`no input "${inputId}"`);
+          state.inputs.find((candidate) => candidate.id === inputId) ??
+          fail(`no input "${inputId}"`);
+        const setupId = state.id ?? fail("the setup has not been created yet");
+        if (isClosed(state)) {
+          fail("the setup is not open");
+        }
         if (input.status !== "answered") {
           fail(`input "${inputId}" is ${input.status}`);
         }
-        if (parseModelAnswer(input.answer ?? "") === undefined) {
+        if (
+          input.kind !== "model" ||
+          !isValidModelAnswer(input, input.answer ?? "")
+        ) {
           fail(`input "${inputId}" is not an llm-provider answer`);
         }
         const file = resolve(flagText(flags, "file") ?? ".env.local");
         const response = await fetch(
-          `${url.replace(/\/$/, "")}/secret/${encodeURIComponent(inputId)}`,
+          `${url.replace(/\/$/, "")}/secret/${encodeURIComponent(inputId)}?setup=${encodeURIComponent(setupId)}`,
         );
         if (response.status === 404) {
           fail(`the key for "${inputId}" was already taken or never deposited`);
