@@ -4,10 +4,7 @@ import {
   DEFAULT_CONFIG,
   type FontSize,
 } from "../components/pages/playground/types";
-import {
-  determineRegistryDependencies,
-  generateRegistryJson,
-} from "./playground-registry";
+import { generateRegistryJson } from "./playground-registry";
 import { decodeConfig } from "./playground-config-codec";
 
 it.each<{ fontSize: FontSize; className: string }>([
@@ -352,6 +349,20 @@ it.each([
   );
 });
 
+it("falls back to comfortable spacing for an unknown decoded value", () => {
+  const config = decodeConfig(
+    Buffer.from(
+      JSON.stringify({ styles: { messageSpacing: "legacy" } }),
+    ).toString("base64url"),
+  );
+  const content = generateRegistryJson(config).files[0]?.content ?? "";
+
+  expect(content).toContain(
+    'className="mb-14 flex flex-col gap-y-6 empty:hidden"',
+  );
+  expect(content).not.toContain("undefined");
+});
+
 it("renders reasoning parts only when reasoning is enabled", () => {
   const config = {
     ...DEFAULT_CONFIG,
@@ -361,37 +372,48 @@ it("renders reasoning parts only when reasoning is enabled", () => {
       loadingIndicator: "none" as const,
     },
   };
-  const on = generateRegistryJson(config).files[0]?.content ?? "";
-  const off =
-    generateRegistryJson({
-      ...config,
-      components: { ...config.components, reasoning: false },
-    }).files[0]?.content ?? "";
+  const onRegistry = generateRegistryJson(config);
+  const offRegistry = generateRegistryJson({
+    ...config,
+    components: { ...config.components, reasoning: false },
+  });
+  const on = onRegistry.files[0]?.content ?? "";
+  const off = offRegistry.files[0]?.content ?? "";
 
-  expect(determineRegistryDependencies(config)).toContain(
+  expect(onRegistry.registryDependencies).toContain(
     "https://r.assistant-ui.com/reasoning.json",
   );
   expect(on).toContain(
     'from "@/components/assistant-ui/elements/reasoning.aui"',
   );
-  expect(on).toContain("type ReasoningMessagePartProps,");
-  expect(on).toContain("Reasoning: ReasoningPart");
-  expect(on).toContain('<ReasoningRoot variant="muted" streaming={running}>');
+  expect(on).toContain("<MessagePrimitive.GroupedParts");
+  expect(on).toContain('reasoning: ["group-reasoning"]');
+  expect(on.match(/<ReasoningRoot\b/g)).toHaveLength(1);
   expect(on).toContain(
-    "<ReasoningText><Reasoning {...props} /></ReasoningText>",
+    '<ReasoningRoot variant="muted" className="mb-0" streaming={running}>',
   );
+  expect(on).toContain("<ReasoningTrigger active={running} />");
+  expect(on).toContain("<ReasoningContent aria-busy={running}>");
+  expect(on).toContain("<ReasoningText>{children}</ReasoningText>");
+  expect(on).toContain(
+    'case "reasoning":\n                return <Reasoning {...part} />;',
+  );
+  expect(on).toContain('case "text":');
+  expect(on).toContain('case "tool-call":');
+  expect(on).toContain('case "image":');
+  expect(on).toContain('case "data":');
   expect(on).not.toContain("Thinking...");
   expect(on).not.toContain("ChevronDownIcon");
   expect(on).not.toContain("ReasoningGroup");
-  expect(
-    determineRegistryDependencies({
-      ...config,
-      components: { ...config.components, reasoning: false },
-    }),
-  ).not.toContain("https://r.assistant-ui.com/reasoning.json");
+  expect(on).not.toContain("ReasoningPart");
+  expect(offRegistry.registryDependencies).not.toContain(
+    "https://r.assistant-ui.com/reasoning.json",
+  );
   expect(off).not.toContain("reasoning.aui");
-  expect(off).not.toContain("ReasoningMessagePartProps");
-  expect(off).not.toContain("ReasoningPart");
+  expect(off).toContain(
+    "<MessagePrimitive.Parts components={{ Text: MarkdownText, tools: { Fallback: ToolFallback } }} />",
+  );
+  expect(off).not.toContain("GroupedParts");
 });
 
 it("renders source parts only when sources are enabled", () => {
@@ -399,21 +421,62 @@ it("renders source parts only when sources are enabled", () => {
     ...DEFAULT_CONFIG,
     components: { ...DEFAULT_CONFIG.components, sources: true },
   };
-  const on = generateRegistryJson(config).files[0]?.content ?? "";
-  const off = generateRegistryJson(DEFAULT_CONFIG).files[0]?.content ?? "";
+  const onRegistry = generateRegistryJson(config);
+  const offRegistry = generateRegistryJson(DEFAULT_CONFIG);
+  const on = onRegistry.files[0]?.content ?? "";
+  const off = offRegistry.files[0]?.content ?? "";
 
-  expect(determineRegistryDependencies(config)).toContain(
+  expect(onRegistry.registryDependencies).toContain(
     "https://r.assistant-ui.com/sources.json",
   );
   expect(on).toContain(
     'import { Sources } from "@/components/assistant-ui/elements/sources.aui";',
   );
-  expect(on).toContain("Source: Sources");
-  expect(determineRegistryDependencies(DEFAULT_CONFIG)).not.toContain(
+  expect(on).toContain('source: ["group-source"]');
+  expect(on).toContain(
+    '<div className="mt-2 flex flex-wrap gap-1.5">{children}</div>',
+  );
+  expect(on).toContain(
+    'case "source":\n                return <Sources {...part} />;',
+  );
+  expect(offRegistry.registryDependencies).not.toContain(
     "https://r.assistant-ui.com/sources.json",
   );
   expect(off).not.toContain("sources.aui");
-  expect(off).not.toContain("Source: Sources");
+  expect(off).not.toContain("group-source");
+});
+
+it.each([
+  { reasoning: true, sources: false, markdown: true },
+  { reasoning: true, sources: false, markdown: false },
+  { reasoning: true, sources: true, markdown: true },
+  { reasoning: true, sources: true, markdown: false },
+  { reasoning: false, sources: true, markdown: true },
+  { reasoning: false, sources: true, markdown: false },
+])("preserves other parts in grouped output for %o", (toggles) => {
+  const content =
+    generateRegistryJson({
+      ...DEFAULT_CONFIG,
+      components: { ...DEFAULT_CONFIG.components, ...toggles },
+    }).files[0]?.content ?? "";
+
+  expect(content).toContain("<MessagePrimitive.GroupedParts");
+  expect(content).toContain("return <MessagePartPrimitive.Image />;");
+  expect(content).toContain("return part.dataRendererUI;");
+  expect(content).toContain('case "indicator":');
+  if (toggles.markdown) {
+    expect(content).toContain("return <MarkdownText />;");
+    expect(content).toContain(
+      "return part.toolUI ?? <ToolFallback {...part} />;",
+    );
+  } else {
+    expect(content).toContain('<p style={{ whiteSpace: "pre-line" }}>');
+    expect(content).toContain("<MessagePartPrimitive.InProgress>");
+    expect(content).toContain("return part.toolUI;");
+    expect(content).not.toContain("ToolFallback");
+  }
+  expect(content.includes('case "group-reasoning":')).toBe(toggles.reasoning);
+  expect(content.includes('case "group-source":')).toBe(toggles.sources);
 });
 
 it("matches the welcome and edit composer shown in the preview", () => {

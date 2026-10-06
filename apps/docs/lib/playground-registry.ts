@@ -77,8 +77,11 @@ function generateThreadCode(config: BuilderConfig): string {
     components.branchPicker ? `  BranchPickerPrimitive,` : null,
     `  ComposerPrimitive,`,
     `  ErrorPrimitive,`,
+    components.reasoning || components.sources ? `  groupPartByType,` : null,
+    components.reasoning || components.sources
+      ? `  MessagePartPrimitive,`
+      : null,
     `  MessagePrimitive,`,
-    components.reasoning ? `  type ReasoningMessagePartProps,` : null,
     `  ThreadPrimitive,`,
     `  useAuiState,`,
     `} from "@assistant-ui/react";`,
@@ -123,7 +126,7 @@ ${externalImports}
 ${internalImports}`;
 
   const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
-  const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing];
+  const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing] ?? "gap-y-6";
   const theme = generateThemeClasses(styles);
   const styleVars = Object.entries(generateThreadStyleVars(styles))
     .map(([name, value]) => `\n        ["${name}" as string]: "${value}",`)
@@ -510,12 +513,69 @@ function generateAssistantMessageComponent(
   const partComponents = [
     components.markdown ? "Text: MarkdownText" : "",
     components.markdown ? "tools: { Fallback: ToolFallback }" : "",
-    components.reasoning ? "Reasoning: ReasoningPart" : "",
-    components.sources ? "Source: Sources" : "",
   ].filter(Boolean);
 
+  const parts =
+    components.reasoning || components.sources
+      ? `<MessagePrimitive.GroupedParts
+          groupBy={groupPartByType({${components.reasoning ? '\n            reasoning: ["group-reasoning"],' : ""}${components.sources ? '\n            source: ["group-source"],' : ""}
+          })}
+        >
+          {({ part, children }) => {
+            switch (part.type) {${
+              components.reasoning
+                ? `
+              case "group-reasoning": {
+                const running = part.status.type === "running";
+                return (
+                  <ReasoningRoot variant="muted" className="mb-0" streaming={running}>
+                    <ReasoningTrigger active={running} />
+                    <ReasoningContent aria-busy={running}>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
+              }
+              case "reasoning":
+                return <Reasoning {...part} />;`
+                : ""
+            }${
+              components.sources
+                ? `
+              case "group-source":
+                return <div className="mt-2 flex flex-wrap gap-1.5">{children}</div>;
+              case "source":
+                return <Sources {...part} />;`
+                : ""
+            }
+              case "text":
+                return ${
+                  components.markdown
+                    ? "<MarkdownText />"
+                    : `<p style={{ whiteSpace: "pre-line" }}>
+                  <MessagePartPrimitive.Text />
+                  <MessagePartPrimitive.InProgress>
+                    <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>
+                  </MessagePartPrimitive.InProgress>
+                </p>`
+                };
+              case "image":
+                return <MessagePartPrimitive.Image />;
+              case "tool-call":
+                return part.toolUI${components.markdown ? " ?? <ToolFallback {...part} />" : ""};
+              case "data":
+                return part.dataRendererUI;
+              case "indicator":
+                return <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>;
+              default:
+                return null;
+            }
+          }}
+        </MessagePrimitive.GroupedParts>`
+      : `<MessagePrimitive.Parts${partComponents.length ? ` components={{ ${partComponents.join(", ")} }}` : ""} />`;
+
   const body = `<div className="${contentClass}">
-        <MessagePrimitive.Parts${partComponents.length ? ` components={{ ${partComponents.join(", ")} }}` : ""} />
+        ${parts}
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
@@ -590,24 +650,7 @@ function MessageError() {
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
-}${
-    components.reasoning
-      ? `
-
-function ReasoningPart(props: ReasoningMessagePartProps) {
-  const running = props.status.type === "running";
-
-  return (
-    <ReasoningRoot variant="muted" streaming={running}>
-      <ReasoningTrigger active={running} />
-      <ReasoningContent aria-busy={running}>
-        <ReasoningText><Reasoning {...props} /></ReasoningText>
-      </ReasoningContent>
-    </ReasoningRoot>
-  );
-}`
-      : ""
-  }`;
+}`;
 }
 
 function generateActionBarComponent(config: BuilderConfig): string {
