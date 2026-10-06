@@ -433,11 +433,13 @@ describe("tool-call finish ordering", () => {
     ).toEqual([[0], [1]]);
   });
 
-  it("closes unfinished tool calls at the parent stream boundary", async () => {
+  it("delivers finishes in tool close order", async () => {
     const chunks = await collectChunks(
       createAssistantStream((controller) => {
-        controller.addToolCallPart("first");
-        controller.addToolCallPart("second").close();
+        const first = controller.addToolCallPart("first");
+        const second = controller.addToolCallPart("second");
+        second.close();
+        first.close();
       }),
     );
 
@@ -445,7 +447,24 @@ describe("tool-call finish ordering", () => {
       chunks
         .filter((chunk) => chunk.type === "part-finish")
         .map((chunk) => chunk.path),
-    ).toEqual([[0], [1]]);
+    ).toEqual([[1], [0]]);
+  });
+
+  it("does not block a closed tool behind an earlier open tool", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    controller.addToolCallPart("first");
+    controller.addToolCallPart("second").close();
+    const reader = stream.getReader();
+    let finish: AssistantStreamChunk | undefined;
+
+    while (finish?.type !== "part-finish") {
+      const next = await reader.read();
+      if (next.done) break;
+      finish = next.value;
+    }
+
+    expect(finish).toEqual({ type: "part-finish", path: [1] });
+    await reader.cancel();
   });
 });
 

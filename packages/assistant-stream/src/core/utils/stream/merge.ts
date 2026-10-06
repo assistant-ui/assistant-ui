@@ -1,20 +1,20 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
+export type MergeStreamFinishOrder = {
+  previous: () => Promise<void>;
+  delivered: ReturnType<typeof promiseWithResolvers<void>>;
+};
+
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
   pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
-  orderedFinish?:
-    | {
-        previous: Promise<void>;
-        delivered: ReturnType<typeof promiseWithResolvers<void>>;
-      }
-    | undefined;
+  orderedFinish?: MergeStreamFinishOrder | undefined;
 };
 
 type MergeStreamOptions = {
-  orderedFinish?: boolean | undefined;
+  orderedFinish?: MergeStreamFinishOrder | undefined;
 };
 
 export const createMergeStream = () => {
@@ -27,7 +27,6 @@ export const createMergeStream = () => {
   let pendingRawBatches = 0;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
   let cleanupPromise: Promise<void> | undefined;
-  let lastOrderedFinish = Promise.resolve();
 
   const cancelAllReaders = () => {
     // Repeated cancellation must wait for cleanup already in progress.
@@ -83,7 +82,7 @@ export const createMergeStream = () => {
             }
           } else {
             if (value.type === "part-finish" && item.orderedFinish) {
-              await item.orderedFinish.previous;
+              await item.orderedFinish.previous();
               if (cancelled || errored) return;
             }
             controller.enqueue(value);
@@ -172,13 +171,7 @@ export const createMergeStream = () => {
 
     // A ready child must stay ahead of raw chunks enqueued after it.
     rawChunkBatch = undefined;
-    const orderedFinish = options?.orderedFinish
-      ? {
-          previous: lastOrderedFinish,
-          delivered: promiseWithResolvers<void>(),
-        }
-      : undefined;
-    if (orderedFinish) lastOrderedFinish = orderedFinish.delivered.promise;
+    const orderedFinish = options?.orderedFinish;
     const item = {
       reader: stream.getReader(),
       pipeTask: handledPipeTask,

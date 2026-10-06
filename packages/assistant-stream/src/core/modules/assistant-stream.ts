@@ -1,6 +1,9 @@
 import { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk, PartInit } from "../AssistantStreamChunk";
-import { createMergeStream } from "../utils/stream/merge";
+import {
+  createMergeStream,
+  type MergeStreamFinishOrder,
+} from "../utils/stream/merge";
 import { createTextStreamController, type TextStreamController } from "./text";
 import {
   createToolCallStreamController,
@@ -121,7 +124,7 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
-  toolCalls: Set<ToolCallStreamController>;
+  lastToolCallFinish: Promise<void>;
   closeSubscriber?: () => void;
 };
 
@@ -137,7 +140,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
-      toolCalls: new Set(),
+      lastToolCallFinish: Promise.resolve(),
     };
   }
 
@@ -167,7 +170,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk,
       AssistantStreamChunk
     >,
-    orderedFinish = false,
+    orderedFinish?: MergeStreamFinishOrder,
   ) {
     if (stream.locked) {
       throw new TypeError(
@@ -184,11 +187,15 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.merger.addStream(
       transformer.readable,
       pipeTask,
-      orderedFinish ? { orderedFinish: true } : undefined,
+      orderedFinish ? { orderedFinish } : undefined,
     );
   }
 
-  private _addPart(part: PartInit, stream: AssistantStream) {
+  private _addPart(
+    part: PartInit,
+    stream: AssistantStream,
+    orderedFinish?: MergeStreamFinishOrder,
+  ) {
     if (this._state.append) {
       this._state.append.controller.close();
       this._state.append = undefined;
@@ -202,7 +209,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
-      part.type === "tool-call",
+      orderedFinish,
     );
   }
 
@@ -274,13 +281,16 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolName = opt.toolName;
     const toolCallId = opt.toolCallId ?? generateId();
 
-    let controller: ToolCallStreamController;
+    const delivered = promiseWithResolvers<void>();
+    let previous = Promise.resolve();
     const [stream, createdController] = createToolCallStreamController({
       strict: this._state.strict,
-      onClose: () => this._state.toolCalls.delete(controller),
+      onClose: () => {
+        previous = this._state.lastToolCallFinish;
+        this._state.lastToolCallFinish = delivered.promise;
+      },
     });
-    controller = createdController;
-    this._state.toolCalls.add(controller);
+    const controller = createdController;
     this._addPart(
       {
         type: "tool-call",
@@ -289,6 +299,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
+      { previous: () => previous, delivered },
     );
 
     if (opt.argsText !== undefined) {
@@ -357,7 +368,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   close() {
     this._state.append?.controller?.close();
-    for (const toolCall of this._state.toolCalls) toolCall.close();
     this._state.merger.seal();
 
     this._state.closeSubscriber?.();
