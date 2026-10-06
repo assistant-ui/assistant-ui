@@ -204,7 +204,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
-  it("starts a new shared anonymous token request after invalidation", async () => {
+  it("reuses an in-flight anonymous token request after invalidation", async () => {
     const values = new Map<string, string>();
     installLocalStorage({
       getItem: (key) => values.get(key) ?? null,
@@ -215,24 +215,13 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         values.delete(key);
       },
     } as Storage);
-    const firstAccessToken = createAccessToken("anonymous-1");
-    const secondAccessToken = createAccessToken("anonymous-2");
-    const secondRefreshToken = {
-      token: "r2",
-      expires_at: "2099-02-01",
-    };
-    let resolveFirstResponse: (response: Response) => void = () => {};
-    let resolveSecondResponse: (response: Response) => void = () => {};
-    const firstResponse = new Promise<Response>((resolve) => {
-      resolveFirstResponse = resolve;
-    });
-    const secondResponse = new Promise<Response>((resolve) => {
-      resolveSecondResponse = resolve;
+    let resolveResponse: (response: Response) => void = () => {};
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
     });
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockImplementationOnce(() => firstResponse)
-      .mockImplementationOnce(() => secondResponse);
+      .mockImplementationOnce(() => response);
     vi.stubGlobal("fetch", fetchMock);
     const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
 
@@ -240,34 +229,24 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     strategy.invalidate();
     const secondRequest = strategy.getAuthHeaders();
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenCalledOnce();
 
-    resolveSecondResponse({
+    resolveResponse({
       ok: true,
       json: vi.fn().mockResolvedValue({
-        access_token: secondAccessToken,
-        refresh_token: secondRefreshToken,
-      }),
-    } as unknown as Response);
-    await expect(secondRequest).resolves.toEqual({
-      Authorization: `Bearer ${secondAccessToken}`,
-    });
-
-    resolveFirstResponse({
-      ok: true,
-      json: vi.fn().mockResolvedValue({
-        access_token: firstAccessToken,
+        access_token: accessToken,
         refresh_token: refreshToken,
       }),
     } as unknown as Response);
     await expect(firstRequest).resolves.toBe(false);
-    await expect(strategy.getAuthHeaders()).resolves.toEqual({
-      Authorization: `Bearer ${secondAccessToken}`,
+    await expect(secondRequest).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(values.get(refreshTokenKey)).toBe(
-      JSON.stringify(secondRefreshToken),
-    );
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
   it("coordinates anonymous token requests across realms", async () => {

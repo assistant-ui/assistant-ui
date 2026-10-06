@@ -360,33 +360,10 @@ const removeRefreshToken = (baseUrl: string): void => {
 };
 
 // In-flight sharing follows refresh-token storage scope to isolate server requests.
-type AnonymousAuthTokenState = {
-  generation: number;
-  request: Promise<string | null> | null;
-};
-
-const anonymousAuthTokenStates = new WeakMap<
+const anonymousAuthTokenRequests = new WeakMap<
   Storage,
-  Map<string, AnonymousAuthTokenState>
+  Map<string, Promise<string | null>>
 >();
-
-const getAnonymousAuthTokenState = (
-  storage: Storage,
-  baseUrl: string,
-): AnonymousAuthTokenState => {
-  let storageStates = anonymousAuthTokenStates.get(storage);
-  if (!storageStates) {
-    storageStates = new Map();
-    anonymousAuthTokenStates.set(storage, storageStates);
-  }
-
-  let state = storageStates.get(baseUrl);
-  if (!state) {
-    state = { generation: 0, request: null };
-    storageStates.set(baseUrl, state);
-  }
-  return state;
-};
 
 const getWebLockManager = (): LockManager | null => {
   if (!("navigator" in globalThis)) return null;
@@ -401,39 +378,31 @@ const getAnonymousAuthLockName = (baseUrl: string): string =>
 
 const getSharedAnonymousAuthToken = (
   baseUrl: string,
-  requestToken: (isCurrent: () => boolean) => Promise<string | null>,
+  requestToken: () => Promise<string | null>,
 ): Promise<string | null> => {
   const storage = getLocalStorage();
-  if (!storage) return requestToken(() => true);
+  if (!storage) return requestToken();
 
-  const state = getAnonymousAuthTokenState(storage, baseUrl);
-  if (state.request) return state.request;
+  let storageRequests = anonymousAuthTokenRequests.get(storage);
+  if (!storageRequests) {
+    storageRequests = new Map();
+    anonymousAuthTokenRequests.set(storage, storageRequests);
+  }
 
-  const generation = state.generation;
-  const isCurrent = () => state.generation === generation;
-  const runRequest = async () => {
-    if (!isCurrent()) return null;
-    const token = await requestToken(isCurrent);
-    return isCurrent() ? token : null;
-  };
+  const activeRequest = storageRequests.get(baseUrl);
+  if (activeRequest) return activeRequest;
 
   const locks = getWebLockManager();
   const request = locks
-    ? locks.request(getAnonymousAuthLockName(baseUrl), runRequest)
-    : runRequest();
+    ? locks.request(getAnonymousAuthLockName(baseUrl), requestToken)
+    : requestToken();
   const sharedRequest = request.finally(() => {
-    if (state.request === sharedRequest) state.request = null;
+    if (storageRequests.get(baseUrl) === sharedRequest) {
+      storageRequests.delete(baseUrl);
+    }
   });
-  state.request = sharedRequest;
+  storageRequests.set(baseUrl, sharedRequest);
   return sharedRequest;
-};
-
-const invalidateSharedAnonymousAuthToken = (baseUrl: string): void => {
-  const storage = getLocalStorage();
-  if (!storage) return;
-  const state = getAnonymousAuthTokenState(storage, baseUrl);
-  state.generation += 1;
-  state.request = null;
 };
 
 export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
@@ -444,10 +413,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    const requestAuthToken = async (
-      isCurrent: () => boolean,
-    ): Promise<string | null> => {
-      if (!isCurrent()) return null;
+    const requestAuthToken = async (): Promise<string | null> => {
       const currentTime = Date.now();
       const storedRefreshToken = readRefreshToken(this.baseUrl);
 
@@ -468,14 +434,12 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
                   signal,
                 },
               );
-              if (!isCurrent()) return null;
 
               if (response.ok) {
                 const { data, accessToken } = await readAuthTokenResponse(
                   response,
                   "refresh auth token response",
                 );
-                if (!isCurrent()) return null;
                 if (data.refresh_token != null) {
                   writeRefreshToken(
                     this.baseUrl,
@@ -497,7 +461,6 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
               return null;
             },
           );
-          if (!isCurrent()) return null;
           if (refreshedAccessToken !== null) return refreshedAccessToken;
         } else {
           removeRefreshToken(this.baseUrl);
@@ -512,7 +475,6 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             `${this.baseUrl}/v1/auth/tokens/anonymous`,
             { method: "POST", signal },
           );
-          if (!isCurrent()) return null;
 
           if (!response.ok) return null;
 
@@ -520,7 +482,6 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             response,
             "anonymous auth token response",
           );
-          if (!isCurrent()) return null;
 
           writeRefreshToken(
             this.baseUrl,
@@ -547,7 +508,6 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
   }
 
   public invalidate(): void {
-    invalidateSharedAnonymousAuthToken(this.baseUrl);
     this.jwtStrategy.invalidate();
   }
 }
