@@ -64,8 +64,20 @@ describe("reduceAdkThreadState", () => {
       ...createAdkThreadState(),
       stateDelta: { stale: true },
       artifactDelta: { stale: 1 },
+      agentInfo: { name: "stale-agent", branch: "stale" },
       longRunningToolIds: ["stale"],
+      toolConfirmations: [
+        {
+          toolCallId: "stale-tool",
+          toolName: "approve",
+          args: {},
+          hint: "stale",
+          confirmed: false,
+        },
+      ],
+      authRequests: [{ toolCallId: "stale-auth", authConfig: {} }],
       escalated: true,
+      messageMetadata: new Map([["stale", { groundingMetadata: "stale" }]]),
     };
     const snapshot = {
       messages: [message],
