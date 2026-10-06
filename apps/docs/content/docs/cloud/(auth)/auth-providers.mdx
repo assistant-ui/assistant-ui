@@ -53,7 +53,7 @@ The provider token callback returns the JWT you configured the rule to verify. T
 <Tabs items={["Clerk", "Auth0", "Supabase", "Firebase", "Custom"]}>
 <Tab value="Clerk">
 
-Create a Clerk JWT template named `assistant-ui` with `{ "aud": "assistant-ui" }`. Set the rule's issuer, JWKS endpoint, and audience to the template values. `getToken` keeps its identity when the user or organization changes, so key the client to Clerk's `userId` and `orgId`; `userId` is `undefined` while Clerk loads and `null` once the user is signed out.
+Create a Clerk JWT template named `assistant-ui` with `{ "aud": "assistant-ui" }`. Set the rule's issuer, JWKS endpoint, and audience to the template values. `getToken` keeps its identity when the user or organization changes, so key the client to Clerk's `userId` and `orgId`; `userId` is `undefined` while Clerk loads and `null` once the user is signed out. Render the runtime once `isLoaded` is true so its first client already has the final identity.
 
 ```tsx title="use-cloud.ts"
 "use client";
@@ -79,7 +79,7 @@ function useCloud() {
 </Tab>
 <Tab value="Auth0">
 
-Set the rule issuer to your Auth0 domain, its JWKS endpoint to `/.well-known/jwks.json`, and the audience to your API audience. `getAccessTokenSilently` keeps its identity across users, so key the client to the signed-in user's `sub`, and treat the user as signed out only after Auth0 finishes loading.
+Set the rule issuer to your Auth0 domain, its JWKS endpoint to `/.well-known/jwks.json`, and the audience to your API audience. `getAccessTokenSilently` keeps its identity across users, so key the client to the signed-in user's `sub`, and treat the user as signed out only after Auth0 finishes loading. Render the runtime once `isLoading` is false so its first client already has the final identity.
 
 ```tsx title="use-cloud.ts"
 "use client";
