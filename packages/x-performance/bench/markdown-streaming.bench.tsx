@@ -1,4 +1,4 @@
-import { describe, inject, test } from "vitest";
+import { describe, expect, inject, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -43,11 +43,16 @@ const paragraphs = (n: number) =>
       `Paragraph ${i} of the streamed answer keeps **emphasis**, a [link](https://example.com), and \`inline code\` in every line so the parse stays realistic.`,
   ).join("\n\n");
 
-type Host = { tick: () => void | Promise<void>; unmount: () => void };
+type Host = {
+  tick: () => void | Promise<void>;
+  unmount: () => void;
+  container: HTMLElement;
+  isCurrent: () => boolean;
+};
 
-const mount = (n: number, defer = false): Host => {
+const mount = (n: number | string, defer = false): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
-  const body = paragraphs(n);
+  const body = typeof n === "string" ? n : paragraphs(n);
   let flip = false;
   const threadComponents = makeComponents(defer);
   const App = () => {
@@ -67,9 +72,13 @@ const mount = (n: number, defer = false): Host => {
       </AssistantRuntimeProvider>
     );
   };
-  const root = createRoot(document.createElement("div"));
+  const container = document.createElement("div");
+  const root = createRoot(container);
   flushSync(() => root.render(createElement(App)));
   return {
+    container,
+    isCurrent: () =>
+      container.textContent?.endsWith(flip ? "tok a" : "tok b") ?? false,
     tick: () => {
       flip = !flip;
       const tail = flip ? " tok a" : " tok b";
@@ -139,5 +148,55 @@ describe("react-markdown: the same token with defer on", () => {
         async () => await host.tick(),
       ).run(inject("benchSampling"));
     });
+  }
+});
+
+describe("react-markdown: one token after an unchanged fenced code block", () => {
+  for (const size of [10000, 100000]) {
+    const prefix = "```ts\n";
+    const suffix = "\n```\n\n";
+    const code = "x".repeat(size - prefix.length - suffix.length);
+    const body = `${prefix}${code}${suffix}`;
+    for (const defer of [false, true]) {
+      let host: Host;
+      const name = `${size / 1000} KB fenced Markdown${defer ? " deferred" : ""}`;
+      test(name, async ({ bench }) => {
+        await bench(
+          name,
+          {
+            beforeAll: () => {
+              expect(new TextEncoder().encode(body).length).toBe(size);
+              host = mount(body, defer);
+              expect(host.container.querySelector("code")?.textContent).toBe(
+                `${code}\n`,
+              );
+            },
+            afterAll: () => {
+              try {
+                expect(host.container.querySelector("code")?.textContent).toBe(
+                  `${code}\n`,
+                );
+                expect(host.container.textContent?.slice(-10)).toMatch(
+                  /tok [ab]$/,
+                );
+              } finally {
+                host.unmount();
+              }
+            },
+          },
+          defer
+            ? async () => {
+                await host.tick();
+                const deadline = performance.now() + 5000;
+                while (!host.isCurrent()) {
+                  if (performance.now() >= deadline)
+                    throw new Error("deferred token did not render");
+                  await settleTransitions();
+                }
+              }
+            : () => host.tick(),
+        ).run(inject("benchSampling"));
+      });
+    }
   }
 });

@@ -517,25 +517,26 @@ describe("resolveProject error handling", () => {
 });
 
 describe("PROJECT_METADATA", () => {
-  it("contains all 7 templates", () => {
+  it("contains all 8 templates", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    expect(templates).toHaveLength(7);
+    expect(templates).toHaveLength(8);
     expect(templates.map((t) => t.name)).toEqual([
       "default",
       "minimal",
       "cloud",
       "cloud-clerk",
+      "cloud-harness",
       "langchain",
       "mcp",
       "eve",
     ]);
   });
 
-  it("only the minimal template ships local components", () => {
+  it("minimal and cloud harness templates ship local components", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
     expect(
       templates.filter((t) => t.hasLocalComponents).map((t) => t.name),
-    ).toEqual(["minimal"]);
+    ).toEqual(["minimal", "cloud-harness"]);
   });
 
   it("examples have correct hasLocalComponents values", () => {

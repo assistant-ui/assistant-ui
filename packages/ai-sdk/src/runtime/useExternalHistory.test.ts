@@ -1383,6 +1383,100 @@ describe("useExternalHistory persistence", () => {
     );
   });
 
+  it("stores and restores questionnaire answers with the approval response", async () => {
+    const answers = {
+      scope: { optionIds: ["src", "tests"] },
+      note: { text: "keep it short" },
+    };
+    const saved = new Map<string, RespondToToolApprovalOptions>();
+    const writer = createPersistenceHarness(false, {
+      toolApprovalResponses: saved,
+    });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-ask",
+          toolCallId: "call-1",
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "ask",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    );
+    await waitFor(() => expect(writer.load).toHaveBeenCalledTimes(1));
+    saved.set("approval-1", {
+      approvalId: "approval-1",
+      approved: true,
+      answers,
+    });
+    await writer.runCycle([message]);
+    await waitFor(() =>
+      expect(writer.append).toHaveBeenCalledWith({
+        parentId: null,
+        message: {
+          ...innerMessage,
+          metadata: {
+            __aui_toolApprovalResponses: {
+              "approval-1": { approved: true, answers },
+            },
+          },
+        },
+      }),
+    );
+    writer.unmount();
+
+    const restored = new Map<string, RespondToToolApprovalOptions>();
+    const reader = createPersistenceHarness(true, {
+      loadMessages: {
+        messages: [
+          {
+            parentId: null,
+            message: {
+              ...innerMessage,
+              metadata: {
+                __aui_toolApprovalResponses: {
+                  "approval-1": {
+                    approved: true,
+                    answers: { ...answers, junk: { optionIds: [1] } },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      toolApprovalResponses: restored,
+    });
+    await waitFor(() => expect(reader.load).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(restored.get("approval-1")).toEqual({
+        approvalId: "approval-1",
+        approved: true,
+        answers,
+      }),
+    );
+  });
+
   it("restores stored tool artifacts without returning metadata to the chat", async () => {
     const toolArtifacts = new Map<string, unknown>();
     const onSetMessages = vi.fn();

@@ -32,7 +32,7 @@ import {
 } from "@/lib/playground-chat-toolkit";
 import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
-import { applyDiff } from "@/lib/playground-url-state";
+import { applyDiff } from "@/lib/playground-config-codec";
 
 const PLAYGROUND_SUGGESTIONS = [
   {

@@ -74,8 +74,8 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   } as unknown as typeof ResizeObserver;
-  globalThis.URL.createObjectURL ??= () => "blob:attachment";
-  globalThis.URL.revokeObjectURL ??= () => {};
+  globalThis.URL.createObjectURL = () => "blob:attachment";
+  globalThis.URL.revokeObjectURL = () => {};
 });
 
 afterEach(() => {
@@ -100,7 +100,7 @@ describe("Thread with a message being sent", () => {
     });
 
     await waitFor(() => expect(screen.getByText("look at this")).toBeTruthy());
-    expect(screen.getByLabelText("Image attachment, uploading")).toBeTruthy();
+    expect(screen.getByLabelText("Preview photo.png, uploading")).toBeTruthy();
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
     expect(screen.getByLabelText("Cancel sending")).toBeTruthy();
 
@@ -109,7 +109,9 @@ describe("Thread with a message being sent", () => {
     });
 
     await waitFor(() =>
-      expect(screen.queryByLabelText("Image attachment, uploading")).toBeNull(),
+      expect(
+        screen.queryByLabelText("Preview photo.png, uploading"),
+      ).toBeNull(),
     );
     expect(screen.getByText("look at this")).toBeTruthy();
     await waitFor(() => {
@@ -160,7 +162,9 @@ describe("Thread with a message being sent", () => {
       aui().thread.composer().send();
     });
     await waitFor(() =>
-      expect(screen.getByLabelText("Image attachment, uploading")).toBeTruthy(),
+      expect(
+        screen.getByLabelText("Preview photo.png, uploading"),
+      ).toBeTruthy(),
     );
 
     await act(async () => {
@@ -169,10 +173,10 @@ describe("Thread with a message being sent", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByLabelText("Image attachment, upload failed"),
+        screen.getByLabelText("Preview photo.png, upload failed"),
       ).toBeTruthy(),
     );
-    expect(screen.queryByLabelText("Image attachment, uploading")).toBeNull();
+    expect(screen.queryByLabelText("Preview photo.png, uploading")).toBeNull();
   });
 
   it("stops the run and takes the send back with the one stop button", async () => {
@@ -201,7 +205,7 @@ describe("Thread with a message being sent", () => {
       aui().thread.composer().setText("look at this");
       aui().thread.composer().send();
     });
-    expect(screen.getByLabelText("Image attachment, uploading")).toBeTruthy();
+    expect(screen.getByLabelText("Preview photo.png, uploading")).toBeTruthy();
 
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Stop generating"));
@@ -211,11 +215,11 @@ describe("Thread with a message being sent", () => {
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
       "look at this",
     );
-    expect(screen.queryByLabelText("Image attachment, uploading")).toBeNull();
+    expect(screen.queryByLabelText("Preview photo.png, uploading")).toBeNull();
     expect(aui().thread.composer().getState().attachments).toMatchObject([
       { name: "photo.png", status: { type: "requires-action" } },
     ]);
-    expect(screen.getByLabelText("Image attachment")).toBeTruthy();
+    expect(screen.getByLabelText("Preview photo.png")).toBeTruthy();
 
     await act(async () => {
       upload.resolve();
