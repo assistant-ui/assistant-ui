@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/eve",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "Eve runtime adapter for assistant-ui",
   "keywords": [
     "eve",
@@ -30,13 +30,14 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:watch": "vitest",
     "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/core": "^0.3.24",
     "@assistant-ui/store": "^0.3.17",
     "assistant-cloud": "*"
   },

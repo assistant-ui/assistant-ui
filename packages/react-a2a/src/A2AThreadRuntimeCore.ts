@@ -18,11 +18,9 @@ import {
   createMessageRepositorySession,
   invokeUserCallback,
 } from "@assistant-ui/core/internal";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
 } from "@assistant-ui/react-generative-ui/a2ui";
 import type { A2AClient } from "./A2AClient";
@@ -193,9 +191,12 @@ export class A2AThreadRuntimeCore {
   detachRuntime() {
     this.runtime = undefined;
     // Abort in-flight requests on unmount
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+    const controller = this.abortController;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -887,16 +888,11 @@ export class A2AThreadRuntimeCore {
   private a2uiSurfaceParts(): ThreadAssistantMessagePart[] {
     const parts: ThreadAssistantMessagePart[] = [];
     for (const [surfaceId, surface] of this.a2uiState) {
-      const { spec } = convertSurfaceToUISpec(surface);
-      if (!spec) continue;
+      const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+      if (!toolCall) continue;
       parts.push({
         type: "tool-call",
-        toolCallId: `a2ui:${surfaceId}`,
-        toolName: "present",
-        args: spec as unknown as ReadonlyJSONObject,
-        argsText: JSON.stringify(spec),
-        result: {},
-        artifact: { a2ui: surfaceToOperations(surface) },
+        ...toolCall,
       });
     }
     return parts;

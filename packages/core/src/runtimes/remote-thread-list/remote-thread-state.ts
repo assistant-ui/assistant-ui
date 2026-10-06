@@ -1,5 +1,6 @@
 import type {
   RemoteThreadInitializeResponse,
+  RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "./types";
 import { generateId } from "../../utils/id";
@@ -261,6 +262,51 @@ export const statusSnapshot = (
   state: RemoteThreadState,
 ): ReadonlyMap<string, RemoteThreadData["status"]> =>
   new Map(Object.values(state.threadData).map((d) => [d.id, d.status]));
+
+export const applyInitialThreadPage = (
+  state: RemoteThreadState,
+  page: RemoteThreadListResponse,
+  statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
+): RemoteThreadState => {
+  const fresh = classifyThreads(page.threads, {
+    threadIds: [],
+    archivedThreadIds: [],
+    threadIdMap: { ...state.threadIdMap },
+    threadData: { ...state.threadData },
+  });
+  const merged = {
+    ...state,
+    isLoading: false,
+    loadError: undefined,
+    cursor: normalizeCursor(page.nextCursor),
+    threadIds: fresh.threadIds,
+    archivedThreadIds: fresh.archivedThreadIds,
+    threadIdMap: fresh.threadIdMap,
+    threadData: fresh.threadData,
+  };
+  return preserveMidLoadTransitions(merged, state, statusAtRequest);
+};
+
+export const appendThreadPage = (
+  state: RemoteThreadState,
+  page: RemoteThreadListResponse,
+): RemoteThreadState => {
+  const appended = classifyThreads(page.threads, {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: { ...state.threadIdMap },
+    threadData: { ...state.threadData },
+  });
+  return {
+    ...state,
+    isLoadingMore: false,
+    cursor: normalizeCursor(page.nextCursor),
+    threadIds: appended.threadIds,
+    archivedThreadIds: appended.archivedThreadIds,
+    threadIdMap: appended.threadIdMap,
+    threadData: appended.threadData,
+  };
+};
 
 export const getThreadData = (
   state: RemoteThreadState,

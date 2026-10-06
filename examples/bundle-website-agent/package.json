@@ -6,7 +6,8 @@
     "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
     "preview:build": "node ../../scripts/build-example-bundle.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",

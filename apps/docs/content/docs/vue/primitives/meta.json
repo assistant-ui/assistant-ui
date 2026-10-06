@@ -1,0 +1,19 @@
+{
+  "title": "Primitives",
+  "description": "Unstyled Vue components for building chat interfaces",
+  "icon": "Blocks",
+  "root": true,
+  "pages": [
+    "index",
+    "thread",
+    "message",
+    "composer",
+    "action-bar",
+    "branch-picker",
+    "thread-list",
+    "attachment",
+    "suggestion",
+    "error",
+    "chain-of-thought"
+  ]
+}
