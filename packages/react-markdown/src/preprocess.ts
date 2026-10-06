@@ -1078,15 +1078,39 @@ function inListContext(text: string, lineStart: number): boolean {
     const wsEnd = whitespaceEnd(text, content, end);
     if (
       columns(text, content, wsEnd) < 4 &&
-      listMarkerEnd(text, wsEnd, end) !== wsEnd
+      (listMarkerEnd(text, wsEnd, end) !== wsEnd ||
+        isBareMarker(text, wsEnd, end))
     ) {
       return true;
     }
-    if (columns(text, content, wsEnd) < 2 && prevLineIsBlank(text, prevStart)) {
+    // Measure the raw indentation before quote stripping: a `   > ` line
+    // inside a list item must not look like a column-0 list closer.
+    const rawWsEnd = whitespaceEnd(text, prevStart, end);
+    if (
+      columns(text, prevStart, rawWsEnd) < 2 &&
+      prevLineIsBlank(text, prevStart)
+    ) {
       return false;
     }
     pos = prevStart;
   }
+}
+
+/**
+ * Whether the line `[from, to)` is a bare list marker with nothing after it
+ * (`-` or `1.` alone): an empty list item whose content follows on later
+ * lines. `listMarkerEnd` requires a trailing space, so this covers the
+ * end-of-line case it misses.
+ */
+function isBareMarker(text: string, from: number, to: number): boolean {
+  let end = to;
+  while (end > from) {
+    const code = text.charCodeAt(end - 1);
+    if (code !== SPACE && code !== TAB && code !== CR) break;
+    end -= 1;
+  }
+  const rest = text.slice(from, end);
+  return /^([-*+]|\d{1,9}[.)])$/.test(rest);
 }
 
 /** Whether the line before the one at `lineStart` is blank (or absent). */

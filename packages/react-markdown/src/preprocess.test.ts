@@ -786,6 +786,18 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("- Plan A\n\nSome text\n\n    total = $5 + $10");
   });
 
+  it("still escapes prose under a blockquote inside a list item", () => {
+    expect(
+      escapeCurrencyDollars("1. Step\n\n   > Tip: x\n\n    Costs $5 and $10"),
+    ).toBe("1. Step\n\n   > Tip: x\n\n    Costs \\$5 and \\$10");
+  });
+
+  it("still escapes prose under a bare list marker", () => {
+    expect(escapeCurrencyDollars("-\n  foo\n\n    bar costs $5 and $10")).toBe(
+      "-\n  foo\n\n    bar costs \\$5 and \\$10",
+    );
+  });
+
   it("escapes list prose split across an html block boundary", () => {
     // The html block hands the callback a fresh slice starting below it, but
     // the indented line still sits inside the list item, so its currency is
