@@ -113,7 +113,6 @@ declare class AssistantCloud {
 }
 
 declare class AssistantCloudAPI {
-  #private;
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
   readonly registerSdk: (sdk: SdkIdentity) => void;
@@ -128,7 +127,7 @@ declare class AssistantCloudAPI {
 type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
-  readAuthHeaders(headers: Headers, requestHeaders?: Headers): void;
+  readAuthHeaders(headers: Headers): void;
   invalidate(): void;
 };
 
