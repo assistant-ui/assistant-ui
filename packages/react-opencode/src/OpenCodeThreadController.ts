@@ -126,17 +126,22 @@ const getRecordValue = (
   return undefined;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 const toPermissionRequest = (
-  request: PermissionRequest,
+  value: unknown,
 ): OpenCodePermissionRequest | null => {
-  if (typeof request.id !== "string" || typeof request.sessionID !== "string") {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.sessionID !== "string" ||
+    typeof value.permission !== "string"
+  ) {
     return null;
   }
 
-  const metadata =
-    typeof request.metadata === "object" && request.metadata !== null
-      ? (request.metadata as Record<string, unknown>)
-      : {};
+  const metadata = isRecord(value.metadata) ? value.metadata : {};
 
   const titleValue = getRecordValue(metadata, ["title", "message", "prompt"]);
   const toolNameValue = getRecordValue(metadata, [
@@ -152,11 +157,12 @@ const toPermissionRequest = (
     "arguments",
   ]);
 
+  const request = value as PermissionRequest;
   return {
     id: request.id,
     sessionId: request.sessionID,
     permission: request.permission,
-    patterns: request.patterns,
+    patterns: Array.isArray(request.patterns) ? request.patterns : [],
     metadata,
     always: Array.isArray(request.always) ? request.always : [],
     tool: request.tool,
@@ -171,26 +177,52 @@ const toPermissionRequest = (
 
 const extractPermissionRequest = (
   event: OpenCodeServerEvent,
-): OpenCodePermissionRequest | null =>
-  toPermissionRequest(event.properties as PermissionRequest);
+): OpenCodePermissionRequest | null => toPermissionRequest(event.properties);
 
-const toQuestionRequest = (
-  request: QuestionRequest,
-): OpenCodeQuestionRequest | null => {
-  if (typeof request.id !== "string" || typeof request.sessionID !== "string") {
+const toQuestionRequest = (value: unknown): OpenCodeQuestionRequest | null => {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.sessionID !== "string" ||
+    !Array.isArray(value.questions)
+  ) {
     return null;
   }
 
+  const request = value as QuestionRequest;
   return {
     ...request,
     askedAt: Date.now(),
   };
 };
 
+const toPermissionRequests = (
+  items: readonly unknown[],
+): readonly OpenCodePermissionRequest[] | null => {
+  const requests: OpenCodePermissionRequest[] = [];
+  for (const item of items) {
+    const request = toPermissionRequest(item);
+    if (!request) return null;
+    requests.push(request);
+  }
+  return requests;
+};
+
+const toQuestionRequests = (
+  items: readonly unknown[],
+): readonly OpenCodeQuestionRequest[] | null => {
+  const requests: OpenCodeQuestionRequest[] = [];
+  for (const item of items) {
+    const request = toQuestionRequest(item);
+    if (!request) return null;
+    requests.push(request);
+  }
+  return requests;
+};
+
 const extractQuestionRequest = (
   event: OpenCodeServerEvent,
-): OpenCodeQuestionRequest | null =>
-  toQuestionRequest(event.properties as unknown as QuestionRequest);
+): OpenCodeQuestionRequest | null => toQuestionRequest(event.properties);
 
 const hasSamePermissionPayload = (
   left: OpenCodePermissionRequest,
@@ -384,6 +416,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
+  private cancelInteractionRecovery() {
+    this.reconnectSyncToken += 1;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
+    for (const entry of this.childControllersById.values()) {
+      entry.controller.cancelInteractionRecovery();
+    }
+  }
+
   private notifyListeners() {
     for (const listener of this.listeners) {
       try {
@@ -436,11 +479,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.loadPromise = null;
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
-    this.reconnectSyncToken += 1;
-    this.permissionRecoveryToken = null;
-    this.permissionRecoveryFence.clear();
-    this.questionRecoveryToken = null;
-    this.questionRecoveryFence.clear();
+    this.cancelInteractionRecovery();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -600,12 +639,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.questionRecoveryFence.clear();
   }
 
-  private reconcilePermissions(items: readonly PermissionRequest[]) {
+  private reconcilePermissions(requests: readonly OpenCodePermissionRequest[]) {
     const pending: Record<string, OpenCodePermissionRequest> =
       Object.create(null);
-    for (const item of items) {
-      const request = toPermissionRequest(item);
-      if (!request || request.sessionId !== this.sessionId) continue;
+    for (const request of requests) {
+      if (request.sessionId !== this.sessionId) continue;
       if (this.permissionRepliesInFlight.has(request.id)) continue;
       if (this.permissionRecoveryFence.has(request.id)) continue;
       const settled = this.state.interactions.permissions.resolved[request.id];
@@ -630,12 +668,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "permissions.reconciled", pending });
   }
 
-  private reconcileQuestions(items: readonly QuestionRequest[]) {
+  private reconcileQuestions(requests: readonly OpenCodeQuestionRequest[]) {
     const pending: Record<string, OpenCodeQuestionRequest> =
       Object.create(null);
-    for (const item of items) {
-      const request = toQuestionRequest(item);
-      if (!request || request.sessionID !== this.sessionId) continue;
+    for (const request of requests) {
+      if (request.sessionID !== this.sessionId) continue;
       if (this.questionRepliesInFlight.has(request.id)) continue;
       if (this.questionRecoveryFence.has(request.id)) continue;
       const settled =
@@ -701,10 +738,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         try {
           if (!response) return;
           if (!Array.isArray(response.data)) return;
+          const requests = toPermissionRequests(response.data);
+          if (!requests) return;
           await this.visitInteractionRecoveryTree(
             (controller) => {
               recoveryControllers.add(controller);
-              controller.reconcilePermissions(response.data);
+              controller.reconcilePermissions(requests);
             },
             () => token === this.reconnectSyncToken,
           );
@@ -729,10 +768,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         try {
           if (!response) return;
           if (!Array.isArray(response.data)) return;
+          const requests = toQuestionRequests(response.data);
+          if (!requests) return;
           await this.visitInteractionRecoveryTree(
             (controller) => {
               recoveryControllers.add(controller);
-              controller.reconcileQuestions(response.data);
+              controller.reconcileQuestions(requests);
             },
             () => token === this.reconnectSyncToken,
           );
@@ -748,6 +789,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public dispose() {
+    this.cancelInteractionRecovery();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     this.detachChildControllers();

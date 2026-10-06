@@ -7,6 +7,8 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 import type {
   Message,
   MessageWithParts,
+  OpenCodePermissionRequest,
+  OpenCodeQuestionRequest,
   OpenCodeThreadState,
   PendingUserMessage,
   ThreadUserMessagePart,
@@ -16,42 +18,49 @@ describe("reduceOpenCodeThreadState", () => {
   it.each(["permission", "question"] as const)(
     "ignores an unchanged $kind reconciliation",
     (kind) => {
-      const request =
-        kind === "permission"
-          ? {
-              id: "perm_1",
-              sessionId: "ses_1",
-              permission: "fs.write",
-              patterns: [],
-              metadata: {},
-              always: [],
-              askedAt: 1,
-              raw: {},
-            }
-          : {
-              id: "q_1",
-              sessionID: "ses_1",
-              questions: [],
-              askedAt: 1,
-            };
       const initial = createOpenCodeThreadState("ses_1");
-      const state = reduceOpenCodeThreadState(
-        initial,
-        (kind === "permission"
-          ? { type: "permission.asked", request }
-          : { type: "question.asked", request }) as never,
-      );
-      const pending =
+      const state =
         kind === "permission"
-          ? { ...state.interactions.permissions.pending }
-          : { ...state.interactions.questions.pending };
+          ? reduceOpenCodeThreadState(initial, {
+              type: "permission.asked",
+              request: {
+                id: "perm_1",
+                sessionId: "ses_1",
+                permission: "fs.write",
+                patterns: [],
+                metadata: {},
+                always: [],
+                askedAt: 1,
+                raw: {
+                  id: "perm_1",
+                  sessionID: "ses_1",
+                  permission: "fs.write",
+                  patterns: [],
+                  metadata: {},
+                  always: [],
+                },
+              } satisfies OpenCodePermissionRequest,
+            })
+          : reduceOpenCodeThreadState(initial, {
+              type: "question.asked",
+              request: {
+                id: "q_1",
+                sessionID: "ses_1",
+                questions: [],
+                askedAt: 1,
+              } satisfies OpenCodeQuestionRequest,
+            });
 
-      const reconciled = reduceOpenCodeThreadState(
-        state,
-        (kind === "permission"
-          ? { type: "permissions.reconciled", pending }
-          : { type: "questions.reconciled", pending }) as never,
-      );
+      const reconciled =
+        kind === "permission"
+          ? reduceOpenCodeThreadState(state, {
+              type: "permissions.reconciled",
+              pending: { ...state.interactions.permissions.pending },
+            })
+          : reduceOpenCodeThreadState(state, {
+              type: "questions.reconciled",
+              pending: { ...state.interactions.questions.pending },
+            });
 
       expect(reconciled).toBe(state);
     },
