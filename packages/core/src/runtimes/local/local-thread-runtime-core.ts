@@ -379,7 +379,6 @@ export class LocalThreadRuntimeCore
 
   private _suggestions: readonly ThreadSuggestion[] = [];
   private _suggestionsController: AbortController | null = null;
-  private _suggestionRunSettled = false;
   public get suggestions(): readonly ThreadSuggestion[] {
     return this._suggestions;
   }
@@ -963,7 +962,6 @@ export class LocalThreadRuntimeCore
     };
     this._activeRun = run;
     this._runGeneration++;
-    this._suggestionRunSettled = false;
 
     let active = false;
     try {
@@ -1007,14 +1005,20 @@ export class LocalThreadRuntimeCore
     }
 
     if (active && message.status?.type !== "requires-action") {
-      this._suggestionRunSettled = true;
       this._generateSuggestions();
     }
   }
 
   private _generateSuggestions() {
     const adapter = this.adapters.suggestion;
-    if (!adapter || !this._suggestionRunSettled) return;
+    const last = this.messages.at(-1);
+    if (
+      !adapter ||
+      this._activeRun ||
+      last?.role !== "assistant" ||
+      (last.status.type !== "complete" && last.status.type !== "incomplete")
+    )
+      return;
 
     this._suggestionsController?.abort();
     const controller = new AbortController();
