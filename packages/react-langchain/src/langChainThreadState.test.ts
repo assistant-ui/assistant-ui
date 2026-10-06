@@ -105,6 +105,23 @@ describe("reduceLangChainThreadState", () => {
     expect(staged.stagedEntries.size).toBe(2);
   });
 
+  it("returns the same state when a reconcile changes nothing", () => {
+    const staged = reduceLangChainThreadState(createLangChainThreadState(), {
+      type: "stage",
+      entry: entry(message("hidden")),
+      visibleMessages: [],
+    });
+    const settled = { ...staged, visibleStagedMessages: null };
+
+    expect(
+      reduceLangChainThreadState(settled, {
+        type: "reconcile",
+        messages: [message("base")],
+        visibleMessages: [message("base")],
+      }),
+    ).toBe(settled);
+  });
+
   it("does not match content for entries that require an id echo", () => {
     const stagedMessage = message("voice", "human", "spoken");
     const staged = reduceLangChainThreadState(createLangChainThreadState(), {

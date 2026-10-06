@@ -158,10 +158,12 @@ const useStreamThreadRuntime = (
     Object.assign({}, options, { threadId: externalId }),
   );
   const [threadController] = useState(() => new LangChainThreadController());
-  const threadState = useSyncExternalStore(
+  const getVisibleStagedMessages = () =>
+    threadController.getState().visibleStagedMessages;
+  const visibleStagedMessages = useSyncExternalStore(
     threadController.subscribe,
-    threadController.getState,
-    threadController.getState,
+    getVisibleStagedMessages,
+    getVisibleStagedMessages,
   );
 
   const [toolStatuses, setToolStatuses] = useState<
@@ -196,8 +198,7 @@ const useStreamThreadRuntime = (
   );
 
   const visibleMessages =
-    threadState.visibleStagedMessages ??
-    (stream.messages as LangChainBaseMessage[]);
+    visibleStagedMessages ?? (stream.messages as LangChainBaseMessage[]);
 
   const messageTiming = useLangChainStreamingTiming(
     visibleMessages,

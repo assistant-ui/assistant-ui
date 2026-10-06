@@ -137,6 +137,13 @@ export const reduceLangChainThreadState = (
         else remainingStagedMessages.push(staged.message);
       }
       if (remainingStagedMessages.length === 0) {
+        if (
+          stagedEntries.size === state.stagedEntries.size &&
+          state.stagedBaseMessages === null &&
+          state.visibleStagedMessages === null
+        ) {
+          return state;
+        }
         return {
           stagedEntries,
           stagedBaseMessages: null,
