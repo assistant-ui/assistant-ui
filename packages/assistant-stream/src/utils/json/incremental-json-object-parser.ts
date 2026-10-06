@@ -268,6 +268,9 @@ export class IncrementalJsonObjectParser {
     ) {
       this.writeValue(this.token.path, Number(this.token.value));
     }
+    for (const container of this.ownedContainers) {
+      if (container !== this.root) Object.freeze(container);
+    }
     this.ownedContainers = undefined;
   }
 
