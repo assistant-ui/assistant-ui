@@ -229,20 +229,35 @@ function GlyphInk() {
 
 function GlyphVue() {
   return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="flex items-center gap-[2px]">
-        <span className="bg-foreground/40 h-[3px] w-[5px]" />
-        <span className="bg-foreground/15 h-[3px] flex-1" />
-      </span>
-      <span className="border-foreground/25 flex h-[9px] flex-col justify-center gap-[2px] border px-[3px]">
-        <span className="bg-foreground/25 h-[2px] w-3/4" />
-        <span className={cn("bg-foreground/40 h-[2px] w-1/2", ACCENT)} />
-      </span>
-      <span className="flex items-center gap-[2px]">
-        <span className="bg-foreground/40 h-[3px] w-[5px]" />
-        <span className="bg-foreground/15 h-[3px] flex-1" />
-      </span>
-    </span>
+    <GlyphSvg>
+      <path d="M5 4.5H9" />
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M11.5 4.5H27"
+        className={FAINT}
+      />
+      <rect x="5" y="8" width="22" height="8" rx="1.5" className={DIM} />
+      <path
+        {...motion("draw", 120)}
+        pathLength={100}
+        d="M8.5 10.75H20"
+        className={DIM}
+      />
+      <path
+        {...motion("draw", 220)}
+        pathLength={100}
+        d="M8.5 13.25H15"
+        className={ACCENT_STROKE}
+      />
+      <path d="M5 19.5H9" />
+      <path
+        {...motion("draw", 320)}
+        pathLength={100}
+        d="M11.5 19.5H27"
+        className={FAINT}
+      />
+    </GlyphSvg>
   );
 }
 
