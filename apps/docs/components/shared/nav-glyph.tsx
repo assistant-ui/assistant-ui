@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 import type { NavGlyphKind } from "@/lib/constants";
 
 const ACCENT_STROKE =
-  "transition-colors duration-200 group-hover/navglyph:stroke-blue-500 group-focus-visible/navglyph:stroke-blue-500";
+  "transition-colors duration-200 group-hover/navlink:stroke-blue-500 group-focus-visible/navlink:stroke-blue-500";
 const ACCENT_FILL =
-  "transition-colors duration-200 group-hover/navglyph:fill-blue-500 group-focus-visible/navglyph:fill-blue-500";
+  "transition-colors duration-200 group-hover/navlink:fill-blue-500 group-focus-visible/navlink:fill-blue-500";
 const FAINT = "stroke-foreground/15";
 const DIM = "stroke-foreground/25";
 
@@ -572,7 +572,7 @@ function GlyphPackages() {
         <Cube
           x={16}
           y={8.6}
-          className="transition-colors duration-200 group-hover/navglyph:fill-blue-500 group-hover/navglyph:stroke-blue-500 group-focus-visible/navglyph:fill-blue-500 group-focus-visible/navglyph:stroke-blue-500"
+          className="transition-colors duration-200 group-hover/navlink:fill-blue-500 group-hover/navlink:stroke-blue-500 group-focus-visible/navlink:fill-blue-500 group-focus-visible/navlink:stroke-blue-500"
         />
       </g>
     </GlyphSvg>
