@@ -97,6 +97,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _switchTask: Promise<void> | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
+  private _disposed = false;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>(
@@ -439,6 +440,7 @@ export class RemoteThreadListThreadListRuntimeCore
     );
     for (const item of Object.values(state.threadData)) {
       if (nextIds.has(item.id)) continue;
+      this._disarmAutomaticTitle(item.id);
       try {
         this._hookManager.stopThreadRuntime(item.id);
       } catch (error) {
@@ -850,6 +852,7 @@ export class RemoteThreadListThreadListRuntimeCore
   // so the automatic title is owed by the list and follows whichever runtime
   // is currently mounted for the thread.
   private _armAutomaticTitle(threadId: string) {
+    if (this._disposed) return;
     this._automaticTitles.get(threadId)?.();
     let runtime: ThreadRuntimeCore | undefined;
     let unsubscribeRuntime: Unsubscribe | undefined;
@@ -1158,6 +1161,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public __internal_dispose() {
+    this._disposed = true;
     this._disarmAutomaticTitles();
     this._hookManager.__internal_dispose();
   }

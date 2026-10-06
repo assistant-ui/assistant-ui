@@ -442,4 +442,73 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     await act(async () => {});
     expect(generateTitle).toHaveBeenCalledTimes(1);
   });
+
+  it("titles a restarted local thread from the next message when the restart drops the first", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialization.promise),
+      generateTitle,
+    });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          return useLocalRuntime({ run: async () => ({ content: [] }) });
+        },
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+    const localId = runtimeRef.current!.threads.mainItem.getState().id;
+
+    await act(async () => {
+      void getThreadCore(runtimeRef.current!).append(userMessage("hello"));
+    });
+    await waitFor(() => {
+      expect(adapter.initialize).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await runtimeRef.current!.threads.reloadMainThread();
+    });
+    await act(async () => {
+      initialization.resolve({
+        remoteId: `remote-${localId}`,
+        externalId: `external-${localId}`,
+      });
+    });
+    expect(runtimeRef.current!.thread.getState().messages).toHaveLength(0);
+    expect(generateTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      void getThreadCore(runtimeRef.current!).append(userMessage("again"));
+    });
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    expect(generateTitle).toHaveBeenCalledWith(`remote-${localId}`, [
+      expect.objectContaining({
+        role: "user",
+        content: [expect.objectContaining({ type: "text", text: "again" })],
+      }),
+    ]);
+  });
 });
