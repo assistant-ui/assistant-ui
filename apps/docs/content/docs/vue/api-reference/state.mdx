@@ -1,0 +1,406 @@
+---
+title: State and methods
+description: Every scope's state fields and methods, as read with useAuiState and called through useAui.
+---
+
+Read a scope with `useAuiState((s) => s.thread.isRunning)` and call its methods through `const aui = useAui()` from `@assistant-ui/vue`. A missing required scope throws; `s.optional.message` and `aui.optional.message` return `undefined` when the message scope is absent. See [State and actions](/docs/vue/state) for provider placement and reactive reads.
+
+Each State table describes the object selected from `s.scope`; each Methods table describes calls on `aui.scope`. `getState()` returns a snapshot for a one-off read.
+
+## Threads
+
+`threads` is available under a provider with a thread list, including the single-thread list used for an external thread.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `mainThreadId` | `string` | ID of the selected thread. |
+| `newThreadId` | `string \| null` | ID of the new thread, when one is selected. |
+| `isLoading` | `boolean` | Whether the thread list is loading. |
+| `loadError` | `unknown` | Error from loading the list, when present. |
+| `isLoadingMore` | `boolean` | Whether another page is loading. |
+| `hasMore` | `boolean` | Whether another page is available. |
+| `threadIds` | `readonly string[]` | IDs of unarchived list items. |
+| `archivedThreadIds` | `readonly string[]` | IDs of archived list items. |
+| `threadItems` | `readonly ThreadListItemState[]` | State of list items. |
+| `main` | `ThreadState` | State of the selected thread. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ThreadsState` | Read the current list state. |
+| `switchToThread` | `switchToThread(threadId: string, options?: { unarchive?: boolean }): void` | Select a thread, optionally unarchiving it. |
+| `switchToNewThread` | `switchToNewThread(): void` | Select a new thread. |
+| `item` | `item(selector: "main" \| { id: string } \| { index: number; archived?: boolean }): ThreadListItemMethods` | Access a list item by selection, ID, or index. |
+| `thread` | `thread(selector: "main"): ThreadMethods` | Access the selected thread. |
+| `getLoadThreadsPromise` | `getLoadThreadsPromise(): Promise<void>` | Wait for the list load to be reported by state or its load error, subject to the client's commit timeout. |
+| `reload` | `reload(): Promise<void>` | Refetch the thread list. |
+| `reloadMainThread` | `reloadMainThread(): Promise<void>` | Reload the selected thread. |
+| `loadMore` | `loadMore(): Promise<void>` | Load the next list page. |
+
+## Thread list item
+
+`threadListItem` is set for each `ThreadListPrimitiveItems` row and can also refer to the selected item at the thread-list provider level.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Local thread ID. |
+| `remoteId` | `string \| undefined` | Remote thread ID, when initialized. |
+| `externalId` | `string \| undefined` | External thread ID, when present. |
+| `title` | `string \| undefined` | Thread title. |
+| `lastMessageAt` | `Date \| undefined` | Time of the last message, when known. |
+| `status` | `ThreadListItemStatus` | List item status. |
+| `custom` | `Record<string, unknown> \| undefined` | Custom item data. |
+| `isRunning` | `boolean` | Whether this thread has a run in progress. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ThreadListItemState` | Read this item's current state. |
+| `switchTo` | `switchTo(options?: { unarchive?: boolean }): void` | Select this item, optionally unarchiving it. |
+| `rename` | `rename(newTitle: string): void` | Change the title. |
+| `updateCustom` | `updateCustom(custom: Record<string, unknown> \| undefined): void` | Replace custom item data. |
+| `archive` | `archive(): void` | Archive this item. |
+| `unarchive` | `unarchive(): void` | Restore this item. |
+| `delete` | `delete(): void` | Delete this item. |
+| `generateTitle` | `generateTitle(options?: ThreadListItemGenerateTitleOptions): void` | Generate a title. |
+| `initialize` | `initialize(): Promise<{ remoteId: string; externalId: string \| undefined }>` | Initialize the remote item and return its IDs. |
+| `detach` | `detach(): void` | Detach this item from its runtime. |
+
+## Thread
+
+`thread` is the selected thread under a provider with a thread runtime; message and part rows retain it.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `isEmpty` | `boolean` | No messages are present and history is not loading. |
+| `isDisabled` | `boolean` | New messages cannot be sent. |
+| `isLoading` | `boolean` | History is loading. |
+| `hasEarlier` | `boolean` | Earlier messages are available. |
+| `isLoadingEarlier` | `boolean` | An earlier page is loading. |
+| `isRunning` | `boolean` | A run is in progress, including while client tools execute. |
+| `capabilities` | `RuntimeCapabilities` | Supported actions, including `edit`, `reload`, `cancel`, `attachments`, `queue`, and `answerToolCall`. |
+| `messages` | `readonly MessageState[]` | Messages on the selected branch. |
+| `tasks` | `readonly TaskState[]` | Nested work derived from tool calls, in document order. |
+| `state` | `ReadonlyJSONValue` | Deprecated experimental thread state. |
+| `suggestions` | `readonly ThreadSuggestion[]` | Follow-up suggestions from the runtime. |
+| `extras` | `unknown` | Runtime-specific extra data. |
+| `speech` | `SpeechState \| undefined` | Deprecated speech state. |
+| `voice` | `VoiceSessionState \| undefined` | Voice session state. |
+| `composer` | `ComposerState` | Thread composer state. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ThreadState` | Read the current thread state. |
+| `composer` | `composer(): ComposerMethods` | Access the thread composer. |
+| `suggestions` | `suggestions(): SuggestionsMethods` | Access the thread suggestions. |
+| `task` | `task(selector: { index: number } \| { id: string }): TaskMethods` | Access nested work by index or tool call ID. |
+| `append` | `append(message: CreateAppendMessage): void` | Append a message; a string is accepted as user text. |
+| `deleteMessage` | `deleteMessage(messageId: string): void \| Promise<void>` | Delete a message by ID. |
+| `startRun` | `startRun(config: CreateStartRunConfig): void` | Start a run from a parent message. |
+| `resumeRun` | `resumeRun(config: CreateResumeRunConfig): void` | Resume a run from a parent message. |
+| `cancelRun` | `cancelRun(): void` | Cancel the current run. |
+| `loadEarlier` | `loadEarlier(): Promise<void>` | Load the page before the first loaded message. |
+| `unstable_refetchThread` | `unstable_refetchThread?(): Promise<void>` | Refetch in place when supplied; check `capabilities.refetchThread` for support. |
+| `getModelContext` | `getModelContext(): ModelContext` | Read the current model context. |
+| `export` | `export(): ExportedMessageRepository` | Export the message repository. |
+| `import` | `import(repository: ExportedMessageRepository): void` | Import a message repository. |
+| `reset` | `reset(initialMessages?: readonly ThreadMessageLike[]): void` | Reset with optional initial messages. |
+| `importExternalState` | `importExternalState(state: unknown): void` | Import runtime-specific external state. |
+| `message` | `message(selector: { id: string } \| { index: number }): MessageMethods` | Access a message by ID or index. |
+| `stopSpeaking` | `stopSpeaking(): void` | Deprecated speech control. |
+| `connectVoice` | `connectVoice(): void` | Connect a voice session. |
+| `disconnectVoice` | `disconnectVoice(): void` | Disconnect the voice session. |
+| `getVoiceVolume` | `getVoiceVolume(): number` | Read the current voice volume. |
+| `subscribeVoiceVolume` | `subscribeVoiceVolume(callback: () => void): Unsubscribe` | Subscribe to voice volume updates. |
+| `muteVoice` | `muteVoice(): void` | Mute the voice session. |
+| `unmuteVoice` | `unmuteVoice(): void` | Unmute the voice session. |
+
+## Composer
+
+`composer` is the thread composer outside a message row and the edit composer inside `ThreadPrimitiveMessages`.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `string` | Draft text. |
+| `role` | `MessageRole` | Role of the draft message. |
+| `attachments` | `readonly Attachment[]` | Pending draft attachments. |
+| `runConfig` | `RunConfig` | Configuration for the next run. |
+| `isEditing` | `boolean` | Whether a message edit is active. |
+| `canCancel` | `boolean` | Whether the active run can be canceled. |
+| `canSend` | `boolean` | Whether this composer can send its draft; a running thread may impose another gate. |
+| `attachmentAccept` | `string` | File picker accept value for this composer. |
+| `isEmpty` | `boolean` | Whether the draft has no content. |
+| `type` | `"thread" \| "edit"` | Which composer is selected. |
+| `dictation` | `DictationState \| undefined` | Active dictation state. |
+| `quote` | `QuoteInfo \| undefined` | Quote for the next message. |
+| `queue` | `readonly QueueItemState[]` | Messages waiting to be processed. |
+| `submission` | `ComposerSubmission \| undefined` | Message whose attachments are being prepared for sending. |
+| `inTransit` | `readonly ComposerSubmission[] \| undefined` | Sent messages not yet shown by the runtime. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ComposerState` | Read current composer state. |
+| `setText` | `setText(text: string): void` | Replace draft text. |
+| `setRole` | `setRole(role: MessageRole): void` | Change the draft role. |
+| `setRunConfig` | `setRunConfig(runConfig: RunConfig): void` | Set configuration for the next run. |
+| `addAttachment` | `addAttachment(fileOrAttachment: File \| CreateAttachment): Promise<void>` | Add a file or prepared attachment. |
+| `clearAttachments` | `clearAttachments(): Promise<void>` | Remove draft attachments. |
+| `attachment` | `attachment(selector: { index: number } \| { id: string }): AttachmentMethods` | Access a draft attachment. |
+| `reset` | `reset(): Promise<void>` | Reset the composer. |
+| `send` | `send(opts?: ComposerSendOptions): void` | Send the draft; options include `startRun` and `steer`. |
+| `cancel` | `cancel(): void` | Cancel a run or discard an edit, according to composer type. |
+| `beginEdit` | `beginEdit(): void` | Begin editing the message. |
+| `startDictation` | `startDictation(): void` | Start dictation with a configured adapter. |
+| `stopDictation` | `stopDictation(): void` | Stop dictation. |
+| `setQuote` | `setQuote(quote: QuoteInfo \| undefined): void` | Set or clear the quote. |
+| `queueItem` | `queueItem(selector: { index: number } \| { id: string }): QueueItemMethods` | Access a queued message. |
+
+## Message
+
+`message` is set inside each `ThreadPrimitiveMessages` row. Its state includes `ThreadMessage` fields, whose role determines which fields are present.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Message ID. |
+| `createdAt` | `Date` | Message creation time. |
+| `role` | `MessageRole` | `system`, `user`, or `assistant`. |
+| `content` | `ThreadMessage["content"]` | Parts allowed for that role. |
+| `metadata` | `ThreadMessage["metadata"]` | Custom metadata and role-specific run data. |
+| `attachments` | `readonly CompleteAttachment[] \| undefined` | Delivered user attachments. |
+| `status` | `MessageStatus \| undefined` | Assistant message status. |
+| `parentId` | `string \| null` | Parent message ID on the branch. |
+| `isLast` | `boolean` | Whether this is the last message on the selected branch. |
+| `branchNumber` | `number` | Selected branch number at this message. |
+| `branchCount` | `number` | Number of branches at this message. |
+| `speech` | `SpeechState \| undefined` | Deprecated speech state. |
+| `composer` | `ComposerState` | Edit composer state. |
+| `parts` | `readonly PartState[]` | Content parts with resolved status. |
+| `isCopied` | `boolean` | Whether this message was marked copied. |
+| `isHovering` | `boolean` | Whether this message is marked hovered. |
+| `index` | `number` | Position in the thread, starting at zero. |
+| `submission` | `ComposerSubmission \| undefined` | In-flight composer submission shown in this row. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): MessageState` | Read the current message state. |
+| `composer` | `composer(): ComposerMethods` | Access its edit composer. |
+| `delete` | `delete(): void \| Promise<void>` | Delete this message. |
+| `reload` | `reload(config?: { runConfig?: RunConfig }): void` | Regenerate this assistant message. |
+| `speak` | `speak(): void` | Deprecated speech control. |
+| `stopSpeaking` | `stopSpeaking(): void` | Deprecated speech control. |
+| `submitFeedback` | `submitFeedback(feedback: { type: "positive" \| "negative"; comment?: string }): void` | Submit feedback on this message. |
+| `switchToBranch` | `switchToBranch(options: { position?: "previous" \| "next"; branchId?: string }): void` | Select an adjacent branch or a branch by ID. |
+| `getCopyText` | `getCopyText(): string` | Get text for copying. |
+| `part` | `part(selector: { index: number } \| { toolCallId: string }): PartMethods` | Access a part by index or tool call ID. |
+| `attachment` | `attachment(selector: { index: number } \| { id: string }): AttachmentMethods` | Access a message attachment. |
+| `setIsCopied` | `setIsCopied(value: boolean): void` | Set the copied flag. |
+| `setIsHovering` | `setIsHovering(value: boolean): void` | Set the hovering flag. |
+
+## Part
+
+`part` is set inside `MessagePrimitiveParts` and within `ChainOfThoughtPrimitiveParts` when a chain-of-thought scope is supplied.
+
+### State
+
+`PartState` is a discriminated union. Read `type` before accessing fields specific to a part kind. See [Message](/docs/vue/primitives/message) for rendering parts.
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `ThreadUserMessagePart["type"] \| ThreadAssistantMessagePart["type"]` | Part kind. |
+| `status` | `MessagePartStatus \| ToolCallMessagePartStatus` | Resolved part status. |
+| `id` | `string \| undefined` | Optional stable part ID on supported kinds. |
+| `parentId` | `string \| undefined` | Parent part ID on supported kinds. |
+| `providerMetadata` | `PartProviderMetadata \| undefined` | Provider metadata on supported kinds. |
+| `text` | `string` | Text or reasoning content. |
+| `image` | `string` | Image payload on an image part. |
+| `filename` | `string \| undefined` | Filename on image, file, or document source parts. |
+| `data` | `string` or data payload | File payload or named data payload, according to kind. |
+| `mimeType` | `string` | MIME type on a file part. |
+| `sourceType` | `"url" \| "id"` or `"url" \| "document"` | Optional file source form, or required source part kind. |
+| `url` | `string \| undefined` | URL on a source part. |
+| `title` | `string \| undefined` | Title on a source part. |
+| `mediaType` | `string` | Media type on a document source part. |
+| `audio` | `{ data: string; format: "mp3" \| "wav" }` | Deprecated audio part payload. |
+| `name` | `string` | Name of a data part. |
+| `spec` | `GenerativeUISpec` | Generative UI tree spec. |
+| `toolCallId` | `string` | Tool invocation ID on a tool-call part. |
+| `toolName` | `string` | Tool name on a tool-call part. |
+| `args` | `ReadonlyJSONObject` | Tool arguments on a tool-call part. |
+| `argsText` | `string` | Raw streamed argument text on a tool-call part. |
+| `result` | `unknown` | Tool result, when present. |
+| `isError` | `boolean \| undefined` | Whether the result represents an error. |
+| `isPreliminary` | `boolean \| undefined` | Whether the result is interim. |
+| `artifact` | `unknown` | UI artifact, when present. |
+| `timing` | `MessagePartTiming \| ToolCallTiming \| undefined` | Timing on reasoning and tool-call parts. |
+| `unstable_summary` | `string \| undefined` | Optional reasoning summary. |
+| `modelContent` | `readonly ToolModelContentPart[] \| undefined` | Content returned to the model. |
+| `mcp` | `ToolCallMessagePartMcpMetadata \| undefined` | MCP app metadata. |
+| `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | Human input request. |
+| `approval` | `ToolCallMessagePart["approval"]` | Server approval request and resolution. |
+| `messages` | `readonly ThreadMessage[] \| undefined` | Nested conversation from the tool call. |
+| `unstable_interactions` | `Unstable_ToolInteractionLog \| undefined` | Recorded tool UI interactions. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): PartState` | Read the current part state. |
+| `addToolResult` | `addToolResult(result: unknown \| ToolResponse<unknown>): void` | Add a missing tool result. |
+| `resumeToolCall` | `resumeToolCall(payload: unknown): void` | Resume a tool call waiting for human input. |
+| `respondToToolApproval` | `respondToToolApproval(response: ToolApprovalResponse): Promise<void>` | Answer a server-side approval request. |
+| `unstable_recordInteraction` | `unstable_recordInteraction?(input: Unstable_ToolInteractionInput): Promise<void>` | Record a tool UI interaction when supported. |
+
+## Attachment
+
+`attachment` is set inside `ComposerPrimitiveAttachments` or `MessagePrimitiveAttachments` through `AttachmentByIndexProvider`.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Attachment ID. |
+| `type` | `string` | Attachment kind, commonly `image`, `document`, or `file`. |
+| `name` | `string` | Attachment name. |
+| `contentType` | `string \| undefined` | MIME type, when known. |
+| `file` | `File \| undefined` | Source file; required while pending. |
+| `content` | `ThreadUserMessagePart[] \| undefined` | Content parts; required when complete. |
+| `status` | `AttachmentStatus` | Upload state or completion state. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): AttachmentState` | Read attachment state. |
+| `remove` | `remove(): Promise<void>` | Remove the attachment. |
+
+## Suggestions
+
+`suggestions` belongs to the current thread under a provider with a thread runtime, including outside `ThreadPrimitiveSuggestions`.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `suggestions` | `Suggestion[]` | Current suggestion entries, each with `title`, `label`, and `prompt` strings. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): SuggestionsState` | Read the suggestion list. |
+| `suggestion` | `suggestion(query: { index: number }): SuggestionMethods` | Access a suggestion by index. |
+
+## Suggestion
+
+`suggestion` is set for each `ThreadPrimitiveSuggestions` item.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | `string` | Suggestion heading. |
+| `label` | `string` | Secondary display text. |
+| `prompt` | `string` | Text used when this suggestion is selected. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): SuggestionState` | Read this suggestion. |
+
+## Chain of thought
+
+`chainOfThought` is available only when a provider supplies that scope; Vue's chain-of-thought primitives consume it but do not create it.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `parts` | `readonly ChainOfThoughtPart[]` | Reasoning and tool-call parts in this group. |
+| `collapsed` | `boolean` | Whether the group is collapsed. |
+| `status` | `MessagePartStatus \| ToolCallMessagePartStatus` | Status of the group. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ChainOfThoughtState` | Read the group state. |
+| `setCollapsed` | `setCollapsed(collapsed: boolean): void` | Set the collapsed state. |
+| `part` | `part(selector: { index: number }): PartMethods` | Access a part within the group. |
+
+## Model context
+
+`modelContext` is available under an `AuiProvider` configured with a model context scope.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `modelName` | `string \| undefined` | Configured model name. |
+| `toolNames` | `readonly string[]` | Names of registered model tools. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ModelContextState` | Read model context state. |
+| `getModelContext` | `getModelContext(): ModelContext` | Read the merged model context. |
+| `subscribe` | `subscribe?(callback: () => void): Unsubscribe` | Subscribe to model context changes, when implemented by the provider. |
+| `register` | `register(provider: ModelContextProvider): Unsubscribe` | Register a model context provider; call the returned function to unregister it. |
+
+## Tools
+
+`tools` is available under an `AuiProvider` configured with the tools scope; `MessagePrimitiveParts` reads it to render registered tool UIs.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `toolUIs` | `Record<string, readonly ToolRegistration[]>` | UI registrations by tool name, with renderer and presentation options. |
+| `mcpApp` | `McpAppResourceOutput \| undefined` | MCP app renderer, when configured. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): ToolsState` | Read registered tool UIs. |
+| `setToolUI` | `setToolUI(toolName: string, render: ToolCallMessagePartComponent, options?: { standalone?: boolean }): Unsubscribe` | Register a tool UI and return its cleanup function. |
+
+## Data renderers
+
+`dataRenderers` is available under an `AuiProvider` configured with that scope; `MessagePrimitiveParts` reads it for data parts.
+
+### State
+
+| Field | Type | Description |
+|---|---|---|
+| `renderers` | `Record<string, DataMessagePartComponent[]>` | Data UI renderers by part name. |
+| `fallbacks` | `DataMessagePartComponent[]` | Fallback data UI renderers. |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `getState` | `getState(): DataRenderersState` | Read registered data renderers. |
+| `setDataUI` | `setDataUI(name: string, render: DataMessagePartComponent): Unsubscribe` | Register a named renderer and return its cleanup function. |
+| `setFallbackDataUI` | `setFallbackDataUI(render: DataMessagePartComponent): Unsubscribe` | Register a fallback and return its cleanup function. |
+
+The `queueItem`, `task`, `interactables`, and `unstable_interactables` scopes also exist, but no Vue primitive uses them.
