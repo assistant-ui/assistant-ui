@@ -1,0 +1,260 @@
+---
+title: External store
+description: Drive the Vue primitives from messages your own code owns, through RuntimeAdapter.
+---
+
+Use an external store when your application already owns messages, run state, or a list of threads. The store supplies snapshots and handles actions; the Vue primitives read those snapshots through a runtime. This page uses the in-memory echo store from the Vue example. Replace its mutations and delayed reply with updates from your own store or backend.
+
+## Build the runtime
+
+Create an `ExternalStoreAdapter` with the current messages, running state, a message converter, and an `onNew` handler. Pass the first snapshot to `ExternalStoreRuntimeCore`, then call `core.setAdapter` with a fresh snapshot whenever your store changes. `AssistantRuntimeImpl` exposes that core to the client.
+
+The complete runtime below is lifted from `examples/with-vue/src/runtime.ts`. It keeps one current thread and publishes each mutation through `sync()`.
+
+```ts title="app/runtime/echo.ts"
+import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
+import {
+  AssistantRuntimeImpl,
+  ExternalStoreRuntimeCore,
+} from "@assistant-ui/core/internal";
+
+type EchoMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
+type EchoThread = {
+  id: string;
+  title: string;
+  messages: readonly EchoMessage[];
+};
+
+let nextId = 0;
+const freshId = (prefix: string) => `${prefix}-${nextId++}`;
+
+const messageText = (message: AppendMessage) =>
+  message.content
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join("");
+
+const convertEchoMessage = (message: EchoMessage) => ({
+  id: message.id,
+  role: message.role,
+  content: [{ type: "text" as const, text: message.text }],
+});
+
+export const createEchoRuntime = () => {
+  let threads: EchoThread[] = [
+    { id: freshId("thread"), title: "", messages: [] },
+  ];
+  let currentId = threads[0]!.id;
+  let isRunning = false;
+  let replyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const current = () => threads.find((thread) => thread.id === currentId)!;
+  const updateCurrent = (updater: (thread: EchoThread) => EchoThread) => {
+    threads = threads.map((thread) =>
+      thread.id === currentId ? updater(thread) : thread,
+    );
+  };
+
+  const reply = (text: string) => {
+    const replyTo = currentId;
+    isRunning = true;
+    sync();
+    replyTimer = setTimeout(() => {
+      if (currentId !== replyTo) return;
+      updateCurrent((thread) => ({
+        ...thread,
+        messages: [
+          ...thread.messages,
+          {
+            id: freshId("assistant"),
+            role: "assistant",
+            text: `Echo: ${text}`,
+          },
+        ],
+      }));
+      isRunning = false;
+      sync();
+    }, 600);
+  };
+
+  const appendUser = (text: string) => {
+    updateCurrent((thread) => ({
+      ...thread,
+      title: thread.title || text.slice(0, 40),
+      messages: [
+        ...thread.messages,
+        { id: freshId("user"), role: "user", text },
+      ],
+    }));
+  };
+
+  const makeAdapter = (): ExternalStoreAdapter<EchoMessage> => ({
+    messages: current().messages,
+    isRunning,
+    convertMessage: convertEchoMessage,
+    setMessages: (next) => {
+      updateCurrent((thread) => ({ ...thread, messages: next }));
+      sync();
+    },
+    onNew: async (message) => {
+      const text = messageText(message);
+      appendUser(text);
+      reply(text);
+    },
+    onEdit: async (message) => {
+      const text = messageText(message);
+      const parentIndex = message.parentId
+        ? current().messages.findIndex(
+            (entry) => entry.id === message.parentId,
+          ) + 1
+        : 0;
+      updateCurrent((thread) => ({
+        ...thread,
+        messages: thread.messages.slice(0, parentIndex),
+      }));
+      appendUser(text);
+      reply(text);
+    },
+    onReload: async (parentId) => {
+      let parentIndex = 0;
+      if (parentId) {
+        const index = current().messages.findIndex(
+          (entry) => entry.id === parentId,
+        );
+        if (index === -1) return;
+        parentIndex = index + 1;
+      }
+      const sliced = current().messages.slice(0, parentIndex);
+      const lastUser = [...sliced]
+        .reverse()
+        .find((entry) => entry.role === "user");
+      updateCurrent((thread) => ({ ...thread, messages: sliced }));
+      reply(`${lastUser?.text ?? ""} (again)`);
+    },
+    onCancel: async () => {
+      clearTimeout(replyTimer);
+      if (isRunning && current().messages.at(-1)?.role === "user") {
+        updateCurrent((thread) => ({
+          ...thread,
+          messages: thread.messages.slice(0, -1),
+        }));
+      }
+      isRunning = false;
+      queueMicrotask(sync);
+    },
+    adapters: {
+      threadList: {
+        threadId: currentId,
+        threads: threads.map((thread) => ({
+          status: "regular" as const,
+          id: thread.id,
+          title: thread.title,
+        })),
+        onSwitchToThread: (threadId) => {
+          clearTimeout(replyTimer);
+          isRunning = false;
+          currentId = threadId;
+          sync();
+        },
+        onSwitchToNewThread: () => {
+          clearTimeout(replyTimer);
+          isRunning = false;
+          const id = freshId("thread");
+          threads = [...threads, { id, title: "", messages: [] }];
+          currentId = id;
+          sync();
+        },
+      },
+    },
+  });
+
+  const core = new ExternalStoreRuntimeCore(makeAdapter());
+  const sync = () => core.setAdapter(makeAdapter());
+  return new AssistantRuntimeImpl(core);
+};
+```
+
+## Connect it to Vue
+
+Put the runtime in the `threads` entry of `AuiConfig` with `RuntimeAdapter`, then mount `AuiProvider` on the client. `RuntimeAdapter` supplies the thread, selected thread list item, composer, model context, and suggestions scopes. It also installs tools and data renderer scopes when the config has not supplied them.
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import {
+  AuiConfig,
+  AuiProvider,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  MessagePrimitiveParts,
+  ThreadPrimitiveMessages,
+  ThreadPrimitiveViewport,
+} from "@assistant-ui/vue";
+import { RuntimeAdapter } from "@assistant-ui/core/store";
+import { createEchoRuntime } from "~/runtime/echo";
+
+const config = AuiConfig({ threads: RuntimeAdapter(createEchoRuntime()) });
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <ThreadPrimitiveViewport class="h-dvh overflow-y-auto">
+      <ThreadPrimitiveMessages>
+        <MessagePrimitiveParts />
+      </ThreadPrimitiveMessages>
+    </ThreadPrimitiveViewport>
+    <ComposerPrimitiveInput aria-label="Message" />
+    <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
+  </AuiProvider>
+</template>
+```
+
+The `.client.vue` boundary keeps the provider out of server rendering. See [Server rendering](/docs/vue/ssr) for the Nuxt boundary and [State and actions](/docs/vue/state) for reading the installed scopes.
+
+## Convert your messages
+
+`convertMessage` maps each item in your `messages` array to `ThreadMessageLike`. The echo converter preserves a stable `id`, passes through `role`, and turns its text into a text content part. A converter can also return string content. `role` and `content` are required; `id`, `createdAt`, `status`, `attachments`, and `metadata` are optional. `status` applies to assistant messages, and `attachments` apply to user messages. Keep message ids stable across snapshots so rows keep their identity.
+
+## Edit, reload, and cancel
+
+The callbacks enable the matching runtime capabilities. Implement them against your own store's semantics:
+
+| Callback | Capability | Action in the echo example |
+|---|---|---|
+| `onEdit(message)` | `edit` | Truncate at `message.parentId`, append the edited user message, and start a reply. |
+| `onReload(parentId, config)` | `reload` | Truncate after `parentId` and start another reply. |
+| `onCancel()` | `cancel` | Stop the pending reply and clear the running state. |
+
+`setMessages` lets the runtime write message changes back to the store. In this example it also enables branch switching. During cancel, the example defers `sync()` to a microtask so the runtime can read the trailing user message before the new snapshot arrives and restore its text to the composer.
+
+## Several threads
+
+The example's `adapters.threadList` publishes the selected `threadId` and a `threads` array with each thread's `id`, `status`, and `title`. Its `onSwitchToThread` and `onSwitchToNewThread` handlers update the current thread and call `sync()`. Switching replaces the current thread runtime, so `makeAdapter()` must read the newly selected thread's messages. Render the [thread list primitives](/docs/vue/primitives/thread-list) to expose those actions in Vue.
+
+## Run without React
+
+The shared runtime imports React hook names. In the Vue Vite example, these exact aliases resolve them through `@assistant-ui/tap/standalone-shim`, so React does not need to be installed. This is the example's complete Vite config with its project plugins:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: [
+      {
+        find: /^react\/compiler-runtime$/,
+        replacement: "@assistant-ui/tap/standalone-shim/compiler-runtime",
+      },
+      { find: /^react$/, replacement: "@assistant-ui/tap/standalone-shim" },
+    ],
+  },
+});
+```
+
+`AssistantRuntimeImpl` and `ExternalStoreRuntimeCore` come from `@assistant-ui/core/internal`. This advanced entry can change faster than the public entries, so pin the package versions when building on it.
