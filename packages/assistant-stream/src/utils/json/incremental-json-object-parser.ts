@@ -88,6 +88,15 @@ const setValue = (
   (target as Record<string | number, ReadonlyJSONValue>)[key] = value;
 };
 
+const cloneContainer = (value: MutableJSONContainer): MutableJSONContainer => {
+  if (Array.isArray(value)) return [...value];
+  const copy: MutableJSONObject = {};
+  for (const key of Object.keys(value)) {
+    copy[key] = value[key]!;
+  }
+  return copy;
+};
+
 const writeAtPath = (
   root: MutableJSONObject,
   path: JSONPath,
@@ -100,9 +109,7 @@ const writeAtPath = (
   ): MutableJSONContainer => {
     const target = ownedContainers.has(container)
       ? container
-      : Array.isArray(container)
-        ? [...container]
-        : { ...container };
+      : cloneContainer(container);
     ownedContainers.add(target);
     const key = path[depth]!;
 
@@ -127,8 +134,8 @@ const createArgsSnapshot = (
   partialPath: JSONPath,
 ): ReadonlyJSONObject => {
   const result = parsePartialJsonObject("")! as MutableJSONObject;
-  for (const [key, value] of Object.entries(root)) {
-    setValue(result, key, value);
+  for (const key of Object.keys(root)) {
+    setValue(result, key, root[key]!);
   }
 
   const meta = getPartialJsonObjectMeta(result)!;
@@ -140,8 +147,6 @@ const createArgsSnapshot = (
 const materializeArgsSnapshot = (
   args: ReadonlyJSONObject,
 ): ReadonlyJSONObject => {
-  const cloneContainer = (value: MutableJSONContainer): MutableJSONContainer =>
-    Array.isArray(value) ? [...value] : { ...value };
   const pending: MutableJSONContainer[] = [args];
   while (pending.length > 0) {
     const container = pending.pop()!;
