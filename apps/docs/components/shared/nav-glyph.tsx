@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 import type { NavGlyphKind } from "@/lib/constants";
 
 const ACCENT_STROKE =
-  "transition-colors duration-200 group-hover/navlink:stroke-blue-500";
+  "transition-colors duration-200 group-hover/navglyph:stroke-blue-500 group-focus-visible/navglyph:stroke-blue-500";
 const ACCENT_FILL =
-  "transition-colors duration-200 group-hover/navlink:fill-blue-500";
+  "transition-colors duration-200 group-hover/navglyph:fill-blue-500 group-focus-visible/navglyph:fill-blue-500";
 const FAINT = "stroke-foreground/15";
 const DIM = "stroke-foreground/25";
 
@@ -340,7 +340,7 @@ function GlyphFrame() {
         width="18"
         height="7.5"
         rx="1"
-        className="[stroke-dasharray:2_1.6]"
+        className="[stroke-dasharray:2_2]"
       />
       <rect
         {...motion("orbit")}
@@ -717,7 +717,7 @@ export function NavGlyph({
   }
 
   return (
-    <span className="border-foreground/10 bg-background rounded-control grid size-11 shrink-0 place-items-center border">
+    <span className="border-foreground/10 bg-background rounded-document grid size-11 shrink-0 place-items-center border">
       <Glyph />
     </span>
   );

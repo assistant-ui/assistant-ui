@@ -21,7 +21,7 @@ import type { DropdownItem, NavItem } from "@/lib/constants";
 
 function DropdownLink({ link }: { link: DropdownItem }) {
   const className = link.glyph
-    ? "group/navlink hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
+    ? "group/navlink group/navglyph hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
     : "group/navlink hover:bg-muted flex flex-col rounded-md px-2 py-1.5 transition-colors";
 
   const text = (
@@ -50,12 +50,13 @@ function DropdownLink({ link }: { link: DropdownItem }) {
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
+            data-nav-glyph-motion
             className={className}
           >
             {body}
           </a>
         ) : (
-          <Link href={link.href} className={className}>
+          <Link href={link.href} data-nav-glyph-motion className={className}>
             {body}
           </Link>
         )
@@ -81,7 +82,8 @@ function FeaturedCard({
         render={
           <Link
             href={link.href}
-            className="group/navlink flex flex-1 flex-col gap-2"
+            data-nav-glyph-motion
+            className="group/navlink group/navglyph flex flex-1 flex-col gap-2"
           >
             {link.glyph ? <NavGlyph kind={link.glyph} size="lg" /> : null}
             <span className="group-hover/navlink:bg-muted flex flex-col rounded-md px-2 py-2 transition-colors">

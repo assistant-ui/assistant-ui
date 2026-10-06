@@ -234,10 +234,12 @@
 @keyframes nav-glyph-blip {
   from {
     opacity: 1;
+    stroke-dasharray: 9 150;
     stroke-dashoffset: 9;
   }
   to {
     opacity: 1;
+    stroke-dasharray: 9 150;
     stroke-dashoffset: -100;
   }
 }
@@ -346,14 +348,17 @@
 }
 
 [data-glyph-motion="blip"] {
-  --glyph-animation: nav-glyph-blip 1.3s linear infinite;
+  --glyph-animation: nav-glyph-blip 1.3s linear;
+}
+
+[data-nav-glyph-motion] [data-glyph-motion="blip"] {
   opacity: 0;
   stroke-dasharray: 9 150;
   stroke-dashoffset: 9;
 }
 
 [data-glyph-motion="march"] {
-  --glyph-animation: nav-glyph-march 0.6s linear infinite;
+  --glyph-animation: nav-glyph-march 0.6s linear;
 }
 
 [data-glyph-motion="pop"] {
@@ -385,29 +390,29 @@
 }
 
 [data-glyph-motion="rise"] {
-  --glyph-animation: nav-glyph-rise 1.1s ease-in-out infinite;
+  --glyph-animation: nav-glyph-rise 1.1s ease-in-out;
 }
 
 [data-glyph-motion="twinkle"] {
-  --glyph-animation: nav-glyph-twinkle 1.2s ease-in-out infinite;
+  --glyph-animation: nav-glyph-twinkle 1.2s ease-in-out;
 }
 
 [data-glyph-motion="blink"] {
-  --glyph-animation: nav-glyph-blink 0.9s step-end infinite;
+  --glyph-animation: nav-glyph-blink 0.9s step-end;
 }
 
 [data-glyph-motion="orbit"] {
-  --glyph-animation: nav-glyph-orbit 1.6s ease-in-out infinite;
+  --glyph-animation: nav-glyph-orbit 1.6s ease-in-out;
 }
 
-@media (hover: hover) {
-  .group\/navlink:hover [data-glyph-motion] {
+@media (hover: hover) and (pointer: fine) {
+  [data-nav-glyph-motion]:hover [data-glyph-motion] {
     animation: var(--glyph-animation);
     animation-delay: var(--glyph-delay, 0ms);
   }
 }
 
-.group\/navlink:focus-visible [data-glyph-motion] {
+[data-nav-glyph-motion]:focus-visible [data-glyph-motion] {
   animation: var(--glyph-animation);
   animation-delay: var(--glyph-delay, 0ms);
 }
@@ -415,5 +420,11 @@
 @media (prefers-reduced-motion: reduce) {
   [data-glyph-motion] {
     animation: none !important;
+  }
+
+  [data-nav-glyph-motion]:is(:hover, :focus-visible)
+    [data-glyph-motion="blip"] {
+    opacity: 1;
+    stroke-dasharray: none;
   }
 }
