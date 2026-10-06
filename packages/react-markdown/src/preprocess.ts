@@ -275,7 +275,55 @@ function htmlBlockEnds(
   return RAW_END_TAGS.some((tag) => lower.includes(tag));
 }
 
-function htmlBlockRanges(text: string): number[] {
+function indentedCodeEnd(
+  text: string,
+  start: number,
+  indent: number,
+  quoteDepth: number,
+): number {
+  for (let lineStart = start; lineStart < text.length;) {
+    let lineEnd = lineStart;
+    while (
+      lineEnd < text.length &&
+      text.charCodeAt(lineEnd) !== 10 &&
+      text.charCodeAt(lineEnd) !== CR
+    )
+      lineEnd += 1;
+    const nextLine =
+      text.charCodeAt(lineEnd) === CR && text.charCodeAt(lineEnd + 1) === 10
+        ? lineEnd + 2
+        : lineEnd < text.length
+          ? lineEnd + 1
+          : text.length;
+    let i = lineStart;
+    let contentStart = lineStart;
+    let depth = 0;
+    while (i < lineEnd) {
+      const c = text.charCodeAt(i);
+      if (isSpace(c)) {
+        i += 1;
+      } else if (c === GT && columns(text, contentStart, i) <= 3) {
+        depth += 1;
+        i += 1;
+        if (text.charCodeAt(i) === SPACE) i += 1;
+        contentStart = i;
+      } else {
+        break;
+      }
+    }
+    const blank = onlyWhitespace(text, contentStart, lineEnd);
+    if (
+      depth < quoteDepth ||
+      (!blank && columns(text, contentStart, i) < indent)
+    ) {
+      return lineStart;
+    }
+    lineStart = nextLine;
+  }
+  return text.length;
+}
+
+function protectedBlockRanges(text: string): number[] {
   const ranges: number[] = [];
   let htmlKind = 0;
   let htmlStart = 0;
@@ -401,6 +449,22 @@ function htmlBlockRanges(text: string): number[] {
         lineStart = nextLine;
         continue;
       }
+    }
+    const codeIndent = 4 + (depth === lastQuoteDepth ? paragraphItemIndent : 0);
+    if (
+      first !== -1 &&
+      indent >= codeIndent &&
+      !indentedMarker &&
+      !opensBacktickFence(text, i) &&
+      !opensTildeFence(text, i) &&
+      (!inParagraph || depth > lastQuoteDepth)
+    ) {
+      const end = indentedCodeEnd(text, lineStart, codeIndent, depth);
+      ranges.push(lineStart, end);
+      inParagraph = false;
+      lastQuoteDepth = depth;
+      lineStart = end;
+      continue;
     }
     let blockStart = skipListMarkers(text, i, lineEnd);
     let blockItemIndent =
@@ -543,11 +607,11 @@ function htmlBlockRanges(text: string): number[] {
   return ranges;
 }
 
-function rewriteOutsideHtml(
+function rewriteOutsideProtectedBlocks(
   text: string,
   rewrite: (text: string) => string,
 ): string {
-  const ranges = htmlBlockRanges(text);
+  const ranges = protectedBlockRanges(text);
   let out = "";
   let cursor = 0;
   for (let i = 0; i < ranges.length; i += 2) {
@@ -685,9 +749,9 @@ function backtickEnd(text: string, start: number): number {
 }
 
 /**
- * Applies `rewrite` to the stretches of `text` outside HTML blocks, code spans and fences,
- * copying their contents through verbatim, so a delimiter shown as code is never
- * rewritten. `\x` escapes are stepped over when scanning so an escaped
+ * Applies `rewrite` to the stretches of `text` outside HTML blocks, indented code,
+ * code spans and fences, copying their contents through verbatim, so a delimiter
+ * shown as code is never rewritten. `\x` escapes are stepped over when scanning so an escaped
  * backtick does not open a span, and a delimiter pair straddling a code
  * boundary stays as written. Each stretch is passed the characters adjacent to
  * it so the rewrite can make line-boundary decisions that survive the split.
@@ -711,7 +775,7 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
   ) => string,
 ): string {
-  return rewriteOutsideHtml(text, (text) => {
+  return rewriteOutsideProtectedBlocks(text, (text) => {
     let out = "";
     let index = 0;
     let plainStart = 0;
@@ -1049,7 +1113,7 @@ function endOfVerbatimRun(text: string, index: number): number {
  * Escapes a `$` that opens a currency amount (`$5`, `$19.99`, `$1,299`) so that
  * remark-math with single-dollar math enabled does not consume prices in prose as
  * math delimiters. The `$$` of display math is left intact, an already-escaped `\$`
- * is not escaped twice, and HTML blocks, code spans and fences are never rewritten.
+ * is not escaped twice, and HTML blocks, indented code, code spans and fences are never rewritten.
  *
  * A `$` followed by a digit is only currency when it does not open a plausible math
  * span, so the text up to the next `$` is inspected first: `$0$` and `$5x = 10$`
@@ -1059,7 +1123,7 @@ function endOfVerbatimRun(text: string, index: number): number {
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  return rewriteOutsideHtml(text, (text) => {
+  return rewriteOutsideProtectedBlocks(text, (text) => {
     let out = "";
     let index = 0;
 

@@ -453,6 +453,11 @@ describe("normalizeMathDelimiters", () => {
       "`\\(x\\)` and `[/math]y[/math]`",
     );
   });
+
+  it("keeps indented code inert for both delimiter families", () => {
+    const text = "    \\(x\\) [/math]y[/math]";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
 });
 
 describe("escapeCurrencyDollars", () => {
@@ -546,6 +551,36 @@ describe("escapeCurrencyDollars", () => {
   it("does not rewrite a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n```")).toBe(
       "```\nconst price = $5;\n```",
+    );
+  });
+
+  it("preserves currency in an indented code block", () => {
+    expect(
+      escapeCurrencyDollars("Pricing:\n\n    total = $5 + $10\n\nend $20"),
+    ).toBe("Pricing:\n\n    total = $5 + $10\n\nend \\$20");
+  });
+
+  it("ends an indented code block before less-indented prose", () => {
+    expect(
+      escapeCurrencyDollars("    $5\n\n      $10\n  after $15\n    $20"),
+    ).toBe("    $5\n\n      $10\n  after \\$15\n    \\$20");
+  });
+
+  it("does not treat paragraph continuation as indented code", () => {
+    expect(escapeCurrencyDollars("Paragraph text\n    still costs $5")).toBe(
+      "Paragraph text\n    still costs \\$5",
+    );
+  });
+
+  it("recognizes tab-indented code", () => {
+    expect(escapeCurrencyDollars("\t$5\n\nafter $10")).toBe(
+      "\t$5\n\nafter \\$10",
+    );
+  });
+
+  it("recognizes indented code inside a list item", () => {
+    expect(escapeCurrencyDollars("- item\n\n      $5\n\n  after $10")).toBe(
+      "- item\n\n      $5\n\n  after \\$10",
     );
   });
 
