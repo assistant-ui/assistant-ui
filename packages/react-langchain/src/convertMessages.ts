@@ -11,6 +11,7 @@ import {
   convertLangChainContentBlock,
   getCustomMetadata,
   getMessageModality,
+  normalizeToolCallArgs,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "./converter";
@@ -87,21 +88,6 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
     `Ignoring message content that is neither a string nor an array: ${typeof content}`,
   );
   return [];
-};
-
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    return {};
-  }
-
-  try {
-    const prototype = Object.getPrototypeOf(args);
-    return prototype === Object.prototype || prototype === null
-      ? (args as ReadonlyJSONObject)
-      : {};
-  } catch {
-    return {};
-  }
 };
 
 const toolCallArgs = (

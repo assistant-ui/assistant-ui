@@ -10,6 +10,7 @@ import {
   resolveFilePartSource,
 } from "@assistant-ui/core/internal";
 import type { StreamingTimingAccessors } from "@assistant-ui/core/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 /** Known content block types from @langchain/core messages. */
 export type LangChainContentBlock =
@@ -158,6 +159,21 @@ const convertMediaBlock = (
     mimeType: resolvedMimeType,
     ...(source.sourceType && { sourceType: source.sourceType }),
   };
+};
+
+export const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return {};
+  }
+
+  try {
+    const prototype = Object.getPrototypeOf(args);
+    return prototype === Object.prototype || prototype === null
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
 };
 
 export const convertLangChainContentBlock = (

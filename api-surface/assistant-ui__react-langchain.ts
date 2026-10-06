@@ -2375,7 +2375,7 @@ declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metad
 declare const convertLangChainContentBlock: (part: LangChainContentBlock | LangChainMediaBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
-  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, normalizeToolCallArgs, uiMessageToDataPart, withAudioTranscript };
 }
 
 declare const createLangChainStreamingTimingAccessors: <TMessage extends {
@@ -2488,6 +2488,8 @@ declare const groupUIMessagesByParent: <T extends {
 declare namespace entry_root_exports {
   export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
+
+declare const normalizeToolCallArgs: (args: unknown) => ReadonlyJSONObject;
 
 declare const uiMessageToDataPart: <TUIMessage extends {
   name: string;

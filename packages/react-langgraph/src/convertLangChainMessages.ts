@@ -20,6 +20,7 @@ import {
   convertLangChainContentBlock,
   getCustomMetadata,
   getMessageModality,
+  normalizeToolCallArgs,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "@assistant-ui/react-langchain/converter";
@@ -90,21 +91,6 @@ const getToolArgsCacheKey = (
   kind: "tool" | "computer",
   toolCallId: string,
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
-
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    return {};
-  }
-
-  try {
-    const prototype = Object.getPrototypeOf(args);
-    return prototype === Object.prototype || prototype === null
-      ? (args as ReadonlyJSONObject)
-      : {};
-  } catch {
-    return {};
-  }
-};
 
 const serializeToolCallArgs = (
   args: unknown,
