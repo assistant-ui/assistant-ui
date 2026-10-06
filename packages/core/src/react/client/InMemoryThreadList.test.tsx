@@ -267,6 +267,30 @@ describe("InMemoryThreadList selection events", () => {
     );
   });
 
+  it("ignores a switch to a thread deleted earlier in the same batch", async () => {
+    const { getAui, onSwitchToThread, selectionChanged } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    const deletedId = getAui().threads.getState().mainThreadId;
+    selectionChanged.mockClear();
+
+    await act(async () => {
+      getAui().threads.item({ id: deletedId }).delete();
+      getAui().threads.switchToThread(deletedId);
+    });
+
+    expect(getAui().threads.getState().mainThreadId).toBe("main");
+    expect(getAui().threads.item("main").getState().id).toBe("main");
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+    expect(selectionChanged).toHaveBeenCalledExactlyOnceWith({
+      threadId: "main",
+      previousThreadId: deletedId,
+    });
+  });
+
   it("emits when deleting the selected thread falls back to another", async () => {
     const { getAui, selectionChanged } = setup();
     await act(async () => {});
