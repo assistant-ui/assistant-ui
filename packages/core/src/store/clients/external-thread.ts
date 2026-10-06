@@ -2,7 +2,12 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
-import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  useAssistantClientDestroySignal,
+  useOptionalAssistantClientRef,
+  useOptionalAssistantEmit,
+  useOptionalAssistantScopeEffect,
+} from "@assistant-ui/store/internal";
 import {
   useClientLookup,
   attachTransformScopes,
@@ -1395,6 +1400,24 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const clientRef = useOptionalAssistantClientRef();
+  const emit = useOptionalAssistantEmit();
+
+  useOptionalAssistantScopeEffect(
+    "modelContext",
+    () => {
+      const modelContext = clientRef?.current?.modelContext;
+      if (!modelContext || modelContext.source == null) return;
+
+      return modelContext().subscribe?.(() => {
+        const threadId =
+          clientRef?.current?.threads?.().getState().mainThreadId || "unknown";
+        emit("thread.modelContextUpdate", { threadId });
+      });
+    },
+    [clientRef, emit],
+  );
+
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
