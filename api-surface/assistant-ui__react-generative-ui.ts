@@ -57,6 +57,17 @@ interface A2uiOperationResult {
   readonly warnings: string[];
 }
 
+type A2uiPresentToolCall = {
+  toolCallId: string;
+  toolName: "present";
+  args: ReadonlyJSONObject;
+  argsText: string;
+  result: Record<string, never>;
+  artifact: {
+    a2ui: readonly A2uiSurfaceSnapshotOperation[];
+  };
+};
+
 type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
 
 type A2uiSurfaceSnapshotOperation = {
@@ -1540,7 +1551,7 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
 };
 
 declare namespace entry_a2ui_exports {
-  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations };
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiPresentToolCall, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations, surfaceToPresentToolCall };
 }
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
@@ -1608,6 +1619,11 @@ declare namespace entry_slack_exports {
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
+
+declare function surfaceToPresentToolCall(surfaceId: string, surface: A2uiSurfaceState): {
+  toolCall: A2uiPresentToolCall | undefined;
+  warnings: ReturnType<typeof convertSurfaceToUISpec>["warnings"];
+};
 
 declare namespace entry_teams_exports {
   export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputTime, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
