@@ -1189,7 +1189,25 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/elements/context-display.tsx",
       },
     ],
-    registryDependencies: ["tooltip"],
+    registryDependencies: [
+      "tooltip",
+      "https://r.assistant-ui.com/elements-context-usage.json",
+    ],
+  },
+  {
+    name: "elements-context-usage",
+    type: "registry:component",
+    title: "Elements Context Usage",
+    description:
+      "Shared token formatting, usage colors, and segment labels for context displays.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/context-usage.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/context-usage.ts",
+      },
+    ],
   },
   {
     name: "voice",
