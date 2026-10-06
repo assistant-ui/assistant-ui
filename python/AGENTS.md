@@ -9,4 +9,4 @@ The Python packages, outside the pnpm workspace; the root AGENTS.md still applie
 ## Rules
 
 - Never add a changeset for a change confined to `python/`, because a changeset can only name an npm package and naming one releases it with nothing changed.
-- Bump a published package's `pyproject.toml` version in the PR that changes it and regenerate its tracked `uv.lock`, because the PyPI workflow skips a version that is already published.
+- Leave a package's `pyproject.toml` version to the maintainer's release PR, which changes nothing else in a package but `uv.lock` files; the Semver Check job fails a version change mixed with other package edits.

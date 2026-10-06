@@ -1,3 +1,5 @@
+import { htmlBlockNames, htmlRawNames } from "micromark-util-html-tag-name";
+
 /**
  * Text transforms for the `preprocess` prop of `MarkdownTextPrimitive`.
  *
@@ -9,6 +11,553 @@
  * then `preprocess` runs on that revealed prefix before the parser sees it.
  * Compose them in `preprocess`.
  */
+
+const BACKTICK = 96;
+const TILDE = 126;
+const DOLLAR = 36;
+const SPACE = 32;
+const TAB = 9;
+const CR = 13;
+const LESS_THAN = 60;
+const GT = 62;
+const SLASH = 47;
+const ASTERISK = 42;
+const PLUS = 43;
+const DASH = 45;
+const DOT = 46;
+const CLOSE_PAREN = 41;
+const BANG = 33;
+const HASH = 35;
+const DOUBLE_QUOTE = 34;
+const APOSTROPHE = 39;
+const DIGIT_ONE = 49;
+const COLON = 58;
+const EQUALS = 61;
+const QUESTION = 63;
+const UNDERSCORE = 95;
+
+const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
+const isDigit = (c: number) => c >= 48 && c <= 57;
+
+function includesChar(
+  text: string,
+  code: number,
+  from: number,
+  to: number,
+): boolean {
+  for (let i = from; i < to; i += 1) {
+    if (text.charCodeAt(i) === code) return true;
+  }
+  return false;
+}
+
+function onlyWhitespace(text: string, from: number, to: number): boolean {
+  for (let i = from; i < to; i += 1) {
+    if (!isSpace(text.charCodeAt(i))) return false;
+  }
+  return true;
+}
+
+function listMarkerEnd(text: string, from: number, lineEnd: number): number {
+  let end = from;
+  while (end < lineEnd && end - from < 9 && isDigit(text.charCodeAt(end))) {
+    end += 1;
+  }
+  const c = text.charCodeAt(end);
+  const isMarker =
+    end > from
+      ? c === DOT || c === CLOSE_PAREN
+      : c === DASH || c === ASTERISK || c === PLUS;
+  let next = end + 1;
+  while (next < lineEnd && isSpace(text.charCodeAt(next))) next += 1;
+  return !isMarker || next === end + 1 ? from : next;
+}
+
+function skipListMarkers(text: string, from: number, lineEnd: number): number {
+  let content = from;
+  for (;;) {
+    const next = listMarkerEnd(text, content, lineEnd);
+    if (next === content) return content;
+    content = next;
+  }
+}
+
+function columns(text: string, from: number, to: number): number {
+  let column = 0;
+  for (let i = from; i < to; i += 1) {
+    column += text.charCodeAt(i) === TAB ? 4 - (column % 4) : 1;
+  }
+  return column;
+}
+
+const HTML_CLOSERS = ["", "", "-->", "?>", ">"];
+const RAW_END_TAGS = htmlRawNames.map((name) => `</${name}>`);
+
+const isAsciiAlpha = (c: number) =>
+  (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+const isAttributeNameStart = (c: number) =>
+  isAsciiAlpha(c) || c === COLON || c === UNDERSCORE;
+
+function endsUnquotedValue(c: number): boolean {
+  return (
+    isSpace(c) ||
+    c === DOUBLE_QUOTE ||
+    c === APOSTROPHE ||
+    c === SLASH ||
+    c === LESS_THAN ||
+    c === EQUALS ||
+    c === GT ||
+    c === BACKTICK
+  );
+}
+
+const isAttributeNameChar = (c: number) =>
+  isAttributeNameStart(c) || isDigit(c) || c === DASH || c === DOT;
+
+function attributeEnd(text: string, from: number, lineEnd: number): number {
+  let i = from;
+  for (;;) {
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    if (text.charCodeAt(i) !== EQUALS) return i;
+    i += 1;
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    const c = text.charCodeAt(i);
+    if (
+      i === lineEnd ||
+      c === LESS_THAN ||
+      c === EQUALS ||
+      c === GT ||
+      c === BACKTICK
+    ) {
+      return -1;
+    }
+    if (c === DOUBLE_QUOTE || c === APOSTROPHE) {
+      i += 1;
+      while (i < lineEnd && text.charCodeAt(i) !== c) i += 1;
+      if (i === lineEnd) return -1;
+      const after = text.charCodeAt(i + 1);
+      return after === SLASH || after === GT || isSpace(after) ? i + 1 : -1;
+    }
+    while (i < lineEnd && !endsUnquotedValue(text.charCodeAt(i))) i += 1;
+  }
+}
+
+function completeTagEnds(
+  text: string,
+  from: number,
+  lineEnd: number,
+  closing: boolean,
+): boolean {
+  let i = from;
+  while (!closing) {
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    if (text.charCodeAt(i) === SLASH) {
+      i += 1;
+      break;
+    }
+    if (!isAttributeNameStart(text.charCodeAt(i))) break;
+    i += 1;
+    while (i < lineEnd && isAttributeNameChar(text.charCodeAt(i))) i += 1;
+    i = attributeEnd(text, i, lineEnd);
+    if (i === -1) return false;
+  }
+  if (closing) {
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+  }
+  return (
+    i < lineEnd &&
+    text.charCodeAt(i) === GT &&
+    onlyWhitespace(text, i + 1, lineEnd)
+  );
+}
+
+function htmlBlockKind(
+  text: string,
+  from: number,
+  lineEnd: number,
+  complete: boolean,
+): number {
+  let i = from + 1;
+  const c = text.charCodeAt(i);
+  if (c === BANG) {
+    if (text.startsWith("--", i + 1)) return 2;
+    if (text.startsWith("[CDATA[", i + 1)) return 5;
+    return isAsciiAlpha(text.charCodeAt(i + 1)) ? 4 : 0;
+  }
+  if (c === QUESTION) return 3;
+  const closing = c === SLASH;
+  if (closing) i += 1;
+  if (!isAsciiAlpha(text.charCodeAt(i))) return 0;
+  const nameStart = i;
+  while (
+    i < lineEnd &&
+    (isAsciiAlpha(text.charCodeAt(i)) ||
+      isDigit(text.charCodeAt(i)) ||
+      text.charCodeAt(i) === DASH)
+  ) {
+    i += 1;
+  }
+  const after = text.charCodeAt(i);
+  if (i < lineEnd && after !== GT && after !== SLASH && !isSpace(after)) {
+    return 0;
+  }
+  const name = text.slice(nameStart, i).toLowerCase();
+  if (!closing && after !== SLASH && htmlRawNames.includes(name)) return 1;
+  if (htmlBlockNames.includes(name)) {
+    return after !== SLASH || text.charCodeAt(i + 1) === GT ? 6 : 0;
+  }
+  return complete && completeTagEnds(text, i, lineEnd, closing) ? 7 : 0;
+}
+
+function isAtxHeading(text: string, from: number, lineEnd: number): boolean {
+  let end = from;
+  while (end < lineEnd && text.charCodeAt(end) === HASH) end += 1;
+  return (
+    end > from &&
+    end - from <= 6 &&
+    (end === lineEnd || isSpace(text.charCodeAt(end)))
+  );
+}
+
+function isRuleLine(
+  text: string,
+  from: number,
+  lineEnd: number,
+  underline: boolean,
+): boolean {
+  const marker = text.charCodeAt(from);
+  if (
+    marker !== DASH &&
+    marker !== ASTERISK &&
+    marker !== UNDERSCORE &&
+    marker !== EQUALS
+  ) {
+    return false;
+  }
+  let count = 0;
+  let spaced = false;
+  let run = true;
+  for (let k = from; k < lineEnd; k += 1) {
+    const c = text.charCodeAt(k);
+    if (c === marker) {
+      count += 1;
+      if (spaced) run = false;
+    } else if (isSpace(c)) {
+      spaced = true;
+    } else {
+      return false;
+    }
+  }
+  return (
+    (marker !== EQUALS && count >= 3) ||
+    (underline && run && (marker === EQUALS || marker === DASH))
+  );
+}
+
+function htmlBlockEnds(
+  text: string,
+  kind: number,
+  from: number,
+  lineEnd: number,
+): boolean {
+  if (kind === 5) {
+    for (let i = from; i < lineEnd; i += 1) {
+      if (text.charCodeAt(i) === 93 && text.charCodeAt(i + 1) === 93) {
+        i += 1;
+        if (text.charCodeAt(i + 1) === GT) return true;
+      }
+    }
+    return false;
+  }
+  const line = text.slice(from, lineEnd);
+  if (kind !== 1) return line.includes(HTML_CLOSERS[kind]!);
+  const lower = line.toLowerCase();
+  return RAW_END_TAGS.some((tag) => lower.includes(tag));
+}
+
+function htmlBlockRanges(text: string): number[] {
+  const ranges: number[] = [];
+  let htmlKind = 0;
+  let htmlStart = 0;
+  let htmlQuoteDepth = 0;
+  let htmlItemIndent = 0;
+  let htmlQuoteIndents: number[] = [];
+  let fenceChar = 0;
+  let fenceRun = 0;
+  let fenceIndent = 0;
+  let fenceQuoteDepth = 0;
+  let mathEnd = 0;
+  let mathQuoteDepth = 0;
+  let mathItemIndent = 0;
+  let mathQuoteIndents: number[] = [];
+  let inParagraph = false;
+  let paragraphItemIndent = 0;
+  let lastQuoteDepth = 0;
+
+  for (let lineStart = 0; lineStart < text.length;) {
+    let lineEnd = lineStart;
+    while (
+      lineEnd < text.length &&
+      text.charCodeAt(lineEnd) !== 10 &&
+      text.charCodeAt(lineEnd) !== CR
+    )
+      lineEnd += 1;
+    const nextLine =
+      text.charCodeAt(lineEnd) === CR && text.charCodeAt(lineEnd + 1) === 10
+        ? lineEnd + 2
+        : lineEnd + 1;
+    const blockQuoteDepth =
+      htmlKind !== 0
+        ? htmlQuoteDepth
+        : lineStart < mathEnd
+          ? mathQuoteDepth
+          : fenceQuoteDepth;
+    let i = lineStart;
+    let depth = 0;
+    let quoteStart = lineStart;
+    let blockContentStart = lineStart;
+    let contentStart = lineStart;
+    let indentedMarker = false;
+    const quoteIndents: number[] = [];
+    while (i < lineEnd) {
+      const c = text.charCodeAt(i);
+      if (c === GT) {
+        const quoteIndent = columns(text, contentStart, i);
+        quoteIndents.push(quoteIndent);
+        if (quoteIndent > 3) indentedMarker = true;
+        if (depth === blockQuoteDepth) quoteStart = i;
+        depth += 1;
+        contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
+        if (depth === blockQuoteDepth) blockContentStart = contentStart;
+      } else if (!isSpace(c)) {
+        break;
+      }
+      i += 1;
+    }
+    const first = i < lineEnd ? text.charCodeAt(i) : -1;
+    const indent = columns(text, contentStart, i);
+    if (
+      htmlKind !== 0 &&
+      (depth < htmlQuoteDepth ||
+        htmlQuoteIndents.some(
+          (indent, level) => quoteIndents[level]! < indent,
+        ) ||
+        (htmlItemIndent !== 0 &&
+          (depth > htmlQuoteDepth
+            ? columns(text, blockContentStart, quoteStart) < htmlItemIndent
+            : first !== -1 && indent < htmlItemIndent)))
+    ) {
+      ranges.push(htmlStart, lineStart);
+      htmlKind = 0;
+    }
+    if (htmlKind !== 0) {
+      if (htmlKind > 5 && onlyWhitespace(text, blockContentStart, lineEnd)) {
+        ranges.push(htmlStart, lineStart);
+        htmlKind = 0;
+      } else {
+        if (
+          htmlKind < 6 &&
+          htmlBlockEnds(text, htmlKind, blockContentStart, lineEnd)
+        ) {
+          ranges.push(htmlStart, lineEnd);
+          htmlKind = 0;
+        }
+        lineStart = nextLine;
+        continue;
+      }
+    }
+    if (
+      fenceChar !== 0 &&
+      (depth < fenceQuoteDepth ||
+        (fenceChar === DOLLAR && first !== -1 && indent < fenceIndent))
+    )
+      fenceChar = 0;
+    if (fenceChar !== 0) {
+      let end = i;
+      while (end < lineEnd && text.charCodeAt(end) === fenceChar) end += 1;
+      if (
+        depth === fenceQuoteDepth &&
+        (fenceChar === DOLLAR ? indent : i - contentStart) <= fenceIndent + 3 &&
+        end - i >= fenceRun &&
+        onlyWhitespace(text, end, lineEnd)
+      )
+        fenceChar = 0;
+      lineStart = nextLine;
+      continue;
+    }
+    if (lineStart < mathEnd) {
+      if (
+        depth < mathQuoteDepth ||
+        mathQuoteIndents.some(
+          (indent, level) => quoteIndents[level]! < indent,
+        ) ||
+        (mathItemIndent !== 0 &&
+          (depth > mathQuoteDepth
+            ? columns(text, blockContentStart, quoteStart) < mathItemIndent
+            : first !== -1 && indent < mathItemIndent))
+      ) {
+        mathEnd = 0;
+      } else {
+        lineStart = nextLine;
+        continue;
+      }
+    }
+    let blockStart = skipListMarkers(text, i, lineEnd);
+    let blockItemIndent =
+      blockStart === i ? 0 : columns(text, contentStart, blockStart);
+    const shallow = !indentedMarker && indent < 4;
+    const markersInProse: boolean =
+      blockStart !== i &&
+      inParagraph &&
+      depth === lastQuoteDepth &&
+      indent >= paragraphItemIndent &&
+      isDigit(first) &&
+      (first !== DIGIT_ONE || isDigit(text.charCodeAt(i + 1)));
+
+    const blockQuoteIndents: number[] = [];
+    if (!markersInProse) {
+      while (blockStart < lineEnd && text.charCodeAt(blockStart) === GT) {
+        blockQuoteIndents[depth] = blockItemIndent;
+        depth += 1;
+        blockStart += 1;
+        if (text.charCodeAt(blockStart) === SPACE) blockStart += 1;
+        contentStart = blockStart;
+        while (blockStart < lineEnd && isSpace(text.charCodeAt(blockStart)))
+          blockStart += 1;
+        const next = skipListMarkers(text, blockStart, lineEnd);
+        blockItemIndent =
+          next === blockStart ? 0 : columns(text, contentStart, next);
+        blockStart = next;
+      }
+    }
+    const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
+
+    const itemIndent =
+      blockItemIndent ||
+      (depth === lastQuoteDepth && indent >= paragraphItemIndent
+        ? paragraphItemIndent
+        : 0);
+    const mathFence = blockFirst === DOLLAR;
+    if (blockFirst === BACKTICK || blockFirst === TILDE || mathFence) {
+      let end = blockStart;
+      while (end < lineEnd && text.charCodeAt(end) === blockFirst) end += 1;
+      if (
+        end - blockStart >= (mathFence ? 2 : 3) &&
+        (blockFirst === TILDE ||
+          !includesChar(text, blockFirst, end, lineEnd)) &&
+        (!mathFence ||
+          (!markersInProse &&
+            !indentedMarker &&
+            columns(text, contentStart, blockStart) - itemIndent < 4))
+      ) {
+        fenceChar = blockFirst;
+        fenceRun = end - blockStart;
+        fenceIndent = mathFence ? itemIndent : blockStart - contentStart;
+        fenceQuoteDepth = depth;
+      }
+    }
+    const mathStart = text.startsWith("\\\\[", blockStart)
+      ? blockStart + 1
+      : blockStart;
+    const mathClose = text.startsWith("\\[", mathStart)
+      ? "\\]"
+      : text.startsWith("[/math]", mathStart)
+        ? "[/math]"
+        : "";
+    if (mathClose !== "") {
+      const close = text.indexOf(mathClose, mathStart + mathClose.length);
+      if (close !== -1) {
+        mathEnd = close + mathClose.length;
+        mathQuoteDepth = depth;
+        mathItemIndent = itemIndent;
+        mathQuoteIndents = blockQuoteIndents;
+      }
+    }
+    let closesBlock = false;
+    if (
+      blockFirst === LESS_THAN &&
+      shallow &&
+      !markersInProse &&
+      fenceChar === 0
+    ) {
+      htmlKind = htmlBlockKind(
+        text,
+        blockStart,
+        lineEnd,
+        !inParagraph || depth > lastQuoteDepth || blockStart !== i,
+      );
+      if (htmlKind !== 0) {
+        if (
+          htmlKind < 6 &&
+          htmlBlockEnds(text, htmlKind, blockStart, lineEnd)
+        ) {
+          ranges.push(lineStart, lineEnd);
+          htmlKind = 0;
+          closesBlock = true;
+        } else {
+          htmlStart = lineStart;
+          htmlQuoteDepth = depth;
+          htmlQuoteIndents = blockQuoteIndents;
+          htmlItemIndent = itemIndent;
+        }
+      }
+    }
+    const continued: boolean = inParagraph;
+    inParagraph =
+      first !== -1 &&
+      fenceChar === 0 &&
+      mathEnd <= lineEnd &&
+      htmlKind === 0 &&
+      !closesBlock &&
+      !(
+        shallow &&
+        (isAtxHeading(text, markersInProse ? i : blockStart, lineEnd) ||
+          isRuleLine(
+            text,
+            i,
+            lineEnd,
+            inParagraph && depth === lastQuoteDepth,
+          ) ||
+          (blockStart !== i &&
+            !markersInProse &&
+            isRuleLine(text, listMarkerEnd(text, i, lineEnd), lineEnd, false)))
+      );
+    if (inParagraph) {
+      paragraphItemIndent =
+        blockStart !== i && !markersInProse
+          ? blockItemIndent
+          : continued
+            ? paragraphItemIndent
+            : 0;
+    } else if (
+      blockStart === i &&
+      first !== -1 &&
+      indent < paragraphItemIndent
+    ) {
+      paragraphItemIndent = 0;
+    }
+    lastQuoteDepth = depth;
+    lineStart = nextLine;
+  }
+  if (htmlKind !== 0) ranges.push(htmlStart, text.length);
+  return ranges;
+}
+
+function rewriteOutsideHtml(
+  text: string,
+  rewrite: (text: string) => string,
+): string {
+  const ranges = htmlBlockRanges(text);
+  let out = "";
+  let cursor = 0;
+  for (let i = 0; i < ranges.length; i += 2) {
+    const from = ranges[i]!;
+    const to = ranges[i + 1]!;
+    out += rewrite(text.slice(cursor, from)) + text.slice(from, to);
+    cursor = to;
+  }
+  return out + rewrite(text.slice(cursor));
+}
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
@@ -136,8 +685,8 @@ function backtickEnd(text: string, start: number): number {
 }
 
 /**
- * Applies `rewrite` to the stretches of `text` outside code spans and fences,
- * copying code through verbatim, so a delimiter shown as code is never
+ * Applies `rewrite` to the stretches of `text` outside HTML blocks, code spans and fences,
+ * copying their contents through verbatim, so a delimiter shown as code is never
  * rewritten. `\x` escapes are stepped over when scanning so an escaped
  * backtick does not open a span, and a delimiter pair straddling a code
  * boundary stays as written. Each stretch is passed the characters adjacent to
@@ -162,47 +711,49 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
   ) => string,
 ): string {
-  let out = "";
-  let index = 0;
-  let plainStart = 0;
+  return rewriteOutsideHtml(text, (text) => {
+    let out = "";
+    let index = 0;
+    let plainStart = 0;
 
-  const flush = (end: number, followedBy: string) => {
-    const segment = text.slice(plainStart, end);
-    if (segment === "") return;
-    const start = plainStart;
-    // A segment begins after any code span, so the line it sits on can start
-    // earlier than the segment does and only the original text has it.
-    const lineHead = (offset: number) => {
-      const at = start + offset;
-      return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+    const flush = (end: number, followedBy: string) => {
+      const segment = text.slice(plainStart, end);
+      if (segment === "") return;
+      const start = plainStart;
+      // A segment begins after any code span, so the line it sits on can start
+      // earlier than the segment does and only the original text has it.
+      const lineHead = (offset: number) => {
+        const at = start + offset;
+        return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+      };
+      out += rewrite(segment, out.slice(-1), followedBy, lineHead);
     };
-    out += rewrite(segment, out.slice(-1), followedBy, lineHead);
-  };
 
-  const copyVerbatim = (to: number) => {
-    flush(index, text[index]!);
-    out += text.slice(index, to);
-    index = to;
-    plainStart = to;
-  };
+    const copyVerbatim = (to: number) => {
+      flush(index, text[index]!);
+      out += text.slice(index, to);
+      index = to;
+      plainStart = to;
+    };
 
-  while (index < text.length) {
-    const char = text[index];
-    if (char === "\\") {
-      index += 2;
-    } else if (char === "`") {
-      const end = backtickEnd(text, index);
-      if (end !== -1) copyVerbatim(end);
-      else index += runLength(text, index, "`");
-    } else if (opensTildeFence(text, index)) {
-      copyVerbatim(fenceEnd(text, index, "~"));
-    } else {
-      index += 1;
+    while (index < text.length) {
+      const char = text[index];
+      if (char === "\\") {
+        index += 2;
+      } else if (char === "`") {
+        const end = backtickEnd(text, index);
+        if (end !== -1) copyVerbatim(end);
+        else index += runLength(text, index, "`");
+      } else if (opensTildeFence(text, index)) {
+        copyVerbatim(fenceEnd(text, index, "~"));
+      } else {
+        index += 1;
+      }
     }
-  }
-  flush(text.length, "");
+    flush(text.length, "");
 
-  return out;
+    return out;
+  });
 }
 
 /**
@@ -498,7 +1049,7 @@ function endOfVerbatimRun(text: string, index: number): number {
  * Escapes a `$` that opens a currency amount (`$5`, `$19.99`, `$1,299`) so that
  * remark-math with single-dollar math enabled does not consume prices in prose as
  * math delimiters. The `$$` of display math is left intact, an already-escaped `\$`
- * is not escaped twice, and code spans and fences are never rewritten.
+ * is not escaped twice, and HTML blocks, code spans and fences are never rewritten.
  *
  * A `$` followed by a digit is only currency when it does not open a plausible math
  * span, so the text up to the next `$` is inspected first: `$0$` and `$5x = 10$`
@@ -508,19 +1059,21 @@ function endOfVerbatimRun(text: string, index: number): number {
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  let out = "";
-  let index = 0;
+  return rewriteOutsideHtml(text, (text) => {
+    let out = "";
+    let index = 0;
 
-  while (index < text.length) {
-    const verbatimEnd = endOfVerbatimRun(text, index);
-    if (verbatimEnd > index) {
-      out += text.slice(index, verbatimEnd);
-      index = verbatimEnd;
-      continue;
+    while (index < text.length) {
+      const verbatimEnd = endOfVerbatimRun(text, index);
+      if (verbatimEnd > index) {
+        out += text.slice(index, verbatimEnd);
+        index = verbatimEnd;
+        continue;
+      }
+      out += opensCurrencyAmount(text, index) ? "\\$" : "$";
+      index += 1;
     }
-    out += opensCurrencyAmount(text, index) ? "\\$" : "$";
-    index += 1;
-  }
 
-  return out;
+    return out;
+  });
 }

@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Monitor, Smartphone, Terminal } from "lucide-react";
+import {
+  ArrowRight,
+  Monitor,
+  PanelsTopLeft,
+  Smartphone,
+  Terminal,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PLATFORM_LABELS, type Platform } from "@/lib/constants";
 
@@ -31,11 +37,18 @@ export const SURFACES: {
     href: "/docs/ink",
     icon: Terminal,
   },
+  {
+    platform: "vue",
+    label: PLATFORM_LABELS.vue,
+    description: "Vue and Nuxt apps",
+    href: "/docs/vue",
+    icon: PanelsTopLeft,
+  },
 ];
 
 export function SurfaceGrid() {
   return (
-    <div className="not-prose grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <div className="not-prose grid grid-cols-1 gap-2 sm:grid-cols-2">
       {SURFACES.map((surface) => {
         const Icon = surface.icon;
         return (

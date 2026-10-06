@@ -18,10 +18,6 @@ const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKChatOptions<UI_MESSAGE>,
 ) => {
   const [id] = useState(() => options?.id ?? generateId());
-  // The transport resolves the request id from the thread list item, falling
-  // back to the runtime's main item, whose id here is the external store's
-  // placeholder constant. The single thread of this entry is the chat itself,
-  // so the handed-over item initializes to the chat id.
   const [threadListItem] = useState(() => ({
     initialize: async () => ({ remoteId: id, externalId: undefined }),
   }));

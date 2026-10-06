@@ -13,6 +13,21 @@ import type { Checkout } from "@/lib/checkout/protocol";
 import { InputCard, asksForSecret } from "./input-card";
 import { WizardHost } from "./test/wizard-host";
 
+vi.mock("@/lib/session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/session")>()),
+  useSession: () => ({ status: "anonymous" }),
+}));
+
+vi.mock("@/lib/cloud-projects-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/cloud-projects-client")>()),
+  useCloudProjects: () => ({ status: "unavailable" }),
+}));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  usePathname: () => "/components/setup",
+}));
+
 afterEach(cleanup);
 
 describe("InputCard", () => {
@@ -63,6 +78,75 @@ describe("InputCard", () => {
         answer: "apps/web",
       }),
     );
+  });
+});
+
+describe("InputCard cloud project", () => {
+  const checkout = {
+    state: undefined,
+    session: { id: "test", products: ["cloud"], startedAt: 1 },
+    url: "https://checkout.test/session",
+    agentPresent: true,
+    degraded: false,
+    openInputs: [],
+    plan: undefined,
+    planPending: false,
+    progress: { done: 0, total: 0 },
+    attentionKey: "",
+    connection: {} as CheckoutContextValue["connection"],
+    commands: {} as CheckoutContextValue["commands"],
+  } satisfies CheckoutContextValue;
+  const text = (prompt: string): Checkout.Input => ({
+    id: "q",
+    kind: "text",
+    phase: "installing",
+    prompt,
+    optional: false,
+    status: "open",
+    createdAt: 1,
+  });
+
+  it("answers a cloud project question from the account and any other with a plain field", () => {
+    render(
+      <WizardHost>
+        <InputCard
+          input={text("Which Assistant Cloud project should this app use?")}
+          checkout={checkout}
+        />
+      </WizardHost>,
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Frontend API URL" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sign in" })).toBeTruthy();
+    cleanup();
+
+    render(
+      <WizardHost>
+        <InputCard input={text("Which port?")} checkout={checkout} />
+      </WizardHost>,
+    );
+    expect(screen.getByRole("textbox", { name: "Which port?" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
+  });
+
+  it("guards a cloud project question that asks for a key instead of offering the account", () => {
+    render(
+      <WizardHost>
+        <InputCard
+          input={text("Paste the API key for your Assistant Cloud project.")}
+          checkout={checkout}
+        />
+      </WizardHost>,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /Ask .* for it the safe way instead/,
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("textbox", { name: "Frontend API URL" }),
+    ).toBeNull();
   });
 });
 

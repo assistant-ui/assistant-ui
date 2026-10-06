@@ -3,7 +3,7 @@ title: Conventions
 description: The hosts, credentials, headers, ids, paging rules and error shapes every route of the project API shares, and the index of routes.
 ---
 
-The SDK covers the routes an app calls, so most apps never call the API directly; the project read API, user erasure, MCP and message deletion are REST only. These pages are for the cases that do: a server in another language, an exporter, an evaluation job, or a look at what the SDK sends. Each resource has its own page with every route, parameter table, example and status table; this page holds what they share.
+The SDK covers the routes an app calls, so most apps never call the API directly; user erasure, MCP, message deletion and the project read API other than its thread and message lists are REST only. These pages are for the cases that do: a server in another language, an exporter, an evaluation job, or a look at what the SDK sends. Each resource has its own page with every route, parameter table, example and status table; this page holds what they share.
 
 ## Hosts and credentials
 
@@ -85,7 +85,7 @@ Ids are a prefix and 24 characters: `thread_0…`, `msg_0…`, `run_0…`, `scor
 
 ## Errors
 
-Branch on the status code, not the body: the body is a message for people, and its format depends on the route. A body or query that fails the route's schema answers 400 with `{ "success": false, "error": { "name": "ZodError", "message": "<the failed checks, as a JSON string>" } }`. The 402 and 429 bodies below are JSON, and an unexpected failure answers 500 with `{ "error": "Internal Server Error" }`. Every other error carries its message either as `{ "error": "<message>" }` or as plain text, such as `Thread not found` from the run routes; each route's page shows which. `/v1/mcp` differs: it answers `405` and a transport failure (`500`) with an empty body, and `406` with a JSON-RPC error, as [MCP](/docs/cloud/api/mcp) lists.
+Errors return JSON. The message is in a string `error`, such as `{ "error": "Thread not found" }`, except for the `/v1/mcp` transport's `401` and `406` responses, which [MCP](/docs/cloud/api/mcp) describes. Branch on the status code, not the text: the message is for people. A body or query that fails the route's schema answers 400 with `{ "error": "Schema validation error", "details": […] }`, where `details` lists the failed checks. An unknown route answers 404 with `{ "error": "Not Found" }`. The 402 and 429 bodies below carry more fields beside `error`, and an unexpected failure answers 500 with `{ "error": "Internal Server Error" }`.
 
 | Status | When |
 |---|---|
@@ -93,7 +93,7 @@ Branch on the status code, not the body: the body is a message for people, and i
 | 401 | No or malformed `Authorization`, an expired token, a token not yet valid |
 | 402 | `{ "error": "plan_limit_reached", "plan", "cap", "period_end" }`: a new end user past the plan's active user cap, on `POST /v1/threads/{thread_id}/messages` with a user message only |
 | 403 | A credential on the wrong host, an unknown or expired key, an invalid token, a rule that matches no token, a route the credential may not use, anonymous access turned off, an anonymous caller claiming threads |
-| 404 | `Thread not found`, `Message not found`, `Messages not found`, `Run not found`, `Assistant not found`, `Attachment not found`, `Project not found` |
+| 404 | `Thread not found`, `Message not found`, `Messages not found`, `Run not found`, `Assistant not found`, `Attachment not found`, `Project not found`, and `Not Found` for an unknown route |
 | 405 | Any method other than `POST` on `/v1/mcp` |
 | 409 | `Message role cannot change` |
 | 413, 415 | A trace export over 4 MB, or in a content type or encoding the receiver does not take |

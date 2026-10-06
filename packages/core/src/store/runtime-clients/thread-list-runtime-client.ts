@@ -10,6 +10,7 @@ import { useThreadSelectionEvents } from "../clients/thread-selection-events";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { useSubscribable } from "./useSubscribable";
+import { useAfterStateCommit } from "./useAfterStateCommit";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
 import type { ThreadsState } from "../scopes/threads";
@@ -46,6 +47,7 @@ const useThreadListClient = ({
   __internal_assistantRuntime: AssistantRuntime;
 }): ClientOutput<"threads"> => {
   const runtimeState = useSubscribable(runtime);
+  const afterStateCommit = useAfterStateCommit(runtimeState, runtime.getState);
   useThreadSelectionEvents(runtimeState.mainThreadId);
 
   const emit = useAssistantEmit();
@@ -117,10 +119,11 @@ const useThreadListClient = ({
       ),
     switchToNewThread: () =>
       handleThreadListAction("create", () => runtime.switchToNewThread()),
-    getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
-    reload: () => runtime.reload(),
+    getLoadThreadsPromise: () =>
+      afterStateCommit(runtime.getLoadThreadsPromise()),
+    reload: () => afterStateCommit(runtime.reload()),
     reloadMainThread: () => runtime.reloadMainThread(),
-    loadMore: () => runtime.loadMore(),
+    loadMore: () => afterStateCommit(runtime.loadMore()),
     __internal_getAssistantRuntime: () => __internal_assistantRuntime,
   };
 };

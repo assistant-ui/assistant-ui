@@ -118,7 +118,7 @@ const decodePointer = (path: string): string[] | undefined => {
 const isArrayIndex = (segment: string): boolean =>
   segment === "0" || /^[1-9]\d*$/.test(segment);
 
-const setAtPointer = (
+export const setAtPointer = (
   model: unknown,
   path: string,
   value: unknown,
