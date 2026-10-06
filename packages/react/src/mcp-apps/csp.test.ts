@@ -92,6 +92,18 @@ describe("MCP App CSP", () => {
   });
 
   it.each([
+    '<?xml version="1.0"?><!doctype html><script>run()</script>',
+    "<!foo><!doctype html><script>run()</script>",
+  ])("preserves standards mode after leading bogus comments", (html) => {
+    const secured = applyMcpAppCsp(html);
+    const document = new DOMParser().parseFromString(secured, "text/html");
+
+    expect(secured.indexOf("<!doctype html><meta ")).toBeGreaterThan(0);
+    expect(document.compatMode).toBe("CSS1Compat");
+    expectPolicyBeforeScript(secured);
+  });
+
+  it.each([
     "\u00a0<script>run()</script>",
     "\uFEFF\uFEFF<script>run()</script>",
   ])("keeps the policy in head before non-HTML whitespace", (html) => {

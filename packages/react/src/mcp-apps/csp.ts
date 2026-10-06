@@ -75,23 +75,35 @@ const findDoctypeEnd = (html: string): number => {
       offset += whitespace.length;
       continue;
     }
-    if (!html.startsWith("<!--", offset)) break;
-    if (html.startsWith("<!-->", offset)) {
-      offset += 5;
+    if (html.startsWith("<!--", offset)) {
+      if (html.startsWith("<!-->", offset)) {
+        offset += 5;
+        continue;
+      }
+      if (html.startsWith("<!--->", offset)) {
+        offset += 6;
+        continue;
+      }
+      const commentEnd = html.indexOf("-->", offset + 4);
+      const bangCommentEnd = html.indexOf("--!>", offset + 4);
+      if (commentEnd === -1 && bangCommentEnd === -1) return 0;
+      offset =
+        bangCommentEnd !== -1 &&
+        (commentEnd === -1 || bangCommentEnd < commentEnd)
+          ? bangCommentEnd + 4
+          : commentEnd + 3;
       continue;
     }
-    if (html.startsWith("<!--->", offset)) {
-      offset += 6;
+    if (html.slice(offset, offset + 9).toLowerCase() === "<!doctype") {
+      break;
+    }
+    if (html.startsWith("<?", offset) || html.startsWith("<!", offset)) {
+      const bogusCommentEnd = html.indexOf(">", offset + 2);
+      if (bogusCommentEnd === -1) return 0;
+      offset = bogusCommentEnd + 1;
       continue;
     }
-    const commentEnd = html.indexOf("-->", offset + 4);
-    const bangCommentEnd = html.indexOf("--!>", offset + 4);
-    if (commentEnd === -1 && bangCommentEnd === -1) return 0;
-    offset =
-      bangCommentEnd !== -1 &&
-      (commentEnd === -1 || bangCommentEnd < commentEnd)
-        ? bangCommentEnd + 4
-        : commentEnd + 3;
+    break;
   }
 
   if (html.slice(offset, offset + 9).toLowerCase() !== "<!doctype") {
