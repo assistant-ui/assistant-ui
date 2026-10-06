@@ -540,6 +540,15 @@ export abstract class BaseComposerRuntimeCore
     this._submissionSend = undefined;
   }
 
+  /** Drops the send being prepared without returning it to the draft, for a thread runtime disposed for good. */
+  public __internal_dispose() {
+    this._cancelAllAttachmentAdds();
+    if (!this._submission) return;
+    this._submissionSend?.controller.abort();
+    this._endSubmission();
+    this._notifySubscribers();
+  }
+
   /**
    * Stops the submission and takes its content back into the draft, merging it
    * ahead of anything written since, so a send is never dropped.

@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import {
@@ -39,9 +40,11 @@ import type {
 import { getMessageModality, groupUIMessagesByParent } from "./converter";
 export { groupUIMessagesByParent } from "./converter";
 import {
+  createLangChainMetadataKey,
   convertLangChainBaseMessage,
   getMessageContent,
   getMessageType,
+  type LangChainMessageConverterMetadata,
 } from "./convertMessages";
 import {
   attachSubagentTranscripts,
@@ -60,6 +63,8 @@ import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
 import { LANGCHAIN_SDK } from "./sdkIdentity";
+import { LangChainThreadController } from "./LangChainThreadController";
+import type { LangChainThreadAction } from "./langChainThreadState";
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],
@@ -72,14 +77,20 @@ type NormalizedRunConfigOptions = NonNullable<
   ReturnType<typeof runConfigToSubmitOptions>
 >;
 
-const getPendingToolCalls = (
+export const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
 ): LangChainToolCall[] =>
   scanPendingToolCalls(
     messages,
     (message) => {
       const type = getMessageType(message);
-      if (type === "ai") return { toolCalls: message.tool_calls ?? [] };
+      if (type === "ai") {
+        return {
+          toolCalls: (message.tool_calls ?? []).filter(
+            (toolCall) => typeof toolCall === "object" && toolCall !== null,
+          ),
+        };
+      }
       if (type === "tool" && message.tool_call_id) {
         return { toolCallId: message.tool_call_id };
       }
@@ -105,26 +116,6 @@ const toStagedMessageInput = (message: LangChainBaseMessage) => ({
     additional_kwargs: message.additional_kwargs,
   }),
 });
-
-const humanContentText = (content: LangChainBaseMessage["content"]) => {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .filter(
-      (part): part is { type: "text"; text: string } =>
-        typeof part === "object" &&
-        part !== null &&
-        part.type === "text" &&
-        typeof part.text === "string",
-    )
-    .map((part) => part.text)
-    .join("");
-};
-
-const hasSameMessageContent = (
-  a: LangChainBaseMessage,
-  b: LangChainBaseMessage,
-) => humanContentText(a.content) === humanContentText(b.content);
 
 const truncateLangChainBaseMessages = (
   threadMessages: readonly ThreadMessage[],
@@ -166,9 +157,14 @@ const useStreamThreadRuntime = (
   const stream = useStream(
     Object.assign({}, options, { threadId: externalId }),
   );
-  const [stagedMessages, setStagedMessages] = useState<
-    LangChainBaseMessage[] | null
-  >(null);
+  const [threadController] = useState(() => new LangChainThreadController());
+  const getVisibleStagedMessages = () =>
+    threadController.getState().visibleStagedMessages;
+  const visibleStagedMessages = useSyncExternalStore(
+    threadController.subscribe,
+    getVisibleStagedMessages,
+    getVisibleStagedMessages,
+  );
 
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -202,7 +198,7 @@ const useStreamThreadRuntime = (
   );
 
   const visibleMessages =
-    stagedMessages ?? (stream.messages as LangChainBaseMessage[]);
+    visibleStagedMessages ?? (stream.messages as LangChainBaseMessage[]);
 
   const messageTiming = useLangChainStreamingTiming(
     visibleMessages,
@@ -214,22 +210,21 @@ const useStreamThreadRuntime = (
     uiMessagesByParent,
   );
 
-  const convertWithUI = useMemo<
-    useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >(
-    () => (message, metadata) =>
-      convertLangChainBaseMessage(message, {
-        ...metadata,
-        uiMessagesByParent,
-        messageTiming,
-      }),
+  const [getConverterMetadataKey] = useState(createLangChainMetadataKey);
+  const converterMetadata = useMemo<LangChainMessageConverterMetadata>(
+    () => ({
+      uiMessagesByParent: uiMessagesByParent,
+      messageTiming,
+    }),
     [uiMessagesByParent, messageTiming],
   );
 
   const threadMessages = useExternalMessageConverter({
-    callback: convertWithUI,
+    callback: convertLangChainBaseMessage,
     messages: visibleMessages,
     isRunning: effectiveIsRunning,
+    metadata: converterMetadata,
+    getMetadataKey: getConverterMetadataKey,
   });
   const [memo] = useState(createAttachMemo);
   const messagesWithTranscripts = useMemo(
@@ -308,85 +303,42 @@ const useStreamThreadRuntime = (
     visibleMessagesRef.current = visibleMessages;
   }, [visibleMessages]);
 
+  const dispatchStaging = useCallback(
+    (action: LangChainThreadAction, fallback = visibleMessagesRef.current) => {
+      threadController.dispatch(action);
+      visibleMessagesRef.current =
+        threadController.getState().visibleStagedMessages ?? fallback;
+    },
+    [threadController],
+  );
+
   const threadMessagesRef = useRef(messagesWithTranscripts);
   useInsertionEffect(() => {
     threadMessagesRef.current = messagesWithTranscripts;
   }, [messagesWithTranscripts]);
 
-  const stagedMessagesRef = useRef(
-    new Map<
-      string,
-      {
-        message: LangChainBaseMessage & { id: string };
-        runConfig: AppendMessage["runConfig"];
-        reconcileOnEcho: boolean;
-        baseMessageCount: number;
-        transcriptStatus?: "unsent" | "sent";
-      }
-    >(),
-  );
-  const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
   useEffect(() => {
-    if (stagedMessagesRef.current.size === 0) return;
-
-    // Staged edits must keep their truncated base while stream updates arrive before promotion.
-    const baseMessages =
-      stagedBaseMessagesRef.current ??
-      (stream.messages as LangChainBaseMessage[]);
-    const remainingStagedMessages: LangChainBaseMessage[] = [];
-    const matchedBaseMessageIndexes = new Set<number>();
-    const visibleStagedIds = new Set(
-      visibleMessagesRef.current.flatMap((m) => (m.id ? [m.id] : [])),
+    const state = threadController.getState();
+    if (state.stagedEntries.size === 0) return;
+    const messages = stream.messages as LangChainBaseMessage[];
+    dispatchStaging(
+      {
+        type: "reconcile",
+        messages,
+        visibleMessages: visibleMessagesRef.current,
+      },
+      state.stagedBaseMessages ?? messages,
     );
-    for (const [id, staged] of stagedMessagesRef.current) {
-      if (!visibleStagedIds.has(id)) continue;
-      const echoed = baseMessages.some((message, index) => {
-        if (matchedBaseMessageIndexes.has(index)) return false;
-        if (message.id === id) {
-          matchedBaseMessageIndexes.add(index);
-          return true;
-        }
-        if (
-          !staged.reconcileOnEcho ||
-          index < staged.baseMessageCount ||
-          getMessageType(message) !== "human" ||
-          !hasSameMessageContent(message, staged.message)
-        ) {
-          return false;
-        }
-        matchedBaseMessageIndexes.add(index);
-        return true;
-      });
-      if (echoed) stagedMessagesRef.current.delete(id);
-      else remainingStagedMessages.push(staged.message);
-    }
-
-    if (remainingStagedMessages.length === 0) {
-      stagedBaseMessagesRef.current = null;
-      visibleMessagesRef.current = baseMessages;
-      // Reconciling against the upstream stream mutates the staged refs above,
-      // which cannot happen during render.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStagedMessages(null);
-      return;
-    }
-
-    const nextMessages = [...baseMessages, ...remainingStagedMessages];
-    visibleMessagesRef.current = nextMessages;
-    setStagedMessages(nextMessages);
-  }, [stream.messages]);
+  }, [stream.messages, threadController, dispatchStaging]);
 
   const getStagedRun = (parentId: string | null) => {
-    const parent = parentId
-      ? stagedMessagesRef.current.get(parentId)
-      : undefined;
+    const stagedEntries = threadController.getState().stagedEntries;
+    const parent = parentId ? stagedEntries.get(parentId) : undefined;
     if (!parent || parent.transcriptStatus === "sent") return null;
 
     const staged: LangChainBaseMessage[] = [];
     for (const message of visibleMessagesRef.current) {
-      const entry = message.id
-        ? stagedMessagesRef.current.get(message.id)
-        : undefined;
+      const entry = message.id ? stagedEntries.get(message.id) : undefined;
       if (entry && entry.transcriptStatus !== "sent") {
         staged.push(entry.message);
       }
@@ -408,36 +360,33 @@ const useStreamThreadRuntime = (
         additional_kwargs: { modality: message.metadata.modality },
       }),
     };
-    stagedMessagesRef.current.set(transcript.id, {
-      message: transcript,
-      runConfig: undefined,
-      reconcileOnEcho: false,
-      baseMessageCount: streamRef.current.messages.length,
-      transcriptStatus: "unsent",
+    dispatchStaging({
+      type: "stage",
+      entry: {
+        message: transcript,
+        runConfig: undefined,
+        reconcileOnEcho: false,
+        baseMessageCount: streamRef.current.messages.length,
+        transcriptStatus: "unsent",
+      },
+      visibleMessages: visibleMessagesRef.current,
     });
-    const nextMessages = [...visibleMessagesRef.current, transcript];
-    visibleMessagesRef.current = nextMessages;
-    setStagedMessages(nextMessages);
   };
 
-  const getUnsentTranscripts = () =>
-    visibleMessagesRef.current.filter(
+  const getUnsentTranscripts = () => {
+    const stagedEntries = threadController.getState().stagedEntries;
+    return visibleMessagesRef.current.filter(
       (message) =>
         message.id !== undefined &&
-        stagedMessagesRef.current.get(message.id)?.transcriptStatus ===
-          "unsent",
+        stagedEntries.get(message.id)?.transcriptStatus === "unsent",
     );
+  };
 
   const setTranscriptStatus = (
     messages: readonly LangChainBaseMessage[],
     status: "unsent" | "sent",
   ) => {
-    for (const message of messages) {
-      const staged = message.id
-        ? stagedMessagesRef.current.get(message.id)
-        : undefined;
-      if (staged?.transcriptStatus) staged.transcriptStatus = status;
-    }
+    dispatchStaging({ type: "markTranscript", messages, status });
   };
 
   // Reserving before the submit keeps an overlapping submit from carrying the
@@ -459,7 +408,8 @@ const useStreamThreadRuntime = (
     for (const message of messages) {
       if (
         message.id &&
-        stagedMessagesRef.current.get(message.id)?.transcriptStatus
+        threadController.getState().stagedEntries.get(message.id)
+          ?.transcriptStatus
       )
         removeStagedMessage(message.id);
     }
@@ -467,7 +417,7 @@ const useStreamThreadRuntime = (
 
   const isTranscriptMessage = (message: LangChainBaseMessage) => {
     const staged = message.id
-      ? stagedMessagesRef.current.get(message.id)
+      ? threadController.getState().stagedEntries.get(message.id)
       : undefined;
     if (staged?.transcriptStatus === "unsent") return true;
     const type = getMessageType(message);
@@ -497,30 +447,27 @@ const useStreamThreadRuntime = (
 
   const stageUserMessage = (msg: AppendMessage, reconcileOnEcho = false) => {
     const stagedMessage = toStagedHumanMessage(msg);
-    stagedMessagesRef.current.set(stagedMessage.id, {
-      message: stagedMessage,
-      runConfig: msg.runConfig,
-      reconcileOnEcho,
-      baseMessageCount: streamRef.current.messages.length,
+    dispatchStaging({
+      type: "stage",
+      entry: {
+        message: stagedMessage,
+        runConfig: msg.runConfig,
+        reconcileOnEcho,
+        baseMessageCount: streamRef.current.messages.length,
+      },
+      visibleMessages: visibleMessagesRef.current,
     });
-    const nextMessages = [...visibleMessagesRef.current, stagedMessage];
-    visibleMessagesRef.current = nextMessages;
-    setStagedMessages(nextMessages);
     return stagedMessage;
   };
 
   const removeStagedMessage = (id: string) => {
-    if (!stagedMessagesRef.current.delete(id)) return;
-    const nextMessages = visibleMessagesRef.current.filter(
-      (message) => message.id !== id,
+    if (!threadController.getState().stagedEntries.has(id)) return;
+    const visible = visibleMessagesRef.current;
+    const nextMessages = visible.filter((message) => message.id !== id);
+    dispatchStaging(
+      { type: "remove", id, visibleMessages: visible },
+      nextMessages,
     );
-    visibleMessagesRef.current = nextMessages;
-    if (stagedMessagesRef.current.size === 0) {
-      stagedBaseMessagesRef.current = null;
-      setStagedMessages(null);
-    } else {
-      setStagedMessages(nextMessages);
-    }
   };
 
   const extras = useMemo(
@@ -573,7 +520,10 @@ const useStreamThreadRuntime = (
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(
               streamRef.current.messages as readonly LangChainBaseMessage[],
-            ).map(createToolCallCancellationStub)
+            )
+              // LangChain rejects a tool message without a tool_call_id.
+              .filter((toolCall) => toolCall.id)
+              .map(createToolCallCancellationStub)
           : [];
       // A null threadId is not a no-op for the SDK: it rebinds the controller
       // away from its self-created thread and forces a fresh one, so the
@@ -639,29 +589,15 @@ const useStreamThreadRuntime = (
       if (stagedRun) {
         if (
           config.sourceId &&
-          stagedMessagesRef.current.get(config.sourceId)?.transcriptStatus
+          threadController.getState().stagedEntries.get(config.sourceId)
+            ?.transcriptStatus
         )
           removeStagedMessage(config.sourceId);
-        const promotedIds = new Set<string>();
-        for (const message of stagedRun.messages) {
-          if (
-            !message.id ||
-            stagedMessagesRef.current.get(message.id)?.transcriptStatus
-          )
-            continue;
-          promotedIds.add(message.id);
-          stagedMessagesRef.current.delete(message.id);
-        }
-        stagedBaseMessagesRef.current = null;
-        if (stagedMessagesRef.current.size > 0) {
-          const nextMessages = visibleMessagesRef.current.filter(
-            (message) => !message.id || !promotedIds.has(message.id),
-          );
-          visibleMessagesRef.current = nextMessages;
-          setStagedMessages(nextMessages);
-        } else {
-          setStagedMessages(null);
-        }
+        dispatchStaging({
+          type: "promote",
+          messages: stagedRun.messages,
+          visibleMessages: visibleMessagesRef.current,
+        });
         const runConfig = config.runConfig ?? stagedRun.runConfig;
         setActiveRunConfig(runConfig);
         await submitCarryingTranscripts(stagedRun.messages, () =>
@@ -710,16 +646,16 @@ const useStreamThreadRuntime = (
           message.parentId,
         );
         const stagedMessage = toStagedHumanMessage(message);
-        stagedMessagesRef.current.set(stagedMessage.id, {
-          message: stagedMessage,
-          runConfig: message.runConfig,
-          reconcileOnEcho: false,
-          baseMessageCount: 0,
+        dispatchStaging({
+          type: "stageEdit",
+          entry: {
+            message: stagedMessage,
+            runConfig: message.runConfig,
+            reconcileOnEcho: false,
+            baseMessageCount: 0,
+          },
+          baseMessages: truncated,
         });
-        stagedBaseMessagesRef.current = truncated;
-        const nextMessages = [...truncated, stagedMessage];
-        visibleMessagesRef.current = nextMessages;
-        setStagedMessages(nextMessages);
         return;
       }
 

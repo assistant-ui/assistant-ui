@@ -122,7 +122,7 @@ curl https://proj-0ltyjcuaxpv1.assistant-api.com/v1/auth/tokens/refresh \
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "refresh_token": { "token", "expires_at" }, "access_token" }` | The anonymous session was refreshed. |
-| `400` | `{ "success": false, "error": … }` | `refresh_token` is missing or empty. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | `refresh_token` is missing or empty. |
 | `403` | `{ "error": "Invalid refresh token format" }` | The token does not start with `refresh_0`. |
 | `403` | `{ "error": "Invalid refresh token" }` | No live anonymous token for an anonymous enabled project matches. |
 | `403` | `{ "error": "Invalid issuer format or projectId" }` | The request host does not identify a project. |
