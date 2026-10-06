@@ -1816,6 +1816,44 @@ export default defineToolkit({
     expect(code).toContain("class Registry extends make()");
   });
 
+  it("keeps an unused class with a computed member key", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { [key()]() {} }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("key()");
+  });
+
+  it("keeps an unused class whose static JSX initializer calls code", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static node = <Widget value={register()} />; }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused JSX initializer that calls code", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget>{track()}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("track()");
+  });
+
+  it("prunes an unused JSX initializer without calls", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget value={label}>{title}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).not.toContain("Widget");
+  });
+
   it("prunes an unused class with only methods and literal static fields", () => {
     const src = minimalSource.replace(
       "export default",

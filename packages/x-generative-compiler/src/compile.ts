@@ -1988,12 +1988,10 @@ function isPlainPattern(node: t.Node): boolean {
 }
 
 function isRemovableClass(node: t.Class): boolean {
-  if (node.decorators?.length) return false;
   if (node.superClass && !isRemovableInit(node.superClass)) return false;
   return node.body.body.every((member) => {
     if (t.isStaticBlock(member)) return false;
     if ("computed" in member && member.computed) return false;
-    if ("decorators" in member && member.decorators?.length) return false;
     if (
       (t.isClassProperty(member) ||
         t.isClassPrivateProperty(member) ||
@@ -2041,8 +2039,36 @@ function isRemovableInit(node: t.Expression | null | undefined): boolean {
     t.isIdentifier(node) ||
     // non-computed only — `obj[fn()]` could hide a side-effectful key
     (t.isMemberExpression(node) && !node.computed) ||
-    t.isJSXElement(node) ||
-    t.isJSXFragment(node) ||
+    ((t.isJSXElement(node) || t.isJSXFragment(node)) && isRemovableJSX(node)) ||
     t.isLiteral(node)
   );
+}
+
+function isRemovableJSX(node: t.JSXElement | t.JSXFragment): boolean {
+  if (t.isJSXElement(node)) {
+    for (const attribute of node.openingElement.attributes) {
+      if (t.isJSXSpreadAttribute(attribute)) {
+        if (!isRemovableInit(attribute.argument)) return false;
+      } else if (attribute.value && !isRemovableJSXChild(attribute.value)) {
+        return false;
+      }
+    }
+  }
+  return node.children.every(isRemovableJSXChild);
+}
+
+function isRemovableJSXChild(
+  node: t.JSXElement["children"][number] | NonNullable<t.JSXAttribute["value"]>,
+): boolean {
+  if (t.isJSXExpressionContainer(node)) {
+    return (
+      t.isJSXEmptyExpression(node.expression) ||
+      isRemovableInit(node.expression)
+    );
+  }
+  if (t.isJSXSpreadChild(node)) return isRemovableInit(node.expression);
+  if (t.isJSXElement(node) || t.isJSXFragment(node)) {
+    return isRemovableJSX(node);
+  }
+  return true;
 }
