@@ -97,15 +97,15 @@ import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
   const { getToken, userId, orgId } = useAuth();
-  const identity = userId ? `${userId}:${orgId ?? ""}` : null;
+  const scope = userId === null ? null : `${userId ?? ""}:${orgId ?? ""}`;
   const cloud = useMemo(
     () =>
       new AssistantCloud({
         baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
         authToken: async () =>
-          identity ? getToken({ template: "assistant-ui" }) : null,
+          scope === null ? null : getToken({ template: "assistant-ui" }),
       }),
-    [getToken, identity],
+    [getToken, scope],
   );
 
   const runtime = useChatRuntime({ cloud });
