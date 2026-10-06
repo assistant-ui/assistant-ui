@@ -137,11 +137,12 @@ const createArgsSnapshot = (
   return result;
 };
 
-const cloneArgsSnapshot = (args: ReadonlyJSONObject): ReadonlyJSONObject => {
+const materializeArgsSnapshot = (
+  args: ReadonlyJSONObject,
+): ReadonlyJSONObject => {
   const cloneContainer = (value: MutableJSONContainer): MutableJSONContainer =>
     Array.isArray(value) ? [...value] : { ...value };
-  const result = cloneContainer(args);
-  const pending = [result];
+  const pending: MutableJSONContainer[] = [args];
   while (pending.length > 0) {
     const container = pending.pop()!;
     for (const key of Object.keys(container)) {
@@ -152,19 +153,7 @@ const cloneArgsSnapshot = (args: ReadonlyJSONObject): ReadonlyJSONObject => {
       pending.push(copy);
     }
   }
-  const meta = getPartialJsonObjectMeta(args);
-  if (meta) {
-    const symbol = Object.getOwnPropertySymbols(args).find(
-      (key) => Reflect.get(args, key) === meta,
-    )!;
-    Object.defineProperty(result, symbol, {
-      value: { state: meta.state, partialPath: [...meta.partialPath] },
-      enumerable: true,
-      configurable: true,
-      writable: true,
-    });
-  }
-  return result as ReadonlyJSONObject;
+  return args;
 };
 
 export class IncrementalJsonObjectParser {
@@ -179,6 +168,7 @@ export class IncrementalJsonObjectParser {
 
   private constructor(fallback: ReadonlyJSONObject) {
     this.args = fallback;
+    this.publishedArgs = fallback;
   }
 
   static from(
@@ -200,6 +190,9 @@ export class IncrementalJsonObjectParser {
     }
     parser.consumeDelta(text, true);
     parser.args = parser.snapshot(fallback);
+    if (parser.args !== fallback)
+      parser.publishedArgs =
+        parser.mode === "fallback" ? parser.args : undefined;
     return parser;
   }
 
@@ -208,7 +201,7 @@ export class IncrementalJsonObjectParser {
   }
 
   get currentArgs() {
-    return (this.publishedArgs ??= cloneArgsSnapshot(this.args));
+    return (this.publishedArgs ??= materializeArgsSnapshot(this.args));
   }
 
   append(delta: string) {
@@ -233,7 +226,12 @@ export class IncrementalJsonObjectParser {
       value: delta,
     };
     parser.args = parser.snapshot(fallback);
-    if (parser.args === fallback) parser.publishedArgs = this.publishedArgs;
+    parser.publishedArgs =
+      parser.args === fallback
+        ? this.publishedArgs
+        : parser.mode === "fallback"
+          ? parser.args
+          : undefined;
     return parser;
   }
 
@@ -318,9 +316,6 @@ export class IncrementalJsonObjectParser {
       COMPLETE_NUMBER.test(this.token.value)
     ) {
       this.writeValue(this.token.path, Number(this.token.value));
-    }
-    for (const container of this.ownedContainers) {
-      if (container !== this.root) Object.freeze(container);
     }
     this.ownedContainers = undefined;
   }
