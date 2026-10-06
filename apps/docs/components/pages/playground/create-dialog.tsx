@@ -7,7 +7,7 @@ import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
 import { configMatchesPreset } from "./presets";
-import { encodeConfig } from "@/lib/playground-url-state";
+import { encodeConfig } from "@/lib/playground-config-codec";
 import { BASE_URL } from "@/lib/constants";
 import { analytics } from "@/lib/analytics";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";

@@ -5,7 +5,7 @@ import {
   type FontSize,
 } from "../components/pages/playground/types";
 import { generateRegistryJson } from "./playground-registry";
-import { decodeConfig } from "./playground-url-state";
+import { decodeConfig } from "./playground-config-codec";
 
 it.each<{ fontSize: FontSize; className: string }>([
   { fontSize: "13px", className: "text-[13px]" },
