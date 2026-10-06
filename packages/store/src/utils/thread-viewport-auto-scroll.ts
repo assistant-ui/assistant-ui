@@ -150,7 +150,7 @@ export const createThreadViewportAutoScroll = (input: {
       el.addEventListener("scroll", handleScroll);
       el.addEventListener("pointerdown", onPointerdown);
       checkInitialize();
-      handleScroll();
+      if (contentInset > 0) followGrowth();
       const detach = () => {
         if (detachAttached !== detach) return;
         disconnect();

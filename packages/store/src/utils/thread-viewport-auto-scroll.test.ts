@@ -85,6 +85,42 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("createThreadViewportAutoScroll", () => {
+  it("follows the first content resize after attaching over overflowing history", () => {
+    const view = geometry(500, 100);
+    const onAtBottomChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange,
+    });
+    controller.attach(view.element);
+    expect(controller.isAtBottom).toBe(true);
+    expect(onAtBottomChange).not.toHaveBeenCalled();
+
+    observers[0]!.trigger();
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+    expect(view.element.scrollTop).toBe(400);
+    controller.dispose();
+  });
+
+  it("follows an inset reported before attachment", () => {
+    const view = geometry(500, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.setContentInset(50);
+    controller.attach(view.element);
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+    expect(view.element.scrollTop).toBe(400);
+    controller.dispose();
+  });
+
   it("follows content growth while pinned and unpins on user scroll up", () => {
     const view = geometry();
     const onAtBottomChange = vi.fn();
