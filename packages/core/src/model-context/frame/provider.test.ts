@@ -64,6 +64,29 @@ describe("AssistantFrameProvider", () => {
     );
   };
 
+  const dispatchContextRequest = (origin: string) => {
+    messageHandler?.(
+      new MessageEvent("message", {
+        data: {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: { type: "model-context-request" },
+        },
+        origin,
+        source: parentWindow,
+      }),
+    );
+  };
+
+  const expectAcceptedOrigins = (accepted: string, rejected: string) => {
+    vi.mocked(parentWindow.postMessage).mockClear();
+    dispatchContextRequest(rejected);
+    expect(parentWindow.postMessage).not.toHaveBeenCalled();
+    dispatchContextRequest(accepted);
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(expect.anything(), {
+      targetOrigin: accepted,
+    });
+  };
+
   beforeEach(() => {
     parentWindow = {
       postMessage: vi.fn(),
@@ -909,6 +932,52 @@ describe("AssistantFrameProvider", () => {
     expect(window.addEventListener).toHaveBeenCalledTimes(2);
   });
 
+  it("withdraws the last cross-origin provider's tools from the parent", () => {
+    const unsubscribe = AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: { sensitiveTool: createTool(async () => "result") },
+        }),
+      },
+      "https://parent.example",
+    );
+
+    unsubscribe();
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "model-context-update", context: {} },
+      },
+      "https://parent.example",
+    );
+  });
+
+  it("withdraws tools announced before a cross-origin registration rolls back", () => {
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        {
+          getModelContext: () => ({
+            tools: { sensitiveTool: createTool(async () => "result") },
+          }),
+          subscribe: (callback) => {
+            callback();
+            throw new Error("subscribe failed");
+          },
+        },
+        "https://parent.example",
+      ),
+    ).toThrow("subscribe failed");
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "model-context-update", context: {} },
+      },
+      "https://parent.example",
+    );
+  });
+
   it("returns to the same-origin policy after every provider unsubscribes", () => {
     const unsubscribe = AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
@@ -919,8 +988,9 @@ describe("AssistantFrameProvider", () => {
 
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
-      window.location.origin,
+      "https://first.example",
     );
+    expectAcceptedOrigins(window.location.origin, "https://first.example");
 
     expect(() =>
       AssistantFrameProvider.addModelContextProvider(
@@ -953,12 +1023,15 @@ describe("AssistantFrameProvider", () => {
     );
 
     unsubscribeSecond();
+    const callCount = vi.mocked(parentWindow.postMessage).mock.calls.length;
     unsubscribeSecond();
 
+    expect(parentWindow.postMessage).toHaveBeenCalledTimes(callCount);
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
-      window.location.origin,
+      "https://second.example",
     );
+    expectAcceptedOrigins(window.location.origin, "https://second.example");
   });
 
   it("recomputes the origin policy from providers that remain", () => {
@@ -975,8 +1048,14 @@ describe("AssistantFrameProvider", () => {
 
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
-      "*",
+      "https://parent.example",
     );
+
+    vi.mocked(parentWindow.postMessage).mockClear();
+    dispatchContextRequest("https://other.example");
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(expect.anything(), {
+      targetOrigin: "https://other.example",
+    });
   });
 
   it("returns to the same-origin policy after a wildcard provider unsubscribes", () => {
@@ -989,8 +1068,9 @@ describe("AssistantFrameProvider", () => {
 
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
-      window.location.origin,
+      "*",
     );
+    expectAcceptedOrigins(window.location.origin, "https://other.example");
   });
 
   it("allows opting back into a wildcard policy after every provider unsubscribes", () => {

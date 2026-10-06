@@ -269,12 +269,12 @@ export class AssistantFrameProvider {
     );
   }
 
-  private broadcastUpdate() {
+  private broadcastUpdate(targetOrigin = this._targetOrigin) {
     if (this._disposed) return;
-    this.postModelContext();
+    this.postModelContext(targetOrigin);
   }
 
-  private postModelContext() {
+  private postModelContext(targetOrigin = this._targetOrigin) {
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -283,7 +283,7 @@ export class AssistantFrameProvider {
 
       window.parent.postMessage(
         { channel: FRAME_MESSAGE_CHANNEL, message: updateMessage },
-        this._targetOrigin,
+        targetOrigin,
       );
     }
   }
@@ -345,6 +345,7 @@ export class AssistantFrameProvider {
 
       instance.broadcastUpdate();
     } catch (error) {
+      const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
         origin,
@@ -363,7 +364,7 @@ export class AssistantFrameProvider {
         console.error(unsubscribeError);
       }
       try {
-        instance.broadcastUpdate();
+        instance.broadcastUpdate(trustedOrigin);
       } catch (broadcastError) {
         console.error(broadcastError);
       }
@@ -374,6 +375,8 @@ export class AssistantFrameProvider {
     return () => {
       if (released) return;
       released = true;
+      // The removal has to reach the parent through the origin that received the tools.
+      const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
         origin,
@@ -397,7 +400,7 @@ export class AssistantFrameProvider {
         runCleanup(() => instance.cancelToolCallsForProvider(removedProvider));
       }
       if (unsubscribe) runCleanup(unsubscribe);
-      runCleanup(() => instance.broadcastUpdate());
+      runCleanup(() => instance.broadcastUpdate(trustedOrigin));
 
       if (cleanupFailed) throw cleanupError;
     };
