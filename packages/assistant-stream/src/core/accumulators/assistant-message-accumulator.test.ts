@@ -1075,4 +1075,28 @@ describe("AssistantMessageAccumulator tool arguments", () => {
       args: { query: "pizza", filters: { limit: 2 } },
     });
   });
+
+  it("exposes tool arguments as plain cloneable objects", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"query":"pizza",' },
+      { type: "text-delta", path: [0], textDelta: '"limit":2}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    const part = messages.at(-1)?.parts[0];
+    expect(part?.type).toBe("tool-call");
+    if (part?.type !== "tool-call") throw new Error("Expected a tool call");
+
+    expect(Object.getPrototypeOf(part.args)).toBe(Object.prototype);
+    expect(structuredClone(part.args)).toEqual({ query: "pizza", limit: 2 });
+
+    const mutableArgs = part.args as Record<string, unknown>;
+    mutableArgs.query = "updated";
+    expect(mutableArgs.query).toBe("updated");
+  });
 });

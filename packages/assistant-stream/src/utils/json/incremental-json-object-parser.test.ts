@@ -1,16 +1,18 @@
+import { inspect } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
   getPartialJsonObjectMeta,
   parsePartialJsonObject,
 } from "./parse-partial-json-object";
 import { IncrementalJsonObjectParser } from "./incremental-json-object-parser";
-import type { ReadonlyJSONValue } from "./json-value";
+import type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json-value";
 
 const inputs = [
   '{"text":"brace } quote \\" slash \\\\ emoji 😀","nested":{"values":[1,-2.5e3,true,false,null]}}',
   '{"escaped":"line\\nfeed","unicode":"\\uD83D\\uDE00"}',
   '{"duplicate":"first","duplicate":"second","tail":0}',
   '{"constructor":1,"tail":"ok"}',
+  '{"2":2,"1":1,"nested":{"10":"ten","0":"zero"}}',
   '{\n  "a" : [ 1 , { "b" : true } ] ,\n  "c" : "d"\n}\n',
 ];
 
@@ -148,6 +150,7 @@ describe("IncrementalJsonObjectParser", () => {
     );
     const values = parser.currentArgs.values as readonly ReadonlyJSONValue[];
     const copy = { ...parser.currentArgs };
+    const mutableArgs = parser.currentArgs as Record<string, unknown>;
 
     expect(Array.isArray(values)).toBe(true);
     expect(Object.keys(parser.currentArgs)).toEqual(["values"]);
@@ -157,6 +160,28 @@ describe("IncrementalJsonObjectParser", () => {
     );
     expect(JSON.stringify(parser.currentArgs)).toBe(
       '{"values":[1,{"nested":true}]}',
+    );
+    expect(structuredClone(parser.currentArgs)).toEqual({
+      values: [1, { nested: true }],
+    });
+    expect(inspect(parser.currentArgs)).toContain("nested: true");
+
+    mutableArgs.extra = "visible";
+    expect(mutableArgs.extra).toBe("visible");
+  });
+
+  it("preserves integer-like object keys and their ordinary key order", () => {
+    const parser = IncrementalJsonObjectParser.from(
+      '{"2":2,"1":1,"nested":{"10":"ten","0":"zero"}}',
+    );
+    const nested = parser.currentArgs.nested as ReadonlyJSONObject;
+
+    expect(parser.currentArgs["1"]).toBe(1);
+    expect(parser.currentArgs["2"]).toBe(2);
+    expect(Object.keys(parser.currentArgs)).toEqual(["1", "2", "nested"]);
+    expect(Object.keys(nested)).toEqual(["0", "10"]);
+    expect(JSON.stringify(parser.currentArgs)).toBe(
+      '{"1":1,"2":2,"nested":{"0":"zero","10":"ten"}}',
     );
   });
 

@@ -5,28 +5,8 @@ import {
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "./json-value";
 
 type JSONPath = (string | number)[];
-type JSONScalar = null | string | number | boolean;
-
-const CONTAINER_REF = Symbol("incremental-json-container");
-const ARRAY_LENGTH = Symbol("incremental-json-array-length");
-const ABSENT = Symbol("incremental-json-absent");
-
-type ContainerRef = {
-  readonly [CONTAINER_REF]: true;
-  readonly id: number;
-  readonly kind: "array" | "object";
-};
-
-type StoredValue = JSONScalar | ContainerRef;
-type StoredKey = string | number | typeof ARRAY_LENGTH;
-
-type Version = {
-  readonly parent: Version | undefined;
-  readonly changes: Map<number, Map<StoredKey, StoredValue>>;
-  readonly reads: Map<number, Map<StoredKey, StoredValue | typeof ABSENT>>;
-  readonly materialized: Map<number, Map<string | number, StoredValue>>;
-  readonly views: Map<number, ReadonlyJSONValue>;
-};
+type MutableJSONObject = Record<string, ReadonlyJSONValue>;
+type MutableJSONContainer = MutableJSONObject | ReadonlyJSONValue[];
 
 type ObjectFrame = {
   kind: "object";
@@ -97,274 +77,77 @@ const SINGLE_ESCAPES: Record<string, string> = {
   t: "\t",
 };
 
-const isContainerRef = (value: unknown): value is ContainerRef =>
-  typeof value === "object" && value !== null && CONTAINER_REF in value;
+const isContainer = (value: unknown): value is MutableJSONContainer =>
+  typeof value === "object" && value !== null;
 
-const toStoredKey = (property: PropertyKey): string | number | symbol => {
-  if (typeof property !== "string" || !/^(?:0|[1-9]\d*)$/.test(property)) {
-    return property;
-  }
-  const index = Number(property);
-  return Number.isSafeInteger(index) ? index : property;
+const setValue = (
+  target: MutableJSONContainer,
+  key: string | number,
+  value: ReadonlyJSONValue,
+) => {
+  (target as Record<string | number, ReadonlyJSONValue>)[key] = value;
 };
 
-class VersionedJsonStore {
-  private nextContainerId = 0;
-
-  createVersion(parent?: Version): Version {
-    return {
-      parent,
-      changes: new Map(),
-      reads: new Map(),
-      materialized: new Map(),
-      views: new Map(),
-    };
-  }
-
-  createContainer(kind: ContainerRef["kind"], version: Version): ContainerRef {
-    const ref = {
-      [CONTAINER_REF]: true as const,
-      id: this.nextContainerId++,
-      kind,
-    };
-    if (kind === "array") this.write(version, ref, ARRAY_LENGTH, 0);
-    return ref;
-  }
-
-  read(
-    version: Version | undefined,
-    ref: ContainerRef,
-    key: StoredKey,
-  ): StoredValue | typeof ABSENT {
-    const traversed: Version[] = [];
-    let cursor = version;
-    let value: StoredValue | typeof ABSENT = ABSENT;
-
-    while (cursor) {
-      if (key !== ARRAY_LENGTH) {
-        const materialized = cursor.materialized.get(ref.id);
-        if (materialized) {
-          value = materialized.has(key as string | number)
-            ? materialized.get(key as string | number)!
-            : ABSENT;
-          break;
-        }
-      }
-
-      const changes = cursor.changes.get(ref.id);
-      if (changes?.has(key)) {
-        value = changes.get(key)!;
-        break;
-      }
-
-      const reads = cursor.reads.get(ref.id);
-      if (reads?.has(key)) {
-        value = reads.get(key)!;
-        break;
-      }
-
-      traversed.push(cursor);
-      cursor = cursor.parent;
-    }
-
-    for (const traversedVersion of traversed) {
-      let reads = traversedVersion.reads.get(ref.id);
-      if (!reads) {
-        reads = new Map();
-        traversedVersion.reads.set(ref.id, reads);
-      }
-      reads.set(key, value);
-    }
-    return value;
-  }
-
-  write(
-    version: Version,
-    ref: ContainerRef,
-    key: StoredKey,
-    value: StoredValue,
-  ) {
-    let changes = version.changes.get(ref.id);
-    if (!changes) {
-      changes = new Map();
-      version.changes.set(ref.id, changes);
-    }
-    changes.set(key, value);
-    version.reads.get(ref.id)?.delete(key);
-
-    if (ref.kind === "array" && typeof key === "number") {
-      const length = this.read(version, ref, ARRAY_LENGTH);
-      const nextLength = Math.max(
-        length === ABSENT ? 0 : Number(length),
-        key + 1,
-      );
-      changes.set(ARRAY_LENGTH, nextLength);
-      version.reads.get(ref.id)?.delete(ARRAY_LENGTH);
-    }
-  }
-
-  view(
-    version: Version,
-    ref: ContainerRef,
-    meta?: { state: "complete" | "partial"; partialPath: string[] },
-  ): ReadonlyJSONValue {
-    const cached = version.views.get(ref.id);
-    if (cached) return cached;
-
-    if (ref.kind === "array") {
-      const length = this.read(version, ref, ARRAY_LENGTH);
-      const target: ReadonlyJSONValue[] = [];
-      target.length = length === ABSENT ? 0 : Number(length);
-      const proxy = new Proxy(
-        target,
-        this.proxyHandler(version, ref),
-      ) as ReadonlyJSONValue[];
-      version.views.set(ref.id, proxy);
-      return proxy;
-    }
-
-    const target = meta
-      ? (parsePartialJsonObject("")! as Record<PropertyKey, unknown>)
-      : {};
-    if (meta) Object.assign(getPartialJsonObjectMeta(target)!, meta);
-    const proxy = new Proxy(
-      target,
-      this.proxyHandler(version, ref),
-    ) as ReadonlyJSONObject;
-    version.views.set(ref.id, proxy as ReadonlyJSONObject);
-    return proxy as ReadonlyJSONObject;
-  }
-
-  private expose(version: Version, value: StoredValue): ReadonlyJSONValue {
-    return isContainerRef(value) ? this.view(version, value) : value;
-  }
-
-  private materialize(
-    version: Version,
-    ref: ContainerRef,
-  ): Map<string | number, StoredValue> {
-    const cached = version.materialized.get(ref.id);
-    if (cached) return cached;
-
-    const versions: Version[] = [];
-    let cursor: Version | undefined = version;
-    let values = new Map<string | number, StoredValue>();
-
-    while (cursor) {
-      const materialized = cursor.materialized.get(ref.id);
-      if (materialized) {
-        values = new Map(materialized);
-        break;
-      }
-      versions.push(cursor);
-      cursor = cursor.parent;
-    }
-
-    for (let index = versions.length - 1; index >= 0; index--) {
-      const changes = versions[index]!.changes.get(ref.id);
-      if (changes) {
-        for (const [key, value] of changes) {
-          if (key !== ARRAY_LENGTH) {
-            values.set(key, value as StoredValue);
-          }
-        }
-      }
-    }
-    version.materialized.set(ref.id, values);
-    return values;
-  }
-
-  private proxyHandler(
-    version: Version,
-    ref: ContainerRef,
-  ): ProxyHandler<object> {
-    return {
-      get: (target, property, receiver) => {
-        const key = toStoredKey(property);
-        if (typeof key === "string" || typeof key === "number") {
-          if (ref.kind === "array" && typeof key === "number") {
-            this.materialize(version, ref);
-          }
-          const value = this.read(version, ref, key);
-          if (value !== ABSENT)
-            return this.expose(version, value as StoredValue);
-        }
-        return Reflect.get(target, property, receiver);
-      },
-      getOwnPropertyDescriptor: (target, property) => {
-        const key = toStoredKey(property);
-        if (typeof key === "string" || typeof key === "number") {
-          const value = this.read(version, ref, key);
-          if (value !== ABSENT) {
-            return {
-              configurable: true,
-              enumerable: true,
-              value: this.expose(version, value as StoredValue),
-              writable: true,
-            };
-          }
-        }
-        return Reflect.getOwnPropertyDescriptor(target, property);
-      },
-      has: (target, property) => {
-        const key = toStoredKey(property);
-        if (
-          (typeof key === "string" || typeof key === "number") &&
-          this.read(version, ref, key) !== ABSENT
-        ) {
-          return true;
-        }
-        return Reflect.has(target, property);
-      },
-      ownKeys: (target) => {
-        const keys = [...this.materialize(version, ref).keys()].map(String);
-        for (const key of Reflect.ownKeys(target)) {
-          if (!keys.includes(key as string)) keys.push(key as string);
-        }
-        return keys;
-      },
-    };
-  }
-}
-
 const writeAtPath = (
-  store: VersionedJsonStore,
-  version: Version,
-  root: ContainerRef,
+  root: MutableJSONObject,
   path: JSONPath,
-  value: StoredValue,
-) => {
-  let container = root;
-  for (let depth = 0; depth < path.length - 1; depth++) {
-    const child = store.read(version, container, path[depth]!);
-    if (!isContainerRef(child)) {
-      throw new Error("Invalid incremental JSON path");
+  value: ReadonlyJSONValue,
+  ownedContainers: Set<MutableJSONContainer>,
+): MutableJSONObject => {
+  const update = (
+    container: MutableJSONContainer,
+    depth: number,
+  ): MutableJSONContainer => {
+    const target = ownedContainers.has(container)
+      ? container
+      : Array.isArray(container)
+        ? [...container]
+        : { ...container };
+    ownedContainers.add(target);
+    const key = path[depth]!;
+
+    if (depth === path.length - 1) {
+      setValue(target, key, value);
+      if (isContainer(value)) ownedContainers.add(value);
+      return target;
     }
-    container = child;
+
+    const child = target[key as keyof typeof target];
+    if (!isContainer(child)) throw new Error("Invalid incremental JSON path");
+    setValue(target, key, update(child, depth + 1));
+    return target;
+  };
+
+  return update(root, 0) as MutableJSONObject;
+};
+
+const createArgsSnapshot = (
+  root: MutableJSONObject,
+  state: "complete" | "partial",
+  partialPath: JSONPath,
+): ReadonlyJSONObject => {
+  const result = parsePartialJsonObject("")! as MutableJSONObject;
+  for (const [key, value] of Object.entries(root)) {
+    setValue(result, key, value);
   }
-  store.write(version, container, path.at(-1)!, value);
+
+  const meta = getPartialJsonObjectMeta(result)!;
+  meta.state = state;
+  meta.partialPath = partialPath.map(String);
+  return result;
 };
 
 export class IncrementalJsonObjectParser {
-  private readonly store: VersionedJsonStore;
-  private readonly root: ContainerRef;
-  private readonly version: Version;
   private text: TextChunk | undefined;
   private mode: "start" | "parsing" | "complete" | "fallback" = "start";
+  private root: MutableJSONObject = {};
   private frames: Frame[] = [];
   private token: Token | undefined;
   private args: ReadonlyJSONObject;
+  private ownedContainers: Set<MutableJSONContainer> | undefined;
 
-  private constructor(
-    fallback: ReadonlyJSONObject,
-    store = new VersionedJsonStore(),
-    root?: ContainerRef,
-    version?: Version,
-  ) {
+  private constructor(fallback: ReadonlyJSONObject) {
     this.args = fallback;
-    this.store = store;
-    this.version = version ?? store.createVersion();
-    this.root = root ?? store.createContainer("object", this.version);
   }
 
   static from(
@@ -372,7 +155,7 @@ export class IncrementalJsonObjectParser {
     fallback: ReadonlyJSONObject = parsePartialJsonObject("")!,
   ) {
     const parser = new IncrementalJsonObjectParser(fallback);
-    parser.consumeDelta(text);
+    parser.consumeDelta(text, true);
     if (text.length !== 0) {
       parser.text = { length: text.length, previous: undefined, value: text };
     }
@@ -404,14 +187,10 @@ export class IncrementalJsonObjectParser {
   }
 
   private clone() {
-    const parser = new IncrementalJsonObjectParser(
-      this.args,
-      this.store,
-      this.root,
-      this.store.createVersion(this.version),
-    );
+    const parser = new IncrementalJsonObjectParser(this.args);
     parser.text = this.text;
     parser.mode = this.mode;
+    parser.root = this.root;
     parser.frames = this.frames.map((frame) => ({
       ...frame,
       path: [...frame.path],
@@ -434,10 +213,11 @@ export class IncrementalJsonObjectParser {
 
     if (this.mode === "start") return fallback;
 
-    return this.store.view(this.version, this.root, {
-      state: this.mode === "complete" ? "complete" : "partial",
-      partialPath: this.partialPath().map(String),
-    }) as ReadonlyJSONObject;
+    return createArgsSnapshot(
+      this.root,
+      this.mode === "complete" ? "complete" : "partial",
+      this.partialPath(),
+    );
   }
 
   private accumulatedText() {
@@ -464,9 +244,12 @@ export class IncrementalJsonObjectParser {
     return this.mode === "fallback";
   }
 
-  private consumeDelta(delta: string) {
+  private consumeDelta(delta: string, ownsRoot = false) {
     if (this.isFallback()) return;
 
+    this.ownedContainers = ownsRoot
+      ? new Set<MutableJSONContainer>([this.root])
+      : new Set();
     for (const char of delta) {
       this.consumeCharacter(char);
       if (this.isFallback()) break;
@@ -485,6 +268,7 @@ export class IncrementalJsonObjectParser {
     ) {
       this.writeValue(this.token.path, Number(this.token.value));
     }
+    this.ownedContainers = undefined;
   }
 
   private consumeCharacter(char: string) {
@@ -589,14 +373,14 @@ export class IncrementalJsonObjectParser {
 
   private startValue(char: string, path: JSONPath) {
     if (char === "{") {
-      this.writeValue(path, this.store.createContainer("object", this.version));
+      this.writeValue(path, {});
       this.frames.push({
         kind: "object",
         path,
         state: "first-key-or-end",
       });
     } else if (char === "[") {
-      this.writeValue(path, this.store.createContainer("array", this.version));
+      this.writeValue(path, []);
       this.frames.push({
         kind: "array",
         path,
@@ -775,9 +559,14 @@ export class IncrementalJsonObjectParser {
     }
   }
 
-  private writeValue(path: JSONPath, value: StoredValue) {
+  private writeValue(path: JSONPath, value: ReadonlyJSONValue) {
     try {
-      writeAtPath(this.store, this.version, this.root, path, value);
+      this.root = writeAtPath(
+        this.root,
+        path,
+        value,
+        this.ownedContainers ?? new Set(),
+      );
     } catch {
       this.mode = "fallback";
     }
