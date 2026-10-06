@@ -109,9 +109,6 @@ const createThreadLifetimes = () => {
     }
   };
   return {
-    has(threadId: string) {
-      return controllers.has(threadId);
-    },
     signalFor(threadId: string, ownerSignal: AbortSignal | undefined) {
       let controller = controllers.get(threadId);
       if (!controller) {
@@ -168,6 +165,7 @@ const useInMemoryThreadList = (
   } = props;
   const ownerDestroySignal = useAssistantClientDestroySignal();
   const [lifetimes] = useState(createThreadLifetimes);
+  const [knownThreadIds] = useState(() => new Set<string>([INITIAL_THREAD_ID]));
 
   // No cleanup: a hidden list must still abort its threads' sends when the owner is destroyed.
   useEffect(() => {
@@ -190,7 +188,7 @@ const useInMemoryThreadList = (
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
-    if (!lifetimes.has(threadId)) return;
+    if (!knownThreadIds.has(threadId)) return;
     setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
@@ -232,6 +230,8 @@ const useInMemoryThreadList = (
     // stay selected. The fallback id is minted eagerly so the updater stays
     // pure under batched deletes.
     const fallbackId = `thread-${generateId()}`;
+    knownThreadIds.delete(threadId);
+    if (knownThreadIds.size === 0) knownThreadIds.add(fallbackId);
     setListState((prev) => {
       const remaining = prev.threads.filter((t) => t.id !== threadId);
       if (remaining.length === 0) {
@@ -254,6 +254,7 @@ const useInMemoryThreadList = (
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
+    knownThreadIds.add(newId);
     setListState((prev) => ({
       threads: [
         ...prev.threads,

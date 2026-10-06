@@ -267,6 +267,33 @@ describe("InMemoryThreadList selection events", () => {
     );
   });
 
+  it("keeps every thread created in one batch switchable", async () => {
+    const { getAui, onSwitchToThread, selectionChanged } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+      getAui().threads.switchToNewThread();
+    });
+
+    const state = getAui().threads.getState();
+    const createdIds = state.threadIds.filter((id) => id !== "main");
+    expect(createdIds).toHaveLength(2);
+    expect(state.mainThreadId).toBe(createdIds[1]);
+    selectionChanged.mockClear();
+
+    await act(async () => {
+      getAui().threads.switchToThread(createdIds[0]!);
+    });
+
+    expect(getAui().threads.getState().mainThreadId).toBe(createdIds[0]);
+    expect(onSwitchToThread).toHaveBeenCalledExactlyOnceWith(createdIds[0]);
+    expect(selectionChanged).toHaveBeenCalledExactlyOnceWith({
+      threadId: createdIds[0],
+      previousThreadId: createdIds[1],
+    });
+  });
+
   it("ignores a switch to a thread deleted earlier in the same batch", async () => {
     const { getAui, onSwitchToThread, selectionChanged } = setup();
     await act(async () => {});
