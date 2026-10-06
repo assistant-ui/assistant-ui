@@ -7,11 +7,9 @@ import { useStableKeys } from "./stableKeys";
 /**
  * Renders the default slot once per message in the current thread, each
  * instance scoped to its message through {@link MessageByIdProvider} and
- * keyed by the message id: an edit or reload that replaces the occupant of a
- * slot remounts that row, so `<TransitionGroup>` and per-row component state
- * follow message identity. The empty optimistic placeholder that precedes a
- * response is its own identity, so the arrival of the real assistant message
- * remounts that one row (a leave/enter pair under `<TransitionGroup>`).
+ * keyed by the message id. A stable id keeps its row component instance across
+ * updates; a new id remounts the row. Because rows render inside this
+ * component, an outer `<TransitionGroup>` cannot animate individual messages.
  *
  * @example
  * ```html
