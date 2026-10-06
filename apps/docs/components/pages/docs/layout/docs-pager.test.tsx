@@ -68,4 +68,25 @@ describe("DocsPager", () => {
       screen.queryByRole("button", { name: "More page actions" }),
     ).toBeNull();
   });
+
+  it("keeps source editing available in the page actions menu", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, text: async () => "Page" })),
+    );
+    const githubEditUrl =
+      "https://github.com/assistant-ui/assistant-ui/edit/main/apps/docs/content/docs/example.mdx";
+    render(
+      <DocsPager
+        title="Example"
+        markdownUrl="/docs/example.md"
+        githubEditUrl={githubEditUrl}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More page actions" }));
+    const action = await screen.findByRole("menuitem", {
+      name: "Edit on GitHub",
+    });
+    expect(action.getAttribute("href")).toBe(githubEditUrl);
+  });
 });

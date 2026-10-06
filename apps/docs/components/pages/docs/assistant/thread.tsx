@@ -8,7 +8,6 @@ import {
 } from "@assistant-ui/react";
 import {
   type ComponentType,
-  Fragment,
   type ReactNode,
   useEffect,
   useMemo,
@@ -25,7 +24,6 @@ import {
   type ThreadTokenUsage,
 } from "@assistant-ui/ai-sdk";
 import { getContextWindow } from "@/lib/model";
-import { typeSection } from "@/components/shared/type";
 import { XIcon } from "lucide-react";
 
 function PendingMessageHandler() {
@@ -139,10 +137,8 @@ function PanelHeader(): React.ReactNode {
   const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
 
   return (
-    <div className="border-foreground/10 flex h-11 shrink-0 items-center justify-between border-b px-3.5">
-      <span className="text-muted-foreground font-mono text-[11px] font-medium">
-        assistant-ui · Ask AI
-      </span>
+    <div className="border-foreground/10 flex h-14 shrink-0 items-center justify-between border-b px-3.5">
+      <span className="text-foreground text-sm font-medium">Ask AI</span>
       <div className="flex items-center gap-1">
         {contextTokens > 0 ? (
           <ContextDisplay.Text
@@ -167,9 +163,9 @@ function PanelHeader(): React.ReactNode {
             aui.threads.switchToNewThread();
           }}
           aria-label="New chat"
-          className="text-muted-foreground hover:text-foreground rounded-control flex h-7 items-center px-2 font-mono text-[11px] font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-control flex min-h-11 items-center px-2 text-sm transition-colors focus-visible:outline-2"
         >
-          New
+          New chat
         </button>
         <button
           type="button"
@@ -181,7 +177,7 @@ function PanelHeader(): React.ReactNode {
             setOpen(false);
           }}
           aria-label="Close chat"
-          className="text-muted-foreground hover:text-foreground rounded-control flex size-7 items-center justify-center transition-colors"
+          className="text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-control flex size-11 items-center justify-center transition-colors focus-visible:outline-2"
         >
           <XIcon className="size-3.5" />
         </button>
@@ -189,8 +185,6 @@ function PanelHeader(): React.ReactNode {
     </div>
   );
 }
-
-const GREETING_WORDS = ["Ask", "the", "library."];
 
 const SUGGESTIONS = [
   "What is assistant-ui?",
@@ -201,55 +195,17 @@ const SUGGESTIONS = [
 
 function AssistantWelcome(): React.ReactNode {
   return (
-    <div className="flex flex-1 flex-col px-1.5 pb-2">
-      <div className="flex flex-1 flex-col justify-end gap-2 pb-10">
-        <p className={typeSection}>
-          {GREETING_WORDS.map((word, index) => (
-            <Fragment key={index}>
-              <span
-                className="hero-word"
-                style={{ animationDelay: `${index * 90}ms` }}
-              >
-                <span
-                  className="hero-word-ink"
-                  style={{ animationDelay: `${index * 90}ms` }}
-                >
-                  {word}
-                </span>
-              </span>{" "}
-            </Fragment>
-          ))}
-          <span
-            aria-hidden
-            className="hero-caret ml-1 inline-block h-[0.72em] w-[3px] bg-blue-500 align-baseline"
-            style={{ animationDelay: "180ms" }}
-          />
-        </p>
-        <p
-          className="text-muted-foreground hero-rise text-[13px] leading-relaxed"
-          style={{ animationDelay: "500ms" }}
-        >
-          It reads the docs, then answers.
-        </p>
-      </div>
-      <div className="flex flex-col">
-        {SUGGESTIONS.map((prompt, index) => (
+    <div className="flex flex-1 flex-col px-1.5 pt-5 pb-6">
+      <h2 className="mb-5 text-base font-medium">Ask about the docs</h2>
+      <div className="flex flex-col gap-1">
+        {SUGGESTIONS.map((prompt) => (
           <ThreadPrimitive.Suggestion
             key={prompt}
             prompt={prompt}
             send
-            className="group hover:bg-foreground/[0.025] hero-rise -mx-2 flex w-full items-baseline gap-2.5 px-2 py-2 text-left transition-colors"
-            style={{ animationDelay: `${660 + index * 60}ms` }}
+            className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.025] focus-visible:outline-ring -mx-2 flex min-h-11 w-full items-center px-2 py-2 text-left text-sm leading-relaxed transition-colors focus-visible:outline-2"
           >
-            <span
-              aria-hidden
-              className="text-muted-foreground/50 font-mono text-[12px] transition-colors group-hover:text-blue-500"
-            >
-              {">"}
-            </span>
-            <span className="text-muted-foreground group-hover:text-foreground text-[13px] transition-colors">
-              {prompt}
-            </span>
+            {prompt}
           </ThreadPrimitive.Suggestion>
         ))}
       </div>

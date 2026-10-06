@@ -8,16 +8,23 @@ import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
 import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
-import { getPagePlatform } from "@/components/pages/docs/platform/tree";
+import {
+  findPathToNode,
+  getPagePlatform,
+} from "@/components/pages/docs/platform/tree";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
-import { TableOfContents } from "@/components/pages/docs/layout/table-of-contents";
+import {
+  MobileTableOfContents,
+  TableOfContents,
+} from "@/components/pages/docs/layout/table-of-contents";
 import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
 import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { typePage } from "@/components/shared/type";
+import Link from "next/link";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -58,26 +65,50 @@ export default async function Page(props: {
   const neighbours = getDocsNeighbours(source.pageTree, page.url);
   const footerPrevious = neighbours.previous;
   const footerNext = neighbours.next;
+  const pagePath =
+    source.pageTree.children
+      .map((node) => findPathToNode(node, page.url))
+      .find(Boolean) ?? [];
+  const parentFolders = pagePath.filter(
+    (node) => node.type === "folder" && node.index?.url !== page.url,
+  );
 
   return (
-    <DocsPageShell
-      toc={
-        <TableOfContents
-          items={toc}
-          githubEditUrl={githubEditUrl}
-          markdownUrl={markdownUrl}
-          platformAwareMarkdown
-        />
-      }
-    >
+    <DocsPageShell toc={<TableOfContents items={toc} />}>
       <DocsBody data-page-content="">
         <header className="not-prose mb-10">
+          {parentFolders.length > 0 && (
+            <nav aria-label="Breadcrumb" className="mb-5">
+              <ol className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                {parentFolders.map((folder) => (
+                  <li key={folder.$id} className="flex items-center gap-2">
+                    {folder.type === "folder" && folder.index ? (
+                      <Link
+                        href={folder.index.url}
+                        className="hover:text-foreground"
+                      >
+                        {folder.name}
+                      </Link>
+                    ) : (
+                      <span>{folder.name}</span>
+                    )}
+                    <span
+                      aria-hidden="true"
+                      className="text-muted-foreground/50"
+                    >
+                      /
+                    </span>
+                  </li>
+                ))}
+                <li aria-current="page">{page.data.title}</li>
+              </ol>
+            </nav>
+          )}
           <div className="flex items-start justify-between gap-4">
             <h1 className={typePage}>{page.data.title}</h1>
             <DocsPager
-              {...(footerPrevious && { previous: { url: footerPrevious.url } })}
-              {...(footerNext && { next: { url: footerNext.url } })}
               markdownUrl={markdownUrl}
+              githubEditUrl={githubEditUrl}
               title={page.data.title}
               platformAwareMarkdown
             />
@@ -108,6 +139,7 @@ export default async function Page(props: {
             </div>
           )}
         </header>
+        <MobileTableOfContents items={toc} />
         <MdxBody components={mdxComponents} />
         <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>

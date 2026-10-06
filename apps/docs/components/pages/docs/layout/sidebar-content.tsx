@@ -15,6 +15,8 @@ import {
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { DocsSiteMenu } from "@/components/pages/docs/layout/docs-header";
 import {
   buildPlatformSections,
   findActiveSectionId,
@@ -270,7 +272,13 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
           />
         ))}
       </nav>
-      <div className="border-border/50 flex shrink-0 items-center gap-1 border-t px-3 py-2">
+      <div className="flex shrink-0 items-center gap-1 px-3 py-3">
+        <div className="sm:hidden">
+          <DocsSiteMenu sectionHref="/docs" />
+        </div>
+        <div className="mr-auto md:hidden">
+          <ThemeToggle />
+        </div>
         <a
           href="https://github.com/assistant-ui/assistant-ui"
           target="_blank"

@@ -2,13 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Copy, EditIcon, FileText, MessageSquare } from "lucide-react";
-import { BASE_URL } from "@/lib/constants";
-import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
-import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
-import { analytics } from "@/lib/analytics";
-import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
+import { ChevronDown } from "lucide-react";
 
 type TOCItem = {
   title: ReactNode;
@@ -18,109 +12,9 @@ type TOCItem = {
 
 type TableOfContentsProps = {
   items: TOCItem[];
-  githubEditUrl?: string;
-  markdownUrl?: string;
-  platformAwareMarkdown?: boolean;
 };
 
-function TOCActions({
-  markdownUrl,
-  githubEditUrl,
-  platformAwareMarkdown,
-}: {
-  markdownUrl: string | undefined;
-  githubEditUrl: string | undefined;
-  platformAwareMarkdown: boolean;
-}) {
-  const resolvedMarkdownUrl = usePlatformMarkdownUrl(
-    markdownUrl,
-    platformAwareMarkdown,
-  );
-  const { copy, prefetch, isLoading } = useMarkdownCopy(resolvedMarkdownUrl);
-  const { askAI } = useAssistantPanel();
-  const currentPage = useCurrentPage();
-
-  useEffect(() => {
-    prefetch();
-  }, [prefetch]);
-
-  const linkClass =
-    "inline-flex items-center gap-2 text-muted-foreground text-[13px] transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 disabled:opacity-50";
-
-  const handleAskAI = () => {
-    const page = currentPage?.pathname ?? "this page";
-    askAI(`Explain ${page}`);
-  };
-
-  const handleCopy = () => {
-    analytics.toc.actionClicked("copy");
-    copy();
-  };
-
-  const handleMarkdownClick = () => {
-    analytics.toc.actionClicked("markdown");
-  };
-
-  const handleGitHubClick = () => {
-    analytics.toc.actionClicked("github");
-  };
-
-  const handleAskAIClick = () => {
-    analytics.toc.actionClicked("ask_ai");
-    handleAskAI();
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      {markdownUrl && (
-        <>
-          <button
-            type="button"
-            onClick={handleCopy}
-            disabled={isLoading}
-            className={linkClass}
-          >
-            <Copy className="size-3" />
-            {isLoading ? "Loading..." : "Copy page"}
-          </button>
-          <a
-            href={`${BASE_URL}${resolvedMarkdownUrl}`}
-            target="_blank"
-            rel="noreferrer noopener"
-            className={linkClass}
-            onClick={handleMarkdownClick}
-          >
-            <FileText className="size-3" />
-            View as Markdown
-          </a>
-        </>
-      )}
-      {githubEditUrl && (
-        <a
-          href={githubEditUrl}
-          target="_blank"
-          rel="noreferrer noopener"
-          className={linkClass}
-          onClick={handleGitHubClick}
-        >
-          <EditIcon className="size-3" />
-          Edit on GitHub
-        </a>
-      )}
-      <button type="button" onClick={handleAskAIClick} className={linkClass}>
-        <MessageSquare className="size-3" />
-        Ask AI
-      </button>
-    </div>
-  );
-}
-
-export function TableOfContents({
-  items,
-  githubEditUrl,
-  markdownUrl,
-  platformAwareMarkdown = false,
-}: TableOfContentsProps) {
+export function TableOfContents({ items }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -171,7 +65,7 @@ export function TableOfContents({
   if (items.length === 0) return null;
 
   return (
-    <div className="docs-toc w-56 max-xl:hidden">
+    <nav aria-label="On this page" className="docs-toc w-48 max-xl:hidden">
       <div className="sticky top-[calc(var(--docs-header-height)_+_2.5rem)] flex max-h-[calc(100vh_-_var(--docs-header-height)_-_2.5rem)] flex-col pe-4 pb-4">
         <p className="text-muted-foreground mb-3 shrink-0 text-xs font-medium">
           On this page
@@ -189,6 +83,7 @@ export function TableOfContents({
               <li key={item.url} data-toc-id={id}>
                 <a
                   href={item.url}
+                  aria-current={isActive ? "location" : undefined}
                   style={{ paddingLeft: indent || undefined }}
                   className={cn(
                     "focus-visible:outline-ring block py-1 text-[13px] leading-snug wrap-break-word transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
@@ -203,14 +98,37 @@ export function TableOfContents({
             );
           })}
         </ul>
-        <div className="mt-6 shrink-0">
-          <TOCActions
-            markdownUrl={markdownUrl}
-            githubEditUrl={githubEditUrl}
-            platformAwareMarkdown={platformAwareMarkdown}
-          />
-        </div>
       </div>
-    </div>
+    </nav>
+  );
+}
+
+export function MobileTableOfContents({ items }: { items: TOCItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <details className="not-prose group border-foreground/10 mb-8 border-b pb-3 xl:hidden">
+      <summary className="text-muted-foreground hover:text-foreground focus-visible:outline-ring flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium focus-visible:outline-2 [&::-webkit-details-marker]:hidden">
+        On this page
+        <ChevronDown className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+      </summary>
+      <nav aria-label="On this page">
+        <ul className="grid gap-1 pt-2 pb-3 md:grid-cols-2">
+          {items.map((item) => (
+            <li key={item.url}>
+              <a
+                href={item.url}
+                className="text-muted-foreground hover:text-foreground focus-visible:outline-ring block py-2 text-sm leading-relaxed focus-visible:outline-2"
+                style={{
+                  paddingLeft: Math.max(0, item.depth - 2) * 12 || undefined,
+                }}
+              >
+                {item.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </details>
   );
 }

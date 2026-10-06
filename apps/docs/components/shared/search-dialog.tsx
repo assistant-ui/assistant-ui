@@ -9,22 +9,14 @@ import {
   type KeyboardEvent,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Search,
-  CornerDownLeft,
-  ArrowUp,
-  ArrowDown,
-  FileText,
-  Hash,
-  Text,
-  Sparkles,
-} from "lucide-react";
+import { Search, CornerDownLeft, FileText, Hash, Text, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -134,7 +126,7 @@ function ResultButton({
       onClick={() => onSelect(item)}
       onMouseEnter={() => onHover(index)}
       className={cn(
-        "group flex w-full cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-3 text-left transition-colors",
+        "group focus-visible:outline-ring rounded-control flex min-h-11 w-full cursor-pointer items-center gap-2.5 py-2 pr-3 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2",
         selected ? "bg-accent" : "hover:bg-accent/50",
         nested ? "pl-9" : "pl-3",
       )}
@@ -143,7 +135,7 @@ function ResultButton({
         <ResultIcon type={item.type} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-foreground truncate text-sm">
+        <span className="text-foreground line-clamp-2 text-sm leading-relaxed">
           <HighlightedText
             segments={highlightMatches(item.content, tokens)}
             fallback={item.content}
@@ -227,7 +219,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const hasQuery = tokens.length > 0;
 
   const onPageHits = useMemo(() => {
-    if (!hasQuery) return [];
+    if (!hasQuery) return pageEntries.map((entry) => ({ ...entry, score: 0 }));
     return searchEntries(
       [...pageEntries, ...collectPageTextMatches(pathname, query)],
       query,
@@ -360,14 +352,14 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gap-0 overflow-hidden rounded-xl p-0 sm:max-w-xl"
+        className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-xl"
         showCloseButton={false}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>
           <DialogDescription>Search this page and the docs</DialogDescription>
         </DialogHeader>
-        <div className="overflow-hidden">
+        <div className="flex min-h-0 flex-col overflow-hidden">
           <div className="border-border/40 flex items-center gap-2.5 border-b px-4">
             <Search className="text-muted-foreground size-4" />
             <input
@@ -381,25 +373,31 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   : undefined
               }
               aria-autocomplete="list"
+              aria-label="Search this page and the docs"
               placeholder="Search this page or docs..."
               value={inputValue}
               onChange={(event) => {
                 setInputValue(event.target.value);
               }}
               onKeyDown={handleKeyDown}
-              className="placeholder:text-muted-foreground/60 h-12 flex-1 bg-transparent text-sm outline-none"
+              className="placeholder:text-muted-foreground h-14 min-w-0 flex-1 bg-transparent text-base outline-none"
               autoFocus
             />
             {showAskAI && (
               <button
                 type="button"
                 onClick={handleAskAI}
-                className="hover:bg-accent hidden shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-pink-500 transition-colors sm:flex"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-ring rounded-control flex min-h-11 shrink-0 items-center px-2 text-sm transition-colors focus-visible:outline-2"
               >
-                <Sparkles className="size-3.5" />
-                <span className="text-xs font-medium">Ask AI</span>
+                Ask AI
               </button>
             )}
+            <DialogClose
+              aria-label="Close search"
+              className="text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-control flex size-11 shrink-0 items-center justify-center focus-visible:outline-2"
+            >
+              <X className="size-4" />
+            </DialogClose>
           </div>
 
           <div
@@ -407,34 +405,22 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             id="search-results"
             role="listbox"
             aria-label="Search results"
-            className="h-[min(400px,90vh)] overflow-x-hidden overflow-y-auto overscroll-contain"
+            className="max-h-96 min-h-24 overflow-x-hidden overflow-y-auto overscroll-contain"
           >
-            {!hasQuery ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-                <div className="text-muted-foreground/60 flex items-center gap-6">
-                  <span className="flex items-center gap-1.5 text-sm">
-                    <ArrowUp className="size-3" />
-                    <ArrowDown className="size-3" />
-                    <span>navigate</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 text-sm">
-                    <CornerDownLeft className="size-3" />
-                    <span>select</span>
-                  </span>
-                </div>
-              </div>
-            ) : waitingForIndex ? (
+            {waitingForIndex ? (
               <div className="flex flex-col gap-3 px-4 py-4">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="h-4 w-1/2" />
                 <Skeleton className="h-4 w-3/5" />
               </div>
             ) : results.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-1 px-4">
-                <p className="text-muted-foreground/60 text-sm">
-                  {indexError
-                    ? "Unable to search other pages"
-                    : `No results for "${inputValue}"`}
+              <div className="flex min-h-24 flex-col items-center justify-center gap-1 px-4 py-6">
+                <p className="text-muted-foreground text-sm">
+                  {!hasQuery
+                    ? "Search the docs by title, topic, or API name."
+                    : indexError
+                      ? "Unable to search other pages"
+                      : `No results for "${inputValue}"`}
                 </p>
               </div>
             ) : (
@@ -489,6 +475,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               </div>
             )}
           </div>
+        </div>
+        <div className="text-muted-foreground bg-foreground/[0.025] flex shrink-0 items-center justify-between gap-4 px-4 py-3 text-xs">
+          <span>↑ ↓ Navigate</span>
+          <span>↵ Open</span>
+          <span>Esc Close</span>
         </div>
       </DialogContent>
     </Dialog>

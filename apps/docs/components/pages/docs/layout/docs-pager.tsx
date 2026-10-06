@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import {
-  ChevronLeft,
-  ChevronRight,
   MoreHorizontal,
   Copy,
   FileText,
+  Edit,
+  MessageSquare,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,15 +28,12 @@ import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
 import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
-
-type PagerItem = {
-  url: string;
-};
+import { useGlobalAskAI } from "@/components/pages/docs/assistant/context";
+import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
 
 type DocsPagerProps = {
-  previous?: PagerItem;
-  next?: PagerItem;
   markdownUrl?: string;
+  githubEditUrl?: string;
   title: string;
   platformAwareMarkdown?: boolean;
 };
@@ -68,9 +64,8 @@ async function copyText(value: string, successMessage: string) {
 }
 
 export function DocsPager({
-  previous,
-  next,
   markdownUrl,
+  githubEditUrl,
   title,
   platformAwareMarkdown = false,
 }: DocsPagerProps) {
@@ -79,6 +74,8 @@ export function DocsPager({
     platformAwareMarkdown,
   );
   const { copy, prefetch, isLoading } = useMarkdownCopy(resolvedMarkdownUrl);
+  const askAI = useGlobalAskAI();
+  const currentPage = useCurrentPage();
 
   const handleCopy = () => {
     analytics.pageActions.actionClicked("copy");
@@ -86,39 +83,32 @@ export function DocsPager({
   };
 
   const buttonClass =
-    "flex size-7 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8";
-  const disabledClass =
-    "flex size-7 items-center justify-center rounded-md bg-muted/30 text-muted-foreground/40 cursor-not-allowed sm:size-8";
+    "flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control px-2 text-muted-foreground transition-colors hover:bg-foreground/[0.025] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2";
 
   return (
     <div className="flex items-center gap-1">
-      {previous ? (
-        <Link href={previous.url} className={buttonClass}>
-          <ChevronLeft className="size-4" />
-        </Link>
-      ) : (
-        <div className={disabledClass}>
-          <ChevronLeft className="size-4" />
-        </div>
-      )}
-      {next ? (
-        <Link href={next.url} className={buttonClass}>
-          <ChevronRight className="size-4" />
-        </Link>
-      ) : (
-        <div className={disabledClass}>
-          <ChevronRight className="size-4" />
-        </div>
-      )}
       {resolvedMarkdownUrl && (
         <DropdownMenu onOpenChange={(open) => open && prefetch()}>
           <DropdownMenuTrigger
             aria-label="More page actions"
             className={buttonClass}
           >
+            <span className="hidden text-sm sm:inline">Page actions</span>
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">
+            {askAI && (
+              <DropdownMenuItem
+                className="gap-3 py-3"
+                onClick={() => {
+                  analytics.toc.actionClicked("ask_ai");
+                  askAI(`Explain ${currentPage?.pathname ?? "this page"}`);
+                }}
+              >
+                <MessageSquare className="size-4" />
+                Ask about this page
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               className="items-start gap-3 py-2"
               onClick={handleCopy}
@@ -178,6 +168,22 @@ export function DocsPager({
               />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {githubEditUrl && (
+              <DropdownMenuItem
+                className="gap-3 py-3"
+                onClick={() => analytics.toc.actionClicked("github")}
+                render={
+                  <a
+                    href={githubEditUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  />
+                }
+              >
+                <Edit className="size-4" />
+                Edit on GitHub
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               className="items-start gap-3 py-2"
               onClick={() => {

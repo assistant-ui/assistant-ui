@@ -19,16 +19,25 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
   if (!previous && !next) return null;
 
   return (
-    <nav className="not-prose mt-16 flex items-center justify-between gap-4 text-sm">
+    <nav
+      aria-label="Documentation pages"
+      className="not-prose border-foreground/10 mt-16 grid grid-cols-2 gap-6 border-t pt-6 text-sm"
+    >
       {previous ? (
         <Link
           href={previous.url}
-          className="group text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 transition-colors"
+          rel="prev"
+          className="group hover:text-foreground focus-visible:outline-ring flex min-h-11 min-w-0 flex-col items-start gap-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
         >
-          <ChevronLeft className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-          <span className="min-w-0 truncate">
+          <span className="text-muted-foreground flex items-center gap-1.5">
+            <ChevronLeft className="size-3.5" />
+            Previous
+          </span>
+          <span className="text-foreground leading-relaxed">
             {previous.section ? (
-              <span className="opacity-60">{previous.section} / </span>
+              <span className="text-muted-foreground mb-1 block text-xs">
+                {previous.section}
+              </span>
             ) : null}
             {previous.name}
           </span>
@@ -40,15 +49,21 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
       {next ? (
         <Link
           href={next.url}
-          className="group text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 transition-colors"
+          rel="next"
+          className="group hover:text-foreground focus-visible:outline-ring flex min-h-11 min-w-0 flex-col items-end gap-2 text-right transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
         >
-          <span className="min-w-0 truncate">
+          <span className="text-muted-foreground flex items-center gap-1.5">
+            Next
+            <ChevronRight className="size-3.5" />
+          </span>
+          <span className="text-foreground leading-relaxed">
             {next.section ? (
-              <span className="opacity-60">{next.section} / </span>
+              <span className="text-muted-foreground mb-1 block text-xs">
+                {next.section}
+              </span>
             ) : null}
             {next.name}
           </span>
-          <ChevronRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>
       ) : (
         <span />

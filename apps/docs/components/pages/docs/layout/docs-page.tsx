@@ -11,11 +11,11 @@ export function DocsPageShell({
 }) {
   return (
     <div className="docs-layout">
-      <main className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-5 pt-8 pb-10 md:px-8 md:pt-10">
+      <main className="w-full max-w-(--docs-article-width) min-w-0 px-5 pt-8 pb-10 md:px-8 md:pt-10">
         {children}
       </main>
       {toc}
-      <footer className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-5 pb-10 md:px-8">
+      <footer className="w-full max-w-(--docs-article-width) px-5 pb-10 md:px-8">
         <div className="border-t pt-6">
           <LegalLinks />
         </div>

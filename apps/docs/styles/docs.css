@@ -1,15 +1,18 @@
 :root {
-  --docs-header-height: 48px;
+  --docs-header-height: 56px;
   --docs-article-width: 52rem;
 }
 
 .docs-layout {
   display: grid;
+  width: 100%;
+  max-width: 66rem;
   grid-template-columns: minmax(0, 1fr);
 
   @media (min-width: 1280px) {
     &:has(.docs-toc) {
-      grid-template-columns: minmax(0, 1fr) 14rem;
+      grid-template-columns: minmax(0, 1fr) 12rem;
+      column-gap: 2rem;
     }
   }
 }
@@ -27,7 +30,7 @@ html:has(.docs-layout) {
 }
 
 .docs-prose {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.75;
 
   &
@@ -43,16 +46,18 @@ html:has(.docs-layout) {
   }
 
   & :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 1.25rem;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
     font-weight: 500;
     letter-spacing: -0.02em;
-    margin-top: 2.5rem;
+    margin-top: 3rem;
     margin-bottom: 1rem;
     line-height: 1.4;
   }
 
   & :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 1rem;
+    font-family: var(--font-display);
+    font-size: 1.125rem;
     font-weight: 500;
     letter-spacing: -0.01em;
     margin-top: 2rem;

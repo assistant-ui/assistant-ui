@@ -38,7 +38,7 @@ export function CodeCollapsible({
           onClick={() => setIsOpen(true)}
           aria-expanded={isOpen}
           aria-controls={previewId}
-          className="border-foreground/10 bg-background text-muted-foreground hover:text-foreground absolute inset-x-0 bottom-0 flex h-9 cursor-pointer items-center justify-center gap-1.5 border-t font-mono text-[11px] tracking-wide transition-colors"
+          className="border-foreground/10 bg-background text-muted-foreground hover:text-foreground focus-visible:outline-ring absolute inset-x-0 bottom-0 flex min-h-11 cursor-pointer items-center justify-center gap-2 border-t text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2"
         >
           <ChevronDownIcon className="size-3.5" />
           Show more

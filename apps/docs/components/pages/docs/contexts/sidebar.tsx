@@ -8,6 +8,14 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { X } from "lucide-react";
 
 interface DocsSidebarContextValue {
   open: boolean;
@@ -38,25 +46,39 @@ export function DocsSidebarProvider({ children }: { children: ReactNode }) {
 
 export const DOCS_SIDEBAR_WIDTH = 260;
 
-/**
- * Renders the sidebar children once and adapts position via responsive CSS:
- * - Mobile: full-screen overlay (top-12 bottom-0 inset-x-0), opacity-toggled by `open`.
- * - Desktop (md+): fixed left rail of `--sidebar-width`, always visible.
- *
- * Single element so `children` (and any state inside, e.g. openSectionId in
- * SidebarContent) is mounted once — no desync between desktop / mobile views.
- */
 export function DocsSidebar({ children }: { children: ReactNode }) {
-  const { open } = useDocsSidebar();
+  const { open, setOpen } = useDocsSidebar();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="inset-0 flex max-w-full translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 sm:max-w-full"
+        >
+          <div className="flex h-14 shrink-0 items-center justify-between px-5">
+            <DialogTitle className="text-sm font-medium">
+              Documentation
+            </DialogTitle>
+            <DialogClose
+              aria-label="Close documentation navigation"
+              className="text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-control flex size-11 items-center justify-center focus-visible:outline-2"
+            >
+              <X className="size-4" />
+            </DialogClose>
+          </div>
+          <div className="min-h-0 flex-1">{children}</div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <aside
+      aria-label="Documentation navigation"
       className={cn(
-        // mobile: fullscreen overlay, opacity-toggled
-        "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-        // desktop: collapse to left rail, always visible
-        "md:pointer-events-auto md:right-auto md:left-0 md:z-30 md:w-(--sidebar-width) md:opacity-100",
+        "bg-background fixed top-(--docs-header-height) bottom-0 left-0 z-30 hidden w-(--sidebar-width) md:block",
       )}
       style={
         {
