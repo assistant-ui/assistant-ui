@@ -1055,6 +1055,20 @@ describe("AssistantMessageAccumulator tool arguments", () => {
       { type: "tool-call-args-text-finish", path: [0] },
     ]);
 
+    const partial = messages.slice(0, -1).find((message) => {
+      const part = message.parts[0];
+      return (
+        part?.type === "tool-call" &&
+        part.args.query === "pizza" &&
+        part.argsText !== input
+      );
+    });
+
+    expect(partial?.parts[0]).toMatchObject({
+      type: "tool-call",
+      args: { query: "pizza" },
+    });
+
     expect(messages.at(-1)?.parts[0]).toMatchObject({
       type: "tool-call",
       argsText: input,

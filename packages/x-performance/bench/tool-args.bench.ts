@@ -49,7 +49,28 @@ const drain = async (readable: ReadableStream<unknown>) => {
 
 const drainAccumulator = async (chunks: AssistantStreamChunk[]) => {
   const source = chunkSource(chunks);
-  await AssistantMessageStream.fromAssistantStream(source).unstable_result();
+  return AssistantMessageStream.fromAssistantStream(source).unstable_result();
+};
+
+const drainActiveReader = async (chunks: AssistantStreamChunk[]) => {
+  const reads: Promise<unknown>[] = [];
+  await drain(
+    chunkSource(chunks).pipeThrough(
+      unstable_toolResultStream(
+        {
+          noop: {
+            parameters: { type: "object" },
+            streamCall: (reader) => {
+              reads.push(reader.args.get("value"));
+            },
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      ),
+    ),
+  );
+  await Promise.all(reads);
 };
 
 describe("assistant-stream: execute-only tool arguments (16-char deltas)", () => {
@@ -80,8 +101,30 @@ describe("assistant-stream: accumulator tool arguments (16-char deltas)", () => 
   for (const size of [1000, 5000, 10000]) {
     const chunks = makeChunks(size, 16);
     test(`${size} bytes`, async ({ bench }) => {
+      const probe = await drainAccumulator(chunks);
+      const part = probe.parts[0];
+      if (
+        part?.type !== "tool-call" ||
+        part.argsText.length === 0 ||
+        part.args.value !== "x".repeat(size)
+      ) {
+        throw new Error("Accumulator benchmark did not parse tool arguments");
+      }
+
       await bench(`${size} bytes`, async () => {
         await drainAccumulator(chunks);
+      }).run(inject("benchSampling"));
+    });
+  }
+});
+
+describe("assistant-stream: active-reader tool arguments (16-char deltas)", () => {
+  for (const size of [1000, 5000, 10000]) {
+    const chunks = makeChunks(size, 16);
+    test(`${size} bytes`, async ({ bench }) => {
+      await drainActiveReader(chunks);
+      await bench(`${size} bytes`, async () => {
+        await drainActiveReader(chunks);
       }).run(inject("benchSampling"));
     });
   }
@@ -93,6 +136,14 @@ describe("assistant-stream: complete tool arguments (single delta)", () => {
   });
 
   test("10,000 array elements", async ({ bench }) => {
+    const probe = IncrementalJsonObjectParser.from(argsText);
+    if (
+      !Array.isArray(probe.currentArgs.points) ||
+      probe.currentArgs.points.length !== 10_000
+    ) {
+      throw new Error("Single-delta benchmark did not parse tool arguments");
+    }
+
     await bench("10,000 array elements", () => {
       IncrementalJsonObjectParser.from(argsText);
     }).run(inject("benchSampling"));

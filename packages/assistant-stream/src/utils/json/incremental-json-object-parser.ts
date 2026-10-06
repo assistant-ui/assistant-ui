@@ -244,19 +244,29 @@ export class IncrementalJsonObjectParser {
     return this.frames.at(-1)?.path ?? [];
   }
 
+  private isFallback() {
+    return this.mode === "fallback";
+  }
+
   private consumeDelta(delta: string, ownsRoot = false) {
-    if (this.mode === "fallback") return;
+    if (this.isFallback()) return;
 
     this.ownedContainers = ownsRoot
       ? new Set<MutableJSONContainer>([this.root])
       : new Set();
     for (const char of delta) {
       this.consumeCharacter(char);
+      if (this.isFallback()) break;
     }
 
-    if (this.token?.kind === "string" && this.token.role === "value") {
+    if (
+      !this.isFallback() &&
+      this.token?.kind === "string" &&
+      this.token.role === "value"
+    ) {
       this.writeValue(this.token.path, this.token.value);
     } else if (
+      !this.isFallback() &&
       this.token?.kind === "number" &&
       COMPLETE_NUMBER.test(this.token.value)
     ) {

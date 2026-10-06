@@ -56,16 +56,24 @@ describe("ToolCallArgsReader parsing", () => {
     await reader.appendArgsTextDelta('{"required":"hel');
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
-    const stream = reader.args.streamText("required");
+    const streamReader = reader.args.streamText("required").getReader();
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
       '{"required":"hel',
     );
+    await expect(streamReader.read()).resolves.toEqual({
+      done: false,
+      value: "hel",
+    });
 
     await reader.appendArgsTextDelta('lo"}');
     await reader.finishArgsText();
 
-    let value = "";
-    for await (const delta of stream) value += delta;
+    let value = "hel";
+    while (true) {
+      const next = await streamReader.read();
+      if (next.done) break;
+      value += next.value;
+    }
     expect(value).toBe("hello");
   });
 
