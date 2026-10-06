@@ -3,7 +3,6 @@ import {
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
-  bindAuthRequestHeaders,
   normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
@@ -104,9 +103,9 @@ type MakeRequestOptions = {
 };
 
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+const authGenerations = new WeakMap<AssistantCloudAPI, number>();
 
 export class AssistantCloudAPI {
-  #authGeneration = 0;
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
   public readonly registerSdk: (sdk: SdkIdentity) => void;
@@ -156,7 +155,7 @@ export class AssistantCloudAPI {
   }
 
   public invalidateAuth(): void {
-    this.#authGeneration++;
+    authGenerations.set(this, (authGenerations.get(this) ?? 0) + 1);
     this._auth.invalidate();
   }
 
@@ -164,9 +163,9 @@ export class AssistantCloudAPI {
     endpoint: string,
     options: MakeRequestOptions = {},
   ) {
-    const authGeneration = this.#authGeneration;
+    const authGeneration = authGenerations.get(this) ?? 0;
     const authHeaders = await this._auth.getAuthHeaders();
-    if (authGeneration !== this.#authGeneration || !authHeaders) {
+    if (authGeneration !== (authGenerations.get(this) ?? 0) || !authHeaders) {
       throw new Error("Authorization failed");
     }
 
@@ -199,9 +198,9 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    const requestHeaders = new Headers(headers);
-    bindAuthRequestHeaders(requestHeaders, authHeaders);
-    this._auth.readAuthHeaders(response.headers, requestHeaders);
+    if (authGeneration === (authGenerations.get(this) ?? 0)) {
+      this._auth.readAuthHeaders(response.headers);
+    }
 
     if (!response.ok) {
       const text = await response.text();

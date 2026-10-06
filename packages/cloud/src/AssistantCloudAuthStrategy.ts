@@ -35,28 +35,8 @@ const withAuthTokenDeadline = async <T>(
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "jwt" | "api-key";
   getAuthHeaders(): Promise<Record<string, string> | false>;
-  readAuthHeaders(headers: Headers, requestHeaders?: Headers): void;
+  readAuthHeaders(headers: Headers): void;
   invalidate(): void;
-};
-
-type AuthRequestContext = {
-  strategy: object;
-  generation: number;
-};
-
-const authHeaderContexts = new WeakMap<
-  Record<string, string>,
-  AuthRequestContext
->();
-const requestHeaderContexts = new WeakMap<Headers, AuthRequestContext>();
-
-export const bindAuthRequestHeaders = (
-  requestHeaders: Headers,
-  authHeaders: Record<string, string>,
-): void => {
-  if (requestHeaders.get("Authorization") !== authHeaders.Authorization) return;
-  const context = authHeaderContexts.get(authHeaders);
-  if (context) requestHeaderContexts.set(requestHeaders, context);
 };
 
 const getJwtExpiry = (jwt: string): number => {
@@ -197,37 +177,10 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
   }
 
   private createAuthHeaders(token: string): Record<string, string> {
-    const headers = { Authorization: `Bearer ${token}` };
-    authHeaderContexts.set(headers, {
-      strategy: this,
-      generation: this.generation,
-    });
-    return headers;
+    return { Authorization: `Bearer ${token}` };
   }
 
-  public readAuthHeaders(headers: Headers, requestHeaders?: Headers) {
-    const requestAuthHeader = requestHeaders?.get("Authorization");
-    const requestContext = requestHeaders
-      ? requestHeaderContexts.get(requestHeaders)
-      : undefined;
-    if (requestContext) {
-      if (
-        requestContext.strategy !== this ||
-        requestContext.generation !== this.generation
-      ) {
-        return;
-      }
-    } else {
-      if (
-        requestAuthHeader !== null &&
-        requestAuthHeader !== undefined &&
-        requestAuthHeader !==
-          (this.cachedToken ? `Bearer ${this.cachedToken}` : undefined)
-      ) {
-        return;
-      }
-    }
-
+  public readAuthHeaders(headers: Headers) {
     const authHeader = headers.get("Authorization");
     if (!authHeader) return;
 
@@ -503,8 +456,8 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
     return this.jwtStrategy.getAuthHeaders();
   }
 
-  public readAuthHeaders(headers: Headers, requestHeaders?: Headers): void {
-    this.jwtStrategy.readAuthHeaders(headers, requestHeaders);
+  public readAuthHeaders(headers: Headers): void {
+    this.jwtStrategy.readAuthHeaders(headers);
   }
 
   public invalidate(): void {
