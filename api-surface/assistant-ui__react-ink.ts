@@ -11,7 +11,7 @@ import React, { ComponentProps, ComponentType, FC, PropsWithChildren, ReactEleme
 declare const ActionBarCopy: (_param0: ActionBarCopyProps) => import("react").JSX.Element;
 
 type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActionBarCopyOptions & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isCopied: boolean;
   }) => ReactNode);
 };
@@ -25,7 +25,7 @@ type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
 declare const ActionBarFeedbackNegative: (_param2: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isSubmitted: boolean;
   }) => ReactNode);
 };
@@ -33,7 +33,7 @@ type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress
 declare const ActionBarFeedbackPositive: (_param3: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isSubmitted: boolean;
   }) => ReactNode);
 };
