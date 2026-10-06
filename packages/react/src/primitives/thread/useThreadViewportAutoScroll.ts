@@ -1,6 +1,6 @@
 "use client";
 
-import { useComposedRefs } from "radix-ui/internal";
+import { useCallbackRef, useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
@@ -216,7 +216,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     );
   }, [threadViewportStore]);
 
-  const handleScroll = () => {
+  const handleScroll = useCallbackRef(() => {
     const div = divRef.current;
     if (!div) return;
 
@@ -270,7 +270,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastScrollTop.current = div.scrollTop;
     lastScrollHeight.current = div.scrollHeight;
     firstMessageRef.current = measureFirstMessage(div);
-  };
+  });
 
   const resizeRef = useOnResizeContent(() => {
     const div = divRef.current;
@@ -291,7 +291,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
       scrollingToBottomBehaviorRef.current = null;
     } else if (scrollBehavior) {
-      scrollToBottom(scrollBehavior);
+      if (scheduledFrameRef.current === null) {
+        scrollToBottom(scrollBehavior);
+      }
     } else if (
       autoScroll &&
       !(isRunning && hasActiveTopAnchor()) &&
@@ -308,46 +310,56 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     handleScroll();
   });
 
-  const scrollRef = useManagedRef<HTMLElement>((el) => {
-    // A user gesture invalidates pending bottom-scroll intent; otherwise an
-    // intent kept alive by a non-overflowing thread (see handleScroll) hijacks
-    // the next content growth, e.g. expanding a collapsible tool call. Keyboard
-    // activation reaches that same content without ever emitting a pointer
-    // event, so it has to cancel the intent too.
-    const cancelPendingScrollToBottom = () => {
-      // A scheduled frame re-plants the intent when it runs, so clearing the
-      // ref alone leaves the gesture undone.
-      cancelScheduledFrame();
-      scrollingToBottomBehaviorRef.current = null;
-    };
-    // The composer renders inside the viewport, so its keystrokes bubble here;
-    // only an activation key aimed at something other than a text field is a
-    // gesture on thread content.
-    const cancelOnKeyDown = (event: KeyboardEvent) => {
-      if (!ACTIVATION_KEYS.has(event.key)) return;
-      const target = event.target as Element | null;
-      if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
-      cancelPendingScrollToBottom();
-    };
-    const releasePrependAnchor = () => {
-      prependAnchorRef.current = null;
-    };
-    const gestures = ["pointerdown", "wheel", "touchstart", "keydown"] as const;
-    el.addEventListener("scroll", handleScroll);
-    el.addEventListener("pointerdown", cancelPendingScrollToBottom);
-    el.addEventListener("keydown", cancelOnKeyDown);
-    for (const gesture of gestures) {
-      el.addEventListener(gesture, releasePrependAnchor, { passive: true });
-    }
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-      el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
-      el.removeEventListener("keydown", cancelOnKeyDown);
-      for (const gesture of gestures) {
-        el.removeEventListener(gesture, releasePrependAnchor);
-      }
-    };
-  });
+  const scrollRef = useManagedRef<HTMLElement>(
+    useCallback(
+      (el) => {
+        // A user gesture invalidates pending bottom-scroll intent; otherwise an
+        // intent kept alive by a non-overflowing thread (see handleScroll) hijacks
+        // the next content growth, e.g. expanding a collapsible tool call. Keyboard
+        // activation reaches that same content without ever emitting a pointer
+        // event, so it has to cancel the intent too.
+        const cancelPendingScrollToBottom = () => {
+          // A scheduled frame re-plants the intent when it runs, so clearing the
+          // ref alone leaves the gesture undone.
+          cancelScheduledFrame();
+          scrollingToBottomBehaviorRef.current = null;
+        };
+        // The composer renders inside the viewport, so its keystrokes bubble here;
+        // only an activation key aimed at something other than a text field is a
+        // gesture on thread content.
+        const cancelOnKeyDown = (event: KeyboardEvent) => {
+          if (!ACTIVATION_KEYS.has(event.key)) return;
+          const target = event.target as Element | null;
+          if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
+          cancelPendingScrollToBottom();
+        };
+        const releasePrependAnchor = () => {
+          prependAnchorRef.current = null;
+        };
+        const gestures = [
+          "pointerdown",
+          "wheel",
+          "touchstart",
+          "keydown",
+        ] as const;
+        el.addEventListener("scroll", handleScroll);
+        el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+        el.addEventListener("keydown", cancelOnKeyDown);
+        for (const gesture of gestures) {
+          el.addEventListener(gesture, releasePrependAnchor, { passive: true });
+        }
+        return () => {
+          el.removeEventListener("scroll", handleScroll);
+          el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+          el.removeEventListener("keydown", cancelOnKeyDown);
+          for (const gesture of gestures) {
+            el.removeEventListener(gesture, releasePrependAnchor);
+          }
+        };
+      },
+      [cancelScheduledFrame, handleScroll],
+    ),
+  );
 
   // Earlier messages prepended above the reader put the old first message back
   // where the reader saw it, so growth below it in the same commit (a
