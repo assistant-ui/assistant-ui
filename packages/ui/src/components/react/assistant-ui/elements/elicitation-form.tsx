@@ -72,6 +72,14 @@ export function ElicitationForm({
 }) {
   const fieldPrefix = useId();
   const interactive = state === "request" && onFieldChange !== undefined;
+  const missingRequiredText =
+    interactive &&
+    fields.some(
+      (item) =>
+        item.kind === "text" &&
+        item.required === true &&
+        item.value.trim() === "",
+    );
 
   return (
     <div
@@ -223,9 +231,10 @@ export function ElicitationForm({
             <button
               type="button"
               onClick={onAccept}
+              disabled={missingRequiredText}
               className={cn(
                 inkButton,
-                "flex h-8 items-center rounded-full px-3.5 text-xs font-medium",
+                "flex h-8 items-center rounded-full px-3.5 text-xs font-medium disabled:pointer-events-none disabled:opacity-40",
               )}
             >
               Send
