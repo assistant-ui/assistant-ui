@@ -2673,6 +2673,7 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
     onAgentTransfer?: OnAdkAgentTransferCallback;
   } | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   sessionAdapter?: RemoteThreadListAdapter | undefined;
 };
 

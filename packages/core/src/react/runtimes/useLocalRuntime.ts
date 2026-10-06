@@ -24,6 +24,11 @@ const subscribeNever = () => () => {};
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
   /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. */
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
@@ -115,6 +120,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
 ) => {
   const {
     cloud,
+    scopeId,
     initialMessages,
     maxSteps,
     adapters,
@@ -128,6 +134,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
   return {
     localRuntimeOptions: {
       cloud,
+      scopeId,
       initialMessages,
       maxSteps,
       adapters,
@@ -142,7 +149,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
 
 export const useLocalRuntime = (
   chatModel: ChatModelAdapter,
-  { cloud, ...options }: LocalRuntimeOptions = {},
+  { cloud, scopeId, ...options }: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
   const messageIdSeed = useId();
   const needsMessageIdSeed =
@@ -159,7 +166,7 @@ export const useLocalRuntime = (
     () => false,
     () => needsMessageIdSeed,
   );
-  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const cloudAdapter = useCloudThreadListAdapter({ cloud, scopeId });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLocalThreadRuntime(

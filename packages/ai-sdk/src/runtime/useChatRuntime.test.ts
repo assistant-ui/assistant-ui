@@ -3,6 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { version } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -82,6 +83,7 @@ import {
   createResumableSessionStorage,
   RESUMABLE_STREAM_ID_HEADER,
 } from "../transport/resumable";
+import { AI_SDK_SDK } from "./sdkIdentity";
 import { useChatRuntime } from "./useChatRuntime";
 
 const onReact18 = version.startsWith("18.");
@@ -102,6 +104,23 @@ describe.skipIf(onReact18)("useChatRuntime", () => {
     mocks.state.mainThreadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
+  });
+
+  it("forwards the Cloud scope to the thread-list adapter", () => {
+    const cloud = {} as AssistantCloud;
+    mocks.useCloudThreadListAdapter.mockClear();
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ cloud, scopeId: "workspace-1" }));
+
+    expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith({
+      cloud,
+      scopeId: "workspace-1",
+      sdk: AI_SDK_SDK,
+    });
   });
 
   it("forwards a callback through a ref, so a later render's callback fires instead of the mounted one", () => {

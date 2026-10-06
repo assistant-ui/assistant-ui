@@ -140,7 +140,7 @@ type DistributiveOmit<T, K extends keyof any> = T extends unknown
 const useStreamThreadRuntime = (
   options: DistributiveOmit<
     UseStreamRuntimeOptions,
-    "cloud" | "unstable_threadListAdapter" | "create" | "delete"
+    "cloud" | "scopeId" | "unstable_threadListAdapter" | "create" | "delete"
   >,
 ) => {
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
@@ -706,7 +706,7 @@ const useStreamThreadRuntime = (
 /**
  * Creates an assistant-ui runtime backed by LangChain's `useStream` hook.
  * Accepts the same options as `useStream` from `@langchain/react`, plus
- * `cloud` and `adapters`.
+ * `cloud`, `scopeId`, and `adapters`.
  *
  * @example
  * ```tsx
@@ -730,6 +730,7 @@ const useStreamThreadRuntime = (
 export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
   const {
     cloud,
+    scopeId,
     unstable_threadListAdapter,
     create,
     delete: deleteFn,
@@ -741,6 +742,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: LANGCHAIN_SDK,
     cloud,
+    scopeId,
     create: createCloudThreadListAdapterCreateFallback(
       create,
       aui.threadListItem,
