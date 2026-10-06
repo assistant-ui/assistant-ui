@@ -39,8 +39,8 @@ export function Sidebar({
             <button
               type="button"
               onClick={onNavigate}
-              title="New thread (⌘/Ctrl+Shift+O)"
-              aria-keyshortcuts="Meta+Shift+O Control+Shift+O"
+              title="New thread (Alt+Shift+O)"
+              aria-keyshortcuts="Alt+Shift+O"
               className="border-foreground/10 bg-background hover:border-foreground/25 rounded-control flex h-8 w-full shrink-0 items-center gap-2 border px-2.5 text-[13px] transition-colors"
             >
               <PlusIcon className="size-3.5" />
