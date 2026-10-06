@@ -1546,6 +1546,20 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "elements-modal-size",
+    type: "registry:component",
+    title: "Elements Modal Size",
+    description: "Shared resizing and stored size for the assistant modal.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/modal-size.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/modal-size.ts",
+      },
+    ],
+  },
+  {
     name: "assistant-modal",
     type: "registry:component",
     title: "Assistant Modal",
@@ -1564,6 +1578,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread.json",
       "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/elements-modal-size.json",
     ],
     baseDependencies: ["@base-ui/react"],
   },
