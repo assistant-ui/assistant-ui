@@ -22,7 +22,7 @@ import {
 
 <template>
   <AuiIf :condition="(s) => s.message.branchCount > 1">
-    <nav aria-label="Message branches" class="flex items-center gap-2">
+    <div role="group" aria-label="Message branches" class="flex items-center gap-2">
       <BranchPickerPrimitivePrevious aria-label="Previous branch">
         Previous
       </BranchPickerPrimitivePrevious>
@@ -30,7 +30,7 @@ import {
       <BranchPickerPrimitiveNext aria-label="Next branch">
         Next
       </BranchPickerPrimitiveNext>
-    </nav>
+    </div>
   </AuiIf>
 </template>
 ```
