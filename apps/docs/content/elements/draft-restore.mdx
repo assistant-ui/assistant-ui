@@ -9,7 +9,7 @@ A dismissible banner offering to put an unsent message back into the composer, w
 
 <RuntimeMode>
 
-With a runtime, a reload does not keep unsent composer text by default: a thread whose runtime lacks the in-place refetch capability has its hook remounted on reload, which discards whatever was still being typed. Restoring a draft across that gap is app-level work built on the composer's own text state.
+With a runtime, `reloadMainThread()` does not keep unsent composer text by default: a runtime that lacks the in-place refetch capability has its hook remounted, which discards whatever was still being typed. Restoring a draft across that gap is app-level work built on the composer's own text state.
 
 <Steps>
   <Step>
@@ -46,7 +46,7 @@ export function useDraftPersistence(threadId: string) {
 
 ### Restore or discard it
 
-On mount, read the saved draft for the active thread and show the banner when the composer is still empty. Restoring writes it back into the live composer; discarding just clears storage, since the component itself holds no state.
+On mount, read the saved draft for the active thread and show the banner when the composer is still empty. Restoring writes it back into the live composer; discarding only clears storage, since the component holds no state.
 
 ```tsx title="components/assistant-ui/elements/draft-restore-banner.tsx"
 "use client";

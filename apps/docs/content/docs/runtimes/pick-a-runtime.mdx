@@ -15,11 +15,11 @@ import { MastraIcon } from "@/components/icons/mastra";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 
-A runtime is the connection between assistant-ui's UI primitives and your AI backend. This page helps you pick one. Two lenses, pick whichever maps to what you already know.
+A runtime is the connection between assistant-ui's UI primitives and your AI backend. Pick one by the framework you use or by what you need.
 
 ## Lens 1: by framework
 
-If you are already using one of these frameworks, the choice is mechanical.
+If you already use one of these frameworks, pick its runtime.
 
 ### First-party adapters
 
@@ -29,7 +29,7 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
   <Card
     icon={<VercelIcon width={20} height={20} />}
     title="Vercel AI SDK"
-    description="useChat hook, streaming, tools, attachments, multi-step. v6 current; v5 / v4 legacy."
+    description="useChat hook, streaming, tools, attachments, multi-step. v7 current; v6 / v5 / v4 legacy."
     href="/docs/runtimes/ai-sdk/overview"
   />
   <Card
@@ -128,9 +128,9 @@ If none of the framework adapters fits, start at [custom backend](/docs/runtimes
 
 ## Shared concepts
 
-Regardless of which runtime you pick, four ideas apply across the board.
+These apply to every runtime.
 
-- **Architecture** — Framework adapters wrap one of two **core runtimes** (`LocalRuntime`, `ExternalStoreRuntime`). See [architecture](/docs/runtimes/concepts/architecture) for the full layering.
+- **Architecture**: framework adapters wrap one of two core runtimes (`LocalRuntime`, `ExternalStoreRuntime`). See [architecture](/docs/runtimes/concepts/architecture) for the full layering.
 - **Adapters** (attachments, speech, feedback, history, suggestions) work the same way across runtimes. See [adapters](/docs/runtimes/concepts/adapters).
 - **Threads** (single, cloud, custom database) follow the same model. See [threads](/docs/runtimes/concepts/threads).
 - **Stability** policy: APIs prefixed with `unstable_` may change in any release. See [stability](/docs/runtimes/concepts/stability).

@@ -1,144 +1,154 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, act } from "@testing-library/react";
-import { Suspense, startTransition, use, useState } from "react";
+import { Suspense, startTransition, use, useState, version } from "react";
 import { resource } from "../../core/resource";
 import { useResource } from "../../index";
 import { useState as useResourceState } from "../../react-hooks/useState";
+
+const onReact18 = version.startsWith("18.");
 
 const ShouldNeverFallback = () => {
   throw new Error("should never fallback");
 };
 
 describe("Concurrent Mode with useResource", () => {
-  it("should not commit useResourceState updates when render is discarded", async () => {
-    const useTestResource = () => {
-      return useResourceState(false);
-    };
+  // Suspends through use(promise), which React 18 lacks.
+  it.skipIf(onReact18)(
+    "should not commit useResourceState updates when render is discarded",
+    async () => {
+      const useTestResource = () => {
+        return useResourceState(false);
+      };
 
-    const TestResource = resource(useTestResource);
+      const TestResource = resource(useTestResource);
 
-    let resolve: (value: number) => void;
+      let resolve: (value: number) => void;
 
-    const suspendPromise = new Promise<number>((r) => {
-      resolve = r;
-    });
+      const suspendPromise = new Promise<number>((r) => {
+        resolve = r;
+      });
 
-    function Suspender() {
-      const value = use(suspendPromise);
-      return value;
-    }
+      function Suspender() {
+        const value = use(suspendPromise);
+        return value;
+      }
 
-    function App() {
-      const [load, setLoading] = useResource(TestResource());
-      const [message, setMessage] = useState("none");
+      function App() {
+        const [load, setLoading] = useResource(TestResource());
+        const [message, setMessage] = useState("none");
 
-      return (
-        <>
-          <button
-            type="button"
-            data-testid="hello-btn"
-            onClick={() => setMessage("hello")}
-          />
-          <div data-testid="message">{message}</div>
-          <div data-testid="load">{load ? "true" : "false"}</div>
+        return (
+          <>
+            <button
+              type="button"
+              data-testid="hello-btn"
+              onClick={() => setMessage("hello")}
+            />
+            <div data-testid="message">{message}</div>
+            <div data-testid="load">{load ? "true" : "false"}</div>
 
-          <button
-            type="button"
-            data-testid="suspend-btn"
-            onClick={() => {
-              startTransition(() => {
-                setLoading(true);
-              });
-            }}
-          />
-          <Suspense fallback={<ShouldNeverFallback />}>
-            <div data-testid="value">{load ? <Suspender /> : "none"}</div>
-          </Suspense>
-        </>
-      );
-    }
+            <button
+              type="button"
+              data-testid="suspend-btn"
+              onClick={() => {
+                startTransition(() => {
+                  setLoading(true);
+                });
+              }}
+            />
+            <Suspense fallback={<ShouldNeverFallback />}>
+              <div data-testid="value">{load ? <Suspender /> : "none"}</div>
+            </Suspense>
+          </>
+        );
+      }
 
-    render(<App />);
-    expect(screen.getByTestId("message").textContent).toBe("none");
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("load").textContent).toBe("false");
+      render(<App />);
+      expect(screen.getByTestId("message").textContent).toBe("none");
+      expect(screen.getByTestId("value").textContent).toBe("none");
+      expect(screen.getByTestId("load").textContent).toBe("false");
 
-    await act(async () => screen.getByTestId("suspend-btn").click());
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("load").textContent).toBe("false");
+      await act(async () => screen.getByTestId("suspend-btn").click());
+      expect(screen.getByTestId("value").textContent).toBe("none");
+      expect(screen.getByTestId("load").textContent).toBe("false");
 
-    await act(async () => screen.getByTestId("hello-btn").click());
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("message").textContent).toBe("hello");
-    expect(screen.getByTestId("load").textContent).toBe("false");
+      await act(async () => screen.getByTestId("hello-btn").click());
+      expect(screen.getByTestId("value").textContent).toBe("none");
+      expect(screen.getByTestId("message").textContent).toBe("hello");
+      expect(screen.getByTestId("load").textContent).toBe("false");
 
-    await act(async () => resolve!(10));
+      await act(async () => resolve!(10));
 
-    expect(screen.getByTestId("value").textContent).toBe("10");
-    expect(screen.getByTestId("message").textContent).toBe("hello");
-  });
+      expect(screen.getByTestId("value").textContent).toBe("10");
+      expect(screen.getByTestId("message").textContent).toBe("hello");
+    },
+  );
 
-  it("react should not commit useResourceState updates when render is discarded", async () => {
-    let resolve: (value: number) => void;
+  // Suspends through use(promise), which React 18 lacks.
+  it.skipIf(onReact18)(
+    "react should not commit useResourceState updates when render is discarded",
+    async () => {
+      let resolve: (value: number) => void;
 
-    const suspendPromise = new Promise<number>((r) => {
-      resolve = r;
-    });
+      const suspendPromise = new Promise<number>((r) => {
+        resolve = r;
+      });
 
-    function Suspender() {
-      const value = use(suspendPromise);
-      return value;
-    }
+      function Suspender() {
+        const value = use(suspendPromise);
+        return value;
+      }
 
-    function App() {
-      const [load, setLoading] = useState(false);
-      const [message, setMessage] = useState("none");
+      function App() {
+        const [load, setLoading] = useState(false);
+        const [message, setMessage] = useState("none");
 
-      return (
-        <>
-          <button
-            type="button"
-            data-testid="hello-btn"
-            onClick={() => setMessage("hello")}
-          />
-          <div data-testid="message">{message}</div>
-          <div data-testid="load">{load ? "true" : "false"}</div>
+        return (
+          <>
+            <button
+              type="button"
+              data-testid="hello-btn"
+              onClick={() => setMessage("hello")}
+            />
+            <div data-testid="message">{message}</div>
+            <div data-testid="load">{load ? "true" : "false"}</div>
 
-          <button
-            type="button"
-            data-testid="suspend-btn"
-            onClick={() => {
-              startTransition(() => {
-                setLoading(true);
-              });
-            }}
-          />
-          <Suspense fallback={<ShouldNeverFallback />}>
-            <div data-testid="value">{load ? <Suspender /> : "none"}</div>
-          </Suspense>
-        </>
-      );
-    }
+            <button
+              type="button"
+              data-testid="suspend-btn"
+              onClick={() => {
+                startTransition(() => {
+                  setLoading(true);
+                });
+              }}
+            />
+            <Suspense fallback={<ShouldNeverFallback />}>
+              <div data-testid="value">{load ? <Suspender /> : "none"}</div>
+            </Suspense>
+          </>
+        );
+      }
 
-    render(<App />);
-    expect(screen.getByTestId("message").textContent).toBe("none");
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("load").textContent).toBe("false");
+      render(<App />);
+      expect(screen.getByTestId("message").textContent).toBe("none");
+      expect(screen.getByTestId("value").textContent).toBe("none");
+      expect(screen.getByTestId("load").textContent).toBe("false");
 
-    await act(async () => screen.getByTestId("suspend-btn").click());
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("load").textContent).toBe("false");
+      await act(async () => screen.getByTestId("suspend-btn").click());
+      expect(screen.getByTestId("value").textContent).toBe("none");
+      expect(screen.getByTestId("load").textContent).toBe("false");
 
-    await act(async () => screen.getByTestId("hello-btn").click());
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("message").textContent).toBe("hello");
-    expect(screen.getByTestId("load").textContent).toBe("false"); // no tearing
+      await act(async () => screen.getByTestId("hello-btn").click());
+      expect(screen.getByTestId("value").textContent).toBe("none");
+      expect(screen.getByTestId("message").textContent).toBe("hello");
+      expect(screen.getByTestId("load").textContent).toBe("false"); // no tearing
 
-    await act(async () => resolve!(10));
+      await act(async () => resolve!(10));
 
-    expect(screen.getByTestId("value").textContent).toBe("10");
-    expect(screen.getByTestId("message").textContent).toBe("hello");
-  });
+      expect(screen.getByTestId("value").textContent).toBe("10");
+      expect(screen.getByTestId("message").textContent).toBe("hello");
+    },
+  );
 
   it("should keep old UI during startTransition when resource suspends", async () => {
     let resolve: () => void;
@@ -196,7 +206,8 @@ describe("Concurrent Mode with useResource", () => {
     expect(screen.getByTestId("result").textContent).toBe("content-2");
   });
 
-  it("react test", async () => {
+  // Suspends through use(promise), which React 18 lacks.
+  it.skipIf(onReact18)("react test", async () => {
     let resolve: (value: number) => void;
 
     const suspendPromise = new Promise<number>((r) => {

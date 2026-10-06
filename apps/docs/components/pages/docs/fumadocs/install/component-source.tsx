@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Highlight } from "@/components/shared/highlight";
@@ -55,6 +56,8 @@ async function readLocalRegistry(
   name: string,
   flavor: RegistryFlavor,
 ): Promise<RegistryItem | null> {
+  "use cache";
+  cacheLife("max");
   const localPath = path.join(
     process.cwd(),
     "../registry/dist",
@@ -74,6 +77,8 @@ async function readLocalShadcnComponent(
   name: string,
   flavor: RegistryFlavor,
 ): Promise<{ content: string; sourcePath: string } | null> {
+  "use cache";
+  cacheLife("max");
   const radixSourcePath = `packages/ui/src/components/react/ui/radix/${name}.tsx`;
   const uiPath = path.join(process.cwd(), "../..", radixSourcePath);
 

@@ -1,9 +1,25 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearCart, getCart, replaceCart } from "@/lib/catalog/cart-store";
+import {
+  addAgentTool,
+  clearCart,
+  getCart,
+  getCartEntries,
+  getCartInstructions,
+  setCartInstructions,
+  replaceCart,
+} from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
+import { abandonCheckout, checkoutCart } from "../../../lib/checkout/flow";
+import { endCheckout } from "../../../lib/checkout/session-store";
 
 const mocks = vi.hoisted(() => ({
   hydrated: true,
@@ -29,6 +45,7 @@ vi.mock("@/lib/checkout/session-store", async (importOriginal) => ({
 
 afterEach(() => {
   cleanup();
+  endCheckout();
   clearCart();
   mocks.hydrated = true;
   mocks.items = "";
@@ -36,6 +53,82 @@ afterEach(() => {
 });
 
 describe("CartView", () => {
+  it.each(["statewire", "harness-sdk"])(
+    "makes the %s build brief visible and retains notes",
+    (slug) => {
+      replaceCart(["cloud", slug]);
+      setCartInstructions("Preserve our existing routes.");
+      render(<CartView />);
+      const brief = screen.getByRole("textbox", {
+        name: "What do you want to build?",
+      });
+      expect(brief).toHaveProperty("value", "Preserve our existing routes.");
+      fireEvent.change(brief, {
+        target: {
+          value: "Preserve our existing routes. Add a shared task board.",
+        },
+      });
+      expect(getCartInstructions()).toBe(
+        "Preserve our existing routes. Add a shared task board.",
+      );
+      expect(
+        screen.queryByRole("textbox", { name: "Special instructions" }),
+      ).toBeNull();
+    },
+  );
+
+  it("recovers an unconfigured legacy tool through its configuration dialog", async () => {
+    mocks.items = "items=agent-tools";
+    const { rerender } = render(<CartView />);
+    expect(screen.getByRole("button", { name: "Start setup" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Configure tool for setup" }),
+    );
+    fireEvent.click(
+      screen.getByRole("combobox", { name: "What should the tool do?" }),
+    );
+    const option = await screen.findByRole("option", { name: "Web search" });
+    fireEvent.pointerDown(option);
+    fireEvent.click(option);
+    fireEvent.click(screen.getByRole("button", { name: "Add to setup" }));
+    expect(getCartEntries()).toHaveLength(1);
+    expect(getCartEntries()[0]).toMatchObject({ name: "Web search" });
+    expect(
+      await screen.findByRole("button", { name: "Start setup" }),
+    ).not.toHaveProperty("disabled", true);
+    const configured = getCartEntries();
+    mocks.session = { id: "setup", products: ["agent-tools"], startedAt: 1 };
+    rerender(<CartView />);
+    mocks.session = null;
+    rerender(<CartView />);
+    expect(getCartEntries()).toEqual(configured);
+  });
+
+  it("shows and removes configured tools separately", () => {
+    replaceCart(["cloud"]);
+    addAgentTool("Web search", "Search support sources.");
+    addAgentTool("Web search", "Search current news.");
+    render(<CartView />);
+    expect(screen.getByText("Search support sources.")).toBeTruthy();
+    expect(screen.getByText("Search current news.")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Remove Web search, tool 1: Search support sources.",
+      }),
+    );
+    expect(screen.queryByText("Search support sources.")).toBeNull();
+    expect(getCartEntries()).toHaveLength(2);
+    expect(getCartEntries()[0]).toBe("cloud");
+    expect(
+      screen.getByRole("button", {
+        name: "Remove Web search, tool 1: Search current news.",
+      }),
+    ).toBeTruthy();
+  });
+
   it("waits for hydration before rendering the cart shell", () => {
     mocks.hydrated = false;
 
@@ -52,6 +145,23 @@ describe("CartView", () => {
     render(<CartView />);
 
     expect(getCart()).toEqual(["cloud"]);
+  });
+
+  it("applies a deferred link after setup ends while keeping restored tool configurations", () => {
+    addAgentTool("Support search", "Search our support documents.");
+    const configured = getCartEntries()[0];
+    mocks.items = "items=agent-tools,guides/attachments";
+    mocks.session = checkoutCart();
+    const { rerender } = render(<CartView />);
+    expect(getCart()).toEqual([]);
+    act(() => abandonCheckout());
+    mocks.session = null;
+    rerender(<CartView />);
+    expect(getCartEntries()).toEqual([configured, "guides/attachments"]);
+    expect(getCartEntries()).not.toContain("agent-tools");
+    expect(
+      screen.getByRole("button", { name: "Start setup" }),
+    ).not.toHaveProperty("disabled", true);
   });
 
   it("holds Start setup while a session is stored, before its connection reports", () => {

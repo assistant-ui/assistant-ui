@@ -5,7 +5,7 @@ description: Reusable extension points for attachments, speech, feedback, histor
 
 Adapters are how assistant-ui adds capabilities like file uploads or message persistence to a runtime without coupling the runtime to a specific backend. You implement a small interface, plug it into the runtime's `adapters` option, and the matching UI surfaces (paperclip button, audio button, history reload) light up.
 
-Every adapter on this page works the same way regardless of which runtime you use. When an adapter is supported by a runtime, you provide it via that runtime's `adapters` option:
+Every adapter on this page works the same way in every runtime that supports it. You provide it via that runtime's `adapters` option:
 
 ```ts
 const runtime = useLocalRuntime(modelAdapter, {
@@ -21,15 +21,15 @@ const runtime = useChatRuntime({ adapters: { attachments, history } });
 
 ## Support matrix
 
-| Adapter | LocalRuntime | ExternalStoreRuntime | DataStream | AssistantTransport | ai-sdk | react-langgraph | react-langchain | react-google-adk | react-a2a | react-ag-ui | react-opencode | react-flue |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Attachments | Yes | Yes | Yes | Yes | Yes | (via thread state) | (via thread state) | Yes | Yes | Yes | (no) | Images |
-| Speech | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | (no) | Yes |
-| Dictation | Yes | Yes | Yes | (no) | Yes | Yes | (no) | Yes | (no) | Yes | (no) | Yes |
-| Feedback | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | (no) | Yes |
-| History | Yes | (use your store) | Yes | (use thread converter) | Yes | (via load) | (via load) | Yes | Yes | Yes | (server-managed) | Flue-managed |
-| Suggestion | Yes | (no) | Yes | (no) | (no) | (no) | (no) | (no) | (no) | (no) | (no) | (no) |
-| threadList | Yes (`RemoteThreadListAdapter`) | Yes (`ExternalStoreThreadListAdapter`) | Yes (`RemoteThreadListAdapter`) | Yes | Yes | Yes | Yes | Yes | Yes | Yes (experimental) | Built-in (sessions) | App-managed |
+| Adapter | LocalRuntime | ExternalStoreRuntime | DataStream | AssistantTransport | ai-sdk | react-langgraph | react-langchain | react-google-adk | react-a2a | react-ag-ui | react-opencode | eve | react-flue |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Attachments | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Images |
+| Speech | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Dictation | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Feedback | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| History | Yes | (use your store) | Yes | (use thread converter) | Yes | (via load) | (via thread state) | (via load) | Yes | Yes | (server-managed) | (server-managed) | Flue-managed |
+| Suggestion | Yes | (no) | Yes | (no) | Yes | (no) | (no) | (no) | (no) | (no) | (no) | (no) | (no) |
+| threadList | Yes (`RemoteThreadListAdapter`) | Yes (`ExternalStoreThreadListAdapter`) | Yes (`RemoteThreadListAdapter`) | Yes | Yes | Yes | Yes | Yes | Yes | Yes (experimental) | Built-in (sessions) | Yes | App-managed |
 
 `(no)` means the adapter slot is not exposed by that runtime today. You would need to drop down a layer to use it.
 
@@ -40,9 +40,14 @@ Handles file and image uploads. When present, the composer renders a paperclip b
 ```ts
 type AttachmentAdapter = {
   accept: string;
-  add: (input: { file: File }) => Promise<PendingAttachment>;
-  send: (attachment: PendingAttachment) => Promise<CompleteAttachment>;
-  remove?: (attachment: Attachment) => Promise<void>;
+  add: (input: {
+    file: File;
+  }) => Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
+  send: (
+    attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
+  ) => Promise<CompleteAttachment>;
+  remove: (attachment: Attachment) => Promise<void>;
 };
 ```
 
@@ -50,7 +55,7 @@ Three lifecycle methods:
 
 - `add` runs when the user picks a file. Upload it, return a record with status `requires-action` so the composer holds the file before sending.
 - `send` runs when the user submits the message. Finalize the upload, attach a `content` payload, and mark status `complete`.
-- `remove` is optional and runs when the user removes the attachment before sending.
+- `remove` runs when the user removes the attachment before sending.
 
 Minimal upload-and-send example:
 
@@ -84,6 +89,9 @@ const attachmentAdapter: AttachmentAdapter = {
           : { type: "text", text: `[${attachment.name}](${attachment.url})` },
       ],
     };
+  },
+  async remove() {
+    // Delete the uploaded file here if your backend keeps one.
   },
 };
 ```
@@ -144,7 +152,16 @@ const speechAdapter: SpeechSynthesisAdapter = {
 
 ## Dictation adapter
 
-Speech-to-text input for the composer. When present, the composer renders a microphone button. The contract is parallel to the speech adapter.
+Speech-to-text input for the composer. When present, the composer renders a microphone button.
+
+```ts
+type DictationAdapter = {
+  listen: () => DictationAdapter.Session;
+  disableInputDuringDictation?: boolean;
+};
+```
+
+`listen` returns a session with `stop()`, `cancel()`, a `status` field, and the `onSpeechStart`, `onSpeech`, and `onSpeechEnd` subscriptions.
 
 ## Feedback adapter
 
@@ -156,7 +173,7 @@ type FeedbackAdapter = {
     type: "positive" | "negative";
     message: ThreadMessage;
     comment?: string;
-  }) => Promise<void>;
+  }) => void;
 };
 ```
 
@@ -176,13 +193,14 @@ const feedbackAdapter: FeedbackAdapter = {
 
 ## History adapter
 
-Per-thread message persistence. Used by `LocalRuntime` and adapters built on it (`ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
+Per-thread message persistence. Used by `LocalRuntime`, `useDataStreamRuntime`, and the framework adapters that accept `adapters.history` (`ai-sdk`, `react-a2a`, `react-ag-ui`).
 
-`ExternalStoreRuntime` does not use a history adapter directly, since you already own the message array. Persist via your store instead. `react-langgraph` and `react-langchain` source persistence from server-side thread state, exposed through their `load` callbacks.
+`ExternalStoreRuntime` does not use a history adapter directly, since you already own the message array. Persist via your store instead. `react-langgraph` and `react-google-adk` read server-side thread state through their `load` callback, and `react-langchain` reads it through `useStream`.
 
 ```ts
 type ThreadHistoryAdapter = {
   load: () => Promise<{
+    headId?: string | null;
     messages: { parentId: string | null; message: ThreadMessage }[];
   }>;
   append: (item: {
@@ -193,14 +211,21 @@ type ThreadHistoryAdapter = {
     parentId: string | null;
     message: ThreadMessage;
   }) => Promise<void>;
-  resume?: (input: {
-    messages: ThreadMessage[];
-  }) => Promise<ReadableStream | undefined>;
-  withFormat?: <Fmt>(fmt: Fmt) => ThreadHistoryAdapter;
+  delete?: (
+    items: { parentId: string | null; message: ThreadMessage }[],
+  ) => Promise<void>;
+  resume?: (
+    options: ChatModelRunOptions,
+  ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
+  withFormat?: <TMessage, TStorageFormat extends Record<string, unknown>>(
+    formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+  ) => GenericThreadHistoryAdapter<TMessage>;
 };
 ```
 
-`load` runs when a thread opens. `append` runs after each message completes. `update` rewrites a stored message in place, which lets the runtime store a run paused for tool approval and a tool result that arrives after its message settled; without it, a paused run is stored only once it ends, for example when a later turn cancels it.
+`load` runs when a thread opens. `append` runs after each message completes, or earlier when a later turn follows a message whose run is still open. `update` rewrites a stored message in place, which lets the runtime store a run paused for tool approval and a tool result that arrives after its message settled; without it, a paused run is stored once it ends or once a later turn follows it, and anything the run adds after that append is not stored.
+
+If a local runtime history write fails, the thread emits `historyWriteError` with the attempted `operation` (`append`, `update`, or `delete`), affected `messageIds`, a readable `message`, and the original `error`. The store forwards `thread.historyWriteError` with `threadId`, `operation`, `messageIds`, and `message`. Listeners receive failures while bound to the affected thread, so a write that fails after you switch away from its thread reaches no listener; the runtime logs every failed write with `console.error` either way. Writes returned to callers still reject. The external-store history copy keeps its warning on failure and does not emit this event.
 
 <Callout type="info">
 `ai-sdk` requires `withFormat` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime in the AI SDK path. See the [AI SDK history docs](/docs/runtimes/ai-sdk/v7) for the full pattern.
@@ -214,7 +239,10 @@ Proposes follow-up prompts after each assistant message. When present, suggestio
 type SuggestionAdapter = {
   generate: (input: {
     messages: readonly ThreadMessage[];
-  }) => AsyncGenerator<{ prompt: string }[]>;
+    signal?: AbortSignal;
+  }) =>
+    | Promise<readonly ThreadSuggestion[]>
+    | AsyncGenerator<readonly ThreadSuggestion[], void>;
 };
 ```
 
@@ -238,7 +266,7 @@ Multi-thread support is documented separately, since the contract differs by run
 
 ## Composing adapters
 
-Adapters compose freely. Provide as many or as few as you need; UI surfaces enable based on which slots are filled.
+Provide as many or as few adapters as you need. UI surfaces enable based on which slots are filled.
 
 ```ts
 const runtime = useLocalRuntime(modelAdapter, {

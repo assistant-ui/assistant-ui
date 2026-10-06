@@ -33,10 +33,11 @@ const converter = (
 ) => {
   const optimisticStateMessages = connectionMetadata.pendingCommands.map(
     (c): LangChainMessage[] => {
-      if (c.type === "add-message") {
+      if (c.type === "add-message" && c.message.role === "user") {
         return [
           {
             type: "human" as const,
+            ...(c.message.id !== undefined && { id: c.message.id }),
             content: [
               {
                 type: "text" as const,

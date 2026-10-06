@@ -102,6 +102,9 @@ const handlePartStart = (
       partInit.unstable_summary !== undefined
         ? { unstable_summary: partInit.unstable_summary }
         : undefined),
+      ...(partInit.type === "reasoning"
+        ? { timing: { startedAt: Date.now() } }
+        : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return appendPart(message, newTextPart);
@@ -196,6 +199,16 @@ const handlePartFinish = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "tool-call" && part.isPreliminary) return part;
+    if (part.type === "reasoning" && part.timing !== undefined) {
+      return {
+        ...part,
+        status: { type: "complete", reason: "unknown" },
+        timing: {
+          ...part.timing,
+          completedAt: part.timing.completedAt ?? Date.now(),
+        },
+      };
+    }
     return {
       ...part,
       status: { type: "complete", reason: "unknown" },
