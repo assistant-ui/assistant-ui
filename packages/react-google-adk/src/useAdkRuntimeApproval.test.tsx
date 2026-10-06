@@ -100,6 +100,7 @@ type RuntimeAdapter = {
     ) => Promise<void>;
   };
   onNew?: (message: AppendMessage) => Promise<void> | void;
+  onEdit?: (message: AppendMessage) => Promise<void> | void;
   onAddToolResult?: (options: AddToolResultOptions) => Promise<void> | void;
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
@@ -205,6 +206,7 @@ describe("useAdkRuntime tool approvals", () => {
 
   it("preserves pending tool ownership across a thread refetch", async () => {
     const runConfig = { custom: { model: "model-a" } };
+    const laterRunConfig = { custom: { model: "model-b" } };
     const currentMessages: AdkMessage[] = [
       {
         id: "ai-1",
@@ -219,7 +221,10 @@ describe("useAdkRuntime tool approvals", () => {
         id: "ai-2",
         type: "ai",
         content: [],
-        tool_calls: [{ id: "tool-loaded", name: "lookup", args: {} }],
+        tool_calls: [
+          null as never,
+          { id: "tool-loaded", name: "lookup", args: {} },
+        ],
       },
     ];
     const load = vi.fn(async () => ({ messages: loadedMessages }));
@@ -243,6 +248,12 @@ describe("useAdkRuntime tool approvals", () => {
     });
 
     await act(async () => {
+      mocks.streamedMessages = [loadedMessages.at(-1)!];
+      await latestAdapter().extras.send(
+        [{ id: "u-later", type: "human", content: "later" }],
+        { runConfig: laterRunConfig },
+      );
+      mocks.streamedMessages = undefined;
       await latestAdapter().onAddToolResult!({
         messageId: "ai-1",
         toolCallId: "tool-a",
@@ -262,6 +273,42 @@ describe("useAdkRuntime tool approvals", () => {
     expect(
       mocks.sendMessage.mock.calls.slice(-2).map((call) => call[1]),
     ).toEqual([{ runConfig }, { runConfig: undefined }]);
+  });
+
+  it("tracks and prunes ownership around malformed tool-call entries", async () => {
+    const runConfig = { custom: { model: "model-a" } };
+    mocks.messages = [
+      { id: "u-1", type: "human", content: "first" },
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [null as never, { id: "tool-a", name: "lookup", args: {} }],
+      },
+    ];
+    mocks.messageRunConfig = runConfig;
+    renderHook(() =>
+      useAdkRuntime({
+        stream: vi.fn(),
+        getCheckpointId: vi.fn(async () => null),
+      }),
+    );
+
+    await act(async () => {
+      await latestAdapter().onEdit!({
+        ...makeUserMessage("edited", runConfig),
+        parentId: "ai-1",
+      });
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-1",
+        toolCallId: "tool-a",
+        toolName: "lookup",
+        result: { value: "done" },
+        isError: false,
+      });
+    });
+
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
   });
 
   it("attributes new tool calls to an explicitly configured continuation", async () => {

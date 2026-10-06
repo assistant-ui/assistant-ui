@@ -131,6 +131,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       for (const message of newMessages) {
         if (message.type !== "ai") continue;
         for (const toolCall of message.tool_calls ?? []) {
+          if (!toolCall) continue;
           if (!toolOwnership.has(toolCall.id)) {
             toolOwnership.set(toolCall.id, runConfig);
           }
@@ -146,6 +147,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     for (const message of history) {
       if (message.type !== "ai") continue;
       for (const toolCall of message.tool_calls ?? []) {
+        if (!toolCall) continue;
         // Loaded ids must remain present even without a local owner because
         // streamed event windows use has() to avoid attributing them later.
         nextOwnership.set(
@@ -164,6 +166,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     for (const message of history) {
       if (message.type !== "ai") continue;
       for (const toolCall of message.tool_calls ?? []) {
+        if (!toolCall) continue;
         toolCallIds.add(toolCall.id);
       }
     }
