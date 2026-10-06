@@ -1502,6 +1502,82 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("keeps child interactions settled before reconnect history attaches the child", async () => {
+    const eventSource = createEventSource();
+    const reconnectHistory = createDeferred<{ data: unknown[] }>();
+    let parentLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID !== "ses_parent") return Promise.resolve({ data: [] });
+      parentLoads += 1;
+      return parentLoads === 1
+        ? Promise.resolve({ data: [] })
+        : reconnectHistory.promise;
+    });
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const questions = createDeferred<{ data: QuestionRequest[] }>();
+    const permission = {
+      id: "perm_child",
+      sessionID: "ses_child",
+      permission: "fs.write",
+      metadata: {},
+    } as PermissionRequest;
+    const question = {
+      id: "q_child",
+      sessionID: "ses_child",
+      questions: [],
+    } as QuestionRequest;
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn(() => permissions.promise),
+      questions: vi.fn(() => questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.permission.list).toHaveBeenCalled();
+      expect(client.question.list).toHaveBeenCalled();
+      expect(messages).toHaveBeenCalledTimes(2);
+    });
+    permissions.resolve({ data: [permission] });
+    questions.resolve({ data: [question] });
+    await Promise.all([permissions.promise, questions.promise]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    eventSource.emit({
+      type: "permission.replied",
+      sessionId: "ses_child",
+      properties: { requestID: permission.id, reply: "once" },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.rejected",
+      sessionId: "ses_child",
+      properties: { requestID: question.id },
+      raw: {},
+    });
+    reconnectHistory.resolve({
+      data: [
+        createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
+      ],
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+    const child = controller.getState().childSessionsById.ses_child;
+    expect(child?.interactions.permissions.pending.perm_child).toBeUndefined();
+    expect(child?.interactions.questions.pending.q_child).toBeUndefined();
+  });
+
   it("waits for nested children before replaying recovery snapshots", async () => {
     const eventSource = createEventSource();
     const childHistory = createDeferred<{ data: unknown[] }>();

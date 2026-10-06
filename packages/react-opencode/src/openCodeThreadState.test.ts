@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
+  reduceOpenCodeThreadStateInternal,
 } from "./openCodeThreadState";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 import type {
@@ -53,11 +54,11 @@ describe("reduceOpenCodeThreadState", () => {
 
       const reconciled =
         kind === "permission"
-          ? reduceOpenCodeThreadState(state, {
+          ? reduceOpenCodeThreadStateInternal(state, {
               type: "permissions.reconciled",
               pending: { ...state.interactions.permissions.pending },
             })
-          : reduceOpenCodeThreadState(state, {
+          : reduceOpenCodeThreadStateInternal(state, {
               type: "questions.reconciled",
               pending: { ...state.interactions.questions.pending },
             });

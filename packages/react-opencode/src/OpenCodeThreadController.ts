@@ -8,7 +8,7 @@ import type {
 import {
   copyMessagesById,
   createOpenCodeThreadState,
-  reduceOpenCodeThreadState,
+  reduceOpenCodeThreadStateInternal,
   isOpenCodeStateRunning,
 } from "./openCodeThreadState";
 import type {
@@ -47,6 +47,16 @@ type ChildControllerEntry = {
   controller: OpenCodeThreadController;
   unsubscribe: (() => void) | null;
 };
+
+type InteractionRecoveryEvents = {
+  permissions: Map<string, OpenCodeServerEvent[]>;
+  questions: Map<string, OpenCodeServerEvent[]>;
+};
+
+const createInteractionRecoveryEvents = (): InteractionRecoveryEvents => ({
+  permissions: new Map(),
+  questions: new Map(),
+});
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
   serializeOpenCodeParts(parts).trim();
@@ -369,6 +379,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     ChildControllerEntry
   >();
   private readonly childSessionIdByPartId = new Map<string, string>();
+  private interactionRecoveryEvents = createInteractionRecoveryEvents();
   private ancestorSessionIds: ReadonlySet<string>;
   private isChildSession = false;
   private readonly stagedMessages = new Map<
@@ -425,6 +436,41 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.questionRecoveryFence.clear();
     for (const entry of this.childControllersById.values()) {
       entry.controller.cancelInteractionRecovery();
+    }
+    if (!this.isChildSession) {
+      this.interactionRecoveryEvents.permissions.clear();
+      this.interactionRecoveryEvents.questions.clear();
+    }
+  }
+
+  private retainDescendantInteractionRecoveryEvent(event: OpenCodeServerEvent) {
+    if (this.isChildSession || !event.sessionId) return;
+
+    const events =
+      event.type === "permission.asked" || event.type === "permission.replied"
+        ? this.permissionRecoveryToken !== null
+          ? this.interactionRecoveryEvents.permissions
+          : null
+        : event.type === "question.asked" ||
+            event.type === "question.replied" ||
+            event.type === "question.rejected"
+          ? this.questionRecoveryToken !== null
+            ? this.interactionRecoveryEvents.questions
+            : null
+          : null;
+    if (!events) return;
+
+    const retained = events.get(event.sessionId) ?? [];
+    retained.push(event);
+    events.set(event.sessionId, retained);
+  }
+
+  private replayInteractionRecoveryEvents() {
+    for (const event of [
+      ...(this.interactionRecoveryEvents.permissions.get(this.sessionId) ?? []),
+      ...(this.interactionRecoveryEvents.questions.get(this.sessionId) ?? []),
+    ]) {
+      this.handleServerEvent(event);
     }
   }
 
@@ -556,6 +602,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       controller.isChildSession = true;
       controller.permissionRecoveryToken = this.permissionRecoveryToken;
       controller.questionRecoveryToken = this.questionRecoveryToken;
+      controller.interactionRecoveryEvents = this.interactionRecoveryEvents;
+      controller.replayInteractionRecoveryEvents();
       const entry: ChildControllerEntry = {
         controller,
         unsubscribe: null,
@@ -577,7 +625,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private syncChildSessionIndex(event: OpenCodeStateEvent) {
+  private syncChildSessionIndex(
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+  ) {
     switch (event.type) {
       case "history.loaded":
       case "message.removed":
@@ -602,7 +652,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         this.handleStreamReconnect();
         return;
       }
-      if (event.sessionId !== this.sessionId) return;
+      if (event.sessionId !== this.sessionId) {
+        this.retainDescendantInteractionRecoveryEvent(event);
+        return;
+      }
       this.handleServerEvent(event);
     });
   }
@@ -631,12 +684,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.permissionRecoveryToken !== token) return;
     this.permissionRecoveryToken = null;
     this.permissionRecoveryFence.clear();
+    if (!this.isChildSession) {
+      this.interactionRecoveryEvents.permissions.clear();
+    }
   }
 
   private finishQuestionRecovery(token: number) {
     if (this.questionRecoveryToken !== token) return;
     this.questionRecoveryToken = null;
     this.questionRecoveryFence.clear();
+    if (!this.isChildSession) {
+      this.interactionRecoveryEvents.questions.clear();
+    }
   }
 
   private reconcilePermissions(requests: readonly OpenCodePermissionRequest[]) {
@@ -702,6 +761,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const activityRevision = this.activityRevision;
 
     if (this.isChildSession) return;
+    this.interactionRecoveryEvents.permissions.clear();
+    this.interactionRecoveryEvents.questions.clear();
     const interactionRecoveryTargets = this.collectInteractionRecoveryTargets(
       new Map(),
       token,
@@ -1378,7 +1439,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private trackHistoryEvent(
-    event: Parameters<typeof reduceOpenCodeThreadState>[1],
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
   ) {
     const syncWindow = this.historySyncWindow;
     if (!syncWindow) return;
@@ -1422,9 +1483,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+  private dispatch(
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+  ) {
     this.trackHistoryEvent(event);
-    const nextState = reduceOpenCodeThreadState(this.state, event);
+    const nextState = reduceOpenCodeThreadStateInternal(this.state, event);
     this.commitState(event, nextState);
   }
 
@@ -1432,7 +1495,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     event: Extract<OpenCodeStateEvent, { type: "history.loaded" }>,
     changedMessageIds: ReadonlySet<string>,
   ) {
-    let nextState = reduceOpenCodeThreadState(this.state, event);
+    let nextState = reduceOpenCodeThreadStateInternal(this.state, event);
     let messagesById: ReturnType<typeof copyMessagesById> | null = null;
     for (const messageId of changedMessageIds) {
       const shadowParts = this.state.messagesById[messageId]?.shadowParts;
@@ -1446,7 +1509,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private commitState(
-    event: OpenCodeStateEvent,
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
     nextState: OpenCodeThreadState,
   ) {
     if (nextState === this.state) return;

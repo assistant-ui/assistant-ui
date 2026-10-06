@@ -2,6 +2,8 @@ import type {
   Message,
   MessageWithParts,
   OpenCodeServerMessage,
+  OpenCodePermissionRequest,
+  OpenCodeQuestionRequest,
   OpenCodeStateEvent,
   OpenCodeThreadState,
   Part,
@@ -13,6 +15,20 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
+
+type OpenCodeReconciliationEvent =
+  | {
+      type: "permissions.reconciled";
+      pending: Readonly<Record<string, OpenCodePermissionRequest>>;
+    }
+  | {
+      type: "questions.reconciled";
+      pending: Readonly<Record<string, OpenCodeQuestionRequest>>;
+    };
+
+type OpenCodeThreadStateEvent =
+  | OpenCodeStateEvent
+  | OpenCodeReconciliationEvent;
 
 const isSameRecord = <T>(
   left: Readonly<Record<string, T>>,
@@ -300,9 +316,9 @@ export const createOpenCodeThreadState = (
   sync: {},
 });
 
-export const reduceOpenCodeThreadState = (
+export const reduceOpenCodeThreadStateInternal = (
   state: OpenCodeThreadState,
-  event: OpenCodeStateEvent,
+  event: OpenCodeThreadStateEvent,
 ): OpenCodeThreadState => {
   switch (event.type) {
     case "history.loading":
@@ -724,6 +740,11 @@ export const reduceOpenCodeThreadState = (
     }
   }
 };
+
+export const reduceOpenCodeThreadState = (
+  state: OpenCodeThreadState,
+  event: OpenCodeStateEvent,
+): OpenCodeThreadState => reduceOpenCodeThreadStateInternal(state, event);
 
 /** Stable placeholder state used before a session controller is attached. */
 export const EMPTY_OPENCODE_THREAD_STATE =
