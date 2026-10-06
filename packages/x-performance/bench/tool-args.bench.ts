@@ -4,6 +4,7 @@ import {
   unstable_toolResultStream,
   type AssistantStreamChunk,
 } from "assistant-stream";
+import { IncrementalJsonObjectParser } from "assistant-stream/utils";
 
 const makeChunks = (
   size: number,
@@ -84,4 +85,16 @@ describe("assistant-stream: accumulator tool arguments (16-char deltas)", () => 
       }).run(inject("benchSampling"));
     });
   }
+});
+
+describe("assistant-stream: complete tool arguments (single delta)", () => {
+  const argsText = JSON.stringify({
+    points: Array.from({ length: 10_000 }, (_, index) => index + 0.5),
+  });
+
+  test("10,000 array elements", async ({ bench }) => {
+    await bench("10,000 array elements", () => {
+      IncrementalJsonObjectParser.from(argsText);
+    }).run(inject("benchSampling"));
+  });
 });

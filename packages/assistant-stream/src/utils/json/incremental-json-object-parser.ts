@@ -92,25 +92,30 @@ const writeAtPath = (
   root: MutableJSONObject,
   path: JSONPath,
   value: ReadonlyJSONValue,
+  ownedContainers: Set<MutableJSONContainer>,
 ): MutableJSONObject => {
   const update = (
     container: MutableJSONContainer,
     depth: number,
   ): MutableJSONContainer => {
-    const clone: MutableJSONContainer = Array.isArray(container)
-      ? [...container]
-      : { ...container };
+    const target = ownedContainers.has(container)
+      ? container
+      : Array.isArray(container)
+        ? [...container]
+        : { ...container };
+    ownedContainers.add(target);
     const key = path[depth]!;
 
     if (depth === path.length - 1) {
-      setValue(clone, key, value);
-      return clone;
+      setValue(target, key, value);
+      if (isContainer(value)) ownedContainers.add(value);
+      return target;
     }
 
-    const child = container[key as keyof typeof container];
+    const child = target[key as keyof typeof target];
     if (!isContainer(child)) throw new Error("Invalid incremental JSON path");
-    setValue(clone, key, update(child, depth + 1));
-    return clone;
+    setValue(target, key, update(child, depth + 1));
+    return target;
   };
 
   return update(root, 0) as MutableJSONObject;
@@ -139,6 +144,7 @@ export class IncrementalJsonObjectParser {
   private frames: Frame[] = [];
   private token: Token | undefined;
   private args: ReadonlyJSONObject;
+  private ownedContainers: Set<MutableJSONContainer> | undefined;
 
   private constructor(fallback: ReadonlyJSONObject) {
     this.args = fallback;
@@ -149,7 +155,7 @@ export class IncrementalJsonObjectParser {
     fallback: ReadonlyJSONObject = parsePartialJsonObject("")!,
   ) {
     const parser = new IncrementalJsonObjectParser(fallback);
-    parser.consumeDelta(text);
+    parser.consumeDelta(text, true);
     if (text.length !== 0) {
       parser.text = { length: text.length, previous: undefined, value: text };
     }
@@ -238,9 +244,12 @@ export class IncrementalJsonObjectParser {
     return this.frames.at(-1)?.path ?? [];
   }
 
-  private consumeDelta(delta: string) {
+  private consumeDelta(delta: string, ownsRoot = false) {
     if (this.mode === "fallback") return;
 
+    this.ownedContainers = ownsRoot
+      ? new Set<MutableJSONContainer>([this.root])
+      : new Set();
     for (const char of delta) {
       this.consumeCharacter(char);
     }
@@ -253,6 +262,7 @@ export class IncrementalJsonObjectParser {
     ) {
       this.writeValue(this.token.path, Number(this.token.value));
     }
+    this.ownedContainers = undefined;
   }
 
   private consumeCharacter(char: string) {
@@ -545,7 +555,12 @@ export class IncrementalJsonObjectParser {
 
   private writeValue(path: JSONPath, value: ReadonlyJSONValue) {
     try {
-      this.root = writeAtPath(this.root, path, value);
+      this.root = writeAtPath(
+        this.root,
+        path,
+        value,
+        this.ownedContainers ?? new Set(),
+      );
     } catch {
       this.mode = "fallback";
     }

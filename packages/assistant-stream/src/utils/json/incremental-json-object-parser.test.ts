@@ -74,9 +74,22 @@ describe("IncrementalJsonObjectParser", () => {
     const base = IncrementalJsonObjectParser.from('{"value":"');
     const left = base.append('left"}');
     const right = base.append('right"}');
+    const nestedBase = IncrementalJsonObjectParser.from('{"values":[1');
+    const nestedLeft = nestedBase.append(",2]}");
+    const nestedRight = nestedBase.append(",3]}");
 
     expect(base.currentArgs).toMatchObject({ value: "" });
     expect(left.currentArgs).toMatchObject({ value: "left" });
     expect(right.currentArgs).toMatchObject({ value: "right" });
+    expect(nestedBase.currentArgs).toMatchObject({ values: [1] });
+    expect(nestedLeft.currentArgs).toMatchObject({ values: [1, 2] });
+    expect(nestedRight.currentArgs).toMatchObject({ values: [1, 3] });
+  });
+
+  it("parses a large array delivered in one delta", () => {
+    const values = Array.from({ length: 10_000 }, (_, index) => index + 0.5);
+    const parser = IncrementalJsonObjectParser.from(JSON.stringify({ values }));
+
+    expect(parser.currentArgs.values).toEqual(values);
   });
 });
