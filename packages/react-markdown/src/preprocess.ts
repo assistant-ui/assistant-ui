@@ -1018,49 +1018,119 @@ function opensCurrencyAmount(text: string, index: number): boolean {
   return /\d/.test(text[index + 1] ?? "");
 }
 
-/** Columns of indentation at the start of `line` (a tab advances to the next multiple of 4). */
-function indentColumns(line: string): number {
-  let column = 0;
-  let i = 0;
-  while (i < line.length) {
-    const code = line.charCodeAt(i);
-    if (code === SPACE) column += 1;
-    else if (code === TAB) column += 4 - (column % 4);
-    else break;
+/** Offset just past the spaces and tabs starting at `from` (within `[from, to)`). */
+function whitespaceEnd(text: string, from: number, to: number): number {
+  let i = from;
+  while (i < to) {
+    const code = text.charCodeAt(i);
+    if (code !== SPACE && code !== TAB) break;
     i += 1;
   }
-  return column;
+  return i;
 }
 
 /**
- * Whether the line starting at `index` opens a CommonMark indented code block:
- * at least four columns of indentation on a non-blank line, with no paragraph
- * above it to interrupt (a blank line or the start of the input must precede it).
+ * Offset past any blockquote markers opening the line `[from, to)`: each `>`
+ * allows up to three leading spaces and one following space or tab.
  */
-function opensIndentedCode(text: string, index: number): boolean {
-  if (index !== 0 && text[index - 1] !== "\n") return false;
+function pastBlockquotes(text: string, from: number, to: number): number {
+  let i = from;
+  for (;;) {
+    let j = i;
+    let spaces = 0;
+    while (spaces < 3 && j < to && text.charCodeAt(j) === SPACE) {
+      j += 1;
+      spaces += 1;
+    }
+    if (j >= to || text.charCodeAt(j) !== GT) return i;
+    j += 1;
+    if (j < to) {
+      const code = text.charCodeAt(j);
+      if (code === SPACE || code === TAB) j += 1;
+    }
+    i = j;
+  }
+}
+
+/**
+ * Content column of the list item containing the line at `lineStart`, or 0 when
+ * the line is not a list continuation. Walks back over blank and indented lines
+ * to the owning block: a list marker there raises the indented-code bar to its
+ * content column, so a list continuation paragraph is never read as code.
+ */
+function enclosingListContentColumn(text: string, lineStart: number): number {
+  let pos = lineStart;
+  for (;;) {
+    if (pos === 0) return 0;
+    const prevStart = text.lastIndexOf("\n", pos - 2) + 1;
+    const prevEnd = text.indexOf("\n", prevStart);
+    const end = prevEnd === -1 ? text.length : prevEnd;
+    const content = pastBlockquotes(text, prevStart, end);
+    if (onlyWhitespace(text, content, end)) {
+      pos = prevStart;
+      continue;
+    }
+    const wsEnd = whitespaceEnd(text, content, end);
+    // Four or more columns of indentation is code, not list structure.
+    if (columns(text, content, wsEnd) >= 4) {
+      pos = prevStart;
+      continue;
+    }
+    const markerEnd = listMarkerEnd(text, wsEnd, end);
+    if (markerEnd === wsEnd) {
+      // An indented non-marker line still belongs to the item above.
+      if (wsEnd > content) {
+        pos = prevStart;
+        continue;
+      }
+      return 0;
+    }
+    return columns(text, content, markerEnd);
+  }
+}
+
+/**
+ * Minimum indentation columns for the line at `index` to open an indented code
+ * block, or -1 when it cannot open one. The line must start a line, carry
+ * non-whitespace past any blockquote markers, and follow a blank line or the
+ * start of input (indented code cannot interrupt a paragraph). Inside a list
+ * item the bar is the item's content column plus four.
+ */
+function indentedCodeThreshold(text: string, index: number): number {
+  if (index !== 0 && text[index - 1] !== "\n") return -1;
   const lineEnd = text.indexOf("\n", index);
-  const line = text.slice(index, lineEnd === -1 ? undefined : lineEnd);
-  if (onlyWhitespace(line, 0, line.length)) return false;
-  if (indentColumns(line) < 4) return false;
-  if (index === 0) return true;
-  const prevStart = text.lastIndexOf("\n", index - 2) + 1;
-  return onlyWhitespace(text, prevStart, index - 1);
+  const end = lineEnd === -1 ? text.length : lineEnd;
+  const content = pastBlockquotes(text, index, end);
+  if (onlyWhitespace(text, content, end)) return -1;
+  if (index !== 0) {
+    const prevStart = text.lastIndexOf("\n", index - 2) + 1;
+    const prevEnd = text.indexOf("\n", prevStart);
+    const pEnd = prevEnd === -1 ? text.length : prevEnd;
+    if (!onlyWhitespace(text, pastBlockquotes(text, prevStart, pEnd), pEnd)) {
+      return -1;
+    }
+  }
+  const wsEnd = whitespaceEnd(text, content, end);
+  const threshold = 4 + enclosingListContentColumn(text, index);
+  return columns(text, content, wsEnd) < threshold ? -1 : threshold;
 }
 
 /**
  * End index (exclusive) of the indented code block opening at `index`, or -1
- * when none opens there. The block runs through blank lines and lines indented
- * four or more columns, ending at the first other line.
+ * when none opens there. The block runs through blank lines and lines meeting
+ * the opening line's indentation bar, ending at the first other line.
  */
 function indentedCodeEnd(text: string, index: number): number {
-  if (!opensIndentedCode(text, index)) return -1;
+  const threshold = indentedCodeThreshold(text, index);
+  if (threshold < 0) return -1;
   let lineStart = index;
   for (;;) {
     const lineEnd = text.indexOf("\n", lineStart);
-    const line = text.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
-    if (!onlyWhitespace(line, 0, line.length) && indentColumns(line) < 4) {
-      return lineStart;
+    const end = lineEnd === -1 ? text.length : lineEnd;
+    const content = pastBlockquotes(text, lineStart, end);
+    if (!onlyWhitespace(text, content, end)) {
+      const wsEnd = whitespaceEnd(text, content, end);
+      if (columns(text, content, wsEnd) < threshold) return lineStart;
     }
     if (lineEnd === -1) return text.length;
     lineStart = lineEnd + 1;

@@ -751,6 +751,26 @@ describe("escapeCurrencyDollars", () => {
       "\\$5\n\n    code $10\n\n\\$15",
     );
   });
+
+  it("still escapes a list continuation paragraph", () => {
+    expect(
+      escapeCurrencyDollars("- Plan A\n\n    Costs $5 per month and $10 extra."),
+    ).toBe("- Plan A\n\n    Costs \\$5 per month and \\$10 extra.");
+  });
+
+  it("does not rewrite indented code inside a list item", () => {
+    expect(escapeCurrencyDollars("- item\n\n      total = $5")).toBe(
+      "- item\n\n      total = $5",
+    );
+  });
+
+  it("does not rewrite indented code inside a blockquote", () => {
+    expect(escapeCurrencyDollars(">     total = $5")).toBe(">     total = $5");
+  });
+
+  it("still escapes a blockquote paragraph", () => {
+    expect(escapeCurrencyDollars("> total = $5")).toBe("> total = \\$5");
+  });
 });
 
 describe("HTML blocks", () => {
