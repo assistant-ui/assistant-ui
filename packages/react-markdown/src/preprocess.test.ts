@@ -798,6 +798,12 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("still escapes list prose inside a blockquote", () => {
+    expect(
+      escapeCurrencyDollars("> - a\n>\n>   para1\n>\n>     para2 costs $5"),
+    ).toBe("> - a\n>\n>   para1\n>\n>     para2 costs \\$5");
+  });
+
   it("escapes list prose split across an html block boundary", () => {
     // The html block hands the callback a fresh slice starting below it, but
     // the indented line still sits inside the list item, so its currency is

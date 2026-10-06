@@ -1052,6 +1052,16 @@ function pastBlockquotes(text: string, from: number, to: number): number {
   }
 }
 
+/** Number of `>` markers `pastBlockquotes` strips from `[from, to)`. */
+function blockquoteDepth(text: string, from: number, to: number): number {
+  const stripped = pastBlockquotes(text, from, to);
+  let depth = 0;
+  for (let i = from; i < stripped; i += 1) {
+    if (text.charCodeAt(i) === GT) depth += 1;
+  }
+  return depth;
+}
+
 /**
  * Whether the line at `lineStart` sits inside a list item. Walks back over
  * blank lines, indented lines, and lazy continuation lines to the owning
@@ -1064,6 +1074,13 @@ function pastBlockquotes(text: string, from: number, to: number): number {
  * design: it can only miss code blocks, never invent them.
  */
 function inListContext(text: string, lineStart: number): boolean {
+  const targetDepth = blockquoteDepth(
+    text,
+    lineStart,
+    text.indexOf("\n", lineStart) === -1
+      ? text.length
+      : text.indexOf("\n", lineStart),
+  );
   let pos = lineStart;
   for (;;) {
     if (pos === 0) return false;
@@ -1083,11 +1100,17 @@ function inListContext(text: string, lineStart: number): boolean {
     ) {
       return true;
     }
-    // Measure the raw indentation before quote stripping: a `   > ` line
-    // inside a list item must not look like a column-0 list closer.
-    const rawWsEnd = whitespaceEnd(text, prevStart, end);
+    // A line closes the list only if its indentation is under 2 columns
+    // *at the target's quote depth*: measure past the quote markers when the
+    // depths match (a `>   para` line inside a quoted list is not a closer),
+    // but use the raw indentation when they differ (a `   > ` line inside an
+    // unquoted list item, or a `> ` line that starts a new blockquote, must
+    // not look like a column-0 closer).
+    const depth = blockquoteDepth(text, prevStart, end);
+    const indentBase = depth === targetDepth ? content : prevStart;
+    const indentEnd = whitespaceEnd(text, indentBase, end);
     if (
-      columns(text, prevStart, rawWsEnd) < 2 &&
+      columns(text, indentBase, indentEnd) < 2 &&
       prevLineIsBlank(text, prevStart)
     ) {
       return false;
