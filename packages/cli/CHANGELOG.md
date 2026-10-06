@@ -1,5 +1,15 @@
 # assistant-ui
 
+## 0.0.121
+
+### Patch Changes
+
+- [#8758](https://github.com/assistant-ui/assistant-ui/pull/8758) [`cae68a4`](https://github.com/assistant-ui/assistant-ui/commit/cae68a45bf24b528151d182e657979053910bec5) - the agent skill the CLI installs now comes from the skills commit that routes cloud persistence to the `cloud` option of `useChatRuntime` instead of the removed cloud-ai-sdk hooks ([@okisdev](https://github.com/okisdev))
+
+- [#8754](https://github.com/assistant-ui/assistant-ui/pull/8754) [`880d66a`](https://github.com/assistant-ui/assistant-ui/commit/880d66af8cdb171cd5eee1b1159e35df5b0d9919) - add browser sign-in and cloud setup commands that provision a shared multiplayer chat with hackathon access-code support. ([@Yonom](https://github.com/Yonom))
+
+- [#8759](https://github.com/assistant-ui/assistant-ui/pull/8759) [`a73237b`](https://github.com/assistant-ui/assistant-ui/commit/a73237b277793c9b9e56cd638357fc57005c07e1) - add --setup-url to cloud login and setup so an active setup wizard can show device authorization while the CLI polls Accounts and keeps its credentials locally. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.120
 
 ### Patch Changes
