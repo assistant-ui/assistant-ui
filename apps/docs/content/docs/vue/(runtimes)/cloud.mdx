@@ -103,7 +103,7 @@ With `cloud`, `AISDKThreads` keeps every visited thread mounted. A response can 
 
 ## Keep the selected thread in the URL
 
-`threadId` selects a cloud thread by its remote id. `onThreadIdChange` receives the selected thread's remote id whenever it changes, including when a new thread is initialized, and `undefined` while a new thread has none yet. A reactive `AuiConfig` lets `AISDKThreads` follow a later `threadId` change, including browser history navigation:
+`threadId` selects a cloud thread by its remote id. `onThreadIdChange` receives the selected thread's remote id after the user switches threads or a new thread is initialized, and `undefined` for a new thread that has none yet. A change you make through `threadId` is not reported back. A reactive `AuiConfig` lets `AISDKThreads` follow a later `threadId` change, including browser history navigation:
 
 ```vue title="app/components/UrlAssistant.client.vue"
 <script setup lang="ts">

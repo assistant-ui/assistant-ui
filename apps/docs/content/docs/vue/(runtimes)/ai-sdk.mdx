@@ -114,7 +114,7 @@ The transport's `body` is merged with any body passed on the send. Those values 
 | `transport` | `ChatTransport` or `() => ChatTransport` | New `AssistantChatTransport` per thread | A factory runs once for each thread. An `AssistantChatTransport` instance is cloned per thread; another instance is shared. |
 | `cloud` | `AssistantCloud` | None | Backs the list with cloud history instead of memory. |
 | `threadId` | `string` | None | Controls the selected remote thread when `cloud` is set. |
-| `onThreadIdChange` | Callback | None | Receives the selected thread's remote id whenever it changes, including when a new thread is initialized. |
+| `onThreadIdChange` | Callback | None | Receives the selected thread's remote id after the user switches threads or a new thread is initialized. A change made through `threadId` is not reported back. |
 
 Each thread captures its chat construction options when created, including its transport. Later option changes update callbacks but do not replace a chat's transport or initial state. Without `cloud`, the list and histories live in the assistant client's memory. See [Cloud persistence](/docs/vue/cloud) and [Thread list](/docs/vue/thread-list) for list setup and controls.
 
