@@ -7,7 +7,8 @@ import {
 } from "./valueFunctions";
 import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
 import type { A2uiBinding } from "./BindingContext";
-import { decodePointer, resolvePointer } from "./dataModel";
+import { resolvePointer } from "./dataModel";
+import { decodeScopeRelativePointer } from "./pointer";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
@@ -113,7 +114,7 @@ type Scope = { readonly data: unknown; readonly path: string };
 
 const pointerIn = (scope: Scope, path: string): string =>
   (path.startsWith("/") ? "" : scope.path) +
-  decodePointer(path)
+  decodeScopeRelativePointer(path)
     .map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`)
     .join("");
 
@@ -155,7 +156,11 @@ const withFieldReferences = (
   let result = value;
   for (const [name, field] of fields) {
     if (name.startsWith(`${pointer}/`)) {
-      result = setIn(result, decodePointer(name.slice(pointer.length)), field);
+      result = setIn(
+        result,
+        decodeScopeRelativePointer(name.slice(pointer.length)),
+        field,
+      );
     }
   }
   return result;
