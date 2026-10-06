@@ -50,16 +50,6 @@ const useRepairedText = (
     [shouldTailRemend, text, remendConfig],
   );
 
-const StreamdownBody: FC<StreamdownBodyProps> = ({
-  text,
-  shouldTailRemend,
-  remendConfig,
-  ...props
-}) => {
-  const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
-  return <Streamdown {...props}>{repairedText}</Streamdown>;
-};
-
 // Streamdown reparses the whole accumulated text on every render, so the urgent
 // pass of a deferred pair would parse text the previous commit already parsed.
 // Memoizing the body turns that pass into a bail-out.
@@ -294,7 +284,7 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };
 
-    const Body = defer ? DeferredStreamdownBody : StreamdownBody;
+    const Body = defer ? DeferredStreamdownBody : MemoizedStreamdownBody;
     // An inline option object is a fresh value every render, which would give
     // the memoized body a new prop identity and defeat its bail-out.
     const bodyProps = useStableProps({
