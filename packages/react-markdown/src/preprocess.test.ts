@@ -804,6 +804,12 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("> - a\n>\n>   para1\n>\n>     para2 costs \\$5");
   });
 
+  it("still escapes footnote prose", () => {
+    expect(
+      escapeCurrencyDollars("[^1]: Pricing note\n\n    Plans cost $5 and $10"),
+    ).toBe("[^1]: Pricing note\n\n    Plans cost \\$5 and \\$10");
+  });
+
   it("escapes list prose split across an html block boundary", () => {
     // The html block hands the callback a fresh slice starting below it, but
     // the indented line still sits inside the list item, so its currency is

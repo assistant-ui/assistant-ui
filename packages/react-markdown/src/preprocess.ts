@@ -33,6 +33,9 @@ const APOSTROPHE = 39;
 const DIGIT_ONE = 49;
 const COLON = 58;
 const EQUALS = 61;
+const LBRACKET = 91;
+const RBRACKET = 93;
+const CARET = 94;
 const QUESTION = 63;
 const UNDERSCORE = 95;
 
@@ -1096,7 +1099,8 @@ function inListContext(text: string, lineStart: number): boolean {
     if (
       columns(text, content, wsEnd) < 4 &&
       (listMarkerEnd(text, wsEnd, end) !== wsEnd ||
-        isBareMarker(text, wsEnd, end))
+        isBareMarker(text, wsEnd, end) ||
+        isFootnoteDef(text, wsEnd, end))
     ) {
       return true;
     }
@@ -1136,6 +1140,26 @@ function isBareMarker(text: string, from: number, to: number): boolean {
   return /^([-*+]|\d{1,9}[.)])$/.test(rest);
 }
 
+/**
+ * Whether `[from, to)` starts a GFM footnote definition (`[^label]:`).
+ * Indented content under a footnote definition is footnote prose, not an
+ * indented code block, so the walk vetoes code below one just like a list.
+ */
+function isFootnoteDef(text: string, from: number, to: number): boolean {
+  if (
+    from + 3 >= to ||
+    text.charCodeAt(from) !== LBRACKET ||
+    text.charCodeAt(from + 1) !== CARET
+  ) {
+    return false;
+  }
+  let i = from + 2;
+  const labelStart = i;
+  while (i < to && text.charCodeAt(i) !== RBRACKET) i += 1;
+  if (i === labelStart || i >= to) return false;
+  return text.charCodeAt(i + 1) === COLON;
+}
+
 /** Whether the line before the one at `lineStart` is blank (or absent). */
 function prevLineIsBlank(text: string, lineStart: number): boolean {
   if (lineStart === 0) return true;
@@ -1159,22 +1183,15 @@ function prevLineIsBlank(text: string, lineStart: number): boolean {
 function opensIndentedCode(
   text: string,
   index: number,
-  contextText: string = text,
-  contextIndex: number = index,
+  contextText: string,
+  contextIndex: number,
 ): boolean {
   if (index !== 0 && text[index - 1] !== "\n") return false;
   const lineEnd = text.indexOf("\n", index);
   const end = lineEnd === -1 ? text.length : lineEnd;
   const content = pastBlockquotes(text, index, end);
   if (onlyWhitespace(text, content, end)) return false;
-  if (index !== 0) {
-    const prevStart = index < 2 ? 0 : text.lastIndexOf("\n", index - 2) + 1;
-    const prevEnd = text.indexOf("\n", prevStart);
-    const pEnd = prevEnd === -1 ? text.length : prevEnd;
-    if (!onlyWhitespace(text, pastBlockquotes(text, prevStart, pEnd), pEnd)) {
-      return false;
-    }
-  }
+  if (!prevLineIsBlank(text, index)) return false;
   const wsEnd = whitespaceEnd(text, content, end);
   if (columns(text, content, wsEnd) < 4) return false;
   return !inListContext(contextText, contextIndex);
@@ -1189,8 +1206,8 @@ function opensIndentedCode(
 function indentedCodeEnd(
   text: string,
   index: number,
-  contextText: string = text,
-  contextIndex: number = index,
+  contextText: string,
+  contextIndex: number,
 ): number {
   if (!opensIndentedCode(text, index, contextText, contextIndex)) return -1;
   let lineStart = index;
@@ -1216,8 +1233,8 @@ function indentedCodeEnd(
 function endOfVerbatimRun(
   text: string,
   index: number,
-  contextText: string = text,
-  contextIndex: number = index,
+  contextText: string,
+  contextIndex: number,
 ): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
