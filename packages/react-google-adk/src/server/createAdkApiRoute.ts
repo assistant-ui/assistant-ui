@@ -6,9 +6,75 @@ import { adkEventStream, type AdkEventStreamOptions } from "./adkEventStream";
  * Avoids requiring `@google/adk` as a dependency.
  */
 type AdkRunner = {
+  readonly appName?: string;
+  readonly sessionService?: {
+    getSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown | undefined>;
+    createSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown>;
+  };
   runAsync(
     options: Record<string, unknown>,
   ): AsyncGenerator<any, void, undefined>;
+};
+
+type AdkSessionService = NonNullable<AdkRunner["sessionService"]>;
+
+const pendingSessions = new WeakMap<
+  AdkSessionService,
+  Map<string, Promise<void>>
+>();
+
+const ensureRunnerSession = async (
+  runner: AdkRunner,
+  userId: string,
+  sessionId: string,
+) => {
+  const { appName, sessionService } = runner;
+  if (!appName || !sessionService) return;
+
+  let serviceSessions = pendingSessions.get(sessionService);
+  if (!serviceSessions) {
+    serviceSessions = new Map();
+    pendingSessions.set(sessionService, serviceSessions);
+  }
+
+  const key = JSON.stringify([appName, userId, sessionId]);
+  let pending = serviceSessions.get(key);
+  if (!pending) {
+    pending = (async () => {
+      const session = await sessionService.getSession({
+        appName,
+        userId,
+        sessionId,
+      });
+      if (!session) {
+        try {
+          await sessionService.createSession({ appName, userId, sessionId });
+        } catch (error) {
+          const existing = await sessionService.getSession({
+            appName,
+            userId,
+            sessionId,
+          });
+          if (!existing) throw error;
+        }
+      }
+    })();
+    serviceSessions.set(key, pending);
+  }
+
+  try {
+    await pending;
+  } finally {
+    if (serviceSessions.get(key) === pending) serviceSessions.delete(key);
+  }
 };
 
 export type CreateAdkApiRouteOptions = {
@@ -18,16 +84,24 @@ export type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
 
   /**
-   * User ID to use for the ADK session. Can be a static string
-   * or a function that extracts it from the request.
+   * User ID to use for the ADK session. Production routes should resolve this
+   * from the authenticated request. A static value is suitable only for a
+   * single-user development route.
    */
   userId: string | ((req: Request) => string | Promise<string>);
 
   /**
    * Session ID to use. Can be a static string or a function
-   * that extracts it from the request (e.g. from query params or headers).
+   * that validates or transforms the client thread ID sent by
+   * `createAdkStream`. The client value is an identifier, not authorization;
+   * scope access with an authenticated `userId`.
    */
-  sessionId: string | ((req: Request) => string | Promise<string>);
+  sessionId:
+    | string
+    | ((
+        req: Request,
+        clientSessionId: string | undefined,
+      ) => string | Promise<string>);
 
   /**
    * Validates or replaces the client-provided ADK run configuration.
@@ -66,11 +140,15 @@ export type CreateAdkApiRouteOptions = {
  * ```ts
  * import { createAdkApiRoute } from '@assistant-ui/react-google-adk/server';
  * import { runner } from './agent';
+ * import { requireUser } from './auth';
  *
  * export const POST = createAdkApiRoute({
  *   runner,
- *   userId: "default-user",
- *   sessionId: (req) => new URL(req.url).searchParams.get("sessionId") ?? "default",
+ *   userId: async (req) => (await requireUser(req)).id,
+ *   sessionId: (_req, clientSessionId) => {
+ *     if (!clientSessionId) throw new Error("Missing ADK session ID");
+ *     return clientSessionId;
+ *   },
  * });
  * ```
  */
@@ -88,7 +166,7 @@ export function createAdkApiRoute(
 
     const sessionId =
       typeof options.sessionId === "function"
-        ? await options.sessionId(req)
+        ? await options.sessionId(req, parsed.sessionId)
         : options.sessionId;
 
     const runConfig = options.resolveRunConfig
@@ -97,6 +175,8 @@ export function createAdkApiRoute(
     const stateDelta = options.resolveStateDelta
       ? await options.resolveStateDelta(req, parsed.stateDelta)
       : undefined;
+
+    await ensureRunnerSession(options.runner, userId, sessionId);
 
     const events = options.runner.runAsync({
       userId,
