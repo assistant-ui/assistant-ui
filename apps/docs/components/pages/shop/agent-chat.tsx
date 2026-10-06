@@ -14,26 +14,14 @@ import {
   useResizableWidth,
 } from "@/components/pages/shop/use-resizable-width";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { isStepClosingLine, type Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
-
-/** The checkout worker (harness-sdk, apps/checkout-worker host) logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows them. */
-const isStepLine = (entry: Checkout.LogEntry, state: Checkout.State) =>
-  entry.role === "agent" &&
-  entry.stepId !== undefined &&
-  state.steps.some((step) =>
-    ["Completed", "Skipped"].some(
-      (verb) =>
-        entry.text === `${verb}: ${step.title}` ||
-        entry.text.startsWith(`${verb}: ${step.title}\n\n`),
-    ),
-  );
 
 /** What the user and the agent said to each other, in order. */
 export const conversation = (state: Checkout.State | undefined) =>
   state === undefined
     ? []
-    : state.log.filter((entry) => !isStepLine(entry, state));
+    : state.log.filter((entry) => !isStepClosingLine(entry, state));
 
 export function AgentChat({
   checkout,

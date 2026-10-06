@@ -300,11 +300,7 @@ export class AgUiThreadRuntimeCore {
       })
       .catch((error) => {
         this.logger.error?.("[agui] failed to load history", error);
-        invokeRuntimeCallback(
-          "onError",
-          this.onError,
-          error instanceof Error ? error : new Error(String(error)),
-        );
+        this.reportError(error);
       })
       .finally(() => {
         this._isLoading = false;
@@ -348,8 +344,6 @@ export class AgUiThreadRuntimeCore {
   }
 
   private appendEntry(message: AppendMessage): string {
-    if (message.sourceId) this.session.tryDeleteMessage(message.sourceId);
-
     const threadMessage = this.toThreadMessage(message);
     const parentId =
       message.parentId === null
@@ -1041,11 +1035,7 @@ export class AgUiThreadRuntimeCore {
 
   private startResumeRun(messageId: string): void {
     void this.startRun(messageId, this.lastRunConfig).catch((error) => {
-      invokeRuntimeCallback(
-        "onError",
-        this.onError,
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      this.reportError(error);
     });
   }
 
@@ -1295,8 +1285,10 @@ export class AgUiThreadRuntimeCore {
       },
       onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
+    let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
+      if (event.type === "RUN_FINISHED") runFinished = true;
       const nextAssistantMessageId = this.handleEvent(
         aggregator,
         event,
@@ -1327,8 +1319,14 @@ export class AgUiThreadRuntimeCore {
     try {
       if (resumeStream) {
         // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
-        cancelRun = () =>
+        cancelRun = () => {
+          const current =
+            assistantMessageId === undefined
+              ? undefined
+              : this.session.tryGetMessage(assistantMessageId)?.message;
+          if (current?.status?.type === "complete") return;
           applyUpdate({ status: { type: "incomplete", reason: "cancelled" } });
+        };
         pendingError =
           (await this.consumeResumeStream(resumeStream, {
             runConfig: normalizedRunConfig,
@@ -1371,11 +1369,13 @@ export class AgUiThreadRuntimeCore {
         await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
-      if (!abortSignal.aborted) {
+      // HttpAgent rethrows a failure it already passed to the subscriber's
+      // onRunFailed, which reported it.
+      if (!abortSignal.aborted && !pendingError) {
         const err = error instanceof Error ? error : new Error(String(error));
-        dispatch({ type: "RUN_ERROR", message: err.message });
+        if (!runFinished) dispatch({ type: "RUN_ERROR", message: err.message });
         invokeRuntimeCallback("onError", this.onError, err);
-        pendingError ??= err;
+        pendingError = err;
       }
     } finally {
       this.finishRun(abortController);
@@ -2037,9 +2037,11 @@ export class AgUiThreadRuntimeCore {
     activeAssistantId: string | undefined,
   ) {
     try {
-      const activeMessage = activeAssistantId
-        ? this.session.tryGetMessage(activeAssistantId)?.message
+      const activeAssistantItem = activeAssistantId
+        ? this.session.tryGetMessage(activeAssistantId)
         : undefined;
+      const activeMessage = activeAssistantItem?.message;
+      const activeAssistantParentId = activeAssistantItem?.parentId;
       const activeAssistant =
         activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
@@ -2084,7 +2086,9 @@ export class AgUiThreadRuntimeCore {
         activeAssistant !== undefined &&
         !snapshotContainsActiveAssistant &&
         (activeAssistant.metadata.isOptimistic !== true ||
-          converted.at(-1)?.role !== "assistant");
+          converted.at(-1)?.role !== "assistant" ||
+          (activeAssistantParentId !== undefined &&
+            converted.at(-1)?.id === activeAssistantParentId));
       if (preservesActiveAssistant) {
         converted.push(activeAssistant);
       }

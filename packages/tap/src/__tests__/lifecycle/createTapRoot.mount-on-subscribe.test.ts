@@ -481,11 +481,18 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(root.getValue().count).toBe(5);
   });
 
-  it("throws on unmount()", () => {
-    const { root } = createCounterRoot();
+  it("supports permanent unmount without recommitting on a later subscribe", () => {
+    const { root, events } = createCounterRoot();
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
 
-    expect(() => root.unmount()).toThrow(
-      "unmount() is not supported with mountOnSubscribe",
-    );
+    root.unmount();
+    root.unmount();
+    expect(events).toEqual(["unmount"]);
+    unsubscribe();
+
+    const unsubscribeLater = root.subscribe(() => {});
+    expect(events).toEqual(["unmount"]);
+    unsubscribeLater();
   });
 });

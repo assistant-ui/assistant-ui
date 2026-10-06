@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -11,9 +17,13 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+
+const subscribeNever = () => () => {};
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. */
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -21,6 +31,7 @@ export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
 const useLocalThreadRuntime = (
   chatModel: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions,
+  messageIdSeed: string | undefined,
 ): AssistantRuntime => {
   const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
   const opt = {
@@ -32,7 +43,27 @@ const useLocalThreadRuntime = (
     },
   };
 
-  const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
+  const [runtime] = useState(() => {
+    const messages =
+      messageIdSeed !== undefined
+        ? initialMessages?.map((message, index) => ({
+            ...message,
+            id: message.id ?? `${messageIdSeed}-message-${index}`,
+            content:
+              typeof message.content === "string"
+                ? message.content
+                : message.content.map((part, partIndex) =>
+                    part.type === "tool-call" && !part.toolCallId
+                      ? {
+                          ...part,
+                          toolCallId: `${messageIdSeed}-tool-${index}-${partIndex}`,
+                        }
+                      : part,
+                  ),
+          }))
+        : initialMessages;
+    return new LocalRuntimeCore(opt, messages);
+  });
 
   const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
@@ -47,7 +78,7 @@ const useLocalThreadRuntime = (
       );
   }, [aui, runtime]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     return () => {
       runtime.threads.getMainThreadRuntimeCore().detach();
     };
@@ -74,7 +105,8 @@ const useLocalThreadRuntime = (
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };
 
 export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
@@ -111,10 +143,29 @@ export const useLocalRuntime = (
   chatModel: ChatModelAdapter,
   { cloud, ...options }: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
+  const messageIdSeed = useId();
+  const needsMessageIdSeed =
+    options.initialMessages?.some(
+      (message) =>
+        message.id === undefined ||
+        (typeof message.content !== "string" &&
+          message.content.some(
+            (part) => part.type === "tool-call" && !part.toolCallId,
+          )),
+    ) ?? false;
+  const isHydrating = useSyncExternalStore(
+    subscribeNever,
+    () => false,
+    () => needsMessageIdSeed,
+  );
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useLocalThreadRuntime(chatModel, options);
+      return useLocalThreadRuntime(
+        chatModel,
+        options,
+        isHydrating ? messageIdSeed : undefined,
+      );
     },
     adapter: cloudAdapter,
     allowNesting: true,

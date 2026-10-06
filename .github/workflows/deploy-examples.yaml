@@ -99,11 +99,13 @@ jobs:
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: ${{ matrix.example != 'with-react-ink-web' }}
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          node -e 'require("node:child_process").execSync(require("./vercel.json").installCommand, { stdio: "inherit" })'
 
       - name: Pull Vercel Environment Information
         working-directory: examples/${{ matrix.example }}

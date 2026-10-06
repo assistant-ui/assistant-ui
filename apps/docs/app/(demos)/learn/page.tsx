@@ -7,6 +7,8 @@ import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import { createOgMetadata } from "@/lib/og";
 import { parseLearnAutoStartSource } from "@/lib/xulux/learn/types";
 
+export const instant = false;
+
 const title = "Learn assistant-ui";
 const description =
   "Build assistant interfaces through a guided course in the Xulux playground.";

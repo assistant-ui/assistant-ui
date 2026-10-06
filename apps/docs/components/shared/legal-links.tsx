@@ -12,7 +12,7 @@ export function LegalLinks() {
         rel="noopener noreferrer"
         className={linkClassName}
       >
-        &copy; {new Date().getFullYear()} AgentbaseAI Inc.
+        &copy; {process.env.COPYRIGHT_YEAR} AgentbaseAI Inc.
       </a>
       <div className="flex items-center gap-2">
         <Link href="/privacy-policy" className={linkClassName}>
