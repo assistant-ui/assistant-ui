@@ -226,7 +226,8 @@ export const parseAdkRequest = async (
  * ```ts
  * const parsed = await parseAdkRequest(req);
  * const newMessage = toAdkContent(parsed);
- * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta: parsed.stateDelta });
+ * const stateDelta = validateSessionState(parsed.stateDelta);
+ * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta });
  * return adkEventStream(events);
  * ```
  */
