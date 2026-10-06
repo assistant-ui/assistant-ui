@@ -240,6 +240,9 @@ describe("McpServerResource automatic authentication", () => {
     "http://127.0.0.1:3000/mcp",
     "http://127.0.0.2:3000/mcp",
     "http://[::1]:3000/mcp",
+    "http://localhost.:3000/mcp",
+    "http://dev.localhost.:3000/mcp",
+    "http://[::ffff:127.0.0.1]:3000/mcp",
   ])("allows bearer authentication over loopback HTTP at %s", async (url) => {
     const root = mount({
       auth: { type: "bearer", token: "secret" },
