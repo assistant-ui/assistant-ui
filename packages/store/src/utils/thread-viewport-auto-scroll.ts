@@ -86,6 +86,7 @@ export const createThreadViewportAutoScroll = (input: {
         )
       ) {
         intent = null;
+        cancelFrame();
       }
       if (newIsAtBottom || intent === null) setAtBottom(newIsAtBottom);
     }
