@@ -200,16 +200,19 @@ export class LocalThreadRuntimeCore
     messageIds: readonly string[],
     write: () => Promise<void>,
   ): Promise<void> {
+    const generation = this._loadGeneration;
     try {
       await write();
     } catch (error) {
       console.error("[assistant-ui] local thread history write failed:", error);
-      this._notifyEventSubscribers("historyWriteError", {
-        operation,
-        messageIds,
-        message: error instanceof Error ? error.message : String(error),
-        error,
-      });
+      if (generation === this._loadGeneration) {
+        this._notifyEventSubscribers("historyWriteError", {
+          operation,
+          messageIds,
+          message: error instanceof Error ? error.message : String(error),
+          error,
+        });
+      }
       throw error;
     }
   }
@@ -230,19 +233,22 @@ export class LocalThreadRuntimeCore
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
+    const generation = this._loadGeneration;
+    const writeCurrent = () =>
+      generation === this._loadGeneration ? write() : Promise.resolve();
     const tombstone = this._deletedMessages.get(id);
     if (tombstone) {
-      tombstone.suppressed?.push(write);
+      tombstone.suppressed?.push(writeCurrent);
       return Promise.resolve();
     }
 
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
     const pending = this._historyWrites.get(id);
     let next: Promise<void>;
-    if (pending) next = pending.then(write, write);
+    if (pending) next = pending.then(writeCurrent, writeCurrent);
     else {
       try {
-        next = Promise.resolve(write());
+        next = Promise.resolve(writeCurrent());
       } catch (error) {
         next = Promise.reject(error);
       }
@@ -437,6 +443,12 @@ export class LocalThreadRuntimeCore
     const resetHistoryScope = this._loadRequested && historyScopeChanged;
 
     if (resetHistoryScope) {
+      this._loadGeneration++;
+      this._historyWrites.clear();
+      this._deletedMessages.clear();
+      this._roundtripsInFlight.clear();
+      this._followedDuringRun.clear();
+      this._unwrittenMessages.clear();
       this._queue?.clear();
       this.cancelRun();
       supersedeThreadRuntime(this);
@@ -452,7 +464,6 @@ export class LocalThreadRuntimeCore
       this._suggestions = [];
       this._lastRunConfig = {};
       this.repository.clear();
-      this._loadGeneration++;
       this._loadPromise = undefined;
       this._isLoading = false;
     }
@@ -913,6 +924,7 @@ export class LocalThreadRuntimeCore
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
+    const generation = this._loadGeneration;
     const adapter = this._options.adapters.history;
     if (!adapter?.delete)
       throw new Error("Runtime does not support deleting messages.");
@@ -956,6 +968,7 @@ export class LocalThreadRuntimeCore
         throw error;
       }
       tombstone.suppressed = null;
+      if (generation !== this._loadGeneration) return;
       void pending
         ?.then(() =>
           this._deletedMessages.get(messageId) === tombstone

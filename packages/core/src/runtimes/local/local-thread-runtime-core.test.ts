@@ -7673,3 +7673,135 @@ describe("LocalThreadRuntimeCore message queue", () => {
     await releaseRun();
   });
 });
+
+describe("history scope persistence", () => {
+  const chatModel: ChatModelAdapter = { run: async () => ({ content: [] }) };
+  const historyFor = (
+    scopeId: string,
+    overrides: Partial<ThreadHistoryAdapter> = {},
+  ): ThreadHistoryAdapter => ({
+    scopeId,
+    load: async () => ({
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "shared",
+            role: "assistant",
+            content: [{ type: "text", text: scopeId }],
+            status: { type: "complete", reason: "stop" },
+            createdAt: new Date(0),
+            metadata: {
+              custom: {},
+              unstable_state: {},
+              unstable_annotations: [],
+              unstable_data: [],
+              steps: [],
+            },
+          },
+        },
+      ],
+    }),
+    append: async () => {},
+    ...overrides,
+  });
+
+  it("keeps the new scope's message when an earlier delete finishes", async () => {
+    let finishDelete!: () => void;
+    const pendingDelete = new Promise<void>((resolve) => {
+      finishDelete = resolve;
+    });
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { delete: () => pendingDelete }),
+    });
+    await thread.__internal_load();
+    const deletion = thread.deleteMessage("shared");
+
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: historyFor("second") },
+    });
+    await thread.__internal_load();
+    finishDelete();
+    await deletion;
+
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "second" },
+    ]);
+  });
+
+  it("does not carry deleted-message tombstones into another scope", async () => {
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { delete: async () => {} }),
+    });
+    await thread.__internal_load();
+    await thread.deleteMessage("shared");
+    const update = vi.fn<NonNullable<ThreadHistoryAdapter["update"]>>(
+      async () => {},
+    );
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: historyFor("second", { update }) },
+    });
+    await thread.__internal_load();
+
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it("releases current writes and drops queued writes from the previous scope", async () => {
+    let finishUpdate!: () => void;
+    const pendingUpdate = new Promise<void>((resolve) => {
+      finishUpdate = resolve;
+    });
+    const firstUpdate = vi.fn(() => pendingUpdate);
+    const secondUpdate = vi.fn(async () => {});
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { update: firstUpdate }),
+    });
+    await thread.__internal_load();
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    thread.submitFeedback({ messageId: "shared", type: "negative" });
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: historyFor("second", { update: secondUpdate }),
+      },
+    });
+    await thread.__internal_load();
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    await flush();
+    expect.soft(secondUpdate).toHaveBeenCalledOnce();
+
+    finishUpdate();
+    await flush();
+    expect(firstUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("does not report an old write failure to the current scope", async () => {
+    const error = new Error("old scope write failed");
+    let failUpdate!: (reason: unknown) => void;
+    const pendingUpdate = new Promise<void>((_, reject) => {
+      failUpdate = reject;
+    });
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { update: () => pendingUpdate }),
+    });
+    await thread.__internal_load();
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: historyFor("second") },
+    });
+    await thread.__internal_load();
+    const listener = vi.fn();
+    thread.unstable_on("historyWriteError", listener);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    failUpdate(error);
+    await flush();
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledOnce();
+  });
+});
