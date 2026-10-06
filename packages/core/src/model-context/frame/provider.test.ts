@@ -368,7 +368,7 @@ describe("AssistantFrameProvider", () => {
     expect(signals[1]?.aborted).toBe(false);
   });
 
-  it("withdraws its context from the parent when disposed", () => {
+  it("withdraws its context and tells the parent when disposed", () => {
     AssistantFrameProvider.addModelContextProvider(
       {
         getModelContext: () => ({
@@ -381,13 +381,22 @@ describe("AssistantFrameProvider", () => {
 
     AssistantFrameProvider.dispose();
 
-    expect(parentWindow.postMessage).toHaveBeenCalledExactlyOnceWith(
-      {
-        channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "model-context-update", context: {} },
-      },
-      "https://parent.example",
-    );
+    expect(vi.mocked(parentWindow.postMessage).mock.calls).toEqual([
+      [
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: { type: "model-context-update", context: {} },
+        },
+        "https://parent.example",
+      ],
+      [
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: { type: "provider-disposed" },
+        },
+        "https://parent.example",
+      ],
+    ]);
   });
 
   it("aborts in-flight tool calls when the provider is disposed", async () => {
@@ -426,6 +435,13 @@ describe("AssistantFrameProvider", () => {
         },
       },
       { targetOrigin: window.location.origin },
+    );
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "provider-disposed" },
+      },
+      window.location.origin,
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
     const toolResults = vi
