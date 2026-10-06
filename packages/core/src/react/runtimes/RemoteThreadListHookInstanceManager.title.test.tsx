@@ -443,7 +443,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     expect(generateTitle).toHaveBeenCalledTimes(1);
   });
 
-  it("titles a restarted local thread from the next message when the restart drops the first", async () => {
+  it("retains the first title source through a runtime restart", async () => {
     const initialization = deferred<{
       remoteId: string;
       externalId: string;
@@ -495,11 +495,6 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       });
     });
     expect(runtimeRef.current!.thread.getState().messages).toHaveLength(0);
-    expect(generateTitle).not.toHaveBeenCalled();
-
-    await act(async () => {
-      void getThreadCore(runtimeRef.current!).append(userMessage("again"));
-    });
 
     await waitFor(() => {
       expect(generateTitle).toHaveBeenCalledTimes(1);
@@ -507,7 +502,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     expect(generateTitle).toHaveBeenCalledWith(`remote-${localId}`, [
       expect.objectContaining({
         role: "user",
-        content: [expect.objectContaining({ type: "text", text: "again" })],
+        content: [expect.objectContaining({ type: "text", text: "hello" })],
       }),
     ]);
   });

@@ -3,6 +3,7 @@ import type {
   ThreadListRuntimeEvent,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import type { ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   BaseSubscribable,
@@ -818,8 +819,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterGeneration(adapterGeneration);
     const initializeTask = adapter.initialize(threadId);
     let removedMappingId: string | undefined;
-    let survivorMappingId = threadId;
-    const { remoteId, externalId } = await this._state.optimisticUpdate({
+    const initialization = this._state.optimisticUpdate({
       execute: () => initializeTask,
       optimistic: (state) =>
         promoteNewThreadReducer(state, threadId, initializeTask),
@@ -833,44 +833,66 @@ export class RemoteThreadListThreadListRuntimeCore
           threadId,
         );
         removedMappingId = reconciliation.removedMappingId;
-        survivorMappingId = reconciliation.survivorMappingId;
         if (removedMappingId === this._mainThreadId) {
           this._mainThreadId = reconciliation.survivorMappingId;
         }
         return reconciliation.state;
       },
     });
+    this._armAutomaticTitle(threadId, initialization);
+    const { remoteId, externalId } = await initialization;
     this._requireAdapterGeneration(adapterGeneration);
     if (removedMappingId !== undefined) {
       this._hookManager.stopThreadRuntime(removedMappingId);
     }
-    this._armAutomaticTitle(survivorMappingId);
     return { remoteId, externalId };
   };
 
   // The thread runtime can restart before its first initialization settles,
   // so the automatic title is owed by the list and follows whichever runtime
   // is currently mounted for the thread.
-  private _armAutomaticTitle(threadId: string) {
+  private _armAutomaticTitle(
+    threadId: string,
+    initialization: Promise<unknown>,
+  ) {
     if (this._disposed) return;
     this._automaticTitles.get(threadId)?.();
     let runtime: ThreadRuntimeCore | undefined;
     let unsubscribeRuntime: Unsubscribe | undefined;
+    let messages: readonly ThreadMessage[] = [];
+    let initialized = false;
+    let generating = false;
+    let active = true;
     const check = () => {
-      if (!this.getItemById(threadId)) {
+      if (!active) return;
+      const data = this.getItemById(threadId);
+      if (!data) {
         this._disarmAutomaticTitle(threadId);
         return;
       }
-      const current = this._hookManager.getThreadRuntimeCore(threadId);
+      const current = this._hookManager.getThreadRuntimeCore(data.id);
       if (current !== runtime) {
         unsubscribeRuntime?.();
         runtime = current;
         unsubscribeRuntime = current?.subscribe(check);
       }
-      if (!runtime?.messages.some(isTitleSourceMessage)) return;
-      this._disarmAutomaticTitle(threadId);
-      this.generateTitle(threadId, { automatic: true }).catch(
+      const currentMessages = runtime?.messages.filter(isTitleSourceMessage);
+      if (currentMessages?.length) messages = currentMessages;
+      if (!initialized || generating || !runtime || messages.length === 0)
+        return;
+      generating = true;
+      this._generateTitle(threadId, { automatic: true }, () =>
+        active ? messages : undefined,
+      ).then(
+        (claimed) => {
+          generating = false;
+          if (!active) return;
+          if (claimed) this._disarmAutomaticTitle(threadId);
+          else check();
+        },
         (error: unknown) => {
+          if (!active) return;
+          this._disarmAutomaticTitle(threadId);
           if (isSilentRuntimeAction(error)) return;
           console.error("[assistant-ui] Thread title generation failed", error);
         },
@@ -878,9 +900,19 @@ export class RemoteThreadListThreadListRuntimeCore
     };
     const unsubscribeManager = this._hookManager.subscribe(check);
     this._automaticTitles.set(threadId, () => {
+      active = false;
       unsubscribeManager();
       unsubscribeRuntime?.();
     });
+    void initialization.then(
+      () => {
+        initialized = true;
+        check();
+      },
+      () => {
+        if (active) this._disarmAutomaticTitle(threadId);
+      },
+    );
     check();
   }
 
@@ -899,6 +931,14 @@ export class RemoteThreadListThreadListRuntimeCore
     threadId: string,
     options?: { automatic?: boolean },
   ) => {
+    await this._generateTitle(threadId, options);
+  };
+
+  private _generateTitle = async (
+    threadId: string,
+    options?: { automatic?: boolean },
+    getAutomaticMessages?: () => readonly ThreadMessage[] | undefined,
+  ) => {
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
@@ -910,13 +950,18 @@ export class RemoteThreadListThreadListRuntimeCore
     const { remoteId } = await data.initializeTask;
     this._requireAdapterGeneration(adapterGeneration);
 
+    const automaticMessages = getAutomaticMessages?.();
+    if (getAutomaticMessages && !automaticMessages) return false;
     const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
-    if (!runtimeCore) return; // thread is no longer running
+    if (!runtimeCore) return false;
 
     // Incomplete assistant turns (running status, possibly empty content)
     // would make the payload race-dependent; the title reads settled
     // messages only, matching the trigger's readiness gate.
-    const messages = runtimeCore.messages.filter(isTitleSourceMessage);
+    const currentMessages = runtimeCore.messages.filter(isTitleSourceMessage);
+    const messages = currentMessages.length
+      ? currentMessages
+      : (automaticMessages ?? currentMessages);
     await runThreadTitleGeneration({
       states: this._titleStates,
       threadId: data.id,
@@ -951,6 +996,7 @@ export class RemoteThreadListThreadListRuntimeCore
         });
       },
     });
+    return true;
   };
 
   public async rename(
