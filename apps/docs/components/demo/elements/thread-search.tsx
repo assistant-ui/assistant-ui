@@ -37,15 +37,22 @@ const THREADS: readonly SearchableThread[] = [
 export function ThreadSearchDemo() {
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState("2");
+  const [openId, setOpenId] = useState("2");
+  const openThread = THREADS.find((thread) => thread.id === openId);
 
   return (
-    <ThreadSearch
-      threads={THREADS}
-      query={query}
-      activeId={activeId}
-      onQueryChange={setQuery}
-      onActiveChange={setActiveId}
-      onSelect={setActiveId}
-    />
+    <div className="flex flex-col gap-3">
+      <ThreadSearch
+        threads={THREADS}
+        query={query}
+        activeId={activeId}
+        onQueryChange={setQuery}
+        onActiveChange={setActiveId}
+        onSelect={setOpenId}
+      />
+      <p className="text-foreground/50 text-sm">
+        Open thread: {openThread?.title}
+      </p>
+    </div>
   );
 }

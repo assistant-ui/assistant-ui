@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, type ComponentProps } from "react";
+import { useId, type ComponentProps } from "react";
 import { PinIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -13,16 +13,17 @@ export interface SearchableThread {
   pinned?: boolean;
 }
 
-export function ThreadSearch({
-  threads,
-  query,
-  activeId,
-  onQueryChange,
-  onActiveChange,
-  onSelect,
-  className,
-  ...props
-}: Omit<
+type ThreadSearchInteractionProps =
+  | {
+      onActiveChange: (id: string) => void;
+      onSelect: (id: string) => void;
+    }
+  | {
+      onActiveChange?: (id: string) => void;
+      onSelect?: undefined;
+    };
+
+type ThreadSearchProps = Omit<
   ComponentProps<"div">,
   | "children"
   | "threads"
@@ -36,9 +37,18 @@ export function ThreadSearch({
   query: string;
   activeId: string;
   onQueryChange?: (query: string) => void;
-  onActiveChange?: (id: string) => void;
-  onSelect?: (id: string) => void;
-}) {
+} & ThreadSearchInteractionProps;
+
+export function ThreadSearch({
+  threads,
+  query,
+  activeId,
+  onQueryChange,
+  onActiveChange,
+  onSelect,
+  className,
+  ...props
+}: ThreadSearchProps) {
   const listId = useId();
   const optionId = (id: string) => `${listId}-${id}`;
   const matches = threads.filter((thread) =>
@@ -59,32 +69,31 @@ export function ThreadSearch({
   ];
 
   const move = (delta: number) => {
-    if (ordered.length === 0) return;
+    if (ordered.length === 0 || !onActiveChange) return false;
     const at = ordered.findIndex((thread) => thread.id === activeId);
     // activeId can be filtered out by the query; start from the edge the key implies
     const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
     const next = ordered[(from + delta + ordered.length) % ordered.length];
-    if (next && onActiveChange) onActiveChange(next.id);
-  };
-
-  useEffect(() => {
+    if (!next) return false;
+    onActiveChange(next.id);
     document
-      .getElementById(optionId(activeId))
+      .getElementById(optionId(next.id))
       ?.scrollIntoView({ block: "nearest" });
-  }, [activeId, listId]);
+    return true;
+  };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
     if (event.key === "ArrowDown") {
-      event.preventDefault();
-      move(1);
+      if (move(1)) event.preventDefault();
     } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      move(-1);
+      if (move(-1)) event.preventDefault();
     } else if (event.key === "Enter") {
-      event.preventDefault();
       const active = ordered.find((thread) => thread.id === activeId);
-      if (active && onSelect) onSelect(active.id);
+      if (active && onSelect) {
+        event.preventDefault();
+        onSelect(active.id);
+      }
     }
   };
 
@@ -165,7 +174,7 @@ export function ThreadSearch({
           placeholder="Search threads"
           aria-label="Search threads"
           role="combobox"
-          aria-expanded={ordered.length > 0}
+          aria-expanded={true}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={
@@ -213,13 +222,16 @@ export function ThreadSearch({
               .map(row)}
           </div>
         ))}
-
-        {matches.length === 0 && (
-          <span className="text-foreground/30 px-2 py-4 text-center text-xs">
-            No thread matches “{query}”
-          </span>
-        )}
       </div>
+
+      {matches.length === 0 && (
+        <span
+          role="status"
+          className="text-foreground/30 px-2 py-4 text-center text-xs"
+        >
+          No thread matches “{query}”
+        </span>
+      )}
     </div>
   );
 }

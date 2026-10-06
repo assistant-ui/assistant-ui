@@ -63,25 +63,32 @@ describe("ThreadSearch", () => {
 
     const input = screen.getByRole("combobox", { name: "Search threads" });
     const listbox = screen.getByRole("listbox", { name: "Threads" });
+    const pinned = screen.getByRole("option", { name: /Pinned plan/ });
     const release = screen.getByRole("option", { name: /Release notes/ });
+    const migration = screen.getByRole("option", { name: /Migration/ });
 
     expect(input.getAttribute("aria-controls")).toBe(listbox.id);
-    expect(input.getAttribute("aria-activedescendant")).not.toBeNull();
+    expect(input.getAttribute("aria-activedescendant")).toBe(pinned.id);
+    expect(scrollIntoView).not.toHaveBeenCalled();
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
 
     expect(onActiveChange).toHaveBeenCalledExactlyOnceWith("release");
     expect(onSelect).not.toHaveBeenCalled();
+    expect(scrollIntoView).toHaveBeenCalledOnce();
     expect(input.getAttribute("aria-activedescendant")).toBe(release.id);
     expect(release.getAttribute("aria-selected")).toBe("true");
 
-    fireEvent.keyDown(input, { key: "Enter" });
+    expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(false);
 
     expect(onSelect).toHaveBeenCalledExactlyOnceWith("release");
 
-    fireEvent.click(release);
+    input.focus();
+    expect(fireEvent.mouseDown(migration)).toBe(false);
+    fireEvent.click(migration);
 
-    expect(onSelect).toHaveBeenNthCalledWith(2, "release");
+    expect(document.activeElement).toBe(input);
+    expect(onSelect).toHaveBeenNthCalledWith(2, "migration");
   });
 
   it("does not activate a result filtered away from the active id", () => {
@@ -100,10 +107,26 @@ describe("ThreadSearch", () => {
     const input = screen.getByRole("combobox", { name: "Search threads" });
     expect(input.getAttribute("aria-activedescendant")).toBeNull();
 
-    fireEvent.keyDown(input, { key: "Enter" });
+    expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(true);
     expect(onSelect).not.toHaveBeenCalled();
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(onActiveChange).toHaveBeenCalledExactlyOnceWith("release");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("keeps the empty status outside the expanded listbox", () => {
+    render(
+      <ThreadSearch threads={threads} query="missing" activeId="pinned" />,
+    );
+
+    const input = screen.getByRole("combobox", { name: "Search threads" });
+    const listbox = screen.getByRole("listbox", { name: "Threads" });
+    const status = screen.getByRole("status");
+
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    expect(listbox.children).toHaveLength(0);
+    expect(listbox.contains(status)).toBe(false);
+    expect(status.textContent).toBe("No thread matches “missing”");
   });
 });
