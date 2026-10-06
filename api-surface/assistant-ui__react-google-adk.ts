@@ -404,6 +404,7 @@ declare class AssistantCloud {
 }
 
 declare class AssistantCloudAPI {
+  #private;
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
   readonly registerSdk: (sdk: SdkIdentity) => void;
