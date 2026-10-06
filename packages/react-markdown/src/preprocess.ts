@@ -1018,6 +1018,55 @@ function opensCurrencyAmount(text: string, index: number): boolean {
   return /\d/.test(text[index + 1] ?? "");
 }
 
+/** Columns of indentation at the start of `line` (a tab advances to the next multiple of 4). */
+function indentColumns(line: string): number {
+  let column = 0;
+  let i = 0;
+  while (i < line.length) {
+    const code = line.charCodeAt(i);
+    if (code === SPACE) column += 1;
+    else if (code === TAB) column += 4 - (column % 4);
+    else break;
+    i += 1;
+  }
+  return column;
+}
+
+/**
+ * Whether the line starting at `index` opens a CommonMark indented code block:
+ * at least four columns of indentation on a non-blank line, with no paragraph
+ * above it to interrupt (a blank line or the start of the input must precede it).
+ */
+function opensIndentedCode(text: string, index: number): boolean {
+  if (index !== 0 && text[index - 1] !== "\n") return false;
+  const lineEnd = text.indexOf("\n", index);
+  const line = text.slice(index, lineEnd === -1 ? undefined : lineEnd);
+  if (onlyWhitespace(line, 0, line.length)) return false;
+  if (indentColumns(line) < 4) return false;
+  if (index === 0) return true;
+  const prevStart = text.lastIndexOf("\n", index - 2) + 1;
+  return onlyWhitespace(text, prevStart, index - 1);
+}
+
+/**
+ * End index (exclusive) of the indented code block opening at `index`, or -1
+ * when none opens there. The block runs through blank lines and lines indented
+ * four or more columns, ending at the first other line.
+ */
+function indentedCodeEnd(text: string, index: number): number {
+  if (!opensIndentedCode(text, index)) return -1;
+  let lineStart = index;
+  for (;;) {
+    const lineEnd = text.indexOf("\n", lineStart);
+    const line = text.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
+    if (!onlyWhitespace(line, 0, line.length) && indentColumns(line) < 4) {
+      return lineStart;
+    }
+    if (lineEnd === -1) return text.length;
+    lineStart = lineEnd + 1;
+  }
+}
+
 /**
  * End index (exclusive) of the run at `index` that must be copied unchanged: a `\x`
  * escape, a code span or fence, a `$$` display delimiter, an inline math span, or a
@@ -1032,6 +1081,8 @@ function endOfVerbatimRun(text: string, index: number): number {
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
+  const indentedEnd = indentedCodeEnd(text, index);
+  if (indentedEnd !== -1) return indentedEnd;
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");
