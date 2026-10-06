@@ -78,7 +78,7 @@ Slack has no undo surface, so a Button with `undoable` fires immediately.
 
 An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
 
-Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: Slack has no client-side form model to submit into, so a submit button and a click button both convert to the same `button` element carrying the node's `$action`, and a card marked `asForm` converts exactly like one that is not.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. Slack has no client-side form model to submit into, so `Button`'s `submit` is dropped: a submit button and a click button both convert to the same `button` element carrying the node's `$action`. A `Card` marked `asForm` also cannot collect its child values into a browser-style form payload, but it keeps child `Input` actions passive so those inputs do not dispatch separately.
 
 ### Date and time pickers
 
@@ -141,6 +141,8 @@ Only buttons carry `value`. `Select`, `Input`, `Slider`, `DatePicker`, `Checkbox
 
 ### Inbound
 
+A single-line `Input` outside a `Form` or `Card` with `asForm`, with a non-empty `$action.type`, enables `block_actions` on its containing input block and configures `on_enter_pressed`, so Slack sends its typed text when the user presses Enter. Inputs inside either form remain passive rather than firing their own action. Multiline inputs also remain passive: Slack's dispatch configuration does not expose the browser vocabulary's Ctrl/Cmd+Enter shortcut. A modal's `view_submission` handler can collect passive input values, including inputs without an actionable type.
+
 Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's state values, then rebuilds the action your tree dispatched. Messages carry these values in `payload.state.values`, while modals and Home tabs carry them in `payload.view.state.values`. A control's runtime selection appears under `$input` when supplied; a button with a JSON-serialized `value` contributes its payload fields directly. `{ "$field": name }` references in the action payload resolve from named controls in that state:
 
 ```ts
@@ -173,7 +175,7 @@ For the two halves of a local datetime, `$input` is the merged `YYYY-MM-DDTHH:mm
 
 `fromSlackBlocks` is the inverse direction, mapping a Block Kit payload into vocabulary nodes and returning `{ nodes, warnings }`. It accepts a bare array or a `{ blocks }` wrapper.
 
-The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning.
+The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning. An input keeps its `action_id` as `$action` only when its block sets `dispatch_action` or the input is multiline, so a passive single-line input, including one from a form, returns without an action and stays passive when converted back.
 
 Native `timepicker` and `datetimepicker` elements return as `DatePicker` nodes with `inputType: "time"` and `inputType: "datetime"`. A native datetime's initial Unix timestamp becomes a `Z` value at seconds precision. Reverse conversion reads each control separately, so a local datetime pair returns as separate date and time nodes.
 

@@ -28,13 +28,20 @@ const runner = new InMemoryRunner({ agent, appName: "my-app" });
 
 export const POST = createAdkApiRoute({
   runner,
-  userId: "user_1",
-  sessionId: (req) =>
-    new URL(req.url).searchParams.get("sessionId") ?? "default",
+  userId: "local-user",
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
+  },
 });
 ```
 
-Both `userId` and `sessionId` accept either a static string or `(req: Request) => string | Promise<string>` for dynamic resolution from cookies, headers, or query params.
+`createAdkStream` sends the initialized assistant-ui thread ID as
+`clientSessionId`. When the runner exposes `appName` and `sessionService`, the
+route creates the corresponding ADK session before the first run. The static
+user above is suitable only for local, single-user development. Before
+deployment, resolve `userId` from your authentication system: the client-sent ID
+selects a conversation, but does not authorize access to it.
 
 </Step>
 <Step>

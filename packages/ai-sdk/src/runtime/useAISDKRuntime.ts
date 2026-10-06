@@ -203,11 +203,25 @@ const useGeneratedSuggestions = (
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  const adapterKey = suggestionAdapter?.key;
   const adapterRef = useRef(suggestionAdapter);
+  const lastAdapterKeyRef = useRef(adapterKey);
+  const adapterReplacedRef = useRef(false);
   useInsertionEffect(() => {
+    const previousAdapter = adapterRef.current;
     adapterRef.current = suggestionAdapter;
-  }, [suggestionAdapter]);
-  const hasAdapter = suggestionAdapter != null;
+    const adapterReplaced =
+      previousAdapter !== undefined &&
+      suggestionAdapter !== undefined &&
+      lastAdapterKeyRef.current !== adapterKey;
+    adapterReplacedRef.current ||= adapterReplaced;
+    if (suggestionAdapter === undefined || adapterReplaced) {
+      controllerRef.current?.abort();
+    }
+    lastAdapterKeyRef.current = adapterKey;
+  }, [adapterKey, suggestionAdapter]);
+  const hasAdapter = suggestionAdapter !== undefined;
+  const adapterPresentRef = useRef(hasAdapter);
 
   useEffect(() => {
     const clearSuggestions = () => {
@@ -217,11 +231,17 @@ const useGeneratedSuggestions = (
     };
 
     const adapter = adapterRef.current;
+    const adapterRestored = hasAdapter && !adapterPresentRef.current;
+    adapterPresentRef.current = hasAdapter;
+    const adapterReplaced = adapterReplacedRef.current;
+    adapterReplacedRef.current = false;
     if (!adapter) {
       clearSuggestions();
       wasRunningRef.current = isRunning;
       return;
     }
+
+    if (adapterReplaced) clearSuggestions();
 
     if (isRunning) {
       if (!wasRunningRef.current) {
@@ -231,7 +251,7 @@ const useGeneratedSuggestions = (
       return;
     }
 
-    if (!wasRunningRef.current) return;
+    if (!wasRunningRef.current && !adapterReplaced && !adapterRestored) return;
     wasRunningRef.current = false;
 
     const currentMessages = messagesRef.current;
@@ -252,11 +272,14 @@ const useGeneratedSuggestions = (
 
         await consumeSuggestionResult(promiseOrGenerator, {
           signal,
-          onUpdate: setSuggestions,
+          onUpdate: (nextSuggestions) => {
+            if (controllerRef.current !== controller) return;
+            setSuggestions(nextSuggestions);
+          },
         });
       } catch {}
     })();
-  }, [hasAdapter, isRunning]);
+  }, [adapterKey, hasAdapter, isRunning]);
 
   useReplaySafeEffect(() => {
     return () => {

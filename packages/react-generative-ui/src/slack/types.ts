@@ -88,6 +88,12 @@ export interface SlackRadioButtonsElement {
 export interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
+  readonly dispatch_action_config?: {
+    readonly trigger_actions_on?: readonly (
+      | "on_enter_pressed"
+      | "on_character_entered"
+    )[];
+  };
   readonly multiline?: boolean;
   readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
@@ -148,6 +154,7 @@ export interface SlackInputBlock {
   readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
+  readonly dispatch_action?: boolean;
 }
 
 /** A text cell in a Slack data-table block. */
