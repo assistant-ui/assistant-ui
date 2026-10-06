@@ -2,6 +2,7 @@ import { useInsertionEffect, useRef, useState } from "react";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
   autoCloud,
+  createCommittedScopeRef,
   createCloudThreadListAdapter,
   type CloudThreadListAdapterOptions,
   useCloudRuntimeAdapters,
@@ -11,20 +12,16 @@ export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
   const adapterRef = useRef(adapter);
-  useInsertionEffect(() => {
-    adapterRef.current = adapter;
-  }, [adapter]);
-
   const [cloudRef] = useState(() => ({
     get current() {
       return adapterRef.current.cloud ?? autoCloud!;
     },
   }));
-  const [scopeRef] = useState(() => ({
-    get current() {
-      return adapterRef.current.scopeId;
-    },
-  }));
+  const [scopeRef] = useState(() => createCommittedScopeRef(adapter.scopeId));
+  useInsertionEffect(() => {
+    adapterRef.current = adapter;
+    scopeRef.update(adapter.scopeId);
+  }, [adapter, scopeRef]);
   const [unstable_useAdapters] = useState(
     () =>
       function useCloudAdapters() {

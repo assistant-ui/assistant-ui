@@ -53,12 +53,14 @@ export const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
 
-type CommittedScopeRef = RefObject<unknown> & {
+export type CommittedScopeRef = RefObject<unknown> & {
   update(scope: unknown): void;
   subscribe(listener: (scope: unknown) => void): () => void;
 };
 
-const createCommittedScopeRef = (initialScope: unknown): CommittedScopeRef => {
+export const createCommittedScopeRef = (
+  initialScope: unknown,
+): CommittedScopeRef => {
   let current = initialScope;
   const listeners = new Set<(scope: unknown) => void>();
   return {
@@ -82,10 +84,15 @@ export const useCloudRuntimeAdapters = (
   scopeRef?: RefObject<unknown>,
 ): RuntimeAdapters => {
   const scope = scopeRef?.current ?? DEFAULT_CLOUD_SCOPE;
-  const [committedScopeRef] = useState(() => createCommittedScopeRef(scope));
+  const inheritedScopeRef =
+    scopeRef && "update" in scopeRef && "subscribe" in scopeRef
+      ? (scopeRef as CommittedScopeRef)
+      : undefined;
+  const [ownedScopeRef] = useState(() => createCommittedScopeRef(scope));
+  const committedScopeRef = inheritedScopeRef ?? ownedScopeRef;
   useInsertionEffect(() => {
-    committedScopeRef.update(scope);
-  }, [committedScopeRef, scope]);
+    if (!inheritedScopeRef) ownedScopeRef.update(scope);
+  }, [inheritedScopeRef, ownedScopeRef, scope]);
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
     committedScopeRef,
