@@ -1774,11 +1774,12 @@ const useExternalThread = ({
         );
       onLoadExternalState(state);
     },
-    getModelContext: () =>
-      clientRef?.current?.modelContext().getModelContext() ?? {
-        tools: {},
-        config: {},
-      },
+    getModelContext: () => {
+      const modelContext = clientRef?.current?.modelContext;
+      return modelContext?.source != null
+        ? modelContext().getModelContext()
+        : { tools: {}, config: {} };
+    },
     export: () => ({ messages: [] }),
     import: () => {},
     reset: () => {},

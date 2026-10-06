@@ -43,7 +43,6 @@ export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
 };
 
-/** Returns the client ref for the enclosing store, if one exists. */
 export const useOptionalAssistantClientRef = () =>
   use(AssistantTapContext)?.clientRef;
 

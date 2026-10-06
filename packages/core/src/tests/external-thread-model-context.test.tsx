@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import type { FC, ReactNode } from "react";
 import type { Tool } from "assistant-stream";
 import { afterEach, describe, expect, it } from "vitest";
@@ -34,17 +34,20 @@ const Parent: FC<{ children: ReactNode }> = ({ children }) => {
 const lookup = { description: "lookup", parameters: {} } as Tool<any, any>;
 
 const expectRegisteredContext = () => {
-  const unregister = childAui.modelContext.register({
-    getModelContext: () => ({
-      tools: { lookup },
-      config: { modelName: "m" },
-    }),
+  let unregister!: () => void;
+  act(() => {
+    unregister = childAui.modelContext.register({
+      getModelContext: () => ({
+        tools: { lookup },
+        config: { modelName: "m" },
+      }),
+    });
   });
 
   expect(childAui.thread.getModelContext().tools?.lookup).toBe(lookup);
   expect(childAui.thread.getModelContext().config?.modelName).toBe("m");
 
-  unregister();
+  act(() => unregister());
   expect(childAui.thread.getModelContext().tools?.lookup).toBeUndefined();
 };
 
@@ -65,5 +68,23 @@ describe("ExternalThread model context", () => {
       </Parent>,
     );
     expectRegisteredContext();
+  });
+
+  it("returns an empty context when the store has no model context scope", () => {
+    let parentAui!: ReturnType<typeof useAui>;
+    const CaptureParent: FC = () => {
+      parentAui = useAui();
+      return null;
+    };
+    render(
+      <Parent>
+        <CaptureParent />
+      </Parent>,
+    );
+
+    expect(parentAui.threads.thread("main").getModelContext()).toEqual({
+      tools: {},
+      config: {},
+    });
   });
 });
