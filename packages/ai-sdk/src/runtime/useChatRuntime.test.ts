@@ -85,6 +85,7 @@ import {
   createResumableSessionStorage,
   RESUMABLE_STREAM_ID_HEADER,
 } from "../transport/resumable";
+import { getResumedStreamIds } from "./DynamicChatTransport";
 import { useChatRuntime } from "./useChatRuntime";
 
 const onReact18 = version.startsWith("18.");
@@ -497,6 +498,48 @@ describe.skipIf(onReact18)("useChatRuntime", () => {
     rerender({ transport: transportB });
 
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not resume an unchanged stream id already handled by replacement storage", () => {
+    mocks.state.isLoadingHistory = true;
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "ready",
+    });
+    const storageA = {
+      getStreamId: (): string | null => "stream-1",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    const storageB = {
+      getStreamId: (): string | null => "stream-1",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    getResumedStreamIds(storageB).add("stream-1");
+    const transportA = {
+      getResumableAdapter: () => ({
+        storage: storageA,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+    const transportB = {
+      getResumableAdapter: () => ({
+        storage: storageB,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport: transport as never }),
+      { initialProps: { transport: transportA } },
+    );
+
+    mocks.state.isLoadingHistory = false;
+    rerender({ transport: transportB });
+
+    expect(resumeStream).not.toHaveBeenCalled();
   });
 
   it("does not clear a newer stream id when an older resume fails", async () => {

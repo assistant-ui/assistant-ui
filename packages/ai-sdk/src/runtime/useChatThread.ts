@@ -372,15 +372,15 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     () => getResumedStreamIds(resumableStorage),
     [resumableStorage],
   );
-  const resumedStreamIds =
-    transport instanceof DynamicChatTransport
-      ? transport.getResumedStreamIds()
-      : staticResumedStreamIds;
   const onResumeErrorRef = useRef(onResumeError);
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;
   });
   useEffect(() => {
+    const resumedStreamIds =
+      transport instanceof DynamicChatTransport
+        ? transport.getResumedStreamIds()
+        : staticResumedStreamIds;
     if (!pendingStreamId || resumedStreamIds.has(pendingStreamId)) {
       return;
     }
@@ -426,7 +426,8 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     pendingStreamId,
     ownedChat,
     resumableStorage,
-    resumedStreamIds,
+    staticResumedStreamIds,
+    transport,
   ]);
 
   return runtime;
