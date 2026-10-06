@@ -260,6 +260,7 @@ function BuilderPlayground() {
 
             <button
               type="button"
+              aria-label={showCode ? "Close" : "Code"}
               onClick={() => setShowCode(!showCode)}
               className={cn(toolBtn, showCode ? toolBtnOn : toolBtnOff)}
             >
@@ -281,7 +282,12 @@ function BuilderPlayground() {
               container={previewContainerRef}
               onOpenCodeView={() => setShowCode(true)}
             >
-              <Button type="button" variant="outline" size="sm">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Create Project"
+              >
                 <SquareTerminal className="size-3.5" />
                 <span className="hidden sm:inline">Create Project</span>
               </Button>
