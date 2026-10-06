@@ -40,30 +40,11 @@ const readingLine = (viewport: HTMLElement) => {
   return rect.top + rect.height * descent + TOP_TOLERANCE;
 };
 
-const partsOf = (message: ThreadMessage) => [...message.content];
-
-const textOf = (message: ThreadMessage) =>
-  partsOf(message)
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join("\n")
-    .trim();
-
-const labelOf = (message: ThreadMessage) => {
-  const parts = partsOf(message);
-  const tools = parts.flatMap((part) =>
-    part.type === "tool-call" ? [part.toolName] : [],
-  );
-  if (tools.length === 1) return tools[0]!;
-  if (tools.length > 1) return `${tools.length} tool calls`;
-  if (parts.some((part) => part.type === "reasoning")) return "Reasoning";
-
-  // A composer submission carries its files in `attachments` and leaves
-  // `content` empty, so both places decide an attachment-only turn's label.
-  const carriers = [...parts, ...(message.attachments ?? [])];
-  if (carriers.some((carrier) => carrier.type === "image")) return "Image";
-  if (carriers.some((carrier) => carrier.type === "file")) return "File";
-  if (carriers.length > 0) return "Attachment";
-  return message.role === "user" ? "Message" : "Response";
+type MessageSummary = {
+  hasText: boolean;
+  title: string;
+  answerPreview: string;
+  questionPreview: string;
 };
 
 /** Cuts on a word boundary so a title never splits a word. */
@@ -74,11 +55,80 @@ const cutAtWord = (text: string, limit: number) => {
   return boundary > limit / 2 ? head.slice(0, boundary) : head;
 };
 
-const linesOf = (message: ThreadMessage) =>
-  textOf(message)
+const summarizeMessage = (message: ThreadMessage): MessageSummary => {
+  const content = message.content;
+  const textParts: string[] = [];
+  const tools: string[] = [];
+  let hasReasoning = false;
+  let hasImage = false;
+  let hasFile = false;
+
+  for (const part of content) {
+    switch (part.type) {
+      case "text":
+        textParts.push(part.text);
+        break;
+      case "tool-call":
+        tools.push(part.toolName);
+        break;
+      case "reasoning":
+        hasReasoning = true;
+        break;
+      case "image":
+        hasImage = true;
+        break;
+      case "file":
+        hasFile = true;
+        break;
+    }
+  }
+
+  // A composer submission carries its files in `attachments` and leaves
+  // `content` empty, so both places decide an attachment-only turn's label.
+  const attachments = message.attachments ?? [];
+  for (const attachment of attachments) {
+    if (attachment.type === "image") hasImage = true;
+    if (attachment.type === "file") hasFile = true;
+  }
+
+  const text = textParts.join("\n").trim();
+  const lines = text
     .split("\n")
     .map((line) => line.replace(/^[\s#>*`-]+/, "").trim())
     .filter(Boolean);
+
+  let label: string;
+  if (tools.length === 1) label = tools[0]!;
+  else if (tools.length > 1) label = `${tools.length} tool calls`;
+  else if (hasReasoning) label = "Reasoning";
+  else if (hasImage) label = "Image";
+  else if (hasFile) label = "File";
+  else if (content.length + attachments.length > 0) label = "Attachment";
+  else label = message.role === "user" ? "Message" : "Response";
+
+  const first = lines[0] ?? "";
+  const title = cutAtWord(first, TITLE_LENGTH);
+  return {
+    hasText: text.length > 0,
+    title: title || label,
+    answerPreview: lines.join(" ").trim().slice(0, PREVIEW_LENGTH),
+    questionPreview: [first.slice(title.length), ...lines.slice(1)]
+      .join(" ")
+      .trim()
+      .slice(0, PREVIEW_LENGTH),
+  };
+};
+
+const summaries = new WeakMap<ThreadMessage, MessageSummary>();
+
+const summaryOf = (message: ThreadMessage) => {
+  let summary = summaries.get(message);
+  if (!summary) {
+    summary = summarizeMessage(message);
+    summaries.set(message, summary);
+  }
+  return summary;
+};
 
 /** A user message and the assistant messages answering it. */
 type Turn = {
@@ -88,40 +138,33 @@ type Turn = {
 
 const groupIntoTurns = (messages: readonly ThreadMessage[]) => {
   const turns: Turn[] = [];
-
   for (const message of messages) {
     if (message.role !== "user" && message.role !== "assistant") continue;
-
     const current = turns.at(-1);
     if (message.role === "user" || !current) {
       turns.push({ head: message, members: [message] });
-      continue;
+    } else {
+      current.members.push(message);
     }
-    current.members.push(message);
   }
-
   return turns;
 };
 
 const describe = ({ head, members }: Turn): ConversationMapEntry => {
-  const lines = linesOf(head);
-  const first = lines[0] ?? "";
-  const title = cutAtWord(first, TITLE_LENGTH);
+  const headSummary = summaryOf(head);
 
   // What the turn asked names it; what it answered is the useful preview, and
   // a turn still being answered falls back to the rest of its own text.
-  const answer = members.find((member) => member !== head && textOf(member));
-  const preview = (
-    answer
-      ? linesOf(answer).join(" ")
-      : [first.slice(title.length), ...lines.slice(1)].join(" ")
-  )
-    .trim()
-    .slice(0, PREVIEW_LENGTH);
+  const answer = members.find(
+    (member) => member !== head && summaryOf(member).hasText,
+  );
+  const preview = answer
+    ? summaryOf(answer).answerPreview
+    : headSummary.questionPreview;
 
   return {
     id: head.id,
-    title: title || labelOf(head),
+    title: headSummary.title,
     ...(preview ? { preview } : {}),
   };
 };

@@ -4,7 +4,7 @@ import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseWorkspaceGlobs } from "./check-changesets.mjs";
+import { parseWorkspaceGlobs } from "./lib/workspace.mjs";
 import {
   PACKAGE_BUILD_INPUTS,
   hasPackageBuildInputs,
