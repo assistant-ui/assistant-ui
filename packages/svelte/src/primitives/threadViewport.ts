@@ -3,12 +3,7 @@ import { createSubscriber } from "svelte/reactivity";
 import { getAuiContext } from "../context";
 import { useAuiEvent } from "../useAuiEvent";
 import { useAuiState } from "../useAuiState";
-import {
-  isUserScrollUp,
-  isViewportAtBottom,
-  observeContentResize,
-  viewportOverflows,
-} from "@assistant-ui/store/client";
+import { createThreadViewportAutoScroll } from "@assistant-ui/store/client";
 
 /**
  * Builder for the scrollable thread container. Call during component
@@ -35,163 +30,46 @@ export const threadViewport = (options?: {
   const scrollToBottomOnThreadSwitch =
     options?.scrollToBottomOnThreadSwitch ?? true;
   const context = getAuiContext();
-
-  let element: HTMLElement | null = null;
-  let intent: ScrollBehavior | null = null;
-  let lastScrollTop = 0;
-  let lastScrollHeight = 0;
-  let lastObservedScrollHeight = 0;
-  let lastObservedClientHeight = 0;
-  let frame: number | null = null;
-
-  let atBottom = true;
   const atBottomListeners = new Set<() => void>();
-  const setAtBottom = (value: boolean) => {
-    if (value === atBottom) return;
-    atBottom = value;
-    for (const listener of atBottomListeners) listener();
-  };
   const subscribeAtBottom = createSubscriber((update) => {
     atBottomListeners.add(update);
     return () => atBottomListeners.delete(update);
   });
-
-  const scrollToBottom = (behavior: ScrollBehavior) => {
-    if (!element) return;
-    intent = behavior;
-    element.scrollTo?.({ top: element.scrollHeight, behavior });
-  };
-
-  const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
-    intent = behavior;
-    if (typeof requestAnimationFrame === "undefined") return;
-    if (frame !== null) cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => {
-      frame = null;
-      scrollToBottom(behavior);
-    });
-  };
-
-  const handleScroll = () => {
-    if (!element) return;
-
-    const newIsAtBottom = isViewportAtBottom(element);
-    const inFlightDownward =
-      !newIsAtBottom && lastScrollTop < element.scrollTop;
-    if (!inFlightDownward) {
-      if (newIsAtBottom) {
-        // At-bottom is ambiguous while the viewport does not overflow; keep
-        // the intent alive until content can actually scroll.
-        if (viewportOverflows(element)) intent = null;
-      } else if (
-        isUserScrollUp(
-          { scrollTop: lastScrollTop, scrollHeight: lastScrollHeight },
-          element,
-        )
-      ) {
-        intent = null;
-      }
-      if (newIsAtBottom || intent === null) setAtBottom(newIsAtBottom);
-    }
-
-    lastScrollTop = element.scrollTop;
-    lastScrollHeight = element.scrollHeight;
-  };
-
-  const onContentResize = () => {
-    if (!element) return;
-    const { scrollHeight, clientHeight } = element;
-    if (
-      scrollHeight === lastObservedScrollHeight &&
-      clientHeight === lastObservedClientHeight
-    ) {
-      return;
-    }
-    lastObservedScrollHeight = scrollHeight;
-    lastObservedClientHeight = clientHeight;
-
-    if (intent) {
-      scrollToBottom(intent);
-    } else if (autoScroll && atBottom) {
-      scrollToBottom("instant");
-    }
-    handleScroll();
-  };
-
-  // A pointer gesture invalidates pending bottom-scroll intent; otherwise an
-  // intent kept alive by a non-overflowing thread hijacks the next content
-  // growth. An already scheduled frame is cancelled too, so the gesture also
-  // wins the race against a just-planted intent.
-  const onPointerdown = () => {
-    intent = null;
-    if (frame !== null) {
-      cancelAnimationFrame(frame);
-      frame = null;
-    }
-  };
+  const autoScrollController = createThreadViewportAutoScroll({
+    getOptions: () => ({
+      autoScroll,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnThreadSwitch,
+    }),
+    onAtBottomChange: () => {
+      for (const listener of atBottomListeners) listener();
+    },
+  });
 
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
-  let initialized = false;
-  const checkInitialize = () => {
-    if (!hasMessages.current) {
-      initialized = false;
-      return;
-    }
-    if (!scrollToBottomOnInitialize || initialized) return;
-    initialized = true;
-    if (intent !== null) return;
-    scheduleScrollToBottom("instant");
-  };
+  const checkInitialize = () =>
+    autoScrollController.setHasMessages(hasMessages.current);
+  checkInitialize();
   const unsubscribeState = context.source.subscribe(checkInitialize);
   onDestroy(() => {
     unsubscribeState();
-    if (frame !== null) cancelAnimationFrame(frame);
+    autoScrollController.dispose();
   });
 
-  useAuiEvent("thread.runStart", () => {
-    if (!scrollToBottomOnRunStart) return;
-    scheduleScrollToBottom("auto");
-  });
-
-  useAuiEvent("threads.selectionChanged", () => {
-    if (!scrollToBottomOnThreadSwitch) return;
-    scheduleScrollToBottom("instant");
-  });
+  useAuiEvent("thread.runStart", () => autoScrollController.runStarted());
+  useAuiEvent("threads.selectionChanged", () =>
+    autoScrollController.threadSwitched(),
+  );
 
   return {
-    attach: (el: HTMLElement) => {
-      // The builder outlives its element, so each attachment restarts the
-      // per-element bookkeeping as a fresh mount would.
-      element = el;
-      intent = null;
-      lastScrollTop = el.scrollTop;
-      lastScrollHeight = el.scrollHeight;
-      lastObservedScrollHeight = 0;
-      lastObservedClientHeight = 0;
-      initialized = false;
-      setAtBottom(true);
-      const disconnect = observeContentResize(el, onContentResize);
-      el.addEventListener("scroll", handleScroll);
-      el.addEventListener("pointerdown", onPointerdown);
-      checkInitialize();
-      handleScroll();
-      return () => {
-        disconnect();
-        el.removeEventListener("scroll", handleScroll);
-        el.removeEventListener("pointerdown", onPointerdown);
-        if (frame !== null) {
-          cancelAnimationFrame(frame);
-          frame = null;
-        }
-        if (element === el) element = null;
-      };
-    },
+    attach: (el: HTMLElement) => autoScrollController.attach(el),
     get isAtBottom() {
       subscribeAtBottom();
-      return atBottom;
+      return autoScrollController.isAtBottom;
     },
     scrollToBottom: (behavior: ScrollBehavior = "auto") =>
-      scrollToBottom(behavior),
+      autoScrollController.scrollToBottom(behavior),
   };
 };
 

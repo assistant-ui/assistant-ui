@@ -165,12 +165,22 @@ Pass `duration` (seconds) to append a timing suffix to the trigger label:
 
 <RuntimeMode>
 
-The `status.type` on the group (`"running" | "complete" | ...`) is what drives `streaming`; it flips once the model's reasoning stream for that group ends, which is also when a duration becomes worth showing:
+The `status.type` on the group (`"running" | "complete" | ...`) is what drives `streaming`; it flips once the model's reasoning stream for that group ends. The group's `timing` spans the `timing` of its reasoning parts, and gains a `completedAt` once every timed part has finished, which is when a duration becomes worth showing:
 
 ```tsx
 const running = part.status.type === "running";
-<ReasoningTrigger active={running} duration={running ? undefined : elapsedSeconds} />
+const timing = part.timing;
+<ReasoningTrigger
+  active={running}
+  duration={
+    timing?.completedAt === undefined
+      ? undefined
+      : Math.round((timing.completedAt - timing.startedAt) / 1000)
+  }
+/>
 ```
+
+`useDataStreamRuntime` and `useAssistantTransportRuntime` stamp `timing` on each reasoning part as it streams. Other runtimes, the AI SDK and LangGraph ones and a `ChatModelAdapter` among them, leave it unset, so the trigger shows no duration unless the host supplies `timing: { startedAt, completedAt }` on its reasoning parts, in epoch milliseconds; an external store host that follows an agent's records does that from the times they carry.
 
 </RuntimeMode>
 
@@ -253,7 +263,7 @@ Wire it by mapping a message's `"reasoning"` parts into steps. `s.message.parts`
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAuiState, useMessageTiming } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 import {
   ReasoningPanel,
   type ReasoningStep,
@@ -276,7 +286,20 @@ function AssistantReasoning() {
       (part) => part.type === "reasoning" && part.status.type === "running",
     );
   });
-  const timing = useMessageTiming();
+  const thoughtSeconds = useAuiState((s) => {
+    const timings = s.message.parts.flatMap((part) =>
+      part.type === "reasoning" && part.timing ? [part.timing] : [],
+    );
+    if (timings.length === 0) return undefined;
+    let startedAt = Infinity;
+    let completedAt = -Infinity;
+    for (const timing of timings) {
+      if (timing.completedAt === undefined) return undefined;
+      startedAt = Math.min(startedAt, timing.startedAt);
+      completedAt = Math.max(completedAt, timing.completedAt);
+    }
+    return Math.round((completedAt - startedAt) / 1000);
+  });
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
   if (steps.length === 0) return null;
@@ -289,9 +312,7 @@ function AssistantReasoning() {
       open={userOpen ?? streaming}
       onOpenChange={setUserOpen}
       restingLabel={
-        timing?.totalStreamTime
-          ? `Thought for ${Math.round(timing.totalStreamTime / 1000)}s`
-          : "Done thinking"
+        thoughtSeconds ? `Thought for ${thoughtSeconds}s` : "Done thinking"
       }
     />
   );

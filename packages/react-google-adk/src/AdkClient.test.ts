@@ -189,7 +189,8 @@ describe("createAdkStream - proxy mode", () => {
     const messages: AdkMessage[] = [
       { id: "m1", type: "human", content: "Hello" },
     ];
-    const gen = await stream(messages, makeConfig());
+    const config = makeConfig();
+    const gen = await stream(messages, config);
     // drain
     for await (const _ of gen) {
       /* noop */
@@ -200,7 +201,27 @@ describe("createAdkStream - proxy mode", () => {
     expect(url).toBe("/api/adk");
     expect(init?.method).toBe("POST");
     const body = JSON.parse(init?.body as string);
-    expect(body).toMatchObject({ message: "Hello" });
+    expect(body).toMatchObject({ message: "Hello", sessionId: "session-1" });
+    expect(config.initialize).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to the remote thread ID for proxy sessions", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+    const initialize = vi
+      .fn()
+      .mockResolvedValue({ remoteId: "remote-1", externalId: undefined });
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hello" }],
+      makeConfig({ initialize }),
+    );
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.sessionId).toBe("remote-1");
   });
 
   it("sends runConfig and checkpointId in proxy body", async () => {

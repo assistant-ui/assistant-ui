@@ -45,7 +45,7 @@ export type GenericUserMessage = {
 
 export type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 export type GenericToolMessage = {
@@ -82,6 +82,7 @@ type MessagePartLike = {
 };
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -112,7 +113,13 @@ function getDataUrlMediaType(value: string): string | undefined {
   return value.match(/^data:([^;,]+)(?:[;,])/i)?.[1]?.toLowerCase();
 }
 
-function inferImageMediaType(url: string): string {
+function inferImageMediaType(url: string, contentType?: string): string {
+  // Providers reject image/* as a URL media type.
+  const declared = contentType?.toLowerCase();
+  if (declared?.startsWith("image/") && !declared.includes("*")) {
+    return declared;
+  }
+
   // Handle data URLs: data:[<mediatype>][;base64],<data>
   if (/^data:/i.test(url)) {
     const match = url.match(/^data:([^;,]+)/i);
@@ -133,8 +140,34 @@ function toUrlOrString(value: string): string | URL {
   }
 }
 
+function toGenericFilePart(
+  part: MessagePartLike,
+  contentType?: string,
+): GenericFilePart | undefined {
+  if (part.type === "image" && part.image) {
+    return {
+      type: "file",
+      data: toUrlOrString(part.image),
+      mediaType: inferImageMediaType(part.image, contentType),
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  if (part.type === "file" && typeof part.data === "string") {
+    return {
+      type: "file",
+      data: toUrlOrString(part.data),
+      mediaType:
+        (typeof part.mimeType === "string" && part.mimeType) ||
+        getDataUrlMediaType(part.data) ||
+        "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  return undefined;
+}
+
 type ToolCallAccumulator = {
-  textParts: (GenericTextPart | GenericToolCallPart)[];
+  textParts: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
 };
 
@@ -214,33 +247,27 @@ function convertUserMessage(
 ): void {
   const attachments = message.attachments ?? [];
   const allContent = [
-    ...(message.content ?? []),
-    ...attachments.flatMap((a) => a?.content ?? []),
+    ...(message.content ?? []).map((part) => ({
+      part,
+      contentType: undefined,
+    })),
+    ...attachments.flatMap((attachment) =>
+      (attachment?.content ?? []).map((part) => ({
+        part,
+        contentType: attachment.contentType,
+      })),
+    ),
   ];
 
   const content: (GenericTextPart | GenericFilePart)[] = [];
 
-  for (const part of allContent) {
+  for (const { part, contentType } of allContent) {
     if (!part) continue;
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
-    } else if (part.type === "image" && part.image) {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
-        ...(part.filename && { filename: part.filename }),
-      });
-    } else if (part.type === "file" && typeof part.data === "string") {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.data),
-        mediaType:
-          (typeof part.mimeType === "string" && part.mimeType) ||
-          getDataUrlMediaType(part.data) ||
-          "application/octet-stream",
-        ...(part.filename && { filename: part.filename }),
-      });
+    } else {
+      const filePart = toGenericFilePart(part, contentType);
+      if (filePart) content.push(filePart);
     }
   }
 
@@ -276,6 +303,15 @@ function convertAssistantMessage(
     } else if (part.type === "tool-call") {
       if (processToolCall(part, accumulator, inFlight)) {
         hasPendingToolResults = true;
+      }
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) {
+        if (hasPendingToolResults) {
+          flushAccumulator(accumulator, result);
+          hasPendingToolResults = false;
+        }
+        accumulator.textParts.push(filePart);
       }
     }
   }

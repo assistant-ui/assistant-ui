@@ -2054,6 +2054,44 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     });
   });
 
+  it("records questionnaire answers alongside the decision", async () => {
+    const questions = [
+      {
+        id: "scope",
+        prompt: "Which files?",
+        options: [{ id: "src", label: "src" }],
+      },
+    ];
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("send_email", {
+        id: "a1",
+        display: "questions",
+        questions,
+      }),
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    await thread.respondToToolApproval({
+      approvalId: "a1",
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+    await flush();
+
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.approval).toEqual({
+      id: "a1",
+      display: "questions",
+      questions,
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+  });
+
   it("treats a terminal resolution as non-pending and continues the run", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("deploy", { id: "a1", resolution: "expired" }),
@@ -2802,6 +2840,9 @@ describe("LocalThreadRuntimeCore suggestions", () => {
       },
     };
     const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+    const replacementGenerate = vi
+      .fn()
+      .mockResolvedValue([{ prompt: "replacement" }]);
     const thread = createThread(chatModel, { suggestion: { generate } });
 
     await thread.append(userMessage("hi"));
@@ -2811,14 +2852,149 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     thread.__internal_setOptions({
       adapters: {
         chatModel,
-        suggestion: { generate },
+        suggestion: { generate: replacementGenerate },
       },
     });
 
     expect(signal.aborted).toBe(false);
+    expect(replacementGenerate).not.toHaveBeenCalled();
     resolveSuggestions([{ prompt: "follow up" }]);
     await flush();
     expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+
+  it("regenerates settled suggestions when the adapter key changes", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockResolvedValue([{ prompt: "first" }]);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "first" }]);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+
+    expect(thread.suggestions).toEqual([]);
+    await flush();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+  });
+
+  it("does not regenerate suggestions after the settled response is deleted", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockResolvedValue([{ prompt: "first" }]);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+      history: {
+        async load() {
+          return { messages: [] };
+        },
+        async append() {},
+        async delete() {},
+      },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    expect(firstGenerate).toHaveBeenCalledOnce();
+
+    await thread.deleteMessage(thread.messages.at(-1)!.id);
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+    await flush();
+
+    expect(thread.messages.at(-1)?.role).toBe("user");
+    expect(secondGenerate).not.toHaveBeenCalled();
+    expect(thread.suggestions).toEqual([]);
+  });
+
+  it("regenerates suggestions for an imported settled response", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const source = createThread(chatModel);
+    await source.append(userMessage("hi"));
+
+    const firstGenerate = vi.fn();
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+    thread.import(source.export());
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+    await flush();
+
+    expect(firstGenerate).not.toHaveBeenCalled();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+  });
+
+  it("aborts pending suggestions when the adapter key changes", async () => {
+    let resolveFirst!: (value: readonly ThreadSuggestion[]) => void;
+    const firstDeferred = new Promise<readonly ThreadSuggestion[]>(
+      (resolve) => {
+        resolveFirst = resolve;
+      },
+    );
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockReturnValue(firstDeferred);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+
+    expect(firstSignal.aborted).toBe(true);
+    await flush();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+
+    resolveFirst([{ prompt: "stale" }]);
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
   });
 
   it("ignores suggestion generation from a superseded run", async () => {
@@ -6069,6 +6245,46 @@ describe("LocalThreadRuntimeCore runs", () => {
       expect.objectContaining({ type: "text", text: "Hello world" }),
     );
     expect(assistant.status).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("keeps the branch the user switched to while a multi-step answer runs", async () => {
+    let releaseToolStep!: () => void;
+    const toolStep = new Promise<void>(
+      (resolve) => (releaseToolStep = resolve),
+    );
+    let calls = 0;
+    const thread = createPlainThread({
+      async run(): Promise<ChatModelRunResult> {
+        calls++;
+        if (calls === 2) {
+          await toolStep;
+          return {
+            content: [{ ...toolCallPart("search"), result: "found" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        }
+        return { content: [{ type: "text", text: "answer" }] };
+      },
+    });
+    await thread.append(userMessage("hi"));
+    const [question, firstAnswer] = thread.messages.map(
+      (message) => message.id,
+    );
+
+    void thread.startRun({
+      parentId: question!,
+      sourceId: firstAnswer!,
+      runConfig: {},
+    });
+    await flush();
+    expect(thread.messages.at(-1)?.id).not.toBe(firstAnswer);
+
+    thread.switchToBranch(firstAnswer!);
+    releaseToolStep();
+    await flush();
+
+    expect(calls).toBe(3);
+    expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
   });
 
   it("marks the message errored when the adapter rejects", async () => {
