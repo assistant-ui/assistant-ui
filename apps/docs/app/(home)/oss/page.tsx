@@ -6,10 +6,10 @@ import {
   OSS_CATEGORIES,
   OSS_PROJECTS,
   fetchOssStats,
-  ossNpmUrl,
+  ossDestinations,
   ossPrimaryUrl,
-  ossRepoUrl,
   type OssCategory,
+  type OssDestination,
   type OssProject,
   type OssStats,
 } from "@/lib/oss";
@@ -47,6 +47,7 @@ export default async function OssPage() {
 
   const stars = flagship ? stats.stars[flagship.repo] : undefined;
   const weekly = flagship?.npm ? stats.weekly[flagship.npm] : undefined;
+  const flagshipDestinations = flagship ? ossDestinations(flagship) : [];
 
   return (
     <PageFrame pad="sub">
@@ -63,41 +64,16 @@ export default async function OssPage() {
           <section className="border-foreground/10 border-b py-10 md:py-14">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-baseline lg:justify-between lg:gap-16">
               <div className="min-w-0">
-                <Link href={ossPrimaryUrl(flagship)} className="group block">
-                  <h2 className={typeSection}>
-                    {flagship.name}
-                    <ArrowUpRight className="ms-1.5 mb-0.5 inline size-4 opacity-0 transition-opacity group-hover:opacity-50" />
-                  </h2>
-                </Link>
+                <h2 className={typeSection}>{flagship.name}</h2>
                 <p className="text-muted-foreground mt-3 max-w-[52ch] text-[15px] leading-relaxed">
                   {flagship.description}
                 </p>
-                <p className="mt-6 flex flex-wrap items-baseline gap-x-7 gap-y-2 font-mono text-[13px]">
-                  <Link
-                    href="/docs"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    docs
-                  </Link>
-                  <a
-                    href={ossRepoUrl(flagship)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    github
-                  </a>
-                  {flagship.npm ? (
-                    <a
-                      href={ossNpmUrl(flagship.npm)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      npm
-                    </a>
-                  ) : null}
-                </p>
+                <div className="mt-6 flex flex-wrap items-baseline gap-x-7 gap-y-2 font-mono text-[13px]">
+                  <ProjectDestinationLinks
+                    destinations={flagshipDestinations}
+                    className="text-muted-foreground hover:text-foreground focus-visible:text-foreground transition-colors focus-visible:underline"
+                  />
+                </div>
               </div>
               {stars || weekly ? (
                 <div className="flex shrink-0 gap-10 lg:gap-14">
@@ -182,19 +158,58 @@ function ProjectRow({
 }) {
   const stat = projectStat(project, stats);
   const license = project.license ?? "—";
+  const destinations = ossDestinations(project);
+  const primary = destinations.find((destination) => destination.isPrimary)!;
+  const supplementalDestinations = destinations.filter(
+    (destination) => !destination.isPrimary,
+  );
   const href = ossPrimaryUrl(project);
   const external = href.startsWith("http");
-  const className =
-    "group hover:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
-  const content = (
+  const rowClassName =
+    "group/row hover:bg-foreground/[0.025] focus-within:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
+  const titleClassName =
+    "group/title inline-flex items-center text-sm font-medium transition-colors hover:text-foreground/70 focus-visible:text-foreground focus-visible:underline";
+  const title = (
     <>
-      <span className="text-sm font-medium">
-        {project.name}
-        <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
-      </span>
-      <span className="text-muted-foreground text-sm leading-relaxed">
-        {project.description}
-      </span>
+      {project.name}
+      <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover/title:opacity-50 group-focus-visible/title:opacity-50" />
+    </>
+  );
+
+  return (
+    <div className={rowClassName}>
+      {external ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={primary.ariaLabel}
+          className={titleClassName}
+        >
+          {title}
+        </a>
+      ) : (
+        <Link
+          href={href}
+          aria-label={primary.ariaLabel}
+          className={titleClassName}
+        >
+          {title}
+        </Link>
+      )}
+      <div>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {project.description}
+        </p>
+        {supplementalDestinations.length > 0 ? (
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+            <ProjectDestinationLinks
+              destinations={supplementalDestinations}
+              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground font-mono text-[11px] tracking-wide transition-colors focus-visible:underline"
+            />
+          </div>
+        ) : null}
+      </div>
       <span className="text-muted-foreground/70 hidden font-mono text-[11px] tracking-wide md:block">
         {license}
       </span>
@@ -205,21 +220,59 @@ function ProjectRow({
         {license}
         {stat ? ` · ${stat}` : ""}
       </span>
+    </div>
+  );
+}
+
+function ProjectDestinationLinks({
+  destinations,
+  className,
+}: {
+  destinations: OssDestination[];
+  className: string;
+}) {
+  return (
+    <>
+      {destinations.map((destination) => (
+        <ProjectDestinationLink
+          key={destination.kind}
+          destination={destination}
+          className={className}
+        />
+      ))}
     </>
   );
+}
 
-  return external ? (
+function ProjectDestinationLink({
+  destination,
+  className,
+}: {
+  destination: OssDestination;
+  className: string;
+}) {
+  const linkClassName = cn(
+    className,
+    destination.isPrimary && "text-foreground font-medium",
+  );
+
+  return destination.href.startsWith("http") ? (
     <a
-      href={href}
+      href={destination.href}
       target="_blank"
       rel="noopener noreferrer"
-      className={className}
+      aria-label={destination.ariaLabel}
+      className={linkClassName}
     >
-      {content}
+      {destination.label}
     </a>
   ) : (
-    <Link href={href} className={className}>
-      {content}
+    <Link
+      href={destination.href}
+      aria-label={destination.ariaLabel}
+      className={linkClassName}
+    >
+      {destination.label}
     </Link>
   );
 }
