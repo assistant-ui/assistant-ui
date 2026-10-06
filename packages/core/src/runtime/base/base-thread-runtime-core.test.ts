@@ -731,6 +731,23 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
+  it("resets volume when a session ends on its own", () => {
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    const listener = vi.fn();
+    runtime.subscribeVoiceVolume(listener);
+    runtime.connectVoice();
+    expect(listener).toHaveBeenCalledOnce();
+    voice.emitVolume(0.8);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    voice.session.status = { type: "ended", reason: "finished" };
+    voice.emitStatus(voice.session.status);
+
+    expect(runtime.getVoiceVolume()).toBe(0);
+    expect(listener).toHaveBeenCalledTimes(3);
+  });
+
   it("finishes disconnecting when a session cleanup throws", () => {
     const cleanupError = new Error("cleanup failed");
     const laterCleanup = vi.fn();
