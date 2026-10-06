@@ -505,3 +505,22 @@ it("omits an empty part map", () => {
   expect(content).toContain("<MessagePrimitive.Parts />");
   expect(content).not.toContain("<MessagePrimitive.Parts components={{");
 });
+
+it.each(["dot", "none"] as const)(
+  "renders the grouped empty-run indicator only for the dot typing indicator (%s)",
+  (typingIndicator) => {
+    const content =
+      generateRegistryJson({
+        ...DEFAULT_CONFIG,
+        components: {
+          ...DEFAULT_CONFIG.components,
+          reasoning: true,
+          typingIndicator,
+        },
+      }).files[0]?.content ?? "";
+
+    expect(content.includes('case "indicator":')).toBe(
+      typingIndicator === "dot",
+    );
+  },
+);

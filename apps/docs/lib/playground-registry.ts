@@ -564,9 +564,13 @@ function generateAssistantMessageComponent(
               case "tool-call":
                 return part.toolUI${components.markdown ? " ?? <ToolFallback {...part} />" : ""};
               case "data":
-                return part.dataRendererUI;
+                return part.dataRendererUI;${
+                  components.typingIndicator === "dot"
+                    ? `
               case "indicator":
-                return <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>;
+                return <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>;`
+                    : ""
+                }
               default:
                 return null;
             }
