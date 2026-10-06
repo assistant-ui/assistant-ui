@@ -91,7 +91,7 @@ const findHead = (
 
 // A history may store a message before its parent, for example one that
 // commits appends concurrently, so such a message is added after its parent.
-const withParentsFirst = (
+export const withParentsFirst = (
   messages: ExportedMessageRepository["messages"],
   isStored: (id: string) => boolean,
 ) => {
