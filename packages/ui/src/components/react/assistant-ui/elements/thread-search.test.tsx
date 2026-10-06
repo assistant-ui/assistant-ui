@@ -89,6 +89,8 @@ describe("ThreadSearch", () => {
 
     expect(document.activeElement).toBe(input);
     expect(onSelect).toHaveBeenNthCalledWith(2, "migration");
+    expect(onActiveChange).toHaveBeenCalledExactlyOnceWith("release");
+    expect(release.getAttribute("aria-selected")).toBe("true");
   });
 
   it("does not activate a result filtered away from the active id", () => {
