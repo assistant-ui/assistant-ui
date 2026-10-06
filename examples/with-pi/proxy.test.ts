@@ -5,6 +5,7 @@ import { proxy } from "./proxy";
 const request = (
   headers?: HeadersInit,
   url = "http://localhost:3000/api/pi/threads",
+  method = "POST",
 ) => {
   const requestHeaders = new Headers(headers);
   if (!requestHeaders.has("host")) {
@@ -12,12 +13,16 @@ const request = (
   }
 
   return new NextRequest(url, {
-    method: "POST",
+    method,
     headers: requestHeaders,
-    body: JSON.stringify({
-      workspacePath: "/tmp/project",
-      initialMessage: "Read the local files",
-    }),
+    ...(method === "GET" || method === "HEAD"
+      ? {}
+      : {
+          body: JSON.stringify({
+            workspacePath: "/tmp/project",
+            initialMessage: "Read the local files",
+          }),
+        }),
   });
 };
 
@@ -62,6 +67,64 @@ describe("Pi API proxy", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it.each([
+    [{ origin: "http://localhost:3000", "content-type": "text/plain" }, 200],
+    [{ "sec-fetch-site": "same-origin", "content-type": "text/plain" }, 200],
+    [
+      {
+        origin: "https://attacker.example",
+        "content-type": "application/json",
+      },
+      403,
+    ],
+    [
+      { "sec-fetch-site": "cross-site", "content-type": "application/json" },
+      403,
+    ],
+  ] as const)(
+    "checks a single request context signal %#",
+    (headers, status) => {
+      vi.stubEnv("NODE_ENV", "development");
+
+      expect(proxy(request(headers)).status).toBe(status);
+    },
+  );
+
+  it.each([
+    ["text/plain", 403],
+    ["application/x-www-form-urlencoded", 403],
+    ["application/json", 200],
+    ["application/json; charset=utf-8", 200],
+  ] as const)("checks headerless %s writes", (contentType, status) => {
+    vi.stubEnv("NODE_ENV", "development");
+
+    expect(proxy(request({ "content-type": contentType })).status).toBe(status);
+  });
+
+  it.each(["PATCH", "DELETE"])(
+    "rejects headerless %s writes without JSON",
+    (method) => {
+      vi.stubEnv("NODE_ENV", "development");
+
+      expect(
+        proxy(request({ "content-type": "text/plain" }, undefined, method))
+          .status,
+      ).toBe(403);
+    },
+  );
+
+  it("keeps GET request context behavior", () => {
+    vi.stubEnv("NODE_ENV", "development");
+
+    expect(
+      proxy(request({ "content-type": "text/plain" }, undefined, "GET")).status,
+    ).toBe(200);
+    expect(
+      proxy(request({ "sec-fetch-site": "cross-site" }, undefined, "GET"))
+        .status,
+    ).toBe(403);
+  });
+
   it("rejects same-origin requests with a non-loopback Host header", () => {
     vi.stubEnv("NODE_ENV", "development");
 
@@ -95,9 +158,9 @@ describe("Pi API proxy", () => {
     ).toBe("1");
   });
 
-  it("allows non-browser requests in development", () => {
+  it("rejects non-browser writes without a content type", () => {
     vi.stubEnv("NODE_ENV", "development");
 
-    expect(proxy(request()).headers.get("x-middleware-next")).toBe("1");
+    expect(proxy(request()).status).toBe(403);
   });
 });

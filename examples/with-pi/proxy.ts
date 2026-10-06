@@ -19,12 +19,30 @@ const getRequestOrigin = (request: NextRequest) => {
 
 const isAllowedRequestContext = (request: NextRequest, requestOrigin: URL) => {
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "none";
+  const origin = request.headers.get("origin");
+
+  if (
+    request.method === "GET" ||
+    request.method === "HEAD" ||
+    request.method === "OPTIONS"
+  ) {
+    if (fetchSite !== null) {
+      return fetchSite === "same-origin" || fetchSite === "none";
+    }
+    return origin === null || origin === requestOrigin.origin;
   }
 
-  const origin = request.headers.get("origin");
-  return origin === null || origin === requestOrigin.origin;
+  if (origin !== null && origin !== requestOrigin.origin) return false;
+  if (fetchSite !== null && fetchSite !== "same-origin") return false;
+  if (origin !== null || fetchSite !== null) return true;
+
+  return (
+    request.headers
+      .get("content-type")
+      ?.split(";", 1)[0]
+      ?.trim()
+      .toLowerCase() === "application/json"
+  );
 };
 
 export function proxy(request: NextRequest) {
