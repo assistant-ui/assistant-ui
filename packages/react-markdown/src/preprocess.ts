@@ -1213,12 +1213,7 @@ export function escapeCurrencyDollars(text: string): string {
     let index = 0;
 
     while (index < slice.length) {
-      const verbatimEnd = endOfVerbatimRun(
-        slice,
-        index,
-        text,
-        offset + index,
-      );
+      const verbatimEnd = endOfVerbatimRun(slice, index, text, offset + index);
       if (verbatimEnd > index) {
         out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;
