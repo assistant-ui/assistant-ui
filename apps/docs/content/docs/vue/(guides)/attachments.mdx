@@ -1,0 +1,195 @@
+---
+title: Attachments
+description: Let users attach files to a message and control which files the runtime accepts and how it sends them.
+---
+
+Attachments start in the composer and appear on the sent user message. The attachment adapter decides which files can be added and turns each pending file into message content when the composer sends.
+
+## What the AI SDK runtime accepts by default
+
+`AISDKChat` and `AISDKThreads` use an attachment adapter with `accept: "*"` by default. It reads each file as a base64 data URL on send and produces a file part with the file name and MIME type. Your model provider must still support the file type; accepting it in the composer does not make it usable by the model.
+
+## Limit the accepted files
+
+Pass an adapter through `adapters.attachments`. The image and text adapters can be combined so each file goes to the first adapter whose `accept` matches it. The image adapter accepts `image/*` and sends an image part. The text adapter accepts selected text and JSON MIME types and sends the file text as a text part.
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import {
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+} from "@assistant-ui/core";
+import Thread from "~/components/assistant-ui/thread.vue";
+
+const attachments = new CompositeAttachmentAdapter([
+  new SimpleImageAttachmentAdapter(),
+  new SimpleTextAttachmentAdapter(),
+]);
+
+const config = AuiConfig({
+  threads: AISDKChat({ adapters: { attachments } }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <Thread class="h-dvh" />
+  </AuiProvider>
+</template>
+```
+
+`s.composer.attachmentAccept` reflects the adapter's `accept` string, which the file picker uses as its filter. The composer checks added files against that string, including files dropped onto it. `AISDKThreads({ adapters: { attachments } })` accepts the same option for its threads.
+
+## Add the composer controls
+
+`ComposerPrimitiveAddAttachment` opens the file picker. `ComposerPrimitiveAttachmentDropzone` handles file drops, and `ComposerPrimitiveAttachments` repeats its slot for each pending attachment. The registry [thread component](/docs/vue/components) uses these primitives; this is a smaller composer with the same attachment controls:
+
+```vue title="app/components/AttachmentComposer.vue"
+<script setup lang="ts">
+import {
+  AttachmentPrimitiveName,
+  AttachmentPrimitiveRemove,
+  AttachmentPrimitiveThumb,
+  ComposerPrimitiveAddAttachment,
+  ComposerPrimitiveAttachmentDropzone,
+  ComposerPrimitiveAttachments,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const acceptsAttachments = useAuiState((s) => s.thread.capabilities.attachments);
+</script>
+
+<template>
+  <ComposerPrimitiveAttachmentDropzone
+    class="flex flex-col gap-2 rounded-2xl border p-2.5 data-[dragging=true]:border-primary"
+  >
+    <div class="flex flex-wrap gap-2 empty:hidden">
+      <ComposerPrimitiveAttachments>
+        <div class="flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
+          <AttachmentPrimitiveThumb class="font-mono uppercase" />
+          <span class="max-w-40 truncate"><AttachmentPrimitiveName /></span>
+          <AttachmentPrimitiveRemove aria-label="Remove attachment">
+            Remove
+          </AttachmentPrimitiveRemove>
+        </div>
+      </ComposerPrimitiveAttachments>
+    </div>
+    <ComposerPrimitiveInput aria-label="Message" placeholder="Send a message..." rows="1" />
+    <div class="flex gap-2">
+      <ComposerPrimitiveAddAttachment v-if="acceptsAttachments" aria-label="Add attachment">
+        Add file
+      </ComposerPrimitiveAddAttachment>
+      <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
+    </div>
+  </ComposerPrimitiveAttachmentDropzone>
+</template>
+```
+
+The picker button renders only while `s.thread.capabilities.attachments` is true. The dropzone hands dropped files to the composer, which rejects any file the adapter does not accept. When the runtime has no attachment support, the dropzone ignores the drop, and it always stops a file drop from navigating the tab. The [attachment primitives](/docs/vue/primitives/attachment) describe the name, thumb, and remove parts.
+
+## Show attachments on sent messages
+
+`MessagePrimitiveAttachments` repeats its slot for each attachment on the current user message, including an in-flight submission. Place it inside the message row rendered by `ThreadPrimitiveMessages`:
+
+```vue title="app/components/MessageAttachments.vue"
+<script setup lang="ts">
+import { AttachmentPrimitiveName, MessagePrimitiveAttachments } from "@assistant-ui/vue";
+</script>
+
+<template>
+  <div class="flex flex-wrap gap-1.5 empty:hidden">
+    <MessagePrimitiveAttachments>
+      <span class="rounded-md border px-1.5 py-0.5 text-xs">
+        <AttachmentPrimitiveName />
+      </span>
+    </MessagePrimitiveAttachments>
+  </div>
+</template>
+```
+
+The registry `message.vue` places the same parts in its user message bubble.
+
+## Upload state and errors
+
+An attachment's `status` shows where it is in preparation or sending:
+
+| Status | Shape | Meaning |
+|---|---|---|
+| Uploading | `{ type: "running", reason: "uploading", progress }` | The adapter is reporting upload progress. |
+| Ready | `{ type: "requires-action", reason: "composer-send" }` | The file waits for the composer to send it. |
+| Error | `{ type: "incomplete", reason: "error", message? }` | Preparation failed; the status may carry a message. |
+| Paused | `{ type: "incomplete", reason: "upload-paused", message? }` | Uploading paused. |
+| Complete | `{ type: "complete" }` | `send()` returned message content. |
+
+`composer.attachmentAddError` fires for `no-adapter`, `not-accepted`, and `adapter-error`. It carries a `message` and may carry an `attachmentId` when an adapter already registered the attachment. An adapter can produce an incomplete attachment with reason `error` and still resolve `add()`; the event fires for that state too. Display the latest error inside the `AuiProvider`:
+
+```vue title="app/components/AttachmentErrors.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useAuiEvent } from "@assistant-ui/vue";
+
+const lastError = ref<string | null>(null);
+
+useAuiEvent("composer.attachmentAddError", ({ message }) => {
+  lastError.value = message;
+});
+</script>
+
+<template>
+  <p v-if="lastError" role="alert">{{ lastError }}</p>
+</template>
+```
+
+## Write an adapter
+
+`AttachmentAdapter` has an `accept` string and three methods: `add({ file })` returns a pending attachment or yields pending states from an async generator, `remove(attachment)` can clean up a pending file, and `send(attachment, options?)` returns a `CompleteAttachment` with `status: { type: "complete" }` and a `content` array. `options?.signal` lets slow send work stop if the send is abandoned.
+
+This adapter accepts small plain text files and sends their contents as a text part:
+
+```ts title="app/lib/SmallTextAttachmentAdapter.ts"
+import type {
+  Attachment,
+  AttachmentAdapter,
+  CompleteAttachment,
+  PendingAttachment,
+} from "@assistant-ui/core";
+
+export class SmallTextAttachmentAdapter implements AttachmentAdapter {
+  accept = "text/plain";
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    if (file.size > 1024 * 1024) throw new Error("File exceeds 1 MB.");
+    return {
+      id: crypto.randomUUID(),
+      type: "document",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    };
+  }
+
+  async remove(_attachment: Attachment): Promise<void> {}
+
+  async send(
+    attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
+  ): Promise<CompleteAttachment> {
+    options?.signal?.throwIfAborted();
+    const text = await attachment.file.text();
+    options?.signal?.throwIfAborted();
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content: [{ type: "text", text }],
+    };
+  }
+}
+```
+
+Pass an instance as `adapters.attachments` in the runtime config above. For attachments stored in assistant-cloud, see [Cloud persistence](/docs/vue/cloud).
