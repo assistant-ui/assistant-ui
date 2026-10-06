@@ -202,6 +202,25 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("cancels a queued bottom scroll when the user scrolls up", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.runStarted();
+    expect(frames.size).toBe(1);
+
+    view.setTop(200);
+    expect(controller.isAtBottom).toBe(false);
+    flushFrames();
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
   it("follows inset growth and leaves scroll position alone on shrink", () => {
     const view = geometry(600, 100);
     view.setTop(500);
