@@ -1529,6 +1529,123 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("forwards toolMetadata.app without a tool-supplied serverId", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            toolMetadata: {
+              app: {
+                resourceUri: "ui://example/search",
+                mimeType: "text/html;profile=mcp-app",
+                visibility: ["app", "model", "bogus"],
+                serverId: "search-server",
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      mimeType: "text/html;profile=mcp-app",
+      visibility: ["app", "model"],
+    });
+  });
+
+  it.each([undefined, "", "other-server"])(
+    "keeps provider serverId when the tool supplies %s",
+    (serverId) => {
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-search",
+              toolCallId: "tc-1",
+              state: "output-available",
+              input: { query: "hi" },
+              output: { results: [] },
+              toolMetadata: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  mimeType: "text/html;profile=mcp-app",
+                  serverId,
+                },
+              },
+              callProviderMetadata: {
+                mcp: {
+                  app: {
+                    resourceUri: "ui://example/search",
+                    serverId: "search-server",
+                  },
+                },
+              },
+            },
+          ],
+        } as any,
+      ]);
+
+      const call = converted[0]?.content.find(
+        (part): part is any => part.type === "tool-call",
+      );
+      expect(call?.mcp?.app).toEqual({
+        resourceUri: "ui://example/search",
+        mimeType: "text/html;profile=mcp-app",
+        serverId: "search-server",
+      });
+    },
+  );
+
+  it("falls back to provider app metadata when toolMetadata.app has an invalid URI", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            toolMetadata: {
+              app: { resourceUri: "https://example.com/search" },
+            },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  mimeType: "text/html;profile=mcp-app",
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      mimeType: "text/html;profile=mcp-app",
+    });
+  });
+
   it("omits an empty callProviderMetadata.mcp.app.serverId", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

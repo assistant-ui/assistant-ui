@@ -98,17 +98,45 @@ function extractMcpAppMetadata(
   cache: Map<string, McpAppMetadata> | undefined,
 ): McpAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
+  const toolMetadata = (part as { toolMetadata?: unknown }).toolMetadata;
+  const toolApp =
+    toolMetadata && typeof toolMetadata === "object"
+      ? (toolMetadata as { app?: unknown }).app
+      : undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
   const mcp =
     meta && typeof meta === "object"
       ? (meta as { mcp?: unknown }).mcp
       : undefined;
-  const app =
+  const providerApp =
     mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+
+  const apps: Record<string, unknown>[] = [];
+  for (const candidate of [toolApp, providerApp]) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const candidateApp = candidate as Record<string, unknown>;
+    const resourceUri = candidateApp["resourceUri"];
+    if (typeof resourceUri !== "string" || !isMcpAppUri(resourceUri)) continue;
+    apps.push({
+      resourceUri,
+      ...(typeof candidateApp["mimeType"] === "string" && {
+        mimeType: candidateApp["mimeType"],
+      }),
+      ...(Array.isArray(candidateApp["visibility"]) && {
+        visibility: candidateApp["visibility"],
+      }),
+      ...(candidate === providerApp &&
+        typeof candidateApp["serverId"] === "string" &&
+        candidateApp["serverId"].length > 0 && {
+          serverId: candidateApp["serverId"],
+        }),
+    });
+  }
+
   let a: Record<string, unknown>;
-  if (app && typeof app === "object") {
-    a = app as Record<string, unknown>;
+  if (apps.length > 0) {
+    a = { ...(apps[1] ?? {}), ...apps[0]! };
   } else {
     // MCP-UI tools surface the pointer on result._meta: canonical nested
     // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.

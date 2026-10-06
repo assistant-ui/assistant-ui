@@ -5,7 +5,7 @@
     "build": {
       "dependsOn": ["^build", "generate:type-docs"],
       "inputs": [
-        "$TURBO_DEFAULT$",
+        "$TURBO_EXTENDS$",
         ".env*",
         "$TURBO_ROOT$/scripts/package-example-bundles.mjs",
         "$TURBO_ROOT$/scripts/example-bundles.json",
@@ -29,7 +29,7 @@
         "build/**",
         "public/example-bundles/**"
       ],
-      "env": ["NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED"]
+      "env": ["$TURBO_EXTENDS$", "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED"]
     },
     "generate:type-docs": {
       "dependsOn": ["^build"],
@@ -52,6 +52,9 @@
       "persistent": true
     },
     "test": {
+      "env": ["REDIS_*"]
+    },
+    "test:coverage": {
       "env": ["REDIS_*"]
     }
   }

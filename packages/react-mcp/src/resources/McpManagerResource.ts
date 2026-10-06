@@ -472,26 +472,28 @@ const useMcpManagerResource = (
           `Cannot remove connector "${id}" — connectors are app-defined and not removable. Use a custom server id instead.`,
         );
       }
-      // Delegate to McpServerResource.remove() which disconnects,
-      // clears auth state, and unregisters from customServers in one
-      // place. Fallback to manual cleanup if the lookup is empty
-      // (server already gone).
+      let server;
       try {
-        await lookup.get({ key: id }).remove();
+        server = lookup.get({ key: id });
       } catch {
-        const releasePersistence = holdCustomServerPersistence(
-          persistenceQueues,
-          storageScopeKey,
-        );
-        try {
-          await clearOAuthProviderAuthState(storage, id);
-          removeCustomServer(id);
-        } catch (error) {
-          releasePersistence();
-          throw error;
-        }
-        releasePersistence();
+        server = undefined;
       }
+      if (server) {
+        await server.remove();
+        return;
+      }
+      const releasePersistence = holdCustomServerPersistence(
+        persistenceQueues,
+        storageScopeKey,
+      );
+      try {
+        await clearOAuthProviderAuthState(storage, id);
+        removeCustomServer(id);
+      } catch (error) {
+        releasePersistence();
+        throw error;
+      }
+      releasePersistence();
     },
   };
 };

@@ -11,11 +11,11 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import {
   collectDeclarationEntries,
   createDeclarationProbe,
   declarationGateResult,
-  isExecutedAsMain,
   isOwnDeclarationFile,
   ownDeclarationDiagnostics,
   parseUnanchoredTscErrors,
