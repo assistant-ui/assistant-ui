@@ -17,6 +17,8 @@ import type {
   RemoteThreadState,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import {
+  applyInitialThreadPage,
+  appendThreadPage,
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
@@ -25,7 +27,6 @@ import {
   reconcileInitializedThread,
   promoteNewThreadReducer,
   updateStatusReducer,
-  preserveMidLoadTransitions,
   seedNewThread,
   statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
@@ -168,23 +169,7 @@ export class RemoteThreadListThreadListRuntimeCore
               );
             }
 
-            const fresh = classifyThreads(l.threads, {
-              threadIds: [],
-              archivedThreadIds: [],
-              threadIdMap: { ...state.threadIdMap },
-              threadData: { ...state.threadData },
-            });
-            const merged = {
-              ...state,
-              isLoading: false,
-              loadError: undefined,
-              cursor: normalizeCursor(l.nextCursor),
-              threadIds: fresh.threadIds,
-              archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: fresh.threadIdMap,
-              threadData: fresh.threadData,
-            };
-            return preserveMidLoadTransitions(merged, state, statusAtRequest);
+            return applyInitialThreadPage(state, l, statusAtRequest);
           },
         })
         .catch((error: unknown) => {
@@ -244,22 +229,7 @@ export class RemoteThreadListThreadListRuntimeCore
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
 
-          const appended = classifyThreads(l.threads, {
-            threadIds: [...state.threadIds],
-            archivedThreadIds: [...state.archivedThreadIds],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-
-          return {
-            ...state,
-            isLoadingMore: false,
-            cursor: normalizeCursor(l.nextCursor),
-            threadIds: appended.threadIds,
-            archivedThreadIds: appended.archivedThreadIds,
-            threadIdMap: appended.threadIdMap,
-            threadData: appended.threadData,
-          };
+          return appendThreadPage(state, l);
         },
       })
       .catch((error: unknown) => {

@@ -62,7 +62,7 @@ type InternalToolExecutionOptions = {
     toolCallId: string;
     toolName: string;
     executionId: symbol;
-  }) => void;
+  }) => unknown;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;
@@ -152,12 +152,20 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 executionIdsByPath.set(String(partIndex), executionId);
                 toolCallControllers.set(executionId, reader);
 
-                internalOptions.streamCall({
+                const streamCallResult = internalOptions.streamCall({
                   reader,
                   toolCallId: chunk.part.toolCallId,
                   toolName: chunk.part.toolName,
                   executionId,
                 });
+                if (streamCallResult) {
+                  void Promise.resolve(streamCallResult).catch((error) => {
+                    console.error(
+                      "[assistant-stream] streamCall callback threw an error",
+                      error,
+                    );
+                  });
+                }
               }
               break;
             }

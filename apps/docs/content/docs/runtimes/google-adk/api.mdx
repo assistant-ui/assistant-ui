@@ -137,14 +137,33 @@ const parsed = await parseAdkRequest(req);
 // parsed.stateDelta contains session state changes
 
 const newMessage = toAdkContent(parsed);
+const stateDelta = validateSessionState(parsed.stateDelta);
 const events = runner.runAsync({
   userId,
   sessionId,
   newMessage,
-  stateDelta: parsed.stateDelta,
+  stateDelta,
 });
 return adkEventStream(events);
 ```
+
+`runConfig` and `stateDelta` arrive from the browser and must be treated as
+untrusted input. Custom routes using `parseAdkRequest` must validate
+`parsed.stateDelta` before passing it to `runAsync`. `createAdkApiRoute` ignores
+both values by default; opt in only after validating them on the server:
+
+```ts
+export const POST = createAdkApiRoute({
+  runner,
+  userId,
+  sessionId,
+  resolveRunConfig: () => ({ maxLlmCalls: 10 }),
+  resolveStateDelta: (_req, delta) => validateSessionState(delta),
+});
+```
+
+Do not accept client-provided `app:` or `user:` keys unless the caller is
+authorized to update application-wide or user-wide ADK state.
 
 ## Thread management
 
@@ -250,7 +269,10 @@ send(messages, {
 });
 ```
 
-`stateDelta` maps to ADK's `stateDelta` parameter on `/run_sse`.
+In direct mode, `stateDelta` maps to ADK's `stateDelta` parameter on
+`/run_sse`. With `createAdkApiRoute`, client `runConfig` and `stateDelta` values
+are ignored unless the corresponding server resolver validates or replaces
+them.
 
 ## Next
 

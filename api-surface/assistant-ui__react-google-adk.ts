@@ -1055,6 +1055,8 @@ type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
   userId: string | ((req: Request) => string | Promise<string>);
   sessionId: string | ((req: Request, clientSessionId: string | undefined) => string | Promise<string>);
+  resolveRunConfig?: ((req: Request, runConfig: unknown) => unknown | Promise<unknown>) | undefined;
+  resolveStateDelta?: ((req: Request, stateDelta: Record<string, unknown> | undefined) => Record<string, unknown> | undefined | Promise<Record<string, unknown> | undefined>) | undefined;
   onError?: AdkEventStreamOptions["onError"];
 };
 
