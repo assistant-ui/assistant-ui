@@ -74,11 +74,13 @@ Cleanup on unmount runs in the same order as mount (FIFO), matching the order ef
 
 A resource is **mounted** after its first commit. At this point, effects have run and the resource is live.
 
-A resource is **unmounted** when its owner removes it: all effect cleanups run and the resource is disposed. This happens automatically when:
+A resource is **released** when its owner removes it for good: every effect cleanup runs and the resource is disposed. Across the released tree, insertion effects clean up first, parents before children, and then the other effects. This happens when:
 
 - A parent resource stops rendering the child via `useResource`
-- A React component using `useResource` unmounts
+- A React component hosting the resource is removed from the tree
 - `root.unmount()` is called on a `createTapRoot` root
+
+A **soft unmount** keeps the resource: its effects clean up except for insertion effects, its state is preserved, and the effects set up again when it mounts again. A hidden `<Activity>`, a Strict Mode effect replay, and a `mountOnSubscribe` root losing its last subscriber each soft-unmount the resources they host.
 
 ## Concurrent mode
 
@@ -90,16 +92,13 @@ The `@assistant-ui/store` layer currently relies on `useSyncExternalStore` to br
 
 ## Offscreen / Activity
 
-When a resource is hidden by `<Activity mode="hidden">`, state updates that arrive while it's hidden are tracked and replayed once it becomes visible again. This requires no configuration.
+When a resource is hidden by `<Activity mode="hidden">`, it soft-unmounts, and state updates that arrive while it's hidden are tracked and replayed once it becomes visible again. This requires no configuration.
 
-A `createTapRoot` root with `mountOnSubscribe: true` follows the same model when
-its subscriber count drops to zero: effect cleanups run, state is preserved, and
-the next subscriber remounts the tree, like an Activity going hidden and
-visible again.
+A `createTapRoot` root with `mountOnSubscribe: true` follows the same model: when its subscriber count drops to zero it soft-unmounts, and the next subscriber mounts it again, like an Activity going hidden and visible again.
 
 ## Strict mode
 
-In development, resources render twice on mount to surface side effects in render, the same as React's `<StrictMode>`.
+In development, resources render twice on mount to surface side effects in render, the same as React's `<StrictMode>`. Their effects also set up, clean up, and set up again on mount; insertion effects set up once, as in React.
 
 - **`useResource`** inherits the surrounding `<StrictMode>`.
 - **`createTapRoot`** enables it automatically in development.

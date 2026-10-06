@@ -33,7 +33,11 @@ function npmAttempt(
 // api.npmjs.org allows about forty requests a minute per IP and refuses the rest
 // of the minute, so a refused request is not retried: the data cache keeps the
 // last success and the next render asks again.
-async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
+async function npmGetJson(
+  path: string,
+  revalidate: number,
+  notFound?: unknown,
+): Promise<unknown> {
   const url = `${NPM_BASE}${path}`;
 
   let result: Awaited<ReturnType<typeof npmAttempt>>;
@@ -43,6 +47,7 @@ async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
     console.error(`npm ${path} could not be read.`, error);
     return null;
   }
+  if (result.status === 404 && notFound !== undefined) return notFound;
   if (!result.ok) {
     console.error(`npm ${path} answered ${result.status}.`);
     return null;
@@ -50,14 +55,16 @@ async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
   return result.body;
 }
 
+// npm answers 404 for a package it has no download records for, such as one
+// that is not published yet, which is a measured zero rather than a failed read.
 async function npmFetch(
   path: string,
   revalidate: number,
-): Promise<NpmDailyDownloads[]> {
-  const data = (await npmGetJson(path, revalidate)) as {
+): Promise<NpmDailyDownloads[] | null> {
+  const data = (await npmGetJson(path, revalidate, { downloads: [] })) as {
     downloads?: NpmDailyDownloads[];
   } | null;
-  return data?.downloads ?? [];
+  return data?.downloads ?? null;
 }
 
 export function getDownloadsRange(
@@ -65,7 +72,7 @@ export function getDownloadsRange(
   startDate: string,
   endDate: string,
   revalidate: number = NPM_REVALIDATE.WARM,
-): Promise<NpmDailyDownloads[]> {
+): Promise<NpmDailyDownloads[] | null> {
   return npmFetch(
     `/downloads/range/${startDate}:${endDate}/${pkg}`,
     revalidate,

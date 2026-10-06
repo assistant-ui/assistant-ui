@@ -1,6 +1,7 @@
 import { defineComponent, h, type SlotsType, type VNodeChild } from "vue";
 import { useAuiState } from "../useAuiState";
 import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
+import { getAttachmentKeys, useStableKeys } from "./stableKeys";
 
 /**
  * Renders the current message's attachments in order, each scoped through
@@ -11,17 +12,19 @@ export const MessagePrimitiveAttachments = defineComponent({
   name: "MessagePrimitiveAttachments",
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
-    const count = useAuiState((s) =>
+    const attachments = useAuiState((s) =>
       s.message.role === "user"
-        ? ((s.message.submission?.attachments ?? s.message.attachments)
-            ?.length ?? 0)
-        : 0,
+        ? (s.message.submission?.attachments ?? s.message.attachments)
+        : undefined,
+    );
+    const attachmentKeys = useStableKeys(() =>
+      getAttachmentKeys(attachments.value ?? []),
     );
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      attachmentKeys.value.map((key, index) =>
         h(
           AttachmentByIndexProvider,
-          { source: "message", index, key: index },
+          { source: "message", index, key },
           { default: () => slots.default?.() },
         ),
       );

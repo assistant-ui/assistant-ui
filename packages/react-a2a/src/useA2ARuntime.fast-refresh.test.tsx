@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
-import { act, Activity } from "react";
+import { act, Activity, version } from "react";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { A2AClient } from "./A2AClient";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { UseA2ARuntimeOptions } from "./types";
 import { useA2ARuntime } from "./useA2ARuntime";
+
+const onReact18 = version.startsWith("18.");
 
 type Family = { current: unknown };
 type RendererInternals = {
@@ -93,50 +95,65 @@ it("keeps the managed client and core across refresh, then replaces both when op
   expect(update.mock.lastCall![0].client).not.toBe(firstClient);
 });
 
-it.each(["hidden", "unmount"] as const)(
-  "keeps an in-flight stream across refresh and detaches when %s",
-  async (exit) => {
-    let signal: AbortSignal | undefined;
-    const client = {
-      getAgentCard: vi.fn().mockResolvedValue(undefined),
-      streamMessage: vi.fn((_message, _configuration, _metadata, runSignal) => {
-        signal = runSignal as AbortSignal;
-        return {
-          async *[Symbol.asyncIterator]() {
-            await new Promise<void>((resolve) =>
-              signal!.addEventListener("abort", () => resolve(), {
-                once: true,
-              }),
-            );
-          },
-        };
-      }),
-    } as unknown as A2AClient;
-    const attach = vi.spyOn(A2AThreadRuntimeCore.prototype, "attachRuntime");
-    const detach = vi.spyOn(A2AThreadRuntimeCore.prototype, "detachRuntime");
-    options = { client };
-    const { Before, After } = createProbe();
-    const Shell = ({ mode }: { mode: "visible" | "hidden" }) => (
-      <Activity mode={mode}>
-        <Before />
-      </Activity>
-    );
-    const view = render(<Shell mode="visible" />);
-    const core = attach.mock.instances[0]!;
-    act(() => {
-      void runtime.thread.append("hello");
-    });
-    await waitFor(() => expect(client.streamMessage).toHaveBeenCalledOnce());
+const keepsStreamAcrossRefresh = async (
+  exit: "hidden" | "unmount",
+  inActivity: boolean,
+) => {
+  let signal: AbortSignal | undefined;
+  const client = {
+    getAgentCard: vi.fn().mockResolvedValue(undefined),
+    streamMessage: vi.fn((_message, _configuration, _metadata, runSignal) => {
+      signal = runSignal as AbortSignal;
+      return {
+        async *[Symbol.asyncIterator]() {
+          await new Promise<void>((resolve) =>
+            signal!.addEventListener("abort", () => resolve(), {
+              once: true,
+            }),
+          );
+        },
+      };
+    }),
+  } as unknown as A2AClient;
+  const attach = vi.spyOn(A2AThreadRuntimeCore.prototype, "attachRuntime");
+  const detach = vi.spyOn(A2AThreadRuntimeCore.prototype, "detachRuntime");
+  options = { client };
+  const { Before, After } = createProbe();
+  const Shell = ({ mode }: { mode: "visible" | "hidden" }) => (
+    <Activity mode={mode}>
+      <Before />
+    </Activity>
+  );
+  const view = render(inActivity ? <Shell mode="visible" /> : <Before />);
+  const core = attach.mock.instances[0]!;
+  act(() => {
+    void runtime.thread.append("hello");
+  });
+  await waitFor(() => expect(client.streamMessage).toHaveBeenCalledOnce());
 
-    await refresh(Before, After);
-    expect(signal?.aborted).toBe(false);
-    expect(detach).not.toHaveBeenCalled();
-    expect(attach.mock.instances.at(-1)).toBe(core);
+  await refresh(Before, After);
+  expect(signal?.aborted).toBe(false);
+  expect(detach).not.toHaveBeenCalled();
+  expect(attach.mock.instances.at(-1)).toBe(core);
 
-    if (exit === "hidden") view.rerender(<Shell mode="hidden" />);
-    else view.unmount();
-    await act(async () => {});
-    expect(detach).toHaveBeenCalledOnce();
-    expect(signal?.aborted).toBe(true);
-  },
+  if (exit === "hidden") view.rerender(<Shell mode="hidden" />);
+  else view.unmount();
+  await act(async () => {});
+  expect(detach).toHaveBeenCalledOnce();
+  expect(signal?.aborted).toBe(true);
+};
+
+// Activity is React 19 only
+it.skipIf(onReact18)(
+  "keeps an in-flight stream across refresh and detaches when hidden",
+  () => keepsStreamAcrossRefresh("hidden", true),
 );
+
+// Activity is React 19 only
+it.skipIf(onReact18)(
+  "keeps an in-flight stream across refresh and detaches when unmounted inside Activity",
+  () => keepsStreamAcrossRefresh("unmount", true),
+);
+
+it("keeps an in-flight stream across refresh and detaches when unmounted", () =>
+  keepsStreamAcrossRefresh("unmount", false));

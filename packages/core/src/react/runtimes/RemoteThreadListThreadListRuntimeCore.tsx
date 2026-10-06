@@ -17,6 +17,8 @@ import type {
   RemoteThreadState,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import {
+  applyInitialThreadPage,
+  appendThreadPage,
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
@@ -25,7 +27,6 @@ import {
   reconcileInitializedThread,
   promoteNewThreadReducer,
   updateStatusReducer,
-  preserveMidLoadTransitions,
   seedNewThread,
   statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
@@ -168,23 +169,7 @@ export class RemoteThreadListThreadListRuntimeCore
               );
             }
 
-            const fresh = classifyThreads(l.threads, {
-              threadIds: [],
-              archivedThreadIds: [],
-              threadIdMap: { ...state.threadIdMap },
-              threadData: { ...state.threadData },
-            });
-            const merged = {
-              ...state,
-              isLoading: false,
-              loadError: undefined,
-              cursor: normalizeCursor(l.nextCursor),
-              threadIds: fresh.threadIds,
-              archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: fresh.threadIdMap,
-              threadData: fresh.threadData,
-            };
-            return preserveMidLoadTransitions(merged, state, statusAtRequest);
+            return applyInitialThreadPage(state, l, statusAtRequest);
           },
         })
         .catch((error: unknown) => {
@@ -244,22 +229,7 @@ export class RemoteThreadListThreadListRuntimeCore
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
 
-          const appended = classifyThreads(l.threads, {
-            threadIds: [...state.threadIds],
-            archivedThreadIds: [...state.archivedThreadIds],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-
-          return {
-            ...state,
-            isLoadingMore: false,
-            cursor: normalizeCursor(l.nextCursor),
-            threadIds: appended.threadIds,
-            archivedThreadIds: appended.archivedThreadIds,
-            threadIdMap: appended.threadIdMap,
-            threadData: appended.threadData,
-          };
+          return appendThreadPage(state, l);
         },
       })
       .catch((error: unknown) => {
@@ -279,6 +249,7 @@ export class RemoteThreadListThreadListRuntimeCore
   constructor(
     options: RemoteThreadListOptions,
     contextProvider: ModelContextProvider,
+    initialThreadIdSeed?: string,
   ) {
     super();
 
@@ -304,7 +275,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this.resolveProvider(options.adapter),
     );
     this.__internal_setOptions(options);
-    this.switchToNewThread();
+    this._startSwitchToNewThread(true, initialThreadIdSeed);
   }
 
   private _initialThreadLoaded = false;
@@ -784,9 +755,16 @@ export class RemoteThreadListThreadListRuntimeCore
         );
   }
 
-  private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
+  private _startSwitchToNewThread(
+    emitThreadIdChange: boolean,
+    initialThreadIdSeed?: string,
+  ): Promise<void> {
     const generation = ++this._switchGeneration;
-    const task = this._switchToNewThread(generation, emitThreadIdChange);
+    const task = this._switchToNewThread(
+      generation,
+      emitThreadIdChange,
+      initialThreadIdSeed,
+    );
     this._switchTask = task;
     return task;
   }
@@ -794,6 +772,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private async _switchToNewThread(
     generation: number,
     emitThreadIdChange: boolean,
+    initialThreadIdSeed?: string,
   ): Promise<void> {
     // an initialization transaction is in progress, wait for it to settle
     while (
@@ -807,7 +786,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const state = this._state.baseValue;
     let id: string | undefined = this._state.value.newThreadId;
     if (id === undefined) {
-      const next = seedNewThread(state);
+      const next = seedNewThread(state, initialThreadIdSeed);
       id = next.id;
       this._state.update(next.state);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import {
   VoiceStatesSample,
   VoiceVariantsSample,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { VoiceOrb } from "@/components/assistant-ui/elements/voice.aui";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
@@ -451,7 +452,14 @@ export function AuiHeatGraphDemo() {
   return (
     <DemoSurface>
       <div className="w-full max-w-2xl min-w-125 scale-[0.82]">
-        <HeatGraph data={heatGraphData} />
+        {/* HeatGraph reads today's date while rendering, so the prerender leaves it to the browser. */}
+        <Suspense
+          fallback={
+            <Skeleton className="aspect-[5/1] w-full motion-reduce:animate-none" />
+          }
+        >
+          <HeatGraph data={heatGraphData} />
+        </Suspense>
       </div>
     </DemoSurface>
   );

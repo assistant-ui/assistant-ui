@@ -69,7 +69,7 @@ Each `sampling_calls` item may have `model_id` of up to 255 characters, the four
 
 The service combines `metadata`, unknown top level keys, and `attributes` in that order. Later `attributes` values win. The resulting attributes JSON must be at most 16,384 bytes. Unknown top level keys are kept as attributes instead of being rejected, so a newer SDK can send fields an older project does not yet recognize.
 
-The route rejects invalid input with the validation response shape `{ "success": false, "error": { "name": "ZodError", "message": "<failed checks as a JSON string>" } }`. It also returns plain text `message_id must belong to thread_id` when the message is not in the named thread, and plain text `Thread not found` when the thread is not visible to the caller.
+The route rejects invalid input with `{ "error": "Schema validation error", "details": […] }`, `details` listing the failed checks. It answers `{ "error": "message_id must belong to thread_id" }` when the message is not in the named thread, and `{ "error": "Thread not found" }` when the thread is not visible to the caller.
 
 ## How the SDK builds a report
 

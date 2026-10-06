@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   CHECKBOX_GROUP_ATTR,
   FIELD_NAME_ATTR,
+  FIELD_VALUE_ATTR,
   GENERATED_NAME_ATTR,
 } from "../constants";
 import type { Action } from "../ir";
@@ -17,6 +18,14 @@ import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
 import { useRadioGroupName } from "../RadioGroupScope";
+import {
+  classifyTemporal,
+  fromLocalDateTime,
+  getTemporalInputStep,
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+  toPickerLocalDateTime,
+} from "../temporal";
 
 const optionSchema = z.object({
   label: z.string(),
@@ -368,6 +377,7 @@ function InputRender({
 }
 
 type DatePickerRenderProps = {
+  inputType?: "date" | "datetime" | "time";
   value?: string;
   min?: string;
   max?: string;
@@ -378,7 +388,12 @@ type DatePickerRenderProps = {
   $dispatch?: GenerativeUIDispatch;
 };
 
+const subscribeToHydration = () => () => {};
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
+
 function DatePickerRender({
+  inputType = "date",
   value,
   min,
   max,
@@ -392,25 +407,186 @@ function DatePickerRender({
   const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : value;
+  const [selection, setSelection] = React.useState({
+    initialValue,
+    value: initialValue,
+    anchor: initialValue,
+    committedValue: initialValue,
+    edited: false,
+  });
+  if (selection.initialValue !== initialValue) {
+    const isEcho = isBound && initialValue === selection.value;
+    setSelection({
+      initialValue,
+      value: initialValue,
+      anchor: isEcho ? selection.anchor : initialValue,
+      committedValue: isEcho ? selection.committedValue : initialValue,
+      edited: isEcho && selection.edited,
+    });
+  }
+  const currentValue = isBound ? initialValue : selection.value;
+  const temporal = classifyTemporal(currentValue ?? "");
+  const anchor = classifyTemporal(selection.anchor ?? "");
+  const hasInstantAnchor =
+    inputType === "datetime" && anchor.kind === "instant";
+  const canonicalFieldValue = (value: string | undefined) => {
+    const current = value ?? "";
+    const kind = classifyTemporal(current).kind;
+    if (inputType === "time")
+      return kind === "time" && normalizeTemporalInputValue(current) !== current
+        ? value
+        : undefined;
+    if (inputType !== "datetime") return undefined;
+    if (kind === "instant") return value;
+    if (hasInstantAnchor) return selection.anchor;
+    return kind === "floating" &&
+      normalizeTemporalInputValue(current) !== current
+      ? value
+      : undefined;
+  };
+  const minimum = classifyTemporal(min ?? "");
+  const maximum = classifyTemporal(max ?? "");
+  const hydrated = React.useSyncExternalStore(
+    subscribeToHydration,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
+  const showRawValue =
+    inputType === "datetime" && temporal.kind === "instant" && !hydrated;
+  const displayValue =
+    currentValue === undefined
+      ? undefined
+      : inputType === "datetime" && hydrated
+        ? toPickerLocalDateTime(currentValue)
+        : normalizeTemporalInputValue(currentValue);
+  const keyboardActive = React.useRef(false);
+  const valueFromInput = (input: HTMLInputElement) => {
+    const inputValue = normalizeTemporalInputValue(input.value);
+    return inputType === "datetime"
+      ? fromLocalDateTime(inputValue, selection.anchor)
+      : inputValue;
+  };
+  const commit = (input: HTMLInputElement) => {
+    if (!selection.edited) return;
+    const nextValue = valueFromInput(input);
+    setSelection({ ...selection, committedValue: nextValue, edited: false });
+    if (nextValue !== selection.committedValue)
+      fire($action, $dispatch, nextValue, input);
+  };
   return (
     <input
       key={isBound ? undefined : initialValue}
-      type="date"
+      type={
+        showRawValue
+          ? "text"
+          : inputType === "datetime"
+            ? "datetime-local"
+            : inputType
+      }
+      readOnly={showRawValue || undefined}
       data-aui="datepicker"
       data-aui-action={actionAttr($action)}
+      {...{
+        [FIELD_VALUE_ATTR]: canonicalFieldValue(currentValue),
+      }}
       name={name}
       aria-label={label}
-      {...(isBound
-        ? {
-            value:
-              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
-          }
-        : { defaultValue: initialValue })}
-      min={min}
-      max={max}
+      {...(isBound || inputType === "datetime"
+        ? { value: displayValue ?? "" }
+        : { defaultValue: displayValue })}
+      min={
+        inputType === "datetime" && hydrated && min !== undefined
+          ? normalizeTemporalInputValue(
+              toLocalDateTime(
+                min,
+                minimum.kind === "instant" ? minimum.precision : undefined,
+              ),
+            )
+          : min === undefined
+            ? undefined
+            : normalizeTemporalInputValue(min)
+      }
+      max={
+        inputType === "datetime" && hydrated && max !== undefined
+          ? normalizeTemporalInputValue(
+              toLocalDateTime(
+                max,
+                maximum.kind === "instant" ? maximum.precision : undefined,
+              ),
+            )
+          : max === undefined
+            ? undefined
+            : normalizeTemporalInputValue(max)
+      }
+      step={
+        inputType !== "date"
+          ? getTemporalInputStep(
+              selection.anchor,
+              hasInstantAnchor ? displayValue : currentValue,
+              min,
+              max,
+            )
+          : undefined
+      }
       onChange={(e) => {
-        updateBinding?.(e.currentTarget.value);
-        fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
+        const nextValue = valueFromInput(e.currentTarget);
+        const canonical = canonicalFieldValue(nextValue);
+        if (canonical !== undefined) {
+          e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
+        } else {
+          e.currentTarget.removeAttribute(FIELD_VALUE_ATTR);
+        }
+        // A change without an editing key down is a pick from the native picker, which commits at once; a typed value waits for blur or Enter.
+        const typed = keyboardActive.current;
+        keyboardActive.current = false;
+        setSelection({
+          initialValue,
+          value: nextValue,
+          anchor: selection.anchor,
+          committedValue: typed ? selection.committedValue : nextValue,
+          edited: typed,
+        });
+        updateBinding?.(nextValue);
+        if (!typed && nextValue !== selection.committedValue)
+          fire($action, $dispatch, nextValue, e.currentTarget);
+      }}
+      onBlur={(e) => {
+        keyboardActive.current = false;
+        commit(e.currentTarget);
+      }}
+      onKeyDown={(e) => {
+        if (
+          e.key === "Enter" &&
+          !e.nativeEvent.isComposing &&
+          !e.currentTarget.form
+        ) {
+          commit(e.currentTarget);
+          return;
+        }
+        keyboardActive.current =
+          !e.altKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          (e.key.length === 1 ||
+            [
+              "ArrowDown",
+              "ArrowUp",
+              "Backspace",
+              "Delete",
+              "End",
+              "Home",
+              "PageDown",
+              "PageUp",
+            ].includes(e.key));
+      }}
+      onKeyUp={() => {
+        keyboardActive.current = false;
+      }}
+      onPaste={() => {
+        keyboardActive.current = true;
+      }}
+      onCut={() => {
+        keyboardActive.current = true;
       }}
     />
   );
@@ -837,11 +1013,32 @@ export const interactiveVocabulary = {
   },
   DatePicker: {
     description:
-      "A date input. Carries `$action` describing the on-select behavior.",
+      "A date, datetime, or time input. Carries `$action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
     properties: z.object({
-      value: z.string().optional().describe("Initial date (YYYY-MM-DD)."),
-      min: z.string().optional().describe("Minimum date (YYYY-MM-DD)."),
-      max: z.string().optional().describe("Maximum date (YYYY-MM-DD)."),
+      inputType: z
+        .enum(["date", "datetime", "time"])
+        .optional()
+        .describe(
+          'Temporal input type. Defaults to "date". Values remain strings.',
+        ),
+      value: z
+        .string()
+        .optional()
+        .describe(
+          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
+        ),
+      min: z
+        .string()
+        .optional()
+        .describe(
+          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+        ),
+      max: z
+        .string()
+        .optional()
+        .describe(
+          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+        ),
       label: z
         .string()
         .optional()

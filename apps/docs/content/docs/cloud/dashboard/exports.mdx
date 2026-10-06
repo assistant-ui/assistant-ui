@@ -12,10 +12,12 @@ The **Export** control appears on the Threads, Runs, and Users list pages when t
 | Export | Where to find it | What it honours |
 |---|---|---|
 | Threads | [Threads](/docs/cloud/dashboard/threads) | `from`, `to`, `search`, `created_by`, `satisfaction`, `signal`, `topic`, `task`, `question`, `junk`, `sentiment`, `resolved`, `language`, `environment`, `feedback` (`negative`, `positive`, `any`), and `review` (`unreviewed`, `reviewed`, `good`, `needs_work`, `unclear`). |
-| Runs | [Runs](/docs/cloud/dashboard/runs) | `from`, `to`, `status`, `outcome_type`, `model_id`, `provider`, `created_by`, `assistant_id`, `environment`, `release`, `agent`, `service`, `tag`, `cost_min`, `cost_max`, `duration_min`, `duration_max`, and `search`. |
-| Users | [Users](/docs/cloud/dashboard/users) | `from` and `to`. The export is one page, sorted by cost. |
+| Runs | [Runs](/docs/cloud/dashboard/runs) | `from`, `to`, `status`, `source`, `outcome_type`, `model_id`, `provider`, `created_by`, `assistant_id`, `environment`, `release`, `agent`, `service`, `tag`, `cost_min`, `cost_max`, `duration_min`, `duration_max`, and `search`. |
+| Users | [Users](/docs/cloud/dashboard/users) | `from`, `to`, and `search`. The export is one page, sorted by cost. |
 
-All three requests also carry the organization slug, project slug, and chosen `format`. A date must use `YYYY-MM-DD`. The cloud reads `from` from the start of that UTC day and `to` through the end of that UTC day.
+All three requests also carry the organization slug, project slug, and chosen `format`. Exports keep the range on screen, including its times to the second. `from` and `to` accept UTC timestamps or dates in `YYYY-MM-DD` form. A date alone means the start of that UTC day for `from` and the end of that UTC day for `to`.
+
+Selecting a chart interval on Threads or Runs writes `at` in the page URL. The export uses that interval's start and end as `from` and `to`. The Runs export accepts `source=client`, `source=server`, or `source=system`; omitting `source` excludes system runs.
 
 ## Pick a file format
 

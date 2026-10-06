@@ -87,7 +87,7 @@ function normalizeSpanParents(
 
 function enrichSpans(rawSpans: SpanData[]): {
   allSpans: Map<string, SpanItemState>;
-  parents: Map<string, string | null>;
+  children: Map<string | null, SpanItemState[]>;
   timeRange: { min: number; max: number };
 } {
   const spanMap = new Map<string, SpanData>();
@@ -132,17 +132,9 @@ function enrichSpans(rawSpans: SpanData[]): {
   if (max === -Infinity) max = Date.now();
   if (max === min) max = min + 100;
 
-  return { allSpans, parents, timeRange: { min, max } };
-}
-
-function buildFlatList(
-  allSpans: Map<string, SpanItemState>,
-  parents: Map<string, string | null>,
-  collapsedIds: Set<string>,
-): SpanItemState[] {
   const children = new Map<string | null, SpanItemState[]>();
   for (const span of allSpans.values()) {
-    const parent = parents.get(span.id) ?? null;
+    const parent = span.parentSpanId;
     let group = children.get(parent);
     if (!group) {
       group = [];
@@ -155,6 +147,13 @@ function buildFlatList(
     group.sort((a, b) => a.startedAt - b.startedAt);
   }
 
+  return { allSpans, children, timeRange: { min, max } };
+}
+
+function buildFlatList(
+  children: Map<string | null, SpanItemState[]>,
+  collapsedIds: Set<string>,
+): SpanItemState[] {
   const result: SpanItemState[] = [];
   const stack: SpanItemState[] = [];
   const roots = children.get(null) ?? [];
@@ -165,7 +164,7 @@ function buildFlatList(
   while (stack.length > 0) {
     const span = stack.pop()!;
     const isCollapsed = collapsedIds.has(span.id);
-    result.push({ ...span, isCollapsed });
+    result.push(isCollapsed ? { ...span, isCollapsed } : span);
 
     if (!isCollapsed) {
       const kids = children.get(span.id) ?? [];
@@ -210,7 +209,7 @@ const useSpanResource = ({
 }: {
   spans: SpanData[];
 }): ClientOutput<"span"> => {
-  const { allSpans, parents, timeRange } = useMemo(
+  const { allSpans, children, timeRange } = useMemo(
     () => enrichSpans(spans),
     [spans],
   );
@@ -220,8 +219,8 @@ const useSpanResource = ({
   );
 
   const visibleSpans = useMemo(
-    () => buildFlatList(allSpans, parents, collapsedIds),
-    [allSpans, parents, collapsedIds],
+    () => buildFlatList(children, collapsedIds),
+    [children, collapsedIds],
   );
 
   const toggleCollapse = (spanId: string) => {
@@ -245,6 +244,7 @@ const useSpanResource = ({
           timeRange,
           onToggleCollapse: toggleCollapse,
         }),
+        [allSpans, span.isCollapsed],
       ),
     ),
   );

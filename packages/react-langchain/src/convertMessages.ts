@@ -2,11 +2,16 @@
 
 import type { MessageTiming } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+} from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   convertLangChainContentBlock,
   getCustomMetadata,
   getMessageModality,
+  normalizeToolCallArgs,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "./converter";
@@ -16,11 +21,40 @@ import type {
   UIMessage,
 } from "./types";
 
-type LangChainMessageConverterMetadata =
+export type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
   };
+
+export const createLangChainMetadataKey =
+  (): useExternalMessageConverter.GetMetadataKey<LangChainBaseMessage> =>
+    createExternalMessageMetadataKey<LangChainBaseMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (
+                metadata as LangChainMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message.id && getMessageType(message) === "ai"
+            ? (metadata as LangChainMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+    ]);
 
 const warnedMalformedMessages = new Set<string>();
 const warnOnceInDevelopment = (message: string) => {
@@ -54,21 +88,6 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
     `Ignoring message content that is neither a string nor an array: ${typeof content}`,
   );
   return [];
-};
-
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    return {};
-  }
-
-  try {
-    const prototype = Object.getPrototypeOf(args);
-    return prototype === Object.prototype || prototype === null
-      ? (args as ReadonlyJSONObject)
-      : {};
-  } catch {
-    return {};
-  }
 };
 
 const toolCallArgs = (
@@ -134,16 +153,24 @@ export const convertLangChainBaseMessage = (
 
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((tc) => {
-          const { args, argsText } = toolCallArgs(tc.args);
-          return {
-            type: "tool-call" as const,
-            toolCallId: tc.id,
-            toolName: tc.name,
-            args,
-            argsText,
-          };
-        }) ?? [];
+        message.tool_calls
+          ?.filter((tc) => {
+            if (typeof tc?.name === "string") return true;
+            warnOnceInDevelopment(
+              "Skipping a tool call without a name; its result is not shown either",
+            );
+            return false;
+          })
+          .map((tc) => {
+            const { args, argsText } = toolCallArgs(tc.args);
+            return {
+              type: "tool-call" as const,
+              toolCallId: tc.id,
+              toolName: tc.name,
+              args,
+              argsText,
+            };
+          }) ?? [];
 
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
