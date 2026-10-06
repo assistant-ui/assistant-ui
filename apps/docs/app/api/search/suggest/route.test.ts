@@ -42,8 +42,9 @@ it("validates query length and the scope before doing paid work", async () => {
 it("disables only suggestions when no key is configured", async () => {
   vi.stubEnv("JEV_KEY", "");
   const response = await GET(request("save history"));
-  expect(await response.json()).toEqual({ pages: [] });
+  expect(await response.json()).toEqual({ pages: [], enabled: false });
   expect(response.headers.get("cache-control")).toBe("no-store");
+  expect(response.headers.get("x-robots-tag")).toBe("noindex");
   expect(mocks.limit).not.toHaveBeenCalled();
 });
 
@@ -74,6 +75,7 @@ it("returns catalogue data rather than a URL invented by the model", async () =>
   const response = await GET(request("save history"));
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
+    enabled: true,
     pages: [
       {
         url: "/docs/cloud",

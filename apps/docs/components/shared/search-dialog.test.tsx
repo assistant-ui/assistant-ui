@@ -159,9 +159,6 @@ it("lets a failed index load be retried", async () => {
   mocks.load.mockRejectedValueOnce(new Error("offline"));
   render(<SearchDialog open onOpenChange={() => {}} />);
   expect(screen.getByRole("option", { name: /Installation/ })).toBeTruthy();
-  fireEvent.change(screen.getByRole("combobox"), {
-    target: { value: "conversation" },
-  });
   fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
   expect(
     await screen.findByRole("option", { name: /Assistant Cloud/ }),
@@ -229,7 +226,7 @@ it("adds every indexed page by category without losing the selected shortcut", a
   expect(fetch).not.toHaveBeenCalled();
 });
 
-it("promotes a Jev recommendation without duplicating a local match", async () => {
+it("keeps local results in place when Jev recommends an existing match", async () => {
   vi.stubGlobal(
     "fetch",
     vi
@@ -241,9 +238,42 @@ it("promotes a Jev recommendation without duplicating a local match", async () =
   fireEvent.change(screen.getByRole("combobox"), {
     target: { value: "conversation" },
   });
-  await screen.findByText("Suggested pages");
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toBe("2 results"),
+  );
   const options = screen.getAllByRole("option");
   expect(options).toHaveLength(2);
-  expect(options[0]!.textContent).toContain("Thread");
-  expect(options[1]!.textContent).toContain("Assistant Cloud");
+  expect(options[0]!.textContent).toContain("Assistant Cloud");
+  expect(options[0]!.getAttribute("aria-selected")).toBe("true");
+  expect(options[1]!.textContent).toContain("Thread");
+  expect(screen.queryByText("Suggested pages")).toBeNull();
+});
+
+it("adds semantic destinations after local results without moving the selection", async () => {
+  const suggestion = {
+    url: "/docs/history",
+    title: "Chat History",
+    description: "Save messages",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockImplementation(async () => Response.json({ pages: [suggestion] })),
+  );
+  const close = vi.fn();
+  render(<SearchDialog open onOpenChange={close} />);
+  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  fireEvent.change(screen.getByRole("combobox"), {
+    target: { value: "conversation" },
+  });
+  await screen.findByText("Suggested pages");
+  const options = screen.getAllByRole("option");
+  expect(options.map((item) => item.textContent)).toEqual([
+    expect.stringContaining("Assistant Cloud"),
+    expect.stringContaining("Thread"),
+    expect.stringContaining("Chat History"),
+  ]);
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+  expect(mocks.push).toHaveBeenCalledWith("/docs/cloud");
 });

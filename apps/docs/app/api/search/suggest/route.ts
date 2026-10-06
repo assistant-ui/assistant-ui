@@ -17,10 +17,18 @@ export async function GET(request: Request) {
   );
   if (!params.success) return new Response("Invalid search", { status: 400 });
 
-  const json = (pages: unknown[]) =>
-    Response.json({ pages }, { headers: { "Cache-Control": "no-store" } });
+  const json = (pages: unknown[], enabled = true) =>
+    Response.json(
+      { pages, enabled },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex",
+        },
+      },
+    );
   const apiKey = process.env.JEV_KEY;
-  if (!apiKey) return json([]);
+  if (!apiKey) return json([], false);
 
   const limited = await checkDocsSearchRateLimit(request);
   if (limited) return limited;

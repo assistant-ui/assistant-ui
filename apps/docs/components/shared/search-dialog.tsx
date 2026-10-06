@@ -211,28 +211,24 @@ function SearchContent({
     () => (hasQuery ? searchOtherPages(scopedIndex, query, pathname) : []),
     [hasQuery, scopedIndex, pathname, query],
   );
-  const existingUrls = new Set(onPageHits.map((hit) => hit.url.split("#")[0]));
+  const existingUrls = new Set([
+    ...onPageHits.map((hit) => hit.url.split("#")[0]),
+    ...otherGroups.map((group) => group.pageUrl),
+  ]);
   const suggestedGroups = suggestions.pages
     .filter((page) => !existingUrls.has(page.url))
-    .map(
-      (page): SearchGroup =>
-        otherGroups.find((group) => group.pageUrl === page.url) ?? {
-          pageUrl: page.url,
-          items: [
-            {
-              id: page.url,
-              url: page.url,
-              content: page.title,
-              type: "page",
-              score: 0,
-            },
-          ],
+    .map((page): SearchGroup => ({
+      pageUrl: page.url,
+      items: [
+        {
+          id: page.url,
+          url: page.url,
+          content: page.title,
+          type: "page",
+          score: 0,
         },
-    );
-  const suggestedUrls = new Set(suggestedGroups.map((group) => group.pageUrl));
-  const matchedGroups = otherGroups.filter(
-    (group) => !suggestedUrls.has(group.pageUrl),
-  );
+      ],
+    }));
   const browseGroups = useMemo(
     () =>
       SHORTCUT_GROUPS.filter(
@@ -262,8 +258,8 @@ function SearchContent({
   const results = hasQuery
     ? [
         ...onPageHits,
+        ...otherGroups.flatMap((group) => group.items),
         ...suggestedGroups.flatMap((group) => group.items),
-        ...matchedGroups.flatMap((group) => group.items),
       ]
     : browseGroups.flatMap((group) => group.items);
   const selected = results.some((item) => item.id === selection)
@@ -361,6 +357,7 @@ function SearchContent({
         </button>
       </div>
       <div
+        role="group"
         aria-label="Search scope"
         className="flex shrink-0 gap-1 overflow-x-auto px-3 py-2"
       >
@@ -400,16 +397,16 @@ function SearchContent({
             {onPageHits.map((item) => renderItem(item))}
           </CommandGroup>
         )}
-        {suggestedGroups.length > 0 && (
-          <CommandGroup heading="Suggested pages">
-            {suggestedGroups.flatMap((group) =>
+        {otherGroups.length > 0 && (
+          <CommandGroup heading="Pages">
+            {otherGroups.flatMap((group) =>
               group.items.map((item, i) => renderItem(item, i > 0)),
             )}
           </CommandGroup>
         )}
-        {matchedGroups.length > 0 && (
-          <CommandGroup heading="Pages">
-            {matchedGroups.flatMap((group) =>
+        {suggestedGroups.length > 0 && (
+          <CommandGroup heading="Suggested pages">
+            {suggestedGroups.flatMap((group) =>
               group.items.map((item, i) => renderItem(item, i > 0)),
             )}
           </CommandGroup>
@@ -428,7 +425,7 @@ function SearchContent({
               : "Search titles, headings, or describe what you need."}
           </div>
         )}
-        {hasQuery && indexStatus === "error" && (
+        {indexStatus === "error" && (
           <div className="text-muted-foreground px-3 py-4 text-sm">
             Unable to load the docs search.{" "}
             <button
@@ -476,14 +473,14 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         <DialogOverlay className="bg-background/60 backdrop-blur-sm motion-reduce:animate-none" />
         <DialogPrimitive.Popup
           data-slot="dialog-content"
-          className="bg-popover text-popover-foreground ring-foreground/10 fixed top-[max(1rem,5dvh)] left-1/2 z-50 flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 flex-col overflow-hidden rounded-xl shadow-lg ring-1 outline-none sm:top-[12dvh] sm:max-h-[80dvh]"
+          className="bg-popover text-popover-foreground ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-[max(1rem,5dvh)] left-1/2 z-50 flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 flex-col overflow-hidden rounded-xl shadow-lg ring-1 duration-100 outline-none motion-reduce:animate-none sm:top-[12dvh] sm:max-h-[80dvh]"
         >
           <DialogTitle className="sr-only">Search documentation</DialogTitle>
           <DialogDescription className="sr-only">
             Find pages and headings. Use the arrow keys to navigate and Enter to
             open a result.
           </DialogDescription>
-          {open && <SearchContent key={pathname} onOpenChange={onOpenChange} />}
+          <SearchContent key={pathname} onOpenChange={onOpenChange} />
         </DialogPrimitive.Popup>
       </DialogPortal>
     </Dialog>

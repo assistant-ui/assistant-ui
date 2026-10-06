@@ -158,6 +158,25 @@ it("bounds network time and ignores cancelled requests", async () => {
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
+it("forwards caller cancellation to an in-flight request", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (_, options) =>
+      new Promise((_, reject) => {
+        options?.signal?.addEventListener("abort", () =>
+          reject(new Error("aborted")),
+        );
+      }),
+  );
+  const search = createDocsRouteSearch({ pages, apiKey: "key", fetcher });
+  const controller = new AbortController();
+  const pending = search(query, "All", controller.signal);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0]![1]?.signal?.aborted).toBe(false);
+  controller.abort();
+  expect(await pending).toEqual([]);
+  expect(fetcher.mock.calls[0]![1]?.signal?.aborted).toBe(true);
+});
+
 describe("queries that need no model", () => {
   it.each([
     "",
@@ -168,7 +187,20 @@ describe("queries that need no model", () => {
     "test@example.com",
     "https://example.com",
     "apikey_secret",
+    "sk-proj-example-secret",
+    "my API key is sk-proj-example-secret",
+    "how do I configure sk_aui_example",
+    "use apikey_example for this request",
   ])("skips %s", (text) => {
     expect(shouldSuggestDocsRoute(text, pages)).toBe(false);
   });
+});
+
+it("never sends credential-like queries to the suggestion provider", async () => {
+  const fetcher = vi.fn<typeof fetch>();
+  const search = createDocsRouteSearch({ pages, apiKey: "key", fetcher });
+  expect(await search("my API key is sk-proj-example-secret", "All")).toEqual(
+    [],
+  );
+  expect(fetcher).not.toHaveBeenCalled();
 });

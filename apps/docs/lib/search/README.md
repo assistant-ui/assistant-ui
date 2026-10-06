@@ -9,18 +9,23 @@ These links stay available while the full index loads, including if it fails.
 Once loaded, every indexed page is available in its category, with shortcuts
 first and the remaining pages alphabetically. **All** includes every category;
 the footer shows the number of pages in the selected scope.
-Search progress and index errors appear only after a query is entered.
+Search progress appears only after a query is entered. Index errors expose Retry
+in both browse and search views; loading times out after ten seconds.
 
-Local title, description, and heading matches appear immediately. After 200 ms,
-`/api/search/suggest` asks Jev to select pages by meaning and promotes confident
-matches into **Suggested pages**. The catalogue comes from `searchablePages()`,
+Local title, description, and heading matches appear immediately. For eligible
+queries, after 200 ms `/api/search/suggest` asks Jev to select pages by meaning
+and adds confident new destinations under **Suggested pages**, below local matches
+so existing results stay in place. Short queries, exact titles/URLs, and queries
+containing common credential prefixes are skipped. The catalogue comes from `searchablePages()`,
 the same source as the ordinary index. No manually maintained semantic aliases
 or model-generated URLs are used.
 
 Set the server-only `JEV_KEY` in `apps/docs/.env.local` locally or the docs
-project's environment on Vercel. Never prefix it with `NEXT_PUBLIC_`. Only the
-query and public page metadata are sent to TypeSafe. The key is never returned
-to the client. Production also uses the site's existing Upstash credentials for
+project's environment on Vercel. Never prefix it with `NEXT_PUBLIC_`. The request
+body contains the query and public page metadata; the key is sent to TypeSafe as
+the bearer authorization credential and is never returned to the client.
+When the server reports that suggestions are disabled, the open palette stops
+requesting them for subsequent queries. Production also uses the site's existing Upstash credentials for
 independent search limits: 60 requests/minute/IP, 1,000/day/IP, and 20,000/day
 across the deployment. A missing key, unavailable limiter, timeout, or upstream
 error leaves ordinary search available.

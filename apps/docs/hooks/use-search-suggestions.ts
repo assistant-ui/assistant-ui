@@ -1,23 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import {
   shouldSuggestDocsRoute,
   type RoutePage,
   type SearchScope,
 } from "@/lib/search/route-query";
 
+const responseSchema = z.object({
+  pages: z.array(
+    z.object({
+      url: z.string(),
+      title: z.string(),
+      description: z.string(),
+    }),
+  ),
+  enabled: z.boolean().optional(),
+});
+
 export function useSearchSuggestions(
   query: string,
   scope: SearchScope,
   pages: RoutePage[],
 ) {
+  const [enabled, setEnabled] = useState(true);
   const [result, setResult] = useState<{
     query: string;
     scope: SearchScope;
     pages: RoutePage[];
   } | null>(null);
-  const eligible = shouldSuggestDocsRoute(query, pages);
+  const eligible = enabled && shouldSuggestDocsRoute(query, pages);
   const current = result?.query === query && result.scope === scope;
 
   useEffect(() => {
@@ -34,8 +47,12 @@ export function useSearchSuggestions(
           ]),
         });
         if (response.ok) {
-          const data = (await response.json()) as { pages: RoutePage[] };
-          suggestions = data.pages;
+          const data = responseSchema.safeParse(await response.json());
+          if (data.success) {
+            suggestions = data.data.pages;
+            if (data.data.enabled === false && !controller.signal.aborted)
+              setEnabled(false);
+          }
         }
       } catch {
         // Page and in-page matches remain usable if suggestions are unavailable.

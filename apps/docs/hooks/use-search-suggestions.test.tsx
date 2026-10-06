@@ -33,7 +33,9 @@ it("debounces queries and ignores a late response from an earlier query", async 
     { initialProps: { query: "save history" } },
   );
   expect(fetcher).not.toHaveBeenCalled();
-  await act(() => vi.advanceTimersByTimeAsync(200));
+  await act(() => vi.advanceTimersByTimeAsync(199));
+  expect(fetcher).not.toHaveBeenCalled();
+  await act(() => vi.advanceTimersByTimeAsync(1));
   expect(fetcher).toHaveBeenCalledTimes(1);
   rerender({ query: "render messages" });
   await act(async () => {
@@ -43,6 +45,42 @@ it("debounces queries and ignores a late response from an earlier query", async 
   await act(() => vi.advanceTimersByTimeAsync(200));
   expect(result.current.loading).toBe(false);
   expect(result.current.pages).toEqual([]);
+});
+
+it.each([{}, null, { pages: {} }, { pages: [null] }, { pages: [{ url: 42 }] }])(
+  "keeps search usable after a malformed success response: %j",
+  async (body) => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => Response.json(body)),
+    );
+    const { result } = renderHook(() =>
+      useSearchSuggestions("save history", "All", []),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(result.current).toEqual({ pages: [], loading: false });
+  },
+);
+
+it("stops requesting suggestions when the server reports they are disabled", async () => {
+  vi.useFakeTimers();
+  const fetcher = vi
+    .fn()
+    .mockImplementation(async () =>
+      Response.json({ pages: [], enabled: false }),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const { result, rerender } = renderHook(
+    ({ query }) => useSearchSuggestions(query, "All", []),
+    { initialProps: { query: "save history" } },
+  );
+  await act(() => vi.advanceTimersByTimeAsync(200));
+  expect(result.current).toEqual({ pages: [], loading: false });
+  rerender({ query: "upload images" });
+  expect(result.current.loading).toBe(false);
+  await act(() => vi.advanceTimersByTimeAsync(200));
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
 it("clears old suggestions as soon as the scope changes", async () => {

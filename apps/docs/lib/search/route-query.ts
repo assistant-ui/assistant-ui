@@ -25,7 +25,8 @@ export function shouldSuggestDocsRoute(query: string, pages: RoutePage[]) {
   return (
     normalized.length >= 4 &&
     normalized.length <= 120 &&
-    !/^(?:https?:\/\/|sk_|apikey_)/.test(normalized) &&
+    !/^https?:\/\//.test(normalized) &&
+    !/\b(?:sk[-_]|apikey_)[a-z0-9_-]+/.test(normalized) &&
     !normalized.includes("@") &&
     !pages.some(
       (page) =>
