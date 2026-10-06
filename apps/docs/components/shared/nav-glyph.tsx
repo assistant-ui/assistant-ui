@@ -383,21 +383,21 @@ function GlyphO11y() {
 
 function GlyphExamples() {
   const windows: Array<[number, number]> = [
-    [3, 2],
-    [18, 2],
-    [3, 14],
-    [18, 14],
+    [1.5, 2],
+    [19, 2],
+    [1.5, 16],
+    [19, 16],
   ];
   return (
     <GlyphSvg>
       {windows.map(([x, y], index) => (
         <g key={index}>
-          <rect x={x} y={y} width="11" height="8" rx="1.3" className={DIM} />
-          <path d={`M${x} ${y + 2.6}H${x + 11}`} className={FAINT} />
+          <rect x={x} y={y} width="11.5" height="8" rx="1.3" className={DIM} />
+          <path d={`M${x} ${y + 2.6}H${x + 11.5}`} className={FAINT} />
           <path
             {...motion("draw", index * 90)}
             pathLength={100}
-            d={`M${x + 2.3} ${y + 5.3}H${x + 7.8}`}
+            d={`M${x + 2.3} ${y + 5.3}H${x + 8}`}
             className={index === 0 ? ACCENT_STROKE : DIM}
           />
         </g>
@@ -708,8 +708,8 @@ export function NavGlyph({
 
   if (size === "lg") {
     return (
-      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 rounded-document flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
-        <span className="block scale-[2.5]">
+      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 rounded-document [container-type:size] flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
+        <span className="flex w-[min(56cqw,90cqh)] [&>svg]:h-auto [&>svg]:w-full [&>svg]:[stroke-width:0.5]">
           <Glyph />
         </span>
       </span>
