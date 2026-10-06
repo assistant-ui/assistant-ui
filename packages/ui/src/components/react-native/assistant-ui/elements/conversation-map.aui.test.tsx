@@ -165,18 +165,23 @@ describe("ConversationMapAui", () => {
 
   it("does not resummarize earlier turns during a streaming update", async () => {
     let reads = 0;
-    const first = {
-      id: "u1",
-      role: "user",
+    const counted = (
+      id: string,
+      role: "user" | "assistant",
+      value: string,
+    ) => ({
+      id,
+      role,
+      attachments: [],
       get content() {
         reads++;
-        return [text("First")];
+        return [text(value)];
       },
-    };
+    });
     const prefix = [
-      first,
-      message("a1", "assistant", [text("Answer")]),
-      message("u2", "user", [text("Second")]),
+      counted("u1", "user", "First"),
+      counted("a1", "assistant", "Answer"),
+      counted("u2", "user", "Second"),
     ];
     h.messages = [...prefix, message("a2", "assistant", [text("Old")])];
     await render();
