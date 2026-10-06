@@ -17,7 +17,9 @@ test("shared generator and build inputs require every API surface", () => {
     "api-surface/assistant-ui__react.ts",
     "packages/x-buildutils/src/index.ts",
     "scripts/generate-api-surface.mjs",
+    "scripts/autofix-install.mjs",
     "scripts/update-api-surface.mjs",
+    "scripts/lib/changed-files.mjs",
     "scripts/check-api-surface.mjs",
     "scripts/lib/workspace.mjs",
     "package.json",
@@ -179,6 +181,7 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
       "check-api-surface.mjs",
       "lib/workspace.mjs",
       "lib/script-options.mjs",
+      "lib/changed-files.mjs",
     ]) {
       cpSync(new URL(file, import.meta.url), path.join(repo, "scripts", file));
     }
