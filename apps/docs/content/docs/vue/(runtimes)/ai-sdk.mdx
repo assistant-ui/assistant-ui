@@ -62,7 +62,7 @@ Tools the server owns go in the same `tools` map with their own `execute`; see [
 | `onResumeToolCall` | Callback | None | Handles resume for a tool call outside the in-process tracker. |
 | `onRespondToToolApproval` | Callback | AI SDK response | Routes tool approval answers through a host. |
 | `onResumeError` | Callback | None | Receives a failed automatic resumable-stream reconnect. |
-| `joinStrategy` | AI SDK runtime join strategy | Runtime default | Controls conversion of streamed message parts. |
+| `joinStrategy` | `"concat-content" \| "none"` | `"concat-content"` | Merges consecutive assistant messages into one thread message, or keeps them separate with `"none"`. |
 | `messageRepository` | Exported message repository | Runtime-owned repository | Supplies branch history. |
 | `unstable_onBranchChange` | Callback | None | Receives branch changes. |
 
@@ -101,9 +101,9 @@ const config = AuiConfig({
 
 ## What each request contains
 
-`AssistantChatTransport` sends `id`, `messages`, `trigger`, `messageId`, and `metadata` from the AI SDK request. It adds `callSettings`, `system`, `config`, and JSON Schema `tools` from the thread's model context. Undefined values are omitted when JSON serializes the body.
+`AssistantChatTransport` sends `messages`, `trigger`, `messageId`, and `metadata` from the AI SDK request. As `id` it sends the thread list item's `remoteId` once the item is initialized, which with `cloud` is the cloud thread id, and the AI SDK chat id otherwise. It adds `callSettings`, `system`, `config`, and JSON Schema `tools` from the thread's model context. Undefined values are omitted when JSON serializes the body.
 
-The transport's `body` is merged with any body passed on the send. Those values override model context fields with the same names. The transport adds `id`, `messages`, `trigger`, `messageId`, and `metadata` last, so those fields keep their request values. A custom `prepareSendMessagesRequest` can replace the prepared body entirely.
+The transport's `body` is merged with any body passed on the send. Those values override model context fields with the same names. The transport adds `id`, `messages`, `trigger`, `messageId`, and `metadata` last, so a custom `body` cannot override them. A custom `prepareSendMessagesRequest` can replace the prepared body entirely.
 
 ## AISDKThreads
 
@@ -114,7 +114,7 @@ The transport's `body` is merged with any body passed on the send. Those values 
 | `transport` | `ChatTransport` or `() => ChatTransport` | New `AssistantChatTransport` per thread | A factory runs once for each thread. An `AssistantChatTransport` instance is cloned per thread; another instance is shared. |
 | `cloud` | `AssistantCloud` | None | Backs the list with cloud history instead of memory. |
 | `threadId` | `string` | None | Controls the selected remote thread when `cloud` is set. |
-| `onThreadIdChange` | Callback | None | Receives the settled remote id after a cloud selection change. |
+| `onThreadIdChange` | Callback | None | Receives the selected thread's remote id whenever it changes, including when a new thread is initialized. |
 
 Each thread captures its chat construction options when created, including its transport. Later option changes update callbacks but do not replace a chat's transport or initial state. Without `cloud`, the list and histories live in the assistant client's memory. See [Cloud persistence](/docs/vue/cloud) and [Thread list](/docs/vue/thread-list) for list setup and controls.
 

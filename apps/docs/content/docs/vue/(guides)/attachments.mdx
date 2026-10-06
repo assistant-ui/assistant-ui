@@ -11,7 +11,7 @@ Attachments start in the composer and appear on the sent user message. The attac
 
 ## Limit the accepted files
 
-Pass an adapter through `adapters.attachments`. The image and text adapters can be combined so each file goes to the first adapter whose `accept` matches it. The image adapter accepts `image/*` and sends an image part. The text adapter accepts selected text and JSON MIME types and sends the file text as a text part.
+Pass an adapter through `adapters.attachments`. The image and text adapters can be combined so each file goes to the first adapter whose `accept` matches it. The image adapter accepts `image/*` and sends an image part. The text adapter accepts selected text and JSON MIME types and sends the file text as a text part wrapped in `<attachment name="...">` tags, so a route that reads it receives the file name with the contents.
 
 ```vue title="app/components/Assistant.client.vue"
 <script setup lang="ts">

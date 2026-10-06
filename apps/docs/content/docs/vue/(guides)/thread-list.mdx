@@ -33,7 +33,7 @@ const config = AuiConfig({
 
 Every thread in the list gets its own AI SDK chat, and each one posts to the same `/api/chat` route as a single chat.
 
-Without the `cloud` option, the list lives in memory. It starts with one thread titled "Main Thread", each new thread is titled "New Thread", and the list empties when the page reloads. Only the selected thread is mounted, so only it can run. Pass an `AssistantCloud` instance to keep threads across reloads, generate titles, and keep a run going after the user switches away; see [Cloud persistence](/docs/vue/cloud).
+Without the `cloud` option, the list lives in memory. It starts with one thread titled "Main Thread", each new thread is titled "New Thread", and a page reload starts over from a fresh "Main Thread". Only the selected thread is mounted, but a thread you switch away from keeps streaming into its stored history until its run settles. Pass an `AssistantCloud` instance to keep threads across reloads and generate titles; see [Cloud persistence](/docs/vue/cloud).
 
 ## Install the registry thread list
 
@@ -66,7 +66,7 @@ import {
 </script>
 
 <template>
-  <ThreadListPrimitiveRoot class="flex flex-col gap-0.5" aria-label="Conversations">
+  <ThreadListPrimitiveRoot class="flex flex-col gap-0.5" role="group" aria-label="Conversations">
     <ThreadListPrimitiveNew
       class="hover:bg-muted rounded-md px-2.5 py-1.5 text-left text-sm"
     >

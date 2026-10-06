@@ -98,7 +98,7 @@ Enter sends the message. Shift+Enter inserts a newline, and Enter during IME com
 `ComposerPrimitiveSend` and Enter are both blocked while either of these holds:
 
 - `s.composer.canSend` is false. The text is empty and there are no attachments, a send is still being prepared, or the runtime set `isSendDisabled`.
-- A response is running and the runtime does not queue messages (`s.thread.capabilities.queue` is false).
+- A response is running, the runtime does not queue messages (`s.thread.capabilities.queue` is false), and no voice session is connected.
 
 A listener you attach runs before the primitive's own handler. Call `preventDefault()` in a `@keydown` listener on the input, or a `@click` listener on a button, to stop the send:
 
@@ -215,7 +215,7 @@ A `<button type="button">` that calls `aui.composer.send()`. Its default slot is
 
 ### ComposerPrimitiveCancel
 
-A `<button type="button">` that calls `aui.composer.cancel()`. In the thread composer it is enabled while a response is running and the runtime can cancel it. In an edit composer it is always enabled and discards the edit. It has no props.
+A `<button type="button">` that calls `aui.composer.cancel()`. In the thread composer it is enabled while a response is running and the runtime can cancel it, or while a send is still being prepared. In an edit composer it is always enabled and discards the edit. It has no props.
 
 ### ComposerPrimitiveAttachments
 
@@ -231,7 +231,7 @@ A `<button type="button">` that opens the browser file picker and adds the chose
 
 ### ComposerPrimitiveAttachmentDropzone
 
-A `<div>` that adds dropped files to the composer. While a file drag hovers it, the element carries `data-dragging="true"`. It always claims file drags, so a missed drop does not open the file in the tab, and it ignores the files when the runtime does not support attachments.
+A `<div>` that adds dropped files to the composer. While a file drag hovers it, the element carries `data-dragging="true"`. Unless `disabled` is set, it claims file drags, so a missed drop does not open the file in the tab, and it ignores the files when the runtime does not support attachments.
 
 | Prop | Type | Default | Description |
 |---|---|---|---|

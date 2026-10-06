@@ -137,7 +137,7 @@ function useScrollLock(
 ): () => void;
 ```
 
-Returns a function that holds the scroll position of the nearest scrollable ancestor of `target` for `animationDuration` milliseconds. Call it right before content inside the thread expands or collapses, so the viewport does not jump while the animation runs. While locked, the ancestor's scrollbar is hidden and the padding on its scrollbar side grows by the scrollbar width, so the content does not shift. A second call restarts the lock, and disposing the calling scope releases it.
+Returns a function that holds the scroll position of the first scrollable element found from `target` upward, `target` included, for `animationDuration` milliseconds. Call it right before content inside the thread expands or collapses, so the viewport does not jump while the animation runs. While locked, that element's scrollbar is hidden and the padding on its scrollbar side grows by the scrollbar width, so the content does not shift. A second call restarts the lock, and disposing the calling scope releases it.
 
 The registry `reasoning.vue` and `tool-fallback.vue` call it before opening or closing their collapsibles, with a 200 millisecond lock. A minimal disclosure:
 

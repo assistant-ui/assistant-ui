@@ -47,7 +47,7 @@ const config = AuiConfig({
 </template>
 ```
 
-The `Thread` and `ThreadList` imports refer to the [styled components](/docs/vue/components). Keep the `AssistantCloud` instance stable while this provider is mounted.
+The `Thread` and `ThreadList` imports refer to the [styled components](/docs/vue/components). Keep the `AssistantCloud` instance stable while this provider is mounted. `AssistantCloud` also sends telemetry, such as [run reports](/docs/cloud/run-reports), unless you pass `telemetry: false`.
 
 ## Sign users in
 
@@ -93,7 +93,7 @@ The endpoint must authenticate the user and return a token accepted by the cloud
 |---|---|
 | Thread list | Loads active and archived threads separately, up to 20 of each per page. Archive, restore, rename, and delete call the cloud thread API. [Thread list](/docs/vue/thread-list) shows how to render archived threads and load more. |
 | Messages | The cloud history adapter loads and writes each thread's AI SDK messages. A message edit or branch stays in that thread's history. |
-| Titles | A newly created thread requests a title after a message is no longer running. The adapter sends the thread's text and tool call parts to the cloud title stream, then saves the generated title. A manual rename also saves to the cloud. |
+| Titles | A thread created in this session requests a title once it has a remote id and at least one message that is not running. The adapter sends the thread's text and tool call parts to the cloud title stream, then saves the generated title. A manual rename also saves to the cloud. |
 | Attachments | `CloudFileAttachmentAdapter` requests an upload URL, uploads the file, and turns the result into an image or file message part. See [Attachments](/docs/vue/attachments). |
 | Feedback | The cloud feedback adapter submits feedback against the stored cloud message id when one is available. |
 
@@ -103,7 +103,7 @@ With `cloud`, `AISDKThreads` keeps every visited thread mounted. A response can 
 
 ## Keep the selected thread in the URL
 
-`threadId` selects a cloud thread by its remote id. `onThreadIdChange` receives the settled remote id after a selection change, or `undefined` for a new thread. A reactive `AuiConfig` lets `AISDKThreads` follow a later `threadId` change, including browser history navigation:
+`threadId` selects a cloud thread by its remote id. `onThreadIdChange` receives the selected thread's remote id whenever it changes, including when a new thread is initialized, and `undefined` while a new thread has none yet. A reactive `AuiConfig` lets `AISDKThreads` follow a later `threadId` change, including browser history navigation:
 
 ```vue title="app/components/UrlAssistant.client.vue"
 <script setup lang="ts">

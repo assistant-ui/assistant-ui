@@ -69,7 +69,7 @@ Render this under an `AuiProvider` with a runtime, as in the [quickstart](/docs/
 
 ## Render each message
 
-`ThreadPrimitiveMessages` renders its default slot once per message. Inside that slot, `s.message` and the edit composer refer to the current message. Each row is keyed by message id, so an in-place update preserves its component state, while a different message in the same position remounts the row. `TransitionGroup` transitions and row state therefore follow message identity. The empty optimistic assistant row stays mounted across updates to that placeholder, then remounts when a real assistant message replaces its id.
+`ThreadPrimitiveMessages` renders its default slot once per message. Inside that slot, `s.message` and the edit composer refer to the current message. Each row is keyed by message id, so an in-place update preserves its component state, while a different message in the same position remounts the row. Row state therefore follows message identity. The empty optimistic assistant row stays mounted across updates to that placeholder, then remounts when a real assistant message replaces its id.
 
 ## Keep the composer in view
 

@@ -92,7 +92,7 @@ Parts that repeat content render no element of their own. Each one renders its d
 
 Where React passes a render function or a `components` prop, Vue uses slots. `MessagePrimitiveParts` takes one named slot per part type (`#text`, `#reasoning`, `#tool-call`, and so on), described on the [message page](/docs/vue/primitives/message).
 
-Rows are keyed by identity, such as the message or thread id, so per-row component state and `<TransitionGroup>` follow the item when the list changes.
+Rows are keyed by identity, such as the message or thread id, so per-row component state follows the item when the list changes.
 
 To iterate yourself, wrap each row in the matching scope provider: `MessageByIdProvider`, `PartByIndexProvider`, `AttachmentByIndexProvider`, `SuggestionByIndexProvider`, or `ThreadListItemByIndexProvider`. The [thread list guide](/docs/vue/thread-list#order-the-list-yourself) shows the pattern.
 

@@ -85,7 +85,7 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | `isLoading` | `boolean` | History is loading. |
 | `hasEarlier` | `boolean` | Earlier messages are available. |
 | `isLoadingEarlier` | `boolean` | An earlier page is loading. |
-| `isRunning` | `boolean` | A run has an active backend stream. |
+| `isRunning` | `boolean` | A run is in progress, including while client tools execute. |
 | `capabilities` | `RuntimeCapabilities` | Supported actions, including `edit`, `reload`, `cancel`, `attachments`, `queue`, and `answerToolCall`. |
 | `messages` | `readonly MessageState[]` | Messages on the selected branch. |
 | `tasks` | `readonly TaskState[]` | Nested work derived from tool calls, in document order. |
@@ -403,4 +403,4 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | `setDataUI` | `setDataUI(name: string, render: DataMessagePartComponent): Unsubscribe` | Register a named renderer and return its cleanup function. |
 | `setFallbackDataUI` | `setFallbackDataUI(render: DataMessagePartComponent): Unsubscribe` | Register a fallback and return its cleanup function. |
 
-`queueItem` and `task` scopes also exist, but no Vue primitive provides either scope.
+The `queueItem`, `task`, `interactables`, and `unstable_interactables` scopes also exist, but no Vue primitive uses them.
