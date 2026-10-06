@@ -303,7 +303,7 @@ export const StreamdownTextPrimitive = forwardRef<
           <Body
             text={text}
             shouldTailRemend={shouldTailRemend}
-            remendConfig={remend}
+            remendConfig={bodyProps.remend}
             mode={mode}
             isAnimating={status.type === "running"}
             components={mergedComponents}
