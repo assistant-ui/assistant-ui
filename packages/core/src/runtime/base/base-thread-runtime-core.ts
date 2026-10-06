@@ -550,14 +550,17 @@ export abstract class BaseThreadRuntimeCore
             this.voice = undefined;
             this._voiceVolume = 0;
             try {
-              this._finishVoiceAssistantMessage(false);
-              this._onVoiceDisconnected();
-              notifyEventListeners(
-                this._voiceVolumeSubscribers,
-                undefined,
-                "Voice volume",
-              );
-              this._notifySubscribers();
+              notifySubscribers([
+                () => this._finishVoiceAssistantMessage(false),
+                () => this._onVoiceDisconnected(),
+                () =>
+                  notifyEventListeners(
+                    this._voiceVolumeSubscribers,
+                    undefined,
+                    "Voice volume",
+                  ),
+                () => this._notifySubscribers(),
+              ]);
             } finally {
               finishDetachedSetup();
             }
