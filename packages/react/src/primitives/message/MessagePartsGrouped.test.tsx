@@ -439,6 +439,17 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
     },
   );
 
+  it("falls back to the default text component for an undefined slot", () => {
+    render(
+      <Example
+        content={[{ type: "text", text: "hello" }]}
+        Message={partsMessage({ Text: undefined })}
+      />,
+    );
+
+    expect(screen.getByText("hello")).toBeTruthy();
+  });
+
   it("renders tool and data UIs registered under an inherited name", () => {
     const { container } = render(
       <Example
