@@ -9,7 +9,7 @@ import { FlatList, FlatListProps, Image, ImageProps, PressableProps, PressableSt
 declare const ActionBarCopy: (_param0: ActionBarCopyProps) => import("react").JSX.Element;
 
 type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActionBarCopyOptions & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableStateCallbackType & {
     isCopied: boolean;
     disabled: boolean;
   }) => ReactNode);
@@ -26,7 +26,7 @@ type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
 declare const ActionBarFeedbackNegative: (_param2: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableStateCallbackType & {
     isSubmitted: boolean;
     disabled: boolean;
   }) => ReactNode);
@@ -35,7 +35,7 @@ type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress
 declare const ActionBarFeedbackPositive: (_param3: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableStateCallbackType & {
     isSubmitted: boolean;
     disabled: boolean;
   }) => ReactNode);
@@ -118,6 +118,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -135,6 +136,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -143,6 +145,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -1125,6 +1128,7 @@ type CloudThread = {
 
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
+  scopeId?: string | undefined;
   runtimeHook: () => AssistantRuntime;
   create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
@@ -1132,6 +1136,7 @@ type CloudThreadListAdapter = {
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
@@ -1460,6 +1465,7 @@ type CreateStartRunConfig = {
 };
 
 type CreateSuggestionAdapterOptions = {
+  key?: string | number | symbol | undefined;
   complete: (options: {
     prompt: string;
     signal?: AbortSignal;
@@ -2054,6 +2060,7 @@ type LanguageModelV1CallSettings = {
 
 type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -2496,6 +2503,14 @@ declare namespace MessagePrimitiveParts$1 {
 }
 
 declare const MessagePrimitiveParts$1: FC<MessagePrimitiveParts$1.Props>;
+
+declare namespace MessagePrimitiveQuote {
+  type Props = {
+    children: (value: QuoteInfo) => ReactNode;
+  };
+}
+
+declare const MessagePrimitiveQuote: import("react").NamedExoticComponent<MessagePrimitiveQuote.Props>;
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
@@ -3317,6 +3332,7 @@ type SubscribableWithState<TState, TPath> = Subscribable & {
 };
 
 type SuggestionAdapter = {
+  key?: string | number | symbol | undefined;
   generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion$1[]> | AsyncGenerator<readonly ThreadSuggestion$1[], void>;
 };
 
@@ -5040,7 +5056,7 @@ declare namespace messagePart_d_exports {
 }
 
 declare namespace message_d_exports {
-  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessagePrimitiveGroupedParts as GroupedParts, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
+  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessagePrimitiveGroupedParts as GroupedParts, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessagePrimitiveQuote as Quote, MessageRoot as Root, MessageRootProps as RootProps };
 }
 
 declare const pickExternalStoreSharedOptions: (options: ExternalStoreSharedOptions) => ExternalStoreSharedOptions;
@@ -5161,6 +5177,7 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param54: {
@@ -5169,6 +5186,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param54: {
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 declare const useExternalStoreRuntime: <T>(store: ExternalStoreAdapter<T>) => AssistantRuntime;

@@ -265,6 +265,85 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     });
   });
 
+  it("reload: keeps an earlier answer when a tool snapshot ends at its parent", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "c1",
+              toolCallName: "lookup",
+              parentMessageId: "a1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "c1" },
+          });
+          subscriber.onToolCallResultEvent?.({
+            event: {
+              type: "TOOL_CALL_RESULT",
+              toolCallId: "c1",
+              messageId: "t1",
+              content: "ok",
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "a1",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "c1",
+                      type: "function",
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "t1",
+                  role: "tool",
+                  toolCallId: "c1",
+                  content: "ok",
+                },
+              ],
+            },
+          });
+        }
+
+        emitAssistantText(subscriber, `b${runCount}`, `answer ${runCount}`);
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    userId = core.getMessages()[0]!.id;
+    await core.reload("a1");
+
+    const repository = core.getMessageRepository();
+    const answerBranches = repository.messages
+      .filter(({ message }) => message.id === "b1" || message.id === "b2")
+      .map(({ message, parentId }) => [message.id, parentId]);
+    expect(answerBranches).toEqual([
+      ["b1", "a1"],
+      ["b2", "a1"],
+    ]);
+    expect(core.getMessages().map(({ id }) => id)).toEqual([
+      userId,
+      "a1",
+      "b2",
+    ]);
+  });
+
   it("reload: follows a snapshot head introduced during a branch run", async () => {
     let runCount = 0;
     let userId = "";

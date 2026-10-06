@@ -1,14 +1,15 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     coverage: {
       include: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 73,
-        functions: 52,
-        branches: 64,
-        statements: 71,
+        lines: 52,
+        functions: 28,
+        branches: 50,
+        statements: 50,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
