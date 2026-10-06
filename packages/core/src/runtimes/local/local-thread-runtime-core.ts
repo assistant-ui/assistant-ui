@@ -673,24 +673,10 @@ export class LocalThreadRuntimeCore
       )
         return;
       this._isLoading = false;
-      const currentHistory = this.adapters.history;
-      const retryWithReplacement =
-        loadFailed &&
-        currentHistory !== undefined &&
-        currentHistory.scopeId === scopeId &&
-        currentHistory.load !== history.load;
-      if (loadFailed && (!currentHistory || retryWithReplacement)) {
+      if (loadFailed && !this.adapters.history) {
         this._loadPromise = undefined;
       }
       this._notifySubscribers();
-      if (retryWithReplacement) {
-        void this.__internal_load().catch((error: unknown) => {
-          console.error(
-            "[assistant-ui] local thread history load failed:",
-            error,
-          );
-        });
-      }
     });
     this._loadPromise = loadPromise;
 

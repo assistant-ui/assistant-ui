@@ -6711,57 +6711,61 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
   });
 
-  it("retries a same-scope replacement installed before a load fails", async () => {
-    const adapter: ChatModelAdapter = {
-      run: async () => ({ content: [] }),
-    };
-    let rejectFirstLoad!: (error: unknown) => void;
-    const firstLoad = new Promise<never>((_, reject) => {
-      rejectFirstLoad = reject;
-    });
-    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
-      headId: "restored",
-      messages: [
-        {
-          parentId: null,
-          message: {
-            id: "restored",
-            role: "user" as const,
-            content: [{ type: "text" as const, text: "restored" }],
-            attachments: [],
-            createdAt: new Date(0),
-            metadata: { custom: {} },
+  it.each(["account", undefined])(
+    "does not retry a recreated adapter in scope %s after a load fails",
+    async (scopeId) => {
+      const adapter: ChatModelAdapter = {
+        run: async () => ({ content: [] }),
+      };
+      let rejectFirstLoad!: (error: unknown) => void;
+      const firstLoad = new Promise<never>((_, reject) => {
+        rejectFirstLoad = reject;
+      });
+      const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+        headId: "restored",
+        messages: [
+          {
+            parentId: null,
+            message: {
+              id: "restored",
+              role: "user" as const,
+              content: [{ type: "text" as const, text: "restored" }],
+              attachments: [],
+              createdAt: new Date(0),
+              metadata: { custom: {} },
+            },
           },
-        },
-      ],
-    }));
-    const thread = createThread(adapter, {
-      history: {
-        scopeId: "account",
-        load: () => firstLoad,
-        append: async () => {},
-      },
-    });
-
-    const loading = thread.__internal_load();
-    thread.__internal_setOptions({
-      adapters: {
-        chatModel: adapter,
+        ],
+      }));
+      const thread = createThread(adapter, {
         history: {
-          scopeId: "account",
-          load: secondLoad,
+          ...(scopeId !== undefined && { scopeId }),
+          load: () => firstLoad,
           append: async () => {},
         },
-      },
-    });
-    rejectFirstLoad(new Error("session expired"));
+      });
 
-    await expect(loading).rejects.toThrow("session expired");
-    await flush();
+      const loading = thread.__internal_load();
+      thread.__internal_setOptions({
+        adapters: {
+          chatModel: adapter,
+          history: {
+            ...(scopeId !== undefined && { scopeId }),
+            load: secondLoad,
+            append: async () => {},
+          },
+        },
+      });
+      rejectFirstLoad(new Error("session expired"));
 
-    expect(secondLoad).toHaveBeenCalledOnce();
-    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
-  });
+      await expect(loading).rejects.toThrow("session expired");
+      await flush();
+
+      expect(secondLoad).not.toHaveBeenCalled();
+      expect(thread.messages).toEqual([]);
+      expect(thread.isLoading).toBe(false);
+    },
+  );
 
   it("ignores a rejected load from a previous history adapter", async () => {
     const adapter: ChatModelAdapter = {
