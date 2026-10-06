@@ -29,7 +29,7 @@ export function surfaceToPresentToolCall(
       args: spec as unknown as ReadonlyJSONObject,
       argsText: JSON.stringify(spec),
       result: {},
-      artifact: { a2ui: surfaceToOperations(surface) },
+      artifact: { a2ui: surfaceToOperations(surface, surfaceId) },
     },
     warnings,
   };

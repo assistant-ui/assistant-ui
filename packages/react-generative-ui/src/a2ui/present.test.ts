@@ -11,8 +11,6 @@ describe("surfaceToPresentToolCall", () => {
       dataModel: undefined,
     };
 
-    Object.defineProperty(surface, A2UI_SURFACE_ID, { value: "surface-1" });
-
     const { toolCall, warnings } = surfaceToPresentToolCall(
       "surface-1",
       surface,
@@ -38,6 +36,24 @@ describe("surfaceToPresentToolCall", () => {
         ],
       },
     });
+  });
+
+  it("names the requested surface in the artifact over a stored id", () => {
+    const surface: A2uiSurfaceState = {
+      components: new Map([
+        ["root", { id: "root", component: "Text", text: "Hello" }],
+      ]),
+      dataModel: undefined,
+    };
+    Object.defineProperty(surface, A2UI_SURFACE_ID, { value: "stored" });
+
+    const { toolCall } = surfaceToPresentToolCall("surface-1", surface);
+
+    expect(toolCall?.toolCallId).toBe("a2ui:surface-1");
+    expect(toolCall?.artifact.a2ui).toMatchObject([
+      { createSurface: { surfaceId: "surface-1" } },
+      { updateComponents: { surfaceId: "surface-1" } },
+    ]);
   });
 
   it("omits the tool call when the surface has no spec", () => {
