@@ -118,6 +118,14 @@ Nuxt recognizes the `.client.vue` suffix and only mounts this component in the b
 </template>
 ```
 
+A page renders only where `app/app.vue` outputs `<NuxtPage />`. The `nuxi init` starter outputs `<NuxtWelcome />` there instead, so replace it:
+
+```vue title="app/app.vue"
+<template>
+  <NuxtPage />
+</template>
+```
+
 Start the app with `pnpm dev`, then send a message. The response streams from `server/api/chat.post.ts` into the thread.
 
   </Step>
