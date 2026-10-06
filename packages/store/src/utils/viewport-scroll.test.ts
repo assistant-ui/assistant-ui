@@ -170,4 +170,26 @@ describe("observeContentResize", () => {
 
     dispose();
   });
+
+  it("follows an added child created in another document's realm", async () => {
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const frameDocument = iframe.contentDocument!;
+    const viewport = frameDocument.createElement("div");
+    frameDocument.body.append(viewport);
+    const callback = vi.fn();
+    const dispose = observeContentResize(viewport, callback);
+
+    const added = frameDocument.createElement("div");
+    expect(added).not.toBeInstanceOf(Element);
+    viewport.append(added);
+    await flushMutations();
+    callback.mockClear();
+
+    resize(added);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    dispose();
+  });
 });

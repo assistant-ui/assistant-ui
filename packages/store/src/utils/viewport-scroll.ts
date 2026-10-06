@@ -50,6 +50,10 @@ export const isUserScrollUp = (
   previous.scrollTop > current.scrollTop &&
   previous.scrollHeight === current.scrollHeight;
 
+// `instanceof Element` is false for a node created in another frame's realm.
+const isElement = (node: Node): node is Element =>
+  node.nodeType === Node.ELEMENT_NODE;
+
 export const observeContentResize = (
   el: HTMLElement,
   callback: () => void,
@@ -73,10 +77,10 @@ export const observeContentResize = (
         for (const mutation of mutations) {
           if (mutation.target !== el) continue;
           for (const node of mutation.addedNodes) {
-            if (node instanceof Element) resizeObserver.observe(node);
+            if (isElement(node)) resizeObserver.observe(node);
           }
           for (const node of mutation.removedNodes) {
-            if (node instanceof Element) resizeObserver.unobserve(node);
+            if (isElement(node)) resizeObserver.unobserve(node);
           }
         }
       }
