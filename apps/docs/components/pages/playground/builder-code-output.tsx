@@ -98,6 +98,7 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
         <TabsContent
           key={source.name}
           value={source.name}
+          keepMounted
           className="min-h-0 flex-1 overflow-auto px-3 pb-3 text-xs leading-relaxed [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!"
         >
           <ShikiHighlighter

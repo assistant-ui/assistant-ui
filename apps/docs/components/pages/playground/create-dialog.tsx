@@ -76,7 +76,7 @@ export function CreateDialog({
             <div className="border-t pt-4">
               <p className="text-muted-foreground mb-3">Or set up manually:</p>
               <div className="space-y-3">
-                {commands.manual.slice(0, 2).map((cmd, index) => (
+                {commands.manual.map((cmd, index) => (
                   <CommandBlock
                     key={index}
                     label={`${index + 1}. ${cmd.label}`}
@@ -263,11 +263,6 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
       {
         label: "Add components",
         command: addCommand,
-      },
-      {
-        label: "Copy code",
-        description:
-          "Paste thread.aui.tsx from the Code view over components/assistant-ui/elements/thread.aui.tsx, and its CSS variables into your global CSS.",
       },
     ],
     summary,
