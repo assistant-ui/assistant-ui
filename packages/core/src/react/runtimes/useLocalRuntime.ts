@@ -71,7 +71,7 @@ const useLocalThreadRuntime = (
 
   // A run reads the id in the microtask after the initialization barrier,
   // before the store has flushed the remote id into React state.
-  useLayoutEffect(() => {
+  useEffect(() => {
     runtime.threads
       .getMainThreadRuntimeCore()
       .__internal_setGetThreadId(
@@ -85,7 +85,7 @@ const useLocalThreadRuntime = (
     };
   }, [runtime]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 

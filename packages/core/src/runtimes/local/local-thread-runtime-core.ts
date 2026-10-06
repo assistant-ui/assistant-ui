@@ -438,16 +438,6 @@ export class LocalThreadRuntimeCore
     if (resetHistoryScope) {
       this._queue?.clear();
       this.cancelRun();
-      if (this.voice) {
-        try {
-          this.disconnectVoice();
-        } catch (error) {
-          console.error(
-            "[assistant-ui] Voice cleanup threw after the history scope changed",
-            error,
-          );
-        }
-      }
       supersedeThreadRuntime(this);
       // The draft was written under the previous scope, so sending it after
       // the switch would append one account's content through another's

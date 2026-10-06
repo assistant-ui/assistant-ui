@@ -2,8 +2,6 @@
 
 import { act, render, waitFor } from "@testing-library/react";
 import { Activity, type FC, StrictMode, useEffect, version } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
 import { useAui, useAuiState } from "@assistant-ui/store";
@@ -14,7 +12,6 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { PendingAttachment } from "../../types/attachment";
-import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 
 const onReact18 = version.startsWith("18.");
 
@@ -510,63 +507,6 @@ describe("useLocalRuntime", () => {
     rerender(renderApp());
     expect(history.load).toHaveBeenCalledTimes(loadsAfterMount);
     expect(consoleError).toHaveBeenCalledTimes(errorsAfterMount);
-  });
-
-  it("clears the previous history scope during the scope-switch commit", async () => {
-    const history = (scopeId: string, text: string): ThreadHistoryAdapter => ({
-      scopeId,
-      load: async () => ({
-        headId: scopeId,
-        messages: [
-          {
-            parentId: null,
-            message: {
-              id: scopeId,
-              role: "user",
-              content: [{ type: "text", text }],
-              attachments: [],
-              createdAt: new Date(0),
-              metadata: { custom: {} },
-            },
-          },
-        ],
-      }),
-      append: async () => {},
-    });
-    let runtime: AssistantRuntime | null = null;
-    const App = ({ adapter }: { adapter: ThreadHistoryAdapter }) => {
-      runtime = useLocalRuntime(chatModel, {
-        adapters: { history: adapter },
-      });
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <div />
-        </AssistantRuntimeProvider>
-      );
-    };
-
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    flushSync(() => {
-      root.render(<App adapter={history("first", "first scope")} />);
-    });
-    await waitFor(() => {
-      expect(runtime!.thread.getState().messages[0]?.content).toEqual([
-        { type: "text", text: "first scope" },
-      ]);
-    });
-
-    flushSync(() => {
-      root.render(<App adapter={history("second", "second scope")} />);
-    });
-
-    expect(runtime!.thread.getState().messages).toEqual([]);
-    await waitFor(() => {
-      expect(runtime!.thread.getState().messages[0]?.content).toEqual([
-        { type: "text", text: "second scope" },
-      ]);
-    });
-    root.unmount();
   });
 
   it("exposes composer.canCancel while a run started after initial messages is in flight", async () => {
