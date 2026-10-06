@@ -44,6 +44,7 @@ export function ThreadSearchDemo() {
       query={query}
       activeId={activeId}
       onQueryChange={setQuery}
+      onActiveChange={setActiveId}
       onSelect={setActiveId}
     />
   );
