@@ -31,6 +31,7 @@ import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 type VoiceSampleThreadProps = {
   welcomeTitle: string;
@@ -91,8 +92,10 @@ const ThreadWelcome: FC<{ title: string; subtitle: string }> = ({
   title,
   subtitle,
 }) => {
+  const hydrated = useHydrated();
+
   return (
-    <AuiIf condition={(s) => s.thread.isEmpty}>
+    <AuiIf condition={(s) => !hydrated || s.thread.isEmpty}>
       <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) grow flex-col px-2">
         <div className="aui-thread-welcome-center flex w-full grow flex-col justify-center">
           <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
@@ -162,10 +165,12 @@ const ThreadWelcomeSuggestions: FC = () => {
 };
 
 const Composer: FC<{ actions?: ReactNode }> = ({ actions }) => {
+  const hydrated = useHydrated();
+
   return (
     <div className="aui-composer-wrapper bg-background sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) pb-4 md:pb-6">
       <ThreadScrollToBottom />
-      <AuiIf condition={(s) => s.thread.isEmpty}>
+      <AuiIf condition={(s) => !hydrated || s.thread.isEmpty}>
         <ThreadWelcomeSuggestions />
       </AuiIf>
       <ComposerPrimitive.Root className="aui-composer-root border-foreground/10 focus-within:border-foreground/25 relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]">
