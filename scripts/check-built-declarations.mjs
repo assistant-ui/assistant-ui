@@ -5,12 +5,11 @@ import {
   existsSync,
   mkdtempSync,
   readdirSync,
-  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import {
   collectPackages,
@@ -233,15 +232,6 @@ function checkPackage(repoRoot, packageDir, pkg) {
     return 1;
   } finally {
     probe.remove();
-  }
-}
-
-export function isExecutedAsMain(metaUrl, argv1) {
-  if (!argv1) return false;
-  try {
-    return realpathSync(fileURLToPath(metaUrl)) === realpathSync(argv1);
-  } catch {
-    return false;
   }
 }
 

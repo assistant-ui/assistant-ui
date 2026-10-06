@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import type {
   AssistantRuntime,
   RemoteThreadListAdapter,
@@ -25,6 +25,7 @@ vi.mock("./convertLangChainMessages", async (importOriginal) => {
 });
 
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const MESSAGE_COUNT = 1_000;
 const messages: LangChainMessage[] = Array.from(
@@ -99,9 +100,9 @@ describe("useLangGraphRuntime metadata cache", () => {
       wrapper: wrapperFactory(runtimeResult.current),
     });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("thread-1"),
+    );
     await waitFor(() =>
       expect(runtimeResult.current.thread.getState().messages).toHaveLength(
         MESSAGE_COUNT,
@@ -110,9 +111,9 @@ describe("useLangGraphRuntime metadata cache", () => {
     expect(conversionSpy).toHaveBeenCalledTimes(MESSAGE_COUNT);
     conversionSpy.mockClear();
 
-    await act(async () => {
-      await runtimeResult.current.threads.reloadMainThread();
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.reloadMainThread(),
+    );
 
     expect(conversionSpy).toHaveBeenCalledOnce();
     expect(conversionSpy).toHaveBeenCalledWith(parentId);
