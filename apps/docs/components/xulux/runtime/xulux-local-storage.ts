@@ -214,8 +214,8 @@ export function useXuluxStoredThreads() {
   );
 }
 
-export function useNormalizeInterruptedXuluxThreads() {
+export function useNormalizeInterruptedXuluxThreads(enabled: boolean) {
   useEffect(() => {
-    normalizePersistedThreads();
-  }, []);
+    if (enabled) normalizePersistedThreads();
+  }, [enabled]);
 }

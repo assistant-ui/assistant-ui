@@ -3,12 +3,12 @@ import type { CheckoutSession } from "@/lib/checkout/session-store";
 import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 
 /**
- * welcome, license, connect, plan, install and every answer the user gave are
+ * welcome, connect, plan, install and every answer the user gave are
  * pages the user can step back to; the rest exist only while they are the live page.
+ * A product the agent proposed is added without a page, so it leaves no answer.
  */
 export type WizardPage =
   | { id: "welcome" }
-  | { id: "license" }
   | { id: "connect" }
   | { id: "question"; input: Checkout.Input; total: number }
   | { id: "answer"; input: Checkout.Input }
@@ -43,7 +43,6 @@ export function livePage({
   if (phase === "finished" || phase === "stopped") return { id: "closed" };
   if ((phase === "unconnected" || phase === "waiting") && !session.introSeen)
     return { id: "welcome" };
-  if (!session.licenseAccepted) return { id: "license" };
   if (
     phase === "unconnected" ||
     phase === "waiting" ||
@@ -69,7 +68,12 @@ const answersIn = (
   phase: Checkout.Status,
 ): WizardPage[] =>
   state.inputs
-    .filter((input) => input.phase === phase && input.status !== "open")
+    .filter(
+      (input) =>
+        input.phase === phase &&
+        input.status !== "open" &&
+        input.kind !== "product",
+    )
     .sort(
       (a, b) =>
         (a.answeredAt ?? a.createdAt) - (b.answeredAt ?? b.createdAt) ||
@@ -86,11 +90,7 @@ export function pageTrail(
   state: Checkout.State | undefined,
   live: WizardPage,
 ): WizardPage[] {
-  const trail: WizardPage[] = [
-    { id: "welcome" },
-    { id: "license" },
-    { id: "connect" },
-  ];
+  const trail: WizardPage[] = [{ id: "welcome" }, { id: "connect" }];
   if (state !== undefined) {
     trail.push(...answersIn(state, "planning"));
     if (state.plans.length > 0) trail.push({ id: "plan" });

@@ -19,7 +19,6 @@ import type {
 import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
-  useEffect,
   useEffectEvent,
   useCallback,
   useMemo,
@@ -254,8 +253,9 @@ const usePiThreadStore = (
     invokePiErrorCallback(onError, error);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
+    // oxlint-disable-next-line react/rules-of-hooks -- useReplaySafeEffect runs this callback inside useEffect
     void controller.load().catch(onLoadError);
   }, [controller]);
 

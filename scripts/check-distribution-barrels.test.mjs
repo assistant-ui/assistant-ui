@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -155,6 +161,60 @@ test("reports a missing name, a type-only downgrade, an own symbol under a share
       "@fixture/web missing unstable_helper",
     ]);
     assert.deepEqual(staleExceptions, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a name re-exported from a shared package but declared outside it is held to parity", () => {
+  const root = createWorkspace({
+    stream: {
+      name: "@fixture/stream",
+      exports: { ".": { types: "./src/index.ts", default: "./src/index.ts" } },
+      files: { "src/index.ts": "export type Timing = { ms: number };\n" },
+    },
+    core: {
+      name: "@fixture/core",
+      exports: { ".": entry("index") },
+      files: {
+        "src/index.ts":
+          'export type { Timing } from "@fixture/stream";\nexport const helper = 1;\n',
+      },
+    },
+    web: {
+      name: "@fixture/web",
+      exports: { ".": entry("index") },
+      files: { "src/index.ts": 'export * from "@fixture/core";\n' },
+    },
+    native: {
+      name: "@fixture/native",
+      exports: { ".": entry("index") },
+      files: { "src/index.ts": 'export { helper } from "@fixture/core";\n' },
+    },
+    ink: {
+      name: "@fixture/ink",
+      exports: { ".": entry("index") },
+      files: {
+        "src/index.ts":
+          'export { helper } from "@fixture/core";\nexport type { Timing } from "@fixture/stream";\n',
+      },
+    },
+  });
+  const options = {
+    ...fixtureOptions(root),
+    distributions: ["@fixture/web", "@fixture/native", "@fixture/ink"],
+    exceptions: [],
+  };
+  try {
+    assert.deepEqual(runCheck(options).gaps, []);
+    mkdirSync(path.join(root, "node_modules", "@fixture"), { recursive: true });
+    symlinkSync(
+      path.join(root, "packages", "stream"),
+      path.join(root, "node_modules", "@fixture", "stream"),
+    );
+    assert.deepEqual(gapKeys(runCheck(options).gaps), [
+      "@fixture/native missing Timing",
+    ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

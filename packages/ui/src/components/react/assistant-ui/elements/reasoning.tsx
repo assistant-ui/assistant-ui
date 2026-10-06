@@ -168,7 +168,7 @@ function ReasoningTrigger({
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   active?: boolean;
-  duration?: number;
+  duration?: number | undefined;
 }) {
   const durationText = duration ? ` (${duration}s)` : "";
 

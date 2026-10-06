@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useState } from "react";
+import { act, createElement, useState, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/react";
@@ -94,6 +94,25 @@ import {
   usePiControllerStateSelector,
   usePiRuntime,
 } from "./usePiRuntime";
+
+const onReact18 = version.startsWith("18.");
+
+// Fails on React 18: TypeError: useEffectEvent is not a function (usePiRuntime imports useEffectEvent from react, which React 18 does not export). Shipped React 18 incompatibility, so on React 18 these tests assert that error, and fail once it's fixed.
+const itBrokenOnReact18 = (
+  name: string,
+  fn: () => void | Promise<void>,
+  timeout?: number,
+) =>
+  onReact18
+    ? it(
+        name,
+        () =>
+          expect(Promise.resolve().then(fn)).rejects.toThrow(
+            /useEffectEvent\)? is not a function/,
+          ),
+        timeout,
+      )
+    : it(name, fn, timeout);
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -193,61 +212,63 @@ describe("usePiRuntime error callbacks", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it.each(["throws", "rejects"] as const)(
-    "preserves the controller error when onError %s",
-    async (failureMode) => {
-      mocks.state = createPiThreadState("t1");
-      mocks.repository = ExportedMessageRepository.fromArray([]);
-      const controllerError = new Error("send failed");
-      const callbackError = new Error("telemetry failed");
-      mocks.controller.sendMessage.mockRejectedValueOnce(controllerError);
-      const onError = vi.fn(
-        failureMode === "throws"
-          ? () => {
-              throw callbackError;
-            }
-          : async () => {
-              throw callbackError;
-            },
-      );
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+  for (const failureMode of ["throws", "rejects"] as const) {
+    itBrokenOnReact18(
+      `preserves the controller error when onError ${failureMode}`,
+      async () => {
+        mocks.state = createPiThreadState("t1");
+        mocks.repository = ExportedMessageRepository.fromArray([]);
+        const controllerError = new Error("send failed");
+        const callbackError = new Error("telemetry failed");
+        mocks.controller.sendMessage.mockRejectedValueOnce(controllerError);
+        const onError = vi.fn(
+          failureMode === "throws"
+            ? () => {
+                throw callbackError;
+              }
+            : async () => {
+                throw callbackError;
+              },
+        );
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
 
-      const App = () => {
-        usePiRuntime({
-          client: {} as PiClient,
-          onError,
-          initialThreadId: "t1",
-        });
-        return null;
-      };
+        const App = () => {
+          usePiRuntime({
+            client: {} as PiClient,
+            onError,
+            initialThreadId: "t1",
+          });
+          return null;
+        };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+        root = createRoot(document.createElement("div"));
+        await act(async () => root!.render(createElement(App)));
 
-      const adapter = mocks.adapters.at(-1)!;
-      const message: AppendMessage = {
-        role: "user",
-        content: [{ type: "text", text: "hello" }],
-        createdAt: new Date(),
-        metadata: { custom: {} },
-        attachments: [],
-        parentId: null,
-        sourceId: null,
-        runConfig: undefined,
-      };
+        const adapter = mocks.adapters.at(-1)!;
+        const message: AppendMessage = {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          createdAt: new Date(),
+          metadata: { custom: {} },
+          attachments: [],
+          parentId: null,
+          sourceId: null,
+          runConfig: undefined,
+        };
 
-      await expect(adapter.onNew(message)).rejects.toBe(controllerError);
-      expect(onError).toHaveBeenCalledWith(controllerError);
-      await vi.waitFor(() =>
-        expect(consoleError).toHaveBeenCalledWith(
-          "[react-pi] onError callback threw an error",
-          callbackError,
-        ),
-      );
-    },
-  );
+        await expect(adapter.onNew(message)).rejects.toBe(controllerError);
+        expect(onError).toHaveBeenCalledWith(controllerError);
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-pi] onError callback threw an error",
+            callbackError,
+          ),
+        );
+      },
+    );
+  }
 });
 
 describe("usePiRuntime tool approvals", () => {
@@ -265,71 +286,83 @@ describe("usePiRuntime tool approvals", () => {
     return mocks.adapters.at(-1)!;
   };
 
-  it("answers the pending request the approval was projected from", async () => {
-    mocks.state = {
-      ...createPiThreadState("t1"),
-      hostUiRequests: [
-        {
-          id: "r1",
-          kind: "select",
-          title: "Deploy where?",
-          options: ["staging", "production"],
-          toolCallId: "tc1",
-        },
-      ],
-    } satisfies PiThreadState;
-    mocks.repository = ExportedMessageRepository.fromArray([]);
+  itBrokenOnReact18(
+    "answers the pending request the approval was projected from",
+    async () => {
+      mocks.state = {
+        ...createPiThreadState("t1"),
+        hostUiRequests: [
+          {
+            id: "r1",
+            kind: "select",
+            title: "Deploy where?",
+            options: ["staging", "production"],
+            toolCallId: "tc1",
+          },
+        ],
+      } satisfies PiThreadState;
+      mocks.repository = ExportedMessageRepository.fromArray([]);
 
-    const adapter = await renderRuntime();
-    await adapter.onRespondToToolApproval!({
-      approvalId: "r1",
-      approved: true,
-      optionId: "1",
-    });
+      const adapter = await renderRuntime();
+      await adapter.onRespondToToolApproval!({
+        approvalId: "r1",
+        approved: true,
+        optionId: "1",
+      });
 
-    expect(
-      mocks.controller.respondToHostUiRequest,
-    ).toHaveBeenCalledExactlyOnceWith({ requestId: "r1", value: "production" });
-  });
+      expect(
+        mocks.controller.respondToHostUiRequest,
+      ).toHaveBeenCalledExactlyOnceWith({
+        requestId: "r1",
+        value: "production",
+      });
+    },
+  );
 
-  it("rejects an answer once its request is no longer pending", async () => {
-    mocks.state = createPiThreadState("t1");
-    mocks.repository = ExportedMessageRepository.fromArray([]);
-    const onError = vi.fn();
+  itBrokenOnReact18(
+    "rejects an answer once its request is no longer pending",
+    async () => {
+      mocks.state = createPiThreadState("t1");
+      mocks.repository = ExportedMessageRepository.fromArray([]);
+      const onError = vi.fn();
 
-    const adapter = await renderRuntime(onError);
-    await expect(
-      adapter.onRespondToToolApproval!({ approvalId: "r1", approved: true }),
-    ).rejects.toThrow('No pending host-UI request "r1"');
+      const adapter = await renderRuntime(onError);
+      await expect(
+        adapter.onRespondToToolApproval!({ approvalId: "r1", approved: true }),
+      ).rejects.toThrow('No pending host-UI request "r1"');
 
-    expect(onError).toHaveBeenCalledOnce();
-    expect(mocks.controller.respondToHostUiRequest).not.toHaveBeenCalled();
-  });
+      expect(onError).toHaveBeenCalledOnce();
+      expect(mocks.controller.respondToHostUiRequest).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("usePiRuntime new-thread store", () => {
-  it("keeps the composer enabled while initialization has no remote ids", async () => {
-    mocks.threadListItem = {
-      id: "__LOCALID_new",
-      remoteId: undefined,
-      externalId: undefined,
-      status: "regular",
-    };
-    mocks.mainThreadId = "__LOCALID_new";
+  itBrokenOnReact18(
+    "keeps the composer enabled while initialization has no remote ids",
+    async () => {
+      mocks.threadListItem = {
+        id: "__LOCALID_new",
+        remoteId: undefined,
+        externalId: undefined,
+        status: "regular",
+      };
+      mocks.mainThreadId = "__LOCALID_new";
 
-    const client = {} as PiClient;
-    const App = () => {
-      usePiRuntime({ client });
-      return null;
-    };
+      const client = {} as PiClient;
+      const App = () => {
+        usePiRuntime({ client });
+        return null;
+      };
 
-    root = createRoot(document.createElement("div"));
-    await act(async () => root!.render(createElement(App)));
+      root = createRoot(document.createElement("div"));
+      await act(async () => root!.render(createElement(App)));
 
-    const adapter = mocks.adapters.at(-1)!;
-    expect(adapter.isDisabled).toBe(false);
-    expect(adapter.isLoading).toBe(false);
-  });
+      const adapter = mocks.adapters.at(-1)!;
+      expect(adapter.isDisabled).toBe(false);
+      expect(adapter.isLoading).toBe(false);
+    },
+  );
 });
 
 describe("usePiRuntime controller subscriptions", () => {
@@ -349,80 +382,98 @@ describe("usePiRuntime controller subscriptions", () => {
   // A metadata-only change (queue_update, agent_start, …) notifies the
   // metadata and all channels but never the message channel, so the store must
   // read state from the all channel, which fires with every notification.
-  it("republishes state on a metadata-only notification", async () => {
-    const initialState = createPiThreadState("t1");
-    mocks.state = initialState;
-    mocks.repository = ExportedMessageRepository.fromArray([]);
+  itBrokenOnReact18(
+    "republishes state on a metadata-only notification",
+    async () => {
+      const initialState = createPiThreadState("t1");
+      mocks.state = initialState;
+      mocks.repository = ExportedMessageRepository.fromArray([]);
 
-    const { renderCount } = await renderRuntime();
-    const rendersAfterMount = renderCount();
+      const { renderCount } = await renderRuntime();
+      const rendersAfterMount = renderCount();
 
-    const before = mocks.adapters.at(-1)!;
-    expect(before.isRunning).toBe(false);
-    expect(before.extras).toMatchObject({ state: initialState });
+      const before = mocks.adapters.at(-1)!;
+      expect(before.isRunning).toBe(false);
+      expect(before.extras).toMatchObject({ state: initialState });
 
-    const runningState = { ...initialState, runStatus: "running" as const };
-    await act(async () => {
-      mocks.state = runningState;
-      for (const listener of [...mocks.allListeners]) listener();
-    });
+      const runningState = { ...initialState, runStatus: "running" as const };
+      await act(async () => {
+        mocks.state = runningState;
+        for (const listener of [...mocks.allListeners]) listener();
+      });
 
-    const after = mocks.adapters.at(-1)!;
-    expect(after.isRunning).toBe(true);
-    expect(after.extras).toMatchObject({ state: runningState });
-    expect(renderCount()).toBe(rendersAfterMount + 1);
-  });
+      const after = mocks.adapters.at(-1)!;
+      expect(after.isRunning).toBe(true);
+      expect(after.extras).toMatchObject({ state: runningState });
+      expect(renderCount()).toBe(rendersAfterMount + 1);
+    },
+  );
 
-  it("publishes the snapshot, not the state running ahead of it", async () => {
-    const settled = createPiThreadState("t1");
-    mocks.state = settled;
-    mocks.repository = ExportedMessageRepository.fromArray([]);
+  itBrokenOnReact18(
+    "publishes the snapshot, not the state running ahead of it",
+    async () => {
+      const settled = createPiThreadState("t1");
+      mocks.state = settled;
+      mocks.repository = ExportedMessageRepository.fromArray([]);
 
-    await renderRuntime();
-    expect(mocks.adapters.at(-1)!.extras).toMatchObject({ state: settled });
+      await renderRuntime();
+      expect(mocks.adapters.at(-1)!.extras).toMatchObject({ state: settled });
 
-    // a coalesced message frame has reduced but not yet notified
-    mocks.liveState = { ...settled, runStatus: "running" as const };
-    await act(async () => {
-      for (const listener of [...mocks.allListeners]) listener();
-    });
+      // a coalesced message frame has reduced but not yet notified
+      mocks.liveState = { ...settled, runStatus: "running" as const };
+      await act(async () => {
+        for (const listener of [...mocks.allListeners]) listener();
+      });
 
-    expect(mocks.adapters.at(-1)!.isRunning).toBe(false);
-    expect(mocks.adapters.at(-1)!.extras).toMatchObject({ state: settled });
-  });
+      expect(mocks.adapters.at(-1)!.isRunning).toBe(false);
+      expect(mocks.adapters.at(-1)!.extras).toMatchObject({ state: settled });
+    },
+  );
 
-  it("republishes the repository on a message notification", async () => {
-    const initialRepository = ExportedMessageRepository.fromArray([]);
-    mocks.state = createPiThreadState("t1");
-    mocks.repository = initialRepository;
+  itBrokenOnReact18(
+    "republishes the repository on a message notification",
+    async () => {
+      const initialRepository = ExportedMessageRepository.fromArray([]);
+      mocks.state = createPiThreadState("t1");
+      mocks.repository = initialRepository;
 
-    await renderRuntime();
-    expect(mocks.adapters.at(-1)!.messageRepository).toBe(initialRepository);
+      await renderRuntime();
+      expect(mocks.adapters.at(-1)!.messageRepository).toBe(initialRepository);
 
-    const nextRepository = ExportedMessageRepository.fromArray([]);
-    await act(async () => {
-      mocks.repository = nextRepository;
-      for (const listener of [...mocks.messageListeners, ...mocks.allListeners])
-        listener();
-    });
+      const nextRepository = ExportedMessageRepository.fromArray([]);
+      await act(async () => {
+        mocks.repository = nextRepository;
+        for (const listener of [
+          ...mocks.messageListeners,
+          ...mocks.allListeners,
+        ])
+          listener();
+      });
 
-    expect(mocks.adapters.at(-1)!.messageRepository).toBe(nextRepository);
-  });
+      expect(mocks.adapters.at(-1)!.messageRepository).toBe(nextRepository);
+    },
+  );
 
-  it("leaves the store untouched when nothing on the controller changed", async () => {
-    mocks.state = createPiThreadState("t1");
-    mocks.repository = ExportedMessageRepository.fromArray([]);
+  itBrokenOnReact18(
+    "leaves the store untouched when nothing on the controller changed",
+    async () => {
+      mocks.state = createPiThreadState("t1");
+      mocks.repository = ExportedMessageRepository.fromArray([]);
 
-    await renderRuntime();
-    const before = mocks.adapters.at(-1)!;
+      await renderRuntime();
+      const before = mocks.adapters.at(-1)!;
 
-    await act(async () => {
-      for (const listener of [...mocks.messageListeners, ...mocks.allListeners])
-        listener();
-    });
+      await act(async () => {
+        for (const listener of [
+          ...mocks.messageListeners,
+          ...mocks.allListeners,
+        ])
+          listener();
+      });
 
-    expect(mocks.adapters.at(-1)!).toBe(before);
-  });
+      expect(mocks.adapters.at(-1)!).toBe(before);
+    },
+  );
 });
 
 const publishableController = () => {

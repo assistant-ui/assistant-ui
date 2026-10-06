@@ -1,6 +1,7 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import type { ReactNode } from "react";
+import { A2uiPresentRenderer } from "./a2ui/PresentRenderer";
 import { AnsweredValuesProvider, findAnsweredValues } from "./answeredValues";
 import { buildPresentParameters } from "./buildPresentParameters";
 import {
@@ -63,6 +64,7 @@ export class JSONGenerativeUI {
       addResult,
       result,
       toolCallId,
+      artifact,
       unstable_recordInteraction,
       unstable_interactions,
     }: ToolCallMessagePartProps<Record<string, unknown>, any>,
@@ -104,10 +106,31 @@ export class JSONGenerativeUI {
           }
         : undefined;
 
-    const rendered = renderGenerativeUI(args, this.library, {
-      status: uiStatus(status, args),
-      ...(dispatch ? { dispatch } : {}),
-    });
+    const artifactValue =
+      artifact !== null && typeof artifact === "object"
+        ? (artifact as Record<string, unknown>)["a2ui"]
+        : undefined;
+    const surfaceId =
+      typeof toolCallId === "string" && toolCallId.startsWith("a2ui:")
+        ? toolCallId.slice("a2ui:".length)
+        : undefined;
+    const rendered =
+      surfaceId && Array.isArray(artifactValue) ? (
+        <A2uiPresentRenderer
+          key={surfaceId}
+          surfaceId={surfaceId}
+          operations={artifactValue}
+          fallback={args}
+          library={this.library}
+          status={uiStatus(status, args)}
+          {...(dispatch ? { dispatch } : {})}
+        />
+      ) : (
+        renderGenerativeUI(args, this.library, {
+          status: uiStatus(status, args),
+          ...(dispatch ? { dispatch } : {}),
+        })
+      );
 
     return (
       <div data-aui="root">

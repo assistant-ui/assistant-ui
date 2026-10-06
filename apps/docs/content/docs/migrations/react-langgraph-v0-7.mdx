@@ -216,18 +216,10 @@ type NewLangGraphRuntimeOptions = {
 };
 ```
 
-## Benefits of the New API
-
-1. **Simpler Setup**: No need for multiple runtime hooks and wrappers
-2. **Cleaner Code**: All configuration in one place
-3. **Better Type Safety**: More explicit types for thread management
-4. **Automatic Thread Handling**: The runtime manages thread lifecycle internally
-5. **Optional Cloud Integration**: Add cloud persistence with a single parameter
-
 ## Common Migration Issues
 
 <Callout type="warning">
-  **Breaking Change**: The `threadId` and `onSwitchToNewThread` parameters are no longer supported. Use the new `create` and `load` methods instead.
+  **Breaking Change**: v0.7 removed the `threadId` and `onSwitchToNewThread` parameters. Use the `create` and `load` methods instead. Later releases accept `threadId` again, as the ID of the thread to display.
 </Callout>
 
 ### Issue: `threadListItemRuntime` is not defined
