@@ -3,11 +3,17 @@ import {
   useActionBarCopy,
   type UseActionBarCopyOptions,
 } from "@assistant-ui/core/react";
-import { Pressable, type PressableProps } from "../internal/Pressable";
+import {
+  Pressable,
+  type PressableProps,
+  type PressableState,
+} from "../internal/Pressable";
 
 export type ActionBarCopyProps = Omit<PressableProps, "onPress" | "children"> &
   UseActionBarCopyOptions & {
-    children: ReactNode | ((props: { isCopied: boolean }) => ReactNode);
+    children:
+      | ReactNode
+      | ((props: PressableState & { isCopied: boolean }) => ReactNode);
   };
 
 export const ActionBarCopy = ({
@@ -28,7 +34,9 @@ export const ActionBarCopy = ({
       disabled={disabledProp ?? disabled}
       {...pressableProps}
     >
-      {typeof children === "function" ? children({ isCopied }) : children}
+      {typeof children === "function"
+        ? (state) => children({ ...state, isCopied })
+        : children}
     </Pressable>
   );
 };

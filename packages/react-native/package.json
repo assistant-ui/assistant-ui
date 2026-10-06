@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-native",
-  "version": "0.1.45",
+  "version": "0.1.46",
   "description": "React Native bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -40,11 +40,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/core": "^0.3.24",
     "@assistant-ui/store": "^0.3.17",
     "@assistant-ui/tap": "^0.9.21",
     "assistant-cloud": "workspace:^",
-    "assistant-stream": "^0.3.47"
+    "assistant-stream": "^0.3.48"
   },
   "peerDependencies": {
     "@types/react": "*",

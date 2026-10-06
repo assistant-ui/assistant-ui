@@ -317,6 +317,81 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("updates and removes UI data on the affected parent message", async () => {
+    const releaseUpdate = deferred<void>();
+    const releaseRemoval = deferred<void>();
+    const streamMock = vi.fn().mockImplementation(async function* () {
+      yield {
+        event: "messages",
+        data: [{ type: "ai", id: "ai-1", content: "Chart" }, {}],
+      };
+      yield {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { value: 1 },
+          metadata: { message_id: "ai-1" },
+        },
+      };
+      await releaseUpdate.promise;
+      yield {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { value: 2 },
+          metadata: { message_id: "ai-1" },
+        },
+      };
+      await releaseRemoval.promise;
+      yield {
+        event: "custom",
+        data: { type: "remove-ui", id: "ui-1" },
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({ stream: streamMock }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    act(() => {
+      auiResult.current.composer.setText("show a chart");
+      void auiResult.current.composer.send();
+    });
+
+    const getAssistantContent = () =>
+      runtimeResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === "ai-1")?.content;
+
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+        { type: "data", name: "chart", data: { value: 1 } },
+      ]);
+    });
+
+    act(() => releaseUpdate.resolve());
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+        { type: "data", name: "chart", data: { value: 2 } },
+      ]);
+    });
+
+    act(() => releaseRemoval.resolve());
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+      ]);
+    });
+  });
+
   it("should work without any provided callbacks", async () => {
     const streamMock = vi
       .fn()
@@ -685,6 +760,65 @@ describe("useLangGraphRuntime", () => {
     });
 
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
+  });
+
+  it("resumes the graph with a frontend tool result on loaded history whose tool_calls hold a null entry", async () => {
+    const load = vi.fn(async () => ({
+      messages: [
+        { id: "human-1", type: "human" as const, content: "weather?" },
+        {
+          id: "ai-1",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            null,
+            { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+          ],
+        } as unknown as LangChainMessage,
+      ],
+    }));
+    const streamMock = vi.fn(async function* (
+      _messages: LangChainMessage[],
+    ) {});
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
+    await waitFor(() =>
+      expect(
+        auiResult.current.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content),
+      ).toContainEqual(
+        expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+      ),
+    );
+
+    act(() => {
+      runtimeResult.current.thread
+        .getMessageById("ai-1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temperature: 72 });
+    });
+
+    await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+    expect(streamMock.mock.calls[0]?.[0]).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        content: JSON.stringify({ temperature: 72 }),
+      },
+    ]);
   });
 
   it("keeps the streamed version when the load returns the same message id", async () => {

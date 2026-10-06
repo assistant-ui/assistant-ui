@@ -407,6 +407,55 @@ export const shallowArrayEqual = (
   return true;
 };
 
+export type ExternalMessageMetadataKeySelector<TMessage> = {
+  select: (
+    message: TMessage,
+    metadata: ExternalMessageConverterMetadata,
+  ) => unknown;
+  isEqual?: (previous: unknown, current: unknown) => boolean;
+};
+
+type ExternalMessageMetadataKeyEntry = {
+  values: readonly unknown[];
+  key: object;
+};
+
+const EMPTY_METADATA_KEY = Object.freeze({});
+
+export const createExternalMessageMetadataKey = <TMessage extends WeakKey>(
+  selectors: readonly ExternalMessageMetadataKeySelector<TMessage>[],
+) => {
+  const cache = new WeakMap<TMessage, ExternalMessageMetadataKeyEntry>();
+
+  return (
+    message: TMessage,
+    metadata: ExternalMessageConverterMetadata,
+  ): object => {
+    const values = selectors.map((selector) =>
+      selector.select(message, metadata),
+    );
+    if (values.every((value) => value === undefined)) {
+      return EMPTY_METADATA_KEY;
+    }
+
+    const cached = cache.get(message);
+    if (
+      cached &&
+      selectors.every((selector, index) =>
+        selector.isEqual
+          ? selector.isEqual(cached.values[index], values[index])
+          : Object.is(cached.values[index], values[index]),
+      )
+    ) {
+      return cached.key;
+    }
+
+    const entry = { values, key: {} };
+    cache.set(message, entry);
+    return entry.key;
+  };
+};
+
 type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
@@ -414,7 +463,7 @@ type ExternalMessageChunkConversionCache = {
 
 type ExternalMessageConversionCallbackCacheEntry<T> =
   ExternalMessageConverterCallbackResult<T> & {
-    metadata: ExternalMessageConverterMetadata;
+    metadataKey: unknown;
     callback: ExternalMessageConverterCallback<T>;
   };
 
@@ -561,17 +610,24 @@ export const convertExternalMessages = <T extends WeakKey>(
   metadata: ExternalMessageConverterMetadata,
   joinStrategy?: JoinStrategy,
   cache?: InternalExternalMessageConversionCache<T>,
+  getMetadataKey?: (
+    message: T,
+    metadata: ExternalMessageConverterMetadata,
+  ) => unknown,
 ) => {
   const callbackResults = messages.map((message) => {
+    const metadataKey = getMetadataKey
+      ? getMetadataKey(message, metadata)
+      : metadata;
     let result = cache?.callbackCache.get(message);
     if (
       !result ||
-      result.metadata !== metadata ||
+      !Object.is(result.metadataKey, metadataKey) ||
       result.callback !== callback
     ) {
       result = {
         ...convertExternalMessageCallback(message, callback, metadata),
-        metadata,
+        metadataKey,
         callback,
       };
       cache?.callbackCache.set(message, result);
