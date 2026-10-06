@@ -90,7 +90,7 @@ export function CreateDialog({
                     3. Copy code
                   </div>
                   <p className="text-muted-foreground">
-                    Copy the code from the{" "}
+                    Paste thread.aui.tsx from the{" "}
                     <button
                       type="button"
                       onClick={handleOpenCodeView}
@@ -98,7 +98,8 @@ export function CreateDialog({
                     >
                       Code view
                     </button>{" "}
-                    into your thread.tsx
+                    over components/assistant-ui/elements/thread.aui.tsx, and
+                    its CSS variables into your global CSS.
                   </p>
                 </div>
               </div>
@@ -265,7 +266,8 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
       },
       {
         label: "Copy code",
-        description: "Copy the code from the Code view into your thread.tsx",
+        description:
+          "Paste thread.aui.tsx from the Code view over components/assistant-ui/elements/thread.aui.tsx, and its CSS variables into your global CSS.",
       },
     ],
     summary,
