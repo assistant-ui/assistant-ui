@@ -163,38 +163,50 @@ describe("ConversationMapAui", () => {
     expect(ticks()[0]?.getAttribute("aria-description")).toBe("New preview");
   });
 
-  it("does not resummarize earlier turns during a streaming update", async () => {
+  it("does not reproject completed turns during a streaming update", async () => {
     let reads = 0;
     const counted = (
       id: string,
       role: "user" | "assistant",
       value: string,
     ) => ({
-      id,
-      role,
       attachments: [],
+      get id() {
+        reads++;
+        return id;
+      },
+      get role() {
+        reads++;
+        return role;
+      },
       get content() {
         reads++;
         return [text(value)];
       },
     });
-    const prefix = [
-      counted("u1", "user", "First"),
-      counted("a1", "assistant", "Answer"),
-      counted("u2", "user", "Second"),
+    const prefix = Array.from({ length: 100 }, (_, index) => [
+      counted(`u${index}`, "user", `Question ${index}`),
+      counted(`a${index}`, "assistant", `Answer ${index}`),
+    ]).flat();
+    const tail = message("tail", "user", [text("Tail question")]);
+    h.messages = [
+      ...prefix,
+      tail,
+      message("stream", "assistant", [text("Old")]),
     ];
-    h.messages = [...prefix, message("a2", "assistant", [text("Old")])];
     await render();
 
     reads = 0;
-    h.messages = [...prefix, message("a2", "assistant", [text("New")])];
+    h.messages = [
+      ...prefix,
+      tail,
+      message("stream", "assistant", [text("New")]),
+    ];
     await render();
 
     expect(reads).toBe(0);
-    expect(ticks().map((tick) => tick.getAttribute("aria-label"))).toEqual([
-      "First",
-      "Second",
-    ]);
+    expect(ticks()).toHaveLength(101);
+    expect(ticks().at(-1)?.getAttribute("aria-label")).toBe("Tail question");
   });
 
   it("draws one tick per turn, titled by the question and previewed by the answer", async () => {

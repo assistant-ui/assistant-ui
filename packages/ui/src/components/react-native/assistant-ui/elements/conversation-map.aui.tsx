@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { type ThreadMessage, useAuiState } from "@assistant-ui/react-native";
-import { type FC, useMemo } from "react";
+import { type FC, useRef } from "react";
 import { View } from "react-native";
 import { ConversationMap, type ConversationMapEntry } from "./conversation-map";
 import { useThreadViewport } from "./thread.aui";
@@ -102,21 +102,132 @@ const summaryOf = (message: ThreadMessage) => {
 type Turn = {
   head: ThreadMessage;
   members: ThreadMessage[];
+  endIndex: number;
 };
 
-const groupIntoTurns = (messages: readonly ThreadMessage[]) => {
-  const turns: Turn[] = [];
-  for (const message of messages) {
-    if (message.role !== "user" && message.role !== "assistant") continue;
-    const current = turns.at(-1);
-    if (message.role === "user" || !current) {
-      turns.push({ head: message, members: [message] });
-    } else {
-      current.members.push(message);
+type ConversationProjection = {
+  messages: readonly ThreadMessage[];
+  turns: readonly Turn[];
+  entries: readonly ConversationMapEntry[];
+  turnOf: ReadonlyMap<string, string>;
+};
+
+const hasSameStructure = (
+  previous: ConversationProjection,
+  turns: readonly Turn[],
+  reusableTurns: number,
+) => {
+  if (previous.turns.length !== turns.length) return false;
+
+  for (let index = reusableTurns; index < turns.length; index++) {
+    const before = previous.turns[index]!;
+    const after = turns[index]!;
+    if (before.head.id !== after.head.id) return false;
+    if (before.members.length !== after.members.length) return false;
+    for (
+      let memberIndex = 0;
+      memberIndex < after.members.length;
+      memberIndex++
+    ) {
+      if (before.members[memberIndex]!.id !== after.members[memberIndex]!.id) {
+        return false;
+      }
     }
   }
-  return turns;
+
+  return true;
 };
+
+const projectConversation = (
+  messages: readonly ThreadMessage[],
+  previous: ConversationProjection | undefined,
+): ConversationProjection => {
+  let firstChanged = 0;
+  if (previous) {
+    const sharedLength = Math.min(previous.messages.length, messages.length);
+    while (
+      firstChanged < sharedLength &&
+      previous.messages[firstChanged] === messages[firstChanged]
+    ) {
+      firstChanged++;
+    }
+
+    if (
+      firstChanged === messages.length &&
+      messages.length === previous.messages.length
+    ) {
+      return { ...previous, messages };
+    }
+  }
+
+  let reusableTurns = 0;
+  if (previous) {
+    while (
+      reusableTurns < previous.turns.length &&
+      previous.turns[reusableTurns]!.endIndex < firstChanged
+    ) {
+      reusableTurns++;
+    }
+
+    const hasAffectedTurn = reusableTurns < previous.turns.length;
+    for (let index = firstChanged; index < messages.length; index++) {
+      const role = messages[index]!.role;
+      if (role !== "user" && role !== "assistant") continue;
+      if (role === "assistant" && reusableTurns > 0 && !hasAffectedTurn) {
+        reusableTurns--;
+      }
+      break;
+    }
+  }
+
+  const startIndex =
+    previous && reusableTurns > 0
+      ? previous.turns[reusableTurns - 1]!.endIndex + 1
+      : 0;
+  const turns = previous
+    ? previous.turns.slice(0, reusableTurns)
+    : ([] as Turn[]);
+
+  for (let index = startIndex; index < messages.length; index++) {
+    const message = messages[index]!;
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    const current = turns.at(-1);
+    if (message.role === "user" || !current || turns.length === reusableTurns) {
+      turns.push({ head: message, members: [message], endIndex: index });
+    } else {
+      current.members.push(message);
+      current.endIndex = index;
+    }
+  }
+
+  const entries = previous
+    ? previous.entries.slice(0, reusableTurns)
+    : ([] as ConversationMapEntry[]);
+  for (let index = reusableTurns; index < turns.length; index++) {
+    entries.push(describe(turns[index]!));
+  }
+
+  if (previous && hasSameStructure(previous, turns, reusableTurns)) {
+    return { messages, turns, entries, turnOf: previous.turnOf };
+  }
+
+  const turnOf = new Map<string, string>();
+  for (const turn of turns) {
+    for (const member of turn.members) turnOf.set(member.id, turn.head.id);
+  }
+
+  return { messages, turns, entries, turnOf };
+};
+
+function useConversationProjection(messages: readonly ThreadMessage[]) {
+  const cacheRef = useRef<ConversationProjection | undefined>(undefined);
+  const cached = cacheRef.current;
+  if (cached?.messages === messages) return cached;
+
+  const projection = projectConversation(messages, cached);
+  cacheRef.current = projection;
+  return projection;
+}
 
 const describe = ({ head, members }: Turn): ConversationMapEntry => {
   const headSummary = summaryOf(head);
@@ -153,17 +264,7 @@ export const ConversationMapAui: FC<ConversationMapAuiProps> = ({
   const { visibleMessageIds, descent, height, top, scrollToMessage } =
     useThreadViewport();
 
-  const turns = useMemo(() => groupIntoTurns(messages), [messages]);
-  const entries = useMemo(() => turns.map(describe), [turns]);
-
-  /** Which turn each message belongs to, so a message on screen marks its turn. */
-  const turnOf = useMemo(() => {
-    const owners = new Map<string, string>();
-    for (const turn of turns) {
-      for (const member of turn.members) owners.set(member.id, turn.head.id);
-    }
-    return owners;
-  }, [turns]);
+  const { entries, turnOf } = useConversationProjection(messages);
 
   const visibleIds: string[] = [];
   for (const id of visibleMessageIds) {
