@@ -107,7 +107,7 @@ An all accepted export returns `{}`. An export with rejected spans still returns
 }
 ```
 
-When the receiver has no individual error text, `errorMessage` is `"<n> spans were rejected"`. Use this response rather than assuming that `200` means every span became a run.
+When the receiver has no individual error text, `errorMessage` is `"<n> spans were rejected"`. Check `partialSuccess` in the response: a `200` does not mean every span became a run.
 
 ## How spans become runs
 
