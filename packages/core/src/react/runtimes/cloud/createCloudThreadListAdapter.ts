@@ -1,6 +1,6 @@
 declare const process: { env: Record<string, string | undefined> };
 
-import { type RefObject, useInsertionEffect, useMemo, useState } from "react";
+import { type RefObject, useMemo, useState } from "react";
 import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
@@ -81,27 +81,17 @@ export const createCommittedScopeRef = (
 
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
-  scopeRef?: RefObject<unknown>,
+  scopeRef: CommittedScopeRef,
 ): RuntimeAdapters => {
-  const scope = scopeRef?.current ?? DEFAULT_CLOUD_SCOPE;
-  const inheritedScopeRef =
-    scopeRef && "update" in scopeRef && "subscribe" in scopeRef
-      ? (scopeRef as CommittedScopeRef)
-      : undefined;
-  const [ownedScopeRef] = useState(() => createCommittedScopeRef(scope));
-  const committedScopeRef = inheritedScopeRef ?? ownedScopeRef;
-  useInsertionEffect(() => {
-    if (!inheritedScopeRef) ownedScopeRef.update(scope);
-  }, [inheritedScopeRef, ownedScopeRef, scope]);
   const history = useScopedAssistantCloudThreadHistoryAdapter(
     cloudRef,
-    committedScopeRef,
+    scopeRef,
   );
   const [attachments] = useState(() =>
     createScopedCloudFileAttachmentAdapter(
       () => cloudRef.current,
-      () => committedScopeRef.current,
-      (listener) => committedScopeRef.subscribe(listener),
+      () => scopeRef.current,
+      (listener) => scopeRef.subscribe(listener),
     ),
   );
   return useMemo(
@@ -178,7 +168,9 @@ export const createCloudThreadListAdapter = (
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
     const cloudRef = { current: cloud };
-    const scopeRef = { current: scopeId };
+    const [scopeRef] = useState(() =>
+      createCommittedScopeRef(scopeId ?? DEFAULT_CLOUD_SCOPE),
+    );
     return useCloudRuntimeAdapters(cloudRef, scopeRef);
   };
 

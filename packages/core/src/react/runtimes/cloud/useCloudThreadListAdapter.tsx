@@ -7,6 +7,7 @@ import {
   type CloudThreadListAdapterOptions,
   useCloudRuntimeAdapters,
 } from "./createCloudThreadListAdapter";
+import { DEFAULT_CLOUD_SCOPE } from "./AssistantCloudThreadHistoryAdapter";
 
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
@@ -17,10 +18,12 @@ export const useCloudThreadListAdapter = (
       return adapterRef.current.cloud ?? autoCloud!;
     },
   }));
-  const [scopeRef] = useState(() => createCommittedScopeRef(adapter.scopeId));
+  const [scopeRef] = useState(() =>
+    createCommittedScopeRef(adapter.scopeId ?? DEFAULT_CLOUD_SCOPE),
+  );
   useInsertionEffect(() => {
     adapterRef.current = adapter;
-    scopeRef.update(adapter.scopeId);
+    scopeRef.update(adapter.scopeId ?? DEFAULT_CLOUD_SCOPE);
   }, [adapter, scopeRef]);
   const [unstable_useAdapters] = useState(
     () =>
