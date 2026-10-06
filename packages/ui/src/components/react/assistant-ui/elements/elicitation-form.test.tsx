@@ -42,7 +42,7 @@ describe("ElicitationForm", () => {
 
     render(<EditableForm />);
 
-    const repo = screen.getByRole("textbox", { name: "Repository*" });
+    const repo = screen.getByRole("textbox", { name: /^Repository/ });
     const send = screen.getByRole("button", {
       name: "Send",
     }) as HTMLButtonElement;
@@ -60,6 +60,33 @@ describe("ElicitationForm", () => {
     expect(send.disabled).toBe(false);
     fireEvent.click(send);
     expect(onAccept).toHaveBeenCalledOnce();
+  });
+
+  it("disables Send while a required choice has no selection", () => {
+    const choice = (value: string): ElicitationField => ({
+      name: "visibility",
+      label: "Visibility",
+      value,
+      kind: "choice",
+      options: ["public", "private"],
+      required: true,
+    });
+    const props = {
+      server: "GitHub",
+      message: "Choose a visibility",
+      state: "request" as const,
+      onFieldChange: () => {},
+    };
+    const { rerender } = render(
+      <ElicitationForm {...props} fields={[choice("")]} />,
+    );
+    const send = screen.getByRole("button", {
+      name: "Send",
+    }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+
+    rerender(<ElicitationForm {...props} fields={[choice("private")]} />);
+    expect(send.disabled).toBe(false);
   });
 
   it("keeps Send enabled for read-only requests with blank required text", () => {

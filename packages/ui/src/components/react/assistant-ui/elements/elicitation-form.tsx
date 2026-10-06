@@ -72,11 +72,11 @@ export function ElicitationForm({
 }) {
   const fieldPrefix = useId();
   const interactive = state === "request" && onFieldChange !== undefined;
-  const missingRequiredText =
+  const missingRequired =
     interactive &&
     fields.some(
       (item) =>
-        item.kind === "text" &&
+        item.kind !== "toggle" &&
         item.required === true &&
         item.value.trim() === "",
     );
@@ -145,7 +145,7 @@ export function ElicitationForm({
                         aria-pressed={option === item.value}
                         onClick={() => onFieldChange(item.name, option)}
                         className={cn(
-                          "rounded-full px-2.5 py-1 text-xs transition-colors",
+                          "focus-visible:ring-foreground/20 rounded-full px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-1",
                           option === item.value
                             ? "bg-foreground text-background"
                             : cn(field, "text-foreground/55"),
@@ -181,7 +181,7 @@ export function ElicitationForm({
                         item.value === "true" ? "false" : "true",
                       )
                     }
-                    className="flex w-fit items-center gap-2"
+                    className="focus-visible:ring-foreground/20 flex w-fit items-center gap-2 rounded-lg outline-none focus-visible:ring-1"
                   >
                     <Toggle value={item.value} />
                   </button>
@@ -231,7 +231,7 @@ export function ElicitationForm({
             <button
               type="button"
               onClick={onAccept}
-              disabled={missingRequiredText}
+              disabled={missingRequired}
               className={cn(
                 inkButton,
                 "flex h-8 items-center rounded-full px-3.5 text-xs font-medium disabled:pointer-events-none disabled:opacity-40",
