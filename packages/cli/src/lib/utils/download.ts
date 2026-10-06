@@ -44,11 +44,14 @@ export async function withStagedDownload<T>(
       clearTimeout(timer!);
     }
   } finally {
-    if (!download || settled) {
-      await cleanup();
-    } else {
-      void download.then(cleanup, cleanup);
+    try {
+      if (!download || settled) {
+        await cleanup();
+      } else {
+        void download.then(cleanup, cleanup);
+      }
+    } finally {
+      if (origDebug !== undefined) process.env.DEBUG = origDebug;
     }
-    if (origDebug !== undefined) process.env.DEBUG = origDebug;
   }
 }
