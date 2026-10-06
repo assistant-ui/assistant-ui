@@ -53,7 +53,7 @@ The provider token callback returns the JWT you configured the rule to verify. T
 <Tabs items={["Clerk", "Auth0", "Supabase", "Firebase", "Custom"]}>
 <Tab value="Clerk">
 
-Create a Clerk JWT template named `assistant-ui` with `{ "aud": "assistant-ui" }`. Set the rule's issuer, JWKS endpoint, and audience to the template values.
+Create a Clerk JWT template named `assistant-ui` with `{ "aud": "assistant-ui" }`. Set the rule's issuer, JWKS endpoint, and audience to the template values. `getToken` keeps its identity when the user or organization changes, so key the client to Clerk's `userId` and `orgId`.
 
 ```tsx title="use-cloud.ts"
 "use client";
@@ -63,13 +63,15 @@ import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "@assistant-ui/react";
 
 function useCloud() {
-  const { getToken } = useAuth();
+  const { getToken, userId, orgId } = useAuth();
+  const identity = userId ? `${userId}:${orgId ?? ""}` : null;
   return useMemo(
     () => new AssistantCloud({
       baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-      authToken: () => getToken({ template: "assistant-ui" }),
+      authToken: async () =>
+        identity ? getToken({ template: "assistant-ui" }) : null,
     }),
-    [getToken],
+    [getToken, identity],
   );
 }
 ```
@@ -77,7 +79,7 @@ function useCloud() {
 </Tab>
 <Tab value="Auth0">
 
-Set the rule issuer to your Auth0 domain, its JWKS endpoint to `/.well-known/jwks.json`, and the audience to your API audience.
+Set the rule issuer to your Auth0 domain, its JWKS endpoint to `/.well-known/jwks.json`, and the audience to your API audience. `getAccessTokenSilently` keeps its identity across users, so key the client to the signed-in user's `sub`.
 
 ```tsx title="use-cloud.ts"
 "use client";
@@ -87,13 +89,14 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { AssistantCloud } from "@assistant-ui/react";
 
 function useCloud() {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
+  const userId = user?.sub;
   return useMemo(
     () => new AssistantCloud({
       baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-      authToken: () => getAccessTokenSilently(),
+      authToken: async () => (userId ? getAccessTokenSilently() : null),
     }),
-    [getAccessTokenSilently],
+    [getAccessTokenSilently, userId],
   );
 }
 ```
