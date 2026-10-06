@@ -357,7 +357,16 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
       return <EmptyParts components={components} />;
     }
 
-    const leafComponents = { ...defaultComponents, ...components };
+    const leafComponents = {
+      ...components,
+      Text: components?.Text ?? defaultComponents.Text,
+      Reasoning: components?.Reasoning ?? defaultComponents.Reasoning,
+      Image: components?.Image ?? defaultComponents.Image,
+      Source: components?.Source ?? defaultComponents.Source,
+      File: components?.File ?? defaultComponents.File,
+      Unstable_Audio:
+        components?.Unstable_Audio ?? defaultComponents.Unstable_Audio,
+    };
 
     return messageGroups.map((group, groupIndex) => {
       const GroupComponent = components?.Group ?? defaultComponents.Group;
