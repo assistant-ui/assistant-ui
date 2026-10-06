@@ -14,8 +14,7 @@ on:
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
       - "scripts/update-api-surface.test.mjs"
-      - "scripts/lib/changed-files.mjs"
-      - "scripts/lib/changed-files.test.mjs"
+      - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -41,7 +40,6 @@ on:
       - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
@@ -67,8 +65,7 @@ on:
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
       - "scripts/update-api-surface.test.mjs"
-      - "scripts/lib/changed-files.mjs"
-      - "scripts/lib/changed-files.test.mjs"
+      - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -94,7 +91,6 @@ on:
       - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
@@ -158,6 +154,9 @@ jobs:
         with:
           runtime: node@24
           install: false
+
+      - name: Test the shared script helpers
+        run: node --test scripts/lib/*.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs

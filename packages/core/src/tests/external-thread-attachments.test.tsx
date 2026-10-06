@@ -300,6 +300,26 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("does not dispatch an empty message when the only attachment is removed while it is prepared, keeping its quote", async () => {
+    const { composer, successfulUpload, onNew } = setupPartialSend();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().setQuote({ text: "quoted", messageId: "m-1" });
+    });
+    await act(async () => composer().send());
+    await act(async () => {
+      await composer().attachment({ id: "a" }).remove();
+      successfulUpload.resolve();
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(composer().getState().submission).toBeUndefined();
+    expect(composer().getState().attachments).toEqual([]);
+    expect(composer().getState().quote).toEqual({
+      text: "quoted",
+      messageId: "m-1",
+    });
+  });
+
   it("renders in-flight submission attachments as a thread message", async () => {
     const { aui, composer, successfulUpload, failedUpload, onNew } =
       setupPartialSend();

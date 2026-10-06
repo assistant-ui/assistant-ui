@@ -26,12 +26,19 @@
     "./code-fence": {
       "types": "./dist/code-fence.d.ts",
       "default": "./dist/code-fence.js"
+    },
+    "./preprocess": {
+      "types": "./dist/preprocess.d.ts",
+      "default": "./dist/preprocess.js"
     }
   },
   "typesVersions": {
     "*": {
       "code-fence": [
         "./dist/code-fence.d.ts"
+      ],
+      "preprocess": [
+        "./dist/preprocess.d.ts"
       ]
     }
   },
