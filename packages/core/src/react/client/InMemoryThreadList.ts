@@ -187,6 +187,7 @@ const useInMemoryThreadList = (
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
+    if (!threads.some((thread) => thread.id === threadId)) return;
     setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
@@ -321,7 +322,7 @@ const useInMemoryThreadList = (
     item: (selector) => {
       if (selector === "main") {
         const index = threads.findIndex((t) => t.id === mainThreadId);
-        return threadListItems.get({ index: index === -1 ? 0 : index });
+        return threadListItems.get({ index });
       }
       if ("id" in selector) {
         const index = threads.findIndex((t) => t.id === selector.id);

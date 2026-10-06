@@ -105,6 +105,7 @@ const setupPendingAttachmentSend = async () => {
 
 const setup = () => {
   const selectionChanged = vi.fn();
+  const onSwitchToThread = vi.fn();
   let aui!: ReturnType<typeof useAui>;
   const Consumer = () => {
     useAuiEvent("threads.selectionChanged" as never, selectionChanged as never);
@@ -114,6 +115,7 @@ const setup = () => {
     aui = useAui({
       threads: InMemoryThreadList({
         thread: (threadId) => StubThread({ threadId }) as never,
+        onSwitchToThread,
       }),
     } as never);
     return (
@@ -123,7 +125,7 @@ const setup = () => {
     );
   };
   render(<Harness />);
-  return { getAui: () => aui, selectionChanged };
+  return { getAui: () => aui, onSwitchToThread, selectionChanged };
 };
 
 describe("InMemoryThreadList selection events", () => {
@@ -233,6 +235,36 @@ describe("InMemoryThreadList selection events", () => {
       threadId: "main",
       previousThreadId: newThreadId,
     });
+  });
+
+  it("ignores switches to an unknown thread id", async () => {
+    const { getAui, onSwitchToThread, selectionChanged } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    await act(async () => {});
+
+    const selectedId = getAui().threads.getState().mainThreadId;
+    selectionChanged.mockClear();
+
+    await act(async () => {
+      getAui().threads.switchToThread("missing");
+    });
+    await act(async () => {});
+
+    expect(getAui().threads.getState().mainThreadId).toBe(selectedId);
+    expect(getAui().threads.item("main").getState().id).toBe(selectedId);
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+    expect(selectionChanged).not.toHaveBeenCalled();
+
+    await act(async () => {
+      getAui().threads.item("main").rename("Selected thread");
+    });
+    expect(getAui().threads.item({ id: selectedId }).getState().title).toBe(
+      "Selected thread",
+    );
   });
 
   it("emits when deleting the selected thread falls back to another", async () => {
