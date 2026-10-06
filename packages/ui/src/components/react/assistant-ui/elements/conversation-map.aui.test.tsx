@@ -1,4 +1,10 @@
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ConversationMapAui } from "./conversation-map.aui";
@@ -106,6 +112,18 @@ afterEach(() => {
 });
 
 describe("ConversationMapAui", () => {
+  it("updates the preview when a message is replaced with the same id", async () => {
+    mocks.state.thread.messages = [user("u1", "Question\nOld preview")];
+    const { rerender } = render(<ConversationMapAui />);
+
+    mocks.state.thread.messages = [user("u1", "Question\nNew preview")];
+    rerender(<ConversationMapAui />);
+    fireEvent.focus(ticks()[0]!);
+
+    expect(await screen.findByText("New preview")).toBeTruthy();
+    expect(screen.queryByText("Old preview")).toBeNull();
+  });
+
   it("does not resummarize earlier turns during a streaming update", () => {
     let reads = 0;
     const content = [{ type: "text", text: "First" }];
