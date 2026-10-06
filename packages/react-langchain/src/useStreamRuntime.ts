@@ -39,9 +39,11 @@ import type {
 import { getMessageModality, groupUIMessagesByParent } from "./converter";
 export { groupUIMessagesByParent } from "./converter";
 import {
+  createLangChainMetadataKey,
   convertLangChainBaseMessage,
   getMessageContent,
   getMessageType,
+  type LangChainMessageConverterMetadata,
 } from "./convertMessages";
 import {
   attachSubagentTranscripts,
@@ -72,14 +74,20 @@ type NormalizedRunConfigOptions = NonNullable<
   ReturnType<typeof runConfigToSubmitOptions>
 >;
 
-const getPendingToolCalls = (
+export const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
 ): LangChainToolCall[] =>
   scanPendingToolCalls(
     messages,
     (message) => {
       const type = getMessageType(message);
-      if (type === "ai") return { toolCalls: message.tool_calls ?? [] };
+      if (type === "ai") {
+        return {
+          toolCalls: (message.tool_calls ?? []).filter(
+            (toolCall) => typeof toolCall === "object" && toolCall !== null,
+          ),
+        };
+      }
       if (type === "tool" && message.tool_call_id) {
         return { toolCallId: message.tool_call_id };
       }
@@ -214,22 +222,21 @@ const useStreamThreadRuntime = (
     uiMessagesByParent,
   );
 
-  const convertWithUI = useMemo<
-    useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >(
-    () => (message, metadata) =>
-      convertLangChainBaseMessage(message, {
-        ...metadata,
-        uiMessagesByParent,
-        messageTiming,
-      }),
+  const [getConverterMetadataKey] = useState(createLangChainMetadataKey);
+  const converterMetadata = useMemo<LangChainMessageConverterMetadata>(
+    () => ({
+      uiMessagesByParent: uiMessagesByParent,
+      messageTiming,
+    }),
     [uiMessagesByParent, messageTiming],
   );
 
   const threadMessages = useExternalMessageConverter({
-    callback: convertWithUI,
+    callback: convertLangChainBaseMessage,
     messages: visibleMessages,
     isRunning: effectiveIsRunning,
+    metadata: converterMetadata,
+    getMetadataKey: getConverterMetadataKey,
   });
   const [memo] = useState(createAttachMemo);
   const messagesWithTranscripts = useMemo(

@@ -69,9 +69,16 @@ describe("npm", () => {
   it("reads a refused request as no data, and says so", async () => {
     respond(null, false, 429);
 
-    await expect(range()).resolves.toEqual([]);
+    await expect(range()).resolves.toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("429"));
+  });
+
+  it("reads a package npm has no downloads for as an empty range", async () => {
+    respond(null, false, 404);
+
+    await expect(range()).resolves.toEqual([]);
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it("reads the week npm names alongside its count", async () => {
