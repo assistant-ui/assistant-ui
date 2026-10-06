@@ -6,9 +6,11 @@ import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
+  MessagePartTiming,
   ToolCallMessagePartStatus,
 } from "../../../types/message";
 import { getGroupSummary } from "../../../utils/getGroupStatus";
+import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 import {
   buildGroupTree,
   GROUPBY_MEMO_KEY,
@@ -43,6 +45,8 @@ export namespace MessagePrimitiveGroupedParts {
     /** Per status tallies over `indices`. */
     readonly counts: GroupCounts;
     readonly indices: readonly number[];
+    /** Wall-clock span of the group's timed parts: the earliest start, and the latest finish once every timed part has finished. Absent when none of them carries timing. */
+    readonly timing?: MessagePartTiming;
   };
 
   /**
@@ -194,15 +198,17 @@ const PartChildrenSentinel: FC = () => {
   );
 };
 
-const renderNode = <TKey extends `group-${string}`>(
+export const renderGroupNode = <TKey extends `group-${string}`>(
   node: GroupNode,
   parts: readonly PartState[],
-  render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
+  render: (info: {
+    readonly part:
+      | MessagePrimitiveGroupedParts.GroupPart<TKey>
+      | EnrichedPartState;
+    readonly children: ReactNode;
+  }) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
-    // Key by part identity when available, else absolute part index — never
-    // the structural nodeKey, which leaves zombie fiber subscriptions when
-    // parts reshape (#4051).
     return (
       <MessagePartChildren
         key={node.idKey ? `part-${node.idKey}` : `part-${node.index}`}
@@ -217,20 +223,25 @@ const renderNode = <TKey extends `group-${string}`>(
     );
   }
 
-  const { status, counts } = getGroupSummary(parts, node.indices);
+  const { status, counts, timing } = getGroupSummary(parts, node.indices);
   const groupPart: MessagePrimitiveGroupedParts.GroupPart<TKey> = {
     type: node.key as TKey,
     status,
     counts,
     indices: node.indices,
+    ...(timing && { timing }),
   };
 
   return (
-    <Fragment key={node.idKey ?? node.nodeKey}>
+    <Fragment key={JSON.stringify([node.key, node.idKey ?? node.nodeKey])}>
       {render({
         part: groupPart,
         children: (
-          <>{node.children.map((child) => renderNode(child, parts, render))}</>
+          <>
+            {node.children.map((child) =>
+              renderGroupNode(child, parts, render),
+            )}
+          </>
         ),
       })}
     </Fragment>
@@ -297,16 +308,14 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     const context: GroupByContext = { toolUIs };
     return buildGroupTree(
       parts.map((part) => groupBy(part, context) ?? []),
-      parts.map((part) =>
-        part.type === "tool-call" ? part.toolCallId : undefined,
-      ),
+      getMessagePartKeys(parts),
     );
     // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
   }, [parts, memoDep, toolUIs]);
 
   return (
     <>
-      {tree.map((node) => renderNode(node, parts, children))}
+      {tree.map((node) => renderGroupNode(node, parts, children))}
       {shouldShowIndicator(indicator, parts, isRunning) &&
         children({
           part: { type: "indicator" },

@@ -6,7 +6,7 @@ import {
 } from "../../../lib/checkout/protocol";
 
 const session = { id: "test", products: ["assistant-ui"], startedAt: 1 };
-const accepted = { ...session, introSeen: true, licenseAccepted: true };
+const read = { ...session, introSeen: true };
 const input = (id: string, stepId?: string): Checkout.Input => ({
   id,
   prompt: id,
@@ -29,7 +29,7 @@ const page = (
 ) =>
   livePage({
     state: { ...initialCheckoutState(), createdAt: 1, ...overrides },
-    session: accepted,
+    session: read,
     phase: "connected",
     openInputs: [],
     planPending: false,
@@ -37,35 +37,15 @@ const page = (
   });
 
 describe("livePage", () => {
-  it("opens with the introduction until it was seen, then the license until accepted, then asks to connect", () => {
-    const read = { ...session, introSeen: true };
+  it("opens with the introduction until it was seen, then asks to connect", () => {
     expect(page({}, { phase: "unconnected", session })).toEqual({
       id: "welcome",
-    });
-    expect(page({}, { phase: "unconnected", session: read })).toEqual({
-      id: "license",
     });
     expect(page({}, { phase: "unconnected" })).toEqual({ id: "connect" });
     expect(page({}, { phase: "waiting", session })).toEqual({ id: "welcome" });
     expect(page({}, { phase: "waiting" })).toEqual({ id: "connect" });
-    expect(page({ status: "waiting" }, { session: read })).toEqual({
-      id: "license",
-    });
     expect(page({ status: "waiting" })).toEqual({ id: "connect" });
     expect(page({ status: "planning" })).toEqual({ id: "working" });
-  });
-
-  it("holds every later page behind the license until it is accepted", () => {
-    const read = { ...session, introSeen: true };
-    expect(page({ status: "planning" }, { session: read })).toEqual({
-      id: "license",
-    });
-    expect(
-      page(
-        { status: "planning", plans: [plan("proposed")] },
-        { session: read, openInputs: [input("q1")], planPending: true },
-      ),
-    ).toEqual({ id: "license" });
   });
 
   it("shows the agent's first open question before anything else it wants", () => {
@@ -146,33 +126,28 @@ describe("pageTrail", () => {
     const state = { ...initialCheckoutState(), createdAt: 1 };
     expect(ids(pageTrail(state, { id: "connect" }))).toEqual([
       "welcome",
-      "license",
       "connect",
     ]);
     expect(ids(pageTrail(state, { id: "working" }))).toEqual([
       "welcome",
-      "license",
       "connect",
       "working",
     ]);
     const planned = { ...state, plans: [plan("approved")] };
     expect(ids(pageTrail(planned, { id: "plan" }))).toEqual([
       "welcome",
-      "license",
       "connect",
       "plan",
     ]);
     const installing: Checkout.State = { ...planned, status: "installing" };
     expect(ids(pageTrail(installing, { id: "install" }))).toEqual([
       "welcome",
-      "license",
       "connect",
       "plan",
       "install",
     ]);
     expect(ids(pageTrail(installing, { id: "finish" }))).toEqual([
       "welcome",
-      "license",
       "connect",
       "plan",
       "install",
@@ -208,7 +183,6 @@ describe("pageTrail", () => {
     const live = { id: "question", input: state.inputs[2]!, total: 1 } as const;
     expect(ids(pageTrail(state, live))).toEqual([
       "welcome",
-      "license",
       "connect",
       "answer:q1",
       "answer:q2",
@@ -216,6 +190,29 @@ describe("pageTrail", () => {
       "answer:q4",
       "install",
       "question:q3",
+    ]);
+  });
+
+  it("leaves no page behind for a product the agent proposed and the browser added", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          ...input("p1"),
+          kind: "product",
+          product: "assistant-ui",
+          status: "answered",
+          answer: "assistant-ui",
+          answeredAt: 2,
+        },
+      ],
+    };
+    expect(ids(pageTrail(state, { id: "working" }))).toEqual([
+      "welcome",
+      "connect",
+      "working",
     ]);
   });
 });

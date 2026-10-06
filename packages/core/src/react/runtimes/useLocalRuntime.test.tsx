@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { Activity, type FC, StrictMode, useEffect } from "react";
+import { Activity, type FC, StrictMode, useEffect, version } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,8 @@ import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { PendingAttachment } from "../../types/attachment";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+
+const onReact18 = version.startsWith("18.");
 
 const chatModel: ChatModelAdapter = {
   run: async () => ({ content: [] }),
@@ -154,45 +156,49 @@ describe("useLocalRuntime", () => {
     view.unmount();
   });
 
-  it("delivers a pending attachment send after Activity hide and reveal", async () => {
-    const upload = makeDeferredAttachmentAdapter();
-    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
-    let runtime: AssistantRuntime | null = null;
-    const App = () => {
-      runtime = useLocalRuntime(
-        { run },
-        { adapters: { attachments: upload.adapter } },
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "delivers a pending attachment send after Activity hide and reveal",
+    async () => {
+      const upload = makeDeferredAttachmentAdapter();
+      const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+      let runtime: AssistantRuntime | null = null;
+      const App = () => {
+        runtime = useLocalRuntime(
+          { run },
+          { adapters: { attachments: upload.adapter } },
+        );
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <div />
+          </AssistantRuntimeProvider>
+        );
+      };
+      const renderApp = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <App />
+        </Activity>
       );
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <div />
-        </AssistantRuntimeProvider>
-      );
-    };
-    const renderApp = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>
-        <App />
-      </Activity>
-    );
 
-    const view = render(renderApp("visible"));
-    await act(async () => {
-      await runtime!.thread.composer.addAttachment(
-        new File(["hello"], "notes.txt", { type: "text/plain" }),
-      );
-    });
-    act(() => runtime!.thread.composer.send());
-    expect(upload.send).toHaveBeenCalledOnce();
-    const signal = upload.send.mock.lastCall?.[1]?.signal;
+      const view = render(renderApp("visible"));
+      await act(async () => {
+        await runtime!.thread.composer.addAttachment(
+          new File(["hello"], "notes.txt", { type: "text/plain" }),
+        );
+      });
+      act(() => runtime!.thread.composer.send());
+      expect(upload.send).toHaveBeenCalledOnce();
+      const signal = upload.send.mock.lastCall?.[1]?.signal;
 
-    view.rerender(renderApp("hidden"));
-    expect(signal?.aborted).toBe(false);
-    await act(async () => upload.resolve());
-    await waitFor(() => expect(run).toHaveBeenCalledOnce());
-    view.rerender(renderApp("visible"));
-    expect(run).toHaveBeenCalledOnce();
-    view.unmount();
-  });
+      view.rerender(renderApp("hidden"));
+      expect(signal?.aborted).toBe(false);
+      await act(async () => upload.resolve());
+      await waitFor(() => expect(run).toHaveBeenCalledOnce());
+      view.rerender(renderApp("visible"));
+      expect(run).toHaveBeenCalledOnce();
+      view.unmount();
+    },
+  );
 
   const createVoiceApp = () => {
     const disconnect = vi.fn();
@@ -254,33 +260,37 @@ describe("useLocalRuntime", () => {
     expect(disconnect).toHaveBeenCalledOnce();
   });
 
-  it("keeps voice and the thread through Activity hide and reveal", async () => {
-    const { App, capture, disconnect, emitTranscript } = createVoiceApp();
-    const renderApp = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>
-        <App />
-      </Activity>
-    );
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "keeps voice and the thread through Activity hide and reveal",
+    async () => {
+      const { App, capture, disconnect, emitTranscript } = createVoiceApp();
+      const renderApp = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <App />
+        </Activity>
+      );
 
-    const view = render(renderApp("visible"));
-    await act(async () => Promise.resolve());
-    view.rerender(renderApp("hidden"));
-    await act(async () => Promise.resolve());
-    view.rerender(renderApp("visible"));
-    await act(async () => Promise.resolve());
+      const view = render(renderApp("visible"));
+      await act(async () => Promise.resolve());
+      view.rerender(renderApp("hidden"));
+      await act(async () => Promise.resolve());
+      view.rerender(renderApp("visible"));
+      await act(async () => Promise.resolve());
 
-    expect(disconnect).not.toHaveBeenCalled();
-    expect(capture.runtime!.thread.getState().voice).toBeDefined();
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(capture.runtime!.thread.getState().voice).toBeDefined();
 
-    act(() =>
-      emitTranscript({ role: "user", text: "after reveal", isFinal: true }),
-    );
-    expect(capture.runtime!.thread.getState().messages).toHaveLength(1);
+      act(() =>
+        emitTranscript({ role: "user", text: "after reveal", isFinal: true }),
+      );
+      expect(capture.runtime!.thread.getState().messages).toHaveLength(1);
 
-    view.unmount();
-    await act(async () => Promise.resolve());
-    expect(disconnect).toHaveBeenCalledOnce();
-  });
+      view.unmount();
+      await act(async () => Promise.resolve());
+      expect(disconnect).toHaveBeenCalledOnce();
+    },
+  );
 
   it("passes the remote id of a fresh Cloud thread to its first run", async () => {
     const cloud = {

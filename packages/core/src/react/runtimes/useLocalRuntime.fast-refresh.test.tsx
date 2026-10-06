@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, act } from "react";
+import { Activity, act, type FC, type ReactNode, version } from "react";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -9,6 +9,11 @@ import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useLocalRuntime } from "./useLocalRuntime";
+
+const onReact18 = version.startsWith("18.");
+
+const Visibility: FC<{ mode: "visible" | "hidden"; children: ReactNode }> =
+  onReact18 ? ({ children }) => <>{children}</> : Activity;
 
 type Family = { current: unknown };
 type RendererInternals = {
@@ -37,9 +42,11 @@ const { cleanup, render, waitFor } = await import("@testing-library/react");
 afterEach(cleanup);
 afterAll(() => vi.unstubAllGlobals());
 
-it.each(["unmount", "Activity hide"])(
+it.for(["unmount", "Activity hide"])(
   "keeps a local run through Fast Refresh and detaches on %s",
-  async (end) => {
+  async (end, { skip }) => {
+    // Activity is React 19 only.
+    skip(onReact18 && end === "Activity hide");
     let signal: AbortSignal | undefined;
     const run = vi.fn<ChatModelAdapter["run"]>(async ({ abortSignal }) => {
       signal = abortSignal;
@@ -66,9 +73,9 @@ it.each(["unmount", "Activity hide"])(
       return (
         <AssistantRuntimeProvider runtime={host}>
           <ThreadListItemRuntimeProvider runtime={host.threads.mainItem}>
-            <Activity mode={mode}>
+            <Visibility mode={mode}>
               <Before />
-            </Activity>
+            </Visibility>
           </ThreadListItemRuntimeProvider>
         </AssistantRuntimeProvider>
       );
