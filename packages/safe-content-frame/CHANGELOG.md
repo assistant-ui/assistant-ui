@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.33
+
+### Patch Changes
+
+- [#7212](https://github.com/assistant-ui/assistant-ui/pull/7212) [`9f40133`](https://github.com/assistant-ui/assistant-ui/commit/9f40133ba1a472c143a3da80ec702a828120ace8) - fix: clean up cancelled and pre-load failed sandbox frame renders ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.32
 
 ### Patch Changes
