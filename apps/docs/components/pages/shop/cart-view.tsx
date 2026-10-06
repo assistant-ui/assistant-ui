@@ -79,6 +79,9 @@ export function CartView() {
   const needsConfiguration = products.some(
     (product) => product.needsConfiguration,
   );
+  const toolIds = products
+    .filter((product) => product.slug === "agent-tools")
+    .map((product) => product.cartId);
   const instructions = useCartInstructions();
 
   useEffect(() => {
@@ -135,7 +138,7 @@ export function CartView() {
           role="list"
           className="divide-foreground/10 border-foreground/10 mt-8 divide-y border-y"
         >
-          {products.map((product, index) => (
+          {products.map((product) => (
             <li
               key={product.cartId}
               className="group/navlink grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-5 gap-y-3 py-6 sm:gap-x-8"
@@ -166,7 +169,7 @@ export function CartView() {
                   size="sm"
                   aria-label={
                     product.slug === "agent-tools"
-                      ? `Remove ${product.name}, tool ${index + 1}: ${product.tagline}`
+                      ? `Remove ${product.name}, tool ${toolIds.indexOf(product.cartId) + 1}: ${product.tagline}`
                       : `Remove ${product.name}`
                   }
                   onClick={() => removeFromCart(product.cartId)}

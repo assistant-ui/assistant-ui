@@ -108,6 +108,7 @@ describe("CartView", () => {
   });
 
   it("shows and removes configured tools separately", () => {
+    replaceCart(["cloud"]);
     addAgentTool("Web search", "Search support sources.");
     addAgentTool("Web search", "Search current news.");
     render(<CartView />);
@@ -115,11 +116,17 @@ describe("CartView", () => {
     expect(screen.getByText("Search current news.")).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", {
-        name: /^Remove Web search,.*Search support sources\./,
+        name: "Remove Web search, tool 1: Search support sources.",
       }),
     );
     expect(screen.queryByText("Search support sources.")).toBeNull();
-    expect(getCartEntries()).toHaveLength(1);
+    expect(getCartEntries()).toHaveLength(2);
+    expect(getCartEntries()[0]).toBe("cloud");
+    expect(
+      screen.getByRole("button", {
+        name: "Remove Web search, tool 1: Search current news.",
+      }),
+    ).toBeTruthy();
   });
 
   it("waits for hydration before rendering the cart shell", () => {
