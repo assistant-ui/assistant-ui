@@ -213,7 +213,7 @@ export class IncrementalJsonObjectParser {
         this.accumulatedText() + delta,
         this.args,
       );
-      if (parser.args === this.args) parser.publishedArgs = this.publishedArgs;
+      if (parser.args === this.args) parser.publishedArgs = this.currentArgs;
       return parser;
     }
 
@@ -228,7 +228,7 @@ export class IncrementalJsonObjectParser {
     parser.args = parser.snapshot(fallback);
     parser.publishedArgs =
       parser.args === fallback
-        ? this.publishedArgs
+        ? this.currentArgs
         : parser.mode === "fallback"
           ? parser.args
           : undefined;

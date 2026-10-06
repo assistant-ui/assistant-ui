@@ -201,6 +201,18 @@ describe("IncrementalJsonObjectParser", () => {
     });
   });
 
+  it("keeps nested references stable when a fallback publishes before its parent", () => {
+    const parent = IncrementalJsonObjectParser.from('{"values":[1],"text":"hi');
+    const child = parent.append("\\uZZ");
+    const args = child.currentArgs;
+    const values = args.values as number[];
+    values.push(2);
+
+    expect(parent.currentArgs).toBe(args);
+    expect(parent.currentArgs.values).toBe(values);
+    expect(child.currentArgs.values).toBe(values);
+  });
+
   it("preserves integer-like object keys and their ordinary key order", () => {
     const parser = IncrementalJsonObjectParser.from(
       '{"2":2,"1":1,"nested":{"10":"ten","0":"zero"}}',
