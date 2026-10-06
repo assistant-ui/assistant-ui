@@ -7779,6 +7779,107 @@ describe("history scope persistence", () => {
     expect(firstUpdate).toHaveBeenCalledOnce();
   });
 
+  it("keeps a replacement message when an older optimistic append rolls back", async () => {
+    let finishInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      finishInitialization = resolve;
+    });
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { load: async () => ({ messages: [] }) }),
+    });
+    await thread.__internal_load();
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const append = thread.append({
+      ...userMessage("pending"),
+      startRun: false,
+    });
+    const id = thread.messages.at(-1)!.id;
+    const replacement = await historyFor("second").load();
+    const stored = replacement.messages[0]!;
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: historyFor("second", {
+          load: async () => ({
+            messages: [{ ...stored, message: { ...stored.message, id } }],
+          }),
+        }),
+      },
+    });
+    await thread.__internal_load();
+    finishInitialization();
+    await append;
+    expect(thread.messages[0]?.id).toBe(id);
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "second" },
+    ]);
+  });
+
+  it("does not settle an old run into the new scope's listeners or suggestions", async () => {
+    let finishRun!: (result: ChatModelRunResult) => void;
+    const run = vi.fn(
+      () =>
+        new Promise<ChatModelRunResult>((resolve) => {
+          finishRun = resolve;
+        }),
+    );
+    const model: ChatModelAdapter = { run };
+    const thread = createThread(model, { history: historyFor("first") });
+    await thread.__internal_load();
+    const append = thread.append(userMessage("start"));
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    const generate = vi.fn(async () => []);
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: model,
+        history: historyFor("second"),
+        suggestion: { generate },
+      },
+    });
+    await thread.__internal_load();
+    const runEnd = vi.fn();
+    thread.unstable_on("runEnd", runEnd);
+    finishRun({ content: [{ type: "text", text: "late answer" }] });
+    await append;
+    expect.soft(runEnd).not.toHaveBeenCalled();
+    expect.soft(generate).not.toHaveBeenCalled();
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "second" },
+    ]);
+  });
+
+  it("starts new queued work without waiting for an old scope's model", async () => {
+    let finishFirst!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      finishFirst = resolve;
+    });
+    const run = vi
+      .fn<ChatModelAdapter["run"]>()
+      .mockReturnValueOnce(firstResult)
+      .mockResolvedValue({ content: [{ type: "text", text: "new answer" }] });
+    const model: ChatModelAdapter = { run };
+    const thread = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: model, history: historyFor("first") },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    await thread.append({ ...userMessage("first"), parentId: "shared" });
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    thread.__internal_setOptions({
+      adapters: { chatModel: model, history: historyFor("second") },
+      unstable_enableMessageQueue: true,
+    });
+    await thread.__internal_load();
+    await thread.append({ ...userMessage("second"), parentId: "shared" });
+    await flush();
+    expect.soft(run).toHaveBeenCalledTimes(2);
+    finishFirst({ content: [] });
+    await flush();
+  });
+
   it("does not report an old write failure to the current scope", async () => {
     const error = new Error("old scope write failed");
     let failUpdate!: (reason: unknown) => void;

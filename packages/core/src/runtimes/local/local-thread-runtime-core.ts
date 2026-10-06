@@ -452,6 +452,9 @@ export class LocalThreadRuntimeCore
       this._queue?.clear();
       this.cancelRun();
       supersedeThreadRuntime(this);
+      this._queue = null;
+      this._queueRunInFlight = null;
+      this._activeRun = null;
       // The draft was written under the previous scope, so sending it after
       // the switch would append one account's content through another's
       // adapter. Reset also invalidates a send still uploading attachments.
@@ -808,9 +811,10 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
-  private _rollbackAppend(messageId: string) {
+  private _rollbackAppend(message: ThreadMessage) {
     try {
-      this.repository.deleteMessage(messageId);
+      if (this.repository.getMessage(message.id).message !== message) return;
+      this.repository.deleteMessage(message.id);
     } catch {
       return;
     }
@@ -873,7 +877,7 @@ export class LocalThreadRuntimeCore
         await initPromise;
       }
     } catch (error) {
-      this._rollbackAppend(newMessage.id);
+      this._rollbackAppend(newMessage);
       if (generation.aborted) return;
       if (message.parentId !== null) this._resumeIfReady(message.parentId);
       const notSent = new MessageNotSentError();
@@ -881,7 +885,7 @@ export class LocalThreadRuntimeCore
       throw notSent;
     }
     if (generation.aborted) {
-      this._rollbackAppend(newMessage.id);
+      this._rollbackAppend(newMessage);
       return;
     }
     const settledWrite = this._cancelPause(message.parentId);
@@ -1055,6 +1059,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
@@ -1096,14 +1101,16 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
-      this._notifyEventSubscribers("runEnd", {});
+      if (!generation.aborted) this._notifyEventSubscribers("runEnd", {});
       // the settle belongs to this run only while it is still the active run
       // or was cancelled (the engine expects a cancelled run's settle); a run
       // superseded by a newer one stays silent
-      active = this._activeRun === run;
+      active = !generation.aborted && this._activeRun === run;
       if (active) this._activeRun = null;
-      if (active || run.cancelled) {
-        queueMicrotask(() => this._queue?.notifyIdle());
+      if (!generation.aborted && (active || run.cancelled)) {
+        queueMicrotask(() => {
+          if (!generation.aborted) this._queue?.notifyIdle();
+        });
       }
     }
 
@@ -1152,6 +1159,7 @@ export class LocalThreadRuntimeCore
     run: { cancelled: boolean; resumedFromPause: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
+    const generation = captureThreadRuntimeGeneration(this);
     const messages = parentId ? this.repository.getMessages(parentId) : [];
     // A message here that is running or whose roundtrip is still in flight
     // belongs to the run this roundtrip aborts.
@@ -1182,6 +1190,7 @@ export class LocalThreadRuntimeCore
       hasStoredMessage = false;
     }
     const syncOwnedMessage = () => {
+      if (generation.aborted) return false;
       if (!hasStoredMessage) return this._activeRun === run;
       try {
         let ownedMessage = message;
