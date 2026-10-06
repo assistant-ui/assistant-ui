@@ -6,6 +6,7 @@ import type {
   PiClient,
   PiClientEvent,
   PiClientEventBody,
+  PiAgentMessage,
   PiAssistantMessage,
   PiHostUiRequest,
   PiSendMessageInput,
@@ -545,6 +546,45 @@ describe("PiThreadController", () => {
     });
   });
 
+  it("preserves live state and history when a cold HTTP snapshot has no sequence", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+
+    const load = controller.load();
+    const send = controller.sendMessage(userMessage("instant"));
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: true });
+
+    const history = { role: "user" as const, content: "history", timestamp: 1 };
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({ seq: 0, messages: [history] }),
+        },
+        0,
+      ),
+    );
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("live", 2) }, 2),
+    );
+    resolveSnapshot(snapshot({ messages: [history] }));
+
+    await Promise.all([load, send]);
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 2,
+      runStatus: "running",
+      messages: [history, assistantMessage("live", 2)],
+    });
+  });
+
   it("advances the event watermark from a current HTTP snapshot", async () => {
     const client = createFakeClient(
       snapshot({
@@ -757,10 +797,20 @@ describe("PiThreadController", () => {
     expect(controller.getVersion()).toBeGreaterThan(0);
     expect(notify).toHaveBeenCalled();
     expect(client.subscribed).toBe(1);
-    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: true });
 
     resolveSend();
     await send;
+  });
+
+  it("skips the initial subscription snapshot after a thread has loaded", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.load();
+    await controller.sendMessage(userMessage("instant"));
+
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
   });
 
   it("removes a cold-cancelled optimistic message before the next send", async () => {
@@ -1148,6 +1198,7 @@ describe("PiThreadController", () => {
 
     const before = controller.getProjectedMessages();
     const stableUser = before[0]!;
+    const stableRepositoryItem = controller.getMessageRepository().messages[0];
 
     client.emit(
       ev(
@@ -1170,6 +1221,63 @@ describe("PiThreadController", () => {
     expect(after[0]).toBe(stableUser);
     expect(after[1]).not.toBe(before[1]);
     expect(after[1]!.content).toMatchObject([{ type: "text", text: "ab" }]);
+    expect(controller.getMessageRepository().messages[0]).toBe(
+      stableRepositoryItem,
+    );
+    expect(controller.getMessageRepository().messages[1]!.parentId).toBe(
+      stableRepositoryItem!.message.id,
+    );
+  });
+
+  it("does not revisit the unchanged transcript prefix for a stream delta", () => {
+    let prefixRoleReads = 0;
+    const stableMessages = Array.from({ length: 500 }, (_, index) => {
+      const message = {
+        content: `message-${index}`,
+        timestamp: index,
+      };
+      Object.defineProperty(message, "role", {
+        enumerable: true,
+        get: () => {
+          prefixRoleReads += 1;
+          return "user";
+        },
+      });
+      return message as PiAgentMessage;
+    });
+    const client = createFakeClient(snapshot({ messages: stableMessages }));
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    controller.connect();
+
+    client.emit(
+      ev({ type: "snapshot", snapshot: client.getThreadSnapshot }, 1),
+    );
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("a", 501) }, 2),
+    );
+    prefixRoleReads = 0;
+
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("ab", 501),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "b",
+            partial: assistantMessage("ab", 501),
+          },
+        },
+        3,
+      ),
+    );
+    scheduled.at(-1)!();
+
+    expect(prefixRoleReads).toBe(2);
   });
 });
 
