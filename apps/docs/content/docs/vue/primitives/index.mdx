@@ -1,0 +1,116 @@
+---
+title: Using primitives
+description: Unstyled Vue components that bind native elements to assistant state, and the conventions they share.
+---
+
+Primitives are unstyled components exported from `@assistant-ui/vue`. Each one reads state from the nearest scope and renders a native element, plain text, or nothing of its own. Layout, styling, and icons stay in your templates. The [styled components](/docs/vue/components) are built from the same primitives.
+
+```vue title="app/components/MinimalThread.vue"
+<script setup lang="ts">
+import {
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  MessagePrimitiveParts,
+  MessagePrimitiveRoot,
+  ThreadPrimitiveMessages,
+  ThreadPrimitiveViewport,
+  ThreadPrimitiveViewportFooter,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <ThreadPrimitiveViewport class="flex h-dvh flex-col overflow-y-auto">
+    <ThreadPrimitiveMessages>
+      <MessagePrimitiveRoot class="px-4 py-2">
+        <MessagePrimitiveParts />
+      </MessagePrimitiveRoot>
+    </ThreadPrimitiveMessages>
+    <ThreadPrimitiveViewportFooter class="bg-background sticky bottom-0 mt-auto flex gap-2 p-4">
+      <ComposerPrimitiveInput class="flex-1 resize-none" aria-label="Message" rows="1" />
+      <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
+    </ThreadPrimitiveViewportFooter>
+  </ThreadPrimitiveViewport>
+</template>
+```
+
+Render it under an `AuiProvider` with a runtime, as in the [quickstart](/docs/vue/quickstart).
+
+## Names
+
+Every primitive is a named export with its family in the name. Where React writes `ThreadPrimitive.Viewport`, Vue imports `ThreadPrimitiveViewport`, so templates use one PascalCase tag per part.
+
+| Family | Exports |
+|---|---|
+| [Thread](/docs/vue/primitives/thread) | `ThreadPrimitiveRoot`, `ThreadPrimitiveViewport`, `ThreadPrimitiveViewportFooter`, `ThreadPrimitiveScrollToBottom`, `ThreadPrimitiveMessages`, `ThreadPrimitiveSuggestions` |
+| [Message](/docs/vue/primitives/message) | `MessagePrimitiveRoot`, `MessagePrimitiveParts`, `MessagePrimitiveAttachments` |
+| [Composer](/docs/vue/primitives/composer) | `ComposerPrimitiveInput`, `ComposerPrimitiveSend`, `ComposerPrimitiveCancel`, `ComposerPrimitiveAttachments`, `ComposerPrimitiveAddAttachment`, `ComposerPrimitiveAttachmentDropzone` |
+| [Action bar](/docs/vue/primitives/action-bar) | `ActionBarPrimitiveEdit`, `ActionBarPrimitiveReload`, `ActionBarPrimitiveCopy` |
+| [Branch picker](/docs/vue/primitives/branch-picker) | `BranchPickerPrimitivePrevious`, `BranchPickerPrimitiveNext`, `BranchPickerPrimitiveNumber`, `BranchPickerPrimitiveCount` |
+| [Thread list](/docs/vue/primitives/thread-list) | `ThreadListPrimitiveRoot`, `ThreadListPrimitiveNew`, `ThreadListPrimitiveItems`, `ThreadListPrimitiveLoadMore`, `ThreadListItemPrimitiveRoot`, `ThreadListItemPrimitiveTrigger`, `ThreadListItemPrimitiveTitle`, `ThreadListItemPrimitiveArchive`, `ThreadListItemPrimitiveUnarchive`, `ThreadListItemPrimitiveDelete` |
+| [Attachment](/docs/vue/primitives/attachment) | `AttachmentPrimitiveRoot`, `AttachmentPrimitiveName`, `AttachmentPrimitiveThumb`, `AttachmentPrimitiveRemove` |
+| [Suggestion](/docs/vue/primitives/suggestion) | `SuggestionPrimitiveTrigger`, `SuggestionPrimitiveTitle`, `SuggestionPrimitiveDescription` |
+| [Error](/docs/vue/primitives/error) | `ErrorPrimitiveRoot`, `ErrorPrimitiveMessage` |
+| [Chain of thought](/docs/vue/primitives/chain-of-thought) | `ChainOfThoughtPrimitiveParts`, `ChainOfThoughtPrimitiveAccordionTrigger` |
+
+## Attributes and listeners
+
+A part that renders an element passes your attributes and listeners to that element: `class`, `style`, `aria-*`, `data-*`, `id`, and native listeners such as `@click` or `@keydown`. There is no `asChild` prop. Style the rendered element directly, or wrap it in your own component.
+
+Your listener runs before the primitive's own handler. Call `preventDefault()` in it to stop the primitive's action for that event:
+
+```vue title="app/components/GuardedNewThread.vue"
+<script setup lang="ts">
+import { ThreadListPrimitiveNew, useAui } from "@assistant-ui/vue";
+
+const aui = useAui();
+
+const holdWhileRunning = (event: MouseEvent) => {
+  if (aui.thread.getState().isRunning) event.preventDefault();
+};
+</script>
+
+<template>
+  <ThreadListPrimitiveNew @click="holdWhileRunning">New chat</ThreadListPrimitiveNew>
+</template>
+```
+
+A `disabled` attribute disables a button part in addition to its own rules. A bare `disabled` and `:disabled="true"` disable it; `:disabled="false"` and the string `"false"` leave it enabled. While a part is disabled by its own state, the native `disabled` attribute is set, so `disabled:` utility variants style it.
+
+## Iterators and slots
+
+Parts that repeat content render no element of their own. Each one renders its default slot once per item and scopes that slot to the item, so components inside it read `s.message`, `s.part`, `s.attachment`, `s.suggestion`, or `s.threadListItem` without props:
+
+| Iterator | Repeats for | Scope inside the slot |
+|---|---|---|
+| `ThreadPrimitiveMessages` | Messages in the thread | `s.message`, and its edit composer as `s.composer` |
+| `MessagePrimitiveParts` | Parts of the message | `s.part` |
+| `MessagePrimitiveAttachments` | Attachments on a user message | `s.attachment` |
+| `ComposerPrimitiveAttachments` | Pending composer attachments | `s.attachment` |
+| `ThreadPrimitiveSuggestions` | Suggestions | `s.suggestion` |
+| `ThreadListPrimitiveItems` | Threads in the list | `s.threadListItem` |
+| `ChainOfThoughtPrimitiveParts` | Parts in the chain-of-thought scope | `s.part`, and the slot prop `{ part }` |
+
+Where React passes a render function or a `components` prop, Vue uses slots. `MessagePrimitiveParts` takes one named slot per part type (`#text`, `#reasoning`, `#tool-call`, and so on), described on the [message page](/docs/vue/primitives/message).
+
+Rows are keyed by identity, such as the message or thread id, so per-row component state and `<TransitionGroup>` follow the item when the list changes.
+
+To iterate yourself, wrap each row in the matching scope provider: `MessageByIdProvider`, `PartByIndexProvider`, `AttachmentByIndexProvider`, `SuggestionByIndexProvider`, or `ThreadListItemByIndexProvider`. The [thread list guide](/docs/vue/thread-list#order-the-list-yourself) shows the pattern.
+
+## Text parts
+
+Some parts render text with no element of their own: `BranchPickerPrimitiveNumber`, `BranchPickerPrimitiveCount`, `SuggestionPrimitiveTitle`, `SuggestionPrimitiveDescription`, `AttachmentPrimitiveName`, `ThreadListItemPrimitiveTitle`, and `ErrorPrimitiveMessage`. Wrap them in an element to style them. Several accept a default slot that replaces the text.
+
+## State attributes
+
+| Attribute | Set on | Present while |
+|---|---|---|
+| `data-active="true"`, `aria-current="true"` | `ThreadListPrimitiveNew` | The new thread is the selected thread. |
+| `data-active="true"`, `aria-current="true"` | `ThreadListItemPrimitiveRoot`, `ThreadListItemPrimitiveTrigger` | The item's thread is selected. |
+| `data-copied` | `ActionBarPrimitiveCopy` | A copy succeeded, for `copiedDuration` milliseconds. |
+| `data-dragging="true"` | `ComposerPrimitiveAttachmentDropzone` | A file drag hovers the element. |
+| `data-message-id` | `MessagePrimitiveRoot` | Always; the value is the message id. |
+| `role="alert"` | `ErrorPrimitiveRoot` | Always. |
+
+## Compared with React
+
+The Vue package has no assistant modal, selection toolbar, action bar root, feedback, speech, or export buttons, composer form root, mention and slash command popovers, dictation, quote, or message queue parts, and no thread list item menu. Build those from your own components, or from a headless library such as reka-ui, and call the scope methods through [`useAui`](/docs/vue/state).

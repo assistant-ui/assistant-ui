@@ -1,0 +1,130 @@
+---
+title: Thread list
+description: Render the conversation list, the new thread button, and per-thread actions.
+---
+
+The thread list primitives render a new thread button, repeat rows for each conversation, and bind actions to each row. See the [thread list guide](/docs/vue/thread-list) for runtime setup, archived lists, and custom ordering.
+
+```vue title="app/components/ConversationList.vue"
+<script setup lang="ts">
+import {
+  ThreadListItemPrimitiveArchive,
+  ThreadListItemPrimitiveRoot,
+  ThreadListItemPrimitiveTitle,
+  ThreadListItemPrimitiveTrigger,
+  ThreadListPrimitiveItems,
+  ThreadListPrimitiveNew,
+  ThreadListPrimitiveRoot,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <ThreadListPrimitiveRoot class="flex flex-col gap-1" aria-label="Conversations">
+    <ThreadListPrimitiveNew class="rounded-md px-2 py-1 text-left">
+      New chat
+    </ThreadListPrimitiveNew>
+    <ThreadListPrimitiveItems>
+      <ThreadListItemPrimitiveRoot class="flex items-center rounded-md data-[active=true]:bg-muted">
+        <ThreadListItemPrimitiveTrigger class="min-w-0 flex-1 truncate px-2 py-1 text-left">
+          <ThreadListItemPrimitiveTitle fallback="New chat" />
+        </ThreadListItemPrimitiveTrigger>
+        <ThreadListItemPrimitiveArchive class="px-2 py-1" aria-label="Archive thread">
+          Archive
+        </ThreadListItemPrimitiveArchive>
+      </ThreadListItemPrimitiveRoot>
+    </ThreadListPrimitiveItems>
+  </ThreadListPrimitiveRoot>
+</template>
+```
+
+Render this component under an `AuiProvider` with a thread list runtime. The [thread list guide](/docs/vue/thread-list) shows that setup.
+
+## Active state
+
+`ThreadListPrimitiveNew` gets `data-active="true"` and `aria-current="true"` when `s.threads.newThreadId` equals `s.threads.mainThreadId`. A remote list can select a new draft thread, so the New button can be active until that draft becomes a regular thread. The in-memory list sets `newThreadId` to `null`, so its New button does not become active even after it creates and selects a thread.
+
+The selected thread's `ThreadListItemPrimitiveRoot` and `ThreadListItemPrimitiveTrigger` both get those attributes. Style either element with `data-[active=true]:`, as the example styles the root. The trigger also carries the attributes when used without an item root.
+
+## Keyboard navigation
+
+ArrowDown and ArrowUp move focus between item triggers registered under `ThreadListPrimitiveRoot`, in DOM order. Each trigger needs a surrounding `ThreadListItemPrimitiveRoot` to handle the keydown event. Movement stops at the first and last trigger and does not switch the selected thread. The trigger remains a native button that can be reached with Tab.
+
+## Item menus
+
+There is no Vue menu primitive for thread items. The styled kit uses reka-ui `DropdownMenuItem` with `as-child` around each action button. This excerpt from its `thread-list.vue` is abridged:
+
+```vue
+<DropdownMenuContent>
+  <DropdownMenuItem as-child>
+    <ThreadListItemPrimitiveArchive>Archive</ThreadListItemPrimitiveArchive>
+  </DropdownMenuItem>
+  <DropdownMenuItem as-child>
+    <ThreadListItemPrimitiveDelete>Delete</ThreadListItemPrimitiveDelete>
+  </DropdownMenuItem>
+</DropdownMenuContent>
+```
+
+## Parts
+
+Element parts pass attributes and listeners to their rendered element. A `disabled` attribute on a button part blocks its click action. Each button renders its default slot as its content.
+
+### ThreadListPrimitiveRoot
+
+A `<div>` that provides the trigger collection for keyboard navigation. Its default slot contains the list. It has no props.
+
+### ThreadListPrimitiveNew
+
+A `<button type="button">` that calls `aui.threads.switchToNewThread()`. It has no props.
+
+### ThreadListPrimitiveItems
+
+Renders no element of its own. It repeats its default slot once per thread, keyed by thread ID, and scopes `s.threadListItem` and `aui.threadListItem` to that thread.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `archived` | `boolean` | `false` | Iterate archived thread IDs instead of active thread IDs. |
+
+### ThreadListItemByIndexProvider
+
+Renders no element of its own. It scopes its default slot to the thread at the given index in the selected list. Use it when you iterate or reorder thread IDs yourself.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `index` | `number` | Required | Position in `s.threads.threadIds`, or in `s.threads.archivedThreadIds` when `archived` is true. |
+| `archived` | `boolean` | `false` | Resolve `index` against archived thread IDs. |
+
+### ThreadListPrimitiveLoadMore
+
+A `<button type="button">` that calls `aui.threads.loadMore()`. It stays mounted but is disabled when there are no more threads, while the list is loading, or while another page is loading. It has no props.
+
+### ThreadListItemPrimitiveRoot
+
+A `<div>` that marks the selected item and handles arrow key navigation from its trigger. It must be inside a thread item scope. It has no props.
+
+### ThreadListItemPrimitiveTrigger
+
+A `<button type="button">` that switches to the scoped thread. It can work without either root, but arrow key navigation requires both roots. It has no props.
+
+### ThreadListItemPrimitiveTitle
+
+Renders the scoped thread title without an element of its own. When the title is empty, its default slot takes precedence over `fallback`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `fallback` | `string` | `""` | Text to render when the title is empty and there is no default slot. |
+
+### ThreadListItemPrimitiveArchive
+
+A `<button type="button">` that archives the scoped thread. It has no props.
+
+### ThreadListItemPrimitiveUnarchive
+
+A `<button type="button">` that restores the scoped archived thread. It has no props.
+
+### ThreadListItemPrimitiveDelete
+
+A `<button type="button">` that deletes the scoped thread. It has no props.
+
+## Compared with React
+
+React has `ThreadListPrimitive.ItemByIndex` and the `ThreadListItemMorePrimitive` menu parts. Vue exposes `ThreadListItemByIndexProvider` for indexed rows. For menus, the styled Vue kit uses reka-ui.
