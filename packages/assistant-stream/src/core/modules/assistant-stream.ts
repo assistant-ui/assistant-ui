@@ -121,6 +121,7 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
+  toolCalls: Set<ToolCallStreamController>;
   closeSubscriber?: () => void;
 };
 
@@ -136,6 +137,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
+      toolCalls: new Set(),
     };
   }
 
@@ -272,9 +274,13 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolName = opt.toolName;
     const toolCallId = opt.toolCallId ?? generateId();
 
-    const [stream, controller] = createToolCallStreamController({
+    let controller: ToolCallStreamController;
+    const [stream, createdController] = createToolCallStreamController({
       strict: this._state.strict,
+      onClose: () => this._state.toolCalls.delete(controller),
     });
+    controller = createdController;
+    this._state.toolCalls.add(controller);
     this._addPart(
       {
         type: "tool-call",
@@ -351,6 +357,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   close() {
     this._state.append?.controller?.close();
+    for (const toolCall of this._state.toolCalls) toolCall.close();
     this._state.merger.seal();
 
     this._state.closeSubscriber?.();

@@ -16,10 +16,14 @@ async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
 }
 
 function decodeDataStream(lines: string[]) {
+  return decodeDataStreamChunks(lines.map((line) => line + "\n"));
+}
+
+function decodeDataStreamChunks(chunks: string[]) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const line of lines) controller.enqueue(encoder.encode(line + "\n"));
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
@@ -125,22 +129,20 @@ describe("registry-backed decoders", () => {
     ).toHaveLength(2);
   });
 
-  it("finishes tool calls in input order with uneven argument backlogs", async () => {
-    const chunks = await decodeDataStream([
-      'b:{"toolCallId":"t0","toolName":"search"}',
-      'b:{"toolCallId":"t1","toolName":"search"}',
-      ...Array.from(
-        { length: 20 },
-        (_, index) => `c:{"toolCallId":"t0","argsTextDelta":"${index}"}`,
-      ),
-      'c:{"toolCallId":"t0","argsTextDelta":"","isFinal":true}',
-      'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+  it("preserves tool-call finish order across network chunking", async () => {
+    const first = '9:{"toolCallId":"t0","toolName":"search","args":{}}\n';
+    const second = '9:{"toolCallId":"t1","toolName":"search","args":{}}\n';
+    const layouts = await Promise.all([
+      decodeDataStreamChunks([first + second]),
+      decodeDataStreamChunks([first, second]),
     ]);
 
-    expect(
-      chunks
-        .filter((chunk) => chunk.type === "part-finish")
-        .map((chunk) => chunk.path),
-    ).toEqual([[0], [1]]);
+    for (const chunks of layouts) {
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === "part-finish")
+          .map((chunk) => chunk.path),
+      ).toEqual([[0], [1]]);
+    }
   });
 });

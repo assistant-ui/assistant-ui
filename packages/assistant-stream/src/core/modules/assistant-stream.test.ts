@@ -432,6 +432,21 @@ describe("tool-call finish ordering", () => {
         .map((chunk) => chunk.path),
     ).toEqual([[0], [1]]);
   });
+
+  it("closes unfinished tool calls at the parent stream boundary", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.addToolCallPart("first");
+        controller.addToolCallPart("second").close();
+      }),
+    );
+
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
+  });
 });
 
 describe("AssistantStreamController withParentId", () => {
