@@ -3,7 +3,7 @@ title: "Button"
 description: "The pressable object: thin, flat, and 8px round, in every weight a surface needs."
 links:
   - label: Source
-    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/button.tsx
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/react/ui/base/button.tsx
   - label: Base UI useRender
     url: https://base-ui.com/react/utils/use-render
 ---
@@ -60,20 +60,20 @@ The square `icon` sizes pair with an `aria-label`; an icon placed next to a labe
 
 ### Button
 
-Extends the native `button` props through Base UI's `useRender`.
+Extends the native `button` props through Base UI's `Button`.
 
 <ParametersTable
   type="ButtonProps"
   parameters={[
     {
       name: "variant",
-      type: '"default" | "outline" | "secondary" | "ghost" | "destructive"',
+      type: '"default" | "outline" | "secondary" | "ghost" | "destructive" | "link"',
       default: '"default"',
       description: "The visual weight of the button.",
     },
     {
       name: "size",
-      type: '"xs" | "sm" | "default" | "lg" | "icon" | "icon-sm" | "icon-xs"',
+      type: '"xs" | "sm" | "default" | "lg" | "icon" | "icon-sm" | "icon-xs" | "icon-lg"',
       default: '"default"',
       description: "Height and padding; the icon sizes render a square button.",
     },

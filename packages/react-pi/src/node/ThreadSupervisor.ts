@@ -107,6 +107,16 @@ export class PiThreadSupervisor {
    * SSE subscribe racing a send) share one `AgentSession` instead of creating
    * two on the same session file. */
   private readonly pendingOpens = new Map<string, PendingOpen>();
+  /** Per-send cancellation tokens for the window between a send starting its
+   * cold open and launching the prompt. `cancelRun` flips every token for the
+   * thread so the open resolves without firing the prompt, since the thread has
+   * no live record yet for `session.abort()` to reach. A set (not one token per
+   * thread) because a second send can start while the first shares the same
+   * in-flight cold open, and cancel must reach both. */
+  private readonly startingSends = new Map<
+    string,
+    Set<{ cancelled: boolean }>
+  >();
   private readonly pendingDeletes = new Map<string, Promise<void>>();
   private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
@@ -180,10 +190,31 @@ export class PiThreadSupervisor {
     threadId: string,
     input: PiSendMessageInput,
   ): Promise<void> {
-    await this.send(await this.ensureOpen(threadId), input);
+    const token = { cancelled: false };
+    let tokens = this.startingSends.get(threadId);
+    if (!tokens) {
+      tokens = new Set();
+      this.startingSends.set(threadId, tokens);
+    }
+    tokens.add(token);
+    try {
+      const record = await this.ensureOpen(threadId);
+      if (token.cancelled) {
+        // A cold cancellation has no session event. The flag lets the client
+        // settle without retaining an optimistic message Pi never received.
+        this.emit(record, { type: "agent_end", cancelledBeforeStart: true });
+        return;
+      }
+      await this.send(record, input);
+    } finally {
+      tokens.delete(token);
+      if (tokens.size === 0) this.startingSends.delete(threadId);
+    }
   }
 
   async cancelRun(threadId: string): Promise<void> {
+    const tokens = this.startingSends.get(threadId);
+    if (tokens) for (const token of tokens) token.cancelled = true;
     await this.records.get(threadId)?.session.abort();
   }
 
@@ -295,6 +326,7 @@ export class PiThreadSupervisor {
     pendingOpen?.controller.abort();
     const record = this.records.get(threadId);
     const info = record ? undefined : await this.findSessionInfo(threadId);
+    if (!record && !info) return;
     const sessionFile = record?.session.sessionFile ?? info?.path;
     const workspacePath = record?.workspacePath ?? info?.cwd;
     if (!sessionFile) throw new Error(`Unknown Pi thread: ${threadId}`);
@@ -471,9 +503,19 @@ export class PiThreadSupervisor {
       this.throwOpenCancelled();
     }
 
-    record.unsubscribe = session.subscribe((event) =>
-      this.onSessionEvent(record, event),
-    );
+    try {
+      record.unsubscribe = session.subscribe((event) =>
+        this.onSessionEvent(record, event),
+      );
+    } catch (error) {
+      try {
+        uiBridge.dismissAll();
+      } catch {}
+      try {
+        session.dispose();
+      } catch {}
+      throw error;
+    }
     this.records.set(threadId, record);
     if (session.sessionFile) {
       this.recordsBySessionFile.set(session.sessionFile, record);

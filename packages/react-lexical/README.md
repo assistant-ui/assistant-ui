@@ -5,8 +5,10 @@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-lexical
+npm install @assistant-ui/react @assistant-ui/react-lexical lexical @lexical/react @lexical/utils @lexical/history @lexical/plain-text
 ```
+
+`lexical` and the `@lexical/*` packages this package imports are peer dependencies: your app owns the single Lexical copy that the composer and your own plugins share, so keep every Lexical package at one version.
 
 ## Usage
 
@@ -17,12 +19,14 @@ import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 export function Composer() {
   return (
     <ComposerPrimitive.Root>
-      <LexicalComposerInput placeholder="Ask anything..." />
+      <LexicalComposerInput aria-label="Message" placeholder="Ask anything..." />
       <ComposerPrimitive.Send />
     </ComposerPrimitive.Root>
   );
 }
 ```
+
+Use `aria-label` or `aria-labelledby` to name the editable textbox (without either, the placeholder names it), and `aria-describedby` to reference hint or error text. Other HTML props and the forwarded ref apply to the outer wrapper.
 
 For custom chip rendering, pass a `directiveChip` render prop. Directives (e.g. `@user`, `/command`) survive cursor navigation, selection, and copy/paste as a single unit.
 

@@ -38,4 +38,4 @@ export const DESIGN_DOCUMENT = `${LAW.trimEnd()}\n\n${roster()}\n${discovery()}`
 export const DESIGN_SKILL_NAME = "assistant-ui-design";
 
 export const DESIGN_SKILL_DESCRIPTION =
-  "Draw, review, or extend an assistant-ui surface in the house design language: the print register, the sand palette, type roles, the line budget, motion, and the closed token and component API.";
+  "Draw, review, or extend an assistant-ui surface in the house design language: the print register, the sand palette, type roles, copy, the line budget, motion, and the closed token and component API.";

@@ -3,6 +3,8 @@ export { McpAddFormPrimitiveNameField as NameField } from "./addForm/McpAddFormN
 export { McpAddFormPrimitiveUrlField as UrlField } from "./addForm/McpAddFormUrlField";
 export { McpAddFormPrimitiveAuthSelect as AuthSelect } from "./addForm/McpAddFormAuthSelect";
 export { McpAddFormPrimitiveAuthFields as AuthFields } from "./addForm/McpAddFormAuthFields";
+export { McpAddFormPrimitiveBearerTokenField as BearerTokenField } from "./addForm/McpAddFormBearerTokenField";
+export { McpAddFormPrimitiveScopesField as ScopesField } from "./addForm/McpAddFormScopesField";
 export { McpAddFormPrimitiveSubmit as Submit } from "./addForm/McpAddFormSubmit";
 export { McpAddFormPrimitiveCancel as Cancel } from "./addForm/McpAddFormCancel";
 export { McpAddFormPrimitiveError as Error } from "./addForm/McpAddFormError";

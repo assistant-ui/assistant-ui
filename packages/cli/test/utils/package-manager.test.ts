@@ -2,10 +2,102 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { PassThrough } from "node:stream";
 import {
+  askQuestion,
   isPackageInstalled,
   getInstallCommand,
 } from "../../src/lib/utils/package-manager";
+
+describe("askQuestion", () => {
+  const withStdin = async (
+    drive: (stdin: PassThrough) => void,
+  ): Promise<string> => {
+    const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
+    const stdin = new PassThrough();
+    Object.defineProperty(process, "stdin", {
+      value: stdin,
+      configurable: true,
+    });
+    try {
+      const pending = askQuestion("Install it? (Y/n) ");
+      drive(stdin);
+      return await pending;
+    } finally {
+      Object.defineProperty(process, "stdin", original);
+    }
+  };
+
+  it("resolves empty when stdin reaches EOF unanswered", async () => {
+    expect(await withStdin((stdin) => stdin.end())).toBe("");
+  });
+
+  it("resolves the typed answer", async () => {
+    expect(await withStdin((stdin) => stdin.write("n\n"))).toBe("n");
+  });
+
+  it("keeps a final answer that arrives without a trailing newline", async () => {
+    expect(
+      await withStdin((stdin) => {
+        stdin.write("n");
+        stdin.end();
+      }),
+    ).toBe("n");
+  });
+
+  it("declines rather than installs when the prompt is cancelled", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
+    const stdin = new PassThrough() as PassThrough & {
+      isTTY: boolean;
+      setRawMode: () => void;
+    };
+    // Readline only synthesises SIGINT from Ctrl-C in terminal mode, which it
+    // infers from the output stream, so both ends have to look like a TTY.
+    stdin.isTTY = true;
+    stdin.setRawMode = () => {};
+    const stdout = new PassThrough() as PassThrough & { isTTY: boolean };
+    stdout.isTTY = true;
+    const originalOut = Object.getOwnPropertyDescriptor(process, "stdout")!;
+    Object.defineProperty(process, "stdin", {
+      value: stdin,
+      configurable: true,
+    });
+    Object.defineProperty(process, "stdout", {
+      value: stdout,
+      configurable: true,
+    });
+    try {
+      const pending = askQuestion("Install it? (Y/n) ");
+      stdin.write("\u0003");
+      const answer = await pending;
+      expect(answer).not.toBe("");
+      expect(answer.toLowerCase().startsWith("y")).toBe(false);
+    } finally {
+      Object.defineProperty(process, "stdin", original);
+      Object.defineProperty(process, "stdout", originalOut);
+    }
+  });
+
+  it("resolves every later prompt once stdin has already ended", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
+    const stdin = new PassThrough();
+    Object.defineProperty(process, "stdin", {
+      value: stdin,
+      configurable: true,
+    });
+    try {
+      const first = askQuestion("Install edge? (Y/n) ");
+      stdin.end();
+      expect(await first).toBe("");
+      // An upgrade asks up to three questions; the stream is spent after the
+      // first, so the rest must not wait on a `close` that cannot arrive.
+      expect(await askQuestion("Install ai-sdk? (Y/n) ")).toBe("");
+      expect(await askQuestion("Install another? (Y/n) ")).toBe("");
+    } finally {
+      Object.defineProperty(process, "stdin", original);
+    }
+  });
+});
 
 describe("package-manager utilities", () => {
   let testDir: string;

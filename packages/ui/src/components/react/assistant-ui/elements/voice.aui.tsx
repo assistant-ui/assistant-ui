@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   AuiIf,
+  useAuiState,
   useVoiceControls,
   useVoiceState,
   useVoiceVolume,
@@ -98,11 +99,17 @@ export const VoiceStatusDot: FC = () => {
 
 export const VoiceConnectButton: FC = () => {
   const { connect } = useVoiceControls();
+  const runOwnsThread = useAuiState(
+    (s) =>
+      s.thread.isRunning ||
+      s.thread.messages.at(-1)?.status?.type === "requires-action",
+  );
   return (
     <Button
       variant="default"
       size="sm"
       className="aui-voice-connect gap-1.5 rounded-lg"
+      disabled={runOwnsThread}
       onClick={() => connect()}
     >
       <PhoneIcon className="size-4" />

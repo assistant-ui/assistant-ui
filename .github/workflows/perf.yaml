@@ -12,6 +12,9 @@ on:
       - "packages/assistant-stream/**"
       - "packages/react/**"
       - "packages/react-markdown/**"
+      - "packages/ai-sdk/**"
+      - "packages/react-langgraph/**"
+      - "packages/react-pi/**"
       - "packages/tw-shimmer/**"
       - ".github/workflows/perf.yaml"
 
@@ -49,28 +52,30 @@ jobs:
           changed=$(git diff --name-only "$BASE_SHA...HEAD")
           bench=false
           trace=false
-          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
+          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown|ai-sdk|react-langgraph|react-pi)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
           if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
           echo "bench=$bench" >> "$GITHUB_OUTPUT"
           echo "trace=$trace" >> "$GITHUB_OUTPUT"
           echo "bench=$bench trace=$trace"
 
       - name: Setup pnpm and node.js
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
 
       - name: Build measured packages
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         if: steps.lanes.outputs.bench == 'true'
-        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
+        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/react-langgraph --filter=@assistant-ui/react-pi
 
       - name: Bench PR head against the base commit
         if: steps.lanes.outputs.bench == 'true'
@@ -111,6 +116,7 @@ jobs:
           path: packages/x-performance/.perf/trace-*.png
 
       - name: Assemble the report
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -121,14 +127,15 @@ jobs:
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post the report as a sticky PR comment
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_MARKER: "<!-- aui-perf-report -->"
         run: |
           set -euo pipefail
-          marker='<!-- aui-perf-report -->'
-          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | sed -n '1p')
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
           if [ -n "$existing" ]; then
             gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/comment.md"
           else

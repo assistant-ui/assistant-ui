@@ -59,7 +59,7 @@ function ShellApprovalGate({ args, approval, respondToApproval }: ToolCallMessag
 
 ### Answer with respondToApproval
 
-Each declared option carries its own `grants`, the patterns or rules choosing it would persist. Show them before the user commits, not after:
+Each declared option carries its own `grants`, the patterns or rules choosing it would persist. Show them before the user commits:
 
 ```tsx
 {(approval.options ?? []).map((option) => (
@@ -216,7 +216,7 @@ Both lanes take `className` on the root. The root uses the shared `paper` surfac
 | `requester` | `string` | required | Who's asking for it. |
 | `reach` | `readonly string[]` | required | The patterns or rules this grant would cover, shown before the user commits. |
 | `scope` | `GrantScope \| "pending"` | required | `"pending"` shows the three buttons; any other value shows the resolved badge. |
-| `onGrant` | `(scope: GrantScope) => void` | | Called once, from whichever pending button was pressed. |
+| `onGrant` | `(scope: GrantScope) => void` | | Called once, from whichever pending button was pressed. Pending grant buttons render only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 `GrantScope` is `"session" | "always" | "denied"`.

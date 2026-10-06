@@ -27,6 +27,27 @@ const contentOf = (result: ReturnType<typeof convertLangChainBaseMessage>) => {
   return result.content;
 };
 
+describe("convertLangChainBaseMessage modality", () => {
+  it("lifts voice modality onto human and ai messages and ignores unknown values", () => {
+    for (const message of [humanMessage("Question"), aiMessage("Answer")]) {
+      const spoken = convertLangChainBaseMessage({
+        ...message,
+        additional_kwargs: { modality: "voice" },
+      });
+      const unknown = convertLangChainBaseMessage({
+        ...message,
+        additional_kwargs: { modality: "video" },
+      });
+
+      expect(spoken).toHaveProperty("metadata", {
+        custom: {},
+        modality: "voice",
+      });
+      expect(unknown).toHaveProperty("metadata", { custom: {} });
+    }
+  });
+});
+
 describe("convertLangChainBaseMessage file content parts", () => {
   it("converts a base64 file block", () => {
     const result = convertLangChainBaseMessage(
@@ -1113,6 +1134,118 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     ]);
   });
 
+  it("normalizes missing, string, and array tool-call args to an object", () => {
+    for (const args of [undefined, "not-json", ["x"], null]) {
+      const result = convertLangChainBaseMessage(
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", name: "lookup", args }],
+        } as unknown as LangChainBaseMessage,
+        {},
+      );
+      expect(contentOf(result)).toEqual([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+        },
+      ]);
+    }
+  });
+
+  it("normalizes unsafe object tool-call args to an empty object", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    class CustomArgs {
+      query = "x";
+    }
+
+    for (const args of [new Date(0), new Map(), new CustomArgs(), cyclic]) {
+      const result = convertLangChainBaseMessage(
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", name: "lookup", args }],
+        } as unknown as LangChainBaseMessage,
+        {},
+      );
+      expect(contentOf(result)).toEqual([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+        },
+      ]);
+    }
+  });
+
+  it("skips a null tool call entry and keeps the rest", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage([]),
+        tool_calls: [null, { id: "call-1", name: "lookup", args: {} }],
+      } as unknown as LangChainBaseMessage,
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+  });
+
+  it("skips a tool call without a name so its named result does not throw", () => {
+    const messages = convertExternalMessages(
+      [
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", args: {} }],
+        } as unknown as LangChainBaseMessage,
+        {
+          _getType: () => "tool",
+          id: "msg-tool",
+          name: "search",
+          tool_call_id: "call-1",
+          content: "3 results",
+        } as LangChainBaseMessage,
+      ],
+      (message) => convertLangChainBaseMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.content).toEqual([]);
+  });
+
+  it("keeps a tool call whose name is empty", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage([]),
+        tool_calls: [{ id: "call-1", name: "", args: {} }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+  });
+
   it("converts a system message with null content to empty text", () => {
     const result = convertLangChainBaseMessage(
       { _getType: () => "system", id: "msg-4", content: null },
@@ -1211,6 +1344,26 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     try {
       convertLangChainBaseMessage(humanMessage(true), {});
       expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        ...aiMessage([]),
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainBaseMessage;
+      convertLangChainBaseMessage(message, {});
+      convertLangChainBaseMessage(message, {});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
     } finally {
       warn.mockRestore();
       vi.unstubAllEnvs();

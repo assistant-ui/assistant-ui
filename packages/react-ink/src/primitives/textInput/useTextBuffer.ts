@@ -131,19 +131,24 @@ const getOffsetAtDisplayColumn = (
 };
 
 const getPreviousWordOffset = (text: string, cursorOffset: number) => {
-  let result = 0;
-  for (const segment of wordSegmenter.segment(text)) {
-    if (segment.index >= cursorOffset) break;
-    if (segment.isWordLike) result = segment.index;
+  const segments = wordSegmenter.segment(text);
+  let offset = Math.ceil(Math.min(cursorOffset, text.length)) - 1;
+  while (offset >= 0) {
+    const segment = segments.containing(offset)!;
+    if (segment.isWordLike) return segment.index;
+    offset = segment.index - 1;
   }
-  return result;
+  return 0;
 };
 
 const getNextWordOffset = (text: string, cursorOffset: number) => {
-  for (const segment of wordSegmenter.segment(text)) {
+  const segments = wordSegmenter.segment(text);
+  let offset = Math.max(cursorOffset, 0);
+  while (offset < text.length) {
+    const segment = segments.containing(offset)!;
     const end = segment.index + segment.segment.length;
-    if (end <= cursorOffset) continue;
     if (segment.isWordLike) return end;
+    offset = end;
   }
   return text.length;
 };

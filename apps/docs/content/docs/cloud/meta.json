@@ -7,20 +7,16 @@
   "pages": [
     "index",
     "quickstart",
-    "authorization",
-    "---Integrations---",
-    "ai-sdk-assistant-ui",
-    "local-runtime",
-    "langgraph",
-    "ai-sdk",
-    "---Telemetry---",
-    "telemetry",
-    "engagement",
-    "traces",
-    "---Dashboard---",
+    "concepts",
+    "pricing",
+    "(auth)",
+    "(conversations)",
+    "(integrations)",
+    "(telemetry)",
+    "(features)",
+    "dashboard",
     "settings",
-    "intelligence",
-    "---Reference---",
-    "api"
+    "api",
+    "(reference)"
   ]
 }

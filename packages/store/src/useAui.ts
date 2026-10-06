@@ -25,7 +25,7 @@ import type {
   ClientNames,
   ClientMethods,
 } from "./types/client";
-import { useDerived } from "./Derived";
+import { isDerivedHook } from "./utils/derived-hook";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,
@@ -99,8 +99,7 @@ export const applyTransformScopes = (
   return scopes;
 };
 
-const isDerivedElement = (element: ScopeElement) =>
-  element.hook === (useDerived as unknown);
+const isDerivedElement = (element: ScopeElement) => isDerivedHook(element.hook);
 
 const metaOf = (element: ScopeElement): ScopeMeta => {
   if (!isDerivedElement(element)) return { source: "root", query: {} };
@@ -296,8 +295,16 @@ export const useAuiRoot = ({
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
+  // Both fields outlive every render of this host, so the context value is
+  // memoized: a fresh object here marks the context changed on every update,
+  // which defeats the deps bailout of every resource that reads it.
+  const tapContextValue = useMemo(
+    () => ({ clientRef, emit: notifications.emit }),
+    [clientRef, notifications.emit],
+  );
+
   const accessors = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
+    tapContextValue,
     function WithTapContext() {
       return useAssistantContextProvider(
         building,

@@ -27,6 +27,7 @@ import type {
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -73,15 +74,16 @@ const groupMessagePartsByParentId: GroupingFunction = (
 
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
-): MessagePartGroup[] => {
+): { groups: MessagePartGroup[]; partKeys: string[] } => {
   const parts = useAuiState((s) => s.message.parts);
 
-  return useMemo(() => {
+  const groups = useMemo(() => {
     if (parts.length === 0) {
       return [];
     }
     return groupingFunction(parts);
   }, [parts, groupingFunction]);
+  return { groups, partKeys: getMessagePartKeys(parts) };
 };
 
 export namespace MessagePrimitiveUnstable_PartsGrouped {
@@ -249,9 +251,9 @@ const DataUIDisplay = ({
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
+    const named = s.dataRenderers.renderers[props.name]?.[0];
+    if (named) return named;
+    return s.dataRenderers.fallbacks[0] ?? Fallback;
   });
   if (!Render) return null;
   return <Render {...props} />;
@@ -298,6 +300,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const addResult = aui.part.addToolResult;
     const resume = aui.part.resumeToolCall;
     const respondToApproval = aui.part.respondToToolApproval;
+    const unstable_recordInteraction = aui.part.unstable_recordInteraction;
     if ("Override" in tools)
       return (
         <tools.Override
@@ -305,9 +308,13 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
           addResult={addResult}
           resume={resume}
           respondToApproval={respondToApproval}
+          {...(unstable_recordInteraction && { unstable_recordInteraction })}
         />
       );
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool =
+      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+        ? tools.by_name[part.toolName]
+        : undefined) ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -315,6 +322,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}
+        {...(unstable_recordInteraction && { unstable_recordInteraction })}
       />
     );
   }
@@ -342,7 +350,10 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <Audio {...part} />;
 
     case "data": {
-      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      const Data =
+        (data?.by_name && Object.hasOwn(data.by_name, part.name)
+          ? data.by_name[part.name]
+          : undefined) ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
     }
 
@@ -454,7 +465,8 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
-  const messageGroups = useMessagePartsGrouped(groupingFunction);
+  const { groups: messageGroups, partKeys } =
+    useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {
     if (contentLength === 0) {
@@ -463,16 +475,21 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
 
     return messageGroups.map((group, groupIndex) => {
       const GroupComponent = components?.Group ?? defaultComponents.Group;
+      const identity = partKeys[group.indices[0]!];
 
       return (
         <GroupComponent
-          key={`group-${groupIndex}-${group.groupKey ?? "ungrouped"}`}
+          key={JSON.stringify([
+            "group",
+            group.groupKey ?? null,
+            identity?.includes(":") ? `id:${identity}` : groupIndex,
+          ])}
           groupKey={group.groupKey}
           indices={group.indices}
         >
           {group.indices.map((partIndex) => (
             <MessagePart
-              key={partIndex}
+              key={partKeys[partIndex]}
               partIndex={partIndex}
               components={components}
             />
@@ -480,7 +497,7 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
         </GroupComponent>
       );
     });
-  }, [messageGroups, components, contentLength]);
+  }, [messageGroups, components, contentLength, partKeys]);
 
   return <>{partsElements}</>;
 };

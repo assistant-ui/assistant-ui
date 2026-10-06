@@ -3,6 +3,7 @@ export { AuiIf } from "./AuiIf";
 export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
+export { useScrollLock } from "./useScrollLock";
 
 export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
 export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
@@ -12,6 +13,7 @@ export { ThreadPrimitiveViewportFooter } from "./primitives/ThreadPrimitiveViewp
 export { ThreadPrimitiveScrollToBottom } from "./primitives/ThreadPrimitiveScrollToBottom";
 export {
   MessagePrimitiveParts,
+  type DataUIProps,
   type ToolUIProps,
 } from "./primitives/MessagePrimitiveParts";
 export { ChainOfThoughtPrimitiveParts } from "./primitives/ChainOfThoughtPrimitiveParts";

@@ -90,17 +90,14 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
     (onChange: () => void) => subscribeToStreamResize(stdout, onChange),
     [stdout],
   );
-  const terminalWidth = useSyncExternalStore(
-    subscribeToResize,
-    () => stdout.columns,
+  const usesTerminalWidth =
+    options.width === undefined && options.wrap !== false;
+  const terminalWidth = useSyncExternalStore(subscribeToResize, () =>
+    usesTerminalWidth ? stdout.columns : undefined,
   );
 
-  // Inject the live width only where markdansi would read the terminal itself
-  // (wrapping enabled, no explicit width), so resizes reach memoized output.
   const resolvedOptions =
-    options.width === undefined &&
-    options.wrap !== false &&
-    terminalWidth !== undefined
+    usesTerminalWidth && terminalWidth !== undefined
       ? { ...options, width: terminalWidth }
       : options;
 

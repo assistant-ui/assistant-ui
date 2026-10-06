@@ -43,6 +43,7 @@ describe("useStreamRuntime Cloud options", () => {
 
     const options = {
       apiUrl: "/api",
+      assistantId: "assistant-1",
       cloud,
       scopeId: "workspace-1",
     } satisfies UseStreamRuntimeOptions;

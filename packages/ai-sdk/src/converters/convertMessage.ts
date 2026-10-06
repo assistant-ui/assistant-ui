@@ -12,6 +12,9 @@ import {
 import {
   isMcpAppUri,
   type ReasoningMessagePart,
+  type ToolApprovalOption,
+  type ToolApprovalQuestion,
+  type ToolApprovalQuestionOption,
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
@@ -22,7 +25,10 @@ import {
   type ThreadMessageLike,
   type McpAppMetadata,
   type MessagePartStreamStatus,
+  type RespondToToolApprovalOptions,
+  type Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
+import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
   parsePartialJsonObject,
@@ -40,13 +46,14 @@ const THREAD_METADATA_KEYS = new Set([
   "timing",
   "submittedFeedback",
   "isOptimistic",
+  "modality",
   "custom",
 ]);
 
 const toThreadMetadata = (metadata: unknown): MessageMetadata => {
   if (!metadata || typeof metadata !== "object") return undefined;
   const result: Record<string, unknown> = {};
-  const extra: Record<string, unknown> = {};
+  const extra = Object.create(null) as Record<string, unknown>;
   for (const [key, value] of Object.entries(metadata)) {
     (THREAD_METADATA_KEYS.has(key) ? result : extra)[key] = value;
   }
@@ -58,14 +65,30 @@ const toThreadMetadata = (metadata: unknown): MessageMetadata => {
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    /**
+     * Frozen `argsText` keyed weakly by a settled tool call's input object, then
+     * by call, since the text carries the call's streamed key order. A known
+     * call/input pair skips serialization; the entries become collectible once
+     * the input is unreachable. A fresh input object re-serializes in its own
+     * deterministic key order.
+     */
+    toolArgsTextCache?: WeakMap<ReadonlyJSONObject, Map<string, string>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    toolArtifacts?: ReadonlyMap<string, unknown>;
+    toolInteractions?: ReadonlyMap<string, Unstable_ToolInteractionLog>;
+    supportsRichToolApprovalResponses?: boolean;
+    toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
+    cancelledToolApprovalIds?: ReadonlySet<string>;
+    cancelledStatusMessageIds?: ReadonlySet<string>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
 
 function stripClosingDelimiters(json: string): string {
-  return json.replace(/[}\]"]+$/, "");
+  let end = json.length;
+  while (end > 0 && '}]"'.includes(json[end - 1]!)) end--;
+  return json.slice(0, end);
 }
 
 const MCP_APP_METADATA_CACHE_MAX = 100;
@@ -75,17 +98,45 @@ function extractMcpAppMetadata(
   cache: Map<string, McpAppMetadata> | undefined,
 ): McpAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
+  const toolMetadata = (part as { toolMetadata?: unknown }).toolMetadata;
+  const toolApp =
+    toolMetadata && typeof toolMetadata === "object"
+      ? (toolMetadata as { app?: unknown }).app
+      : undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
   const mcp =
     meta && typeof meta === "object"
       ? (meta as { mcp?: unknown }).mcp
       : undefined;
-  const app =
+  const providerApp =
     mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+
+  const apps: Record<string, unknown>[] = [];
+  for (const candidate of [toolApp, providerApp]) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const candidateApp = candidate as Record<string, unknown>;
+    const resourceUri = candidateApp["resourceUri"];
+    if (typeof resourceUri !== "string" || !isMcpAppUri(resourceUri)) continue;
+    apps.push({
+      resourceUri,
+      ...(typeof candidateApp["mimeType"] === "string" && {
+        mimeType: candidateApp["mimeType"],
+      }),
+      ...(Array.isArray(candidateApp["visibility"]) && {
+        visibility: candidateApp["visibility"],
+      }),
+      ...(candidate === providerApp &&
+        typeof candidateApp["serverId"] === "string" &&
+        candidateApp["serverId"].length > 0 && {
+          serverId: candidateApp["serverId"],
+        }),
+    });
+  }
+
   let a: Record<string, unknown>;
-  if (app && typeof app === "object") {
-    a = app as Record<string, unknown>;
+  if (apps.length > 0) {
+    a = { ...(apps[1] ?? {}), ...apps[0]! };
   } else {
     // MCP-UI tools surface the pointer on result._meta: canonical nested
     // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.
@@ -152,19 +203,170 @@ function extractMcpAppMetadata(
   return out;
 }
 
+const normalizeToolApprovalOptions = (
+  options: unknown,
+): readonly ToolApprovalOption[] | undefined => {
+  if (!Array.isArray(options)) return undefined;
+
+  return options.flatMap<ToolApprovalOption>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const option = value as Record<string, unknown>;
+    if (typeof option.id !== "string" || typeof option.kind !== "string")
+      return [];
+
+    const confirm = option.confirm;
+    const confirmDetails =
+      confirm && typeof confirm === "object" && !Array.isArray(confirm)
+        ? (confirm as Record<string, unknown>)
+        : undefined;
+
+    return [
+      {
+        id: option.id,
+        kind: option.kind,
+        ...(typeof option.label === "string" && { label: option.label }),
+        ...(typeof option.description === "string" && {
+          description: option.description,
+        }),
+        ...(Array.isArray(option.grants) && {
+          grants: option.grants.filter(
+            (grant): grant is string => typeof grant === "string",
+          ),
+        }),
+        ...(typeof confirm === "boolean"
+          ? { confirm }
+          : confirmDetails
+            ? {
+                confirm: {
+                  ...(typeof confirmDetails.title === "string" && {
+                    title: confirmDetails.title,
+                  }),
+                  ...(typeof confirmDetails.description === "string" && {
+                    description: confirmDetails.description,
+                  }),
+                },
+              }
+            : {}),
+      },
+    ];
+  });
+};
+
+const normalizeToolApprovalQuestions = (
+  questions: unknown,
+): readonly ToolApprovalQuestion[] | undefined => {
+  if (!Array.isArray(questions)) return undefined;
+
+  return questions.flatMap<ToolApprovalQuestion>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const question = value as Record<string, unknown>;
+    if (typeof question.id !== "string" || typeof question.prompt !== "string")
+      return [];
+    const options = Array.isArray(question.options)
+      ? question.options.flatMap<ToolApprovalQuestionOption>((option) => {
+          if (!option || typeof option !== "object" || Array.isArray(option))
+            return [];
+          const { id, label, description } = option as Record<string, unknown>;
+          if (typeof id !== "string" || typeof label !== "string") return [];
+          return [
+            {
+              id,
+              label,
+              ...(typeof description === "string" && { description }),
+            },
+          ];
+        })
+      : undefined;
+
+    return [
+      {
+        id: question.id,
+        prompt: question.prompt,
+        ...(typeof question.header === "string" && {
+          header: question.header,
+        }),
+        ...(options && { options }),
+        ...(typeof question.multiple === "boolean" && {
+          multiple: question.multiple,
+        }),
+        ...(typeof question.allowFreeform === "boolean" && {
+          allowFreeform: question.allowFreeform,
+        }),
+      },
+    ];
+  });
+};
+
+const APPROVAL_DESCRIPTOR_FIELDS = [
+  "prompt",
+  "display",
+  "allowFreeform",
+  "dismissible",
+  "options",
+  "optionId",
+  "text",
+  "questions",
+  "answers",
+  "resolution",
+] as const;
+
+// The AI SDK's approval object declares none of the core request and answer
+// fields and `validateUIMessages` strips unknown ones, so a host streams or
+// persists them inside the opaque `approvalDescriptor`. Only those fields are
+// read from it: a descriptor cannot approve its own request.
+const readApprovalDescriptor = (
+  descriptor: unknown,
+): Record<string, unknown> => {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor)
+  )
+    return {};
+  const fields: Record<string, unknown> = {};
+  for (const key of APPROVAL_DESCRIPTOR_FIELDS) {
+    if (Object.hasOwn(descriptor, key))
+      fields[key] = (descriptor as Record<string, unknown>)[key];
+  }
+  return fields;
+};
+
 function getToolApprovalAndInterrupt(
   part: {
     approval?: Record<string, unknown> | undefined;
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
+  supportsRichToolApprovalResponses: boolean,
+  toolApprovalResponses:
+    | ReadonlyMap<string, RespondToToolApprovalOptions>
+    | undefined,
+  cancelledToolApprovalIds: ReadonlySet<string> | undefined,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
-    // The AI SDK sends only id, approved and reason back to the server, so a
-    // request shape promising any other answer would render controls whose
-    // response cannot travel.
+    const rawApproval = {
+      ...readApprovalDescriptor(part.approval.descriptor),
+      ...part.approval,
+    };
+    const approval =
+      typeof rawApproval.id === "string" &&
+      rawApproval.approved === undefined &&
+      rawApproval.resolution === undefined &&
+      cancelledToolApprovalIds?.has(rawApproval.id)
+        ? { ...rawApproval, resolution: "cancelled" as const }
+        : rawApproval;
+    const response =
+      typeof approval.id === "string" &&
+      approval.approved === undefined &&
+      approval.resolution !== "cancelled" &&
+      approval.resolution !== "expired"
+        ? toolApprovalResponses?.get(approval.id)
+        : undefined;
+    // The built-in AI SDK channel sends only id, approved and reason back to
+    // the server, so a request shape promising any other answer would render
+    // controls whose response cannot travel.
     const {
       id,
       prompt,
@@ -174,11 +376,32 @@ function getToolApprovalAndInterrupt(
       resolution,
       display,
       allowFreeform,
+      dismissible,
       options,
       optionId,
       text,
+      questions,
+      answers,
       ...additionalApprovalFields
-    } = part.approval;
+    } = response
+      ? {
+          ...approval,
+          approved: response.approved,
+          ...(response.reason != null && { reason: response.reason }),
+          ...(response.optionId != null && { optionId: response.optionId }),
+          ...(response.text != null && { text: response.text }),
+          ...(response.answers != null && { answers: response.answers }),
+        }
+      : approval;
+    const normalizedOptions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalOptions(options)
+      : undefined;
+    const normalizedQuestions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalQuestions(questions)
+      : undefined;
+    const normalizedAnswers = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalAnswers(answers)
+      : undefined;
     const requestReason = additionalApprovalFields.requestReason;
     if (typeof id === "string")
       return {
@@ -193,6 +416,19 @@ function getToolApprovalAndInterrupt(
           ...(typeof approved === "boolean" && { approved }),
           ...(typeof reason === "string" && { reason }),
           ...(isAutomatic === true && { isAutomatic: true }),
+          ...(supportsRichToolApprovalResponses && {
+            ...((display === "decision" ||
+              display === "select" ||
+              display === "text" ||
+              display === "questions") && { display }),
+            ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(typeof dismissible === "boolean" && { dismissible }),
+            ...(normalizedOptions && { options: normalizedOptions }),
+            ...(typeof optionId === "string" && { optionId }),
+            ...(typeof text === "string" && { text }),
+            ...(normalizedQuestions && { questions: normalizedQuestions }),
+            ...(normalizedAnswers && { answers: normalizedAnswers }),
+          }),
           ...((resolution === "cancelled" || resolution === "expired") && {
             resolution,
           }),
@@ -269,7 +505,14 @@ function convertParts(
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
 
-        const rawInput = part.input as ReadonlyJSONObject | null | undefined;
+        // A tool call that streamed complete arguments then failed schema
+        // validation keeps them in `rawInput`, not `input`; reading `input`
+        // alone would convert the error snapshot to `{}` and hide the input.
+        const rawInput = (part.input ??
+          ("rawInput" in part ? part.rawInput : undefined)) as
+          | ReadonlyJSONObject
+          | null
+          | undefined;
         let args: ReadonlyJSONObject;
         if (
           rawInput != null &&
@@ -302,12 +545,13 @@ function convertParts(
           };
         }
 
-        let argsText = stableStringifyToolArgs(
-          metadata.toolArgsKeyOrderCache,
-          argsKeyOrderCacheKey,
-          args,
-        );
+        let argsText: string;
         if (part.state === "input-streaming") {
+          argsText = stableStringifyToolArgs(
+            metadata.toolArgsKeyOrderCache,
+            argsKeyOrderCacheKey,
+            args,
+          );
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
           // Re-parse so args carries the partial-JSON meta that marks which
@@ -316,6 +560,27 @@ function convertParts(
           // of the stripped text is the streaming frontier.
           args = parsePartialJsonObject(argsText) ?? args;
         } else {
+          // A settled part is re-converted whenever its message or the converter
+          // metadata changes; the text frozen on its input object skips
+          // re-serializing large args while the call keeps that input. Arrival
+          // order only matters while args stream, so the key-order entry is
+          // released.
+          const frozen =
+            metadata.toolArgsTextCache?.get(args) ?? new Map<string, string>();
+          const frozenText = frozen.get(argsKeyOrderCacheKey);
+          if (frozenText !== undefined) {
+            argsText = frozenText;
+          } else {
+            argsText = stableStringifyToolArgs(
+              metadata.toolArgsKeyOrderCache,
+              argsKeyOrderCacheKey,
+              args,
+            );
+            metadata.toolArgsTextCache?.set(
+              args,
+              frozen.set(argsKeyOrderCacheKey, argsText),
+            );
+          }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
           if (
             part.state === "output-available" ||
@@ -331,6 +596,8 @@ function convertParts(
           part,
           metadata.mcpAppMetadataCache,
         );
+        const artifact = metadata.toolArtifacts?.get(toolCallId);
+        const interactions = metadata.toolInteractions?.get(toolCallId);
         return {
           type: "tool-call",
           toolName,
@@ -339,6 +606,12 @@ function convertParts(
           args,
           result,
           isError,
+          ...(artifact !== undefined && { artifact }),
+          ...(interactions !== undefined && {
+            unstable_interactions: interactions,
+          }),
+          ...(part.state === "output-available" &&
+            part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
           ...(part.callProviderMetadata != null
@@ -347,7 +620,13 @@ function convertParts(
                   part.callProviderMetadata as PartProviderMetadata,
               }
             : undefined),
-          ...getToolApprovalAndInterrupt(part, toolStatus),
+          ...getToolApprovalAndInterrupt(
+            part,
+            toolStatus,
+            metadata.supportsRichToolApprovalResponses === true,
+            metadata.toolApprovalResponses,
+            metadata.cancelledToolApprovalIds,
+          ),
         } satisfies ToolCallMessagePart;
       }
 
@@ -396,6 +675,9 @@ function convertParts(
       if (part.type.startsWith("data-")) {
         return {
           type: "data",
+          ...("id" in part && typeof part.id === "string"
+            ? { id: part.id }
+            : undefined),
           name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;
@@ -485,6 +767,15 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           id: message.id,
           createdAt,
           content,
+          ...(message.role === "assistant" &&
+          metadata.cancelledStatusMessageIds?.has(message.id)
+            ? {
+                status: {
+                  type: "incomplete" as const,
+                  reason: "cancelled" as const,
+                },
+              }
+            : undefined),
           metadata: {
             ...toThreadMetadata(message.metadata),
             ...(timing && { timing }),

@@ -6,6 +6,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import {
   $createParagraphNode,
   $createTextNode,
+  $createLineBreakNode,
   $getRoot,
   $getSelection,
   $isRangeSelection,
@@ -17,8 +18,10 @@ import {
   UNDO_COMMAND,
   type LexicalEditor,
   type TextNode,
+  type ParagraphNode,
 } from "lexical";
 import { LexicalComposerInput } from "./LexicalComposerInput";
+import { $createDirectiveNode } from "./nodes/DirectiveNode";
 
 const { setCursorPosition, registry, aui } = vi.hoisted(() => {
   const setCursorPosition = vi.fn<(position: number) => void>();
@@ -113,6 +116,91 @@ describe("LexicalComposerInput cursor tracking", () => {
       );
     });
     expect(setCursorPosition).toHaveBeenLastCalledWith(5);
+  });
+
+  it.each([
+    { lines: ["hello", ""], expected: 6 },
+    { lines: ["", "", ""], expected: 2 },
+    { lines: ["hello", "", ""], expected: 7 },
+    { lines: [""], expected: 0 },
+  ])(
+    "reports $expected for an empty paragraph after $lines",
+    async ({ lines, expected }) => {
+      await update(() => {
+        const paragraphs = lines.map((line) => {
+          const paragraph = $createParagraphNode();
+          if (line) paragraph.append($createTextNode(line));
+          return paragraph;
+        });
+        $getRoot()
+          .clear()
+          .append(...paragraphs);
+        paragraphs.at(-1)!.select(0, 0);
+      });
+      editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        expect($isRangeSelection(selection) && selection.anchor.type).toBe(
+          "element",
+        );
+      });
+      expect(setCursorPosition).toHaveBeenLastCalledWith(expected);
+    },
+  );
+
+  it("includes serialized directives and explicit line breaks before an empty paragraph", async () => {
+    let expected = 0;
+    await update(() => {
+      const directive = $createDirectiveNode({
+        id: "alice",
+        type: "user",
+        label: "Alice",
+      });
+      const text = $createTextNode("hello");
+      const empty = $createParagraphNode();
+      $getRoot()
+        .clear()
+        .append(
+          $createParagraphNode().append(
+            directive,
+            $createLineBreakNode(),
+            text,
+          ),
+          empty,
+        );
+      expected =
+        directive.getTextContent().length +
+        1 +
+        text.getTextContent().length +
+        1;
+      empty.select(0, 0);
+    });
+    expect(setCursorPosition).toHaveBeenLastCalledWith(expected);
+  });
+
+  it("invalidates an element anchor after earlier edits and restores it after a missing selection", async () => {
+    let empty!: ParagraphNode;
+    await update(() => {
+      empty = $createParagraphNode();
+      $getRoot().append(empty);
+      empty.select(0, 0);
+    });
+    expect(setCursorPosition).toHaveBeenLastCalledWith(6);
+    await update(() => textNode.setTextContent("longer text"));
+    expect(setCursorPosition).toHaveBeenLastCalledWith(12);
+    await update(() => $setSelection(null));
+    expect(setCursorPosition).toHaveBeenLastCalledWith(0);
+    await update(() => empty.select(0, 0));
+    expect(setCursorPosition).toHaveBeenLastCalledWith(12);
+    const calls = setCursorPosition.mock.calls.length;
+    await update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const next = selection.clone();
+        next.format = next.format === 0 ? 1 : 0;
+        $setSelection(next);
+      }
+    });
+    expect(setCursorPosition.mock.calls.length).toBe(calls);
   });
 
   it("restores the cursor after the editor loses its selection", async () => {

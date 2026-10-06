@@ -16,11 +16,7 @@ Install the Vue binding, the AI SDK runtime, and an AI SDK provider:
 pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai react
 ```
 
-`react` is the AI SDK runtime's substrate — an optional peer of `@assistant-ui/ai-sdk`, so it does not install on its own. For `nuxi typecheck`, add `@types/react` as a dev dependency: a type-only react reference rides through the core runtime types.
-
-```bash
-pnpm add -D @types/react
-```
+The AI SDK runtime runs on `react`. It is an optional peer of `@assistant-ui/ai-sdk`, so it does not install on its own.
 
 Add your provider key to `.env`:
 
@@ -33,7 +29,9 @@ OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 ### Install the styled components
 
-Add the Vue assistant-ui registry once in `components.json`:
+The styled components install with the [shadcn-vue](https://www.shadcn-vue.com) CLI. If the app does not use shadcn-vue yet, set up Tailwind CSS and run `npx shadcn-vue@latest init` as the [shadcn-vue Nuxt guide](https://www.shadcn-vue.com/docs/installation/nuxt) describes.
+
+Then add the assistant-ui registry once in `components.json`:
 
 ```json title="components.json"
 {
@@ -46,10 +44,10 @@ Add the Vue assistant-ui registry once in `components.json`:
 Install the chat surface:
 
 ```sh
-npx shadcn@latest add @assistant-ui/thread @assistant-ui/thread-list
+npx shadcn-vue@latest add @assistant-ui/thread @assistant-ui/thread-list
 ```
 
-This writes Vue components under `components/assistant-ui`. The registry installs their assistant-ui, Vue, and UI dependencies.
+This writes the Vue components to `app/components/assistant-ui` and installs their dependencies.
 
   </Step>
   <Step>
@@ -71,7 +69,9 @@ const config = AuiConfig({
 
 <template>
   <AuiProvider :config="config">
-    <Thread class="h-dvh" />
+    <div class="h-dvh">
+      <Thread />
+    </div>
   </AuiProvider>
 </template>
 ```
@@ -96,7 +96,7 @@ export default defineEventHandler(async (event) => {
   }>(event);
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     system,
   });
@@ -115,6 +115,14 @@ Nuxt recognizes the `.client.vue` suffix and only mounts this component in the b
 ```vue title="app/pages/index.vue"
 <template>
   <Assistant />
+</template>
+```
+
+A page renders only where `app/app.vue` outputs `<NuxtPage />`. The `nuxi init` starter outputs `<NuxtWelcome />` there instead, so replace it:
+
+```vue title="app/app.vue"
+<template>
+  <NuxtPage />
 </template>
 ```
 

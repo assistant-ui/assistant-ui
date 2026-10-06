@@ -265,6 +265,85 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     });
   });
 
+  it("reload: keeps an earlier answer when a tool snapshot ends at its parent", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "c1",
+              toolCallName: "lookup",
+              parentMessageId: "a1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "c1" },
+          });
+          subscriber.onToolCallResultEvent?.({
+            event: {
+              type: "TOOL_CALL_RESULT",
+              toolCallId: "c1",
+              messageId: "t1",
+              content: "ok",
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "a1",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "c1",
+                      type: "function",
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "t1",
+                  role: "tool",
+                  toolCallId: "c1",
+                  content: "ok",
+                },
+              ],
+            },
+          });
+        }
+
+        emitAssistantText(subscriber, `b${runCount}`, `answer ${runCount}`);
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    userId = core.getMessages()[0]!.id;
+    await core.reload("a1");
+
+    const repository = core.getMessageRepository();
+    const answerBranches = repository.messages
+      .filter(({ message }) => message.id === "b1" || message.id === "b2")
+      .map(({ message, parentId }) => [message.id, parentId]);
+    expect(answerBranches).toEqual([
+      ["b1", "a1"],
+      ["b2", "a1"],
+    ]);
+    expect(core.getMessages().map(({ id }) => id)).toEqual([
+      userId,
+      "a1",
+      "b2",
+    ]);
+  });
+
   it("reload: follows a snapshot head introduced during a branch run", async () => {
     let runCount = 0;
     let userId = "";
@@ -834,6 +913,7 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
     const assistantMessage: ThreadAssistantMessage = {
@@ -888,5 +968,49 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     });
     expect(tail.metadata.isOptimistic).toBeUndefined();
     expect(tail.id.startsWith("__optimistic__")).toBe(false);
+  });
+
+  it("edit: adds the edited message as a sibling branch and keeps the original turn", async () => {
+    let callCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        callCount++;
+        emitAssistantText(
+          subscriber,
+          `assistant-${callCount}`,
+          `answer ${callCount}`,
+        );
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    const originalUserId = core.getMessages()[0]!.id;
+    const originalAssistantId = core.getMessages()[1]!.id;
+
+    await core.edit(
+      createAppendMessage({
+        parentId: null,
+        sourceId: originalUserId,
+        startRun: false,
+      }),
+    );
+    const editedUserId = core.getMessages()[0]!.id;
+
+    const entries = core.getMessageRepository().messages;
+    expect(entries.map(({ message }) => message.id)).toContain(originalUserId);
+    expect(entries.map(({ message }) => message.id)).toContain(
+      originalAssistantId,
+    );
+    expect(
+      entries.find(({ message }) => message.id === originalAssistantId)
+        ?.parentId,
+    ).toBe(originalUserId);
+    expect(
+      entries.find(({ message }) => message.id === editedUserId)?.parentId,
+    ).toBeNull();
+    expect(core.getMessages().map(({ id }) => id)).toEqual([editedUserId]);
   });
 });

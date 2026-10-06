@@ -165,7 +165,7 @@ case "group-computer":
 
 <StandaloneMode>
 
-`children` is required, not optional: the frame has nothing to show underneath the trail until you pass it.
+`children` is required: the frame has nothing to show underneath the trail until you pass it.
 
 ```tsx
 <ComputerUse url={url} steps={steps} activeIndex={activeIndex}>
@@ -179,7 +179,7 @@ case "group-computer":
 
 <RuntimeMode>
 
-`ComputerStepMarker` above already reads `status?.type`; a call still `"running"` gets the full-opacity cursor treatment, and one that finished settles into a dimmer trail dot the next call's marker renders past.
+`ComputerStepMarker` above already reads `status?.type`; a call still `"running"` renders at full opacity, and a finished call dims to `0.4`, so earlier actions read as a trail behind the current one.
 
 </RuntimeMode>
 

@@ -1,5 +1,6 @@
 import { type ReactElement, Fragment, useMemo } from "react";
 import { Text } from "react-native";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
@@ -81,6 +82,9 @@ const ToolUIDisplay = ({
         addResult={partMethods.addToolResult}
         resume={partMethods.resumeToolCall}
         respondToApproval={partMethods.respondToToolApproval}
+        {...(partMethods.unstable_recordInteraction && {
+          unstable_recordInteraction: partMethods.unstable_recordInteraction,
+        })}
       />
     );
   }
@@ -103,9 +107,8 @@ const DataUIDisplay = ({
   index: number;
 }) => {
   const Render = useAuiState((s) => {
-    const renders = s.dataRenderers.renderers[part.name];
-    if (Array.isArray(renders)) return renders[0];
-    return renders;
+    const named = s.dataRenderers.renderers[part.name]?.[0];
+    return named ?? s.dataRenderers.fallbacks[0];
   });
   if (Render) return <Render {...(part as DataMessagePartProps)} />;
   if (Fallback) return <Fallback part={part} index={index} />;
@@ -122,11 +125,12 @@ export const MessageContent = ({
   renderData,
 }: MessageContentProps) => {
   const content = useAuiState((s) => s.message.parts);
+  const partKeys = getMessagePartKeys(content);
 
   return (
     <>
       {content.map((part, index) => {
-        const key = `${part.type}-${index}`;
+        const key = partKeys[index];
         switch (part.type) {
           case "text":
             return (

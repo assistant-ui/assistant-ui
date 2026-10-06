@@ -1,7 +1,10 @@
 import { renderTractionImage } from "@/lib/traction-image";
+import { connection } from "next/server";
 
-export const runtime = "nodejs";
-export const revalidate = 21_600;
 export const maxDuration = 60;
 
-export const GET = () => renderTractionImage("dark");
+export const GET = async () => {
+  // api.npmjs.org limits requests per IP, so npm is read at request time.
+  await connection();
+  return renderTractionImage("dark");
+};

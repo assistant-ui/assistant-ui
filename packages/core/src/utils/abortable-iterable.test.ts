@@ -16,6 +16,121 @@ const collect = async <T>(iterable: AsyncIterable<T>) => {
 };
 
 describe("abortableIterable", () => {
+  it.each([false, true])(
+    "releases the opening abort listener on rejection=%s",
+    async (fails) => {
+      const controller = new AbortController();
+      const added = vi.spyOn(controller.signal, "addEventListener");
+      const removed = vi.spyOn(controller.signal, "removeEventListener");
+      const source: AsyncIterable<number> = {
+        async *[Symbol.asyncIterator]() {
+          yield 1;
+        },
+      };
+      const opening = openAbortableIterable(
+        fails ? Promise.reject(new Error("opening failed")) : source,
+        controller.signal,
+      );
+      if (fails) await expect(opening).rejects.toThrow("opening failed");
+      else await expect(opening).resolves.toBe(source);
+      expect(added).toHaveBeenCalledTimes(1);
+      expect(removed).toHaveBeenCalledWith("abort", added.mock.calls[0]![1]);
+    },
+  );
+
+  it("finalizes once when an aborted read later rejects", async () => {
+    let rejectRead!: (error: unknown) => void;
+    const read = new Promise<IteratorResult<number>>((_, reject) => {
+      rejectRead = reject;
+    });
+    const finalize = vi.fn(async () => ({
+      done: true as const,
+      value: undefined,
+    }));
+    const source: AsyncIterable<number> = {
+      [Symbol.asyncIterator]: () => ({ next: () => read, return: finalize }),
+    };
+    const controller = new AbortController();
+    const iterator = abortableIterable(source, controller.signal)[
+      Symbol.asyncIterator
+    ]();
+    const pending = iterator.next();
+    controller.abort();
+    await expect(pending).resolves.toEqual({ done: true, value: undefined });
+    expect(finalize).toHaveBeenCalledTimes(1);
+    rejectRead(new Error("late failure"));
+    await read.catch(() => {});
+    await iterator.return?.();
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the listener and finalizes after a synchronous read failure", async () => {
+    const controller = new AbortController();
+    const added = vi.spyOn(controller.signal, "addEventListener");
+    const removed = vi.spyOn(controller.signal, "removeEventListener");
+    const error = new Error("read failed");
+    const finalize = vi.fn(async () => ({
+      done: true as const,
+      value: undefined,
+    }));
+    const source: AsyncIterable<number> = {
+      [Symbol.asyncIterator]: () => ({
+        next: () => {
+          throw error;
+        },
+        return: finalize,
+      }),
+    };
+    await expect(
+      collect(abortableIterable(source, controller.signal)),
+    ).rejects.toBe(error);
+    expect(removed).toHaveBeenCalledWith("abort", added.mock.calls[0]![1]);
+    expect(finalize).toHaveBeenCalledTimes(1);
+    controller.abort();
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not read or finalize again after the consumer returns", async () => {
+    const next = vi.fn(async () => ({ done: false as const, value: 1 }));
+    const finalize = vi.fn(async () => ({
+      done: true as const,
+      value: undefined,
+    }));
+    const source: AsyncIterable<number> = {
+      [Symbol.asyncIterator]: () => ({ next, return: finalize }),
+    };
+    const iterator = abortableIterable(source, new AbortController().signal)[
+      Symbol.asyncIterator
+    ]();
+    await iterator.return?.();
+    await iterator.return?.();
+    await expect(iterator.next()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not finalize a naturally exhausted source", async () => {
+    const next = vi.fn(async () => ({ done: true as const, value: undefined }));
+    const finalize = vi.fn(async () => ({
+      done: true as const,
+      value: undefined,
+    }));
+    const source: AsyncIterable<number> = {
+      [Symbol.asyncIterator]: () => ({ next, return: finalize }),
+    };
+    const iterator = abortableIterable(source, new AbortController().signal)[
+      Symbol.asyncIterator
+    ]();
+    await iterator.next();
+    await iterator.next();
+    await iterator.return?.();
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
   it("settles an opening stream on abort and finalizes a late iterable", async () => {
     const opened = deferred<AsyncIterable<number>>();
     const finalize = vi.fn(async () => ({
