@@ -102,6 +102,52 @@ describe("McpAddFormPrimitiveRoot", () => {
     },
   );
 
+  const submitBearerServer = (url: string) => {
+    render(
+      <McpAddFormPrimitiveRoot>
+        <McpAddFormPrimitiveNameField aria-label="Name" />
+        <McpAddFormPrimitiveUrlField aria-label="URL" />
+        <McpAddFormPrimitiveAuthSelect aria-label="Auth" />
+        <McpAddFormPrimitiveBearerTokenField aria-label="Token" />
+        <McpAddFormPrimitiveError />
+        <McpAddFormPrimitiveSubmit>Submit</McpAddFormPrimitiveSubmit>
+      </McpAddFormPrimitiveRoot>,
+    );
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByLabelText("URL"), { target: { value: url } });
+    fireEvent.change(screen.getByLabelText("Auth"), {
+      target: { value: "bearer" },
+    });
+    fireEvent.change(screen.getByLabelText("Token"), {
+      target: { value: "secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+  };
+
+  it("rejects bearer auth over plain HTTP to a remote host", async () => {
+    submitBearerServer("http://192.168.1.20:3000/mcp");
+
+    expect(
+      await screen.findByText(
+        "Authenticated servers must use HTTPS or loopback HTTP",
+      ),
+    ).toBeTruthy();
+    expect(mocks.addCustomServer).not.toHaveBeenCalled();
+  });
+
+  it("accepts bearer auth over loopback HTTP", async () => {
+    submitBearerServer("http://localhost:3000/mcp");
+
+    await waitFor(() => expect(mocks.addCustomServer).toHaveBeenCalledOnce());
+    expect(mocks.addCustomServer).toHaveBeenCalledWith({
+      name: "Docs",
+      url: "http://localhost:3000/mcp",
+      auth: { type: "bearer", token: "secret" },
+    });
+  });
+
   it.each(["throws", "rejects"] as const)(
     "does not turn a successful add into an error when onSubmitted %s",
     async (mode) => {
