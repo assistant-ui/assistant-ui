@@ -416,9 +416,7 @@ describe("McpManagerResource storage failures", () => {
       consoleError.mockRestore();
     }
   });
-});
 
-describe("McpManagerResource storage ordering", () => {
   it("preserves a custom server when its removal fails", async () => {
     const docsServer: MCPCustomServerRecord = {
       id: "docs",
@@ -454,7 +452,9 @@ describe("McpManagerResource storage ordering", () => {
       root.unmount();
     }
   });
+});
 
+describe("McpManagerResource storage ordering", () => {
   it("preserves a removal made before custom server hydration finishes", async () => {
     const docsServer: MCPCustomServerRecord = {
       id: "docs",

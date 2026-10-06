@@ -2,4 +2,4 @@
 "@assistant-ui/react-mcp": patch
 ---
 
-keep a custom server and surface the error when removing it fails, instead of force-deleting it
+surface the error and keep a custom server when clearing its auth state fails, instead of silently retrying the removal
