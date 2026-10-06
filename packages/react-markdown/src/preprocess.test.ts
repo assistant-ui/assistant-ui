@@ -754,7 +754,9 @@ describe("escapeCurrencyDollars", () => {
 
   it("still escapes a list continuation paragraph", () => {
     expect(
-      escapeCurrencyDollars("- Plan A\n\n    Costs $5 per month and $10 extra."),
+      escapeCurrencyDollars(
+        "- Plan A\n\n    Costs $5 per month and $10 extra.",
+      ),
     ).toBe("- Plan A\n\n    Costs \\$5 per month and \\$10 extra.");
   });
 
