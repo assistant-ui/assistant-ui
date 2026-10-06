@@ -8,6 +8,14 @@ const getPolicyMeta = (html: string) =>
     .parseFromString(applyMcpAppCsp(html), "text/html")
     .head.querySelector('meta[http-equiv="Content-Security-Policy"]');
 
+const expectPolicyBeforeScript = (html: string) => {
+  const policyIndex = html.indexOf("Content-Security-Policy");
+  const scriptIndex = html.indexOf("<script");
+  expect(policyIndex).toBeGreaterThanOrEqual(0);
+  expect(scriptIndex).toBeGreaterThanOrEqual(0);
+  expect(policyIndex).toBeLessThan(scriptIndex);
+};
+
 describe("MCP App CSP", () => {
   it("uses restrictive defaults when the resource omits CSP metadata", () => {
     expect(buildMcpAppCsp()).toBe(
@@ -26,18 +34,18 @@ describe("MCP App CSP", () => {
   });
 
   it("allows only valid declared origins", () => {
-    expect(
-      buildMcpAppCsp({
-        connectDomains: [
-          "https://api.example",
-          "wss://events.example:8443",
-          "https://api.example; default-src *",
-        ],
-        resourceDomains: ["https://*.cdn.example", "wss://assets.example"],
-        frameDomains: ["https://video.example/path"],
-        baseUriDomains: ["https://base.example"],
-      }),
-    ).toContain(
+    const policy = buildMcpAppCsp({
+      connectDomains: [
+        "https://api.example",
+        "wss://events.example:8443",
+        "https://api.example; default-src *",
+      ],
+      resourceDomains: ["https://*.cdn.example", "wss://assets.example"],
+      frameDomains: ["https://video.example/path"],
+      baseUriDomains: ["https://base.example"],
+    });
+
+    expect(policy.split("; ")).toContain(
       "connect-src 'self' https://api.example wss://events.example:8443",
     );
     expect(
@@ -72,9 +80,7 @@ describe("MCP App CSP", () => {
     expect(secured.startsWith("<!-- license --><!doctype html><meta ")).toBe(
       true,
     );
-    expect(secured.indexOf("Content-Security-Policy")).toBeLessThan(
-      secured.indexOf("<script"),
-    );
+    expectPolicyBeforeScript(secured);
   });
 
   it.each([
@@ -82,11 +88,7 @@ describe("MCP App CSP", () => {
     "<!---><script>run()</script>",
     "<!-- license --!><script>run()</script>",
   ])("places the policy before scripts after HTML comment closers", (html) => {
-    const secured = applyMcpAppCsp(html);
-
-    expect(secured.indexOf("Content-Security-Policy")).toBeLessThan(
-      secured.indexOf("<script"),
-    );
+    expectPolicyBeforeScript(applyMcpAppCsp(html));
   });
 
   it.each([
