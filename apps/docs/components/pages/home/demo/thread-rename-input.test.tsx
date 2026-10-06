@@ -3,6 +3,7 @@
 import {
   act,
   cleanup,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -127,8 +128,9 @@ describe("thread rename", () => {
       fireEvent.change(input, { target: { value: "Edited" } });
       const button = screen.getByRole("button", { name: action });
 
-      if (fireEvent.mouseDown(button))
-        fireEvent.blur(input, { relatedTarget: null });
+      const mouseDown = createEvent.mouseDown(button);
+      fireEvent(button, mouseDown);
+      expect(mouseDown.defaultPrevented).toBe(true);
       fireEvent.mouseUp(button);
       fireEvent.click(button);
 

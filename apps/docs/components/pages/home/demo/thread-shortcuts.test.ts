@@ -27,18 +27,20 @@ describe("thread shortcuts", () => {
   it.each(["ctrlKey", "metaKey"])(
     "leaves browser-owned %s shortcuts untouched",
     (modifier) => {
-      for (const key of ["O", "R", "A", "B", "P"]) {
-        expect(
-          getThreadShortcut(
-            new KeyboardEvent("keydown", {
-              key,
-              code: `Key${key}`,
-              shiftKey: true,
-              [modifier]: true,
-            }),
-          ),
-        ).toBeUndefined();
-      }
+      for (const altKey of [false, true])
+        for (const key of ["O", "R", "A", "B", "P"]) {
+          expect(
+            getThreadShortcut(
+              new KeyboardEvent("keydown", {
+                key,
+                code: `Key${key}`,
+                shiftKey: true,
+                altKey,
+                [modifier]: true,
+              }),
+            ),
+          ).toBeUndefined();
+        }
     },
   );
 

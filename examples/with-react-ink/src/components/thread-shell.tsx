@@ -103,6 +103,8 @@ export function ThreadShell({
       void run(
         () => aui.threads.switchToThread(id),
         () => {
+          setArchived(false);
+          setQuery("");
           setSelectedId(id);
           setMode("chat");
         },
@@ -312,6 +314,7 @@ export function ThreadShell({
             ) : mode === "help" ? (
               <Box flexDirection="column">
                 <Text>↑/↓ Select · Enter Open</Text>
+                <Text>/ Search · x Threads/archived</Text>
                 <Text>r Rename · p Pin/unpin</Text>
                 <Text>a Archive/restore</Text>
                 <Text>d Delete · l Load/retry</Text>

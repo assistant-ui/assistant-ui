@@ -299,6 +299,26 @@ describe("terminal thread controls", () => {
     expect(mocks.rename).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["archived", "filtered"])(
+    "shows the selected active thread after navigating from %s results",
+    async (view) => {
+      const { press, lastFrame } = await create();
+      await press("\x07");
+      if (view === "archived") await press("x");
+      await press("/");
+      await press(view === "archived" ? "Old" : "First");
+      await press("\r");
+      await press("\x1b[1;3B");
+      await vi.waitFor(() => {
+        expect(mocks.switchToThread).toHaveBeenCalledWith("two");
+        expect(lastFrame()).toContain("Second thread");
+        expect(lastFrame()).not.toContain("Search:");
+        expect(lastFrame()).toContain("Composer active");
+      });
+      expect(lastFrame()).not.toContain("Old thread");
+    },
+  );
+
   it("supports new and adjacent thread shortcuts", async () => {
     const { press } = await create();
     await press("\x1b[1;3B");

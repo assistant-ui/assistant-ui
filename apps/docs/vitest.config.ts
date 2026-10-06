@@ -5,6 +5,7 @@ import { defaultExclude } from "vitest/config";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
+  // Vite rejects Next's string-valued PostCSS plugins; DOM tests do not assert transformed styles.
   css: { postcss: { plugins: [] } },
   test: {
     coverage: {

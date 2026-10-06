@@ -85,6 +85,8 @@ it("keeps drafts while navigating, renaming, archiving and restoring real runtim
   );
   await press("x");
   await press("\r");
-  expect(client!.threads.getState().mainThreadId).toBe(first);
-  expect(client!.composer.getState().text).toBe("Unsent draft");
+  await vi.waitFor(() => {
+    expect(client!.threads.getState().mainThreadId).toBe(first);
+    expect(client!.composer.getState().text).toBe("Unsent draft");
+  });
 });
