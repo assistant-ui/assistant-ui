@@ -1059,7 +1059,6 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
-    const generation = captureThreadRuntimeGeneration(this);
     const scopeGeneration = this._loadGeneration;
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
@@ -1121,11 +1120,7 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    if (
-      active &&
-      !generation.aborted &&
-      message.status?.type !== "requires-action"
-    ) {
+    if (active && message.status?.type !== "requires-action") {
       this._generateSuggestions();
     }
   }
@@ -1170,7 +1165,6 @@ export class LocalThreadRuntimeCore
     run: { cancelled: boolean; resumedFromPause: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
-    const generation = captureThreadRuntimeGeneration(this);
     const scopeGeneration = this._loadGeneration;
     const messages = parentId ? this.repository.getMessages(parentId) : [];
     // A message here that is running or whose roundtrip is still in flight
@@ -1425,8 +1419,7 @@ export class LocalThreadRuntimeCore
           updateMessage(r);
         }
       } else {
-        const result = await promiseOrGenerator;
-        if (!generation.aborted) updateMessage(result);
+        updateMessage(await promiseOrGenerator);
       }
 
       if (shouldCancelMessage()) {

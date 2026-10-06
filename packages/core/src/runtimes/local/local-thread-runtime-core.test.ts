@@ -1330,7 +1330,6 @@ describe("LocalThreadRuntimeCore history persistence", () => {
 describe("LocalThreadRuntimeCore - detach", () => {
   it("persists a cancelled partial answer when detached within the same history scope", async () => {
     const appendHistory = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
-    const generate = vi.fn(async () => []);
     const thread = createThread(
       {
         async *run({ abortSignal }) {
@@ -1345,7 +1344,6 @@ describe("LocalThreadRuntimeCore - detach", () => {
         },
       },
       {
-        suggestion: { generate },
         history: {
           scopeId: "account",
           load: async () => ({ messages: [] }),
@@ -1379,48 +1377,6 @@ describe("LocalThreadRuntimeCore - detach", () => {
       status: { type: "incomplete", reason: "cancelled" },
     });
     expect(runEnd).toHaveBeenCalledOnce();
-    expect(generate).not.toHaveBeenCalled();
-  });
-
-  it("ignores a model result that resolves after detach", async () => {
-    let finishRun!: (result: ChatModelRunResult) => void;
-    const run = vi.fn(
-      () =>
-        new Promise<ChatModelRunResult>((resolve) => {
-          finishRun = resolve;
-        }),
-    );
-    const appendHistory = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
-    const thread = createThread(
-      { run },
-      {
-        history: {
-          scopeId: "account",
-          load: async () => ({ messages: [] }),
-          append: appendHistory,
-        },
-      },
-    );
-    await thread.__internal_load();
-    const append = thread.append(userMessage("start"));
-    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
-    thread.detach();
-    finishRun({ content: [{ type: "text", text: "late answer" }] });
-    await append;
-    expect(thread.messages.at(-1)).toMatchObject({
-      role: "assistant",
-      content: [],
-      status: { type: "incomplete", reason: "cancelled" },
-    });
-    expect(appendHistory).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.objectContaining({
-          role: "assistant",
-          content: [],
-          status: { type: "incomplete", reason: "cancelled" },
-        }),
-      }),
-    );
   });
 
   it("drops a pending append when detached", async () => {
