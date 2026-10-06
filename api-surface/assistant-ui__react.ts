@@ -1459,6 +1459,7 @@ type CloudThread = {
 
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
+  scopeId?: string | undefined;
   runtimeHook: () => AssistantRuntime;
   create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
@@ -1466,6 +1467,7 @@ type CloudThreadListAdapter = {
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
   create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
@@ -2688,6 +2690,7 @@ type LanguageModelV1CallSettings = {
 
 type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -6539,6 +6542,7 @@ declare namespace selectionToolbar_d_exports {
 declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options: T) => {
   localRuntimeOptions: {
     cloud: AssistantCloud | undefined;
+    scopeId: string | undefined;
     initialMessages: readonly ThreadMessageLike[] | undefined;
     maxSteps: number | undefined;
     adapters: Omit<{
@@ -6556,7 +6560,7 @@ declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options:
     unstable_queueClearOnRewind: boolean | undefined;
     unstable_queueClearOnCancel: boolean | undefined;
   };
-  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
+  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "scopeId" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
 };
 
 declare function stubTool(): never;

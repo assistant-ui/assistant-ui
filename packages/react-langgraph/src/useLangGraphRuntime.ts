@@ -970,6 +970,7 @@ const useLangGraphRuntimeImpl = (
 
 export const useLangGraphRuntime = ({
   cloud,
+  scopeId,
   unstable_threadListAdapter,
   create,
   delete: deleteFn,
@@ -986,6 +987,7 @@ export const useLangGraphRuntime = ({
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: LANGGRAPH_SDK,
     cloud,
+    scopeId,
     create: createCloudThreadListAdapterCreateFallback(
       create,
       aui.threadListItem,
