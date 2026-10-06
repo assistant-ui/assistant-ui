@@ -113,7 +113,7 @@ function ResultItem({
       onSelect={() => onSelect(item)}
       className={cn("group gap-3 rounded-lg px-3 py-2.5", nested && "pl-9")}
     >
-      <Icon aria-hidden="true" className="mt-0.5 size-4 self-start" />
+      <Icon aria-hidden="true" className="mt-1 size-4 self-start" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-sm">
           {highlightMatches(item.content, tokens).map((segment, i) => (
