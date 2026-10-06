@@ -6741,7 +6741,7 @@ declare const nullProtoRecord: <T>(base?: Readonly<Record<string, T>>, ...rest: 
 
 declare const openAbortableIterable: <T>(source: AsyncIterable<T> | Promise<AsyncIterable<T>>, signal: AbortSignal) => Promise<AsyncIterable<T> | undefined>;
 
-declare function parseDataUrl(value: string): {
+declare function parseDataUrl(value: string, fallbackMimeType?: string): {
   mimeType: string;
   data: string;
 } | null;
