@@ -372,6 +372,11 @@ describe("useAssistantTransportRuntime", () => {
     expect(aui().thread.getState().isRunning).toBe(false);
     expect(cancel).toHaveBeenCalledOnce();
     expect(onCancel).toHaveBeenCalledOnce();
+    expect(
+      onCancel.mock.calls[0]![0].commands.map(
+        (command: any) => command.message.parts[0].text,
+      ),
+    ).toEqual(["hello"]);
   });
 
   it("no-ops a follow-up run that finds an empty queue", async () => {
@@ -441,7 +446,7 @@ describe("useAssistantTransportRuntime", () => {
       onCancel.mock.calls[0]![0].commands.map(
         (c: any) => c.message.parts[0].text,
       ),
-    ).toEqual(["b"]);
+    ).toEqual(["a", "b"]);
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
     expect(pendingCommands).toEqual([]);
     expect(fetchMock.requests).toHaveLength(1);

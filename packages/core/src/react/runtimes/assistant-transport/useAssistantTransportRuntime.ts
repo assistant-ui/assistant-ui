@@ -278,9 +278,6 @@ const useAssistantTransportThreadRuntime = <T>(
         await raceWithAbortSignal(signal, () => options.onResponse?.(response));
       } catch (error) {
         void response.body?.cancel().catch(() => {});
-        // The request reached the server before the cancel, so its commands
-        // are delivered and must not return to the queue.
-        if (signal.aborted) commandQueue.markDelivered();
         throw error;
       }
 
