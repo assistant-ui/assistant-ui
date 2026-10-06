@@ -719,6 +719,32 @@ describe("escapeCurrencyDollars", () => {
   it("escapes an amount whose next dollar opens another amount", () => {
     expect(escapeCurrencyDollars("$50 to US$60")).toBe("\\$50 to US\\$60");
   });
+
+  it("does not rewrite an indented code block", () => {
+    expect(escapeCurrencyDollars("Pricing:\n\n    total = $5 + $10\n\nend")).toBe(
+      "Pricing:\n\n    total = $5 + $10\n\nend",
+    );
+  });
+
+  it("keeps a multi-line indented code block with blank lines intact", () => {
+    expect(escapeCurrencyDollars("    line1 = $5\n    line2 = $10\n\n    line3 = $15")).toBe(
+      "    line1 = $5\n    line2 = $10\n\n    line3 = $15",
+    );
+  });
+
+  it("keeps a tab-indented code block intact", () => {
+    expect(escapeCurrencyDollars("\tconst price = $5;")).toBe("\tconst price = $5;");
+  });
+
+  it("still escapes currency when an indented line interrupts a paragraph", () => {
+    expect(escapeCurrencyDollars("para\n    not code $5")).toBe("para\n    not code \\$5");
+  });
+
+  it("escapes prose currency around an indented code block", () => {
+    expect(escapeCurrencyDollars("$5\n\n    code $10\n\n$15")).toBe(
+      "\\$5\n\n    code $10\n\n\\$15",
+    );
+  });
 });
 
 describe("HTML blocks", () => {
