@@ -1,6 +1,12 @@
 declare const process: { env: Record<string, string | undefined> };
 
-import { type RefObject, useMemo, useState } from "react";
+import {
+  type RefObject,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
@@ -167,10 +173,14 @@ export const createCloudThreadListAdapter = (
   }
 
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
-    const cloudRef = { current: cloud };
+    const cloudRef = useRef(cloud);
     const [scopeRef] = useState(() =>
       createCommittedScopeRef(scopeId ?? DEFAULT_CLOUD_SCOPE),
     );
+    useInsertionEffect(() => {
+      cloudRef.current = cloud;
+      scopeRef.update(scopeId ?? DEFAULT_CLOUD_SCOPE);
+    }, [cloud, scopeId, scopeRef]);
     return useCloudRuntimeAdapters(cloudRef, scopeRef);
   };
 

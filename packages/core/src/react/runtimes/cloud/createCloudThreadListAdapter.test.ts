@@ -206,4 +206,70 @@ describe("createCloudThreadListAdapter", () => {
     expect(firstCloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
     expect(secondCloud.files.generatePresignedUploadUrl).not.toHaveBeenCalled();
   });
+
+  it("invalidates uploaded attachments when the standalone adapter changes scope", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const cloud = makeCloud();
+    const first = createCloudThreadListAdapter({
+      cloud,
+      scopeId: "workspace-a",
+    });
+    const second = createCloudThreadListAdapter({
+      cloud,
+      scopeId: "workspace-b",
+    });
+    const { result, rerender } = renderHook(
+      ({ adapter }) => adapter.unstable_useAdapters!(),
+      { initialProps: { adapter: first } },
+    );
+    const attachments = result.current!.attachments!;
+    const upload = attachments.add({
+      file: new File([new Uint8Array([1])], "pixel.png", {
+        type: "image/png",
+      }),
+    }) as AsyncGenerator<PendingAttachment>;
+    let ready: PendingAttachment | undefined;
+    for await (const attachment of upload) ready = attachment;
+
+    rerender({ adapter: second });
+
+    expect(result.current!.attachments).toBe(attachments);
+    await expect(attachments.send(ready!)).rejects.toThrow(
+      "Attachment was uploaded for a different Cloud scope",
+    );
+  });
+
+  it("uploads through the replacement standalone adapter's Cloud client", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const firstCloud = makeCloud();
+    const secondCloud = makeCloud();
+    const first = createCloudThreadListAdapter({ cloud: firstCloud });
+    const second = createCloudThreadListAdapter({ cloud: secondCloud });
+    const { result, rerender } = renderHook(
+      ({ adapter }) => adapter.unstable_useAdapters!(),
+      { initialProps: { adapter: first } },
+    );
+    const attachments = result.current!.attachments!;
+
+    rerender({ adapter: second });
+    const upload = attachments.add({
+      file: new File([new Uint8Array([1])], "pixel.png", {
+        type: "image/png",
+      }),
+    }) as AsyncGenerator<PendingAttachment>;
+    let ready: PendingAttachment | undefined;
+    for await (const attachment of upload) ready = attachment;
+
+    await expect(attachments.send(ready!)).resolves.toMatchObject({
+      status: { type: "complete" },
+    });
+    expect(firstCloud.files.generatePresignedUploadUrl).not.toHaveBeenCalled();
+    expect(secondCloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
+  });
 });
