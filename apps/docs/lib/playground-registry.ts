@@ -29,11 +29,11 @@ export function determineRegistryDependencies(config: BuilderConfig): string[] {
   }
 
   if (components.reasoning) {
-    deps.push(`${REGISTRY_BASE_URL}/reasoning.json`);
+    deps.push(`${REGISTRY_BASE_URL}/base/reasoning.json`);
   }
 
   if (components.sources) {
-    deps.push(`${REGISTRY_BASE_URL}/sources.json`);
+    deps.push(`${REGISTRY_BASE_URL}/base/sources.json`);
   }
 
   return deps;
