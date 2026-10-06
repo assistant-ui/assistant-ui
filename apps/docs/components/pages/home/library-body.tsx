@@ -33,11 +33,11 @@ export function LibraryBody({
   reactVersion: string | null;
 }) {
   return (
-    <div className="mt-16 flex flex-col gap-12 md:mt-20 md:gap-16">
+    <div className="mt-16 flex flex-col gap-12 md:mt-24 md:gap-20">
       <section
         id="what-you-install"
         aria-labelledby="what-you-install-heading"
-        className="flex scroll-mt-20 flex-col gap-8"
+        className="border-foreground/10 flex scroll-mt-20 flex-col gap-8 border-t pt-10 md:pt-14"
       >
         <div className="flex max-w-[40rem] flex-col gap-3">
           <h2 id="what-you-install-heading" className={typePackage}>
@@ -51,11 +51,14 @@ export function LibraryBody({
         <LibraryShowcase setupTabs={setupTabs} />
       </section>
 
-      <section aria-label="Used by">
+      <section
+        aria-label="Used by"
+        className="border-foreground/10 border-t pt-10 md:pt-14"
+      >
         <TrustedBy />
       </section>
 
-      <section aria-label="Quotes">
+      <section aria-label="Quotes" className="pb-2">
         <ul className="grid gap-x-12 gap-y-8 md:grid-cols-3">
           {HOME_QUOTES.map((quote) => (
             <li key={quote.username}>
@@ -65,10 +68,10 @@ export function LibraryBody({
                 rel="noopener noreferrer"
                 className="group flex flex-col gap-2.5"
               >
-                <p className="text-[14px] leading-relaxed text-pretty">
+                <blockquote className="text-base leading-relaxed text-pretty">
                   {quote.message}
-                </p>
-                <span className="text-muted-foreground group-hover:text-foreground text-xs font-medium transition-colors">
+                </blockquote>
+                <span className="text-muted-foreground group-hover:text-foreground text-sm font-medium transition-colors">
                   {quote.username}
                 </span>
               </a>
@@ -77,10 +80,10 @@ export function LibraryBody({
         </ul>
       </section>
 
-      <section className="border-foreground/10 grid gap-6 border-t pt-10 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
+      <section className="border-foreground/10 grid gap-6 border-t pt-10 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12 md:pt-14">
         <div className="flex flex-col gap-2.5">
           <h2 className={typeSection}>Start in the docs.</h2>
-          <p className="text-muted-foreground max-w-[36ch] text-[14px] leading-relaxed">
+          <p className="text-muted-foreground max-w-[36ch] text-base leading-relaxed">
             The command scaffolds a working thread. The docs take it from there.
           </p>
         </div>
@@ -113,12 +116,12 @@ export function LibraryBody({
               onClick={() =>
                 analytics.cta.clicked("contact_sales", "home_closer")
               }
-              className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
+              className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-sm transition-colors"
             >
               Contact sales
             </a>
           </div>
-          <p className="text-muted-foreground font-mono text-[11px] tracking-wide">
+          <p className="text-muted-foreground font-mono text-xs tracking-wide">
             @assistant-ui/react
             {reactVersion && <span>@{reactVersion}</span>} · MIT License
           </p>

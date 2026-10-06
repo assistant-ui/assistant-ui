@@ -172,12 +172,16 @@ export default async function HomePage() {
     label: snippet.label,
     caption: snippet.caption,
     docs: snippet.docs,
+    code: snippet.code,
     html: markChangedLines(setupHtml[index]!, snippet.changed),
   }));
 
   return (
-    <PageFrame pad="heroBody" className="relative z-2 flex flex-col">
-      <div className="flex flex-col gap-10 md:gap-16">
+    <PageFrame
+      pad="heroBody"
+      className="relative z-2 flex max-w-6xl flex-col pt-12 md:pt-16"
+    >
+      <div className="flex flex-col gap-8 md:gap-10">
         <Hero stars={repo?.stars ?? null} downloads={downloads} />
         <HomeDemo />
       </div>

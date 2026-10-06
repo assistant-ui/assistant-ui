@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ComponentType,
-  type FocusEvent,
-  type SVGProps,
-} from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
 import { ChartDemo } from "@/components/demo/elements/chart";
@@ -19,15 +12,11 @@ import { SourcesDemo } from "@/components/demo/elements/sources";
 import { StreamingTextDemo } from "@/components/demo/elements/streaming-text";
 import { SuggestionsDemo } from "@/components/demo/elements/suggestions";
 import { ToolCallDemo } from "@/components/demo/elements/tool-call";
-import { LangChainIcon } from "@/components/icons/langchain";
-import { LangGraphIcon } from "@/components/icons/langgraph";
-import { MastraIcon } from "@/components/icons/mastra";
-import { VercelIcon } from "@/components/icons/vercel";
 import { PrimitivesAnatomy } from "@/components/pages/home/primitives-anatomy";
+import { CopyButton } from "@/components/shared/copy-button";
+import { typeSection } from "@/components/shared/type";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CLOUD_URL } from "@/lib/constants";
-import { cn } from "@/lib/utils";
-
-const SLOT_MS = 7000;
 
 const ACTS: {
   label: string;
@@ -76,193 +65,77 @@ const ACTS: {
   },
 ];
 
-const SETUP_BRANDS: Record<
-  string,
-  | {
-      Icon: ComponentType<SVGProps<SVGSVGElement>>;
-      className: string;
-    }
-  | undefined
-> = {
-  "ai-sdk": { Icon: VercelIcon, className: "text-foreground/[0.09]" },
-  langgraph: {
-    Icon: LangGraphIcon,
-    className: "text-[#1C3C3C]/20 dark:text-[#5b9595]/25",
-  },
-  langchain: {
-    Icon: LangChainIcon,
-    className: "text-[#7FC8FF]/35 dark:text-[#7FC8FF]/20",
-  },
-  mastra: { Icon: MastraIcon, className: "text-foreground/[0.09]" },
-};
-
-function useAutoCycle(count: number) {
-  const rootRef = useRef<HTMLDivElement>(null);
+function Stage() {
+  const root = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [epoch, setEpoch] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  const [pageHidden, setPageHidden] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const frozen = !visible || hovered || pageHidden || reduceMotion;
 
   useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
+    const element = root.current;
+    if (!element) return;
     const observer = new IntersectionObserver(
-      (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
-      { threshold: 0.3 },
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
     );
-    observer.observe(root);
+    observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const applyMotion = () => setReduceMotion(motion.matches);
-    applyMotion();
-    motion.addEventListener("change", applyMotion);
-
-    const applyVisibility = () => setPageHidden(document.hidden);
-    applyVisibility();
-    document.addEventListener("visibilitychange", applyVisibility);
-
-    return () => {
-      motion.removeEventListener("change", applyMotion);
-      document.removeEventListener("visibilitychange", applyVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (frozen) return;
-    const id = window.setTimeout(() => {
-      setIndex((current) => (current + 1) % count);
-      setEpoch((current) => current + 1);
-    }, SLOT_MS);
-    return () => window.clearTimeout(id);
-  }, [frozen, index, epoch, count]);
-
-  const jump = (next: number) => {
-    setIndex(next);
-    setEpoch((current) => current + 1);
-  };
-
-  return {
-    rootRef,
-    index,
-    epoch,
-    frozen,
-    visible,
-    jump,
-    hold: {
-      onMouseEnter: () => setHovered(true),
-      onMouseLeave: () => setHovered(false),
-      onFocus: () => setHovered(true),
-      onBlur: (event: FocusEvent<HTMLElement>) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setHovered(false);
-        }
-      },
-    },
-  };
-}
-
-function CycleProgress({
-  playKey,
-  frozen,
-}: {
-  playKey: string;
-  frozen: boolean;
-}) {
   return (
-    <span className="bg-foreground/10 absolute inset-x-0 bottom-0 h-px overflow-hidden">
-      <span
-        key={playKey}
-        className="block h-full origin-left bg-blue-500"
-        style={
-          frozen
-            ? { transform: "scaleX(0)" }
-            : { animation: `stage-progress ${SLOT_MS}ms linear forwards` }
-        }
-      />
-    </span>
-  );
-}
-
-function Stage() {
-  const cycle = useAutoCycle(ACTS.length);
-  const act = ACTS[cycle.index]!;
-  const Act = act.Component;
-
-  return (
-    <div
-      ref={cycle.rootRef}
-      className="grid gap-6 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12"
-      {...cycle.hold}
-    >
-      <ol className="flex flex-wrap gap-x-5 gap-y-2 md:flex-col md:gap-y-3">
-        {ACTS.map((item, index) => {
-          const current = index === cycle.index;
-          return (
-            <li key={item.label}>
-              <button
-                type="button"
-                onClick={() => cycle.jump(index)}
-                className={cn(
-                  "relative flex items-baseline gap-2.5 pb-1.5 font-mono text-[11px] font-medium transition-colors",
-                  current
-                    ? "text-foreground"
-                    : "text-foreground/35 hover:text-foreground/70",
-                )}
-              >
-                <span className="tabular-nums">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                {item.label}
-                {current ? (
-                  <CycleProgress
-                    playKey={`${cycle.index}-${cycle.epoch}-${String(cycle.frozen)}`}
-                    frozen={cycle.frozen}
-                  />
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-
-      <div className="flex min-w-0 flex-col gap-3">
-        <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-h-[340px] flex-1 items-center justify-center overflow-hidden px-6 py-10 md:min-h-[380px] md:px-12">
-          {cycle.visible ? (
-            <div
-              key={`${cycle.index}-${cycle.epoch}`}
-              className="animate-in fade-in-0 w-full duration-500"
-              style={{ maxWidth: act.maxWidth ?? "30rem" }}
+    <div ref={root}>
+      <Tabs defaultValue={ACTS[0]!.label} className="gap-5">
+        <TabsList
+          activateOnFocus
+          variant="line"
+          aria-label="Runtime capabilities"
+          className="h-auto flex-wrap justify-start gap-x-5 gap-y-1 p-0"
+        >
+          {ACTS.map((act) => (
+            <TabsTrigger
+              key={act.label}
+              value={act.label}
+              className="min-h-11 flex-none px-0 text-sm"
             >
-              <Act />
-            </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px]">
-          {act.docs ? (
-            <Link
-              key={`act-docs-${cycle.index}`}
-              href={act.docs}
-              className="animate-in fade-in-0 text-muted-foreground hover:text-foreground transition-colors duration-500"
-            >
-              read the {act.label} guide →
-            </Link>
-          ) : (
-            <span />
-          )}
-          <Link
-            href="/elements"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+              {act.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {ACTS.map(({ label, docs, maxWidth, Component }) => (
+          <TabsContent
+            key={label}
+            value={label}
+            className="flex flex-col gap-3"
           >
-            All elements →
-          </Link>
-        </div>
-      </div>
+            <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-h-[22rem] items-center justify-center overflow-hidden px-4 py-8 sm:px-8 md:min-h-[26rem]">
+              <div className="w-full" style={{ maxWidth: maxWidth ?? "30rem" }}>
+                {visible ? <Component /> : null}
+              </div>
+            </div>
+            <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
+              {docs ? (
+                <Link
+                  href={docs}
+                  className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
+                >
+                  Read the {label} guide →
+                </Link>
+              ) : (
+                <span />
+              )}
+              <Link
+                href="/elements"
+                className="hover:text-foreground inline-flex min-h-11 items-center transition-colors"
+              >
+                All elements →
+              </Link>
+            </div>
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
@@ -273,160 +146,143 @@ export type SetupTab = {
   caption: string;
   docs: string;
   html: string;
+  code: string;
 };
 
 function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
-  const cycle = useAutoCycle(tabs.length);
-  const activeTab = tabs[cycle.index] ?? tabs[0];
-  const brand = activeTab ? SETUP_BRANDS[activeTab.id] : undefined;
-
   return (
-    <div ref={cycle.rootRef} className="flex flex-col gap-5" {...cycle.hold}>
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-        <div className="flex max-w-[44rem] flex-col gap-2">
-          <p className="text-[15px] font-medium">
-            A provider, a hook, one component.{" "}
-            <span className="text-muted-foreground font-normal">
-              The complete client, whatever runs behind it.
-            </span>
-          </p>
-        </div>
-        <div role="tablist" className="flex flex-wrap gap-x-5 gap-y-1">
-          {tabs.map((tab, index) => {
-            const current = index === cycle.index;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={current}
-                onClick={() => cycle.jump(index)}
-                className={cn(
-                  "relative pb-1.5 font-mono text-[11px] font-medium transition-colors",
-                  current
-                    ? "text-foreground"
-                    : "text-foreground/35 hover:text-foreground/70",
-                )}
-              >
-                {tab.label}
-                {current ? (
-                  <CycleProgress
-                    playKey={`${cycle.index}-${cycle.epoch}-${String(cycle.frozen)}`}
-                    frozen={cycle.frozen}
-                  />
-                ) : null}
-              </button>
-            );
-          })}
-          <Link
-            href="/docs/runtimes/pick-a-runtime"
-            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium transition-colors"
-          >
-            All runtimes →
-          </Link>
-        </div>
-      </div>
-
-      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document relative min-h-[22.5rem] overflow-hidden">
-        {brand && activeTab ? (
-          <div
-            key={activeTab.id}
-            className={cn(
-              "animate-in fade-in-0 pointer-events-none absolute right-6 bottom-6 [mask-image:radial-gradient(circle,#000_40%,transparent_44%)] [mask-size:5px_5px] duration-700 md:right-10 md:bottom-8",
-              brand.className,
-            )}
-          >
-            <brand.Icon className="size-40 md:size-52" />
-          </div>
-        ) : null}
-        <div
-          key={`code-${activeTab?.id ?? "none"}`}
-          className="code-cascade relative min-w-0 overflow-x-auto px-6 pt-6 font-mono text-[13px] leading-relaxed md:px-10 [&_.line]:pr-0! [&_.line]:pl-2.5! [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:whitespace-pre"
-          dangerouslySetInnerHTML={{ __html: activeTab?.html ?? "" }}
-        />
-        <div
-          key={`caption-${activeTab?.id ?? "none"}`}
-          className="animate-in fade-in-0 relative flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-4 pb-6 font-mono text-[11px] duration-500 md:px-10"
+    <Tabs defaultValue={tabs[0]?.id} className="gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-2">
+        <TabsList
+          activateOnFocus
+          variant="line"
+          aria-label="Backend integration"
+          className="h-auto flex-wrap justify-start gap-x-6 gap-y-1 p-0"
         >
-          <p className="text-muted-foreground">{activeTab?.caption}</p>
-          {activeTab ? (
-            <Link
-              href={activeTab.docs}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="min-h-11 flex-none px-0 text-sm"
             >
-              read the {activeTab.label} guide →
-            </Link>
-          ) : null}
-        </div>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <Link
+          href="/docs/runtimes/pick-a-runtime"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-sm transition-colors"
+        >
+          All runtimes →
+        </Link>
       </div>
-    </div>
+      {tabs.map((tab) => (
+        <TabsContent
+          key={tab.id}
+          value={tab.id}
+          className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document min-w-0 overflow-hidden"
+        >
+          <div className="flex items-center justify-between gap-4 px-4 pt-4 sm:px-6">
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {tab.caption}
+            </p>
+            <CopyButton text={tab.code} className="size-11 shrink-0" />
+          </div>
+          <div
+            className="min-w-0 overflow-x-auto px-4 py-6 font-mono text-[13px] leading-relaxed sm:px-6 [&_.line]:pr-0! [&_.line]:pl-2.5! [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:whitespace-pre"
+            dangerouslySetInnerHTML={{ __html: tab.html }}
+          />
+          <div className="px-4 pb-4 sm:px-6">
+            <Link
+              href={tab.docs}
+              className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-sm transition-colors"
+            >
+              Read the {tab.label} guide →
+            </Link>
+          </div>
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }
 
 export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
   return (
-    <div className="flex flex-col gap-10 md:gap-14">
-      <div className="border-foreground/10 border-t pt-8">
+    <div className="flex flex-col gap-12 md:gap-16">
+      <div className="flex flex-col gap-6">
+        <p className="max-w-[65ch] text-base leading-relaxed">
+          A provider, a hook, one component.{" "}
+          <span className="text-muted-foreground">
+            The complete client, whatever runs behind it.
+          </span>
+        </p>
         <SetupPanel tabs={setupTabs} />
       </div>
-
-      <div className="border-foreground/10 flex flex-col gap-6 border-t pt-8">
-        <p className="text-sm font-medium">What the runtime handles</p>
+      <section
+        aria-labelledby="runtime-handles-heading"
+        className="border-foreground/10 flex flex-col gap-6 border-t pt-10 md:pt-14"
+      >
+        <h3 id="runtime-handles-heading" className={typeSection}>
+          What the runtime handles
+        </h3>
         <Stage />
-      </div>
-
-      <div className="border-foreground/10 flex flex-col gap-5 border-t pt-8">
+      </section>
+      <section
+        aria-labelledby="compose-heading"
+        className="border-foreground/10 flex flex-col gap-6 border-t pt-10 md:pt-14"
+      >
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-          <div className="flex max-w-[44rem] flex-col gap-2">
-            <p className="text-[15px] font-medium">
-              Yours to reshape.{" "}
-              <span className="text-muted-foreground font-normal">
-                Every part is a component you compose; the CLI copies the UI
-                source into your repo.
-              </span>
+          <div className="flex max-w-[44rem] flex-col gap-3">
+            <h3 id="compose-heading" className={typeSection}>
+              Every part is a component you compose.
+            </h3>
+            <p className="text-muted-foreground text-base leading-relaxed">
+              The CLI copies the UI source into your repo.
             </p>
           </div>
           <Link
             href="/elements/thread"
-            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-sm transition-colors"
           >
             Customize the thread →
           </Link>
         </div>
         <PrimitivesAnatomy />
-      </div>
-
-      <p className="text-muted-foreground max-w-[64ch] text-[13px] leading-relaxed">
+      </section>
+      <p className="text-muted-foreground max-w-[70ch] text-base leading-relaxed">
         Works with{" "}
         <Link
           href="/docs/runtimes/ai-sdk/overview"
-          className="hover:text-foreground transition-colors"
+          className="text-foreground underline-offset-4 hover:underline"
         >
           AI SDK
         </Link>
         ,{" "}
         <Link
           href="/docs/runtimes/langgraph/overview"
-          className="hover:text-foreground transition-colors"
+          className="text-foreground underline-offset-4 hover:underline"
         >
           LangGraph
         </Link>
         , and{" "}
         <Link
           href="/docs/runtimes/langchain"
-          className="hover:text-foreground transition-colors"
+          className="text-foreground underline-offset-4 hover:underline"
         >
           LangChain
         </Link>
         , or any backend through adapters. Ships for React, Native, and Ink.{" "}
         <Link
           href="/elements"
-          className="hover:text-foreground transition-colors"
+          className="text-foreground underline-offset-4 hover:underline"
         >
           Elements
         </Link>{" "}
         extends it.{" "}
-        <a href={CLOUD_URL} className="hover:text-foreground transition-colors">
+        <a
+          href={CLOUD_URL}
+          className="text-foreground underline-offset-4 hover:underline"
+        >
           Cloud
         </a>{" "}
         hosts threads and persistence when you want them.

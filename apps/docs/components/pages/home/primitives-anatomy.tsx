@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { ArrowDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const STEP_MS = 2800;
 
 type PartId = "root" | "viewport" | "messages" | "scroll" | "composer";
 
@@ -106,70 +104,53 @@ function Region({
 
 export function PrimitivesAnatomy() {
   const [active, setActive] = useState<PartId>("root");
-  const [held, setHeld] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setReduceMotion(motion.matches);
-    apply();
-    motion.addEventListener("change", apply);
-    return () => motion.removeEventListener("change", apply);
-  }, []);
-
-  useEffect(() => {
-    if (held || reduceMotion) return;
-    const id = window.setTimeout(() => {
-      setActive((current) => {
-        const index = PARTS.findIndex((item) => item.id === current);
-        return PARTS[(index + 1) % PARTS.length]!.id;
-      });
-    }, STEP_MS);
-    return () => window.clearTimeout(id);
-  }, [held, reduceMotion, active]);
-
   const activePart = PARTS.find((item) => item.id === active)!;
 
   return (
-    <div
-      className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex flex-col gap-6 px-6 py-8 md:px-10 md:py-10"
-      onMouseEnter={() => setHeld(true)}
-      onMouseLeave={() => setHeld(false)}
-    >
-      <div className="grid gap-8 md:grid-cols-[minmax(0,38rem)_minmax(0,22rem)] md:justify-between md:gap-12">
-        <div className="min-w-0 overflow-x-auto md:overflow-x-visible">
-          <div className="flex flex-col font-mono text-[13px] leading-relaxed [font-variant-ligatures:none]">
-            {LINES.map((line, index) => {
-              const current = active === line.part;
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  aria-current={current}
-                  onMouseEnter={() => setActive(line.part)}
-                  onFocus={() => setActive(line.part)}
+    <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex flex-col gap-6 px-6 py-8 md:px-10 md:py-10">
+      <div
+        role="group"
+        aria-label="Thread primitives"
+        className="flex flex-wrap gap-x-5 gap-y-1"
+      >
+        {PARTS.map((part) => (
+          <button
+            key={part.id}
+            type="button"
+            aria-pressed={active === part.id}
+            onClick={() => setActive(part.id)}
+            className={cn(
+              "min-h-11 border-b-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4",
+              active === part.id
+                ? "border-foreground text-foreground"
+                : "text-muted-foreground hover:text-foreground border-transparent",
+            )}
+          >
+            {part.label}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:items-stretch md:gap-10">
+        <pre className="min-w-0 overflow-x-auto font-mono text-[13px] leading-relaxed [font-variant-ligatures:none]">
+          <code>
+            {LINES.map((line, index) => (
+              <Fragment key={index}>
+                <span
                   className={cn(
-                    "-mx-2 flex rounded-sm whitespace-pre transition-colors duration-200",
-                    current
+                    "inline-block w-full rounded-sm py-0.5 pr-3 pl-2 transition-colors motion-reduce:transition-none",
+                    active === line.part
                       ? "text-foreground bg-blue-500/8"
-                      : "text-foreground/45 hover:text-foreground/75",
+                      : "text-muted-foreground",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "w-2 shrink-0 self-stretch transition-colors duration-200",
-                      current ? "bg-blue-500" : "bg-transparent",
-                    )}
-                  />
-                  <span className="pl-1.5">
-                    {"  ".repeat(line.indent)}
-                    {line.text}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                  {"  ".repeat(line.indent)}
+                  {line.text}
+                </span>
+                {"\n"}
+              </Fragment>
+            ))}
+          </code>
+        </pre>
 
         <Region
           part="root"
@@ -218,11 +199,9 @@ export function PrimitivesAnatomy() {
         </Region>
       </div>
 
-      <p
-        key={active}
-        className="animate-in fade-in-0 text-muted-foreground font-mono text-[11px] duration-500 motion-reduce:animate-none"
-      >
-        {activePart.label} · {activePart.caption}
+      <p key={active} className="text-muted-foreground text-sm leading-relaxed">
+        <span className="text-foreground font-medium">{activePart.label}.</span>{" "}
+        {activePart.caption}
       </p>
     </div>
   );

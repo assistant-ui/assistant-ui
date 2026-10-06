@@ -28,7 +28,7 @@ export function HomeDemo(): ReactNode {
 
   return (
     <section aria-label="Thread" className="flex flex-col gap-3">
-      <div className="border-foreground/10 rounded-document h-[min(52rem,88svh)] overflow-hidden border">
+      <div className="border-foreground/10 rounded-document h-[min(36rem,72svh)] min-h-[26rem] overflow-hidden border">
         <DocsRuntimeProvider devtools={false} followUps countConversations>
           {expanded
             ? createPortal(
@@ -47,10 +47,13 @@ export function HomeDemo(): ReactNode {
             : demo}
         </DocsRuntimeProvider>
       </div>
-      <div className="flex justify-end">
+      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
+        <p>
+          <span className="font-mono text-xs">fig. 01</span> · Thread
+        </p>
         <Link
           href="/examples"
-          className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center transition-colors"
         >
           Explore other examples
         </Link>

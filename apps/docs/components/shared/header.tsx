@@ -3,12 +3,18 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, ArrowUpRight, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
@@ -35,7 +41,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
       <button
         type="button"
         onClick={onToggle}
-        className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
+        className="text-muted-foreground hover:text-foreground flex size-11 cursor-pointer items-center justify-center transition-colors md:hidden"
         aria-label="Search (⌘K)"
       >
         <Search className="size-4" />
@@ -63,145 +69,56 @@ export function Header() {
   const { toggle } = useAssistantPanel();
   const scrolled = useScrolled();
 
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileMenuOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
   return (
     <header className="rounded-page sticky top-0 z-50 w-full">
       <NavItemsRoot>
-        <div
-          className={headerBarClassName(
-            scrolled,
-            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 lg:grid lg:grid-cols-[1fr_auto_1fr]",
-          )}
-        >
-          <HeaderBrandLink className="justify-self-start" />
+        <Dialog open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <div
+            className={headerBarClassName(
+              scrolled,
+              "mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 lg:grid lg:grid-cols-[1fr_auto_1fr]",
+            )}
+          >
+            <HeaderBrandLink className="justify-self-start" />
 
-          <NavItems
-            items={NAV_ITEMS}
-            className="hidden items-center lg:flex"
-            contentClassName="mx-auto max-w-7xl"
-          />
+            <NavItems
+              items={NAV_ITEMS}
+              className="hidden items-center lg:flex"
+              contentClassName="mx-auto max-w-7xl"
+            />
 
-          <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not([data-empty]))_[data-header-cloud]]:hidden">
-            <CartButton />
-            <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
-            <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+            <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not([data-empty]))_[data-header-cloud]]:hidden">
+              <CartButton />
+              <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
+              <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggle}
-              aria-label="Ask AI (⌘I)"
-            >
-              Ask AI
-              <KbdGroup className="hidden xl:inline-flex">
-                <Kbd>⌘</Kbd>
-                <Kbd>I</Kbd>
-              </KbdGroup>
-            </Button>
-            <Button
-              size="sm"
-              nativeButton={false}
-              data-header-cloud=""
-              className="max-[340px]:hidden"
-              render={
-                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
-              }
-            >
-              Cloud
-            </Button>
-
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors lg:hidden"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="size-5" />
-              ) : (
-                <Menu className="size-5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 lg:hidden",
-            mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
-          )}
-        >
-          <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-            {NAV_ITEMS.map((item) => {
-              if (item.type === "link") {
-                return item.href.startsWith("http") ? (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-foreground py-3 text-lg transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-foreground py-3 text-lg transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                );
-              }
-
-              return (
-                <div key={item.label} className="flex flex-col">
-                  <span className="text-foreground py-3 text-lg">
-                    {item.label}
-                  </span>
-                  {item.groups.map((group) => (
-                    <div key={group.label} className="flex flex-col">
-                      <span className="text-muted-foreground py-3 text-xs font-medium">
-                        {group.label}
-                      </span>
-                      {group.items.map((link) =>
-                        link.external ? (
-                          <a
-                            key={link.href}
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
-                          >
-                            {link.label}
-                            <ArrowUpRight className="size-3.5 opacity-40" />
-                          </a>
-                        ) : (
-                          <Link
-                            key={link.href}
-                            href={link.href}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="text-foreground py-2 pl-4 text-lg transition-colors"
-                          >
-                            {link.label}
-                          </Link>
-                        ),
-                      )}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-
-            <div className="mt-auto flex flex-col gap-4 border-t py-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggle}
+                aria-label="Ask AI (⌘I)"
+                className="max-md:min-h-11"
+              >
+                Ask AI
+                <KbdGroup className="hidden xl:inline-flex">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>I</Kbd>
+                </KbdGroup>
+              </Button>
               <Button
                 size="sm"
                 nativeButton={false}
-                className="w-fit"
-                onClick={() => setMobileMenuOpen(false)}
+                data-header-cloud=""
+                className="hidden sm:inline-flex"
                 render={
                   <a
                     href={CLOUD_URL}
@@ -212,27 +129,140 @@ export function Header() {
               >
                 Cloud
               </Button>
-              <div className="flex gap-4">
-                <a
-                  href="https://github.com/assistant-ui/assistant-ui"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
-                >
-                  <GitHubIcon className="size-5" />
-                </a>
-                <a
-                  href="https://discord.gg/S9dwgCNEFs"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
-                >
-                  <DiscordIcon className="size-5" />
-                </a>
-              </div>
+
+              <DialogTrigger
+                aria-label="Open navigation"
+                className="text-muted-foreground hover:text-foreground focus-visible:outline-ring rounded-control flex size-11 items-center justify-center focus-visible:outline-2 lg:hidden"
+              >
+                <Menu className="size-5" />
+              </DialogTrigger>
             </div>
           </div>
-        </div>
+
+          <DialogContent
+            showCloseButton={false}
+            className="inset-0 flex max-w-full translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 sm:max-w-full"
+          >
+            <div className="flex h-14 shrink-0 items-center justify-between px-4">
+              <DialogTitle className="text-sm font-medium">
+                Navigation
+              </DialogTitle>
+              <DialogClose
+                aria-label="Close navigation"
+                className="text-muted-foreground hover:text-foreground rounded-control flex size-11 items-center justify-center focus-visible:outline-2"
+              >
+                <X className="size-5" />
+              </DialogClose>
+            </div>
+            <nav
+              aria-label="Site navigation"
+              className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4 pt-4"
+            >
+              {NAV_ITEMS.map((item) => {
+                if (item.type === "link") {
+                  return item.href.startsWith("http") ? (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-foreground py-3 text-lg transition-colors"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-foreground py-3 text-lg transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div key={item.label} className="flex flex-col">
+                    <span className="text-foreground py-3 text-lg">
+                      {item.label}
+                    </span>
+                    {item.groups.map((group) => (
+                      <div key={group.label} className="flex flex-col">
+                        <span className="text-muted-foreground py-3 text-xs font-medium">
+                          {group.label}
+                        </span>
+                        {group.items.map((link) =>
+                          link.external ? (
+                            <a
+                              key={link.href}
+                              href={link.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
+                            >
+                              {link.label}
+                              <ArrowUpRight className="size-3.5 opacity-40" />
+                            </a>
+                          ) : (
+                            <Link
+                              key={link.href}
+                              href={link.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="text-foreground py-2 pl-4 text-lg transition-colors"
+                            >
+                              {link.label}
+                            </Link>
+                          ),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              <div className="mt-auto flex flex-col gap-4 border-t py-6">
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  className="w-fit"
+                  onClick={() => setMobileMenuOpen(false)}
+                  render={
+                    <a
+                      href={CLOUD_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
+                  }
+                >
+                  Cloud
+                </Button>
+                <div className="flex gap-4">
+                  <a
+                    href="https://github.com/assistant-ui/assistant-ui"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="GitHub"
+                    className="text-muted-foreground hover:text-foreground flex min-h-11 items-center gap-2 transition-colors"
+                  >
+                    <GitHubIcon className="size-5" />
+                  </a>
+                  <a
+                    href="https://discord.gg/S9dwgCNEFs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Discord"
+                    className="text-muted-foreground hover:text-foreground flex min-h-11 items-center gap-2 transition-colors"
+                  >
+                    <DiscordIcon className="size-5" />
+                  </a>
+                </div>
+              </div>
+            </nav>
+          </DialogContent>
+        </Dialog>
       </NavItemsRoot>
     </header>
   );
