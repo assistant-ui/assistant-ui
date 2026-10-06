@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -109,6 +109,9 @@ const createThreadLifetimes = () => {
     }
   };
   return {
+    has(threadId: string) {
+      return controllers.has(threadId);
+    },
     signalFor(threadId: string, ownerSignal: AbortSignal | undefined) {
       let controller = controllers.get(threadId);
       if (!controller) {
@@ -180,7 +183,6 @@ const useInMemoryThreadList = (
     ],
     mainThreadId: INITIAL_THREAD_ID,
   }));
-  const queuedThreadIds = useRef(new Set([INITIAL_THREAD_ID]));
   const setThreads = (
     update: (prev: readonly ThreadData[]) => readonly ThreadData[],
   ) => setListState((prev) => ({ ...prev, threads: update(prev.threads) }));
@@ -188,7 +190,7 @@ const useInMemoryThreadList = (
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
-    if (!queuedThreadIds.current.has(threadId)) return;
+    if (!lifetimes.has(threadId)) return;
     setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
@@ -230,10 +232,6 @@ const useInMemoryThreadList = (
     // stay selected. The fallback id is minted eagerly so the updater stays
     // pure under batched deletes.
     const fallbackId = `thread-${generateId()}`;
-    queuedThreadIds.current.delete(threadId);
-    if (queuedThreadIds.current.size === 0) {
-      queuedThreadIds.current.add(fallbackId);
-    }
     setListState((prev) => {
       const remaining = prev.threads.filter((t) => t.id !== threadId);
       if (remaining.length === 0) {
@@ -256,7 +254,6 @@ const useInMemoryThreadList = (
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
-    queuedThreadIds.current.add(newId);
     setListState((prev) => ({
       threads: [
         ...prev.threads,
