@@ -3,8 +3,12 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type FC, useEffect, useReducer } from "react";
 import { describe, expect, it } from "vitest";
+import type { ThreadMessage } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
-import { makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  makeAdapter,
+  settleOutsideAct,
+} from "./remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../context";
 import * as ThreadListPrimitive from "../primitives/threadList";
 import {
@@ -79,7 +83,7 @@ describe("threadListItem.isRunning", () => {
 
   it("reports the run of a single-thread runtime that cannot observe background threads", async () => {
     const Inner: FC<{ isRunning: boolean }> = ({ isRunning }) => {
-      const runtime = useExternalStoreRuntime({
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
         messages: [],
         isRunning,
         onNew: async () => {},
@@ -126,7 +130,7 @@ describe("threadListItem.isRunning", () => {
         };
       }, []);
 
-      return useExternalStoreRuntime({
+      return useExternalStoreRuntime<ThreadMessage>({
         messages: [],
         isRunning: running.get(threadId) ?? false,
         onNew: async () => {},
@@ -171,9 +175,9 @@ describe("threadListItem.isRunning", () => {
     });
     await waitFor(() => expect(screen.getByTestId("item-t-1")).toBeTruthy());
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("t-1");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("t-1"),
+    );
     await act(async () => {
       setRunning("t-1", true);
     });
@@ -181,9 +185,9 @@ describe("threadListItem.isRunning", () => {
       expect(screen.getByTestId("item-t-1").textContent).toBe("running"),
     );
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("t-2");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("t-2"),
+    );
 
     expect(screen.getByTestId("item-t-1").textContent).toBe("running");
     expect(screen.getByTestId("item-t-2").textContent).toBe("idle");

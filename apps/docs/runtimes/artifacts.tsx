@@ -5,7 +5,7 @@ import {
   AssistantRuntimeProvider,
   ModelContextClient as ModelContext,
   Tools,
-  useAui,
+  AuiConfig,
   type Toolkit,
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
@@ -51,7 +51,7 @@ export function ArtifactsRuntimeProvider({
     sendAutomatically: true,
   });
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit: artifactsToolkit }),
     modelContext: ModelContext(),
   });
@@ -62,7 +62,7 @@ export function ArtifactsRuntimeProvider({
   }, [claims, runtime]);
 
   return (
-    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
 
       <DevToolsModal />

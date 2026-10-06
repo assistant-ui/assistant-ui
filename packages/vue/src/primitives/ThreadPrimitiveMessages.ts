@@ -1,13 +1,8 @@
-import {
-  computed,
-  defineComponent,
-  h,
-  type SlotsType,
-  type VNodeChild,
-} from "vue";
+import { defineComponent, h, type SlotsType, type VNodeChild } from "vue";
 import type {} from "@assistant-ui/core/store";
 import { useAuiState } from "../useAuiState";
 import { MessageByIdProvider } from "./MessageByIdProvider";
+import { useStableKeys } from "./stableKeys";
 
 /**
  * Renders the default slot once per message in the current thread, each
@@ -30,17 +25,9 @@ export const ThreadPrimitiveMessages = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
     const messages = useAuiState((s) => s.thread.messages);
-    let previousIds: readonly string[] = [];
-    const ids = computed(() => {
-      const next = messages.value.map((message) => message.id);
-      if (
-        previousIds.length !== next.length ||
-        previousIds.some((id, index) => id !== next[index])
-      ) {
-        previousIds = next;
-      }
-      return previousIds;
-    });
+    const ids = useStableKeys(() =>
+      messages.value.map((message) => message.id),
+    );
     return () =>
       ids.value.map((id) =>
         h(

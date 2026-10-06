@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
 import {
@@ -68,7 +69,7 @@ export function resolvePackageManager(opts: {
   return undefined;
 }
 
-function resolveGitHubAuthToken(): string | undefined {
+export function resolveGitHubAuthToken(): string | undefined {
   const token =
     process.env.GIGET_AUTH ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
   const trimmed = token?.trim();
@@ -96,7 +97,16 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   }
 }
 
-const DOWNLOAD_TIMEOUT_MS = 30_000;
+export const DOWNLOAD_TIMEOUT_MS = 30_000;
+const pendingDownloadCleanups = new Set<() => void>();
+
+export function cleanupPendingProjectDownloads(): void {
+  for (const cleanup of pendingDownloadCleanups) {
+    pendingDownloadCleanups.delete(cleanup);
+    process.removeListener("exit", cleanup);
+    cleanup();
+  }
+}
 
 export async function downloadProject(
   repoPath: string,
@@ -113,13 +123,74 @@ export async function downloadProject(
   // namespaces. Temporarily unsetting it targets the root cause.
   const origDebug = process.env.DEBUG;
   delete process.env.DEBUG;
+  let destinationCreated = false;
+  let stagingDir: string | undefined;
+  let downloadPromise: Promise<unknown> | undefined;
+  let downloadFinished = false;
+  let downloadCommitted = false;
+  let cleanupRequested = false;
+  const removeCleanupListeners = () => {
+    process.removeListener("exit", cleanupOnExit);
+    pendingDownloadCleanups.delete(cleanupOnExit);
+  };
+  const attemptSyncCleanup = (cleanup: () => void) => {
+    try {
+      cleanup();
+    } catch {
+      return;
+    }
+  };
+  const cleanupOnExit = () => {
+    cleanupRequested = true;
+    const currentStagingDir = stagingDir;
+    if (currentStagingDir) {
+      attemptSyncCleanup(() => {
+        fs.rmSync(currentStagingDir, { recursive: true, force: true });
+      });
+    }
+    if (destinationCreated && !downloadCommitted) {
+      attemptSyncCleanup(() => {
+        fs.rmdirSync(destDir);
+      });
+    }
+  };
+  const removeStagingDir = async () => {
+    if (stagingDir) {
+      await fs.promises
+        .rm(stagingDir, { recursive: true, force: true })
+        .catch(() => undefined);
+    }
+    removeCleanupListeners();
+    if (destinationCreated && !downloadCommitted) {
+      await fs.promises.rmdir(destDir).catch(() => undefined);
+    }
+  };
   try {
+    await fs.promises.mkdir(path.dirname(destDir), { recursive: true });
+    try {
+      stagingDir = await fs.promises.mkdtemp(
+        path.join(path.dirname(destDir), ".assistant-ui-download-"),
+      );
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EACCES" && code !== "EPERM" && code !== "EROFS") {
+        throw error;
+      }
+      stagingDir = await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), ".assistant-ui-download-"),
+      );
+    }
+    process.once("exit", cleanupOnExit);
+    pendingDownloadCleanups.add(cleanupOnExit);
+
     const authToken = resolveGitHubAuthToken();
-    const downloadPromise = downloadTemplate(source, {
-      dir: destDir,
+    downloadPromise = downloadTemplate(source, {
+      dir: stagingDir,
       force: true,
       silent: true,
       ...(authToken ? { auth: authToken } : {}),
+    }).finally(() => {
+      downloadFinished = true;
     });
 
     let timer: ReturnType<typeof setTimeout>;
@@ -137,10 +208,34 @@ export async function downloadProject(
 
     try {
       await Promise.race([downloadPromise, timeoutPromise]);
+      if (cleanupRequested) throw new Error("Download was interrupted.");
+      destinationCreated = !fs.existsSync(destDir);
+      await fs.promises.mkdir(destDir, { recursive: true });
+      for (const entry of await fs.promises.readdir(stagingDir)) {
+        const target = path.join(destDir, entry);
+        const sourceEntry = path.join(stagingDir, entry);
+        await fs.promises.rm(target, { recursive: true, force: true });
+        try {
+          await fs.promises.rename(sourceEntry, target);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+          await fs.promises.cp(sourceEntry, target, {
+            recursive: true,
+            force: true,
+          });
+          await fs.promises.rm(sourceEntry, { recursive: true, force: true });
+        }
+      }
+      downloadCommitted = true;
     } finally {
       clearTimeout(timer!);
     }
   } finally {
+    if (!downloadPromise || downloadFinished) {
+      await removeStagingDir();
+    } else {
+      void downloadPromise.then(removeStagingDir, removeStagingDir);
+    }
     if (origDebug !== undefined) {
       process.env.DEBUG = origDebug;
     }

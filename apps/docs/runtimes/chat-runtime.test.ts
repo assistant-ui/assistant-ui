@@ -5,7 +5,9 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { SessionState } from "@/lib/session";
 import { useDocsChatRuntime, useDocsCloud } from "./chat-runtime";
 
-const useChatRuntime = vi.hoisted(() => vi.fn(() => ({ runtime: true })));
+const useChatRuntime = vi.hoisted(() =>
+  vi.fn((_options: unknown) => ({ runtime: true })),
+);
 const refreshDemoUsage = vi.hoisted(() => vi.fn());
 const mocks = vi.hoisted(() => ({
   session: { status: "loading" } as SessionState,

@@ -5,7 +5,7 @@ description: Get assistant-ui running in an Expo or React Native app with your f
 
 ## Quick Start
 
-The fastest way to get started with assistant-ui for React Native. The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread and thread list, including the composer and attachment subcomponents) and the AI SDK runtime wired up.
+The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread and thread list, including the composer and attachment subcomponents) and the AI SDK runtime wired up.
 
 <Steps>
   <Step>
@@ -73,7 +73,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -89,7 +89,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic("claude-sonnet-5"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -105,7 +105,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-3.8-flash"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -259,7 +259,7 @@ npx assistant-ui@latest add thread thread-list
 npx expo install --fix
 ```
 
-This writes `components/assistant-ui/elements/{thread,attachment,thread-list}.aui.tsx`, `components/ui/icon.tsx` and `lib/utils.ts`, and installs what they import (`lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `expo-clipboard`, `expo-image-picker`, `expo-image-manipulator`). `npx expo install --fix` aligns those Expo modules with your SDK version. The thread reads safe area insets, so wrap the app in `SafeAreaProvider` from `react-native-safe-area-context` unless Expo Router already provides it.
+This writes `components/assistant-ui/elements/{thread,attachment,thread-list}.aui.tsx` and the elements the thread renders (markdown text, reasoning, file, image, tool fallback), `components/ui/icon.tsx` and `lib/utils.ts`, and installs what they import (`lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `react-native-marked`, `expo-clipboard`, `expo-image-picker`, `expo-image-manipulator`). `npx expo install --fix` aligns those Expo modules with your SDK version. The thread reads safe area insets, so wrap the app in `SafeAreaProvider` from `react-native-safe-area-context` unless Expo Router already provides it.
 
   </Step>
   <Step>
@@ -294,6 +294,16 @@ export default function App() {
     title="Elements"
     description="What ships natively, how each element installs, and what changes on a phone."
     href="/docs/react-native/elements"
+  />
+  <Card
+    title="Add to an Existing App"
+    description="Bring the elements into an app with its own runtime, styles and navigation."
+    href="/docs/react-native/existing-app"
+  />
+  <Card
+    title="Windowed History"
+    description="Load older messages above the window as the reader scrolls up."
+    href="/docs/react-native/history"
   />
   <Card
     title="Migration from Web"

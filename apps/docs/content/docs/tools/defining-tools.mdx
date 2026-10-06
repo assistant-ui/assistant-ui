@@ -1,10 +1,10 @@
 ---
 title: Defining Tools
-description: Define tools for your AI chat with assistant-ui toolkits and the "use generative" directive — frontend, backend, human, and provider tools with type safety and streaming.
+description: Define tools for your AI chat with assistant-ui toolkits and the "use generative" directive, covering frontend, backend, human, and provider tools with type safety and streaming.
 platforms: ["react"]
 ---
 
-Tools let the model take actions: fetch data, call an API, query a database, drive your UI, or run a workflow. In assistant-ui you declare tools in a **toolkit** — a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders.
+Tools let the model take actions: fetch data, call an API, query a database, drive your UI, or run a workflow. In assistant-ui you declare tools in a **toolkit**, a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders.
 
 This page covers how to **author** tools. To render a tool call as a custom component, see [Tool UI](/docs/tools/tool-ui). To wire tools into your server, see [Backend tools](/docs/tools/backend).
 
@@ -24,7 +24,7 @@ client/server boundary for you.
 </Callout>
 
 In a `"use generative"` file every tool declares an `execute`, and you never
-write `type` yourself — the compiler infers it. For render-only external tools,
+write `type` yourself; the compiler infers it. For render-only external tools,
 `externalTool()` is the escape hatch that satisfies the compiler without
 emitting schema or executable code on the server.
 
@@ -108,7 +108,20 @@ export default defineToolkit({
 });
 ```
 
-The inner `"use client"` inside `execute` marks this as a **frontend** tool — its executor runs in the browser. (Omit it to run on the server; see [Tool kinds](#tool-kinds).)
+The inner `"use client"` inside `execute` marks this as a **frontend** tool: its executor runs in the browser. (Omit it to run on the server; see [Tool kinds](#tool-kinds).)
+
+<Callout type="info">
+  Zod Mini schemas carry no JSON Schema converter of their own, so convert them
+  with the module-level `toJSONSchema` before passing them as `parameters`. The
+  wrapped value still carries `~standard`, so `execute` arguments stay typed:
+
+  ```ts
+  import * as zm from "zod/mini";
+
+  // inside defineToolkit({ ... })
+  parameters: zm.toJSONSchema(zm.object({ location: zm.string() })),
+  ```
+</Callout>
 
 </Step>
 <Step>
@@ -159,7 +172,7 @@ export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: await aiToolkit.tools({ frontend: tools }),
   });
@@ -177,7 +190,7 @@ See [Backend tools](/docs/tools/backend) for the full server setup.
 
 You author one file; the plugin forks it per build target. The schema (`description` + `parameters`) is kept on **both** builds, so the model contract is identical and authoritative on the backend. The client marks its frontend/human schemas as backend-known and skips re-uploading them.
 
-The tool's **kind is inferred from its `execute`** and written back as a `type` field — you never author `type` in a `"use generative"` file:
+The tool's **kind is inferred from its `execute`** and written back as a `type` field; you never author `type` in a `"use generative"` file:
 
 | `execute` you write | Inferred kind | Server build keeps | Client build keeps |
 | --- | --- | --- | --- |
@@ -196,7 +209,7 @@ The compiler also enforces, at build time:
 
 ### Running without your own backend
 
-The client build skips uploading frontend/human schemas because it assumes your backend imported the same file's server build and already knows them. When no server of yours does — for example, cloud-hosted runs — that assumption breaks and the model never learns about those tools. Compile with the `backendless` option so the client keeps every schema uploadable, including the `present`/`prompt_user` schema of a `JSONGenerativeUI` component library:
+The client build skips uploading frontend/human schemas because it assumes your backend imported the same file's server build and already knows them. When no server of yours does (for example, cloud-hosted runs), that assumption breaks and the model never learns about those tools. Compile with the `backendless` option so the client keeps every schema uploadable, including the `present`/`prompt_user` schema of a `JSONGenerativeUI` component library:
 
 ```ts title="next.config.ts"
 export default withAui({ ...yourConfig, aui: { backendless: true } });
@@ -231,7 +244,7 @@ geocode_location: {
 <Callout type="tip">
   A backend tool authored this way **has** an `execute`. To attach a renderer to
   a tool whose execution lives entirely elsewhere (an MCP server, a different
-  backend route) — where there is no real executor to write — use
+  backend route), where there is no real executor to write, use
   `externalTool()` or `defineMcpToolkit()`.
 </Callout>
 
@@ -365,7 +378,7 @@ renderText: {
 },
 ```
 
-If you don't provide a renderer, add the [`ToolFallback`](/elements/tool-fallback) component to render a default tool card. The full rendering API — status states, streaming args, deferred rendering, approvals — is covered in [Tool UI](/docs/tools/tool-ui).
+If you don't provide a renderer, add the [`ToolFallback`](/elements/tool-fallback) component to render a default tool card. The full rendering API (status states, streaming args, deferred rendering, approvals) is covered in [Tool UI](/docs/tools/tool-ui).
 
 ## Render-only tools (for externally-executed tools)
 
@@ -389,7 +402,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Register it exactly like a generative toolkit: hoist `const config = AuiConfig({ tools: Tools({ toolkit }) })` in the component body and pass `config={config}`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.
+Register it exactly like a generative toolkit: hoist `const config = AuiConfig({ tools: Tools({ toolkit }) })` in the component body and pass `config={config}`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code; they only attach UI to matching tool-call message parts.
 
 <Callout type="warn">
   This `{ type: "backend", render }` shape is **plain-toolkit only**. Inside a
@@ -494,7 +507,7 @@ See [MCP](/docs/tools/mcp) for the full server-side and user-managed MCP flows.
 
 ### Multi-modal tool results
 
-By default a tool's `execute` result is sent to the model as a JSON blob. When the useful output is a file or image, add `toModelOutput` to project the result into the multi-modal content the model sees — your `render` still receives the rich, typed `result`:
+By default a tool's `execute` result is sent to the model as a JSON blob. When the useful output is a file or image, add `toModelOutput` to project the result into the multi-modal content the model sees, while your `render` still receives the typed `result`:
 
 ```tsx
 read_pdf: {
@@ -511,7 +524,7 @@ read_pdf: {
 },
 ```
 
-`ToolModelContentPart` is a union of `{ type: "text"; text }` and `{ type: "file"; data; mediaType; filename? }`. With the AI SDK runtime, also pass the tool registry to `convertToModelMessages` so `toModelOutput` fires on round-tripped results — see [Backend tools](/docs/tools/backend#multi-modal-results).
+`ToolModelContentPart` is a union of `{ type: "text"; text }` and `{ type: "file"; data; mediaType; filename? }`. With the AI SDK runtime, also pass the tool registry to `convertToModelMessages` so `toModelOutput` fires on round-tripped results; see [Backend tools](/docs/tools/backend#multi-modal-results).
 
 ### Per-tool provider options
 

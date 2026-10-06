@@ -63,7 +63,7 @@ Standalone, MarkdownText has no controlled form: its only prop is `components`, 
 </div>
 ```
 
-The root's `data-status` mirrors the part's streaming state: `running` while text is still arriving (or, with the primitive's default smooth reveal, still catching up to text that already arrived), `complete` once settled, `incomplete` if the part ended early. Every rendered element carries an `aui-md-*` class (`aui-md-h1`, `aui-md-p`, `aui-md-table`, and so on) so you can target one without replacing the whole set. Inline code gets a background and rounded corners; fenced code does not, since the copy button and code header already frame it. The copy button swaps to a check icon for three seconds after a successful copy, then reverts.
+The root's `data-status` mirrors the part's streaming state: `running` while text is still arriving (or, with the primitive's default smooth reveal, still catching up to text that already arrived), `complete` once settled, `incomplete` if the part ended early. Every rendered element carries an `aui-md-*` class (`aui-md-h1`, `aui-md-p`, `aui-md-table`, and so on) so you can target one without replacing the whole set. Inline code gets a background and rounded corners on the `code` element; in a fenced block the `pre` carries the border and background instead. The copy button swaps to a check icon for three seconds after a successful copy, then reverts.
 
 ## Examples
 
@@ -105,9 +105,9 @@ const CustomCodeHeader = ({ language, code }: CodeHeaderProps) => (
 Tables, task-list checkboxes, strikethrough, and bare autolinks all render because `remarkGfm` is already passed to `MarkdownTextPrimitive`; no extra setup is needed for a message that contains them.
 
 ```md
-| Model | Context |
-| ----- | ------- |
-| gpt-5 | 400k    |
+| Model      | Context |
+| ---------- | ------- |
+| gpt-6-luna | 1M      |
 
 - [x] Ship the renderer
 - [ ] Add highlighting

@@ -2,13 +2,17 @@ import type { ResourceFiber, TapRoot } from "./types";
 import { bubbleContextDeps } from "./context";
 import {
   commitAllCallbacks,
-  cleanupAllEffects,
+  cleanupCells,
   reconcileEffects,
 } from "./helpers/commit";
-import { withResourceFiber } from "./helpers/execution-context";
+import {
+  peekResourceFiber,
+  withResourceFiber,
+} from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 import { commitRoot } from "./helpers/root";
+import { throwAggregated } from "./helpers/throwAggregated";
 
 export function createResourceFiber<R>(
   hook: (...args: any[]) => R,
@@ -23,18 +27,23 @@ export function createResourceFiber<R>(
     devStrictMode: strictMode,
     cells: [],
     effectCells: [],
+    insertionCells: null,
+    hostCells: null,
     contextDeps: null,
     wipContextDeps: null,
     wipCommitCallbacks: null,
     memoCache: {
       current: null,
       workInProgress: null,
+      refreshedIndices: null,
       index: 0,
     },
     renderPendingCells: null,
     currentIndex: 0,
+    isRefreshing: false,
     isFirstRender: true,
     isMounted: false,
+    isReleased: false,
     isNeverMounted: true,
   };
 }
@@ -45,13 +54,61 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.wipCommitCallbacks = null;
   fiber.wipContextDeps = null;
   fiber.memoCache.workInProgress = null;
+  fiber.memoCache.refreshedIndices = null;
 }
 
-export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  if (!fiber.isMounted) return;
+function cleanupResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  insertion: boolean,
+  errors: unknown[] | undefined,
+): unknown[] | undefined {
+  try {
+    if (insertion) {
+      fiber.isReleased = true;
+      if (fiber.insertionCells !== null) cleanupCells(fiber.insertionCells);
+    } else if (fiber.isMounted) {
+      fiber.isMounted = false;
+      cleanupCells(fiber.effectCells);
+    }
+  } catch (error) {
+    (errors ??= []).push(error);
+  }
+  if (fiber.hostCells !== null) {
+    for (const cell of fiber.hostCells) {
+      if (cell.fiber !== null) {
+        errors = cleanupResourceFiber(cell.fiber, insertion, errors);
+      }
+      if (cell.fibers !== null) {
+        for (const { fiber } of cell.fibers.values()) {
+          errors = cleanupResourceFiber(fiber, insertion, errors);
+        }
+      }
+    }
+  }
+  return errors;
+}
 
-  fiber.isMounted = false;
-  cleanupAllEffects(fiber);
+export function unmountResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  permanent = true,
+): void {
+  let errors: unknown[] | undefined;
+  if (permanent) errors = cleanupResourceFiber(fiber, true, errors);
+  errors = cleanupResourceFiber(fiber, false, errors);
+  if (errors !== undefined) throwAggregated(errors, "Errors during cleanup");
+}
+
+export function unmountResourceFibers(
+  fibers: readonly ResourceFiber<unknown>[],
+): void {
+  let errors: unknown[] | undefined;
+  for (const fiber of fibers) {
+    if (fiber.isReleased) errors = cleanupResourceFiber(fiber, true, errors);
+  }
+  for (const fiber of fibers) {
+    errors = cleanupResourceFiber(fiber, false, errors);
+  }
+  if (errors !== undefined) throwAggregated(errors, "Errors during cleanup");
 }
 
 export function renderResourceFiber<R>(
@@ -66,6 +123,9 @@ export function renderResourceFiber<R>(
 
   let passes = 0;
   let value: R;
+  const wasRefreshing = fiber.isRefreshing;
+  fiber.isRefreshing =
+    wasRefreshing || (peekResourceFiber()?.isRefreshing ?? false);
   try {
     do {
       if (++passes > 25) {
@@ -83,6 +143,8 @@ export function renderResourceFiber<R>(
   } catch (error) {
     discardWipRender(fiber);
     throw error;
+  } finally {
+    fiber.isRefreshing = wasRefreshing;
   }
 
   bubbleContextDeps(fiber);
@@ -106,13 +168,15 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
     if (fiber.memoCache.workInProgress !== null) {
       fiber.memoCache.current = fiber.memoCache.workInProgress;
       fiber.memoCache.workInProgress = null;
+      fiber.memoCache.refreshedIndices = null;
     }
 
     commitAllCallbacks(commitCallbacks);
   }
   if (strictReplay) {
-    reconcileEffects(fiber);
-    cleanupAllEffects(fiber);
+    reconcileEffects(fiber, commitCallbacks !== null);
+    unmountResourceFiber(fiber, false);
+    fiber.isMounted = true;
   }
-  reconcileEffects(fiber);
+  reconcileEffects(fiber, !strictReplay && commitCallbacks !== null);
 }

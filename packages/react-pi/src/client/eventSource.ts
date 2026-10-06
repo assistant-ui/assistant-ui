@@ -116,7 +116,10 @@ const isKnownEventPayload = (event: Record<string, unknown>): boolean => {
     case "agent_settled":
       return true;
     case "agent_end":
-      return isOptionalBoolean(event.willRetry);
+      return (
+        isOptionalBoolean(event.willRetry) &&
+        isOptionalBoolean(event.cancelledBeforeStart)
+      );
     case "turn_start":
     case "turn_end":
       return typeof event.turnIndex === "number";

@@ -7,6 +7,24 @@ import {
 } from "./data-url";
 
 describe("parseDataUrl", () => {
+  it.each([
+    "data:;base64,aGk=",
+    "data:;charset=utf-8;base64,aGk=",
+    "DATA:;BASE64,aGk=",
+  ])("defaults an omitted base64 media type to binary for %s", (value) => {
+    expect(parseDataUrl(value)).toEqual({
+      mimeType: "application/octet-stream",
+      data: "aGk=",
+    });
+  });
+
+  it("allows an empty payload with an omitted media type", () => {
+    expect(parseDataUrl("data:;base64,")).toEqual({
+      mimeType: "application/octet-stream",
+      data: "",
+    });
+  });
+
   it("parses a base64 data URL", () => {
     expect(parseDataUrl("data:image/png;base64,aGVsbG8=")).toEqual({
       mimeType: "image/png",
@@ -29,17 +47,6 @@ describe("parseDataUrl", () => {
     expect(parseDataUrl("data:image/png;base64,")).toEqual({
       mimeType: "image/png",
       data: "",
-    });
-  });
-
-  it.each([
-    ["data:;base64,SGVsbG8=", "SGVsbG8="],
-    ["data:;charset=utf-8;base64,SGVsbG8=", "SGVsbG8="],
-    ["DATA:;BASE64,", ""],
-  ])("defaults %s to the binary media type", (value, data) => {
-    expect(parseDataUrl(value)).toEqual({
-      mimeType: "application/octet-stream",
-      data,
     });
   });
 
@@ -136,6 +143,18 @@ describe("httpUrlPattern", () => {
 });
 
 describe("resolveFilePartSource", () => {
+  it.each(["application/octet-stream", "image/png", "audio/wav", "text/plain"])(
+    "extracts bytes while retaining the declared %s type when the URL omits it",
+    (mimeType) => {
+      expect(
+        resolveFilePartSource({
+          data: "data:;base64,SGk=",
+          mimeType,
+        }),
+      ).toEqual({ kind: "data", data: "SGk=", mimeType });
+    },
+  );
+
   it("uses an explicit url source type for opaque values", () => {
     expect(
       resolveFilePartSource({

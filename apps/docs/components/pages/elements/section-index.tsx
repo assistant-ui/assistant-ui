@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { typeEyebrow } from "@/components/shared/type";
-import { cn } from "@/lib/utils";
 
 export function SectionIndex({
   sections,
@@ -12,7 +10,7 @@ export function SectionIndex({
       aria-label="Sections"
       className="border-foreground/10 mt-16 border-t pt-6"
     >
-      <p className={typeEyebrow}>Contents</p>
+      <p className="text-sm font-medium">Contents</p>
       <ul className="mt-3 grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {sections.map((section, index) => (
           <li key={section.id}>
@@ -49,8 +47,8 @@ export function SectionHeader({
       <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
         {String(index).padStart(2, "0")}
       </span>
-      <h2 className={cn(typeEyebrow, "text-foreground")}>{label}</h2>
-      <span className="text-muted-foreground ms-auto font-mono text-[11px] tabular-nums">
+      <h2 className="text-sm font-medium">{label}</h2>
+      <span className="text-muted-foreground ms-auto text-sm tabular-nums">
         {count} elements
       </span>
     </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { useEffect, useState } from "react";
+import { useEffect, useInsertionEffect, useState } from "react";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import {
   createAssistantClient,
@@ -156,7 +156,9 @@ describe("createAssistantClient", () => {
 
   it("reads state through the proxied assistant state", () => {
     const handle = createTestClient({ thread: ThreadClient() });
-    const state = getProxiedAssistantState(handle.getClient());
+    const state = getProxiedAssistantState(
+      handle.getClient() as AssistantClient,
+    );
 
     expect((state as AnyClient).thread.selected).toBe(0);
     expect((state as AnyClient).optional.missing).toBeUndefined();
@@ -285,6 +287,29 @@ describe("createAssistantClient", () => {
     expect(handle.getClient().thread.getState()).toEqual({ selected: 3 });
 
     handle.destroy();
+  });
+
+  it.each([
+    ["while subscribed", false],
+    ["after the last unsubscribe", true],
+  ])("releases insertion effects on destroy %s", async (_, unsubscribed) => {
+    const release = vi.fn();
+    const useInsertionThread = () => {
+      useInsertionEffect(() => release, []);
+      return { getState: () => ({}) };
+    };
+    const handle = createTestClient({
+      thread: resource(useInsertionThread)(),
+    });
+    const unsubscribe = handle.subscribe(() => {});
+    if (unsubscribed) {
+      unsubscribe();
+      await flushEvents();
+    }
+    expect(release).not.toHaveBeenCalled();
+
+    handle.destroy();
+    expect(release).toHaveBeenCalledTimes(1);
   });
 
   it("absorbs an unsubscribe and resubscribe within the same tick", async () => {

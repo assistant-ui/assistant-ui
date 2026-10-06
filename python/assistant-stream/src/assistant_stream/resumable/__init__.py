@@ -20,7 +20,9 @@ from assistant_stream.resumable.stores.in_memory import (
 )
 from assistant_stream.resumable.types import (
     CancellationSignal,
+    ResumableStreamAcquisition,
     ResumableStreamEntry,
+    ResumableStreamLease,
     ResumableStreamRole,
     ResumableStreamStatus,
     ResumableStreamStore,
@@ -30,10 +32,12 @@ __all__ = [
     "CancellationSignal",
     "DEFAULT_TTL_MS",
     "RESUMABLE_STREAM_ID_HEADER",
+    "ResumableStreamAcquisition",
     "ResumableStreamContext",
     "ResumableStreamEntry",
     "ResumableStreamError",
     "ResumableStreamErrorCode",
+    "ResumableStreamLease",
     "ResumableStreamRole",
     "ResumableStreamStatus",
     "ResumableStreamStore",

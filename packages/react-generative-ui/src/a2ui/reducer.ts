@@ -3,6 +3,7 @@ import {
   type A2uiOperationResult,
   type A2uiState,
   type A2uiSurfaceState,
+  type A2uiVersion,
 } from "./types";
 
 const OPERATION_KEYS = new Set([
@@ -12,19 +13,30 @@ const OPERATION_KEYS = new Set([
   "deleteSurface",
 ]);
 // This defensive ceiling is well above the renderer's displayed-item limit.
-const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
+export const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
 const INVALID_POINTER = Symbol("invalidPointer");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isVersion = (value: unknown): value is "v0.9" | "v1.0" =>
-  value === "v0.9" || value === "v1.0";
+const isVersion = (value: unknown): value is A2uiVersion =>
+  value === "v0.9" || value === "v0.9.1" || value === "v1.0";
 
 const surfaceIdOf = (payload: Record<string, unknown>): string | undefined => {
   const surfaceId = payload["surfaceId"];
   return typeof surfaceId === "string" && surfaceId.length > 0
     ? surfaceId
+    : undefined;
+};
+
+const catalogIdOf = (payload: Record<string, unknown>): string | undefined => {
+  if (typeof payload["catalogId"] === "string") {
+    return payload["catalogId"];
+  }
+  const surfaceProperties = payload["surfaceProperties"];
+  return isRecord(surfaceProperties) &&
+    typeof surfaceProperties["catalogId"] === "string"
+    ? surfaceProperties["catalogId"]
     : undefined;
 };
 
@@ -50,6 +62,9 @@ const cloneSurface = (
 ): A2uiSurfaceState =>
   withSurfaceId(
     {
+      ...(surface.catalogId !== undefined
+        ? { catalogId: surface.catalogId }
+        : {}),
       components: new Map(surface.components),
       dataModel: surface.dataModel,
     },
@@ -103,7 +118,7 @@ const decodePointer = (path: string): string[] | undefined => {
 const isArrayIndex = (segment: string): boolean =>
   segment === "0" || /^[1-9]\d*$/.test(segment);
 
-const setAtPointer = (
+export const setAtPointer = (
   model: unknown,
   path: string,
   value: unknown,
@@ -274,8 +289,10 @@ export function applyA2uiOperations(
       }
 
       if (operationKey === "createSurface") {
+        const catalogId = catalogIdOf(payload);
         const surface = withSurfaceId(
           {
+            ...(catalogId !== undefined ? { catalogId } : {}),
             components: new Map(),
             dataModel:
               version === "v1.0" && payload["dataModel"] !== undefined

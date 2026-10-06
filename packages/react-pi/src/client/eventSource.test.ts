@@ -137,7 +137,11 @@ const knownEventBodies = {
     },
   },
   agent_start: { type: "agent_start" },
-  agent_end: { type: "agent_end", willRetry: false },
+  agent_end: {
+    type: "agent_end",
+    willRetry: false,
+    cancelledBeforeStart: true,
+  },
   agent_settled: { type: "agent_settled" },
   turn_start: { type: "turn_start", turnIndex: 1 },
   turn_end: { type: "turn_end", turnIndex: 1 },
@@ -724,6 +728,7 @@ describe("openPiEventStream", () => {
               }
               close();
               resolve();
+              return undefined;
             },
           });
         });
@@ -959,7 +964,7 @@ describe("openPiEventStream", () => {
       const events: PiAnyClientEvent[] = [];
       const errors: unknown[] = [];
       const fetchImpl = vi
-        .fn()
+        .fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
         .mockResolvedValueOnce(
           sseResponse([
             rawSseFrame(malformedEvent),
@@ -970,7 +975,7 @@ describe("openPiEventStream", () => {
           sseResponse([
             sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
           ]),
-        ) as unknown as typeof fetch;
+        );
 
       await new Promise<void>((resolve) => {
         const close = openPiEventStream({
@@ -1175,7 +1180,7 @@ describe("openPiEventStream", () => {
     "requests a snapshot after a %s live-only stream",
     async (failure) => {
       const fetchImpl = vi
-        .fn()
+        .fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
         .mockImplementationOnce(async () => {
           if (failure === "error") throw new Error("network drop");
           return sseResponse(
@@ -1196,7 +1201,7 @@ describe("openPiEventStream", () => {
               },
             }),
           ]),
-        ) as unknown as typeof fetch;
+        );
 
       const event = await new Promise<PiAnyClientEvent>((resolve) => {
         const close = openPiEventStream({

@@ -15,6 +15,7 @@ import type {
   DataMessagePartProps,
 } from "@assistant-ui/core/react";
 import { PartByIndexProvider } from "@assistant-ui/core/react";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import { ToolFallback } from "../toolCall/ToolFallback";
 import * as MessagePartPrimitive from "../messagePart";
 
@@ -94,6 +95,9 @@ const ToolUIDisplay = ({
     addResult: partMethods.addToolResult,
     resume: partMethods.resumeToolCall,
     respondToApproval: partMethods.respondToToolApproval,
+    ...(partMethods.unstable_recordInteraction && {
+      unstable_recordInteraction: partMethods.unstable_recordInteraction,
+    }),
   };
 
   if (Render) {
@@ -136,11 +140,12 @@ export const MessageContent = ({
   renderData,
 }: MessageContentProps) => {
   const content = useAuiState((s) => s.message.parts);
+  const partKeys = getMessagePartKeys(content);
 
   return (
     <>
       {content.map((part, index) => {
-        const key = `${part.type}-${index}`;
+        const key = partKeys[index];
         switch (part.type) {
           case "text":
             return (

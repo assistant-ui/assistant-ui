@@ -117,10 +117,10 @@ const mount = () => {
       messages: messages as unknown as readonly ThreadMessage[],
       onNew: async () => {},
     });
-    return createElement(
-      AssistantRuntimeProvider,
-      { runtime },
-      createElement(TasksChip),
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <TasksChip />
+      </AssistantRuntimeProvider>
     );
   };
   const root = createRoot(document.createElement("div"));

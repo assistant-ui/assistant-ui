@@ -81,6 +81,20 @@ describe("getPendingToolCalls", () => {
 });
 
 describe("getPendingCancellations", () => {
+  it("skips a null tool_calls entry and cancels the rest", () => {
+    const messages = [
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [null, { id: "tc-1", name: "tool_a", args: {} }],
+      },
+    ] as unknown as AdkMessage[];
+    expect(getPendingCancellations(messages, [])).toMatchObject([
+      { type: "tool", name: "tool_a", tool_call_id: "tc-1", status: "error" },
+    ]);
+  });
+
   it("emits a {cancelled:true} tool message for every pending tool call", () => {
     const messages: AdkMessage[] = [
       aiWithToolCalls("ai-1", [{ id: "tc-1", name: "tool_a" }]),
@@ -156,6 +170,12 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
+  it("sends activity messages as text parts", () => {
+    expect(
+      contentToParts([{ type: "activity", message: "Working on it" }]),
+    ).toEqual([{ text: "Working on it" }]);
+  });
+
   it("serializes data URL images as inline data", () => {
     const content = getMessageContent(
       makeAppendMessage([

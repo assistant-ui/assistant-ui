@@ -59,6 +59,7 @@ export class ElevenLabsVoiceAdapter implements RealtimeVoiceAdapter {
         },
         mute: () => conversation.setMicMuted(true),
         unmute: () => conversation.setMicMuted(false),
+        sendText: (text) => conversation.sendUserMessage(text),
       };
     });
   }

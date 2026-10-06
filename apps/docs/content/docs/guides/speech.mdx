@@ -12,6 +12,8 @@ Speech is the read-aloud mode: one message at a time, text to audio. For a live 
 
 <SpeechSample />
 
+<AgentSetup product="guides/speech" />
+
 ## SpeechSynthesisAdapter
 
 The adapter has a single method. The type lives in `@assistant-ui/core` and is re-exported from `@assistant-ui/react`:
@@ -87,7 +89,7 @@ const AssistantActionBar = () => {
 };
 ```
 
-`ActionBarPrimitive.Speak` is disabled when no speech adapter is configured. While playback is active, `message.speech` holds the current speech state so the UI can switch to `StopSpeaking`.
+`ActionBarPrimitive.Speak` is disabled while the assistant message is still running and when the message has no text. It does not check for a speech adapter, and without one `speak` throws `Speech adapter not configured`. While playback is active, `message.speech` holds the current speech state so the UI can switch to `StopSpeaking`.
 
 ## Custom adapters
 

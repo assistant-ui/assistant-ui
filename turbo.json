@@ -1,7 +1,16 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "agentGuidance": false,
   "globalPassThroughEnv": ["ENABLE_EXPERIMENTAL_COREPACK"],
+  "globalDependencies": [
+    "packages/x-buildutils/bin/**",
+    "packages/x-buildutils/package.json",
+    "packages/x-buildutils/src/**",
+    "!packages/x-buildutils/src/**/*.test.{ts,tsx}",
+    "packages/x-buildutils/ts/*.json",
+    "packages/x-buildutils/types/**"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -25,10 +34,8 @@
         "ASSISTANT_*",
         "JWT_*",
         "ENTELLIGENCE_*",
-        "NEXT_PUBLIC_*",
         "KV_*",
         "SENTRY_*",
-        "REDIS_*",
         "ASSISTANT_*",
         "AUIX_*",
         "WEBMCP_ORIGIN_TRIAL_TOKEN"
@@ -36,7 +43,21 @@
     },
     "lint": {},
     "test": {
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["VITEST_MAX_WORKERS"]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "typecheck": {
       "dependsOn": ["^build"]
+    },
+    "test:peer-react18": {
+      "dependsOn": ["^build", "build"]
+    },
+    "test:types:peer-react18": {
+      "dependsOn": ["^build", "build"]
     },
     "test:react-compiler": {
       "dependsOn": ["build"]
@@ -47,6 +68,19 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "preview:build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/examples/bundle-shared/**",
+        "!$TURBO_ROOT$/examples/bundle-shared/node_modules/**",
+        "$TURBO_ROOT$/scripts/build-example-bundle.mjs",
+        "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/scripts/example-bundles.json",
+        "$TURBO_ROOT$/scripts/lib/script-options.mjs"
+      ],
+      "outputs": ["dist/**"]
     }
   }
 }

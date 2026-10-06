@@ -1,5 +1,5 @@
-/// <reference path="./scope-registration.ts" />
-/// <reference path="../react/types/store-augmentation.ts" />
+/// <reference path="./scope-registration.ts" preserve="true" />
+/// <reference path="../react/types/store-augmentation.ts" preserve="true" />
 
 // scopes
 export type {
@@ -102,6 +102,8 @@ export {
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
+  type ExternalMessageConversionCache,
   type JoinStrategy,
 } from "../react/runtimes/external-message-converter";
 export {

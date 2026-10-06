@@ -7,7 +7,7 @@ import {
   Suggestions,
   Tools,
   unstable_Interactables,
-  useAui,
+  AuiConfig,
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
@@ -79,7 +79,7 @@ export function DocsRuntimeProvider({
     [countConversations],
   );
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions(DOCS_SUGGESTIONS),
@@ -91,7 +91,7 @@ export function DocsRuntimeProvider({
   }, [claims, runtime]);
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       <MemoryInstructions />
       {children}
 

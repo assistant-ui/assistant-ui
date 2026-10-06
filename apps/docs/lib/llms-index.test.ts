@@ -31,4 +31,12 @@ describe("buildLLMSIndex", () => {
       expect(index).toContain(`${BASE_URL}${path}`);
     },
   );
+
+  it("names the repo skills next to the Agent Skills index", () => {
+    const index = buildLLMSIndex([], []);
+    expect(index).toContain(
+      "- Agent skills: task-shaped SKILL.md guides listed in the Agent Skills index, one per area (assistant-ui, ",
+    );
+    expect(index).toContain(", tools, update).");
+  });
 });

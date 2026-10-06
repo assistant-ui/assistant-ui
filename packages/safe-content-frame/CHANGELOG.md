@@ -1,5 +1,25 @@
 # safe-content-frame
 
+## 0.0.33
+
+### Patch Changes
+
+- [#7212](https://github.com/assistant-ui/assistant-ui/pull/7212) [`9f40133`](https://github.com/assistant-ui/assistant-ui/commit/9f40133ba1a472c143a3da80ec702a828120ace8) - fix: clean up cancelled and pre-load failed sandbox frame renders ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.32
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.31
+
+### Patch Changes
+
+- [#7680](https://github.com/assistant-ui/assistant-ui/pull/7680) [`e8cf372`](https://github.com/assistant-ui/assistant-ui/commit/e8cf372a3ba08f937149dc924e807228324b45f7) - fix: support multibyte pathnames when deriving browser cache salts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.30
 
 ### Patch Changes

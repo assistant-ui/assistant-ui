@@ -1,9 +1,11 @@
 import { copyBounded } from "../convert/copyBounded";
 import type { Action, UIElement } from "../ir";
+import { formatTemporalUnixSeconds } from "../temporal";
 import {
   ACTIONS_ELEMENT_CAP,
   CARD_ACTIONS_CAP,
   CAROUSEL_CARD_CAP,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   DATA_TABLE_COLUMN_CAP,
   DATA_TABLE_ROW_CAP,
@@ -212,10 +214,20 @@ const selectFrom = (
     "Select",
     `options were clamped to ${SELECT_OPTION_CAP} entries.`,
   );
+  const convertedOptions = options.map(optionFrom).filter(isDefined);
+  const initialOption = element["initial_option"];
+  const defaultValue =
+    isRecord(initialOption) && typeof initialOption["value"] === "string"
+      ? initialOption["value"]
+      : undefined;
   const placeholder = element["placeholder"];
   return {
     $type: "Select",
-    options: options.map(optionFrom).filter(isDefined),
+    options: convertedOptions,
+    ...(defaultValue !== undefined &&
+    convertedOptions.some((option) => option.value === defaultValue)
+      ? { defaultValue }
+      : {}),
     ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
     $action: decodeAction(element["action_id"], element["value"]),
   };
@@ -246,6 +258,40 @@ const checkboxFrom = (element: Record<string, unknown>): UIElement => {
     label: isRecord(first) ? textOf(first["text"]) : "",
     name: firstValue,
     ...(firstChecked ? { defaultChecked: true } : {}),
+    $action: decodeAction(element["action_id"], element["value"]),
+  };
+};
+
+const checkboxGroupFrom = (
+  element: Record<string, unknown>,
+  warnings: SlackConversionWarning[],
+): UIElement => {
+  const options = boundedArray(
+    element["options"],
+    CHECKBOX_OPTION_CAP,
+    warnings,
+    "CheckboxGroup",
+    `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+  )
+    .map(optionFrom)
+    .filter(isDefined);
+  const defaultValue = clampArray(
+    element["initial_options"],
+    CHECKBOX_OPTION_CAP,
+  ).items.flatMap((initialOption) => {
+    const value =
+      isRecord(initialOption) && typeof initialOption["value"] === "string"
+        ? initialOption["value"]
+        : undefined;
+    return value !== undefined &&
+      options.some((option) => option.value === value)
+      ? [value]
+      : [];
+  });
+  return {
+    $type: "CheckboxGroup",
+    options,
+    ...(defaultValue.length > 0 ? { defaultValue } : {}),
     $action: decodeAction(element["action_id"], element["value"]),
   };
 };
@@ -286,8 +332,32 @@ const actionElementFrom = (
         return selectFrom(element, warnings);
       case "datepicker":
         return datePickerFrom(element);
+      case "timepicker":
+        return {
+          $type: "DatePicker",
+          inputType: "time",
+          ...(typeof element["initial_time"] === "string"
+            ? { value: element["initial_time"] }
+            : {}),
+          $action: decodeAction(element["action_id"], element["value"]),
+        };
+      case "datetimepicker": {
+        const value =
+          typeof element["initial_date_time"] === "number"
+            ? formatTemporalUnixSeconds(element["initial_date_time"])
+            : undefined;
+        return {
+          $type: "DatePicker",
+          inputType: "datetime",
+          ...(value !== undefined ? { value } : {}),
+          $action: decodeAction(element["action_id"], element["value"]),
+        };
+      }
       case "checkboxes":
-        return checkboxFrom(element);
+        return Array.isArray(element["options"]) &&
+          element["options"].length > 1
+          ? checkboxGroupFrom(element, warnings)
+          : checkboxFrom(element);
       case "radio_buttons":
         return radioGroupFrom(element, warnings);
     }
@@ -324,6 +394,13 @@ const inputFrom = (
   warnings: SlackConversionWarning[],
 ): UIElement[] => {
   const element = block["element"];
+  if (
+    isRecord(element) &&
+    (element["type"] === "timepicker" || element["type"] === "datetimepicker")
+  ) {
+    const picker = actionElementFrom(element, warnings);
+    return picker ? [{ ...picker, label: textOf(block["label"]) }] : [];
+  }
   if (!isRecord(element) || element["type"] !== "plain_text_input") {
     warn(
       warnings,
@@ -340,6 +417,9 @@ const inputFrom = (
       label: textOf(block["label"]),
       ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
       ...(element["multiline"] === true ? { multiline: true } : {}),
+      ...(typeof element["initial_value"] === "string"
+        ? { defaultValue: element["initial_value"] }
+        : {}),
       $action: decodeAction(element["action_id"], undefined),
     },
   ];

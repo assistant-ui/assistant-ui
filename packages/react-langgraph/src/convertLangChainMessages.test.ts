@@ -1,9 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AppendMessage } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  CompleteAttachment,
+  MessageTiming,
+} from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
+  createLangGraphMetadataKey,
   getMessageContent,
+  type LangGraphMessageConverterMetadata,
 } from "./convertLangChainMessages";
 import type { LangChainMessage, UIMessage } from "./types";
 
@@ -26,6 +33,133 @@ const convertLangChainMessages = (
       metadata: Record<string, unknown>,
     ) => ConvertResult
   )(message, metadata);
+
+describe("createLangGraphMetadataKey", () => {
+  const assistant = (id: string): LangChainMessage => ({
+    id,
+    type: "ai",
+    content: "",
+  });
+  const ui = (id: string, parentId: string, value: number): UIMessage => ({
+    type: "ui",
+    id,
+    name: "chart",
+    props: { value },
+    metadata: { message_id: parentId },
+  });
+
+  it("changes only the parent key when UI data is added, updated, or removed", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const first = assistant("a1");
+    const second = assistant("a2");
+    const third = assistant("a3");
+    const firstUI = ui("ui-1", "a1", 1);
+    const secondUI = ui("ui-2", "a2", 1);
+    const initial: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [secondUI]],
+      ]),
+    };
+    const firstKey = getMetadataKey(first, initial);
+    const secondKey = getMetadataKey(second, initial);
+    const thirdKey = getMetadataKey(third, initial);
+
+    const updated: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [ui("ui-2", "a2", 2)]],
+      ]),
+    };
+    expect(getMetadataKey(first, updated)).toBe(firstKey);
+    const updatedSecondKey = getMetadataKey(second, updated);
+    expect(updatedSecondKey).not.toBe(secondKey);
+    expect(getMetadataKey(third, updated)).toBe(thirdKey);
+
+    const added: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ...updated.uiMessagesByParent!,
+        ["a3", [ui("ui-3", "a3", 1)]] as const,
+      ]),
+    };
+    expect(getMetadataKey(first, added)).toBe(firstKey);
+    expect(getMetadataKey(third, added)).not.toBe(thirdKey);
+
+    const removed: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([["a1", [firstUI]]]),
+    };
+    expect(getMetadataKey(second, removed)).not.toBe(updatedSecondKey);
+    expect(getMetadataKey(first, removed)).toBe(firstKey);
+  });
+
+  it("tracks timing and attachments only for the roles that consume them", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const aiMessage = assistant("a1");
+    const userMessage: LangChainMessage = {
+      id: "u1",
+      type: "human",
+      content: "hello",
+    };
+    const toolMessage: LangChainMessage = {
+      id: "t1",
+      type: "tool",
+      content: "done",
+      tool_call_id: "call-1",
+      name: "search",
+      status: "success",
+    };
+    const initialTiming: MessageTiming = {
+      streamStartTime: 1,
+      totalChunks: 1,
+      toolCallCount: 0,
+    };
+    const initialAttachments: readonly CompleteAttachment[] = [
+      {
+        id: "attachment-1",
+        type: "file",
+        name: "notes.txt",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "notes" }],
+      },
+    ];
+    const initial: LangGraphMessageConverterMetadata = {
+      messageTiming: { a1: initialTiming },
+      attachmentsByMessageId: new Map([["u1", initialAttachments]]),
+    };
+    const aiKey = getMetadataKey(aiMessage, initial);
+    const userKey = getMetadataKey(userMessage, initial);
+    const toolKey = getMetadataKey(toolMessage, initial);
+
+    const nextTiming: MessageTiming = {
+      ...initialTiming,
+      totalChunks: 2,
+    };
+    const timingUpdated: LangGraphMessageConverterMetadata = {
+      ...initial,
+      messageTiming: { a1: nextTiming },
+    };
+    const nextAiKey = getMetadataKey(aiMessage, timingUpdated);
+    expect(nextAiKey).not.toBe(aiKey);
+    expect(getMetadataKey(userMessage, timingUpdated)).toBe(userKey);
+    expect(getMetadataKey(toolMessage, timingUpdated)).toBe(toolKey);
+
+    const attachmentsUpdated: LangGraphMessageConverterMetadata = {
+      ...timingUpdated,
+      attachmentsByMessageId: new Map([
+        [
+          "u1",
+          [
+            ...initialAttachments,
+            { ...initialAttachments[0]!, id: "attachment-2" },
+          ],
+        ],
+      ]),
+    };
+    expect(getMetadataKey(aiMessage, attachmentsUpdated)).toBe(nextAiKey);
+    expect(getMetadataKey(userMessage, attachmentsUpdated)).not.toBe(userKey);
+    expect(getMetadataKey(toolMessage, attachmentsUpdated)).toBe(toolKey);
+  });
+});
 
 describe("convertLangChainMessages tool result names", () => {
   const assistant: LangChainMessage = {
@@ -77,6 +211,75 @@ describe("convertLangChainMessages tool result names", () => {
       ),
     ).toThrow(/does not match existing tool call/);
   });
+
+  it("skips a tool call without a name and leaves its result unattached", () => {
+    const messages = convertExternalMessages(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: "",
+          tool_calls: [
+            { id: "call-1", args: {} },
+            { id: "call-2", name: "search", args: {} },
+          ],
+        } as unknown as LangChainMessage,
+        { ...tool, name: "search" },
+      ],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "call-2", toolName: "search" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps a tool call whose name is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "", args: {} }],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "",
+      }),
+    ]);
+  });
+
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("convertLangChainMessages content-less messages", () => {
@@ -97,6 +300,218 @@ describe("convertLangChainMessages content-less messages", () => {
         argsText: '{"q":1}',
       },
     ]);
+  });
+
+  it.each([null, undefined, [], "invalid", 42])(
+    "normalizes malformed tool args %j",
+    (args) => {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-invalid-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(toolCallPart).toMatchObject({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      });
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+    },
+  );
+
+  it("normalizes malformed args on an argless streaming opener", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [{ id: "call-1", name: "search", args: null }],
+      tool_call_chunks: [{ id: "call-1", index: 0, name: "search" }],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      argsText: "",
+    });
+  });
+
+  it("skips a null tool_call_chunks entry", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-null-chunk",
+      tool_calls: [{ id: "call-1", name: "search", args: { q: "x" } }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q": "x"}' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        args: { q: "x" },
+        argsText: '{"q": "x"}',
+      },
+    ]);
+  });
+
+  it("falls back when object argument serialization throws", () => {
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const accessorArgs = {};
+    Object.defineProperty(accessorArgs, "query", {
+      enumerable: true,
+      get() {
+        throw new Error("getter failed");
+      },
+    });
+    const customSerializationArgs = {
+      query: "docs",
+      toJSON() {
+        throw new Error("serialization failed");
+      },
+    };
+
+    const bigintArgs = { limit: BigInt(1) };
+    class CustomToolArgs {
+      query = "docs";
+    }
+
+    for (const args of [
+      cyclicArgs,
+      accessorArgs,
+      customSerializationArgs,
+      new CustomToolArgs(),
+      bigintArgs,
+    ]) {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+      expect(toolCallPart?.argsText).toBe("{}");
+      expect(
+        getPartialJsonObjectMeta(
+          toolCallPart?.args as unknown as Record<symbol, unknown>,
+        ),
+      ).toEqual({ state: "complete", partialPath: [] });
+    }
+  });
+
+  it("keeps generated final args and completion metadata in sync", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-final-args",
+      status: { type: "running" },
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: {
+            nested: { omitted: undefined, query: "docs" },
+            score: Number.POSITIVE_INFINITY,
+          },
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.argsText).toBe(
+      '{"nested":{"query":"docs"},"score":null}',
+    );
+    expect(toolCallPart?.args).toMatchObject({
+      nested: { query: "docs" },
+      score: null,
+    });
+    expect(
+      getPartialJsonObjectMeta(
+        toolCallPart?.args as unknown as Record<symbol, unknown>,
+      ),
+    ).toEqual({ state: "complete", partialPath: [] });
+  });
+
+  it("clears partial key-order state after unsafe argument tracking", () => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const metadata = { toolArgsKeyOrderCache };
+
+    const malformed = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: cyclicArgs }],
+        tool_call_chunks: [
+          { id: "call-1", index: 0, name: "search", args: "}" },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      malformed.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: {}, argsText: "}" });
+    expect(toolArgsKeyOrderCache.size).toBe(0);
+
+    const recovered = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: { query: "docs" } }],
+        tool_call_chunks: [
+          {
+            id: "call-1",
+            index: 0,
+            name: "search",
+            args: '{"query":"docs"}',
+          },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      recovered.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: { query: "docs" }, argsText: '{"query":"docs"}' });
+  });
+
+  it("preserves partial JSON when completed tool args are malformed", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: null,
+          partial_json: '{"query":"docs"}',
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "search",
+      argsText: '{"query":"docs"}',
+    });
+    expect(toolCallPart?.args.query).toBe("docs");
   });
 
   it("converts a human message without content", () => {
@@ -235,16 +650,41 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        metadata: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        custom: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
+  });
+
+  it("lifts a voice additional_kwargs.modality onto human and ai messages", () => {
+    const human = convertLangChainMessages({
+      type: "human",
+      id: "human-1",
+      content: "Spoken question",
+      additional_kwargs: { modality: "voice" },
+    });
+    const ai = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "Spoken answer",
+      additional_kwargs: { modality: "voice" },
+    });
+    const unknown = convertLangChainMessages({
+      type: "human",
+      id: "human-2",
+      content: "Hello",
+      additional_kwargs: { modality: "video" },
+    });
+
+    expect(human.metadata).toEqual({ custom: {}, modality: "voice" });
+    expect(ai.metadata).toEqual({ custom: {}, modality: "voice" });
+    expect(unknown.metadata).toEqual({ custom: {} });
   });
 
   it("defaults to empty metadata when additional_kwargs.metadata is absent", () => {
@@ -436,7 +876,7 @@ describe("convertLangChainMessages metadata", () => {
               '"filters":{"region":"us","sector":"tech"}',
           },
         ],
-      },
+      } as unknown as LangChainMessage,
       metadata,
     );
 
@@ -559,6 +999,129 @@ describe("convertLangChainMessages metadata", () => {
     expect(secondToolCallPart).toMatchObject({
       argsText: '{"kind":"click","target":{"x":10,"y":20}}',
     });
+  });
+
+  it.each([
+    { name: "primitive", action: "click" },
+    {
+      name: "cyclic object",
+      action: (() => {
+        const action: Record<string, unknown> = {};
+        action.self = action;
+        return action;
+      })(),
+    },
+    { name: "BigInt", action: { x: BigInt(1) } },
+  ])("normalizes a malformed computer_call $name action", ({ action }) => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "computer_call",
+            call_id: "call-1",
+            id: "computer-1",
+            action,
+            pending_safety_checks: [],
+            index: 0,
+          },
+        ],
+      } as unknown as LangChainMessage,
+      { toolArgsKeyOrderCache },
+    );
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.args).toEqual({});
+    expect(toolCallPart?.argsText).toBe("{}");
+    if (typeof action === "object") {
+      expect(toolArgsKeyOrderCache.size).toBe(0);
+    }
+  });
+
+  it("synthesizes a computer_call id when call_id is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: [
+        {
+          type: "computer_call",
+          call_id: "",
+          id: "computer-1",
+          action: { kind: "click" },
+          pending_safety_checks: [],
+          index: 0,
+        },
+      ],
+    });
+
+    if (!("content" in result)) {
+      throw new Error("Expected assistant message content");
+    }
+
+    expect(
+      result.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({
+      type: "tool-call",
+      toolCallId: "computer-1",
+      toolName: "computer_call",
+    });
+  });
+
+  it("keeps missing computer_call ids and argument caches distinct per block", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+    };
+    const convert = (actions: readonly Record<string, unknown>[]) =>
+      convertLangChainMessages(
+        {
+          type: "ai",
+          id: "ai-1",
+          content: actions.map((action, index) => ({
+            type: "computer_call",
+            ...(index === 0 ? { call_id: "" } : {}),
+            id: index === 0 ? null : "stable-computer",
+            action,
+            pending_safety_checks: [],
+            index,
+          })),
+        } as unknown as LangChainMessage,
+        metadata,
+      );
+
+    const first = convert([
+      { kind: "click", target: { x: 1, y: 2 } },
+      { kind: "type", target: { x: 3, y: 4 } },
+    ]);
+
+    if (!("content" in first)) {
+      throw new Error("Expected assistant message content");
+    }
+
+    expect(first.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "lc-toolcall-ai-1-computer-0",
+        argsText: '{"kind":"click","target":{"x":1,"y":2}}',
+      },
+      {
+        type: "tool-call",
+        toolCallId: "stable-computer",
+        argsText: '{"kind":"type","target":{"x":3,"y":4}}',
+      },
+    ]);
+
+    const second = convert([
+      { target: { y: 2, x: 1 }, kind: "click" },
+      { target: { y: 4, x: 3 }, kind: "type" },
+    ]);
+    if (!("content" in second)) {
+      throw new Error("Expected assistant message content");
+    }
+    expect(second.content).toMatchObject(first.content);
   });
 });
 
@@ -1448,6 +2011,44 @@ describe("convertLangChainMessages tool call id stability", () => {
       expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
     );
   });
+
+  it("skips null tool_calls entries and keeps the index-based id of the rest", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [null, { id: "", name: "search", args: {} }],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "lc-toolcall-ai-1-1",
+        toolName: "search",
+      }),
+    ]);
+  });
+
+  it("skips null tool_call_chunks entries", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "search", args: {} }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q":"x' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        argsText: '{"q":"x',
+      }),
+    ]);
+  });
 });
 
 describe("getMessageContent audio and data parts", () => {
@@ -1872,7 +2473,10 @@ describe("convertLangChainMessages audio transcripts", () => {
 });
 
 describe("convertLangChainMessages attachment dedupe", () => {
-  const fileAttachment = (data: string, name = "doc.pdf") => ({
+  const fileAttachment = (
+    data: string,
+    name = "doc.pdf",
+  ): CompleteAttachment => ({
     id: `att-${name}`,
     type: "file" as const,
     name,
@@ -1883,7 +2487,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
 
   const withAttachments = (
     messageId: string,
-    attachments: readonly unknown[],
+    attachments: readonly CompleteAttachment[],
   ) => ({
     attachmentsByMessageId: new Map([[messageId, attachments]]),
   });
@@ -1908,12 +2512,20 @@ describe("convertLangChainMessages attachment dedupe", () => {
     expect(result.content).toEqual([{ type: "text", text: "here is my file" }]);
   });
 
-  const deriveWire = (attachments: readonly unknown[]) =>
+  const deriveWire = (attachments: readonly CompleteAttachment[]) =>
     getMessageContent({
       role: "user",
       content: [],
       attachments,
-    } as unknown as AppendMessage) as LangChainMessage["content"];
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+    } satisfies AppendMessage) as Extract<
+      LangChainMessage,
+      { type: "human" }
+    >["content"];
 
   it("drops the flattened copy of an attachment image from content", () => {
     const attachment = {
@@ -1922,7 +2534,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
       name: "img.png",
       status: { type: "complete" },
       content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),
@@ -1944,7 +2556,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
           mimeType: "audio/mp3",
         },
       ],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),
@@ -1960,7 +2572,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
       name: "voice.mp3",
       status: { type: "complete" },
       content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),

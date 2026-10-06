@@ -45,7 +45,7 @@ export type GenericUserMessage = {
 
 export type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 export type GenericToolMessage = {
@@ -72,6 +72,7 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
+  isPreliminary?: boolean;
   approval?: {
     approved?: boolean;
     resolution?: string;
@@ -81,6 +82,7 @@ type MessagePartLike = {
 };
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -88,6 +90,7 @@ type ThreadMessageLike = {
   role: "system" | "user" | "assistant";
   content: readonly MessagePartLike[];
   attachments?: readonly AttachmentLike[];
+  status?: { type: string };
 };
 
 const IMAGE_MEDIA_TYPES: Record<string, string> = {
@@ -110,7 +113,13 @@ function getDataUrlMediaType(value: string): string | undefined {
   return value.match(/^data:([^;,]+)(?:[;,])/i)?.[1]?.toLowerCase();
 }
 
-function inferImageMediaType(url: string): string {
+function inferImageMediaType(url: string, contentType?: string): string {
+  // Providers reject image/* as a URL media type.
+  const declared = contentType?.toLowerCase();
+  if (declared?.startsWith("image/") && !declared.includes("*")) {
+    return declared;
+  }
+
   // Handle data URLs: data:[<mediatype>][;base64],<data>
   if (/^data:/i.test(url)) {
     const match = url.match(/^data:([^;,]+)/i);
@@ -131,8 +140,34 @@ function toUrlOrString(value: string): string | URL {
   }
 }
 
+function toGenericFilePart(
+  part: MessagePartLike,
+  contentType?: string,
+): GenericFilePart | undefined {
+  if (part.type === "image" && part.image) {
+    return {
+      type: "file",
+      data: toUrlOrString(part.image),
+      mediaType: inferImageMediaType(part.image, contentType),
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  if (part.type === "file" && typeof part.data === "string") {
+    return {
+      type: "file",
+      data: toUrlOrString(part.data),
+      mediaType:
+        (typeof part.mimeType === "string" && part.mimeType) ||
+        getDataUrlMediaType(part.data) ||
+        "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  return undefined;
+}
+
 type ToolCallAccumulator = {
-  textParts: (GenericTextPart | GenericToolCallPart)[];
+  textParts: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
 };
 
@@ -147,6 +182,7 @@ function isAwaitingHost(part: MessagePartLike): boolean {
 function processToolCall(
   part: MessagePartLike,
   accumulator: ToolCallAccumulator,
+  inFlight: boolean,
 ): boolean {
   if (!part.toolCallId || !part.toolName) return false;
 
@@ -157,9 +193,11 @@ function processToolCall(
     args: part.args ?? {},
   });
 
-  const settled = part.state === "result" || part.result !== undefined;
-  // The in-flight message is converted on every roundtrip, so a call still awaiting a decision or an execution is live rather than failed.
-  if (!settled && isAwaitingHost(part)) return false;
+  const settled =
+    !part.isPreliminary &&
+    (part.state === "result" || part.result !== undefined);
+  // The in-flight message is the last one and is converted on every roundtrip, so a call in it still awaiting a decision or an execution is live rather than failed; a call in an earlier or settled message will never be answered.
+  if (!settled && inFlight && isAwaitingHost(part)) return false;
 
   // Providers reject an assistant tool call that no tool result answers.
   const toolResult: GenericToolResultPart = {
@@ -197,7 +235,7 @@ function convertSystemMessage(
   message: ThreadMessageLike,
   result: GenericMessage[],
 ): void {
-  const textPart = message.content.find((p) => p.type === "text");
+  const textPart = message.content?.find((p) => p?.type === "text");
   if (textPart?.text) {
     result.push({ role: "system", content: textPart.text });
   }
@@ -209,32 +247,27 @@ function convertUserMessage(
 ): void {
   const attachments = message.attachments ?? [];
   const allContent = [
-    ...message.content,
-    ...attachments.flatMap((a) => a.content),
+    ...(message.content ?? []).map((part) => ({
+      part,
+      contentType: undefined,
+    })),
+    ...attachments.flatMap((attachment) =>
+      (attachment?.content ?? []).map((part) => ({
+        part,
+        contentType: attachment.contentType,
+      })),
+    ),
   ];
 
   const content: (GenericTextPart | GenericFilePart)[] = [];
 
-  for (const part of allContent) {
+  for (const { part, contentType } of allContent) {
+    if (!part) continue;
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
-    } else if (part.type === "image" && part.image) {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
-        ...(part.filename && { filename: part.filename }),
-      });
-    } else if (part.type === "file" && typeof part.data === "string") {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.data),
-        mediaType:
-          (typeof part.mimeType === "string" && part.mimeType) ||
-          getDataUrlMediaType(part.data) ||
-          "application/octet-stream",
-        ...(part.filename && { filename: part.filename }),
-      });
+    } else {
+      const filePart = toGenericFilePart(part, contentType);
+      if (filePart) content.push(filePart);
     }
   }
 
@@ -246,14 +279,20 @@ function convertUserMessage(
 function convertAssistantMessage(
   message: ThreadMessageLike,
   result: GenericMessage[],
+  isLast: boolean,
 ): void {
   const accumulator: ToolCallAccumulator = {
     textParts: [],
     toolResults: [],
   };
   let hasPendingToolResults = false;
+  const inFlight =
+    isLast &&
+    message.status?.type !== "complete" &&
+    message.status?.type !== "incomplete";
 
-  for (const part of message.content) {
+  for (const part of message.content ?? []) {
+    if (!part) continue;
     if (part.type === "text" && part.text) {
       // Flush pending tool results before adding more text
       if (hasPendingToolResults) {
@@ -262,8 +301,17 @@ function convertAssistantMessage(
       }
       accumulator.textParts.push({ type: "text", text: part.text });
     } else if (part.type === "tool-call") {
-      if (processToolCall(part, accumulator)) {
+      if (processToolCall(part, accumulator, inFlight)) {
         hasPendingToolResults = true;
+      }
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) {
+        if (hasPendingToolResults) {
+          flushAccumulator(accumulator, result);
+          hasPendingToolResults = false;
+        }
+        accumulator.textParts.push(filePart);
       }
     }
   }
@@ -279,8 +327,9 @@ export function toGenericMessages(
   messages: readonly ThreadMessageLike[],
 ): GenericMessage[] {
   const result: GenericMessage[] = [];
+  const present = messages.filter(Boolean);
 
-  for (const message of messages) {
+  for (const [index, message] of present.entries()) {
     switch (message.role) {
       case "system":
         convertSystemMessage(message, result);
@@ -289,7 +338,7 @@ export function toGenericMessages(
         convertUserMessage(message, result);
         break;
       case "assistant":
-        convertAssistantMessage(message, result);
+        convertAssistantMessage(message, result, index === present.length - 1);
         break;
     }
   }

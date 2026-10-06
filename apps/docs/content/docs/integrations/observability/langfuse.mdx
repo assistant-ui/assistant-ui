@@ -3,13 +3,14 @@ title: Langfuse
 description: Trace AI SDK calls into Langfuse via OpenTelemetry for tracing, evals, and prompt management.
 ---
 
-import { HeliconeIcon } from "@/components/icons/helicone";
 import { LangChainIcon } from "@/components/icons/langchain";
 import { VercelIcon } from "@/components/icons/vercel";
 
-[Langfuse](https://langfuse.com/) is an open-source LLM observability platform. It gives you a hierarchical trace per request (planner → tool calls → final LLM step), prompt-level analytics, datasets, and LLM-as-judge evals. Self-hostable, OpenTelemetry-native.
+[Langfuse](https://langfuse.com/) is an open-source LLM observability platform. It gives you a hierarchical trace per request (planner → tool calls → final LLM step), prompt-level analytics, datasets, and LLM-as-judge evals. It is self-hostable and built on OpenTelemetry.
 
-Pick Langfuse when you want to see the agent's full call tree inside a single turn. It's complementary to [Helicone](/docs/integrations/observability/helicone), which proxies and logs individual provider calls; many teams run both, with Helicone capturing the request log and Langfuse capturing the trace.
+Pick Langfuse when you want to see the agent's full call tree inside a single turn.
+
+<AgentSetup product="guides/langfuse" />
 
 ## How it works
 
@@ -18,7 +19,7 @@ flowchart LR
     route["your route"] --> stream["AI SDK streamText<br/>(experimental_telemetry)"] --> otel["OpenTelemetry SDK"] --> proc["LangfuseSpanProcessor"] --> langfuse["Langfuse"]
 ```
 
-Langfuse subscribes to OpenTelemetry spans the AI SDK already emits when telemetry is enabled. No proxy, no wrapping; the SDK ships spans and Langfuse renders them.
+Langfuse subscribes to OpenTelemetry spans the AI SDK already emits when telemetry is enabled. It needs no proxy and no wrapper: the SDK emits spans and Langfuse renders them.
 
 ## Setup
 
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
     { traceName: "chat-completion", userId, sessionId },
     async () =>
       streamText({
-        model: openai("gpt-5.6-luna"),
+        model: openai("gpt-6-luna"),
         messages: await convertToModelMessages(messages),
         experimental_telemetry: { isEnabled: true },
       }),
@@ -135,7 +136,6 @@ If nothing appears, check the server logs for OTel errors and confirm `LANGFUSE_
 - **Serverless flush.** On serverless platforms the function exits before OTel flushes its buffer, dropping traces. Import the processor exported in the previous step and call `await langfuseSpanProcessor.forceFlush()` before responding, or use the runtime's `waitUntil` API. Langfuse's docs cover the deployment-specific patterns.
 - **Self-hosting.** Point `LANGFUSE_BASE_URL` at your self-hosted instance. The integration is otherwise identical.
 - **Sampling.** For high-traffic apps, configure OTel sampling on `NodeSDK` to keep cost predictable. Langfuse can also sample at the project level.
-- **Pairing with Helicone.** They are complementary: Helicone proxies and logs every request; Langfuse traces the agent. Many teams use both.
 
 ## Related
 
@@ -145,12 +145,6 @@ If nothing appears, check the server logs for OTel errors and confirm `LANGFUSE_
     title="LangSmith"
     description="LangChain ecosystem alternative, uses wrapAISDK instead of OpenTelemetry."
     href="/docs/integrations/observability/langsmith"
-  />
-  <Card
-    icon={<HeliconeIcon width={20} height={20} />}
-    title="Helicone"
-    description="Proxy-based request logging with cost, latency, and prompt diffs per call."
-    href="/docs/integrations/observability/helicone"
   />
   <Card
     icon={<VercelIcon width={20} height={20} />}

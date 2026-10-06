@@ -4,10 +4,12 @@
   "icon": "Plug",
   "root": true,
   "pages": [
-    "ai-sdk-assistant-ui",
+    "runtimes",
+    "ai-sdk",
     "local-runtime",
     "langgraph",
+    "custom-thread-list",
     "servers",
-    "ai-sdk"
+    "migrate-cloud-ai-sdk"
   ]
 }

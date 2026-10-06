@@ -239,6 +239,41 @@ describe("parseAdkRequest", () => {
 });
 
 describe("toAdkContent", () => {
+  it.each([
+    ["permission denied", { error: "permission denied" }],
+    [
+      { message: "permission denied" },
+      { error: { message: "permission denied" } },
+    ],
+    [["denied"], { error: ["denied"] }],
+    [null, { error: null }],
+    [false, { error: false }],
+    [0, { error: 0 }],
+    ["", { error: "" }],
+    [
+      { error: "denied", output: "partial" },
+      { error: "denied", output: "partial" },
+    ],
+  ])(
+    "preserves explicit tool failure %j in the function response",
+    async (result, response) => {
+      const parsed = await parseAdkRequest(
+        makeRequest({
+          type: "tool-result",
+          toolCallId: "tc-1",
+          toolName: "search",
+          result,
+          isError: true,
+        }),
+      );
+      expect(toAdkContent(parsed).parts).toEqual([
+        {
+          functionResponse: { name: "search", id: "tc-1", response },
+        },
+      ]);
+    },
+  );
+
   it("converts a text message to user content with text part", () => {
     const content = toAdkContent({
       type: "message",
