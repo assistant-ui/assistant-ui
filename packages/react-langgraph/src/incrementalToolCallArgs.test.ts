@@ -135,6 +135,44 @@ it("keeps the full-parser fallback for externally constructed messages", () => {
   );
 });
 
+it("does not reuse cached args after partial_json is edited in place", () => {
+  const streamed = append(undefined, {
+    type: "AIMessageChunk",
+    id: "ai-1",
+    content: "",
+    tool_call_chunks: [
+      {
+        id: "call-1",
+        index: 0,
+        name: "search",
+        args: '{"query":"pizza"}',
+      },
+    ],
+  });
+  const toolCall = streamed.tool_calls?.[0];
+  if (!toolCall) throw new Error("Expected a tool call");
+  toolCall.partial_json = '{"query":"pasta"}';
+
+  mocks.parsePartialJsonObject.mockClear();
+  const result = convertLangChainMessages(streamed, {});
+
+  expect(mocks.parsePartialJsonObject).toHaveBeenCalledWith(
+    '{"query":"pasta"}',
+  );
+  const message = Array.isArray(result) ? result[0] : result;
+  if (!message || message.role !== "assistant") {
+    throw new Error("Expected an assistant message");
+  }
+  expect(message.content).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: "tool-call",
+        args: expect.objectContaining({ query: "pasta" }),
+      }),
+    ]),
+  );
+});
+
 it("keeps incremental state when an updates event replaces the streamed message", () => {
   const partialJson = '{"query":"pizza"}';
   const streamed = append(undefined, {
