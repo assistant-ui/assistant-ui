@@ -55,13 +55,31 @@ export const observeContentResize = (
   callback: () => void,
 ): (() => void) => {
   const disposers: (() => void)[] = [];
-  if (typeof ResizeObserver !== "undefined") {
-    const resizeObserver = new ResizeObserver(() => callback());
+  const resizeObserver =
+    typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => callback())
+      : null;
+  if (resizeObserver) {
     resizeObserver.observe(el);
+    // Content can grow without a DOM mutation (a CSS height animation, an
+    // image or font loading, an autosizing textarea), and the viewport's own
+    // box does not change when it does; only its children's sizes show it.
+    for (const child of el.children) resizeObserver.observe(child);
     disposers.push(() => resizeObserver.disconnect());
   }
   if (typeof MutationObserver !== "undefined") {
     const mutationObserver = new MutationObserver((mutations) => {
+      if (resizeObserver) {
+        for (const mutation of mutations) {
+          if (mutation.target !== el) continue;
+          for (const node of mutation.addedNodes) {
+            if (node instanceof Element) resizeObserver.observe(node);
+          }
+          for (const node of mutation.removedNodes) {
+            if (node instanceof Element) resizeObserver.unobserve(node);
+          }
+        }
+      }
       // Style-only attribute mutations feed back from code paths that write
       // styles in response to viewport changes.
       const relevant = mutations.some(

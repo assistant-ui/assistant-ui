@@ -53,7 +53,7 @@ const getMaxScrollTop = (element: Element) =>
 let forceShortViewportMeasurement = false;
 let viewportMeasurementOffset = 0;
 const messageHeights = new Map<string, number>();
-const resizeObserverCallbacks = new Set<ResizeObserverCallback>();
+const resizeObservers = new Set<TestResizeObserver>();
 
 const messageRows = () => [
   ...document.querySelectorAll<HTMLElement>('[data-testid="thread-message"]'),
@@ -66,22 +66,37 @@ const rowsHeight = (rows: readonly Element[]) =>
   rows.reduce((height, row) => height + rowHeight(row), 0);
 
 class TestResizeObserver {
-  private callback: ResizeObserverCallback;
+  readonly targets = new Set<Element>();
+  readonly callback: ResizeObserverCallback;
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
-    resizeObserverCallbacks.add(callback);
+    resizeObservers.add(this);
   }
 
-  observe() {}
+  observe(target: Element) {
+    this.targets.add(target);
+  }
+  unobserve(target: Element) {
+    this.targets.delete(target);
+  }
   disconnect() {
-    resizeObserverCallbacks.delete(this.callback);
+    resizeObservers.delete(this);
   }
 }
 
 const notifyResizeObservers = () => {
-  for (const callback of resizeObserverCallbacks) {
-    callback([], {} as ResizeObserver);
+  for (const observer of resizeObservers) {
+    observer.callback([], {} as ResizeObserver);
+  }
+};
+
+/** Resizes only `target`, as a child growing without a DOM mutation does. */
+const notifyResizeOf = (target: Element) => {
+  for (const observer of resizeObservers) {
+    if (observer.targets.has(target)) {
+      observer.callback([], {} as ResizeObserver);
+    }
   }
 };
 
@@ -176,7 +191,7 @@ afterEach(() => {
   forceShortViewportMeasurement = false;
   viewportMeasurementOffset = 0;
   messageHeights.clear();
-  resizeObserverCallbacks.clear();
+  resizeObservers.clear();
   cleanup();
 });
 
@@ -434,6 +449,47 @@ describe("useThreadViewportAutoScroll", () => {
 
     expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("follows a message that grows without a DOM mutation", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    const lastRow = messageRows().at(-1)!;
+    messageHeights.set(lastRow.getAttribute("data-message-id")!, 280);
+    act(() => notifyResizeOf(lastRow));
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("reports leaving the bottom when a message grows without a DOM mutation", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+    });
+
+    const lastRow = messageRows().at(-1)!;
+    messageHeights.set(lastRow.getAttribute("data-message-id")!, 280);
+    act(() => notifyResizeOf(lastRow));
+
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
   });
 
   it("keeps following after a pointerdown that does not scroll the viewport", async () => {

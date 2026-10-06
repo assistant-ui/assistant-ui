@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isUserScrollUp,
   isViewportAtBottom,
+  observeContentResize,
   viewportOverflows,
 } from "./viewport-scroll";
 
@@ -75,5 +78,96 @@ describe("viewport scroll metrics", () => {
         { scrollTop: 500, scrollHeight: 1000, clientHeight: 100 },
       ),
     ).toBe(false);
+  });
+});
+
+describe("observeContentResize", () => {
+  const observers = new Set<TestResizeObserver>();
+
+  class TestResizeObserver {
+    readonly targets = new Set<Element>();
+    private readonly callback: ResizeObserverCallback;
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+      observers.add(this);
+    }
+
+    observe(target: Element) {
+      this.targets.add(target);
+    }
+
+    unobserve(target: Element) {
+      this.targets.delete(target);
+    }
+
+    disconnect() {
+      this.targets.clear();
+      observers.delete(this);
+    }
+
+    resize(target: Element) {
+      if (!this.targets.has(target)) return;
+      this.callback([], this as unknown as ResizeObserver);
+    }
+  }
+
+  const resize = (target: Element) => {
+    for (const observer of observers) observer.resize(target);
+  };
+
+  const flushMutations = () => new Promise((resolve) => setTimeout(resolve));
+
+  const mountViewport = (childCount: number) => {
+    const viewport = document.createElement("div");
+    for (let index = 0; index < childCount; index++) {
+      viewport.append(document.createElement("div"));
+    }
+    document.body.append(viewport);
+    return viewport;
+  };
+
+  afterEach(() => {
+    observers.clear();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  });
+
+  it("reports a child that grows without a DOM mutation", () => {
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const viewport = mountViewport(2);
+    const callback = vi.fn();
+    const dispose = observeContentResize(viewport, callback);
+
+    resize(viewport.children[1]!);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    dispose();
+    resize(viewport.children[1]!);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows children added and removed after it starts observing", async () => {
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const viewport = mountViewport(1);
+    const callback = vi.fn();
+    const dispose = observeContentResize(viewport, callback);
+
+    const added = document.createElement("div");
+    viewport.append(added);
+    await flushMutations();
+    callback.mockClear();
+
+    resize(added);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    added.remove();
+    await flushMutations();
+    callback.mockClear();
+
+    resize(added);
+    expect(callback).not.toHaveBeenCalled();
+
+    dispose();
   });
 });
