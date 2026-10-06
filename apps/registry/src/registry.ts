@@ -1903,7 +1903,26 @@ export const registry: RegistryItem[] = [
     dependencies: ["lucide-react", "class-variance-authority"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
-    registryDependencies: ["command", "popover"],
+    registryDependencies: [
+      "command",
+      "popover",
+      "https://r.assistant-ui.com/elements-model-selection.json",
+    ],
+  },
+  {
+    name: "elements-model-selection",
+    type: "registry:component",
+    title: "Elements Model Selection",
+    description:
+      "Shared model selection state and effort resolution for model selectors.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/model-selection.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/model-selection.ts",
+      },
+    ],
   },
   {
     name: "logos",
