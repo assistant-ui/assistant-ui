@@ -95,7 +95,7 @@ const ThreadWelcome: FC<{ title: string; subtitle: string }> = ({
   const hydrated = useHydrated();
 
   return (
-    <AuiIf condition={(s) => !hydrated || s.thread.isEmpty}>
+    <AuiIf condition={(s) => hydrated && s.thread.isEmpty}>
       <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) grow flex-col px-2">
         <div className="aui-thread-welcome-center flex w-full grow flex-col justify-center">
           <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
@@ -170,7 +170,7 @@ const Composer: FC<{ actions?: ReactNode }> = ({ actions }) => {
   return (
     <div className="aui-composer-wrapper bg-background sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) pb-4 md:pb-6">
       <ThreadScrollToBottom />
-      <AuiIf condition={(s) => !hydrated || s.thread.isEmpty}>
+      <AuiIf condition={(s) => hydrated && s.thread.isEmpty}>
         <ThreadWelcomeSuggestions />
       </AuiIf>
       <ComposerPrimitive.Root className="aui-composer-root border-foreground/10 focus-within:border-foreground/25 relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]">
