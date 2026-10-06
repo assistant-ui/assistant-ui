@@ -282,38 +282,6 @@
   }
 }
 
-@keyframes nav-glyph-trade {
-  0%,
-  100% {
-    opacity: var(--glyph-from, 1);
-    transform: translate(0, 0);
-  }
-  35%,
-  65% {
-    opacity: var(--glyph-to, 1);
-    transform: translate(var(--glyph-dx, 0), var(--glyph-dy, 0));
-  }
-}
-
-@keyframes nav-glyph-trade-top {
-  0%,
-  100% {
-    opacity: 0;
-    transform: translate(0, 0);
-  }
-  2%,
-  63% {
-    opacity: 1;
-  }
-  35%,
-  65% {
-    transform: translate(var(--glyph-dx, 0), var(--glyph-dy, 0));
-  }
-  66% {
-    opacity: 0;
-  }
-}
-
 @keyframes nav-glyph-bob {
   40% {
     transform: translateY(-1.5px);
@@ -410,11 +378,13 @@
 }
 
 [data-glyph-motion="trade"] {
-  --glyph-animation: nav-glyph-trade 1.6s ease-in-out both;
+  transition:
+    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-glyph-motion="trade-top"] {
-  --glyph-animation: nav-glyph-trade-top 1.6s ease-in-out both;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-glyph-motion="bob"] {
@@ -451,6 +421,28 @@
 [data-nav-glyph-motion]:focus-visible [data-glyph-motion] {
   animation: var(--glyph-animation);
   animation-delay: var(--glyph-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-nav-glyph-motion]:focus-visible
+    [data-glyph-motion]:is(
+      [data-glyph-motion="trade"],
+      [data-glyph-motion="trade-top"]
+    ) {
+    opacity: var(--glyph-to, 1);
+    transform: translate(var(--glyph-dx, 0), var(--glyph-dy, 0));
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    [data-nav-glyph-motion]:hover
+      [data-glyph-motion]:is(
+        [data-glyph-motion="trade"],
+        [data-glyph-motion="trade-top"]
+      ) {
+      opacity: var(--glyph-to, 1);
+      transform: translate(var(--glyph-dx, 0), var(--glyph-dy, 0));
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -497,7 +497,10 @@ function GlyphShowcase() {
       >
         <ShowcaseWindow x={3.5} y={9} lines />
       </g>
-      <g {...motion("trade-top", 0, toFront)} className="opacity-0">
+      <g
+        {...motion("trade-top", 0, { ...toFront, "--glyph-to": "1" })}
+        className="opacity-0"
+      >
         <ShowcaseWindow x={11} y={3} />
       </g>
       <path
