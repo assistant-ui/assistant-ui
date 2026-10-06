@@ -77,6 +77,11 @@ describe("AssistantFrameProvider", () => {
     );
   };
 
+  const sentTo = (origin: string) =>
+    (vi.mocked(parentWindow.postMessage).mock.calls as unknown[][])
+      .filter(([, target]) => target === origin)
+      .map(([data]) => data);
+
   const expectAcceptedOrigins = (accepted: string, rejected: string) => {
     vi.mocked(parentWindow.postMessage).mockClear();
     dispatchContextRequest(rejected);
@@ -950,6 +955,76 @@ describe("AssistantFrameProvider", () => {
         message: { type: "model-context-update", context: {} },
       },
       "https://parent.example",
+    );
+  });
+
+  it("keeps a provider registered during unsubscribe away from the old origin", () => {
+    const unsubscribe = AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: { sensitiveTool: createTool(async () => "result") },
+        }),
+        subscribe: () => () => {
+          AssistantFrameProvider.addModelContextProvider(
+            {
+              getModelContext: () => ({
+                tools: { otherTool: createTool(async () => "result") },
+              }),
+            },
+            "https://other.example",
+          );
+        },
+      },
+      "https://parent.example",
+    );
+
+    unsubscribe();
+
+    expect(sentTo("https://parent.example").at(-1)).toEqual({
+      channel: FRAME_MESSAGE_CHANNEL,
+      message: { type: "model-context-update", context: {} },
+    });
+    expect(JSON.stringify(sentTo("https://parent.example"))).not.toContain(
+      "otherTool",
+    );
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({
+          context: { tools: { otherTool: expect.anything() } },
+        }),
+      }),
+      "https://other.example",
+    );
+  });
+
+  it("keeps a provider registered during rollback away from the old origin", () => {
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        {
+          getModelContext: () => {
+            throw new Error("context failed");
+          },
+          subscribe: () => () => {
+            AssistantFrameProvider.addModelContextProvider(
+              {
+                getModelContext: () => ({
+                  tools: { otherTool: createTool(async () => "result") },
+                }),
+              },
+              "https://other.example",
+            );
+          },
+        },
+        "https://parent.example",
+      ),
+    ).toThrow("context failed");
+
+    expect(JSON.stringify(sentTo("https://parent.example"))).not.toContain(
+      "otherTool",
+    );
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://other.example",
     );
   });
 

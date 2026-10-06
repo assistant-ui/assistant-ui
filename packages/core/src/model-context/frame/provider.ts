@@ -345,12 +345,19 @@ export class AssistantFrameProvider {
 
       instance.broadcastUpdate();
     } catch (error) {
+      // Withdraw through the origin that received the tools, before callbacks
+      // can register providers under a recomputed policy.
       const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
         origin,
       );
       // Rollback failures must not replace the registration error.
+      try {
+        instance.broadcastUpdate(trustedOrigin);
+      } catch (broadcastError) {
+        console.error(broadcastError);
+      }
       try {
         if (removedProvider) {
           instance.cancelToolCallsForProvider(removedProvider);
@@ -363,11 +370,6 @@ export class AssistantFrameProvider {
       } catch (unsubscribeError) {
         console.error(unsubscribeError);
       }
-      try {
-        instance.broadcastUpdate(trustedOrigin);
-      } catch (broadcastError) {
-        console.error(broadcastError);
-      }
       throw error;
     }
 
@@ -375,7 +377,8 @@ export class AssistantFrameProvider {
     return () => {
       if (released) return;
       released = true;
-      // The removal has to reach the parent through the origin that received the tools.
+      // Withdraw through the origin that received the tools, before callbacks
+      // can register providers under a recomputed policy.
       const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
@@ -396,11 +399,11 @@ export class AssistantFrameProvider {
         }
       };
 
+      runCleanup(() => instance.broadcastUpdate(trustedOrigin));
       if (removedProvider) {
         runCleanup(() => instance.cancelToolCallsForProvider(removedProvider));
       }
       if (unsubscribe) runCleanup(unsubscribe);
-      runCleanup(() => instance.broadcastUpdate(trustedOrigin));
 
       if (cleanupFailed) throw cleanupError;
     };
