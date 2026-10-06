@@ -263,6 +263,7 @@ test("vue registry build emits self-contained staged items", async () => {
     "@assistant-ui/vue",
     "@lucide/vue",
     "markdown-it",
+    "reka-ui",
   ]);
   assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
   assert.equal("target" in threadFile, false);
@@ -370,7 +371,9 @@ test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async
   assert.deepEqual(threadEmitted.map(([outputPath]) => outputPath).sort(), [
     "components/assistant-ui/markdown-text.vue",
     "components/assistant-ui/message.vue",
+    "components/assistant-ui/reasoning.vue",
     "components/assistant-ui/thread.vue",
+    "components/assistant-ui/tool-fallback.vue",
   ]);
   assert.deepEqual(
     threadListEmitted.map(([outputPath]) => outputPath),

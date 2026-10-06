@@ -10,6 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const emptyStream = () => vi.fn(() => mockStreamCallbackFactory([])());
 
@@ -142,9 +143,9 @@ describe("useLangGraphRuntime committed refs", () => {
     };
 
     const view = render(<Harness load={loadA} reload={false} />);
-    await act(async () => {
-      await capturedRuntime!.threads.switchToThread("thread-1");
-    });
+    await settleOutsideAct(() =>
+      capturedRuntime!.threads.switchToThread("thread-1"),
+    );
     await vi.waitFor(() => expect(loadA).toHaveBeenCalledOnce());
     loadA.mockClear();
 

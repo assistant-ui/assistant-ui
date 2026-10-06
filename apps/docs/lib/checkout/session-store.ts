@@ -115,6 +115,16 @@ export const getCheckoutSession = (): CheckoutSession | null => {
   return session;
 };
 
+export const canRestoreCheckoutSession = (sessionId: string, url: string) => {
+  if (readStored()?.id !== sessionId) return false;
+  try {
+    const storedLink = window.localStorage.getItem(linkKey);
+    return storedLink !== null && checkoutUrl(storedLink) === url;
+  } catch {
+    return false;
+  }
+};
+
 let linkId: string | null = null;
 
 /** The browser's link to its coding agent. It is created once and outlives every setup, so an agent that keeps its stream open stays connected for the next one. */

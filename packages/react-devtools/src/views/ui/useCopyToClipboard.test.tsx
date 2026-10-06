@@ -1,8 +1,10 @@
 /** @vitest-environment jsdom */
-import { Activity, act } from "react";
+import { Activity, act, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCopyToClipboard } from "./useCopyToClipboard";
+
+const onReact18 = version.startsWith("18.");
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -79,20 +81,24 @@ describe("useCopyToClipboard", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("ends the confirmation after an Activity hides and shows it", async () => {
-    const render = (mode: "visible" | "hidden") =>
-      root.render(
-        <Activity mode={mode}>
-          <CopyProbe />
-        </Activity>,
-      );
-    await act(async () => render("visible"));
-    await act(async () => copyButton().click());
-    expect(copyButton().textContent).toBe("Copied");
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "ends the confirmation after an Activity hides and shows it",
+    async () => {
+      const render = (mode: "visible" | "hidden") =>
+        root.render(
+          <Activity mode={mode}>
+            <CopyProbe />
+          </Activity>,
+        );
+      await act(async () => render("visible"));
+      await act(async () => copyButton().click());
+      expect(copyButton().textContent).toBe("Copied");
 
-    await act(async () => render("hidden"));
-    await act(async () => render("visible"));
-    await act(async () => vi.advanceTimersByTime(2000));
-    expect(copyButton().textContent).toBe("Copy");
-  });
+      await act(async () => render("hidden"));
+      await act(async () => render("visible"));
+      await act(async () => vi.advanceTimersByTime(2000));
+      expect(copyButton().textContent).toBe("Copy");
+    },
+  );
 });

@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import type { NextRequest } from "next/server";
 import { notFound } from "next/navigation";
 import {
@@ -6,15 +7,20 @@ import {
 } from "@/lib/agent-discovery";
 import { getSkill, listSkills } from "@/lib/agent-skills";
 
-export const revalidate = false;
-
 type Context = { params: Promise<{ skill: string }> };
+
+async function getDocument(name: string) {
+  "use cache";
+  cacheLife("max");
+  const skill = getSkill(name);
+  return skill ? agentSkillDocument(skill) : null;
+}
 
 async function respond(context: Context, head: boolean) {
   const { skill: name } = await context.params;
-  const skill = getSkill(name);
-  if (!skill) notFound();
-  return createDiscoveryResponse(agentSkillDocument(skill), {
+  const document = await getDocument(name);
+  if (!document) notFound();
+  return createDiscoveryResponse(document, {
     contentType: "text/markdown; charset=utf-8",
     head,
   });

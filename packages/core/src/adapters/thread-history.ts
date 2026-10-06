@@ -89,6 +89,9 @@ export type ThreadHistoryAdapter = {
    * Rewrites a previously appended message in place, keyed by its message id. Adapters that implement this let a runtime persist a run paused for tool approval, finalize the same message once the run resumes, and record a tool result that arrives after the message settled, which can be a message later turns follow. Without it, a paused run is appended when it ends or when a later turn follows its message while the run is still open; anything that run adds after the append is not stored. An update may arrive for an id whose earlier write failed; treat it as an upsert keyed on the message id rather than assuming the entry exists.
    */
   update?(item: ExportedMessageRepositoryItem): Promise<void>;
+  /**
+   * Deletes messages from history. The runtime may send a second delete for the same message after a write it issued before the delete lands; treat deleting a missing entry as success.
+   */
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
   /** Required when used with `useAISDKRuntime` / `useChatRuntime`. */
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(

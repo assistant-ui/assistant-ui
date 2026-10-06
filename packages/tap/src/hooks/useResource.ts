@@ -9,6 +9,7 @@ import {
   unmountResourceFiber,
 } from "../core/ResourceFiber";
 import { hasContextDepsChanged } from "../core/context";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 import {
   useHostLifecycle,
   useResourceFiberHost,
@@ -60,6 +61,7 @@ export function useResource<E extends ResourceElement<any>>(
   state.wip = state.current;
   const deps = [fiber, version, element.args];
   if (
+    peekResourceFiber()?.isRefreshing ||
     hasContextDepsChanged(fiber) ||
     state.currentDeps === null ||
     !depsShallowEqual(state.currentDeps, deps)
