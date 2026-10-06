@@ -29,6 +29,7 @@ vi.mock("./projectApi", async (importOriginal) => ({
 describe("createInProcessClient", () => {
   afterEach(() => {
     registry.callbacks.clear();
+    vi.restoreAllMocks();
   });
 
   it("shares projection and the registry subscription across listeners", () => {
@@ -77,7 +78,6 @@ describe("createInProcessClient", () => {
       "[assistant-ui] DevTools listener threw an error",
       failure,
     );
-    consoleError.mockRestore();
   });
 
   it("notifies only the listeners subscribed when the change arrives", () => {
