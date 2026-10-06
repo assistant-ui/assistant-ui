@@ -5,6 +5,7 @@ import type {
   AssistantClientAccessor,
   ClientMeta,
 } from "./types/client";
+import { markDerivedHook } from "./utils/derived-hook";
 import { useAui } from "./useAui";
 import { useAuiState } from "./useAuiState";
 
@@ -18,6 +19,7 @@ export const useDerived = <K extends ClientNames>({
   const aui = useAui();
   return useAuiState(() => get(aui) as DerivedInstance<K>);
 };
+markDerivedHook(useDerived);
 
 /**
  * Creates a derived client field whose resolved instance is bound into the

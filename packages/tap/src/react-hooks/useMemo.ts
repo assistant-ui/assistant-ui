@@ -12,6 +12,7 @@ const addMemoCommit = <T>(fiber: ResourceFiber<any>, cell: MemoCell<T>) => {
   addCommit(fiber, () => {
     cell.current = cell.wip;
     cell.currentDeps = cell.wipDeps;
+    cell.wipIsRefreshing = false;
     cell.isDirty = false;
   });
 };
@@ -38,6 +39,7 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
       currentDeps: deps,
       wip: value,
       wipDeps: deps,
+      wipIsRefreshing: false,
       isDirty: false,
     } satisfies MemoCell<T>;
     fiber.cells[index] = cell;
@@ -49,7 +51,13 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   }
 
   const memoCell = cell as MemoCell<T>;
-  if (depsShallowEqual(memoCell.wipDeps, deps)) {
+  if (memoCell.wipIsRefreshing && !fiber.isRefreshing) {
+    memoCell.wip = memoCell.current;
+    memoCell.wipDeps = memoCell.currentDeps;
+    memoCell.wipIsRefreshing = false;
+    memoCell.isDirty = false;
+  }
+  if (!fiber.isRefreshing && depsShallowEqual(memoCell.wipDeps, deps)) {
     if (memoCell.isDirty) {
       addMemoCommit(fiber, memoCell);
     }
@@ -64,12 +72,14 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
 
   memoCell.wip = value;
   memoCell.wipDeps = deps;
+  memoCell.wipIsRefreshing = fiber.isRefreshing;
 
   if (!memoCell.isDirty) {
     memoCell.isDirty = true;
     addRollback(fiber.root, () => {
       memoCell.wip = memoCell.current;
       memoCell.wipDeps = memoCell.currentDeps;
+      memoCell.wipIsRefreshing = false;
       memoCell.isDirty = false;
     });
   }

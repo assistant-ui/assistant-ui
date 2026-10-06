@@ -88,6 +88,53 @@ describe("getGroupSummary", () => {
     });
   });
 
+  it.each([
+    {
+      name: "spans the earliest start to the latest finish",
+      timings: [
+        { startedAt: 2_000, completedAt: 4_000 },
+        undefined,
+        { startedAt: 1_000, completedAt: 3_000 },
+      ],
+      expected: { startedAt: 1_000, completedAt: 4_000 },
+    },
+    {
+      name: "omits the finish while a timed part runs",
+      timings: [{ startedAt: 1_000, completedAt: 2_000 }, { startedAt: 3_000 }],
+      expected: { startedAt: 1_000 },
+    },
+    {
+      name: "is absent when no part carries timing",
+      timings: [undefined, undefined],
+      expected: undefined,
+    },
+  ])("reports a timing that $name", ({ timings, expected }) => {
+    const summary = getGroupSummary(
+      timings.map((timing) => ({
+        status: { type: "complete" as const },
+        ...(timing && { timing }),
+      })),
+      timings.map((_, index) => index),
+    );
+
+    expect(summary.timing).toEqual(expected);
+  });
+
+  it("omits the finish while an untimed part still runs", () => {
+    const summary = getGroupSummary(
+      [
+        {
+          status: { type: "complete" as const },
+          timing: { startedAt: 1_000, completedAt: 2_000 },
+        },
+        { status: { type: "running" as const } },
+      ],
+      [0, 1],
+    );
+
+    expect(summary.timing).toEqual({ startedAt: 1_000 });
+  });
+
   it("returns complete with zero counts for empty indices", () => {
     expect(getGroupSummary([], [])).toEqual({
       status: { type: "complete" },

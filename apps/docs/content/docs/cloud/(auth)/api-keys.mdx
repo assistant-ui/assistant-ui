@@ -102,9 +102,9 @@ Aui-Workspace-Id: workspace_123
 
 ## Request refusals
 
-The backend host binding applies after the key is recognized. These are the authentication errors an API key request can receive.
+The backend host binding applies after the key is recognized. These authentication errors return JSON as `{ "error": "<message>" }`, except on `/v1/mcp`, whose `401` is the authentication error object [MCP](/docs/cloud/api/mcp) describes. The table lists the exact `error` value.
 
-| Status | Exact response | Cause |
+| Status | `error` value | Cause |
 |---|---|---|
 | `401` | `Authorization header is missing` | No `Authorization` header was sent. |
 | `401` | `Authorization header must begin with "Bearer "` | The header does not begin with the required bearer scheme. |

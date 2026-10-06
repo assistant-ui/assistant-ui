@@ -28,9 +28,9 @@ export const Grid = forwardRef<HTMLDivElement, GridProps>(
         {...props}
       >
         {cells.map((cell) => (
-          <CellContext key={`${cell.column}-${cell.row}`} value={cell}>
+          <CellContext.Provider key={`${cell.column}-${cell.row}`} value={cell}>
             {children({ cell })}
-          </CellContext>
+          </CellContext.Provider>
         ))}
       </div>
     );
