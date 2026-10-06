@@ -171,6 +171,29 @@ const getClient = (serverId?: string) => {
   return clientPromise;
 };
 
+const findListedResource = async (
+  client: Awaited<ReturnType<typeof createMCPClient>>,
+  uri: string,
+) => {
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  try {
+    while (true) {
+      const result = await client.listResources(
+        cursor ? { params: { cursor } } : undefined,
+      );
+      const match = result.resources.find((resource) => resource.uri === uri);
+      if (match) return match;
+      const nextCursor = result.nextCursor;
+      if (!nextCursor || seenCursors.has(nextCursor)) return undefined;
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+  } catch {
+    return undefined;
+  }
+};
+
 export async function POST(req: Request) {
   const { method, params } = await req.json();
   const client = await getClient(params?.serverId);
@@ -182,9 +205,7 @@ export async function POST(req: Request) {
       const readMeta = c?._meta?.ui;
       const listed = readMeta
         ? undefined
-        : (await client.listResources()).resources.find(
-            (x: { uri: string }) => x.uri === params.uri,
-          );
+        : await findListedResource(client, params.uri);
       return Response.json({
         uri: params.uri,
         mimeType: "text/html;profile=mcp-app",

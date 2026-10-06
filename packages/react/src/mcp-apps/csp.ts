@@ -67,10 +67,10 @@ export const buildMcpAppCsp = (csp?: McpAppResourceCSP): string => {
 };
 
 const findDoctypeEnd = (html: string): number => {
-  let offset = html.charCodeAt(0) === 0xfeff ? 1 : 0;
+  let offset = 0;
 
   while (offset < html.length) {
-    const whitespace = html.slice(offset).match(/^\s+/)?.[0];
+    const whitespace = html.slice(offset).match(/^[\t\n\f\r ]+/)?.[0];
     if (whitespace) {
       offset += whitespace.length;
       continue;
@@ -105,7 +105,8 @@ export const applyMcpAppCsp = (
   html: string,
   csp?: McpAppResourceCSP,
 ): string => {
+  const normalizedHtml = html.charCodeAt(0) === 0xfeff ? html.slice(1) : html;
   const meta = `<meta http-equiv="Content-Security-Policy" content="${buildMcpAppCsp(csp)}">`;
-  const insertionPoint = findDoctypeEnd(html);
-  return `${html.slice(0, insertionPoint)}${meta}${html.slice(insertionPoint)}`;
+  const insertionPoint = findDoctypeEnd(normalizedHtml);
+  return `${normalizedHtml.slice(0, insertionPoint)}${meta}${normalizedHtml.slice(insertionPoint)}`;
 };

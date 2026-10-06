@@ -4,6 +4,37 @@ export const maxDuration = 30;
 
 const MCP_APP_MIME = "text/html;profile=mcp-app";
 
+const findListedResource = async (
+  client: Awaited<ReturnType<typeof getMcpClient>>,
+  uri: string,
+) => {
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  try {
+    while (true) {
+      const result = await client.listResources(
+        cursor ? { params: { cursor } } : undefined,
+      );
+      const match = (
+        result as { resources?: Array<Record<string, unknown>> }
+      ).resources?.find((resource) => resource.uri === uri);
+      if (match) return match;
+      const nextCursor = (result as { nextCursor?: unknown }).nextCursor;
+      if (
+        typeof nextCursor !== "string" ||
+        nextCursor === "" ||
+        seenCursors.has(nextCursor)
+      ) {
+        return undefined;
+      }
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+  } catch {
+    return undefined;
+  }
+};
+
 export async function POST(req: Request) {
   let body: { method?: unknown; params?: Record<string, unknown> } = {};
   try {
@@ -34,13 +65,9 @@ export async function POST(req: Request) {
             )
           : undefined;
         const readMeta = (match?.["_meta"] as Record<string, unknown>)?.["ui"];
-        const listedResult = readMeta
+        const listed = readMeta
           ? undefined
-          : await client.listResources();
-        const listedResources = (
-          listedResult as { resources?: Array<Record<string, unknown>> }
-        )?.resources;
-        const listed = listedResources?.find((c) => c.uri === params.uri);
+          : await findListedResource(client, params.uri);
         const listedMeta = (listed?.["_meta"] as Record<string, unknown>)?.[
           "ui"
         ];

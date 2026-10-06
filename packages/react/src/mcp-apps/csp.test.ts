@@ -1,5 +1,12 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 import { applyMcpAppCsp, buildMcpAppCsp } from "./csp";
+
+const getPolicyMeta = (html: string) =>
+  new DOMParser()
+    .parseFromString(applyMcpAppCsp(html), "text/html")
+    .head.querySelector('meta[http-equiv="Content-Security-Policy"]');
 
 describe("MCP App CSP", () => {
   it("uses restrictive defaults when the resource omits CSP metadata", () => {
@@ -62,9 +69,9 @@ describe("MCP App CSP", () => {
       '\uFEFF<!-- license --><!doctype html><script src="https://cdn.example/app.js"></script>';
     const secured = applyMcpAppCsp(html);
 
-    expect(
-      secured.startsWith("\uFEFF<!-- license --><!doctype html><meta "),
-    ).toBe(true);
+    expect(secured.startsWith("<!-- license --><!doctype html><meta ")).toBe(
+      true,
+    );
     expect(secured.indexOf("Content-Security-Policy")).toBeLessThan(
       secured.indexOf("<script"),
     );
@@ -80,5 +87,12 @@ describe("MCP App CSP", () => {
     expect(secured.indexOf("Content-Security-Policy")).toBeLessThan(
       secured.indexOf("<script"),
     );
+  });
+
+  it.each([
+    "\u00a0<script>run()</script>",
+    "\uFEFF\uFEFF<script>run()</script>",
+  ])("keeps the policy in head before non-HTML whitespace", (html) => {
+    expect(getPolicyMeta(html)).not.toBeNull();
   });
 });
