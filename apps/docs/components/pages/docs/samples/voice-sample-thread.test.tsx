@@ -44,45 +44,57 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("keeps the welcome and suggestions stable while the thread loads during hydration", async () => {
-  vi.stubGlobal(
-    "ResizeObserver",
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  );
+it.each([
+  { serverLoading: false, clientLoading: true },
+  { serverLoading: true, clientLoading: false },
+])(
+  "keeps hydration stable when loading changes from $serverLoading to $clientLoading",
+  async ({ serverLoading, clientLoading }) => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
 
-  const container = document.createElement("div");
-  container.innerHTML = renderToString(<App isLoading={false} />);
-  expect(container.querySelector(".aui-thread-welcome-root")).not.toBeNull();
-  expect(
-    container.querySelector(".aui-thread-welcome-suggestions"),
-  ).not.toBeNull();
-  expect(container.querySelector(".aui-thread-viewport-spacer")).not.toBeNull();
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<App isLoading={serverLoading} />);
+    expect(container.querySelector(".aui-thread-welcome-root")).not.toBeNull();
+    expect(
+      container.querySelector(".aui-thread-welcome-suggestions"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector(".aui-thread-viewport-spacer"),
+    ).not.toBeNull();
 
-  const recoverableErrors: string[] = [];
-  let root: Root;
-  await act(async () => {
-    root = hydrateRoot(container, <App isLoading={true} />, {
-      onRecoverableError: (error) =>
-        recoverableErrors.push(
-          error instanceof Error ? error.message : String(error),
-        ),
+    const recoverableErrors: string[] = [];
+    let root: Root;
+    await act(async () => {
+      root = hydrateRoot(container, <App isLoading={clientLoading} />, {
+        onRecoverableError: (error) =>
+          recoverableErrors.push(
+            error instanceof Error ? error.message : String(error),
+          ),
+      });
     });
-  });
 
-  expect(recoverableErrors).toEqual([]);
-  expect(container.querySelector(".aui-thread-welcome-root")).toBeNull();
-  expect(container.querySelector(".aui-thread-welcome-suggestions")).toBeNull();
+    expect(recoverableErrors).toEqual([]);
+    expect(container.querySelector(".aui-thread-welcome-root") !== null).toBe(
+      !clientLoading,
+    );
+    expect(
+      container.querySelector(".aui-thread-welcome-suggestions") !== null,
+    ).toBe(!clientLoading);
 
-  await act(async () => root.render(<App isLoading={false} />));
+    await act(async () => root.render(<App isLoading={false} />));
 
-  expect(container.querySelector(".aui-thread-welcome-root")).not.toBeNull();
-  expect(
-    container.querySelector(".aui-thread-welcome-suggestions"),
-  ).not.toBeNull();
+    expect(container.querySelector(".aui-thread-welcome-root")).not.toBeNull();
+    expect(
+      container.querySelector(".aui-thread-welcome-suggestions"),
+    ).not.toBeNull();
 
-  await act(async () => root.unmount());
-});
+    await act(async () => root.unmount());
+  },
+);
