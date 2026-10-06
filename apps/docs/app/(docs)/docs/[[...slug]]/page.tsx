@@ -17,6 +17,7 @@ import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
 import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { typePage } from "@/components/shared/type";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -70,11 +71,9 @@ export default async function Page(props: {
       }
     >
       <DocsBody data-page-content="">
-        <header className="not-prose mb-8">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-xl font-medium tracking-tight md:text-2xl">
-              {page.data.title}
-            </h1>
+        <header className="not-prose mb-10">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className={typePage}>{page.data.title}</h1>
             <DocsPager
               {...(footerPrevious && { previous: { url: footerPrevious.url } })}
               {...(footerNext && { next: { url: footerNext.url } })}
@@ -84,7 +83,7 @@ export default async function Page(props: {
             />
           </div>
           {page.data.description && (
-            <p className="text-muted-foreground mt-2 max-w-2xl text-sm md:text-base">
+            <p className="text-muted-foreground mt-3 max-w-[65ch] text-[15px] leading-relaxed">
               {page.data.description}
             </p>
           )}

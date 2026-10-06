@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Copy, EditIcon, FileText, SparklesIcon } from "lucide-react";
+import { Copy, EditIcon, FileText, MessageSquare } from "lucide-react";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
@@ -40,13 +40,12 @@ function TOCActions({
   const { askAI } = useAssistantPanel();
   const currentPage = useCurrentPage();
 
-  // Prefetch on mount since TOC is always visible on desktop
   useEffect(() => {
     prefetch();
   }, [prefetch]);
 
   const linkClass =
-    "inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground disabled:opacity-50";
+    "inline-flex items-center gap-2 text-muted-foreground text-[13px] transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 disabled:opacity-50";
 
   const handleAskAI = () => {
     const page = currentPage?.pathname ?? "this page";
@@ -109,7 +108,7 @@ function TOCActions({
         </a>
       )}
       <button type="button" onClick={handleAskAIClick} className={linkClass}>
-        <SparklesIcon className="size-3" />
+        <MessageSquare className="size-3" />
         Ask AI
       </button>
     </div>
@@ -173,8 +172,8 @@ export function TableOfContents({
 
   return (
     <div className="docs-toc w-56 max-xl:hidden">
-      <div className="sticky top-[calc(var(--docs-header-height)_+_1rem)] flex max-h-[calc(100vh_-_var(--docs-header-height)_-_1rem)] flex-col pe-4 pt-4 pb-2">
-        <p className="text-muted-foreground/70 mb-3 shrink-0 text-xs">
+      <div className="sticky top-[calc(var(--docs-header-height)_+_2.5rem)] flex max-h-[calc(100vh_-_var(--docs-header-height)_-_2.5rem)] flex-col pe-4 pb-4">
+        <p className="text-muted-foreground mb-3 shrink-0 text-xs font-medium">
           On this page
         </p>
         <ul
@@ -192,7 +191,7 @@ export function TableOfContents({
                   href={item.url}
                   style={{ paddingLeft: indent || undefined }}
                   className={cn(
-                    "block py-1 text-[13px] leading-snug wrap-break-word transition-colors",
+                    "focus-visible:outline-ring block py-1 text-[13px] leading-snug wrap-break-word transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
                     isActive
                       ? "text-foreground font-medium"
                       : "text-muted-foreground hover:text-foreground",

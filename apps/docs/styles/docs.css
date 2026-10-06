@@ -1,6 +1,6 @@
 :root {
   --docs-header-height: 48px;
-  --docs-article-width: 56rem;
+  --docs-article-width: 52rem;
 }
 
 .docs-layout {
@@ -27,8 +27,15 @@ html:has(.docs-layout) {
 }
 
 .docs-prose {
-  font-size: 0.875rem;
-  line-height: 1.7;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+
+  &
+    :where(p, ul, ol):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
+    max-width: 70ch;
+  }
 
   & :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-top: 1.25rem;
@@ -77,7 +84,7 @@ html:has(.docs-layout) {
     ) {
     font-size: 0.8125rem;
     padding: 0.15rem 0.4rem;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
     border: none;
     background: var(--muted);
     font-weight: 500;
@@ -86,7 +93,7 @@ html:has(.docs-layout) {
   & [class~="not-prose"] :where(code):not(:where(pre code)) {
     font-size: 0.75rem;
     padding: 0.0625rem 0.3rem;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
     border: none;
     background: var(--muted);
     font-weight: 500;
@@ -95,7 +102,7 @@ html:has(.docs-layout) {
   & :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-top: 1.25rem;
     margin-bottom: 1.25rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-document);
   }
 
   &
@@ -133,7 +140,7 @@ html:has(.docs-layout) {
     border-collapse: separate;
     border-spacing: 0;
     background: var(--muted);
-    border-radius: 0.75rem;
+    border-radius: var(--radius-document);
     overflow: hidden;
 
     & thead {
@@ -207,7 +214,7 @@ html:has(.docs-layout) {
   & :where(img):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-left: auto;
     margin-right: auto;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-document);
   }
 }
 

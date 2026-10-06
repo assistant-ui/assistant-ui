@@ -11,7 +11,7 @@ type CardProps = {
   external?: boolean;
 };
 
-const base = "flex flex-col gap-1.5 rounded-xl border border-border/60 p-4";
+const base = "flex flex-col gap-1.5 px-3 py-3";
 
 export function Card({
   title,
@@ -24,7 +24,11 @@ export function Card({
   const content = (
     <>
       <span className="flex items-center gap-2 text-sm font-medium">
-        {icon}
+        {icon && (
+          <span className="text-muted-foreground [&_svg]:text-current">
+            {icon}
+          </span>
+        )}
         <span className="flex-1">{title}</span>
         {href ? (
           external ? (
@@ -35,7 +39,7 @@ export function Card({
         ) : null}
       </span>
       {(description || children) && (
-        <span className="text-muted-foreground text-sm">
+        <span className="text-muted-foreground text-sm leading-relaxed">
           {description ?? children}
         </span>
       )}
@@ -43,7 +47,7 @@ export function Card({
   );
 
   if (href) {
-    const className = `group ${base} transition-colors hover:border-foreground/15 hover:bg-muted/50`;
+    const className = `group ${base} transition-colors hover:bg-foreground/[0.025] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2`;
     if (external) {
       return (
         <a
@@ -67,7 +71,11 @@ export function Card({
 }
 
 export function Cards({ children }: { children: ReactNode }) {
-  return <div className="not-prose grid gap-3 sm:grid-cols-2">{children}</div>;
+  return (
+    <div className="not-prose grid gap-x-6 gap-y-2 sm:grid-cols-2">
+      {children}
+    </div>
+  );
 }
 
 export const CardsLLM = ({ children }: { children: ReactNode }) => (

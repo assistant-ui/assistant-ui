@@ -57,11 +57,12 @@ function SectionItem({
             href={item.index.url}
             onClick={onNavigate}
             data-active={isActive ? "true" : "false"}
+            aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
+              "focus-visible:outline-ring flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2",
               isActive
-                ? "bg-accent/20 text-foreground dark:bg-accent/50 font-medium"
-                : "text-muted-foreground hover:bg-accent/30 hover:text-foreground/90 dark:hover:bg-accent/40",
+                ? "bg-foreground/[0.05] text-foreground font-medium"
+                : "text-muted-foreground hover:bg-foreground/[0.025] hover:text-foreground",
             )}
           >
             {item.icon}
@@ -74,7 +75,7 @@ function SectionItem({
           </p>
         )}
         {hasChildren && (containsActive || !item.index) && (
-          <div className="border-border/50 ml-2 flex flex-col gap-0.5 border-l pl-2">
+          <div className="ml-2 flex flex-col gap-0.5 pl-2">
             {item.children.map((child) => (
               <SectionItem
                 key={child.$id}
@@ -96,11 +97,12 @@ function SectionItem({
       href={item.url}
       onClick={onNavigate}
       data-active={isActive ? "true" : "false"}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
+        "focus-visible:outline-ring flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2",
         isActive
-          ? "bg-accent/20 text-foreground dark:bg-accent/50 font-medium"
-          : "text-muted-foreground hover:bg-accent/30 hover:text-foreground/90 dark:hover:bg-accent/40",
+          ? "bg-foreground/[0.05] text-foreground font-medium"
+          : "text-muted-foreground hover:bg-foreground/[0.025] hover:text-foreground",
       )}
     >
       {item.icon}
@@ -132,15 +134,12 @@ function SidebarSection({
         onClick={onToggle}
         aria-expanded={isOpen}
         className={cn(
-          "hover:bg-accent/30 dark:hover:bg-accent/40 flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] transition-colors duration-150",
+          "hover:bg-foreground/[0.025] focus-visible:outline-ring flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2",
           isActive || isOpen
             ? "text-foreground font-medium"
             : "text-muted-foreground/90",
         )}
       >
-        <span className="text-muted-foreground flex size-4 shrink-0 items-center justify-center">
-          {folder.icon}
-        </span>
         <span className="flex-1 truncate">{folder.name}</span>
         <ChevronDown
           className={cn(
@@ -158,7 +157,7 @@ function SidebarSection({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="border-border/50 mt-0.5 mb-1 ml-4 flex flex-col gap-0.5 border-l pl-2">
+            <div className="mt-0.5 mb-3 ml-2 flex flex-col gap-0.5 pl-2">
               {folder.children.map((child) => (
                 <SectionItem
                   key={child.$id}

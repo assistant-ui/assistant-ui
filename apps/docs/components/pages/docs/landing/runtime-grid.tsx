@@ -70,17 +70,20 @@ export const RUNTIMES: { label: string; href: string; icon: ReactNode }[] = [
 
 export function RuntimeGrid() {
   return (
-    <div className="not-prose grid grid-cols-3 gap-2 sm:grid-cols-5">
+    <div className="not-prose grid grid-cols-1 gap-x-6 gap-y-1 min-[420px]:grid-cols-2 lg:grid-cols-3">
       {RUNTIMES.map((runtime) => (
         <Link
           key={runtime.href}
           href={runtime.href}
-          className="group border-border/60 hover:border-foreground/15 hover:bg-muted/50 flex flex-col items-center justify-center gap-2.5 rounded-xl border px-2 py-5 transition-colors"
+          className="group hover:bg-foreground/[0.025] focus-visible:outline-ring flex min-h-11 items-center gap-3 px-2 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          <span className="flex size-5 items-center justify-center">
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center"
+          >
             {runtime.icon}
           </span>
-          <span className="text-muted-foreground group-hover:text-foreground text-center text-xs transition-colors">
+          <span className="text-foreground/85 group-hover:text-foreground text-sm transition-colors">
             {runtime.label}
           </span>
         </Link>
