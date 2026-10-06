@@ -19,6 +19,8 @@ type GlyphMotion =
   | "drop"
   | "settle"
   | "shift"
+  | "trade"
+  | "trade-top"
   | "bob"
   | "tilt"
   | "rise"
@@ -444,37 +446,59 @@ function GlyphChangelog() {
   );
 }
 
-function GlyphShowcase() {
+function ShowcaseWindow({
+  x,
+  y,
+  lines,
+}: {
+  x: number;
+  y: number;
+  lines?: boolean;
+}) {
   return (
-    <GlyphSvg>
+    <>
       <rect
-        {...motion("shift", 0, {
-          "--glyph-dx": "-2.5px",
-          "--glyph-dy": "1.5px",
-        })}
-        x="11"
-        y="3"
+        x={x}
+        y={y}
         width="17.5"
         height="12"
         rx="1.5"
-        className={FAINT}
+        className="fill-background"
       />
+      <path d={`M${x} ${y + 3.4}H${x + 17.5}`} className={FAINT} />
+      {lines ? (
+        <path d={`M${x + 2.5} ${y + 6.9}H${x + 11.5}`} className={DIM} />
+      ) : null}
+    </>
+  );
+}
+
+function GlyphShowcase() {
+  const toFront = { "--glyph-dx": "-7.5px", "--glyph-dy": "6px" } as const;
+  return (
+    <GlyphSvg>
       <g
-        {...motion("shift", 0, {
-          "--glyph-dx": "2.5px",
-          "--glyph-dy": "-1.5px",
+        {...motion("trade", 0, {
+          ...toFront,
+          "--glyph-from": "0.55",
+          "--glyph-to": "1",
+        })}
+        className="opacity-55"
+      >
+        <ShowcaseWindow x={11} y={3} />
+      </g>
+      <g
+        {...motion("trade", 0, {
+          "--glyph-dx": "7.5px",
+          "--glyph-dy": "-6px",
+          "--glyph-from": "1",
+          "--glyph-to": "0.55",
         })}
       >
-        <rect
-          x="3.5"
-          y="8.5"
-          width="17.5"
-          height="12.5"
-          rx="1.5"
-          className="fill-background"
-        />
-        <path d="M3.5 12H21" className={FAINT} />
-        <path d="M6 15.5H15" className={DIM} />
+        <ShowcaseWindow x={3.5} y={9} lines />
+      </g>
+      <g {...motion("trade-top", 0, toFront)} className="opacity-0">
+        <ShowcaseWindow x={11} y={3} />
       </g>
       <path
         {...motion("spin", 250)}
@@ -548,7 +572,7 @@ function GlyphPackages() {
         <Cube
           x={16}
           y={8.6}
-          className="transition-colors duration-200 group-hover/navlink:fill-blue-500 group-hover/navlink:stroke-blue-500"
+          className="transition-colors duration-200 group-hover/navglyph:fill-blue-500 group-hover/navglyph:stroke-blue-500 group-focus-visible/navglyph:fill-blue-500 group-focus-visible/navglyph:stroke-blue-500"
         />
       </g>
     </GlyphSvg>
