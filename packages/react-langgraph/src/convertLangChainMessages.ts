@@ -383,30 +383,38 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       }
 
       const toolCallParts =
-        message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
-          const fallbackIndex = chunk.index ?? idx;
-          const toolCallId = chunk.id
-            ? chunk.id
-            : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
-          const matchingToolCallChunk = chunk.id
-            ? toolCallChunksById.get(chunk.id)
-            : toolCallChunksByIndex.get(fallbackIndex);
-          const { args, argsText } = resolveToolCallArgs({
-            chunk,
-            matchingToolCallChunk,
-            messageId: message.id,
-            toolArgsKeyOrderCache: metadata.toolArgsKeyOrderCache,
-            toolCallId,
-          });
+        message.tool_calls
+          ?.map((chunk, idx): ToolCallMessagePart | null => {
+            if (typeof chunk?.name !== "string") {
+              warnOnceInDevelopment(
+                "Skipping a tool call without a name; its result is not shown either",
+              );
+              return null;
+            }
+            const fallbackIndex = chunk.index ?? idx;
+            const toolCallId = chunk.id
+              ? chunk.id
+              : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
+            const matchingToolCallChunk = chunk.id
+              ? toolCallChunksById.get(chunk.id)
+              : toolCallChunksByIndex.get(fallbackIndex);
+            const { args, argsText } = resolveToolCallArgs({
+              chunk,
+              matchingToolCallChunk,
+              messageId: message.id,
+              toolArgsKeyOrderCache: metadata.toolArgsKeyOrderCache,
+              toolCallId,
+            });
 
-          return {
-            type: "tool-call",
-            toolCallId,
-            toolName: chunk.name,
-            args,
-            argsText,
-          };
-        }) ?? [];
+            return {
+              type: "tool-call",
+              toolCallId,
+              toolName: chunk.name,
+              args,
+              argsText,
+            };
+          })
+          .filter((part) => part !== null) ?? [];
 
       const normalizedContent =
         typeof message.content === "string"

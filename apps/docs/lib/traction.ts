@@ -64,7 +64,7 @@ export const PACKAGE_CATEGORIES: Record<
   },
   platforms: {
     label: "Platform bindings",
-    description: "Run anywhere React runs.",
+    description: "Native, terminal, and Vue bindings.",
   },
   ui: {
     label: "UI & rendering",
@@ -228,6 +228,11 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/react-ink",
     description: "Terminal UI bindings via Ink.",
+    category: "platforms",
+  },
+  {
+    name: "@assistant-ui/vue",
+    description: "Vue bindings.",
     category: "platforms",
   },
   {

@@ -11,7 +11,7 @@ import React, { ComponentProps, ComponentType, FC, PropsWithChildren, ReactEleme
 declare const ActionBarCopy: (_param0: ActionBarCopyProps) => import("react").JSX.Element;
 
 type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActionBarCopyOptions & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isCopied: boolean;
   }) => ReactNode);
 };
@@ -25,7 +25,7 @@ type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
 declare const ActionBarFeedbackNegative: (_param2: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isSubmitted: boolean;
   }) => ReactNode);
 };
@@ -33,7 +33,7 @@ type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress
 declare const ActionBarFeedbackPositive: (_param3: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isSubmitted: boolean;
   }) => ReactNode);
 };
@@ -2734,6 +2734,14 @@ declare namespace MessagePrimitiveParts$1 {
 }
 
 declare const MessagePrimitiveParts$1: FC<MessagePrimitiveParts$1.Props>;
+
+declare namespace MessagePrimitiveQuote {
+  type Props = {
+    children: (value: QuoteInfo) => ReactNode;
+  };
+}
+
+declare const MessagePrimitiveQuote: import("react").NamedExoticComponent<MessagePrimitiveQuote.Props>;
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
@@ -5448,7 +5456,7 @@ declare namespace messagePart_d_exports {
 }
 
 declare namespace message_d_exports {
-  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessageError as Error, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
+  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessageError as Error, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessagePrimitiveQuote as Quote, MessageRoot as Root, MessageRootProps as RootProps };
 }
 
 declare const pickExternalStoreSharedOptions: (options: ExternalStoreSharedOptions) => ExternalStoreSharedOptions;
