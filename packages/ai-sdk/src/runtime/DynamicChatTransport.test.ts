@@ -124,9 +124,10 @@ describe("DynamicChatTransport", () => {
     const dynamicTransport = new DynamicChatTransport(
       new AssistantChatTransport<UIMessage>(),
     );
+    const owner = {};
     dynamicTransport.setThreadContext(
       "thread-a",
-      {},
+      owner,
       createRuntime("system-a"),
       () => ({
         initialize: async () => ({
@@ -144,11 +145,59 @@ describe("DynamicChatTransport", () => {
         }),
       );
     }
+    dynamicTransport.setThreadContext(
+      "thread-a",
+      owner,
+      createRuntime("updated-system-a"),
+      () => ({
+        initialize: async () => ({
+          remoteId: "updated-remote-a",
+          externalId: undefined,
+        }),
+      }),
+    );
 
     expect(clone).not.toHaveBeenCalled();
 
     await dynamicTransport.sendMessages(sendMessagesOptions("thread-a"));
 
     expect(clone).toHaveBeenCalledOnce();
+  });
+
+  it("retries a replacement clone after cloning throws", async () => {
+    const initialFetch = vi.fn(async () => emptyStreamResponse());
+    const dynamicTransport = new DynamicChatTransport(
+      new AssistantChatTransport<UIMessage>({ fetch: initialFetch }),
+    );
+    dynamicTransport.setThreadContext(
+      "thread-a",
+      {},
+      createRuntime("system-a"),
+      () => ({
+        initialize: async () => ({
+          remoteId: "remote-a",
+          externalId: undefined,
+        }),
+      }),
+    );
+    await dynamicTransport.sendMessages(sendMessagesOptions("thread-a"));
+
+    const replacement = new AssistantChatTransport<UIMessage>();
+    const cloneError = new Error("clone failed");
+    const clone = vi
+      .spyOn(replacement, "__internal_clone")
+      .mockImplementation(() => {
+        throw cloneError;
+      });
+    dynamicTransport.setTransport(replacement);
+
+    expect(() =>
+      dynamicTransport.sendMessages(sendMessagesOptions("thread-a")),
+    ).toThrow(cloneError);
+    expect(() =>
+      dynamicTransport.sendMessages(sendMessagesOptions("thread-a")),
+    ).toThrow(cloneError);
+    expect(clone).toHaveBeenCalledTimes(2);
+    expect(initialFetch).toHaveBeenCalledOnce();
   });
 });

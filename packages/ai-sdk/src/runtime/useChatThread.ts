@@ -17,7 +17,6 @@ import {
   AssistantChatTransport,
   type InitializableThreadListItem,
 } from "../transport/AssistantChatTransport";
-import type { ResumableClientStorage } from "../transport/resumable";
 import {
   useCallback,
   useEffect,
@@ -29,7 +28,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
-import { DynamicChatTransport } from "./DynamicChatTransport";
+import {
+  DynamicChatTransport,
+  getResumedStreamIds,
+} from "./DynamicChatTransport";
 import { getResumableAdapter } from "./getResumableAdapter";
 import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
@@ -85,21 +87,6 @@ type ChatThreadTransportBinding = {
 };
 
 const getNoPendingStreamId = () => null;
-
-const resumedStreamIdsByStorage = new WeakMap<
-  ResumableClientStorage,
-  Set<string>
->();
-
-const getResumedStreamIds = (storage: ResumableClientStorage | undefined) => {
-  if (!storage) return new Set<string>();
-  let resumedStreamIds = resumedStreamIdsByStorage.get(storage);
-  if (!resumedStreamIds) {
-    resumedStreamIds = new Set();
-    resumedStreamIdsByStorage.set(storage, resumedStreamIds);
-  }
-  return resumedStreamIds;
-};
 
 /**
  * Splits the combined options into the assistant-ui side and the `ChatInit`
@@ -233,31 +220,12 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     () => getThreadListItemRef.current(),
     [],
   );
-  const subscribeToTransport = useCallback(
-    (callback: () => void) =>
-      transport instanceof DynamicChatTransport
-        ? transport.subscribe(callback)
-        : () => {},
-    [transport],
-  );
-  const staticResumableStorage = useMemo(
-    () =>
-      transport instanceof DynamicChatTransport
-        ? undefined
-        : getResumableAdapter(transport)?.storage,
-    [transport],
-  );
-  const getResumableStorage = useCallback(
+  const resumableStorage = useMemo(
     () =>
       transport instanceof DynamicChatTransport
         ? transport.getCurrentResumableStorage()
-        : staticResumableStorage,
-    [staticResumableStorage, transport],
-  );
-  const resumableStorage = useSyncExternalStore(
-    subscribeToTransport,
-    getResumableStorage,
-    getResumableStorage,
+        : getResumableAdapter(transport)?.storage,
+    [transport],
   );
 
   const transportBindingRef = useRef<ChatThreadTransportBinding | null>(null);
@@ -400,10 +368,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const isChatRunning =
     chat.status === "submitted" || chat.status === "streaming";
 
-  const resumedStreamIds = useMemo(
+  const staticResumedStreamIds = useMemo(
     () => getResumedStreamIds(resumableStorage),
     [resumableStorage],
   );
+  const resumedStreamIds =
+    transport instanceof DynamicChatTransport
+      ? transport.getResumedStreamIds()
+      : staticResumedStreamIds;
   const onResumeErrorRef = useRef(onResumeError);
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;

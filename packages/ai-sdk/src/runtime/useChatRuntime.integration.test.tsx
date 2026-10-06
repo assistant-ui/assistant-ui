@@ -347,7 +347,7 @@ describe("useThreadTokenUsage through useChatRuntime", () => {
 
 describe("replacement transports", () => {
   it.skipIf(onReact18)(
-    "does not loop when the source transport is created inline",
+    "does not loop when an inline transport recreates resumable storage",
     async () => {
       const fetch = vi.fn(
         async () =>
@@ -369,7 +369,17 @@ describe("replacement transports", () => {
       const NestedChat = () => {
         renders += 1;
         const runtime = useChatRuntime({
-          transport: new AssistantChatTransport({ fetch }),
+          transport: new AssistantChatTransport({
+            fetch,
+            resumable: {
+              storage: {
+                getStreamId: () => null,
+                setStreamId: vi.fn(),
+                clear: vi.fn(),
+              },
+              resumeApi: "/api/chat/resume",
+            },
+          }),
         });
         return <SendOnLayout runtime={runtime} />;
       };

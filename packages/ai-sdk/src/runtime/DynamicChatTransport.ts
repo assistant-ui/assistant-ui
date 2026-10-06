@@ -8,6 +8,94 @@ import {
 import type { ResumableClientStorage } from "../transport/resumable";
 import { getResumableAdapter } from "./getResumableAdapter";
 
+const resumedStreamIdsByStorage = new WeakMap<
+  ResumableClientStorage,
+  Set<string>
+>();
+
+export const getResumedStreamIds = (
+  storage: ResumableClientStorage | undefined,
+) => {
+  if (!storage) return new Set<string>();
+  let resumedStreamIds = resumedStreamIdsByStorage.get(storage);
+  if (!resumedStreamIds) {
+    resumedStreamIds = new Set();
+    resumedStreamIdsByStorage.set(storage, resumedStreamIds);
+  }
+  return resumedStreamIds;
+};
+
+type ResumableStorageSubscription = {
+  listener: () => void;
+  threadId: string | undefined;
+  unsubscribe: (() => void) | undefined;
+};
+
+class DynamicResumableStorage implements ResumableClientStorage {
+  private readonly subscriptions = new Set<ResumableStorageSubscription>();
+  private storage: ResumableClientStorage | undefined;
+  private resumedStreamIds: Set<string>;
+  private hasPendingNotification = false;
+
+  constructor(storage: ResumableClientStorage | undefined) {
+    this.storage = storage;
+    this.resumedStreamIds = getResumedStreamIds(storage);
+  }
+
+  public setStorage(storage: ResumableClientStorage | undefined) {
+    if (this.storage === storage) return;
+    this.storage = storage;
+    const nextResumedStreamIds = getResumedStreamIds(storage);
+    for (const streamId of this.resumedStreamIds) {
+      nextResumedStreamIds.add(streamId);
+    }
+    this.resumedStreamIds = nextResumedStreamIds;
+    this.hasPendingNotification = true;
+  }
+
+  public flushChange() {
+    if (!this.hasPendingNotification) return;
+    this.hasPendingNotification = false;
+    for (const subscription of this.subscriptions) {
+      subscription.unsubscribe?.();
+      subscription.unsubscribe = this.storage?.subscribe?.(
+        subscription.listener,
+        subscription.threadId,
+      );
+      subscription.listener();
+    }
+  }
+
+  public getResumedStreamIds() {
+    return this.resumedStreamIds;
+  }
+
+  public getStreamId(threadId?: string) {
+    return this.storage?.getStreamId(threadId) ?? null;
+  }
+
+  public setStreamId(id: string, threadId?: string) {
+    this.storage?.setStreamId(id, threadId);
+  }
+
+  public clear(threadId?: string) {
+    this.storage?.clear(threadId);
+  }
+
+  public subscribe(listener: () => void, threadId?: string) {
+    const subscription: ResumableStorageSubscription = {
+      listener,
+      threadId,
+      unsubscribe: this.storage?.subscribe?.(listener, threadId),
+    };
+    this.subscriptions.add(subscription);
+    return () => {
+      this.subscriptions.delete(subscription);
+      subscription.unsubscribe?.();
+    };
+  }
+}
+
 type ThreadTransportContext<UI_MESSAGE extends UIMessage> = {
   owner: object;
   sourceTransport?: ChatTransport<UI_MESSAGE> | undefined;
@@ -26,18 +114,18 @@ type ThreadTransportBinding = {
 export class DynamicChatTransport<
   UI_MESSAGE extends UIMessage,
 > implements ChatTransport<UI_MESSAGE> {
-  private readonly listeners = new Set<() => void>();
   private readonly threadContexts = new Map<
     string,
     ThreadTransportContext<UI_MESSAGE>
   >();
-  private hasPendingNotification = false;
   private transport: ChatTransport<UI_MESSAGE>;
-  private resumableStorage: ResumableClientStorage | undefined;
+  private readonly resumableStorage: DynamicResumableStorage;
 
   constructor(transport: ChatTransport<UI_MESSAGE>) {
     this.transport = transport;
-    this.resumableStorage = getResumableAdapter(transport)?.storage;
+    this.resumableStorage = new DynamicResumableStorage(
+      getResumableAdapter(transport)?.storage,
+    );
   }
 
   public readonly sendMessages: ChatTransport<UI_MESSAGE>["sendMessages"] = (
@@ -51,6 +139,9 @@ export class DynamicChatTransport<
     this.getThreadTransport(this.threadContexts.get(chatId)) ?? this.transport;
 
   public readonly getCurrentResumableStorage = () => this.resumableStorage;
+
+  public readonly getResumedStreamIds = () =>
+    this.resumableStorage.getResumedStreamIds();
 
   public createThreadProxy(
     owner: object,
@@ -72,25 +163,14 @@ export class DynamicChatTransport<
     };
   }
 
-  public readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
-
   public setTransport(transport: ChatTransport<UI_MESSAGE>) {
     if (this.transport === transport) return;
-    const previousStorage = this.resumableStorage;
     this.transport = transport;
-    this.resumableStorage = getResumableAdapter(transport)?.storage;
-    if (previousStorage !== this.resumableStorage) {
-      this.hasPendingNotification = true;
-    }
+    this.resumableStorage.setStorage(getResumableAdapter(transport)?.storage);
   }
 
   public flushTransportChange() {
-    if (!this.hasPendingNotification) return;
-    this.hasPendingNotification = false;
-    for (const listener of this.listeners) listener();
+    this.resumableStorage.flushChange();
   }
 
   public registerThread(chatId: string, owner: object) {
@@ -107,10 +187,20 @@ export class DynamicChatTransport<
     runtime: AssistantRuntime,
     getThreadListItem: () => InitializableThreadListItem | undefined,
   ) {
-    this.getBoundTransport(chatId, owner, {
-      runtime,
-      getThreadListItem,
-    });
+    this.registerThread(chatId, owner);
+    const context = this.threadContexts.get(chatId)!;
+    context.runtime = runtime;
+    context.getThreadListItem = getThreadListItem;
+    if (context.transport === undefined) {
+      this.getThreadTransport(context);
+      return;
+    }
+    if (
+      context.sourceTransport === this.transport &&
+      context.transport !== undefined
+    ) {
+      this.wireTransport(context, context.transport);
+    }
   }
 
   public unregisterThread(chatId: string, owner: object) {
@@ -157,8 +247,8 @@ export class DynamicChatTransport<
   ) {
     if (!context) return undefined;
     if (context.sourceTransport !== this.transport) {
-      context.sourceTransport = this.transport;
       context.transport = this.createThreadTransport(this.transport);
+      context.sourceTransport = this.transport;
     }
     this.wireTransport(context, context.transport!);
     return context.transport!;
