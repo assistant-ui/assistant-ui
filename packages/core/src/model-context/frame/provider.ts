@@ -451,6 +451,17 @@ export class AssistantFrameProvider {
         });
       });
       instance._activeToolCalls.clear();
+      runCleanup(() => {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            {
+              channel: FRAME_MESSAGE_CHANNEL,
+              message: { type: "provider-disposed" } satisfies FrameMessage,
+            },
+            instance._targetOrigin,
+          );
+        }
+      });
 
       AssistantFrameProvider._instance = null;
       if (cleanupFailed) throw cleanupError;
