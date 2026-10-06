@@ -421,6 +421,7 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    const previousSuggestion = this._options?.adapters.suggestion;
     this._options = options;
     if (!options.adapters.voice && this.voice) {
       try {
@@ -435,13 +436,25 @@ export class LocalThreadRuntimeCore
 
     let hasUpdates = false;
 
-    if (!options.adapters.suggestion) {
+    const suggestion = options.adapters.suggestion;
+    if (!suggestion) {
       this._suggestionsController?.abort();
       this._suggestionsController = null;
       if (this._suggestions.length > 0) {
         this._suggestions = [];
         hasUpdates = true;
       }
+    } else if (
+      !previousSuggestion ||
+      previousSuggestion.key !== suggestion.key
+    ) {
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+      if (this._suggestions.length > 0) {
+        this._suggestions = [];
+        hasUpdates = true;
+      }
+      this._generateSuggestions();
     }
 
     const canSpeak = options.adapters?.speech !== undefined;
@@ -991,30 +1004,42 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    if (
-      active &&
-      this.adapters.suggestion &&
-      message.status?.type !== "requires-action"
-    ) {
-      this._suggestionsController = new AbortController();
-      const signal = this._suggestionsController.signal;
-      const adapter = this.adapters.suggestion;
-      void (async () => {
-        try {
-          const promiseOrGenerator = adapter.generate({
-            messages: this.messages,
-            signal,
-          });
-          await consumeSuggestionResult(promiseOrGenerator, {
-            signal,
-            onUpdate: (r) => {
-              this._suggestions = r;
-              this._notifySubscribers();
-            },
-          });
-        } catch {}
-      })();
+    if (active && message.status?.type !== "requires-action") {
+      this._generateSuggestions();
     }
+  }
+
+  private _generateSuggestions() {
+    const adapter = this.adapters.suggestion;
+    const last = this.messages.at(-1);
+    if (
+      !adapter ||
+      this._activeRun ||
+      last?.role !== "assistant" ||
+      (last.status.type !== "complete" && last.status.type !== "incomplete")
+    )
+      return;
+
+    this._suggestionsController?.abort();
+    const controller = new AbortController();
+    this._suggestionsController = controller;
+    const { signal } = controller;
+    void (async () => {
+      try {
+        const promiseOrGenerator = adapter.generate({
+          messages: this.messages,
+          signal,
+        });
+        await consumeSuggestionResult(promiseOrGenerator, {
+          signal,
+          onUpdate: (suggestions) => {
+            if (this._suggestionsController !== controller) return;
+            this._suggestions = suggestions;
+            this._notifySubscribers();
+          },
+        });
+      } catch {}
+    })();
   }
 
   private async performRoundtrip(

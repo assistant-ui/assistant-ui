@@ -25,6 +25,11 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
      */
     transport?: ChatTransport<UI_MESSAGE> | undefined;
     cloud?: AssistantCloud | undefined;
+    /**
+     * Stable identity for the account or workspace owning Cloud runtime state.
+     * Provide it from the first render and change it when that scope changes.
+     */
+    scopeId?: string | undefined;
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
 
@@ -49,11 +54,16 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
 export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   cloud,
+  scopeId,
   onThreadIdChange,
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const hostDestroySignal = useHostDestroySignal();
-  const cloudAdapter = useCloudThreadListAdapter({ cloud, sdk: AI_SDK_SDK });
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud,
+    scopeId,
+    sdk: AI_SDK_SDK,
+  });
   const fallback = useMemo(() => new AssistantChatTransport<UI_MESSAGE>(), []);
   const transport = useDynamicChatTransport(options.transport ?? fallback);
   return useRemoteThreadListRuntime({

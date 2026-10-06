@@ -1,4 +1,32 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+
+export function committedRangeChangedFiles(root, baseSha, headSha, paths = []) {
+  const options = {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  };
+  const forkPoint = execFileSync(
+    "git",
+    ["merge-base", baseSha, headSha],
+    options,
+  ).trim();
+  const files = execFileSync(
+    "git",
+    [
+      "diff",
+      "--name-only",
+      "--no-renames",
+      "-z",
+      `${baseSha}...${headSha}`,
+      ...paths,
+    ],
+    options,
+  )
+    .split("\0")
+    .filter(Boolean);
+  return { forkPoint, files };
+}
 
 export function changedFilesSince(
   base,

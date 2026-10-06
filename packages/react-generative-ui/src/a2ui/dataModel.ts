@@ -1,3 +1,4 @@
+import { decodeScopeRelativePointer } from "./pointer";
 import { setAtPointer } from "./reducer";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -21,16 +22,9 @@ export const equalData = (left: unknown, right: unknown): boolean => {
   );
 };
 
-export const decodePointer = (path: string): string[] => {
-  if (path === "" || path === "/") return [];
-  return (path.startsWith("/") ? path.slice(1) : path)
-    .split("/")
-    .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
-};
-
 export const resolvePointer = (source: unknown, path: string): unknown => {
   let current = source;
-  for (const segment of decodePointer(path)) {
+  for (const segment of decodeScopeRelativePointer(path)) {
     if (Array.isArray(current)) {
       if (!/^(0|[1-9]\d*)$/.test(segment)) return undefined;
       current = current[Number(segment)];
