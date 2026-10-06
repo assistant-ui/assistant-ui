@@ -545,7 +545,7 @@ function htmlBlockRanges(text: string): number[] {
 
 function rewriteOutsideHtml(
   text: string,
-  rewrite: (text: string) => string,
+  rewrite: (text: string, offset: number) => string,
 ): string {
   const ranges = htmlBlockRanges(text);
   let out = "";
@@ -553,10 +553,10 @@ function rewriteOutsideHtml(
   for (let i = 0; i < ranges.length; i += 2) {
     const from = ranges[i]!;
     const to = ranges[i + 1]!;
-    out += rewrite(text.slice(cursor, from)) + text.slice(from, to);
+    out += rewrite(text.slice(cursor, from), cursor) + text.slice(from, to);
     cursor = to;
   }
-  return out + rewrite(text.slice(cursor));
+  return out + rewrite(text.slice(cursor), cursor);
 }
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
@@ -1104,8 +1104,17 @@ function prevLineIsBlank(text: string, lineStart: number): boolean {
  * carries non-whitespace past any blockquote markers, sits at four or more
  * columns of indentation, follows a blank line or the start of input
  * (indented code cannot interrupt a paragraph), and sits outside any list item.
+ * The line itself is read from `text`, but list context may be read from the
+ * wider `contextText` at `contextIndex`: `rewriteOutsideHtml` hands each
+ * slice to the rewrite callback separately, and a slice that starts below an
+ * HTML block would otherwise lose the list above it.
  */
-function opensIndentedCode(text: string, index: number): boolean {
+function opensIndentedCode(
+  text: string,
+  index: number,
+  contextText: string = text,
+  contextIndex: number = index,
+): boolean {
   if (index !== 0 && text[index - 1] !== "\n") return false;
   const lineEnd = text.indexOf("\n", index);
   const end = lineEnd === -1 ? text.length : lineEnd;
@@ -1121,7 +1130,7 @@ function opensIndentedCode(text: string, index: number): boolean {
   }
   const wsEnd = whitespaceEnd(text, content, end);
   if (columns(text, content, wsEnd) < 4) return false;
-  return !inListContext(text, index);
+  return !inListContext(contextText, contextIndex);
 }
 
 /**
@@ -1130,8 +1139,13 @@ function opensIndentedCode(text: string, index: number): boolean {
  * indented four or more columns past any blockquote markers, ending at the
  * first other line.
  */
-function indentedCodeEnd(text: string, index: number): number {
-  if (!opensIndentedCode(text, index)) return -1;
+function indentedCodeEnd(
+  text: string,
+  index: number,
+  contextText: string = text,
+  contextIndex: number = index,
+): number {
+  if (!opensIndentedCode(text, index, contextText, contextIndex)) return -1;
   let lineStart = index;
   for (;;) {
     const lineEnd = text.indexOf("\n", lineStart);
@@ -1152,7 +1166,12 @@ function indentedCodeEnd(text: string, index: number): number {
  * plain character. Returns `index` itself for a single `$`, which the caller has to
  * decide.
  */
-function endOfVerbatimRun(text: string, index: number): number {
+function endOfVerbatimRun(
+  text: string,
+  index: number,
+  contextText: string = text,
+  contextIndex: number = index,
+): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
@@ -1160,7 +1179,7 @@ function endOfVerbatimRun(text: string, index: number): number {
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
-  const indentedEnd = indentedCodeEnd(text, index);
+  const indentedEnd = indentedCodeEnd(text, index, contextText, contextIndex);
   if (indentedEnd !== -1) return indentedEnd;
   if (char !== "$") return index + 1;
 
@@ -1189,18 +1208,23 @@ function endOfVerbatimRun(text: string, index: number): number {
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  return rewriteOutsideHtml(text, (text) => {
+  return rewriteOutsideHtml(text, (slice, offset) => {
     let out = "";
     let index = 0;
 
-    while (index < text.length) {
-      const verbatimEnd = endOfVerbatimRun(text, index);
+    while (index < slice.length) {
+      const verbatimEnd = endOfVerbatimRun(
+        slice,
+        index,
+        text,
+        offset + index,
+      );
       if (verbatimEnd > index) {
-        out += text.slice(index, verbatimEnd);
+        out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;
         continue;
       }
-      out += opensCurrencyAmount(text, index) ? "\\$" : "$";
+      out += opensCurrencyAmount(slice, index) ? "\\$" : "$";
       index += 1;
     }
 

@@ -786,6 +786,19 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("- Plan A\n\nSome text\n\n    total = $5 + $10");
   });
 
+  it("escapes list prose split across an html block boundary", () => {
+    // The html block hands the callback a fresh slice starting below it, but
+    // the indented line still sits inside the list item, so its currency is
+    // prose rather than code.
+    expect(
+      escapeCurrencyDollars(
+        "- Step\n\n  <details>\n  <summary>Cost</summary>\n\n    Costs $5 and $10\n",
+      ),
+    ).toBe(
+      "- Step\n\n  <details>\n  <summary>Cost</summary>\n\n    Costs \\$5 and \\$10\n",
+    );
+  });
+
   it("does not veto a code block containing marker-like text", () => {
     expect(
       escapeCurrencyDollars("notes:\n\n    - not a list $5\n    more $10"),
