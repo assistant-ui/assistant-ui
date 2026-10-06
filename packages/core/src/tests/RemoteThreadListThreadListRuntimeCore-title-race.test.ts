@@ -42,7 +42,14 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
     expect(adapter.generateTitle).not.toHaveBeenCalled();
 
     mounted = new ReadonlyThreadRuntimeCore();
+    mounted.isLoading = true;
     manager._notifySubscribers();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+    mounted.isLoading = false;
+    mounted.setMessages([]);
     await vi.waitFor(() =>
       expect(adapter.generateTitle).toHaveBeenCalledOnce(),
     );

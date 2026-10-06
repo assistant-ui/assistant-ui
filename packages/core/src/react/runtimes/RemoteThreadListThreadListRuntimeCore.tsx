@@ -878,7 +878,13 @@ export class RemoteThreadListThreadListRuntimeCore
       }
       const currentMessages = runtime?.messages.filter(isTitleSourceMessage);
       if (currentMessages?.length) messages = currentMessages;
-      if (!initialized || generating || !runtime || messages.length === 0)
+      if (
+        !initialized ||
+        generating ||
+        !runtime ||
+        runtime.isLoading ||
+        messages.length === 0
+      )
         return;
       generating = true;
       this._generateTitle(threadId, { automatic: true }, () =>
@@ -954,6 +960,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (getAutomaticMessages && !automaticMessages) return false;
     const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
     if (!runtimeCore) return false;
+    if (getAutomaticMessages && runtimeCore.isLoading) return false;
 
     // Incomplete assistant turns (running status, possibly empty content)
     // would make the payload race-dependent; the title reads settled
