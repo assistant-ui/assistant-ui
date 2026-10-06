@@ -38,7 +38,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 - Make a host-owned SDK or per-app singleton (lexical) a peer on a wide floor below any dev pin, and optional when the package works without it.
 - Raise a peer floor only when the code needs a newer API.
 - Land an upstream major in one PR that moves the package and every workspace consumer (for the AI SDK also the docs vN page, vN-legacy stub, example rename, and redirect), released as a major of the package; users on the old major pin its last release, with no backports.
-- Exercise every major a `||` peer union names in CI types and tests, and drop an untested one only in a new release line, because collapsing an advertised major breaks consumers.
+- Exercise every major a `||` peer union names in CI types and tests, and drop an untested one only in a new release line, because collapsing an advertised major breaks consumers. The newest major runs on every PR; older majors may run on a weekly schedule that opens an issue on failure, and a PR that touches their compatibility runs them on demand.
 - Change an in-repo protocol only by an additive decoder branch, and never rename a persistence or wire identifier (`"ai-sdk/v6"`, protocol headers) in a version bump.
 - Never publish a parallel `-vN` package; a transition copy stays a private package and is deleted when the migration completes.
 - Pin an upstream family released the same day to patches older than `minimumReleaseAge`, because a newer floor fails a fresh resolve that an existing lockfile hides.
@@ -55,7 +55,8 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 
 - Edit kit code at its source under `packages/ui/src/`, never a template's synced copy; intentional divergence goes in `OVERRIDES` in `scripts/sync-templates.sh`.
 - List every `@/` CSS `@import` of a registry item in its `registryDependencies`, as `apps/registry/scripts/build-registry.ts` already requires for its `@/` code imports, or `shadcn add` lands an unresolvable import.
-- Give every PR that changes a published npm package a `patch` changeset (one changeset may name several packages); a maintainer-approved minor or major carries `<!-- caret-break: intended -->`.
+- Give every PR that changes a published npm package's shipped files a `patch` changeset (one changeset may name several packages); a maintainer-approved minor or major carries `<!-- caret-break: intended -->`.
+- Add no changeset for tests, top-level Markdown, `version`, `devDependencies`, or a `scripts` entry consumers never run, because the release handles those and naming the package releases it with nothing changed; `CONTRIBUTING.md` lists which `package.json` fields count.
 - The Semver Check job fails a PR whose shipped files change without a changeset, and `pnpm changesets:check` rejects one naming a private package.
 - Never `--admin` merge until `gh pr checks`, minus its `pass` and `skipping` rows, is empty; resolve a failing or pending repository check instead of overriding it.
 - On `gitbutler/workspace`, use GitButler: never create branches, stage, commit, or rewrite history with Git unless asked.

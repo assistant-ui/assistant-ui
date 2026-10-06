@@ -1,5 +1,6 @@
 import { type ReactElement, Fragment, useMemo } from "react";
 import { Text } from "react-native";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
@@ -124,11 +125,12 @@ export const MessageContent = ({
   renderData,
 }: MessageContentProps) => {
   const content = useAuiState((s) => s.message.parts);
+  const partKeys = getMessagePartKeys(content);
 
   return (
     <>
       {content.map((part, index) => {
-        const key = `${part.type}-${index}`;
+        const key = partKeys[index];
         switch (part.type) {
           case "text":
             return (

@@ -1,5 +1,27 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.19
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8725](https://github.com/assistant-ui/assistant-ui/pull/8725) [`4f0f4f5`](https://github.com/assistant-ui/assistant-ui/commit/4f0f4f573c3cd0599bb7df57da691e811e92001b) - require streamdown 2.7 and remend 1.4, and keep the tail-bounded remend repair in step with remend 1.4's code spans, so a comparison after an escaped backtick still gets escaped ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/react-markdown@0.14.19
+
+## 0.3.18
+
+### Patch Changes
+
+- [#8562](https://github.com/assistant-ui/assistant-ui/pull/8562) [`b48b05d`](https://github.com/assistant-ui/assistant-ui/commit/b48b05d05b9714e71453435712552eac40ed76f3) - preserve currency and math delimiters inside html blocks during preprocessing. ([@okisdev](https://github.com/okisdev))
+
+- [#8564](https://github.com/assistant-ui/assistant-ui/pull/8564) [`92f42ee`](https://github.com/assistant-ui/assistant-ui/commit/92f42eeae1bea5edb440be32ec02933a1091e75e) - preserve raw html bodies inside list and blockquote containers during streaming repair. ([@okisdev](https://github.com/okisdev))
+
+- [#8563](https://github.com/assistant-ui/assistant-ui/pull/8563) [`31970dc`](https://github.com/assistant-ui/assistant-ui/commit/31970dcafcb86ad27dc87731dd3708c00f9a8c55) - keep comparison escapes within each line without splitting settled prose or slowing down on blank lines. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`b48b05d`](https://github.com/assistant-ui/assistant-ui/commit/b48b05d05b9714e71453435712552eac40ed76f3)]:
+  - @assistant-ui/react-markdown@0.14.18
+
 ## 0.3.17
 
 ### Patch Changes

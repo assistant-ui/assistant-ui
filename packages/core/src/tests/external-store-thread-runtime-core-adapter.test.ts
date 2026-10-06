@@ -14,7 +14,10 @@ import type {
 } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
-import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import {
+  invalidateThreadRuntime,
+  supersedeThreadRuntime,
+} from "../runtime/utils/thread-runtime-lifecycle";
 import { MessageRepository } from "../runtime/utils/message-repository";
 
 const createContextProvider = (): ModelContextProvider => ({
@@ -2109,6 +2112,179 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     core.disconnectVoice();
 
     expect(core.messages).toEqual([]);
+  });
+
+  describe("when onVoiceTranscript throws for the reply still being spoken", () => {
+    const commitError = new Error("host store rejected the transcript");
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const setupSpeakingSession = () => {
+      const voiceAdapters: ReturnType<typeof createVoiceAdapter>[] = [];
+      const sessions: RealtimeVoiceAdapter.Session[] = [];
+      const adapter: RealtimeVoiceAdapter = {
+        connect: () => {
+          const voiceAdapter = createVoiceAdapter();
+          voiceAdapters.push(voiceAdapter);
+          const session = voiceAdapter.adapter.connect();
+          sessions.push(session);
+          return session;
+        },
+      };
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const core = new ExternalStoreThreadRuntimeCore(
+        createContextProvider(),
+        createBaseAdapter({
+          onVoiceTranscript: () => {
+            throw commitError;
+          },
+          adapters: { voice: adapter },
+        }),
+      );
+      core.connectVoice();
+      voiceAdapters[0]!.emitTranscript({
+        role: "assistant",
+        text: "Hel",
+        isFinal: false,
+      });
+      return { core, sessions, consoleError };
+    };
+
+    it("still disconnects the session on hang up and reports the error", async () => {
+      const { core, sessions, consoleError } = setupSpeakingSession();
+
+      expect(() => core.disconnectVoice()).not.toThrow();
+      expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
+      expect(core.voice).toBeUndefined();
+      await Promise.resolve();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        commitError,
+      );
+    });
+
+    it("disconnects the previous session before connecting a new one", () => {
+      const { core, sessions } = setupSpeakingSession();
+
+      core.connectVoice();
+
+      expect(sessions).toHaveLength(2);
+      expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
+      expect(sessions[1]!.disconnect).not.toHaveBeenCalled();
+    });
+
+    it("disconnects the session when the thread runtime is discarded", () => {
+      const { core, sessions } = setupSpeakingSession();
+
+      supersedeThreadRuntime(core);
+
+      expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
+      expect(core.voice).toBeUndefined();
+    });
+
+    it("keeps recording the rest of the session after the user interrupts the reply", async () => {
+      const voiceAdapter = createVoiceAdapter();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const onVoiceTranscript = vi.fn((_message: ThreadMessage) => {
+        if (onVoiceTranscript.mock.calls.length === 1) throw commitError;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        createContextProvider(),
+        createBaseAdapter({
+          onVoiceTranscript,
+          adapters: { voice: voiceAdapter.adapter },
+        }),
+      );
+      core.connectVoice();
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hel",
+        isFinal: false,
+      });
+
+      expect(() =>
+        voiceAdapter.emitTranscript({
+          role: "user",
+          text: "Stop",
+          isFinal: true,
+        }),
+      ).not.toThrow();
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Sure",
+        isFinal: false,
+      });
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Sure thing",
+        isFinal: true,
+      });
+
+      expect(core.messages.map(getThreadMessageText)).toEqual([
+        "Hel",
+        "Stop",
+        "Sure thing",
+      ]);
+      expect(
+        onVoiceTranscript.mock.calls.map(([message]) =>
+          getThreadMessageText(message),
+        ),
+      ).toEqual(["Hel", "Stop", "Sure thing"]);
+      await Promise.resolve();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        commitError,
+      );
+    });
+
+    it("shows a final user transcript whose commit throws after a finished reply", async () => {
+      const voiceAdapter = createVoiceAdapter();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const onVoiceTranscript = vi.fn((message: ThreadMessage) => {
+        if (message.role === "user") throw commitError;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        createContextProvider(),
+        createBaseAdapter({
+          onVoiceTranscript,
+          adapters: { voice: voiceAdapter.adapter },
+        }),
+      );
+      core.connectVoice();
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      expect(core.messages.map(getThreadMessageText)).toEqual(["Hello"]);
+      const listener = vi.fn();
+      core.subscribe(listener);
+
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Stop",
+        isFinal: true,
+      });
+
+      expect(core.messages.map(getThreadMessageText)).toEqual([
+        "Hello",
+        "Stop",
+      ]);
+      expect(listener).toHaveBeenCalled();
+      await Promise.resolve();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        commitError,
+      );
+    });
   });
 
   it("parents a send after the session ended on the last repository message", async () => {
