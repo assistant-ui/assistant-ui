@@ -61,6 +61,12 @@ export type GenericThreadHistoryAdapter<TMessage> = {
 
 export type ThreadHistoryAdapter = {
   /**
+   * Stable identity for the storage scope used by LocalRuntime and wrappers
+   * built on it. Keep it the same when recreating an adapter for one scope and
+   * change it when switching scopes. Adapters that omit it share one scope.
+   */
+  scopeId?: string | undefined;
+  /**
    * Keeps a copy of messages whose source of truth is the runtime's backend.
    * `branch` is the conversation from its first message to its last, and
    * `messageIds` names the ones in it that are new or changed; the adapter

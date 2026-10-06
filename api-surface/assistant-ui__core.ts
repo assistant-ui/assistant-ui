@@ -4825,6 +4825,7 @@ type ThreadEvents = {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;

@@ -21,6 +21,7 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 import { isMessageNotSentError } from "../../types/error";
 import {
   createVoiceSession,
+  type RealtimeVoiceAdapter,
   type VoiceSessionHelpers,
 } from "../../adapters/voice";
 
@@ -6055,6 +6056,21 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
 });
 
 describe("LocalThreadRuntimeCore runs", () => {
+  const storedUserMessage = (
+    id: string,
+    text: string,
+  ): ExportedMessageRepositoryItem => ({
+    parentId: null,
+    message: {
+      id,
+      role: "user",
+      content: [{ type: "text", text }],
+      attachments: [],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+    },
+  });
+
   const createPlainThread = (
     adapter: ChatModelAdapter,
     options?: { maxSteps?: number },
@@ -6274,6 +6290,359 @@ describe("LocalThreadRuntimeCore runs", () => {
 
     expect(load).toHaveBeenCalledOnce();
     expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
+  });
+
+  it("loads the new history scope without waiting for or accepting the old load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveFirstLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const firstLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveFirstLoad = resolve;
+    });
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      headId: "second",
+      messages: [storedUserMessage("second", "scope B")],
+    }));
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: () => firstLoad,
+        append: async () => {},
+      },
+    });
+
+    const firstPromise = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+
+    resolveFirstLoad({
+      headId: "first",
+      messages: [storedUserMessage("first", "scope A")],
+    });
+    await firstPromise;
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+  });
+
+  it("keeps an in-flight load when a recreated adapter keeps its scope", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const pendingLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveLoad = resolve;
+    });
+    const replacementLoad = vi.fn<ThreadHistoryAdapter["load"]>();
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "same",
+        load: () => pendingLoad,
+        append: async () => {},
+      },
+    });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "same",
+          load: replacementLoad,
+          append: async () => {},
+        },
+      },
+    });
+    resolveLoad({
+      headId: "same",
+      messages: [storedUserMessage("same", "same scope")],
+    });
+    await load;
+
+    expect(replacementLoad).not.toHaveBeenCalled();
+    expect(thread.messages.map((message) => message.id)).toEqual(["same"]);
+  });
+
+  it("does not roll back a B message when an A append settles with the same id", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const appendFirst = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: async () => ({ messages: [] }),
+        append: appendFirst,
+      },
+    });
+    await thread.__internal_load();
+
+    let finishInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      finishInitialization = resolve;
+    });
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const append = thread.append({
+      ...userMessage("scope A"),
+      startRun: false,
+    });
+    await Promise.resolve();
+    const pendingMessageId = thread.messages[0]!.id;
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({
+            headId: pendingMessageId,
+            messages: [storedUserMessage(pendingMessageId, "scope B")],
+          }),
+          append: appendSecond,
+        },
+      },
+    });
+    await flush();
+    finishInitialization();
+    await append;
+
+    expect(appendFirst).not.toHaveBeenCalled();
+    expect(appendSecond).not.toHaveBeenCalled();
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "scope B" }],
+    ]);
+  });
+
+  it("does not apply a pending A delete to a B message with the same id", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let finishDelete!: () => void;
+    const pendingDelete = new Promise<void>((resolve) => {
+      finishDelete = resolve;
+    });
+    const deleteFirst = vi.fn(() => pendingDelete);
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: async () => ({
+          headId: "shared-id",
+          messages: [storedUserMessage("shared-id", "scope A")],
+        }),
+        append: async () => {},
+        delete: deleteFirst,
+      },
+    });
+    await thread.__internal_load();
+    const deletion = thread.deleteMessage("shared-id");
+    const deleteSecond = vi.fn<NonNullable<ThreadHistoryAdapter["delete"]>>(
+      async () => {},
+    );
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({
+            headId: "shared-id",
+            messages: [storedUserMessage("shared-id", "scope B")],
+          }),
+          append: async () => {},
+          delete: deleteSecond,
+        },
+      },
+    });
+    await flush();
+    finishDelete();
+    await deletion;
+
+    expect(deleteFirst).toHaveBeenCalledOnce();
+    expect(deleteSecond).not.toHaveBeenCalled();
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "scope B" }],
+    ]);
+  });
+
+  it("discards the composer draft, active run, and queued work on a scope change", async () => {
+    const run = vi.fn<ChatModelAdapter["run"]>(
+      ({ abortSignal }) =>
+        new Promise<ChatModelRunResult>((resolve) => {
+          const finish = () => resolve({ content: [] });
+          if (abortSignal.aborted) {
+            finish();
+          } else {
+            abortSignal.addEventListener("abort", finish, { once: true });
+          }
+        }),
+    );
+    const adapter: ChatModelAdapter = { run };
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: adapter,
+          history: {
+            scopeId: "first",
+            load: async () => ({ messages: [] }),
+            append: async () => {},
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    void thread.append(userMessage("active A run"));
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    await thread.append({
+      ...userMessage("queued A message"),
+      parentId: thread.messages.at(-1)?.id ?? null,
+      steer: false,
+    });
+    thread.composer.setText("draft from A");
+    expect(thread.getQueueItems()).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: appendSecond,
+        },
+      },
+      unstable_enableMessageQueue: true,
+    });
+    await flush();
+
+    expect(thread.composer.text).toBe("");
+    expect(thread.getQueueItems()).toEqual([]);
+    expect(thread.messages).toEqual([]);
+    expect(appendSecond).not.toHaveBeenCalled();
+  });
+
+  it("ignores a run that settles after its history scope changes", async () => {
+    let resolveRun!: (result: ChatModelRunResult) => void;
+    const adapter: ChatModelAdapter = {
+      run: vi.fn(
+        () =>
+          new Promise<ChatModelRunResult>((resolve) => {
+            resolveRun = resolve;
+          }),
+      ),
+    };
+    const suggestionFirst = { generate: vi.fn(async () => []) };
+    const suggestionSecond = { generate: vi.fn(async () => []) };
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: adapter,
+          suggestion: suggestionFirst,
+          history: {
+            scopeId: "first",
+            load: async () => ({ messages: [] }),
+            append: async () => {},
+          },
+        },
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    const append = thread.append(userMessage("scope A"));
+    await vi.waitFor(() => expect(adapter.run).toHaveBeenCalledOnce());
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        suggestion: suggestionSecond,
+        history: {
+          scopeId: "second",
+          load: async () => ({
+            headId: "second",
+            messages: [storedUserMessage("second", "scope B")],
+          }),
+          append: appendSecond,
+        },
+      },
+    });
+    await flush();
+    resolveRun({ content: [{ type: "text", text: "late A result" }] });
+    await append;
+    await flush();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+    expect(thread.suggestions).toEqual([]);
+    expect(suggestionSecond.generate).not.toHaveBeenCalled();
+    expect(appendSecond).not.toHaveBeenCalled();
+  });
+
+  it("disconnects voice transcripts when the history scope changes", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let emitTranscript!: VoiceSessionHelpers["emitTranscript"];
+    const disconnect = vi.fn();
+    const voice: RealtimeVoiceAdapter = {
+      connect: (options) =>
+        createVoiceSession(options, async (helpers) => {
+          emitTranscript = helpers.emitTranscript;
+          return { disconnect, mute: vi.fn(), unmute: vi.fn() };
+        }),
+    };
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = createThread(adapter, {
+      voice,
+      history: {
+        scopeId: "first",
+        load: async () => ({ messages: [] }),
+        append: async () => {},
+      },
+    });
+    await thread.__internal_load();
+    thread.connectVoice();
+    await flush();
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        voice,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: appendSecond,
+        },
+      },
+    });
+    emitTranscript({ role: "user", text: "late A transcript", isFinal: true });
+    await flush();
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(appendSecond).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
   });
 
   it("does not load late history over a thread that already has messages", async () => {

@@ -199,6 +199,7 @@ Per-thread message persistence. Used by `LocalRuntime`, `useDataStreamRuntime`, 
 
 ```ts
 type ThreadHistoryAdapter = {
+  scopeId?: string;
   load: () => Promise<{
     headId?: string | null;
     messages: { parentId: string | null; message: ThreadMessage }[];
@@ -224,6 +225,15 @@ type ThreadHistoryAdapter = {
 ```
 
 `load` runs when a thread opens. `append` runs after each message completes, or earlier when a later turn follows a message whose run is still open. `update` rewrites a stored message in place, which lets the runtime store a run paused for tool approval and a tool result that arrives after its message settled; without it, a paused run is stored once it ends or once a later turn follows it, and anything the run adds after that append is not stored.
+
+When reusing a `LocalRuntime` or a wrapper built on it, such as
+`useDataStreamRuntime`, for another account, workspace, or backing store, set
+`scopeId` to a stable identifier for the current storage scope. Keep it the
+same when recreating an adapter for that scope. Changing it clears the previous
+thread state and composer draft, discards pending work, and loads the new
+adapter. Adapters without `scopeId` are treated as sharing one scope.
+`useExternalStoreRuntime` and external history runtimes such as AI SDK, A2A,
+and AG-UI do not read this option.
 
 If a local runtime history write fails, the thread emits `historyWriteError` with the attempted `operation` (`append`, `update`, or `delete`), affected `messageIds`, a readable `message`, and the original `error`. The store forwards `thread.historyWriteError` with `threadId`, `operation`, `messageIds`, and `message`. Listeners receive failures while bound to the affected thread, so a write that fails after you switch away from its thread reaches no listener; the runtime logs every failed write with `console.error` either way. Writes returned to callers still reject. The external-store history copy keeps its warning on failure and does not emit this event.
 

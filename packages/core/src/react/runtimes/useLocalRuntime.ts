@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -20,6 +21,9 @@ import type { AssistantCloud } from "assistant-cloud";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 
 const subscribeNever = () => () => {};
+
+const useClientLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
@@ -84,7 +88,7 @@ const useLocalThreadRuntime = (
     };
   }, [runtime]);
 
-  useEffect(() => {
+  useClientLayoutEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 

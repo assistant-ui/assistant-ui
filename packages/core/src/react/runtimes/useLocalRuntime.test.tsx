@@ -2,6 +2,8 @@
 
 import { act, render, waitFor } from "@testing-library/react";
 import { Activity, type FC, StrictMode, useEffect, version } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
 import { useAui, useAuiState } from "@assistant-ui/store";
@@ -12,6 +14,7 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { PendingAttachment } from "../../types/attachment";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 
 const onReact18 = version.startsWith("18.");
 
@@ -507,6 +510,70 @@ describe("useLocalRuntime", () => {
     rerender(renderApp());
     expect(history.load).toHaveBeenCalledTimes(loadsAfterMount);
     expect(consoleError).toHaveBeenCalledTimes(errorsAfterMount);
+  });
+
+  it("clears the previous history scope before the replacement scope can paint", async () => {
+    type History = Awaited<ReturnType<ThreadHistoryAdapter["load"]>>;
+    const storedHistory = (id: string, text: string): History => ({
+      headId: id,
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id,
+            role: "user",
+            content: [{ type: "text", text }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    let resolveSecondLoad!: (repository: History) => void;
+    const secondLoad = new Promise<History>((resolve) => {
+      resolveSecondLoad = resolve;
+    });
+    const history = (
+      scopeId: string,
+      load: ThreadHistoryAdapter["load"],
+    ): ThreadHistoryAdapter => ({ scopeId, load, append: async () => {} });
+    const firstHistory = history("first", async () =>
+      storedHistory("first", "scope A"),
+    );
+    const secondHistory = history("second", () => secondLoad);
+    let runtime: AssistantRuntime | null = null;
+    const App = ({ adapter }: { adapter: ThreadHistoryAdapter }) => {
+      runtime = useLocalRuntime(chatModel, { adapters: { history: adapter } });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(<App adapter={firstHistory} />);
+    });
+    await waitFor(() => {
+      expect(runtime!.thread.getState().messages[0]?.content).toEqual([
+        { type: "text", text: "scope A" },
+      ]);
+    });
+
+    act(() => {
+      flushSync(() => root.render(<App adapter={secondHistory} />));
+    });
+
+    expect(runtime!.thread.getState().messages).toEqual([]);
+    resolveSecondLoad(storedHistory("second", "scope B"));
+    await waitFor(() => {
+      expect(runtime!.thread.getState().messages[0]?.content).toEqual([
+        { type: "text", text: "scope B" },
+      ]);
+    });
+    act(() => root.unmount());
   });
 
   it("exposes composer.canCancel while a run started after initial messages is in flight", async () => {
