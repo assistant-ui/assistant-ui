@@ -205,18 +205,16 @@ const loadImageContent = async (
 
 const isBase64Payload = (value: string) => {
   const compact = value.replaceAll(/\s/g, "");
+  const match = /^([a-z\d+/]*)(={0,2})$/i.exec(compact);
+  if (!match) return false;
+
+  const paddingLength = match[2]!.length;
   return (
     compact.length > 0 &&
-    compact.length % 4 !== 1 &&
-    /^[a-z\d+/]*={0,2}$/i.test(compact)
+    match[1]!.length % 4 !== 1 &&
+    (paddingLength === 0 || compact.length % 4 === 0)
   );
 };
-
-const isAbortError = (error: unknown): boolean =>
-  typeof error === "object" &&
-  error !== null &&
-  "name" in error &&
-  error.name === "AbortError";
 
 const sendCancelledError = new MessageNotSentError(
   "Pi send was dropped because the run was cancelled.",
@@ -224,11 +222,14 @@ const sendCancelledError = new MessageNotSentError(
 const sendAbandonedError = new Error(
   "Pi send was dropped because the runtime was disposed.",
 );
+const sendQueueClearedError = new Error(
+  "Pi send was removed before reaching the queue.",
+);
 
 const isSendInterruption = (error: unknown) =>
   error === sendCancelledError ||
   error === sendAbandonedError ||
-  isAbortError(error);
+  error === sendQueueClearedError;
 
 const toImageContent = (
   image: string,
@@ -240,6 +241,9 @@ const toImageContent = (
       throw new Error(
         `Pi image attachment returned unsupported content type: ${parsed.mimeType}`,
       );
+    }
+    if (!isBase64Payload(parsed.data)) {
+      throw new Error("Invalid Pi image attachment source");
     }
     return {
       type: "image",
@@ -381,9 +385,15 @@ type OptimisticSend = {
   previousLastError: string | undefined;
 };
 
+type PendingQueueEntry = {
+  mode: "steering" | "followUp";
+  content: string;
+};
+
 type PendingSend = {
   controller: AbortController;
   accepted: boolean;
+  queueEntry?: PendingQueueEntry;
 };
 
 const markStateRunning = (state: PiThreadState): PiThreadState => {
@@ -689,7 +699,7 @@ export class PiThreadController implements PiThreadControllerLike {
       await this.dispatchMessage(message, behavior);
     } catch (error) {
       this.rollbackOptimisticSend(optimisticSend, error);
-      if (error === sendAbandonedError || isAbortError(error)) return;
+      if (error === sendAbandonedError) return;
       throw error;
     }
   }
@@ -713,6 +723,7 @@ export class PiThreadController implements PiThreadControllerLike {
 
     try {
       await this.dispatchMessage(message, behavior, {
+        queueEntry: { mode, content },
         onRunStateResolved: (runIsActive) => {
           if (runIsActive) return;
 
@@ -736,9 +747,13 @@ export class PiThreadController implements PiThreadControllerLike {
       const promotedSend = promoted;
       if (promotedSend) {
         this.rollbackOptimisticSend(promotedSend, error);
-        if (error === sendAbandonedError || isAbortError(error)) return;
+        if (error === sendAbandonedError || error === sendQueueClearedError) {
+          return;
+        }
         throw error;
       }
+
+      if (error === sendQueueClearedError) return;
 
       // Roll back only while our optimistic mirror is still exactly what we
       // set. Any queue write since — a `queue_update`, a snapshot on
@@ -763,7 +778,7 @@ export class PiThreadController implements PiThreadControllerLike {
             }
           : {}),
       });
-      if (error === sendAbandonedError || isAbortError(error)) return;
+      if (error === sendAbandonedError) return;
       throw error;
     }
   }
@@ -773,12 +788,14 @@ export class PiThreadController implements PiThreadControllerLike {
     behavior: "followUp" | "steer" | undefined,
     options?: {
       onRunStateResolved: (runIsActive: boolean) => void;
+      queueEntry: PendingQueueEntry;
     },
   ) {
     const abortController = new AbortController();
     const pending: PendingSend = {
       controller: abortController,
       accepted: false,
+      ...(options?.queueEntry ? { queueEntry: options.queueEntry } : {}),
     };
     this.pendingSends.add(pending);
     const previousRequest = this.sendDispatchTail;
@@ -818,6 +835,7 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async clearQueue() {
+    const locallyCleared = this.abortPendingQueuedSendsBeforeDispatch();
     // Snapshot the queue we are clearing. Every queue write allocates a fresh
     // object — sendQueued, the `queue_update` reducer, and a reconnect/refresh
     // snapshot (applySnapshot, even when the contents are unchanged) — so a
@@ -839,7 +857,10 @@ export class PiThreadController implements PiThreadControllerLike {
         queue: { steering: [], followUp: [] },
       });
     }
-    return cleared;
+    return {
+      steering: [...cleared.steering, ...locallyCleared.steering],
+      followUp: [...cleared.followUp, ...locallyCleared.followUp],
+    };
   }
 
   public async cancel() {
@@ -857,6 +878,19 @@ export class PiThreadController implements PiThreadControllerLike {
       if (pending.accepted) continue;
       pending.controller.abort(sendCancelledError);
     }
+  }
+
+  private abortPendingQueuedSendsBeforeDispatch() {
+    const cleared: { steering: string[]; followUp: string[] } = {
+      steering: [],
+      followUp: [],
+    };
+    for (const pending of this.pendingSends) {
+      if (pending.accepted || !pending.queueEntry) continue;
+      cleared[pending.queueEntry.mode].push(pending.queueEntry.content);
+      pending.controller.abort(sendQueueClearedError);
+    }
+    return cleared;
   }
 
   private abortPendingSends() {

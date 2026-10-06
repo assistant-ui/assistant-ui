@@ -419,6 +419,8 @@ describe("PiThreadController", () => {
 
   it.each([
     ["data:text/plain;base64,SGVsbG8=", "unsupported content type: text/plain"],
+    ["data:image/png;base64,A==", "Invalid Pi image attachment source"],
+    ["A==", "Invalid Pi image attachment source"],
     ["file:///tmp/image.png", "Unsupported Pi image attachment URL scheme"],
     ["/uploads/image.png", "Invalid Pi image attachment source"],
   ])("rejects invalid image sources: %s", async (image, error) => {
@@ -1104,6 +1106,25 @@ describe("PiThreadController", () => {
     expect(await sendResult).toBe(sendError);
   });
 
+  it("reports foreign abort errors as send failures", async () => {
+    const abortError = new DOMException("network interrupted", "AbortError");
+    const client = createFakeClient();
+    client.sendMessage = vi.fn(async () => {
+      throw abortError;
+    });
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(controller.sendMessage(userMessage("hello"))).rejects.toBe(
+      abortError,
+    );
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      metadata: { status: "failed" },
+      lastError: "network interrupted",
+    });
+    expect(controller.getProjectedMessages()).toEqual([]);
+  });
+
   it("keeps newer Pi state when an image send is cancelled", async () => {
     let fetchSignal: AbortSignal | undefined;
     vi.stubGlobal(
@@ -1588,6 +1609,50 @@ describe("PiThreadController", () => {
       steering: [],
       followUp: [],
     });
+  });
+
+  it("clears a queued send parked behind image preparation", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          }),
+      ),
+    );
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(
+      userMessageWithImage("first", "https://cdn.example.com/image.png"),
+    );
+    const second = controller.sendMessage(userMessage("second"));
+    await vi.waitFor(() =>
+      expect(controller.getState().queue.followUp).toEqual(["second"]),
+    );
+
+    await expect(controller.clearQueue()).resolves.toEqual({
+      steering: [],
+      followUp: ["second"],
+    });
+    expect(controller.getState().queue).toEqual({
+      steering: [],
+      followUp: [],
+    });
+
+    resolveResponse(
+      new Response(new Uint8Array([0, 1, 2]), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    await first;
+    await expect(second).resolves.toBeUndefined();
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["first"]);
   });
 
   it("does not empty a queue that a newer message repopulated before the clear response", async () => {
