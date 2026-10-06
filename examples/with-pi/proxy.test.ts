@@ -161,6 +161,11 @@ describe("Pi API proxy", () => {
   it("rejects non-browser writes without a content type", () => {
     vi.stubEnv("NODE_ENV", "development");
 
-    expect(proxy(request()).status).toBe(403);
+    const bodyless = new NextRequest(
+      "http://localhost:3000/api/pi/threads/thread-1/cancel",
+      { method: "POST", headers: { host: "localhost:3000" } },
+    );
+    expect(bodyless.headers.get("content-type")).toBeNull();
+    expect(proxy(bodyless).status).toBe(403);
   });
 });
