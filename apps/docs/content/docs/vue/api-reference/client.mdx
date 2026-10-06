@@ -3,7 +3,7 @@ title: Assistant client
 description: AuiConfig, Derived, createAssistantClient, and the constructors that fill each config key.
 ---
 
-`@assistant-ui/vue` re-exports the client APIs from `@assistant-ui/store/client`. `AuiProvider` builds an `AssistantClient` from an `AuiConfig` and provides it to its descendants. See [State and actions](/docs/vue/state) for reading that client in a component.
+`@assistant-ui/vue` re-exports the client APIs from `@assistant-ui/store/client`. The signatures below use type names from that entry; the types `@assistant-ui/vue` itself exports are listed under [Exported types](#exported-types). `AuiProvider` builds an `AssistantClient` from an `AuiConfig` and provides it to its descendants. See [State and actions](/docs/vue/state) for reading that client in a component.
 
 ## Configure client scopes
 
@@ -50,7 +50,7 @@ Tool and data UI entries rendered by Vue must be Vue components. See [Tool UI](/
 
 `AuiProvider` watches its `config` prop. A key that stays in the config keeps its scope state while its constructor arguments update. Adding or removing a key mounts or unmounts that scope. Pass a computed config when its arguments or keys depend on Vue state:
 
-```vue title="app/components/AssistantClient.vue"
+```vue title="app/components/AssistantClient.client.vue"
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { AISDKChat } from "@assistant-ui/ai-sdk";

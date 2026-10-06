@@ -57,6 +57,8 @@ In `message.vue`, the assistant row names renderers for text, reasoning, and too
 import { useAuiState } from "@assistant-ui/vue";
 
 const part = useAuiState((s) => s.part);
+
+const webUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : undefined);
 </script>
 
 <template>
@@ -70,8 +72,9 @@ const part = useAuiState((s) => s.part);
     {{ part.filename ?? "File" }} ({{ part.mimeType }})
   </span>
   <a
-    v-else-if="part.type === 'source' && part.sourceType === 'url'"
-    :href="part.url"
+    v-else-if="part.type === 'source' && part.sourceType === 'url' && webUrl(part.url)"
+    :href="webUrl(part.url)"
+    rel="noopener noreferrer"
     class="underline"
   >
     {{ part.title ?? part.url }}
