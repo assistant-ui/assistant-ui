@@ -412,7 +412,6 @@ declare class IncrementalJsonObjectParser {
   #private;
   private constructor();
   static from(text?: string, fallback?: ReadonlyJSONObject): IncrementalJsonObjectParser;
-  get currentText(): string;
   get currentTextLength(): number;
   get currentArgs(): ReadonlyJSONObject;
   append(delta: string): IncrementalJsonObjectParser;

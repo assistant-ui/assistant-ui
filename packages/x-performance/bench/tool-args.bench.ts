@@ -70,7 +70,15 @@ const drainActiveReader = async (chunks: AssistantStreamChunk[]) => {
       ),
     ),
   );
-  await Promise.all(reads);
+  return Promise.all(reads);
+};
+
+const parseInDeltas = (text: string, chunkSize: number) => {
+  let parser = IncrementalJsonObjectParser.from("");
+  for (let offset = 0; offset < text.length; offset += chunkSize) {
+    parser = parser.append(text.slice(offset, offset + chunkSize));
+  }
+  return parser;
 };
 
 describe("assistant-stream: execute-only tool arguments (16-char deltas)", () => {
@@ -122,7 +130,10 @@ describe("assistant-stream: active-reader tool arguments (16-char deltas)", () =
   for (const size of [1000, 5000, 10000]) {
     const chunks = makeChunks(size, 16);
     test(`${size} bytes`, async ({ bench }) => {
-      await drainActiveReader(chunks);
+      const probe = await drainActiveReader(chunks);
+      if (!probe.includes("x".repeat(size))) {
+        throw new Error("Active-reader benchmark did not parse tool arguments");
+      }
       await bench(`${size} bytes`, async () => {
         await drainActiveReader(chunks);
       }).run(inject("benchSampling"));
@@ -146,6 +157,26 @@ describe("assistant-stream: complete tool arguments (single delta)", () => {
 
     await bench("10,000 array elements", () => {
       IncrementalJsonObjectParser.from(argsText);
+    }).run(inject("benchSampling"));
+  });
+});
+
+describe("assistant-stream: dense tool arguments (16-char deltas)", () => {
+  const points = Array.from({ length: 10_000 }, (_, index) => index + 0.5);
+  const argsText = JSON.stringify({ points });
+
+  test("10,000 array elements", async ({ bench }) => {
+    const probe = parseInDeltas(argsText, 16);
+    if (
+      !Array.isArray(probe.currentArgs.points) ||
+      probe.currentArgs.points.length !== 10_000 ||
+      probe.currentArgs.points.at(-1) !== 9_999.5
+    ) {
+      throw new Error("Dense-delta benchmark did not parse tool arguments");
+    }
+
+    await bench("10,000 array elements", () => {
+      parseInDeltas(argsText, 16);
     }).run(inject("benchSampling"));
   });
 });

@@ -4,6 +4,7 @@ import {
   parsePartialJsonObject,
 } from "./parse-partial-json-object";
 import { IncrementalJsonObjectParser } from "./incremental-json-object-parser";
+import type { ReadonlyJSONValue } from "./json-value";
 
 const inputs = [
   '{"text":"brace } quote \\" slash \\\\ emoji 😀","nested":{"values":[1,-2.5e3,true,false,null]}}',
@@ -18,7 +19,7 @@ const expectPrefixParity = (input: string) => {
   let expected = parsePartialJsonObject("")!;
   let parser = IncrementalJsonObjectParser.from("");
 
-  expect(parser.currentText).toBe("");
+  expect(parser.currentTextLength).toBe(0);
   expect(parser.currentArgs).toEqual(expected);
 
   for (const delta of input) {
@@ -26,7 +27,7 @@ const expectPrefixParity = (input: string) => {
     parser = parser.append(delta);
     expected = parsePartialJsonObject(prefix) ?? expected;
 
-    expect(parser.currentText).toBe(prefix);
+    expect(parser.currentTextLength).toBe(prefix.length);
     expect(parser.currentArgs, `prefix=${prefix}`).toEqual(expected);
     expect(getPartialJsonObjectMeta(parser.currentArgs)).toEqual(
       getPartialJsonObjectMeta(expected),
@@ -84,6 +85,79 @@ describe("IncrementalJsonObjectParser", () => {
     expect(nestedBase.currentArgs).toMatchObject({ values: [1] });
     expect(nestedLeft.currentArgs).toMatchObject({ values: [1, 2] });
     expect(nestedRight.currentArgs).toMatchObject({ values: [1, 3] });
+  });
+
+  it("keeps dense arrays immutable across deltas", () => {
+    let parser = IncrementalJsonObjectParser.from('{"values":[0');
+    const early = parser;
+
+    for (let index = 1; index < 2_000; index++) {
+      parser = parser.append(`,${index}`);
+    }
+    const middle = parser;
+
+    for (let index = 2_000; index < 4_000; index++) {
+      parser = parser.append(`,${index}`);
+    }
+    parser = parser.append("]}");
+
+    expect(early.currentArgs.values).toEqual([0]);
+    expect(middle.currentArgs.values).toHaveLength(2_000);
+    expect((middle.currentArgs.values as readonly number[]).at(-1)).toBe(1_999);
+    expect(parser.currentArgs.values).toHaveLength(4_000);
+    expect((parser.currentArgs.values as readonly number[]).at(-1)).toBe(3_999);
+    expect(JSON.stringify(parser.currentArgs)).toBe(
+      JSON.stringify({
+        values: Array.from({ length: 4_000 }, (_, index) => index),
+      }),
+    );
+  });
+
+  it("keeps dense objects immutable across deltas", () => {
+    let parser = IncrementalJsonObjectParser.from('{"values":{"key0":0');
+    const early = parser;
+
+    for (let index = 1; index < 1_000; index++) {
+      parser = parser.append(`,"key${index}":${index}`);
+    }
+    const middle = parser;
+
+    for (let index = 1_000; index < 2_000; index++) {
+      parser = parser.append(`,"key${index}":${index}`);
+    }
+    parser = parser.append("}}");
+
+    expect(early.currentArgs.values).toEqual({ key0: 0 });
+    expect(Object.keys(middle.currentArgs.values as object)).toHaveLength(
+      1_000,
+    );
+    expect(
+      (middle.currentArgs.values as Readonly<Record<string, number>>).key999,
+    ).toBe(999);
+    expect(Object.keys(parser.currentArgs.values as object)).toHaveLength(
+      2_000,
+    );
+    expect(
+      (parser.currentArgs.values as Readonly<Record<string, number>>).key1999,
+    ).toBe(1_999);
+  });
+
+  it("preserves ordinary object and array behavior", () => {
+    const parser = IncrementalJsonObjectParser.from(
+      '{"values":[1,{"nested":true}]}',
+    );
+    const values = parser.currentArgs.values as readonly ReadonlyJSONValue[];
+    const copy = { ...parser.currentArgs };
+
+    expect(Array.isArray(values)).toBe(true);
+    expect(Object.keys(parser.currentArgs)).toEqual(["values"]);
+    expect(copy.values).toEqual([1, { nested: true }]);
+    expect(getPartialJsonObjectMeta(copy)).toEqual(
+      getPartialJsonObjectMeta(parser.currentArgs),
+    );
+    expect(JSON.stringify(parser.currentArgs)).toBe(
+      '{"values":[1,{"nested":true}]}',
+    );
   });
 
   it("parses a large array delivered in one delta", () => {
