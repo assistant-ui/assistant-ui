@@ -3309,12 +3309,18 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      ink-testing-library:
+        specifier: ^4.0.0
+        version: 4.0.0(@types/react@19.3.0)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(@vitest/coverage-v8@5.0.3)(@vitest/ui@5.0.3)(jsdom@30.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   examples/with-react-ink-web:
     dependencies:
@@ -3370,6 +3376,9 @@ importers:
       vercel:
         specifier: ^62.0.0
         version: 62.0.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(rollup@4.63.5)(supports-color@10.2.2)
+      with-react-ink:
+        specifier: workspace:*
+        version: link:../with-react-ink
 
   examples/with-react-router:
     dependencies:
