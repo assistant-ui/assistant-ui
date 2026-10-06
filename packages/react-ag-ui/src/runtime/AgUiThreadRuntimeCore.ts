@@ -38,17 +38,16 @@ import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
 import type {
+  AgUiCustomMetadata,
   AgUiEvent,
   AgUiInterrupt,
   AgUiResumeEntry,
   AgUiResumeTranscript,
 } from "./types";
+import { AG_UI_METADATA_NAMESPACE, MCP_APPS_ACTIVITY_TYPE } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import {
-  AG_UI_METADATA_NAMESPACE,
-  type AgUiCustomMetadata,
   isPlainObject,
-  MCP_APPS_ACTIVITY_TYPE,
   RunAggregator,
   tryParseJSON,
 } from "./adapter/run-aggregator";
