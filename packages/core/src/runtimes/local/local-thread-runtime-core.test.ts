@@ -1328,6 +1328,57 @@ describe("LocalThreadRuntimeCore history persistence", () => {
 });
 
 describe("LocalThreadRuntimeCore - detach", () => {
+  it("persists a cancelled partial answer when detached within the same history scope", async () => {
+    const appendHistory = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = createThread(
+      {
+        async *run({ abortSignal }) {
+          yield { content: [{ type: "text", text: "partial answer" }] };
+          await new Promise<void>((_, reject) => {
+            abortSignal.addEventListener(
+              "abort",
+              () => reject(abortSignal.reason),
+              { once: true },
+            );
+          });
+        },
+      },
+      {
+        history: {
+          scopeId: "account",
+          load: async () => ({ messages: [] }),
+          append: appendHistory,
+        },
+      },
+    );
+    await thread.__internal_load();
+    const runEnd = vi.fn();
+    thread.unstable_on("runEnd", runEnd);
+    const append = thread.append(userMessage("start"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toEqual([
+        { type: "text", text: "partial answer" },
+      ]),
+    );
+    thread.detach();
+    await append;
+
+    expect.soft(appendHistory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({
+          role: "assistant",
+          content: [{ type: "text", text: "partial answer" }],
+          status: { type: "incomplete", reason: "cancelled" },
+        }),
+      }),
+    );
+    expect.soft(thread.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      status: { type: "incomplete", reason: "cancelled" },
+    });
+    expect(runEnd).toHaveBeenCalledOnce();
+  });
+
   it("drops a pending append when detached", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {

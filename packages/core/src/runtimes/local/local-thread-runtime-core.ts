@@ -1059,7 +1059,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
-    const generation = captureThreadRuntimeGeneration(this);
+    const scopeGeneration = this._loadGeneration;
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
@@ -1101,15 +1101,21 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
-      if (!generation.aborted) this._notifyEventSubscribers("runEnd", {});
+      if (scopeGeneration === this._loadGeneration)
+        this._notifyEventSubscribers("runEnd", {});
       // the settle belongs to this run only while it is still the active run
       // or was cancelled (the engine expects a cancelled run's settle); a run
       // superseded by a newer one stays silent
-      active = !generation.aborted && this._activeRun === run;
+      active =
+        scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
-      if (!generation.aborted && (active || run.cancelled)) {
+      if (
+        scopeGeneration === this._loadGeneration &&
+        (active || run.cancelled)
+      ) {
         queueMicrotask(() => {
-          if (!generation.aborted) this._queue?.notifyIdle();
+          if (scopeGeneration === this._loadGeneration)
+            this._queue?.notifyIdle();
         });
       }
     }
@@ -1159,7 +1165,7 @@ export class LocalThreadRuntimeCore
     run: { cancelled: boolean; resumedFromPause: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
-    const generation = captureThreadRuntimeGeneration(this);
+    const scopeGeneration = this._loadGeneration;
     const messages = parentId ? this.repository.getMessages(parentId) : [];
     // A message here that is running or whose roundtrip is still in flight
     // belongs to the run this roundtrip aborts.
@@ -1190,7 +1196,7 @@ export class LocalThreadRuntimeCore
       hasStoredMessage = false;
     }
     const syncOwnedMessage = () => {
-      if (generation.aborted) return false;
+      if (scopeGeneration !== this._loadGeneration) return false;
       if (!hasStoredMessage) return this._activeRun === run;
       try {
         let ownedMessage = message;
