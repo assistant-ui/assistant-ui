@@ -18,7 +18,7 @@
  * Browser-safe: imports no `@earendil-works/pi-*`.
  */
 import { SSEEventDecoder, SSEEventDecoderError } from "assistant-stream/utils";
-import { isRecord } from "@assistant-ui/core/internal";
+import { invokeUserCallback, isRecord } from "@assistant-ui/core/internal";
 import { isKnownPiClientEventType } from "../eventTypes";
 import type { PiAnyClientEvent } from "../types";
 import {
@@ -278,40 +278,14 @@ export const createPiEventStreamConnection = (
   let reconnectPending = false;
   let reconnectRequested = false;
   const abort = new AbortController();
-  const reportCallbackError = (callbackError: unknown) => {
-    console.error("[react-pi] onError callback threw an error", callbackError);
-  };
-  const reportEventCallbackError = (callbackError: unknown) => {
-    console.error("[react-pi] onEvent callback threw an error", callbackError);
-  };
   const reportError = (error: unknown) => {
-    if (!onError) return;
-    try {
-      void Promise.resolve(onError(error)).catch(reportCallbackError);
-    } catch (callbackError) {
-      reportCallbackError(callbackError);
-    }
+    void invokeUserCallback("react-pi", "onError", onError, error);
   };
   const emitEvent = (event: PiAnyClientEvent) => {
-    try {
-      void Promise.resolve(onEvent(event)).catch(reportEventCallbackError);
-    } catch (callbackError) {
-      reportEventCallbackError(callbackError);
-    }
-  };
-  const reportConnectCallbackError = (callbackError: unknown) => {
-    console.error(
-      "[react-pi] onConnect callback threw an error",
-      callbackError,
-    );
+    void invokeUserCallback("react-pi", "onEvent", onEvent, event);
   };
   const emitConnect = () => {
-    if (!onConnect) return;
-    try {
-      void Promise.resolve(onConnect()).catch(reportConnectCallbackError);
-    } catch (callbackError) {
-      reportConnectCallbackError(callbackError);
-    }
+    void invokeUserCallback("react-pi", "onConnect", onConnect);
   };
 
   const waitForReconnect = () => {

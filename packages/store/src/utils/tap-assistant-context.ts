@@ -43,6 +43,9 @@ export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
 };
 
+export const useOptionalAssistantClientRef = () =>
+  use(AssistantTapContext)?.clientRef;
+
 /**
  * Runs a registration effect that follows the bound client instance of one
  * scope: when a structural change remounts or replaces that instance, the

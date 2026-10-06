@@ -20,10 +20,17 @@ import { ThreadPrimitiveViewportFooter } from "./ThreadPrimitiveViewportFooter";
 
 const geometryElements = new Set<HTMLElement>();
 
-const createTestRuntime = () =>
+const createTestRuntime = (withHistory = false) =>
   new AssistantRuntimeImpl(
     new ExternalStoreRuntimeCore({
-      messages: [],
+      messages: withHistory
+        ? [
+            {
+              role: "user" as const,
+              content: [{ type: "text" as const, text: "history" }],
+            },
+          ]
+        : [],
       convertMessage: () => ({ role: "user", content: [] }),
       onNew: async () => {},
     }),
@@ -84,6 +91,27 @@ const installViewportGeometry = (div: HTMLElement) => {
   };
 };
 
+const mountChatWithViewportGeometry = (
+  runtime: AssistantRuntimeImpl,
+  view: Component,
+) => {
+  const geometries = new WeakMap<
+    HTMLElement,
+    ReturnType<typeof installViewportGeometry>
+  >();
+  const createElement = document.createElement.bind(document);
+  vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+    const element = createElement(tagName);
+    if (tagName === "div") {
+      geometries.set(element, installViewportGeometry(element));
+    }
+    return element;
+  });
+  const mounted = mountChat(runtime, view);
+  const viewport = mounted.el.querySelector<HTMLElement>("div.viewport")!;
+  return { ...mounted, viewport, geometry: geometries.get(viewport)! };
+};
+
 const installResizeObserver = () => {
   const observers = new Set<ResizeObserverMock>();
   class ResizeObserverMock {
@@ -133,6 +161,65 @@ afterEach(() => {
     Reflect.deleteProperty(element, "scrollTo");
   }
   geometryElements.clear();
+});
+
+describe("ThreadPrimitiveViewport initial pinning", () => {
+  it("follows the first resize over overflowing history when initialization scroll is disabled", () => {
+    const observers = installResizeObserver();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport", scrollToBottomOnInitialize: false },
+          { default: () => h("p", "history") },
+        ),
+    });
+    const { viewport, geometry, unmount } = mountChatWithViewportGeometry(
+      createTestRuntime(true),
+      View,
+    );
+
+    observers.trigger(viewport);
+    expect(geometry.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+    expect(viewport.scrollTop).toBe(400);
+    unmount();
+  });
+
+  it("follows a footer height reported before the viewport attaches", () => {
+    installResizeObserver();
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.classList.contains("footer") ? 50 : 0;
+      },
+    );
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport", scrollToBottomOnInitialize: false },
+          {
+            default: () => [
+              h("p", "history"),
+              h(ThreadPrimitiveViewportFooter, { class: "footer" }),
+            ],
+          },
+        ),
+    });
+    const { viewport, geometry, unmount } = mountChatWithViewportGeometry(
+      createTestRuntime(true),
+      View,
+    );
+
+    expect(geometry.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+    expect(viewport.scrollTop).toBe(400);
+    unmount();
+  });
 });
 
 describe("ThreadPrimitiveViewportFooter", () => {
