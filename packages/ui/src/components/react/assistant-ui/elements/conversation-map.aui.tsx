@@ -202,13 +202,12 @@ const projectConversation = (
       reusableTurns++;
     }
 
-    const hasAffectedTurn = reusableTurns < previous.turns.length;
-    for (let index = firstChanged; index < messages.length; index++) {
+    const boundary =
+      reusableTurns > 0 ? previous.turns[reusableTurns - 1]!.endIndex + 1 : 0;
+    for (let index = boundary; index < messages.length; index++) {
       const role = messages[index]!.role;
       if (role !== "user" && role !== "assistant") continue;
-      if (role === "assistant" && reusableTurns > 0 && !hasAffectedTurn) {
-        reusableTurns--;
-      }
+      if (role === "assistant" && reusableTurns > 0) reusableTurns--;
       break;
     }
   }
@@ -225,7 +224,7 @@ const projectConversation = (
     const message = messages[index]!;
     if (message.role !== "user" && message.role !== "assistant") continue;
     const current = turns.at(-1);
-    if (message.role === "user" || !current || turns.length === reusableTurns) {
+    if (message.role === "user" || !current) {
       turns.push({ head: message, members: [message], endIndex: index });
     } else {
       current.members.push(message);
@@ -267,10 +266,14 @@ const projectConversation = (
 function useConversationProjection(messages: readonly ThreadMessage[]) {
   const cacheRef = useRef<ConversationProjection | undefined>(undefined);
   const cached = cacheRef.current;
-  if (cached?.messages === messages) return cached;
+  const projection =
+    cached?.messages === messages
+      ? cached
+      : projectConversation(messages, cached);
 
-  const projection = projectConversation(messages, cached);
-  cacheRef.current = projection;
+  useEffect(() => {
+    cacheRef.current = projection;
+  }, [projection]);
   return projection;
 }
 

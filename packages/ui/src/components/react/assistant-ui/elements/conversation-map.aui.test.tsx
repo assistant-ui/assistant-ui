@@ -138,6 +138,15 @@ describe("ConversationMapAui", () => {
     expect(await screen.findByText("First answer")).toBeTruthy();
     expect(labels()).toEqual(["First", "Second"]);
 
+    mocks.state.thread.messages = [
+      first,
+      firstAnswer,
+      assistant("a2", "Continued answer"),
+    ];
+    rerender(<ConversationMapAui />);
+
+    expect(labels()).toEqual(["First"]);
+
     mocks.state.thread.messages = [first, firstAnswer];
     rerender(<ConversationMapAui />);
 
@@ -177,8 +186,10 @@ describe("ConversationMapAui", () => {
     rerender(<ConversationMapAui />);
 
     expect(reads).toBe(0);
-    expect(labels()).toHaveLength(101);
-    expect(labels().at(-1)).toBe("Tail question");
+    expect(labels()).toEqual([
+      ...Array.from({ length: 100 }, (_, index) => `Question ${index}`),
+      "Tail question",
+    ]);
   });
 
   it("puts one tick on each turn rather than each message", async () => {
