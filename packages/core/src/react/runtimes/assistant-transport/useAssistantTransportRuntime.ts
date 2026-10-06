@@ -432,6 +432,8 @@ const useAssistantTransportThreadRuntime = <T>(
     messages,
     state: converted.state,
     isRunning: converted.isRunning,
+    canResume:
+      !!options.canResume && !!options.resumeApi && !runManager.isRunning,
     isLoading: isReplaying,
     adapters: options.adapters,
     unstable_enableToolInvocations: true,

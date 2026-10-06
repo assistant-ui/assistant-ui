@@ -3,6 +3,7 @@ import type { TriggerMatch, TriggerMatcher } from "./composer/trigger";
 export { ComposerPrimitiveRoot as Root } from "./composer/ComposerRoot";
 export { ComposerPrimitiveInput as Input } from "./composer/ComposerInput";
 export { ComposerPrimitiveSend as Send } from "./composer/ComposerSend";
+export { ComposerPrimitiveResume as Resume } from "./composer/ComposerResume";
 export { ComposerPrimitiveCancel as Cancel } from "./composer/ComposerCancel";
 export { ComposerPrimitiveAddAttachment as AddAttachment } from "./composer/ComposerAddAttachment";
 export { ComposerPrimitiveAttachments as Attachments } from "./composer/ComposerAttachments";

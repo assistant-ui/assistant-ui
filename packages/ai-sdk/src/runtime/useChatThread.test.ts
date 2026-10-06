@@ -19,7 +19,12 @@ import {
   type ChatThreadEnvironment,
 } from "./useChatThread";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
-import { createResumableSessionStorage } from "../transport/resumable";
+import { AISDKThreads } from "./AISDKThreads";
+import {
+  createResumableSessionStorage,
+  RESUMABLE_STREAM_ID_HEADER,
+} from "../transport/resumable";
+import type { UIMessageChunk } from "ai";
 import {
   createCancellableTransport,
   nextTask,
@@ -225,6 +230,658 @@ describe("useChatThread", () => {
         storage.clear();
         warn.mockRestore();
       }
+    },
+  );
+
+  it.each([false, true])(
+    "scopes branch checkpoint cleanup to the manual resume opt-in: %s",
+    async (canResume) => {
+      const storage = createResumableSessionStorage({ key: "resume-branch" });
+      storage.clear();
+      let stream!: ReadableStreamDefaultController<Uint8Array>;
+      const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start: (controller) => {
+              stream = controller;
+            },
+          }),
+          {
+            headers: {
+              "content-type": "text/event-stream",
+              [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+            },
+          },
+        ),
+      );
+      const onBranchChange = vi.fn(() =>
+        expect(storage.getStreamId("main")).toBe(canResume ? null : "stream-1"),
+      );
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: Host({
+            canResume,
+            transport: new AssistantChatTransport({
+              fetch,
+              resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+            }),
+            messageRepository: {
+              headId: "other",
+              messages: [
+                {
+                  parentId: null,
+                  message: {
+                    id: "question",
+                    role: "user",
+                    parts: [{ type: "text", text: "Question" }],
+                  },
+                },
+                {
+                  parentId: "question",
+                  message: {
+                    id: "other",
+                    role: "assistant",
+                    parts: [{ type: "text", text: "Other branch" }],
+                  },
+                },
+              ],
+            },
+            unstable_onBranchChange: onBranchChange,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      try {
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("other"),
+        );
+        flushTapSync(() => aui.thread.message({ id: "other" }).reload());
+        for (const chunk of [
+          { type: "start", messageId: "answer" },
+          { type: "text-start", id: "text" },
+          { type: "text-delta", id: "text", delta: "Partial" },
+        ] satisfies UIMessageChunk[])
+          stream.enqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+          );
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("answer"),
+        );
+        flushTapSync(() => aui.thread.cancelRun());
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().isRunning).toBe(false);
+          expect(aui.thread.getState().canResume).toBe(canResume);
+        });
+        flushTapSync(() =>
+          aui.thread
+            .message({ id: "answer" })
+            .switchToBranch({ branchId: "answer" }),
+        );
+        expect(storage.getStreamId("main")).toBe("stream-1");
+        expect(onBranchChange).not.toHaveBeenCalled();
+        flushTapSync(() =>
+          aui.thread
+            .message({ id: "answer" })
+            .switchToBranch({ branchId: "other" }),
+        );
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().canResume).toBe(false);
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("other");
+        });
+        expect(onBranchChange).toHaveBeenCalledWith({
+          headId: "other",
+          visibleMessageIds: ["question", "other"],
+        });
+        if (canResume) {
+          await aui.thread.resumeRun({ parentId: "other" });
+        } else {
+          await expect(
+            aui.thread.resumeRun({ parentId: "other" }),
+          ).rejects.toThrow("Runtime does not support resuming runs.");
+        }
+        expect(fetch).toHaveBeenCalledOnce();
+        expect(aui.thread.getState().messages.at(-1)?.parts[0]).toMatchObject({
+          type: "text",
+          text: "Other branch",
+        });
+      } finally {
+        handle.destroy();
+        storage.clear();
+      }
+    },
+  );
+
+  it.each(
+    ([204, 404, "network", "aborted"] as const).flatMap((result) =>
+      (["cancelled", "failed"] as const).map(
+        (interruption) => [result, interruption] as const,
+      ),
+    ),
+  )(
+    "handles reconnect result %s after a %s stream",
+    async (result, interruption) => {
+      const storage = createResumableSessionStorage({
+        key: `resume-${result}-${interruption}`,
+      });
+      storage.clear();
+      const onResumeError = vi.fn();
+      const onError = vi.fn();
+      const streamError = new Error("initial stream disconnected");
+      let initial!: ReadableStreamDefaultController<Uint8Array>;
+      const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(
+        new Response(
+          new ReadableStream({
+            start: (controller) => {
+              initial = controller;
+            },
+          }),
+          {
+            headers: {
+              "content-type": "text/event-stream",
+              [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+            },
+          },
+        ),
+      );
+      if (result === "network")
+        fetch.mockRejectedValueOnce(new Error("offline"));
+      else if (result === "aborted") {
+        fetch.mockImplementationOnce(
+          (_input, init) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener(
+                "abort",
+                () => reject(new DOMException("Stopped", "AbortError")),
+                { once: true },
+              );
+            }),
+        );
+      } else
+        fetch.mockResolvedValueOnce(new Response(null, { status: result }));
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: Host({
+            canResume: true,
+            transport: new AssistantChatTransport({
+              fetch,
+              resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+            }),
+            onResumeError,
+            onError,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      try {
+        flushTapSync(() => aui.composer.setText("continue"));
+        flushTapSync(() => aui.composer.send());
+        initial.enqueue(
+          new TextEncoder().encode(
+            'data: {"type":"start","messageId":"answer"}\n\n',
+          ),
+        );
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().isRunning).toBe(true);
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("answer");
+        });
+        if (interruption === "cancelled") {
+          flushTapSync(() => aui.thread.cancelRun());
+        } else {
+          initial.error(streamError);
+          await vi.waitFor(() =>
+            expect(onError).toHaveBeenCalledWith(streamError),
+          );
+        }
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().canResume).toBe(true),
+        );
+        const pending = Promise.resolve(
+          aui.thread.resumeRun({ parentId: "answer" }),
+        );
+        if (result === "aborted") {
+          await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+          flushTapSync(() => aui.thread.cancelRun());
+        }
+        const isResumeError = result === 404 || result === "network";
+        if (!isResumeError) {
+          await pending;
+        } else {
+          const resumeError: unknown = await pending.catch(
+            (error: unknown) => error,
+          );
+          expect(resumeError).toBeInstanceOf(Error);
+          expect(resumeError).not.toBe(streamError);
+          expect(onResumeError).toHaveBeenCalledWith(resumeError);
+          expect(onError).toHaveBeenLastCalledWith(resumeError);
+        }
+        const keepsCheckpoint = result === "aborted" || result === "network";
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().canResume).toBe(keepsCheckpoint),
+        );
+        expect(storage.getStreamId("main")).toBe(
+          keepsCheckpoint ? "stream-1" : null,
+        );
+        expect(fetch).toHaveBeenCalledTimes(2);
+        expect(onResumeError).toHaveBeenCalledTimes(isResumeError ? 1 : 0);
+        expect(onError).toHaveBeenCalledTimes(
+          (interruption === "failed" ? 1 : 0) + (isResumeError ? 1 : 0),
+        );
+        expect(aui.thread.getState().messages).toHaveLength(2);
+        if (result === "network") {
+          fetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+          await aui.thread.resumeRun({ parentId: "answer" });
+          expect(fetch).toHaveBeenCalledTimes(3);
+          expect(storage.getStreamId("main")).toBeNull();
+        }
+      } finally {
+        handle.destroy();
+        storage.clear();
+      }
+    },
+  );
+
+  it("does not advertise manual resume from a stored stream id alone", async () => {
+    const storage = createResumableSessionStorage({
+      key: "resume-without-opt-in",
+    });
+    storage.clear();
+    let initial!: ReadableStreamDefaultController<Uint8Array>;
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        new ReadableStream({ start: (controller) => (initial = controller) }),
+        {
+          headers: {
+            "content-type": "text/event-stream",
+            [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+          },
+        },
+      ),
+    );
+    const Host = createHost({});
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: Host({
+          transport: new AssistantChatTransport({
+            fetch,
+            resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+          }),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      flushTapSync(() => aui.composer.setText("continue this response"));
+      flushTapSync(() => aui.composer.send());
+      for (const chunk of [
+        { type: "start", messageId: "answer" },
+        { type: "text-start", id: "text" },
+        { type: "text-delta", id: "text", delta: "Partial" },
+      ] satisfies UIMessageChunk[]) {
+        initial.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+        );
+      }
+      await vi.waitFor(() =>
+        expect(aui.thread.getState().messages.at(-1)?.parts[0]).toMatchObject({
+          type: "text",
+          text: "Partial",
+        }),
+      );
+      flushTapSync(() => aui.thread.cancelRun());
+      await vi.waitFor(() =>
+        expect(aui.thread.getState().isRunning).toBe(false),
+      );
+      expect(storage.getStreamId("main")).toBe("stream-1");
+      expect(aui.thread.getState().canResume).toBe(false);
+      await expect(
+        aui.thread.resumeRun({ parentId: "answer" }),
+      ).rejects.toThrow("Runtime does not support resuming runs.");
+      await nextTask();
+      expect(fetch).toHaveBeenCalledOnce();
+    } finally {
+      handle.destroy();
+      storage.clear();
+    }
+  });
+
+  it.each(
+    [false, true].flatMap((canResume) =>
+      ["owned", "threads"].flatMap((owner) =>
+        ["send", "edit", "reload"].map((action) => ({
+          canResume,
+          owner,
+          action,
+        })),
+      ),
+    ),
+  )(
+    "invalidates the old checkpoint before a failed $action only with canResume=$canResume ($owner)",
+    async ({ canResume, owner, action }) => {
+      const storage = createResumableSessionStorage({
+        key: `failed-${action}-${owner}-${canResume}`,
+      });
+      storage.clear();
+      let initial!: ReadableStreamDefaultController<Uint8Array>;
+      let rejectRequest!: (error: Error) => void;
+      const error = new Error("offline before response headers");
+      const onError = vi.fn();
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockImplementation(
+          () =>
+            new Promise<Response>((_resolve, reject) => {
+              rejectRequest = reject;
+            }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            new ReadableStream({
+              start: (controller) => (initial = controller),
+            }),
+            {
+              headers: {
+                "content-type": "text/event-stream",
+                [RESUMABLE_STREAM_ID_HEADER]: "old-stream",
+              },
+            },
+          ),
+        );
+      const options = {
+        canResume,
+        onError,
+        transport: new AssistantChatTransport({
+          fetch,
+          resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+        }),
+      };
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: owner === "threads" ? AISDKThreads(options) : Host(options),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      try {
+        flushTapSync(() => aui.composer.setText("first question"));
+        flushTapSync(() => aui.composer.send());
+        for (const chunk of [
+          { type: "start", messageId: "answer" },
+          { type: "text-start", id: "text" },
+          { type: "text-delta", id: "text", delta: "Partial" },
+        ] satisfies UIMessageChunk[])
+          initial.enqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+          );
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("answer"),
+        );
+        flushTapSync(() => aui.thread.cancelRun());
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().isRunning).toBe(false);
+          expect(aui.thread.getState().canResume).toBe(canResume);
+        });
+        expect(storage.getStreamId("main")).toBe("old-stream");
+
+        if (action === "send") {
+          flushTapSync(() => aui.composer.setText("follow-up"));
+          flushTapSync(() => aui.composer.send());
+        } else if (action === "edit") {
+          const edit = () => aui.thread.message({ index: 0 }).composer();
+          flushTapSync(() => edit().beginEdit());
+          flushTapSync(() => edit().setText("edited question"));
+          flushTapSync(() => edit().send());
+        } else {
+          flushTapSync(() => aui.thread.message({ id: "answer" }).reload());
+        }
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+        expect(storage.getStreamId("main")).toBe(
+          canResume ? null : "old-stream",
+        );
+        rejectRequest(error);
+        await vi.waitFor(() => {
+          expect(onError).toHaveBeenCalledWith(error);
+          expect(aui.thread.getState().isRunning).toBe(false);
+          expect(aui.thread.getState().canResume).toBe(false);
+        });
+        if (canResume) {
+          const messages = aui.thread.getState().messages;
+          await aui.thread.resumeRun({ parentId: messages.at(-1)?.id ?? null });
+          expect(aui.thread.getState().messages).toEqual(messages);
+          expect(fetch).toHaveBeenCalledTimes(2);
+        }
+      } finally {
+        rejectRequest?.(error);
+        handle.destroy();
+        storage.clear();
+      }
+    },
+  );
+
+  it("allows replacing a resumable transport with one without checkpoint support", async () => {
+    const storage = createResumableSessionStorage({ key: "replace-resumable" });
+    storage.clear();
+    const onError = vi.fn();
+    let transport: ChatTransport<UIMessage> = new AssistantChatTransport({
+      resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+    });
+    const listeners = new Set<() => void>();
+    const Host = createHost({});
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({ threads: Host({ transport, canResume: true, onError }) }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const sendMessages = vi.fn(
+      async () =>
+        new ReadableStream<UIMessageChunk>({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "answer" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    try {
+      transport = {
+        sendMessages,
+        reconnectToStream: vi.fn(async () => null),
+      };
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+      await nextTask();
+      const aui = handle.getClient();
+      flushTapSync(() => aui.composer.setText("new transport"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(sendMessages).toHaveBeenCalledOnce();
+        expect(aui.thread.getState().isRunning).toBe(false);
+      });
+      expect(onError).not.toHaveBeenCalled();
+      expect(aui.thread.getState().canResume).toBe(false);
+    } finally {
+      handle.destroy();
+      storage.clear();
+    }
+  });
+
+  it("coalesces resume calls across chat updates and consumes the stopped response checkpoint on finish", async () => {
+    const storage = createResumableSessionStorage({ key: "composer-resume" });
+    storage.clear();
+    let initial!: ReadableStreamDefaultController<Uint8Array>;
+    let resumed!: ReadableStreamDefaultController<Uint8Array>;
+    const headers = {
+      "content-type": "text/event-stream",
+      [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+    };
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        new Response(
+          new ReadableStream({ start: (controller) => (initial = controller) }),
+          { headers },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          new ReadableStream({ start: (controller) => (resumed = controller) }),
+          { headers },
+        ),
+      );
+    const transport = new AssistantChatTransport({
+      fetch,
+      resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+    });
+    const emit = (
+      controller: ReadableStreamDefaultController<Uint8Array>,
+      ...chunks: UIMessageChunk[]
+    ) => {
+      for (const chunk of chunks) {
+        controller.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+        );
+      }
+    };
+    const Host = createHost({});
+    const handle = createAssistantClient(
+      AuiConfig({ threads: Host({ transport, canResume: true }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      expect(aui.thread.getState().canResume).toBe(false);
+      flushTapSync(() => aui.composer.setText("continue this response"));
+      flushTapSync(() => aui.composer.send());
+      emit(
+        initial,
+        { type: "start", messageId: "answer" },
+        { type: "text-start", id: "text" },
+        { type: "text-delta", id: "text", delta: "Partial" },
+      );
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().messages.at(-1)?.parts[0]).toMatchObject({
+          type: "text",
+          text: "Partial",
+        });
+        expect(aui.thread.getState().isRunning).toBe(true);
+        expect(aui.thread.getState().canResume).toBe(false);
+      });
+      flushTapSync(() => aui.thread.cancelRun());
+      await vi.waitFor(() =>
+        expect(aui.thread.getState().canResume).toBe(true),
+      );
+      expect(storage.getStreamId("main")).toBe("stream-1");
+      expect(fetch).toHaveBeenCalledOnce();
+
+      const pending = aui.thread.resumeRun({ parentId: "answer" });
+      await vi.waitFor(() => {
+        expect(fetch).toHaveBeenCalledTimes(2);
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+      await nextTask();
+      const duplicate = aui.thread.resumeRun({ parentId: "answer" });
+      const settled = Promise.allSettled([pending, duplicate]);
+      expect(fetch.mock.calls[1]?.[0]).toBe("/api/resume/stream-1");
+      emit(
+        resumed,
+        { type: "start", messageId: "answer" },
+        { type: "text-start", id: "text" },
+        { type: "text-delta", id: "text", delta: "Partial complete" },
+        { type: "text-end", id: "text" },
+        { type: "finish" },
+      );
+      resumed.close();
+      expect(await settled).toEqual([
+        { status: "fulfilled", value: undefined },
+        { status: "fulfilled", value: undefined },
+      ]);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      await vi.waitFor(() => {
+        const state = aui.thread.getState();
+        expect(state.isRunning).toBe(false);
+        expect(state.canResume).toBe(false);
+        expect(state.messages).toHaveLength(2);
+        expect(state.messages.at(-1)?.id).toBe("answer");
+        expect(state.messages.at(-1)?.parts).toEqual([
+          expect.objectContaining({ type: "text", text: "Partial complete" }),
+        ]);
+      });
+      expect(storage.getStreamId("main")).toBeNull();
+    } finally {
+      handle.destroy();
+      storage.clear();
+    }
+  });
+
+  it.each([undefined, "different-answer"])(
+    "AI SDK replay with messageId=%s appends instead of replacing a partial answer",
+    async (messageId) => {
+      const transport = {
+        sendMessages: vi.fn<ChatTransport<UIMessage>["sendMessages"]>(),
+        reconnectToStream: vi.fn(
+          async () =>
+            new ReadableStream<UIMessageChunk>({
+              start(controller) {
+                for (const chunk of [
+                  {
+                    type: "start",
+                    ...(messageId !== undefined && { messageId }),
+                  },
+                  { type: "text-start", id: "text" },
+                  { type: "text-delta", id: "text", delta: "Partial complete" },
+                  { type: "text-end", id: "text" },
+                  { type: "finish" },
+                ] satisfies UIMessageChunk[]) {
+                  controller.enqueue(chunk);
+                }
+                controller.close();
+              },
+            }),
+        ),
+      } satisfies ChatTransport<UIMessage>;
+      const chat = createChat(
+        {
+          id: "main",
+          transport,
+          messages: [
+            {
+              id: "user",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+            {
+              id: "answer",
+              role: "assistant",
+              parts: [{ type: "text", text: "Partial" }],
+            },
+          ],
+        },
+        { current: {} },
+      );
+
+      await chat.resumeStream();
+
+      expect(chat.error).toBeUndefined();
+      expect(transport.sendMessages).not.toHaveBeenCalled();
+      expect(chat.messages).toHaveLength(3);
+      expect(chat.messages[1]?.parts).toEqual([
+        { type: "text", text: "Partial" },
+      ]);
+      expect(chat.messages.at(-1)?.id).not.toBe("answer");
+      expect(chat.messages.at(-1)?.parts).toEqual([
+        expect.objectContaining({ type: "text", text: "Partial complete" }),
+      ]);
     },
   );
 

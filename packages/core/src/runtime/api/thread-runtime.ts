@@ -176,6 +176,8 @@ export type ThreadRuntimeState = {
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
   readonly isRunning: boolean;
+  /** Whether the adapter can resume the current interrupted run from its checkpoint. */
+  readonly canResume?: boolean;
 
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
@@ -244,6 +246,7 @@ export const getThreadState = (
     hasEarlier: runtime.hasEarlier ?? false,
     isLoadingEarlier: runtime.isLoadingEarlier ?? false,
     isRunning: getThreadRuntimeCoreIsRunning(runtime),
+    canResume: runtime.canResume ?? false,
     messages: runtime.messages,
     state: runtime.state,
     suggestions: runtime.suggestions,

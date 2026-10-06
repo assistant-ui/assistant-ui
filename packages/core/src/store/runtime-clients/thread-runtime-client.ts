@@ -194,6 +194,7 @@ const useThreadClient = ({
       hasEarlier: runtimeState.hasEarlier,
       isLoadingEarlier: runtimeState.isLoadingEarlier,
       isRunning: runtimeState.isRunning,
+      canResume: runtimeState.canResume ?? false,
       capabilities: runtimeState.capabilities,
       state: runtimeState.state,
       suggestions: runtimeState.suggestions,
