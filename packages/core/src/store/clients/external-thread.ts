@@ -1106,6 +1106,7 @@ const useComposerClientResource = ({
     const submitted = submissionRef.current ?? current;
     if (!submitted.text.trim() && finalAttachments.length === 0) {
       endSubmission();
+      returnToDraft({ ...submitted, attachments: [] });
       return;
     }
     dispatchMessage(submitted, finalAttachments, context, true);

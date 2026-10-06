@@ -410,7 +410,7 @@ export abstract class BaseComposerRuntimeCore
     );
     if (!submission.text.trim() && finalAttachments.length === 0) {
       this._endSubmission();
-      this._notifySubscribers();
+      this._returnToDraft({ ...submission, attachments: [] });
       return;
     }
     this._dispatch(generation, submission, finalAttachments, context, true);

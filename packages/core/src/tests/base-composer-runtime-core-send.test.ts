@@ -782,7 +782,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(message.attachments).toHaveLength(0);
   });
 
-  it("does not dispatch an empty message when the only attachment is removed while it is prepared", async () => {
+  it("does not dispatch an empty message when the only attachment is removed while it is prepared, keeping its quote", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({
       send: (a) =>
@@ -794,6 +794,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     const { composer, append } = makeComposer(adapter);
 
     await composer.addAttachment(textFile());
+    composer.setQuote({ text: "quoted", messageId: "m-1" });
 
     const sendPromise = composer.send();
     await composer.removeAttachment("att-1");
@@ -803,6 +804,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(append).not.toHaveBeenCalled();
     expect(composer.submission).toBeUndefined();
     expect(composer.attachments).toEqual([]);
+    expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
   });
 
   it("keeps an attachment re-added under a removed id during an in-flight send", async () => {
