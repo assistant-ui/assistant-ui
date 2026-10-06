@@ -1,0 +1,109 @@
+---
+title: Styled components
+description: Install the registry thread and thread list, then restyle or extend the copied components.
+---
+
+The Vue registry has two styled items: `thread` and `thread-list`. Install them with shadcn-vue. It copies their Vue files into your app, where you can edit the markup and styles directly. The [quickstart](/docs/vue/quickstart) shows the Nuxt setup and runtime that hosts them.
+
+## Install
+
+Add the assistant-ui registry to `components.json`:
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/vue/{name}.json"
+  }
+}
+```
+
+Then install both items:
+
+```sh
+npx shadcn-vue@latest add @assistant-ui/thread @assistant-ui/thread-list
+```
+
+The `thread` item declares `@assistant-ui/core`, `@assistant-ui/vue`, `@lucide/vue`, `markdown-it`, and `reka-ui` as dependencies, plus `@types/markdown-it` as a development dependency. The `thread-list` item declares `@assistant-ui/vue`, `reka-ui`, and `@lucide/vue`. The installed files land in `app/components/assistant-ui`.
+
+## What each file renders
+
+| File | Renders |
+|---|---|
+| `thread.vue` | Empty state and suggestions, message list, scroll button, attachment controls, and composer. |
+| `message.vue` | User and assistant rows, part renderers, edit controls, copy and regenerate actions, branch controls, and errors. |
+| `markdown-text.vue` | Assistant text and reasoning text as `markdown-it` HTML with local typography styles. |
+| `reasoning.vue` | A collapsible group of consecutive reasoning parts, open while streaming unless the user changes it. |
+| `tool-fallback.vue` | A collapsible tool call with status, arguments, result, and approval controls when no registered tool UI handles it. |
+| `thread-list.vue` | New Thread button, search, loading rows, date groups, thread selection, and an Archive and Delete menu. |
+
+The `thread` item copies the first five files. The `thread-list` item copies `thread-list.vue`.
+
+## Theme tokens
+
+The kit uses shadcn color utilities such as `bg-background`, `text-foreground`, `bg-primary`, `text-primary-foreground`, `bg-muted`, `text-muted-foreground`, `border-border`, `bg-popover`, `text-popover-foreground`, `bg-accent`, `text-accent-foreground`, `text-destructive`, `bg-input`, and `ring-ring`. The markdown renderer also reads `--color-muted`, `--color-border`, and `--color-muted-foreground` directly.
+
+Define the values in your app stylesheet, such as `app/assets/css/main.css`. The Nuxt template maps shadcn variables like `--background` and `--primary` to Tailwind v4 colors inside `@theme inline`, defines light values in `:root`, and includes `@source "../../components/assistant-ui";` so Tailwind scans the copied files. Its `nuxt.config.ts` loads that stylesheet.
+
+The list has `dark:` styles for its input. Dark colors apply only when your CSS defines a `.dark` theme and a matching dark variant. The `with-nuxt` example defines both; the Nuxt template supplies light tokens only.
+
+## Customize the thread
+
+Edit the heading inside the empty thread condition in `thread.vue` to change the greeting. `ThreadPrimitiveSuggestions` repeats the runtime's suggestions there, so change the trigger layout in the same file or see [Suggestions](/docs/vue/suggestions) for supplying their content.
+
+In `message.vue`, the assistant row names renderers for text, reasoning, and tool calls. Image, file, and source parts have no slot in the copied file, so they render nothing. Add a `#default` slot to the assistant and user `MessagePrimitiveParts` instances to render those types. A component in the slot reads the current part scope:
+
+```vue title="app/components/OtherPart.vue"
+<script setup lang="ts">
+import { useAuiState } from "@assistant-ui/vue";
+
+const part = useAuiState((s) => s.part);
+</script>
+
+<template>
+  <img
+    v-if="part.type === 'image'"
+    :src="part.image"
+    :alt="part.filename ?? 'Attached image'"
+    class="max-w-full rounded-lg"
+  />
+  <span v-else-if="part.type === 'file'" class="text-sm">
+    {{ part.filename ?? "File" }} ({{ part.mimeType }})
+  </span>
+  <a
+    v-else-if="part.type === 'source' && part.sourceType === 'url'"
+    :href="part.url"
+    class="underline"
+  >
+    {{ part.title ?? part.url }}
+  </a>
+  <span v-else-if="part.type === 'source'" class="text-sm">
+    {{ part.title }}
+  </span>
+</template>
+```
+
+Import it into the copied `message.vue` and add the slot beside the named slots. This excerpt is abridged:
+
+```vue
+<script setup lang="ts">
+import OtherPart from "~/components/OtherPart.vue";
+</script>
+
+<template>
+  <MessagePrimitiveParts v-if="role === 'assistant'">
+    <template #text><MarkdownText /></template>
+    <template #reasoning><Reasoning /></template>
+    <template #tool-call><ToolFallback /></template>
+    <template #default><OtherPart /></template>
+  </MessagePrimitiveParts>
+  <MessagePrimitiveParts v-else>
+    <template #default><OtherPart /></template>
+  </MessagePrimitiveParts>
+</template>
+```
+
+Text in the user row keeps its default plain rendering when you add `#default`. To replace the assistant markdown renderer, change the `#text` slot and see [Markdown](/docs/vue/markdown). Tool UIs registered in the tools scope take precedence over `tool-fallback.vue`; see [Tool UI](/docs/vue/tool-ui).
+
+## The thread list menu
+
+`thread-list.vue` uses reka-ui `DropdownMenuRoot`, `DropdownMenuTrigger`, `DropdownMenuContent`, and `DropdownMenuItem` for each thread's Archive and Delete actions. The content has `animate-in`, `animate-out`, fade, zoom, and slide classes from `tw-animate-css`. The registry item does not declare that CSS package. Install and import `tw-animate-css` in your app stylesheet if you want those transitions; the menu still opens without them. See [Thread list](/docs/vue/thread-list) for the list's runtime and behavior.
