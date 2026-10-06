@@ -410,7 +410,7 @@ describe("addToolCallPart with an immediate response", () => {
 });
 
 describe("tool-call finish ordering", () => {
-  it("keeps insertion order across uneven argument backlogs", async () => {
+  it("keeps close order across uneven argument backlogs", async () => {
     const chunks = await collectChunks(
       createAssistantStream((controller) => {
         const first = controller.addToolCallPart("first");

@@ -283,14 +283,13 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
     const delivered = promiseWithResolvers<void>();
     let previous = Promise.resolve();
-    const [stream, createdController] = createToolCallStreamController({
+    const [stream, controller] = createToolCallStreamController({
       strict: this._state.strict,
       onClose: () => {
         previous = this._state.lastToolCallFinish;
         this._state.lastToolCallFinish = delivered.promise;
       },
     });
-    const controller = createdController;
     this._addPart(
       {
         type: "tool-call",

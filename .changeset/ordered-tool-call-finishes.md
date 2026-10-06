@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix: keep tool-call finish chunks in insertion order
+fix: deliver tool-call finish chunks in the order the tool calls close
