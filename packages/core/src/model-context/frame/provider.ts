@@ -345,8 +345,8 @@ export class AssistantFrameProvider {
 
       instance.broadcastUpdate();
     } catch (error) {
-      // Withdraw through the origin that received the tools, before callbacks
-      // can register providers under a recomputed policy.
+      // The withdrawal goes to the origin that received the tools before any
+      // callback can register a provider under the recomputed policy.
       const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
@@ -377,8 +377,8 @@ export class AssistantFrameProvider {
     return () => {
       if (released) return;
       released = true;
-      // Withdraw through the origin that received the tools, before callbacks
-      // can register providers under a recomputed policy.
+      // The withdrawal goes to the origin that received the tools before any
+      // callback can register a provider under the recomputed policy.
       const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
