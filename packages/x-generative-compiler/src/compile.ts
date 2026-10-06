@@ -2047,9 +2047,8 @@ function isRemovableInit(node: t.Expression | null | undefined): boolean {
 function isRemovableJSX(node: t.JSXElement | t.JSXFragment): boolean {
   if (t.isJSXElement(node)) {
     for (const attribute of node.openingElement.attributes) {
-      if (t.isJSXSpreadAttribute(attribute)) {
-        if (!isRemovableInit(attribute.argument)) return false;
-      } else if (attribute.value && !isRemovableJSXChild(attribute.value)) {
+      if (t.isJSXSpreadAttribute(attribute)) return false;
+      if (attribute.value && !isRemovableJSXChild(attribute.value)) {
         return false;
       }
     }
@@ -2066,7 +2065,7 @@ function isRemovableJSXChild(
       isRemovableInit(node.expression)
     );
   }
-  if (t.isJSXSpreadChild(node)) return isRemovableInit(node.expression);
+  if (t.isJSXSpreadChild(node)) return false;
   if (t.isJSXElement(node) || t.isJSXFragment(node)) {
     return isRemovableJSX(node);
   }

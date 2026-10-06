@@ -1845,6 +1845,24 @@ export default defineToolkit({
     expect(code).toContain("track()");
   });
 
+  it("keeps an unused JSX initializer that spreads props", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget {...props} />;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("Widget");
+  });
+
+  it("keeps an unused JSX initializer that spreads children", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget>{...items}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("Widget");
+  });
+
   it("prunes an unused JSX initializer without calls", () => {
     const src = minimalSource.replace(
       "export default",
