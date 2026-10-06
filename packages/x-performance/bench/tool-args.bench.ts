@@ -4,13 +4,11 @@ import {
   unstable_toolResultStream,
   type AssistantStreamChunk,
 } from "assistant-stream";
-import { IncrementalJsonObjectParser } from "assistant-stream/utils";
 
 const makeChunks = (
-  size: number,
+  argsText: string,
   chunkSize: number,
 ): AssistantStreamChunk[] => {
-  const argsText = JSON.stringify({ value: "x".repeat(size) });
   return [
     {
       type: "part-start",
@@ -73,17 +71,9 @@ const drainActiveReader = async (chunks: AssistantStreamChunk[]) => {
   return Promise.all(reads);
 };
 
-const parseInDeltas = (text: string, chunkSize: number) => {
-  let parser = IncrementalJsonObjectParser.from("");
-  for (let offset = 0; offset < text.length; offset += chunkSize) {
-    parser = parser.append(text.slice(offset, offset + chunkSize));
-  }
-  return parser;
-};
-
 describe("assistant-stream: execute-only tool arguments (16-char deltas)", () => {
   for (const size of [1000, 5000, 10000]) {
-    const chunks = makeChunks(size, 16);
+    const chunks = makeChunks(JSON.stringify({ value: "x".repeat(size) }), 16);
     test(`${size} bytes`, async ({ bench }) => {
       await bench(`${size} bytes`, async () => {
         await drain(
@@ -107,7 +97,7 @@ describe("assistant-stream: execute-only tool arguments (16-char deltas)", () =>
 
 describe("assistant-stream: accumulator tool arguments (16-char deltas)", () => {
   for (const size of [1000, 5000, 10000]) {
-    const chunks = makeChunks(size, 16);
+    const chunks = makeChunks(JSON.stringify({ value: "x".repeat(size) }), 16);
     test(`${size} bytes`, async ({ bench }) => {
       const probe = await drainAccumulator(chunks);
       const part = probe.parts[0];
@@ -128,7 +118,7 @@ describe("assistant-stream: accumulator tool arguments (16-char deltas)", () => 
 
 describe("assistant-stream: active-reader tool arguments (16-char deltas)", () => {
   for (const size of [1000, 5000, 10000]) {
-    const chunks = makeChunks(size, 16);
+    const chunks = makeChunks(JSON.stringify({ value: "x".repeat(size) }), 16);
     test(`${size} bytes`, async ({ bench }) => {
       const probe = await drainActiveReader(chunks);
       if (!probe.includes("x".repeat(size))) {
@@ -141,42 +131,59 @@ describe("assistant-stream: active-reader tool arguments (16-char deltas)", () =
   }
 });
 
-describe("assistant-stream: complete tool arguments (single delta)", () => {
+describe("assistant-stream: complete accumulated arguments (single delta)", () => {
   const argsText = JSON.stringify({
     points: Array.from({ length: 10_000 }, (_, index) => index + 0.5),
   });
+  const chunks = makeChunks(argsText, argsText.length);
 
   test("10,000 array elements", async ({ bench }) => {
-    const probe = IncrementalJsonObjectParser.from(argsText);
+    const probe = await drainAccumulator(chunks);
+    const part = probe.parts[0];
     if (
-      !Array.isArray(probe.currentArgs.points) ||
-      probe.currentArgs.points.length !== 10_000
+      part?.type !== "tool-call" ||
+      !Array.isArray(part.args.points) ||
+      part.args.points.length !== 10_000 ||
+      part.args.points.at(-1) !== 9_999.5
     ) {
       throw new Error("Single-delta benchmark did not parse tool arguments");
     }
 
-    await bench("10,000 array elements", () => {
-      IncrementalJsonObjectParser.from(argsText);
+    await bench("10,000 array elements", async () => {
+      await drainAccumulator(chunks);
     }).run(inject("benchSampling"));
   });
 });
 
-describe("assistant-stream: dense tool arguments (16-char deltas)", () => {
-  const points = Array.from({ length: 10_000 }, (_, index) => index + 0.5);
-  const argsText = JSON.stringify({ points });
+describe("assistant-stream: dense accumulated arguments (16-char deltas)", () => {
+  for (const [shape, size] of [
+    ["array", 2_000],
+    ["object", 2_000],
+  ] as const) {
+    const values = Array.from({ length: size }, (_, index) => index + 0.5);
+    const argsText = JSON.stringify(
+      shape === "array"
+        ? { points: values }
+        : Object.fromEntries(
+            values.map((value, index) => [`key${index}`, value]),
+          ),
+    );
+    const chunks = makeChunks(argsText, 16);
+    test(`${size.toLocaleString("en-US")} ${shape} entries`, async ({
+      bench,
+    }) => {
+      const probe = await drainAccumulator(chunks);
+      const part = probe.parts[0];
+      if (
+        part?.type !== "tool-call" ||
+        JSON.stringify(part.args) !== argsText
+      ) {
+        throw new Error("Dense-delta benchmark did not parse tool arguments");
+      }
 
-  test("10,000 array elements", async ({ bench }) => {
-    const probe = parseInDeltas(argsText, 16);
-    if (
-      !Array.isArray(probe.currentArgs.points) ||
-      probe.currentArgs.points.length !== 10_000 ||
-      probe.currentArgs.points.at(-1) !== 9_999.5
-    ) {
-      throw new Error("Dense-delta benchmark did not parse tool arguments");
-    }
-
-    await bench("10,000 array elements", () => {
-      parseInDeltas(argsText, 16);
-    }).run(inject("benchSampling"));
-  });
+      await bench(`${size.toLocaleString("en-US")} ${shape} entries`, async () => {
+        await drainAccumulator(chunks);
+      }).run(inject("benchSampling"));
+    });
+  }
 });

@@ -91,7 +91,7 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).toHaveBeenCalledTimes(2);
   });
 
-  it("parses completed arguments for a late reader", async () => {
+  it("parses completed arguments once for late readers", async () => {
     parsePartialJsonObjectCalls.mockClear();
     const reader = createReader();
 
@@ -100,9 +100,12 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
     await expect(reader.args.get("required")).resolves.toBe("hello");
-    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
-      '{"required":"hello"}',
-    );
+    await expect(reader.args.get("required")).resolves.toBe("hello");
+    expect(
+      parsePartialJsonObjectCalls.mock.calls.filter(
+        ([text]) => text === '{"required":"hello"}',
+      ),
+    ).toHaveLength(1);
   });
 
   it("stops parsing after a reader is cancelled", async () => {

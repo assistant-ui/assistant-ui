@@ -155,10 +155,31 @@ export class IncrementalJsonObjectParser {
     fallback: ReadonlyJSONObject = parsePartialJsonObject("")!,
   ) {
     const parser = new IncrementalJsonObjectParser(fallback);
-    parser.consumeDelta(text, true);
     if (text.length !== 0) {
       parser.text = { length: text.length, previous: undefined, value: text };
     }
+    const complete = text.trimEnd().endsWith("}")
+      ? parsePartialJsonObject(text)
+      : undefined;
+    if (complete && getPartialJsonObjectMeta(complete)?.state === "complete") {
+      const pending: MutableJSONContainer[] = [complete];
+      while (pending.length > 0) {
+        const container = pending.pop()!;
+        const values = Array.isArray(container)
+          ? container
+          : Object.values(container);
+        for (const value of values) {
+          if (!isContainer(value)) continue;
+          Object.freeze(value);
+          pending.push(value);
+        }
+      }
+      parser.root = { ...complete };
+      parser.args = complete;
+      parser.mode = "complete";
+      return parser;
+    }
+    parser.consumeDelta(text, true);
     parser.args = parser.snapshot(fallback);
     return parser;
   }
@@ -173,6 +194,8 @@ export class IncrementalJsonObjectParser {
 
   append(delta: string) {
     if (delta.length === 0) return this;
+    if (this.currentTextLength === 0)
+      return IncrementalJsonObjectParser.from(delta, this.args);
 
     const parser = this.clone();
     const fallback = this.args;

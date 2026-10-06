@@ -2112,8 +2112,6 @@ export const registry: RegistryItem[] = [
   },
 ];
 
-export const vueRegistry: RegistryItem[] = [];
-
 type NativeElementRegistryEntry = {
   slug: string;
   title: string;
@@ -2612,12 +2610,7 @@ export const nativeRegistry: RegistryItem[] = [
   },
 ];
 
-/**
- * Vue items staged for the `@assistant-ui/vue` publish flip. The build
- * machinery and tests exercise them, but they stay out of the emitted
- * registry until the package they install is public.
- */
-export const stagedVueRegistry: RegistryItem[] = [
+export const vueRegistry: RegistryItem[] = [
   {
     name: "thread-list",
     type: "registry:component",

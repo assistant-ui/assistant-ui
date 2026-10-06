@@ -170,6 +170,19 @@ describe("IncrementalJsonObjectParser", () => {
     expect(mutableArgs.extra).toBe("visible");
   });
 
+  it("isolates complete initial arguments from caller mutations", () => {
+    const parser = IncrementalJsonObjectParser.from(
+      ' {"values":[1,{"nested":true}],"label":"original"} \n',
+    );
+    const args = parser.currentArgs as Record<string, unknown>;
+    args.label = "changed";
+    expect(() => (args.values as number[]).push(2)).toThrow();
+    expect(parser.append(" ").currentArgs).toMatchObject({
+      values: [1, { nested: true }],
+      label: "original",
+    });
+  });
+
   it("prevents nested snapshot mutations from changing later snapshots", () => {
     const parser = IncrementalJsonObjectParser.from(
       '{"values":[1,{"nested":true}',
