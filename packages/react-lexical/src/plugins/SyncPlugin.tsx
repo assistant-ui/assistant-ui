@@ -329,18 +329,20 @@ function collectPreservedDirectives(
 function syncRuntimeToLexical(
   editor: LexicalEditor,
   runtimeText: string,
-  parsedLines: ParsedLines,
+  parse: CompositeParser,
   previousParser: CompositeParser | undefined,
   onComplete: () => void,
+  parsedLines?: ParsedLines,
 ) {
   const parserOnly = previousParser !== undefined;
   editor.update(
     () => {
+      const lines = parsedLines ?? getParsedLines(runtimeText, parse);
       const root = $getRoot();
       const preserved = parserOnly
         ? collectPreservedDirectives(
             getParsedLines(runtimeText, previousParser),
-            parsedLines,
+            lines,
           )
         : undefined;
       const caretOffset = parserOnly ? $getCollapsedRuntimeOffset() : undefined;
@@ -353,7 +355,7 @@ function syncRuntimeToLexical(
         return;
       }
 
-      for (const segments of parsedLines) {
+      for (const segments of lines) {
         const paragraph = $createParagraphNode();
 
         for (const { segment, formatter } of segments) {
@@ -500,7 +502,7 @@ export function SyncPlugin({
     const applyRuntimeText = (
       runtimeText: string,
       previousParser: CompositeParser | undefined,
-      parsedLines = getParsedLines(runtimeText, parser),
+      parsedLines?: ParsedLines,
     ) => {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
@@ -509,11 +511,12 @@ export function SyncPlugin({
       syncRuntimeToLexical(
         editor,
         runtimeText,
-        parsedLines,
+        parser,
         previousParser,
         () => {
           isSyncingFromRuntimeRef.current = false;
         },
+        parsedLines,
       );
     };
 
