@@ -1,7 +1,7 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { contentToParts } from "./contentToParts";
 import { parseAdkEventValue } from "./parseAdkEvent";
-import { raceWithAbortSignal } from "./raceWithAbortSignal";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {

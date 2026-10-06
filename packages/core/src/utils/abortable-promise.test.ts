@@ -2,6 +2,28 @@ import { describe, expect, it, vi } from "vitest";
 import { raceWithAbortSignal } from "./abortable-promise";
 
 describe("raceWithAbortSignal", () => {
+  it("invokes the operation synchronously without a signal", async () => {
+    const order: string[] = [];
+
+    const result = raceWithAbortSignal(undefined, () => {
+      order.push("operation");
+      return "done";
+    });
+    order.push("after");
+
+    expect(order).toEqual(["operation", "after"]);
+    await expect(result).resolves.toBe("done");
+  });
+
+  it("turns a synchronous throw without a signal into a rejection", async () => {
+    const error = new Error("failed");
+    const result = raceWithAbortSignal(undefined, () => {
+      throw error;
+    });
+
+    await expect(result).rejects.toBe(error);
+  });
+
   it("does not start an operation after cancellation", async () => {
     const controller = new AbortController();
     const reason = new Error("cancelled");
