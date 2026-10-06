@@ -43,6 +43,10 @@ export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
 };
 
+/** Returns the client ref for the enclosing store, if one exists. */
+export const useOptionalAssistantClientRef = () =>
+  use(AssistantTapContext)?.clientRef;
+
 /**
  * Runs a registration effect that follows the bound client instance of one
  * scope: when a structural change remounts or replaces that instance, the
