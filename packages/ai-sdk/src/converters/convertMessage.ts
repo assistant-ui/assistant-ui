@@ -123,7 +123,8 @@ function extractMcpAppMetadata(
       ...(Array.isArray(candidateApp["visibility"]) && {
         visibility: candidateApp["visibility"],
       }),
-      ...(typeof candidateApp["serverId"] === "string" &&
+      ...(candidate === providerApp &&
+        typeof candidateApp["serverId"] === "string" &&
         candidateApp["serverId"].length > 0 && {
           serverId: candidateApp["serverId"],
         }),
