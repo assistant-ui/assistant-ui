@@ -719,10 +719,11 @@ export class PiThreadController implements PiThreadControllerLike {
       );
     }
 
+    const pending = this.registerPendingSend();
     const optimisticSend = this.beginOptimisticSend(optimisticInput);
 
     try {
-      await this.dispatchMessage(message, behavior);
+      await this.dispatchMessage(message, behavior, pending);
     } catch (error) {
       this.rollbackOptimisticSend(optimisticSend, error);
       if (error === sendAbandonedError) return;
@@ -745,11 +746,11 @@ export class PiThreadController implements PiThreadControllerLike {
       ...this.state.queue,
       [mode]: [...this.state.queue[mode], content],
     };
+    const pending = this.registerPendingSend({ mode, content });
     this.setState({ ...this.state, queue: optimisticQueue });
 
     try {
-      await this.dispatchMessage(message, behavior, {
-        queueEntry: { mode, content },
+      await this.dispatchMessage(message, behavior, pending, {
         onRunStateResolved: (runIsActive) => {
           if (runIsActive) return;
 
@@ -809,21 +810,25 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
+  private registerPendingSend(queueEntry?: PendingQueueEntry): PendingSend {
+    const pending: PendingSend = {
+      controller: new AbortController(),
+      accepted: false,
+      ...(queueEntry ? { queueEntry } : {}),
+    };
+    this.pendingSends.add(pending);
+    return pending;
+  }
+
   private dispatchMessage(
     message: AppendMessage,
     behavior: "followUp" | "steer" | undefined,
+    pending: PendingSend,
     options?: {
       onRunStateResolved: (runIsActive: boolean) => void;
-      queueEntry: PendingQueueEntry;
     },
   ) {
-    const abortController = new AbortController();
-    const pending: PendingSend = {
-      controller: abortController,
-      accepted: false,
-      ...(options?.queueEntry ? { queueEntry: options.queueEntry } : {}),
-    };
-    this.pendingSends.add(pending);
+    const abortController = pending.controller;
     const previousRequest = this.sendDispatchTail;
     const request = (async () => {
       try {

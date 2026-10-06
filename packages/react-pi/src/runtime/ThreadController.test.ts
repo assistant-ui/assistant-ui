@@ -1482,6 +1482,26 @@ describe("PiThreadController", () => {
     expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
   });
 
+  it("does not dispatch an idle send cancelled by its optimistic notification", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    let cancelled = false;
+    const unsubscribe = controller.subscribe(() => {
+      if (cancelled || controller.getState().runStatus !== "running") return;
+      cancelled = true;
+      void controller.cancel();
+    });
+
+    const error = await controller
+      .sendMessage(userMessage("cancelled"))
+      .catch((reason: unknown) => reason);
+
+    unsubscribe();
+    expect(cancelled).toBe(true);
+    expect(isMessageNotSentError(error)).toBe(true);
+    expect(client.sent).toHaveLength(0);
+  });
+
   it("removes a cold-cancelled optimistic message before the next send", async () => {
     const client = createFakeClient();
     let resolveFirstSend!: () => void;
@@ -1687,6 +1707,36 @@ describe("PiThreadController", () => {
     expect(cancelled).toBe(true);
     expect(isMessageNotSentError(error)).toBe(true);
     expect(client.sent).toHaveLength(0);
+  });
+
+  it("does not dispatch a queued send cleared by its optimistic notification", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    let clearing: ReturnType<PiThreadController["clearQueue"]> | undefined;
+    const unsubscribe = controller.subscribe(() => {
+      if (
+        clearing ||
+        !controller.getState().queue.followUp.includes("queued")
+      ) {
+        return;
+      }
+      clearing = controller.clearQueue();
+    });
+
+    await expect(
+      controller.sendMessage(userMessage("queued")),
+    ).resolves.toBeUndefined();
+    expect(clearing).toBeDefined();
+    await expect(clearing).resolves.toEqual({
+      steering: [],
+      followUp: ["queued"],
+    });
+
+    unsubscribe();
+    expect(client.sent).toHaveLength(0);
+    expect(controller.getState().queue.followUp).toEqual([]);
   });
 
   it("clears the queue via the client and returns the cleared text", async () => {
