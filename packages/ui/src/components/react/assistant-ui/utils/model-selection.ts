@@ -140,7 +140,8 @@ export function useModelSelectorEfforts(): {
 
 // The popover re-evaluates collision flipping whenever the popup resizes, so
 // filtering the list down flips the popup back to the preferred side
-// mid-interaction. Feed the rendered side back as the preferred side, making
+// mid-interaction. Base UI only exposes lazy flipping on the Combobox
+// positioner, so feed the rendered side back as the preferred side, making
 // the popup keep its side until it no longer fits.
 export function useLazyFlipSide<TSide extends string>(): {
   side: TSide | undefined;
