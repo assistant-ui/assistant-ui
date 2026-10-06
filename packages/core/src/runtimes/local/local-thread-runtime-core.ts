@@ -952,6 +952,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
@@ -1004,7 +1005,11 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    if (active && message.status?.type !== "requires-action") {
+    if (
+      active &&
+      !generation.aborted &&
+      message.status?.type !== "requires-action"
+    ) {
       this._generateSuggestions();
     }
   }
