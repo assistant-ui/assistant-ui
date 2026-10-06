@@ -4,7 +4,7 @@ import {
   DEFAULT_CONFIG,
   type BuilderConfig,
 } from "@/components/pages/playground/types";
-import { decodeConfig } from "@/lib/playground-url-state";
+import { decodeConfig } from "@/lib/playground-config-codec";
 import { generateRegistryJson } from "@/lib/playground-registry";
 
 export function GET(request: NextRequest) {

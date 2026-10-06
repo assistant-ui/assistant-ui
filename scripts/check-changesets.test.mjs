@@ -11,13 +11,13 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { parseBumpLine } from "./lib/changesets.mjs";
+import { parseWorkspaceGlobs } from "./lib/workspace.mjs";
 import {
   findMissingPackageChangesets,
   findUnreleasablePackages,
   findChangedManifestFields,
   isReleaseRelevantPackageFile,
-  parseBumpLine,
-  parseWorkspaceGlobs,
   readSkipRules,
   readWorkspacePackages,
   runChangedPackageCheck,

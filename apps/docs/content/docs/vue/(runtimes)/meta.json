@@ -1,0 +1,7 @@
+{
+  "title": "Runtimes",
+  "description": "Connect the Vue primitives to the AI SDK, assistant-cloud, or your own message store",
+  "icon": "Server",
+  "root": true,
+  "pages": ["runtimes", "ai-sdk", "cloud", "external-store"]
+}
