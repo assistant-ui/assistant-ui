@@ -2557,6 +2557,7 @@ type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
     renderers?: Record<string, DataMessagePartComponent>;
   } | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
 };
 

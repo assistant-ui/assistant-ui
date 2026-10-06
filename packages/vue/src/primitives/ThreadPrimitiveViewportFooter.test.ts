@@ -115,7 +115,7 @@ const mountChatWithViewportGeometry = (
 const installResizeObserver = () => {
   const observers = new Set<ResizeObserverMock>();
   class ResizeObserverMock {
-    element: Element | null = null;
+    readonly elements = new Set<Element>();
     readonly callback: ResizeObserverCallback;
 
     constructor(callback: ResizeObserverCallback) {
@@ -124,12 +124,15 @@ const installResizeObserver = () => {
     }
 
     observe(element: Element) {
-      this.element = element;
+      this.elements.add(element);
     }
 
-    unobserve() {}
+    unobserve(element: Element) {
+      this.elements.delete(element);
+    }
 
     disconnect() {
+      this.elements.clear();
       observers.delete(this);
     }
 
@@ -145,7 +148,7 @@ const installResizeObserver = () => {
   return {
     trigger: (element: Element) => {
       for (const observer of observers) {
-        if (observer.element === element) observer.trigger();
+        if (observer.elements.has(element)) observer.trigger();
       }
     },
   };
@@ -164,29 +167,34 @@ afterEach(() => {
 });
 
 describe("ThreadPrimitiveViewport initial pinning", () => {
-  it("follows the first resize over overflowing history when initialization scroll is disabled", () => {
-    const observers = installResizeObserver();
-    const View = defineComponent({
-      setup: () => () =>
-        h(
-          ThreadPrimitiveViewport,
-          { class: "viewport", scrollToBottomOnInitialize: false },
-          { default: () => h("p", "history") },
-        ),
-    });
-    const { viewport, geometry, unmount } = mountChatWithViewportGeometry(
-      createTestRuntime(true),
-      View,
-    );
+  it.each(["viewport", "content"])(
+    "follows the first %s resize over overflowing history when initialization scroll is disabled",
+    (target) => {
+      const observers = installResizeObserver();
+      const View = defineComponent({
+        setup: () => () =>
+          h(
+            ThreadPrimitiveViewport,
+            { class: "viewport", scrollToBottomOnInitialize: false },
+            { default: () => h("p", "history") },
+          ),
+      });
+      const { viewport, geometry, unmount } = mountChatWithViewportGeometry(
+        createTestRuntime(true),
+        View,
+      );
 
-    observers.trigger(viewport);
-    expect(geometry.scrollTo).toHaveBeenCalledWith({
-      top: 500,
-      behavior: "instant",
-    });
-    expect(viewport.scrollTop).toBe(400);
-    unmount();
-  });
+      observers.trigger(
+        target === "viewport" ? viewport : viewport.firstElementChild!,
+      );
+      expect(geometry.scrollTo).toHaveBeenCalledWith({
+        top: 500,
+        behavior: "instant",
+      });
+      expect(viewport.scrollTop).toBe(400);
+      unmount();
+    },
+  );
 
   it("follows a footer height reported before the viewport attaches", () => {
     installResizeObserver();
