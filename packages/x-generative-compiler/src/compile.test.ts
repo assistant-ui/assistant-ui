@@ -1776,6 +1776,54 @@ export default defineToolkit({
       "getWeather",
     );
   });
+
+  it("keeps an unused class with a static block", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static { register(); } }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused class with a static initializer", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static x = track(); }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("track()");
+  });
+
+  it("keeps an unused class expression with a static block", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const C = class { static { register(); } };\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("const C = class");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused class with an evaluated superclass", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry extends make() {}\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry extends make()");
+  });
+
+  it("prunes an unused class with only methods and literal static fields", () => {
+    const src = minimalSource.replace(
+      "export default",
+      'class Registry { method() {} static label = "x"; }\nexport default',
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).not.toContain("class Registry");
+  });
 });
 
 describe("compileGenerative — diagnostics", () => {
