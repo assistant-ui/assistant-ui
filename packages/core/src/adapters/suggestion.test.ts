@@ -24,7 +24,7 @@ const message = (
   }) as unknown as ThreadMessage;
 
 describe("createSuggestionAdapter", () => {
-  it("keeps inline factory identity stable and exposes explicit replacement keys", () => {
+  it("leaves keyless factory adapters keyless and exposes explicit replacement keys", () => {
     const complete = vi.fn().mockResolvedValue(["follow up"]);
     const implicitFirst = createSuggestionAdapter({ complete });
     const implicitSecond = createSuggestionAdapter({ complete });
@@ -32,7 +32,7 @@ describe("createSuggestionAdapter", () => {
     const second = createSuggestionAdapter({ complete, key: "second" });
 
     expect(implicitFirst.generate).not.toBe(implicitSecond.generate);
-    expect(implicitFirst.key).toBe(implicitSecond.key);
+    expect("key" in implicitFirst).toBe(false);
     expect(first.key).toBe("first");
     expect(second.key).toBe("second");
   });

@@ -235,13 +235,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Local, data-stream, and AI SDK runtimes treat keyless inline adapters as one
-logical adapter across rerenders. `createSuggestionAdapter` supplies a stable
-default key. If changing an adapter's inputs should immediately regenerate
-suggestions for an already-settled response, pass a `key` that changes with
-those inputs. Switching between separately created keyless adapters also
-requires changing the `key`; object or factory identity alone does not select a
-replacement.
+Local, data-stream, and AI SDK runtimes treat a keyless adapter, inline or from `createSuggestionAdapter`, as one logical adapter across rerenders. If changing an adapter's inputs should immediately regenerate suggestions for an already-settled response, pass a `key` that changes with those inputs. Switching between separately created keyless adapters also requires changing the `key`; object or factory identity alone does not select a replacement.
 
 Example route that returns suggestion strings with the AI SDK:
 

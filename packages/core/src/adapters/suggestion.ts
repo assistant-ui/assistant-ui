@@ -49,8 +49,6 @@ export type CreateSuggestionAdapterOptions = {
   maxMessages?: number | undefined;
 };
 
-const DEFAULT_CREATED_ADAPTER_KEY = Symbol("createSuggestionAdapter");
-
 export const createSuggestionAdapter = (
   options: CreateSuggestionAdapterOptions,
 ): SuggestionAdapter => {
@@ -58,7 +56,7 @@ export const createSuggestionAdapter = (
   const maxMessages = options.maxMessages ?? 10;
 
   return {
-    key: options.key ?? DEFAULT_CREATED_ADAPTER_KEY,
+    ...(options.key !== undefined && { key: options.key }),
     async generate({ messages, signal }) {
       const limit = Math.max(0, Math.floor(maxMessages));
       const recent = limit === 0 ? [] : messages.slice(-limit);
