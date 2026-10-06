@@ -6733,7 +6733,7 @@ declare const promoteNewThreadReducer: (state: RemoteThreadState, threadIdOrRemo
 
 declare function providerTool(_config: ProviderToolConfig): never;
 
-declare const raceWithAbortSignal: <T>(signal: AbortSignal, operation: () => T | PromiseLike<T>) => Promise<T>;
+declare const raceWithAbortSignal: <T>(signal: AbortSignal | undefined, operation: () => T | PromiseLike<T>) => Promise<T>;
 
 declare function readToolInteractionLog(value: unknown): Unstable_ToolInteractionLog | undefined;
 
