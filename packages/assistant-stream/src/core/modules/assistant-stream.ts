@@ -165,6 +165,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk,
       AssistantStreamChunk
     >,
+    orderedFinish = false,
   ) {
     if (stream.locked) {
       throw new TypeError(
@@ -178,7 +179,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         await transformer.writable.abort(error).catch(() => undefined);
         throw error;
       });
-    this._state.merger.addStream(transformer.readable, pipeTask);
+    this._state.merger.addStream(
+      transformer.readable,
+      pipeTask,
+      orderedFinish ? { orderedFinish: true } : undefined,
+    );
   }
 
   private _addPart(part: PartInit, stream: AssistantStream) {
@@ -195,6 +200,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
+      part.type === "tool-call",
     );
   }
 

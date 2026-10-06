@@ -409,6 +409,31 @@ describe("addToolCallPart with an immediate response", () => {
   });
 });
 
+describe("tool-call finish ordering", () => {
+  it("keeps insertion order across uneven argument backlogs", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        const first = controller.addToolCallPart("first");
+        const second = controller.addToolCallPart("second");
+
+        first.argsText.append('{"value":"');
+        for (let index = 0; index < 20; index++) {
+          first.argsText.append(String(index % 10));
+        }
+        first.argsText.append('"}');
+        first.close();
+        second.close();
+      }),
+    );
+
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
+  });
+});
+
 describe("AssistantStreamController withParentId", () => {
   it("preserves a reasoning summary from addReasoningPart", async () => {
     const stream = createAssistantStream((controller) => {

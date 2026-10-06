@@ -166,6 +166,42 @@ describe("createMergeStream", () => {
     ]);
   });
 
+  it("orders opted-in finishes across uneven child backlogs", async () => {
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+    const first = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue(textDelta("first-1"));
+        controller.enqueue(textDelta("first-2"));
+        controller.enqueue({ type: "part-finish", path: [0] });
+        controller.close();
+      },
+    });
+    const second = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({ type: "part-finish", path: [1] });
+        controller.close();
+      },
+    });
+
+    merger.addStream(first, undefined, { orderedFinish: true });
+    merger.addStream(second, undefined, { orderedFinish: true });
+    merger.seal();
+    await merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+
+    expect(
+      received
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
+  });
+
   it("propagates child errors while raw chunks are pending", async () => {
     const error = new Error("child failed");
     const consoleError = vi

@@ -124,4 +124,23 @@ describe("registry-backed decoders", () => {
       ),
     ).toHaveLength(2);
   });
+
+  it("finishes tool calls in input order with uneven argument backlogs", async () => {
+    const chunks = await decodeDataStream([
+      'b:{"toolCallId":"t0","toolName":"search"}',
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      ...Array.from(
+        { length: 20 },
+        (_, index) => `c:{"toolCallId":"t0","argsTextDelta":"${index}"}`,
+      ),
+      'c:{"toolCallId":"t0","argsTextDelta":"","isFinal":true}',
+      'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+    ]);
+
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
+  });
 });
