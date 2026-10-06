@@ -137,6 +137,36 @@ const createArgsSnapshot = (
   return result;
 };
 
+const cloneArgsSnapshot = (args: ReadonlyJSONObject): ReadonlyJSONObject => {
+  const cloneContainer = (value: MutableJSONContainer): MutableJSONContainer =>
+    Array.isArray(value) ? [...value] : { ...value };
+  const result = cloneContainer(args);
+  const pending = [result];
+  while (pending.length > 0) {
+    const container = pending.pop()!;
+    for (const key of Object.keys(container)) {
+      const value = container[key as keyof typeof container];
+      if (!isContainer(value)) continue;
+      const copy = cloneContainer(value);
+      setValue(container, key, copy);
+      pending.push(copy);
+    }
+  }
+  const meta = getPartialJsonObjectMeta(args);
+  if (meta) {
+    const symbol = Object.getOwnPropertySymbols(args).find(
+      (key) => Reflect.get(args, key) === meta,
+    )!;
+    Object.defineProperty(result, symbol, {
+      value: { state: meta.state, partialPath: [...meta.partialPath] },
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return result as ReadonlyJSONObject;
+};
+
 export class IncrementalJsonObjectParser {
   private text: TextChunk | undefined;
   private mode: "start" | "parsing" | "complete" | "fallback" = "start";
@@ -144,6 +174,7 @@ export class IncrementalJsonObjectParser {
   private frames: Frame[] = [];
   private token: Token | undefined;
   private args: ReadonlyJSONObject;
+  private publishedArgs: ReadonlyJSONObject | undefined;
   private ownedContainers: Set<MutableJSONContainer> | undefined;
 
   private constructor(fallback: ReadonlyJSONObject) {
@@ -162,20 +193,8 @@ export class IncrementalJsonObjectParser {
       ? parsePartialJsonObject(text)
       : undefined;
     if (complete && getPartialJsonObjectMeta(complete)?.state === "complete") {
-      const pending: MutableJSONContainer[] = [complete];
-      while (pending.length > 0) {
-        const container = pending.pop()!;
-        const values = Array.isArray(container)
-          ? container
-          : Object.values(container);
-        for (const value of values) {
-          if (!isContainer(value)) continue;
-          Object.freeze(value);
-          pending.push(value);
-        }
-      }
-      parser.root = { ...complete };
       parser.args = complete;
+      parser.publishedArgs = complete;
       parser.mode = "complete";
       return parser;
     }
@@ -189,13 +208,21 @@ export class IncrementalJsonObjectParser {
   }
 
   get currentArgs() {
-    return this.args;
+    return (this.publishedArgs ??= cloneArgsSnapshot(this.args));
   }
 
   append(delta: string) {
     if (delta.length === 0) return this;
     if (this.currentTextLength === 0)
       return IncrementalJsonObjectParser.from(delta, this.args);
+    if (this.mode === "complete") {
+      const parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText() + delta,
+        this.args,
+      );
+      if (parser.args === this.args) parser.publishedArgs = this.publishedArgs;
+      return parser;
+    }
 
     const parser = this.clone();
     const fallback = this.args;
@@ -206,6 +233,7 @@ export class IncrementalJsonObjectParser {
       value: delta,
     };
     parser.args = parser.snapshot(fallback);
+    if (parser.args === fallback) parser.publishedArgs = this.publishedArgs;
     return parser;
   }
 

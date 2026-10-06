@@ -176,7 +176,8 @@ describe("IncrementalJsonObjectParser", () => {
     );
     const args = parser.currentArgs as Record<string, unknown>;
     args.label = "changed";
-    expect(() => (args.values as number[]).push(2)).toThrow();
+    (args.values as unknown[]).push(2);
+    expect(args.values).toEqual([1, { nested: true }, 2]);
     expect(parser.append(" ").currentArgs).toMatchObject({
       values: [1, { nested: true }],
       label: "original",
@@ -190,10 +191,9 @@ describe("IncrementalJsonObjectParser", () => {
     const values = parser.currentArgs.values as ReadonlyJSONValue[];
     const nested = values[1] as Record<string, ReadonlyJSONValue>;
 
-    expect(() => values.push(2)).toThrow();
-    expect(() => {
-      nested.nested = false;
-    }).toThrow();
+    values.push(2);
+    nested.nested = false;
+    expect(values).toEqual([1, { nested: false }, 2]);
 
     const complete = parser.append("]}");
     expect(complete.currentArgs).toMatchObject({
