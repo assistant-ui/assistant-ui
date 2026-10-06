@@ -101,7 +101,7 @@ function useCloud() {
 </Tab>
 <Tab value="Supabase">
 
-A JWKS rule requires an RS256 signing key. Return the Supabase session access token after configuring its issuer and JWKS endpoint in the rule. Keying the client to the signed-in user recreates it on a sign-in change, and its token callback answers only for that user, so a stale client never authenticates as the next one.
+A JWKS rule requires an RS256 signing key. Return the Supabase session access token after configuring its issuer and JWKS endpoint in the rule. The token callback reads Supabase's own session, so recreate the client when a different user signs in; the first auth event only reports the restored session.
 
 ```tsx title="use-cloud.ts"
 "use client";
@@ -111,11 +111,14 @@ import { AssistantCloud } from "@assistant-ui/react";
 import { supabase } from "./supabase";
 
 function useCloud() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [accountKey, setAccountKey] = useState(0);
 
   useEffect(() => {
+    let userId: string | null | undefined;
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user.id ?? null);
+      const next = session?.user.id ?? null;
+      if (userId !== undefined && next !== userId) setAccountKey((key) => key + 1);
+      userId = next;
     });
     return () => data.subscription.unsubscribe();
   }, []);
@@ -125,12 +128,10 @@ function useCloud() {
       baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
       authToken: async () => {
         const { data } = await supabase.auth.getSession();
-        return data.session?.user.id === userId
-          ? data.session.access_token
-          : null;
+        return data.session?.access_token ?? null;
       },
     }),
-    [userId],
+    [accountKey],
   );
 }
 ```
@@ -138,7 +139,7 @@ function useCloud() {
 </Tab>
 <Tab value="Firebase">
 
-Firebase ID tokens use RS256 and publish keys. Configure the project's issuer and JWKS endpoint, then return the current user's ID token. As with Supabase, the client is keyed to the signed-in user and its token callback answers only for that user.
+Firebase ID tokens use RS256 and publish keys. Configure the project's issuer and JWKS endpoint, then return the current user's ID token once Firebase has restored the session. As with Supabase, recreate the client when a different user signs in.
 
 ```tsx title="use-cloud.ts"
 "use client";
@@ -149,22 +150,26 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
 function useCloud() {
-  const [userId, setUserId] = useState(() => auth.currentUser?.uid ?? null);
+  const [accountKey, setAccountKey] = useState(0);
 
-  useEffect(
-    () => onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? null)),
-    [],
-  );
+  useEffect(() => {
+    let userId: string | null | undefined;
+    return onAuthStateChanged(auth, (user) => {
+      const next = user?.uid ?? null;
+      if (userId !== undefined && next !== userId) setAccountKey((key) => key + 1);
+      userId = next;
+    });
+  }, []);
 
   return useMemo(
     () => new AssistantCloud({
       baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
       authToken: async () => {
-        const user = auth.currentUser;
-        return user?.uid === userId ? user.getIdToken() : null;
+        await auth.authStateReady();
+        return (await auth.currentUser?.getIdToken()) ?? null;
       },
     }),
-    [userId],
+    [accountKey],
   );
 }
 ```
