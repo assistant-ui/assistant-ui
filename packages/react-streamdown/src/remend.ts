@@ -70,30 +70,32 @@ function matchComparisonOperator(
 }
 
 function escapeComparisonOperators(text: string): string {
-  let out = "";
-  let copied = 0;
+  const operators: number[] = [];
+  const pendingOperators: number[] = [];
   let lineStart = true;
   let inlineCode = 0;
   let fencedCode = false;
   for (let i = 0; i < text.length; i += 1) {
-    if (lineStart && !inlineCode && !fencedCode) {
+    if (lineStart && !fencedCode) {
       while (isComparisonSpace(text.charCodeAt(i))) i += 1;
       const match = matchComparisonOperator(text, i);
       if (match) {
-        out += text.slice(copied, match.operator) + "\\";
-        copied = match.operator;
+        (inlineCode ? pendingOperators : operators).push(match.operator);
         i = match.end - 1;
       }
     }
     const c = text.charCodeAt(i);
-    if (c === 92 && text.charCodeAt(i + 1) === BACKTICK) {
+    if (c === 92 && !inlineCode && text.charCodeAt(i + 1) === BACKTICK) {
       i += 1;
     } else if (c === BACKTICK) {
       let end = i + 1;
       while (text.charCodeAt(end) === BACKTICK) end += 1;
       const run = end - i;
       if (inlineCode) {
-        if (run === inlineCode) inlineCode = 0;
+        if (run === inlineCode) {
+          inlineCode = 0;
+          pendingOperators.length = 0;
+        }
       } else if (lineStart && run >= 3) {
         fencedCode = !fencedCode;
       } else if (!fencedCode) {
@@ -101,7 +103,29 @@ function escapeComparisonOperators(text: string): string {
       }
       i = end - 1;
     }
+    if (c === 10 && inlineCode) {
+      let next = i + 1;
+      while (
+        text.charCodeAt(next) === SPACE ||
+        text.charCodeAt(next) === TAB ||
+        text.charCodeAt(next) === CR
+      ) {
+        next += 1;
+      }
+      if (text.charCodeAt(next) === 10) {
+        for (const operator of pendingOperators) operators.push(operator);
+        pendingOperators.length = 0;
+        inlineCode = 0;
+      }
+    }
     lineStart = c === 10 || c === CR || c === 0x2028 || c === 0x2029;
+  }
+  if (operators.length === 0) return text;
+  let out = "";
+  let copied = 0;
+  for (const operator of operators) {
+    out += text.slice(copied, operator) + "\\";
+    copied = operator;
   }
   return out + text.slice(copied);
 }

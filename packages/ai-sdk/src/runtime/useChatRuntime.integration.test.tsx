@@ -8,7 +8,7 @@ import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AISDKChat } from "./AISDKChat";
 import type { ChatTransport, UIMessage } from "ai";
-import { Activity, StrictMode, useState, type ReactNode } from "react";
+import { Activity, StrictMode, useState, version, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import {
@@ -18,6 +18,8 @@ import {
 } from "./__tests__/controlled-transport";
 import { useChatRuntime } from "./useChatRuntime";
 import { useThreadTokenUsage } from "../usage";
+
+const onReact18 = version.startsWith("18.");
 
 const messages: UIMessage[] = [
   {
@@ -88,7 +90,12 @@ describe("useChatRuntime integration", () => {
     await act(async () => send());
     await waitFor(() => expect(isRunning()).toBe(true));
 
-    await act(async () => client().threadListItem.delete());
+    // React 18's act holds the render that settles the delete until its callback returns, so the delete is awaited outside it.
+    let deletion: unknown;
+    await act(async () => {
+      deletion = client().threadListItem.delete();
+    });
+    await deletion;
 
     await waitFor(() => expect(getCancelCount()).toBe(1));
     view.unmount();
@@ -113,132 +120,147 @@ describe("useChatRuntime integration", () => {
     await waitFor(() => expect(getCancelCount()).toBe(1));
   });
 
-  it("keeps streaming while hidden and aborts when the hidden host unmounts", async () => {
-    const { transport, getCancelCount } = createCancellableTransport();
-    const { Probe, send, isRunning } = createStreamHarness();
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "keeps streaming while hidden and aborts when the hidden host unmounts",
+    async () => {
+      const { transport, getCancelCount } = createCancellableTransport();
+      const { Probe, send, isRunning } = createStreamHarness();
 
-    let setMode: ((mode: "visible" | "hidden") => void) | undefined;
-    const Shell = () => {
-      const [mode, set] = useState<"visible" | "hidden">("visible");
-      setMode = set;
-      return (
-        <Activity mode={mode}>
-          <StreamingApp transport={transport} probe={<Probe />} />
-        </Activity>
+      let setMode: ((mode: "visible" | "hidden") => void) | undefined;
+      const Shell = () => {
+        const [mode, set] = useState<"visible" | "hidden">("visible");
+        setMode = set;
+        return (
+          <Activity mode={mode}>
+            <StreamingApp transport={transport} probe={<Probe />} />
+          </Activity>
+        );
+      };
+
+      const view = render(
+        <StrictMode>
+          <Shell />
+        </StrictMode>,
       );
-    };
 
-    const view = render(
-      <StrictMode>
-        <Shell />
-      </StrictMode>,
-    );
+      await act(async () => send());
+      await waitFor(() => expect(isRunning()).toBe(true));
 
-    await act(async () => send());
-    await waitFor(() => expect(isRunning()).toBe(true));
+      await act(async () => setMode?.("hidden"));
+      await act(nextTask);
+      expect(getCancelCount()).toBe(0);
+      expect(isRunning()).toBe(true);
 
-    await act(async () => setMode?.("hidden"));
-    await act(nextTask);
-    expect(getCancelCount()).toBe(0);
-    expect(isRunning()).toBe(true);
+      await act(async () => setMode?.("visible"));
+      await act(nextTask);
+      expect(getCancelCount()).toBe(0);
+      expect(isRunning()).toBe(true);
 
-    await act(async () => setMode?.("visible"));
-    await act(nextTask);
-    expect(getCancelCount()).toBe(0);
-    expect(isRunning()).toBe(true);
+      await act(async () => setMode?.("hidden"));
+      view.unmount();
+      await waitFor(() => expect(getCancelCount()).toBe(1));
+    },
+  );
 
-    await act(async () => setMode?.("hidden"));
-    view.unmount();
-    await waitFor(() => expect(getCancelCount()).toBe(1));
-  });
+  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+  it.skipIf(onReact18)(
+    "aborts a nested runtime's stream when the provider above it unmounts",
+    async () => {
+      const outer = createCancellableTransport();
+      const { transport, getCancelCount } = createCancellableTransport();
+      let nested: AssistantRuntime | undefined;
 
-  it("aborts a nested runtime's stream when the provider above it unmounts", async () => {
-    const outer = createCancellableTransport();
-    const { transport, getCancelCount } = createCancellableTransport();
-    let nested: AssistantRuntime | undefined;
+      // allowNesting: the inner useChatRuntime runs its thread hook directly, as
+      // a plain React hook under the provider rather than inside a tap resource.
+      const NestedChat = () => {
+        nested = useChatRuntime({ transport });
+        return null;
+      };
 
-    // allowNesting: the inner useChatRuntime runs its thread hook directly, as
-    // a plain React hook under the provider rather than inside a tap resource.
-    const NestedChat = () => {
-      nested = useChatRuntime({ transport });
-      return null;
-    };
-
-    const view = render(
-      <StrictMode>
-        <AuiProvider
-          config={AuiConfig({
-            threads: AISDKChat({ transport: outer.transport }),
-          })}
-        >
-          <NestedChat />
-        </AuiProvider>
-      </StrictMode>,
-    );
-
-    await waitFor(() => expect(nested).toBeDefined());
-    await act(async () => {
-      await nested!.thread.append("keep streaming");
-    });
-    await waitFor(() => expect(nested!.thread.getState().isRunning).toBe(true));
-
-    view.unmount();
-    await waitFor(() => expect(getCancelCount()).toBe(1));
-  });
-
-  it("aborts a nested runtime when only its own component unmounts", async () => {
-    const outer = createCancellableTransport();
-    const { transport, getCancelCount } = createCancellableTransport();
-    let nested: AssistantRuntime | undefined;
-    let providerSignal: AbortSignal | undefined;
-    let setVisible: ((visible: boolean) => void) | undefined;
-
-    const NestedChat = () => {
-      providerSignal = useAssistantClientDestroySignal();
-      nested = useChatRuntime({ transport });
-      return null;
-    };
-    const Shell = () => {
-      const [visible, set] = useState(true);
-      setVisible = set;
-      return (
-        <AuiProvider
-          config={AuiConfig({
-            threads: AISDKChat({ transport: outer.transport }),
-          })}
-        >
-          {visible && <NestedChat />}
-        </AuiProvider>
+      const view = render(
+        <StrictMode>
+          <AuiProvider
+            config={AuiConfig({
+              threads: AISDKChat({ transport: outer.transport }),
+            })}
+          >
+            <NestedChat />
+          </AuiProvider>
+        </StrictMode>,
       );
-    };
-    const listeners = () => getEventListeners(providerSignal!, "abort").length;
 
-    const view = render(<Shell />);
-    await waitFor(() => expect(nested).toBeDefined());
-    const mounted = listeners();
-
-    for (const cycle of [1, 2]) {
+      await waitFor(() => expect(nested).toBeDefined());
       await act(async () => {
-        await nested!.thread.append(`stream ${cycle}`);
+        await nested!.thread.append("keep streaming");
       });
       await waitFor(() =>
         expect(nested!.thread.getState().isRunning).toBe(true),
       );
 
-      await act(async () => setVisible?.(false));
-      await waitFor(() => expect(getCancelCount()).toBe(cycle));
-      expect(listeners()).toBe(mounted - 1);
+      view.unmount();
+      await waitFor(() => expect(getCancelCount()).toBe(1));
+    },
+  );
 
-      nested = undefined;
-      await act(async () => setVisible?.(true));
+  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+  it.skipIf(onReact18)(
+    "aborts a nested runtime when only its own component unmounts",
+    async () => {
+      const outer = createCancellableTransport();
+      const { transport, getCancelCount } = createCancellableTransport();
+      let nested: AssistantRuntime | undefined;
+      let providerSignal: AbortSignal | undefined;
+      let setVisible: ((visible: boolean) => void) | undefined;
+
+      const NestedChat = () => {
+        providerSignal = useAssistantClientDestroySignal();
+        nested = useChatRuntime({ transport });
+        return null;
+      };
+      const Shell = () => {
+        const [visible, set] = useState(true);
+        setVisible = set;
+        return (
+          <AuiProvider
+            config={AuiConfig({
+              threads: AISDKChat({ transport: outer.transport }),
+            })}
+          >
+            {visible && <NestedChat />}
+          </AuiProvider>
+        );
+      };
+      const listeners = () =>
+        getEventListeners(providerSignal!, "abort").length;
+
+      const view = render(<Shell />);
       await waitFor(() => expect(nested).toBeDefined());
-      expect(listeners()).toBe(mounted);
-    }
+      const mounted = listeners();
 
-    view.unmount();
-    await act(nextTask);
-    expect(getCancelCount()).toBe(2);
-  });
+      for (const cycle of [1, 2]) {
+        await act(async () => {
+          await nested!.thread.append(`stream ${cycle}`);
+        });
+        await waitFor(() =>
+          expect(nested!.thread.getState().isRunning).toBe(true),
+        );
+
+        await act(async () => setVisible?.(false));
+        await waitFor(() => expect(getCancelCount()).toBe(cycle));
+        expect(listeners()).toBe(mounted - 1);
+
+        nested = undefined;
+        await act(async () => setVisible?.(true));
+        await waitFor(() => expect(nested).toBeDefined());
+        expect(listeners()).toBe(mounted);
+      }
+
+      view.unmount();
+      await act(nextTask);
+      expect(getCancelCount()).toBe(2);
+    },
+  );
 });
 
 const StreamingApp = ({

@@ -138,12 +138,8 @@ describe("RemoteThreadList concurrent rendering", () => {
 
     const view = render(<App adapter={adapterA} />);
     const client = clientRef.current!;
-    await act(async () => {
-      await client.threads.getLoadThreadsPromise();
-    });
-    await waitFor(() =>
-      expect(client.threads.getState().threadIds).toEqual(["thread-1"]),
-    );
+    await client.threads.getLoadThreadsPromise();
+    expect(client.threads.getState().threadIds).toEqual(["thread-1"]);
 
     act(() => {
       suspend = true;
@@ -218,8 +214,8 @@ describe("RemoteThreadList concurrent rendering", () => {
 
     render(<App />);
     const client = clientRef.current!;
+    await client.threads.getLoadThreadsPromise();
     await act(async () => {
-      await client.threads.getLoadThreadsPromise();
       await client.threads.switchToThread("thread-1");
     });
     await waitFor(() => expect(renders).toContain("thread-1:thread-1"));
@@ -294,8 +290,8 @@ describe("RemoteThreadList concurrent rendering", () => {
 
     const view = render(<App workspace="workspace-a" />);
     const client = clientRef.current!;
+    await client.threads.getLoadThreadsPromise();
     await act(async () => {
-      await client.threads.getLoadThreadsPromise();
       await client.threads.switchToThread("thread-1");
     });
     await waitFor(() =>

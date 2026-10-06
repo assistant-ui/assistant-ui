@@ -1,5 +1,11 @@
 import type { Action } from "../ir";
 import { resolveFieldReferences } from "../fieldReferences";
+import {
+  formatTemporalUnixSeconds,
+  mergeTemporalMinutes,
+  splitTemporalMinutes,
+} from "../temporal";
+import type { FieldMapping } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -9,7 +15,26 @@ const optionValue = (value: unknown): string | undefined =>
     ? value["value"]
     : undefined;
 
-const selectedValue = (action: Record<string, unknown>): unknown => {
+const selectedValue = (
+  action: Record<string, unknown>,
+  field?: FieldMapping,
+): unknown => {
+  if (action["type"] === "datetimepicker" || "selected_date_time" in action) {
+    const seconds = action["selected_date_time"];
+    return seconds === null
+      ? ""
+      : typeof seconds === "number"
+        ? formatTemporalUnixSeconds(seconds, field?.offset)
+        : undefined;
+  }
+  if (action["type"] === "timepicker" || "selected_time" in action) {
+    const time = action["selected_time"];
+    if (time === null) return "";
+    const parts =
+      typeof time === "string" ? splitTemporalMinutes(time) : undefined;
+    return parts?.date === undefined ? parts?.time : undefined;
+  }
+  if (field?.part === "date" && action["selected_date"] === null) return "";
   const selectedOption = optionValue(action["selected_option"]);
   const selectedDate =
     typeof action["selected_date"] === "string"
@@ -35,22 +60,40 @@ const selectedValue = (action: Record<string, unknown>): unknown => {
   );
 };
 
-const fieldMappingsFromBlockId = (
-  blockId: string,
-): readonly (readonly [string, string, boolean])[] => {
+const fieldMappingsFromBlockId = (blockId: string): readonly FieldMapping[] => {
   if (!/^aui:\d+:/.test(blockId)) return [];
   const mappingStart = blockId.indexOf(":", 4);
   if (mappingStart === -1) return [];
   try {
     const parsed: unknown = JSON.parse(blockId.slice(mappingStart + 1));
     if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((entry): (readonly [string, string, boolean])[] =>
-      Array.isArray(entry) &&
-      typeof entry[0] === "string" &&
-      typeof entry[1] === "string"
-        ? [[entry[0], entry[1], entry[2] === "Checkbox"]]
-        : [],
-    );
+    return parsed.flatMap((entry): FieldMapping[] => {
+      if (
+        !Array.isArray(entry) ||
+        typeof entry[0] !== "string" ||
+        typeof entry[1] !== "string"
+      )
+        return [];
+      return [
+        {
+          actionId: entry[0],
+          name: entry[1],
+          component: typeof entry[2] === "string" ? entry[2] : "",
+          ...(entry[2] === "DatePicker" &&
+          (entry[3] === "time" || entry[3] === "datetime")
+            ? {
+                inputType: entry[3],
+                ...(typeof entry[4] === "string" ? { offset: entry[4] } : {}),
+                ...((entry[5] === "date" || entry[5] === "time") &&
+                Number.isSafeInteger(entry[6]) &&
+                entry[6] >= 0
+                  ? { part: entry[5], pairId: entry[6] }
+                  : {}),
+              }
+            : {}),
+        },
+      ];
+    });
   } catch {
     return [];
   }
@@ -64,43 +107,53 @@ const checkboxValue = (
     ? value["selected_options"].some((option) => optionValue(option) === name)
     : undefined;
 
-const stateFieldValue = (
-  value: unknown,
-  name: string,
-  isCheckbox: boolean,
-): unknown => {
+const stateFieldValue = (value: unknown, field: FieldMapping): unknown => {
   if (!isRecord(value)) return undefined;
-  if (isCheckbox && value["type"] === "checkboxes") {
-    return checkboxValue(value, name);
+  if (field.component === "Checkbox" && value["type"] === "checkboxes") {
+    return checkboxValue(value, field.name);
   }
   if (value["type"] === "plain_text_input") {
     return typeof value["value"] === "string" ? value["value"] : undefined;
   }
-  return selectedValue(value);
+  return selectedValue(value, field);
 };
 
 const fieldValuesFromState = (
   stateValues: unknown,
-): Record<string, unknown> => {
+  action: Record<string, unknown>,
+  actionField: FieldMapping | undefined,
+) => {
   const fields: Record<string, unknown> = Object.create(null);
-  if (!isRecord(stateValues)) return fields;
-  for (const [blockId, rawBlockValues] of Object.entries(stateValues)) {
-    if (!isRecord(rawBlockValues)) continue;
-    for (const [actionId, name, isCheckbox] of fieldMappingsFromBlockId(
-      blockId,
-    )) {
-      if (!Object.hasOwn(rawBlockValues, actionId)) continue;
-      const value = stateFieldValue(rawBlockValues[actionId], name, isCheckbox);
-      if (value === undefined) continue;
-      Object.defineProperty(fields, name, {
-        value,
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      });
+  const pairs = new Map<number, { name: string; date: string; time: string }>();
+  const collect = (raw: unknown, field: FieldMapping) => {
+    const value = stateFieldValue(raw, field);
+    if (field.part !== undefined && field.pairId !== undefined) {
+      const pair = pairs.get(field.pairId) ?? {
+        name: field.name,
+        date: "",
+        time: "",
+      };
+      pair[field.part] = typeof value === "string" ? value : "";
+      pairs.set(field.pairId, pair);
+    } else if (field.name && value !== undefined) {
+      fields[field.name] = value;
+    }
+  };
+  if (isRecord(stateValues)) {
+    for (const [blockId, rawBlockValues] of Object.entries(stateValues)) {
+      if (!isRecord(rawBlockValues)) continue;
+      for (const field of fieldMappingsFromBlockId(blockId)) {
+        if (Object.hasOwn(rawBlockValues, field.actionId))
+          collect(rawBlockValues[field.actionId], field);
+      }
     }
   }
-  return fields;
+  if (actionField?.inputType !== undefined) collect(action, actionField);
+  for (const pair of pairs.values()) {
+    if (pair.name)
+      fields[pair.name] = mergeTemporalMinutes(pair.date, pair.time);
+  }
+  return { fields, pairs };
 };
 
 /**
@@ -140,7 +193,30 @@ export function decodeBlockAction(
       }
     }
 
-    const input = selectedValue(action) ?? plainValue;
+    const actionField =
+      typeof action["block_id"] === "string"
+        ? fieldMappingsFromBlockId(action["block_id"]).find(
+            (field) => field.actionId === actionId,
+          )
+        : undefined;
+    const { fields, pairs } = fieldValuesFromState(
+      stateValues,
+      action,
+      actionField,
+    );
+    let input = selectedValue(action, actionField) ?? plainValue;
+    if (actionField?.pairId !== undefined) {
+      const pair = pairs.get(actionField.pairId);
+      input =
+        pair === undefined ? "" : mergeTemporalMinutes(pair.date, pair.time);
+      if (!input) return undefined;
+    }
+    if (
+      (action["type"] === "timepicker" ||
+        action["type"] === "datetimepicker") &&
+      input === undefined
+    )
+      return undefined;
 
     const decoded = {
       ...Object.fromEntries(
@@ -149,10 +225,7 @@ export function decodeBlockAction(
       type: actionId,
       ...(input !== undefined ? { $input: input } : {}),
     };
-    return resolveFieldReferences(
-      decoded,
-      fieldValuesFromState(stateValues),
-    ) as Action;
+    return resolveFieldReferences(decoded, fields) as Action;
   } catch {
     return undefined;
   }

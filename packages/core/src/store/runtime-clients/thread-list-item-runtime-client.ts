@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useAssistantEmit } from "@assistant-ui/store/client";
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
+import { useThreadListItemSelectionEvents } from "../clients/thread-selection-events";
 import { useSubscribable } from "./useSubscribable";
 import { handleThreadListAction } from "./handle-thread-list-action";
 
@@ -23,20 +23,7 @@ const useThreadListItemClient = ({
     if (isRunning === runtimeState.isRunning) return runtimeState;
     return { ...runtimeState, isRunning };
   }, [runtimeState, mainThreadIsRunning]);
-  const emit = useAssistantEmit();
-
-  // Emitted after the flush that rebinds the derived scopes; the runtime's own
-  // synchronous notification would be delivered against the pre-switch binding.
-  const { isMain, id: threadId } = runtimeState;
-  const selectionRef = useRef({ isMain, threadId });
-  useEffect(() => {
-    const previous = selectionRef.current;
-    if (previous.isMain === isMain && previous.threadId === threadId) return;
-    selectionRef.current = { isMain, threadId };
-    emit(isMain ? "threadListItem.switchedTo" : "threadListItem.switchedAway", {
-      threadId,
-    });
-  }, [isMain, threadId, emit]);
+  useThreadListItemSelectionEvents(runtimeState.id, runtimeState.isMain);
 
   return {
     getState: () => state,

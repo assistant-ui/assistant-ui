@@ -14,7 +14,10 @@ import type { ExternalStoreAdapter } from "../../../runtimes/external-store/exte
 import { AssistantRuntimeImpl } from "../../../runtime/api/assistant-runtime";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import type { ThreadMessage } from "../../../types/message";
-import { deferred } from "../../../tests/remote-thread-list-test-helpers";
+import {
+  actSettled,
+  deferred,
+} from "../../../tests/remote-thread-list-test-helpers";
 import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
@@ -121,14 +124,10 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
 
     await harness.send("0123456789");
     await harness.finishRun(0);
-    await act(async () => {
-      await runtime.threads.switchToNewThread();
-    });
+    await actSettled(() => runtime.threads.switchToNewThread());
     await harness.send("01234567890123456789");
     await harness.finishRun(1);
-    await act(async () => {
-      await runtime.threads.switchToNewThread();
-    });
+    await actSettled(() => runtime.threads.switchToNewThread());
     await harness.send("012345678901234567890123456789");
 
     await waitFor(() => expect(tracked(cloud, "message_sent")).toHaveLength(3));
@@ -144,9 +143,7 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
     ]);
     expect(tracked(cloud, "thread_switched")).toHaveLength(0);
 
-    await act(async () => {
-      await runtime.threads.switchToThread(first);
-    });
+    await actSettled(() => runtime.threads.switchToThread(first));
     await waitFor(() =>
       expect(tracked(cloud, "thread_switched")).toHaveLength(1),
     );
@@ -165,19 +162,13 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
 
     await harness.send("first");
     await harness.finishRun(0);
-    await act(async () => {
-      await runtime.threads.switchToNewThread();
-    });
+    await actSettled(() => runtime.threads.switchToNewThread());
     const second = runtime.threads.mainItem.getState().id;
     await harness.send("second");
-    await act(async () => {
-      await runtime.threads.switchToThread(first);
-    });
+    await actSettled(() => runtime.threads.switchToThread(first));
     now.mockReturnValue(2_000);
     await harness.finishRun(1);
-    await act(async () => {
-      await runtime.threads.switchToThread(second);
-    });
+    await actSettled(() => runtime.threads.switchToThread(second));
     now.mockReturnValue(2_500);
     await harness.send("again");
 
@@ -221,22 +212,16 @@ describe("cloud engagement suggestions under useRemoteThreadListRuntime", () => 
       expect(tracked(cloud, "suggestions_shown")).toHaveLength(1),
     );
 
-    await act(async () => {
-      await runtime.threads.mainItem.initialize();
-      await runtime.threads.switchToNewThread();
-    });
+    await actSettled(() => runtime.threads.mainItem.initialize());
+    await actSettled(() => runtime.threads.switchToNewThread());
     await waitFor(() =>
       expect(tracked(cloud, "suggestions_shown")).toHaveLength(2),
     );
 
-    await act(async () => {
-      await runtime.threads.getItemById(first).delete();
-    });
+    await actSettled(() => runtime.threads.getItemById(first).delete());
     await act(settle);
-    await act(async () => {
-      await runtime.threads.mainItem.initialize();
-      await runtime.threads.switchToNewThread();
-    });
+    await actSettled(() => runtime.threads.mainItem.initialize());
+    await actSettled(() => runtime.threads.switchToNewThread());
     await waitFor(() =>
       expect(tracked(cloud, "suggestions_shown")).toHaveLength(3),
     );

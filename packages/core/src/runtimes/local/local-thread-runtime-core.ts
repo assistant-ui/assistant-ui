@@ -9,6 +9,7 @@ import { shouldContinue } from "./should-continue";
 import { getAutoStatus } from "../../runtime/utils/auto-status";
 import {
   type ExportedMessageRepository,
+  type ExportedMessageRepositoryItem,
   withoutOrphanedMessages,
 } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
@@ -193,6 +194,34 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
+  private async _writeHistory(
+    operation: "append" | "update" | "delete",
+    messageIds: readonly string[],
+    write: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await write();
+    } catch (error) {
+      console.error("[assistant-ui] local thread history write failed:", error);
+      this._notifyEventSubscribers("historyWriteError", {
+        operation,
+        messageIds,
+        message: error instanceof Error ? error.message : String(error),
+        error,
+      });
+      throw error;
+    }
+  }
+  // A message whose delete the history has been sent. While that delete is in
+  // flight it holds the writes it suppressed, so a rejected delete can still
+  // issue them; once it lands, later writes for the id are dropped.
+  private _deletedMessages = new Map<
+    string,
+    {
+      deletion?: Promise<void>;
+      suppressed: (() => Promise<void>)[] | null;
+    }
+  >();
 
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
@@ -200,6 +229,12 @@ export class LocalThreadRuntimeCore
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
+    const tombstone = this._deletedMessages.get(id);
+    if (tombstone) {
+      tombstone.suppressed?.push(write);
+      return Promise.resolve();
+    }
+
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
     const pending = this._historyWrites.get(id);
     let next: Promise<void>;
@@ -264,12 +299,17 @@ export class LocalThreadRuntimeCore
   ) {
     const history = this._options.adapters.history;
     if (!history) return;
-    const write = this._unwrittenMessages.delete(message.id)
-      ? history.append.bind(history)
-      : history.update?.bind(history);
+    const operation = this._unwrittenMessages.delete(message.id)
+      ? "append"
+      : "update";
+    const write = operation === "append" ? history.append : history.update;
     if (!write) return;
     const item = { parentId, message, runConfig: this._lastRunConfig };
-    return this._chainHistoryWrite(message.id, () => write(item));
+    return this._chainHistoryWrite(message.id, () =>
+      this._writeHistory(operation, [message.id], () =>
+        write.call(history, item),
+      ),
+    );
   }
 
   private _cancelPause(messageId: string | null) {
@@ -297,7 +337,9 @@ export class LocalThreadRuntimeCore
           message: snapshot,
           runConfig: this._lastRunConfig,
         };
-        return this._chainHistoryWrite(messageId, () => history.append(item));
+        return this._chainHistoryWrite(messageId, () =>
+          this._writeHistory("append", [messageId], () => history.append(item)),
+        );
       }
       return this._persistSettled(entry.parentId, snapshot);
     }
@@ -308,13 +350,16 @@ export class LocalThreadRuntimeCore
   }
 
   // A message that a later turn follows never resumes, since a roundtrip
-  // restarts from it and would drop that turn. The resume starts from the
-  // stored entry, which a subscriber may have replaced while it was notified.
+  // restarts from it and would drop that turn. A follow-up recorded while its
+  // run was open ended the pause too, even once that turn is deleted. The
+  // resume starts from the stored entry, which a subscriber may have replaced
+  // while it was notified.
   private _resumeIfReady(messageId: string) {
     const stored = this.getMessageById(messageId);
     if (
       stored?.message.role !== "assistant" ||
       this.repository.hasChildren(messageId) ||
+      this._followedDuringRun.has(messageId) ||
       !shouldContinue(stored.message, this._options.unstable_humanToolNames)
     )
       return false;
@@ -604,7 +649,9 @@ export class LocalThreadRuntimeCore
       const history = this._options.adapters.history;
       const historyWrite = history
         ? this._chainHistoryWrite(message.id, () =>
-            history.append({ parentId, message }),
+            this._writeHistory("append", [message.id], () =>
+              history.append({ parentId, message }),
+            ),
           )
         : undefined;
       void historyWrite?.catch(() => {});
@@ -727,13 +774,15 @@ export class LocalThreadRuntimeCore
     const history = this._options.adapters.history;
     const messageWrite = history
       ? this._chainHistoryWrite(newMessage.id, () =>
-          history.append({
-            parentId: message.parentId,
-            message: newMessage,
-            ...(message.runConfig !== undefined && {
-              runConfig: message.runConfig,
+          this._writeHistory("append", [newMessage.id], () =>
+            history.append({
+              parentId: message.parentId,
+              message: newMessage,
+              ...(message.runConfig !== undefined && {
+                runConfig: message.runConfig,
+              }),
             }),
-          }),
+          ),
         )
       : undefined;
     const historyWrite = settledWrite
@@ -754,7 +803,7 @@ export class LocalThreadRuntimeCore
       if (runResult.status === "rejected") throw runResult.reason;
       if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
-      this.repository.resetHead(newMessage.id);
+      this.repository.switchToBranch(newMessage.id);
       this._notifySubscribers();
       await historyWrite;
     }
@@ -769,14 +818,53 @@ export class LocalThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
+    const inFlight = this._deletedMessages.get(messageId);
+    if (inFlight?.suppressed && inFlight.deletion) return inFlight.deletion;
+    const deleteAdapter = adapter.delete.bind(adapter);
+    const deleteHistory = (items: ExportedMessageRepositoryItem[]) =>
+      this._writeHistory(
+        "delete",
+        items.map((item) => item.message.id),
+        () => deleteAdapter(items),
+      );
+
     const message = messages[messageIndex]!;
     const parentId = messages[messageIndex - 1]?.id ?? null;
     const items = [{ parentId, message }];
 
-    await adapter.delete(items);
+    const pending = this._historyWrites.get(messageId);
+    const tombstone: {
+      deletion?: Promise<void>;
+      suppressed: (() => Promise<void>)[] | null;
+    } = { suppressed: [] };
+    this._deletedMessages.set(messageId, tombstone);
+    tombstone.deletion = (async () => {
+      try {
+        await deleteHistory(items);
+      } catch (error) {
+        const suppressed = tombstone.suppressed ?? [];
+        tombstone.suppressed = null;
+        if (this._deletedMessages.get(messageId) === tombstone) {
+          this._deletedMessages.delete(messageId);
+          for (const write of suppressed) {
+            void this._chainHistoryWrite(messageId, write).catch(() => {});
+          }
+        }
+        throw error;
+      }
+      tombstone.suppressed = null;
+      void pending
+        ?.then(() =>
+          this._deletedMessages.get(messageId) === tombstone
+            ? deleteHistory(items)
+            : undefined,
+        )
+        .catch(() => {});
 
-    this.repository.deleteMessage(messageId);
-    this._notifySubscribers();
+      this.repository.deleteMessage(messageId);
+      this._notifySubscribers();
+    })();
+    return tombstone.deletion;
   }
 
   public resumeRun({ stream, ...startConfig }: ResumeRunConfig): Promise<void> {
@@ -793,6 +881,7 @@ export class LocalThreadRuntimeCore
     this._roundtripsInFlight.clear();
     this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
+    this._deletedMessages.clear();
     super.import(withLocalPauseReasons(data));
   }
 
@@ -1127,6 +1216,7 @@ export class LocalThreadRuntimeCore
         return message;
       }
 
+      const isNewMessage = !hasStoredMessage;
       updateMessage({
         status: {
           type: "running",
@@ -1134,8 +1224,10 @@ export class LocalThreadRuntimeCore
       });
 
       // Switch to the new message branch right after adding it for the first time
-      this.repository.resetHead(message.id);
-      this._notifySubscribers();
+      if (isNewMessage) {
+        this.repository.switchToBranch(message.id);
+        this._notifySubscribers();
+      }
 
       this._lastRunConfig = runConfig ?? {};
       // unstable_composerMetadata is composer-only (stamped onto the outgoing
@@ -1279,7 +1371,9 @@ export class LocalThreadRuntimeCore
         ) {
           const item = { parentId, message, runConfig: this._lastRunConfig };
           written = this._chainHistoryWrite(message.id, () =>
-            history.append(item),
+            this._writeHistory("append", [message.id], () =>
+              history.append(item),
+            ),
           );
         } else {
           written = this._persistSettled(parentId, message);
@@ -1455,6 +1549,7 @@ export class LocalThreadRuntimeCore
     approved,
     optionId,
     text,
+    answers,
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
     if (this.voice)
@@ -1488,6 +1583,10 @@ export class LocalThreadRuntimeCore
       throw new Error(
         "Tried to respond to a tool approval on a message that later messages follow",
       );
+    if (this._followedDuringRun.has(message.id))
+      throw new Error(
+        "Tried to respond to a tool approval that was cancelled or expired",
+      );
 
     const target = message.content.find(
       (c) => c.type === "tool-call" && c.approval?.id === approvalId,
@@ -1509,6 +1608,7 @@ export class LocalThreadRuntimeCore
         approved,
         ...(optionId != null && { optionId }),
         ...(text != null && { text }),
+        ...(answers != null && { answers }),
         ...(reason != null && { reason }),
       };
       if (approved) return { ...c, approval };

@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { useEffect, type FC, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type FC,
+  type ReactNode,
+  type PropsWithChildren,
+} from "react";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
@@ -63,10 +69,12 @@ const Example = ({
   content,
   Message: MessageComponent = Message,
   extra,
+  isRunning = false,
 }: {
   content: ThreadMessageLike["content"];
   Message?: FC;
   extra?: ReactNode;
+  isRunning?: boolean;
 }) => {
   const messages: ThreadMessageLike[] = [
     { id: "message", role: "assistant", content },
@@ -74,6 +82,7 @@ const Example = ({
   const runtime = useExternalStoreRuntime({
     messages,
     convertMessage: (message) => message,
+    isRunning,
     onNew: async () => {},
   });
   return (
@@ -88,6 +97,267 @@ const Example = ({
 };
 
 describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
+  it.each(["tool-call", "reasoning"] as const)(
+    "keeps wrapper and mounted state when a tool call is appended after %s",
+    (firstType) => {
+      let mounts = 0;
+      const Group = ({ children }: PropsWithChildren) => {
+        const [mount] = useState(() => ++mounts);
+        return <section data-mount={mount}>{children}</section>;
+      };
+      const Text = ({ text }: { text: string }) => {
+        const [seed] = useState(text);
+        return <span>{`${seed}:${text}`}</span>;
+      };
+      const Tool = ({ argsText }: { argsText: string }) => (
+        <Text text={argsText} />
+      );
+      const Message = partsMessage({
+        Reasoning: Text,
+        Group,
+        tools: { Fallback: Tool },
+      });
+      const first =
+        firstType === "tool-call"
+          ? {
+              type: "tool-call" as const,
+              toolCallId: "t2",
+              toolName: "task",
+              args: {},
+              argsText: "draft",
+              parentId: "parent",
+            }
+          : {
+              type: "reasoning" as const,
+              id: "r1",
+              text: "draft",
+              parentId: "parent",
+            };
+      const view = render(
+        <Example Message={Message} content={[first]} isRunning />,
+      );
+      const wrapper = view.container.querySelector("section");
+      const streamed =
+        first.type === "tool-call"
+          ? { ...first, argsText: "streamed" }
+          : { ...first, text: "streamed" };
+      const appended = {
+        type: "tool-call" as const,
+        toolCallId: "t1",
+        toolName: "task",
+        args: {},
+        argsText: "appended",
+        parentId: "parent",
+      };
+      view.rerender(
+        <Example Message={Message} content={[streamed, appended]} isRunning />,
+      );
+      expect(view.container.querySelector("section")).toBe(wrapper);
+      expect(wrapper?.dataset.mount).toBe("1");
+      expect(
+        Array.from(
+          view.container.querySelectorAll("span"),
+          (el) => el.textContent,
+        ),
+      ).toEqual(["draft:streamed", "appended:appended"]);
+      view.rerender(
+        <Example
+          Message={Message}
+          content={[
+            streamed,
+            { ...appended, argsText: "updated" },
+            { ...appended, toolCallId: "t0", argsText: "last" },
+          ]}
+          isRunning
+        />,
+      );
+      expect(view.container.querySelector("section")).toBe(wrapper);
+      expect(
+        Array.from(
+          view.container.querySelectorAll("span"),
+          (el) => el.textContent,
+        ),
+      ).toEqual(["draft:streamed", "appended:updated", "last:last"]);
+    },
+  );
+
+  it("keeps parent names and part ids with key delimiters separate", () => {
+    let mounts = 0;
+    const Group = ({ children }: PropsWithChildren) => {
+      const [mount] = useState(() => ++mounts);
+      return <section data-mount={mount}>{children}</section>;
+    };
+    const Text = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const Message = partsMessage({ Text, Group });
+    const first = {
+      type: "text" as const,
+      id: "x-id:text:y",
+      text: "first",
+      parentId: "a",
+    };
+    const second = {
+      type: "text" as const,
+      id: "y",
+      text: "second",
+      parentId: "a-id:text:x",
+    };
+    const view = render(
+      <Example Message={Message} content={[first, second]} />,
+    );
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[
+          { ...second, text: "second updated" },
+          { ...first, text: "first updated" },
+        ]}
+      />,
+    );
+    expect(
+      Array.from(
+        view.container.querySelectorAll("section"),
+        (el) => el.dataset.mount,
+      ),
+    ).toEqual(["2", "1"]);
+    expect(
+      Array.from(
+        view.container.querySelectorAll("span"),
+        (el) => el.textContent,
+      ),
+    ).toEqual(["second:second updated", "first:first updated"]);
+  });
+
+  it.each([undefined, "parent"])(
+    "keeps wrapper and leaf state when later identified parts swap with parent=%s",
+    (parentId) => {
+      let mounts = 0;
+      const Group = ({ children }: PropsWithChildren) => {
+        const [mount] = useState(() => ++mounts);
+        return <section data-mount={mount}>{children}</section>;
+      };
+      const Text = ({ text }: { text: string }) => {
+        const [seed] = useState(text);
+        return <span>{`${seed}:${text}`}</span>;
+      };
+      const Message = partsMessage({ Text, Group });
+      const first = {
+        type: "text" as const,
+        id: "p1",
+        text: "first",
+        ...(parentId !== undefined && { parentId }),
+      };
+      const second = {
+        type: "text" as const,
+        id: "p2",
+        text: "second",
+        ...(parentId !== undefined && { parentId }),
+      };
+      const third = {
+        ...second,
+        id: "p3",
+        text: "third",
+      };
+      const view = render(
+        <Example Message={Message} content={[first, second, third]} />,
+      );
+      view.rerender(
+        <Example
+          Message={Message}
+          content={[
+            { ...first, text: "first updated" },
+            { ...third, text: "third updated" },
+            { ...second, text: "second updated" },
+          ]}
+        />,
+      );
+      expect(
+        Array.from(
+          view.container.querySelectorAll("span"),
+          (el) => el.textContent,
+        ),
+      ).toEqual([
+        "first:first updated",
+        "third:third updated",
+        "second:second updated",
+      ]);
+      expect(
+        Array.from(
+          view.container.querySelectorAll("section"),
+          (el) => el.dataset.mount,
+        ),
+      ).toEqual(parentId === undefined ? ["1", "3", "2"] : ["1"]);
+    },
+  );
+
+  it("keys unidentified groups by index and keeps parent names separate", () => {
+    let mounts = 0;
+    const Group = ({
+      groupKey,
+      children,
+    }: PropsWithChildren<{ groupKey: string | undefined }>) => {
+      const [mount] = useState(() => ++mounts);
+      return (
+        <section data-mount={mount} data-parent={groupKey}>
+          {children}
+        </section>
+      );
+    };
+    const Message = partsMessage({ Group });
+    const parts = [
+      { type: "text" as const, text: "first" },
+      { type: "text" as const, text: "second" },
+    ];
+    const view = render(<Example Message={Message} content={parts} />);
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[
+          { type: "text", text: "parented", parentId: "ungrouped" },
+          ...parts,
+        ]}
+      />,
+    );
+    expect(
+      Array.from(
+        view.container.querySelectorAll("section"),
+        (el) => el.dataset.mount,
+      ),
+    ).toEqual(["3", "2", "4"]);
+  });
+
+  it("keeps a text seed while streaming and resets it for a replacement id", () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const Message = partsMessage({ Text: SeededText });
+    const view = render(
+      <Example
+        Message={Message}
+        content={[{ type: "text", id: "p1", text: "old" }]}
+      />,
+    );
+
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[{ type: "text", id: "p1", text: "old streamed" }]}
+      />,
+    );
+    expect(view.container.textContent).toBe("old:old streamed");
+
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[{ type: "text", id: "p2", text: "new" }]}
+      />,
+    );
+    expect(view.container.textContent).toBe("new:new");
+  });
+
   it("keeps parent IDs separate from ungrouped parts across content updates", () => {
     const { rerender } = render(
       <Example
@@ -168,6 +438,17 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
       expect(container.innerHTML).toBe("<i>fallback</i>");
     },
   );
+
+  it("falls back to the default text component for an undefined slot", () => {
+    render(
+      <Example
+        content={[{ type: "text", text: "hello" }]}
+        Message={partsMessage({ Text: undefined })}
+      />,
+    );
+
+    expect(screen.getByText("hello")).toBeTruthy();
+  });
 
   it("renders tool and data UIs registered under an inherited name", () => {
     const { container } = render(

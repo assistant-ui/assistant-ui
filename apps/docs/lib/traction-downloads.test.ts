@@ -84,12 +84,56 @@ describe("fetchNpmDownloads", () => {
     const downloads = await fetchNpmDownloads();
 
     expect(getDownloadsRange).not.toHaveBeenCalled();
-    expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.flagshipWeekly).toBeNull();
+    expect(downloads.totalWeekly).toBeNull();
     expect(downloads.perPackage[FLAGSHIP_PACKAGE]).toEqual({
       weekly: 0,
       series: [],
       monthly: 0,
       prevMonthly: 0,
     });
+  });
+
+  it("keeps a measured zero available", async () => {
+    getDownloadsRange.mockImplementation((_name, start, end) =>
+      Promise.resolve(
+        rangeRows(start, end).map(({ day }) => ({ day, downloads: 0 })),
+      ),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.flagshipWeekly).toBe(0);
+    expect(downloads.totalWeekly).toBe(0);
+  });
+
+  it("does not report a partial ecosystem total when a package range fails", async () => {
+    getDownloadsRange.mockImplementation((name, start, end) =>
+      Promise.resolve(
+        name === FLAGSHIP_PACKAGE
+          ? rangeRows(start, end).map(({ day }) => ({ day, downloads: 0 }))
+          : null,
+      ),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.flagshipWeekly).toBe(0);
+    expect(downloads.totalWeekly).toBeNull();
+  });
+
+  it("counts a package npm has no downloads for as zero in the ecosystem total", async () => {
+    getDownloadsRange.mockImplementation((name, start, end) =>
+      Promise.resolve(
+        name === FLAGSHIP_PACKAGE || name === "@assistant-ui/react-markdown"
+          ? rangeRows(start, end)
+          : [],
+      ),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.flagshipWeekly).toBeGreaterThan(0);
+    expect(downloads.totalWeekly).toBe(2 * downloads.flagshipWeekly!);
   });
 });

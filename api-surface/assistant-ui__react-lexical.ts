@@ -20,6 +20,11 @@ type DirectiveChipProps = {
 
 declare const DirectiveChipProvider: import("react").Provider<FC<DirectiveChipProps> | null>;
 
+type DirectiveFormatter = {
+  serialize(item: TriggerItem): string;
+  parse(text: string): readonly DirectiveSegment[];
+};
+
 declare class DirectiveNode extends DecoratorNode<ReactNode> {
   __directiveId: string;
   __directiveType: string;
@@ -49,6 +54,16 @@ declare function DirectivePlugin(_param0?: DirectivePluginProps): null;
 
 type DirectivePluginProps = {
   onDirectiveSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
+};
+
+type DirectiveSegment = {
+  readonly kind: "text";
+  readonly text: string;
+} | {
+  readonly kind: "mention";
+  readonly type: string;
+  readonly label: string;
+  readonly id: string;
 };
 
 declare const LexicalComposerInput: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").DetailedHTMLProps<import("react").HTMLAttributes<HTMLDivElement>, HTMLDivElement>, "ref">, "autoFocus" | "children"> & {
@@ -103,28 +118,17 @@ interface SpeechRecognitionInstance extends EventTarget {
   abort(): void;
 }
 
-type Unstable_DirectiveFormatter = {
-  serialize(item: Unstable_TriggerItem): string;
-  parse(text: string): readonly Unstable_DirectiveSegment[];
-};
-
-type Unstable_DirectiveSegment = {
-  readonly kind: "text";
-  readonly text: string;
-} | {
-  readonly kind: "mention";
-  readonly type: string;
-  readonly label: string;
-  readonly id: string;
-};
-
-type Unstable_TriggerItem = {
+type TriggerItem = {
   readonly id: string;
   readonly type: string;
   readonly label: string;
   readonly description?: string | undefined;
   readonly metadata?: ReadonlyJSONObject | undefined;
 };
+
+type Unstable_DirectiveFormatter = DirectiveFormatter;
+
+type Unstable_TriggerItem = TriggerItem;
 
 declare global {
   interface Window {

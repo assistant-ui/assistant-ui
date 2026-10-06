@@ -126,8 +126,8 @@ export function SetupLink({
 export const useBeginSetup = () => {
   const router = useRouter();
   const { enterSetup } = useSetupNavigation();
-  return (slugs: readonly string[]) => {
-    startCheckout(slugs);
+  return (slugs: readonly string[], instructions = "") => {
+    startCheckout(slugs, instructions);
     enterSetup();
     router.push("/components/setup");
   };

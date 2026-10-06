@@ -228,6 +228,7 @@ type AssistantTransportStateOperation = {
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -319,7 +320,7 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 type GenericFilePart = {
@@ -458,6 +459,11 @@ type MessagePartLike = {
   interrupt?: unknown;
 };
 
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
 type NodeRedisFields = Record<string, string | Buffer>;
 
 interface NodeRedisLike {
@@ -581,6 +587,7 @@ type ReasoningPart = {
   text: string;
   status: TextStatus;
   unstable_summary?: string;
+  timing?: MessagePartTiming;
   parentId?: string;
 };
 
@@ -850,10 +857,7 @@ type ToolCallStreamController = {
   close(): void;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolCallback = (toolCall: {
   toolCallId: string;
@@ -1109,7 +1113,7 @@ declare namespace entry_resumable_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 declare namespace entry_resumable_ioredis_exports {
