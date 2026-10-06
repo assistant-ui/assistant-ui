@@ -21,6 +21,7 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 import { isMessageNotSentError } from "../../types/error";
 import {
   createVoiceSession,
+  type RealtimeVoiceAdapter,
   type VoiceSessionHelpers,
 } from "../../adapters/voice";
 
@@ -5482,6 +5483,7 @@ describe("LocalThreadRuntimeCore runs", () => {
   });
 
   it("cancels active and queued work when the history scope changes", async () => {
+    const firstAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const run = vi.fn<ChatModelAdapter["run"]>(
       ({ abortSignal }) =>
@@ -5500,7 +5502,7 @@ describe("LocalThreadRuntimeCore runs", () => {
           history: {
             scopeId: "first",
             load: async () => ({ messages: [] }),
-            append: async () => {},
+            append: firstAppend,
           },
         },
         unstable_enableMessageQueue: true,
@@ -5533,8 +5535,69 @@ describe("LocalThreadRuntimeCore runs", () => {
     await flush();
 
     expect(run).toHaveBeenCalledOnce();
+    expect(firstAppend).toHaveBeenCalledOnce();
+    expect(firstAppend.mock.calls[0]?.[0].message.role).toBe("user");
     expect(thread.getQueueItems()).toEqual([]);
     expect(secondAppend).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("disconnects voice when the history scope changes", async () => {
+    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+    const unsubscribeTranscript = vi.fn();
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: (callback) => {
+        emitTranscript = callback;
+        return unsubscribeTranscript;
+      },
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    const voice: RealtimeVoiceAdapter = { connect: () => session };
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = createThread(
+      { run: async () => ({ content: [] }) },
+      {
+        voice,
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    );
+
+    await thread.__internal_load();
+    thread.connectVoice();
+    expect(thread.voice).toBeDefined();
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run: async () => ({ content: [] }) },
+        voice,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: appendSecond,
+        },
+      },
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(unsubscribeTranscript).toHaveBeenCalledOnce();
+    expect(thread.voice).toBeUndefined();
+
+    emitTranscript({ role: "user", text: "previous scope", isFinal: true });
+    await flush();
+
+    expect(appendSecond).not.toHaveBeenCalled();
     expect(thread.messages).toEqual([]);
   });
 
