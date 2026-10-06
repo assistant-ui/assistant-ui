@@ -4525,7 +4525,7 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.24
+        specifier: workspace:^
         version: link:../core
       '@assistant-ui/react-generative-ui':
         specifier: ^0.0.24
@@ -4789,7 +4789,7 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.24
+        specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.17
