@@ -1064,7 +1064,7 @@ function inListContext(text: string, lineStart: number): boolean {
   let pos = lineStart;
   for (;;) {
     if (pos === 0) return false;
-    const prevStart = text.lastIndexOf("\n", pos - 2) + 1;
+    const prevStart = pos < 2 ? 0 : text.lastIndexOf("\n", pos - 2) + 1;
     const prevEnd = text.indexOf("\n", prevStart);
     const end = prevEnd === -1 ? text.length : prevEnd;
     const content = pastBlockquotes(text, prevStart, end);
@@ -1096,7 +1096,7 @@ function opensIndentedCode(text: string, index: number): boolean {
   const content = pastBlockquotes(text, index, end);
   if (onlyWhitespace(text, content, end)) return false;
   if (index !== 0) {
-    const prevStart = text.lastIndexOf("\n", index - 2) + 1;
+    const prevStart = index < 2 ? 0 : text.lastIndexOf("\n", index - 2) + 1;
     const prevEnd = text.indexOf("\n", prevStart);
     const pEnd = prevEnd === -1 ? text.length : prevEnd;
     if (!onlyWhitespace(text, pastBlockquotes(text, prevStart, pEnd), pEnd)) {

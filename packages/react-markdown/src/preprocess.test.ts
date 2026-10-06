@@ -786,6 +786,16 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("notes:\n\n    - not a list $5\n    more $10");
   });
 
+  it("does not hang on input starting with a blank line", () => {
+    expect(escapeCurrencyDollars("\n\n    code $5")).toBe("\n\n    code $5");
+  });
+
+  it("does not hang on a lone leading newline", () => {
+    expect(escapeCurrencyDollars("\nIntro:\n\n    x = $1")).toBe(
+      "\nIntro:\n\n    x = $1",
+    );
+  });
+
   it("does not rewrite indented code inside a blockquote", () => {
     expect(escapeCurrencyDollars(">     total = $5")).toBe(">     total = $5");
   });
