@@ -760,10 +760,30 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("- Plan A\n\n    Costs \\$5 per month and \\$10 extra.");
   });
 
-  it("does not rewrite indented code inside a list item", () => {
+  it("still escapes indented lines inside a list item", () => {
+    // Conservative: any list context vetoes indented code, so this stays
+    // escaped rather than risk reading list prose as code.
     expect(escapeCurrencyDollars("- item\n\n      total = $5")).toBe(
-      "- item\n\n      total = $5",
+      "- item\n\n      total = \\$5",
     );
+  });
+
+  it("still escapes a nested sublist paragraph", () => {
+    expect(
+      escapeCurrencyDollars("- a\n\n    - b\n\n      costs $5 and $10"),
+    ).toBe("- a\n\n    - b\n\n      costs \\$5 and \\$10");
+  });
+
+  it("still escapes a lazy list continuation paragraph", () => {
+    expect(
+      escapeCurrencyDollars("- Plan A\nwraps here\n\n    costs $5 and $10"),
+    ).toBe("- Plan A\nwraps here\n\n    costs \\$5 and \\$10");
+  });
+
+  it("does not veto a code block containing marker-like text", () => {
+    expect(
+      escapeCurrencyDollars("notes:\n\n    - not a list $5\n    more $10"),
+    ).toBe("notes:\n\n    - not a list $5\n    more $10");
   });
 
   it("does not rewrite indented code inside a blockquote", () => {
