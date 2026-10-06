@@ -106,6 +106,7 @@ type MakeRequestOptions = {
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
 
 export class AssistantCloudAPI {
+  #authGeneration = 0;
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
   public readonly registerSdk: (sdk: SdkIdentity) => void;
@@ -155,6 +156,7 @@ export class AssistantCloudAPI {
   }
 
   public invalidateAuth(): void {
+    this.#authGeneration++;
     this._auth.invalidate();
   }
 
@@ -162,8 +164,11 @@ export class AssistantCloudAPI {
     endpoint: string,
     options: MakeRequestOptions = {},
   ) {
+    const authGeneration = this.#authGeneration;
     const authHeaders = await this._auth.getAuthHeaders();
-    if (!authHeaders) throw new Error("Authorization failed");
+    if (authGeneration !== this.#authGeneration || !authHeaders) {
+      throw new Error("Authorization failed");
+    }
 
     const headers = {
       ...authHeaders,

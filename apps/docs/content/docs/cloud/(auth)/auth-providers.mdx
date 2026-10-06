@@ -101,28 +101,72 @@ function useCloud() {
 </Tab>
 <Tab value="Supabase">
 
-A JWKS rule requires an RS256 signing key. Return the Supabase session access token after configuring its issuer and JWKS endpoint in the rule.
+A JWKS rule requires an RS256 signing key. Return the Supabase session access token after configuring its issuer and JWKS endpoint in the rule. Keying the client to the signed-in user recreates it on a sign-in change, and its token callback answers only for that user, so a stale client never authenticates as the next one.
 
 ```tsx title="use-cloud.ts"
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: async () => {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
-  },
-});
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { AssistantCloud } from "@assistant-ui/react";
+import { supabase } from "./supabase";
+
+function useCloud() {
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user.id ?? null);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  return useMemo(
+    () => new AssistantCloud({
+      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+      authToken: async () => {
+        const { data } = await supabase.auth.getSession();
+        return data.session?.user.id === userId
+          ? data.session.access_token
+          : null;
+      },
+    }),
+    [userId],
+  );
+}
 ```
 
 </Tab>
 <Tab value="Firebase">
 
-Firebase ID tokens use RS256 and publish keys. Configure the project's issuer and JWKS endpoint, then return the current user's ID token.
+Firebase ID tokens use RS256 and publish keys. Configure the project's issuer and JWKS endpoint, then return the current user's ID token. As with Supabase, the client is keyed to the signed-in user and its token callback answers only for that user.
 
 ```tsx title="use-cloud.ts"
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: async () => (await auth.currentUser?.getIdToken()) ?? null,
-});
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { AssistantCloud } from "@assistant-ui/react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
+
+function useCloud() {
+  const [userId, setUserId] = useState(() => auth.currentUser?.uid ?? null);
+
+  useEffect(
+    () => onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? null)),
+    [],
+  );
+
+  return useMemo(
+    () => new AssistantCloud({
+      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+      authToken: async () => {
+        const user = auth.currentUser;
+        return user?.uid === userId ? user.getIdToken() : null;
+      },
+    }),
+    [userId],
+  );
+}
 ```
 
 </Tab>

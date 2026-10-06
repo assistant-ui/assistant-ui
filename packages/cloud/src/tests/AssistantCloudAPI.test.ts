@@ -164,6 +164,66 @@ describe("AssistantCloudAPI", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects old headers if auth is invalidated while headers resolve", async () => {
+    const userAToken = createAccessToken("user-a");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => userAToken,
+    });
+    const oldHeaders = await api._auth.getAuthHeaders();
+    if (!oldHeaders) throw new Error("Expected auth headers");
+
+    let resolveHeaders: (headers: Record<string, string>) => void = () => {};
+    vi.spyOn(api._auth, "getAuthHeaders").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveHeaders = resolve;
+        }),
+    );
+
+    const oldRequest = api.makeRawRequest("/threads");
+    api.invalidateAuth();
+    resolveHeaders(oldHeaders);
+
+    await expect(oldRequest).rejects.toThrow("Authorization failed");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses fresh headers for a request started after invalidation", async () => {
+    const userAToken = createAccessToken("user-a");
+    const userBToken = createAccessToken("user-b");
+    let currentToken = userAToken;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => currentToken,
+    });
+    await api.makeRawRequest("/threads");
+
+    currentToken = userBToken;
+    api.invalidateAuth();
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userAToken}`,
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
+  });
+
   it("does not let an old response restore a superseded identity", async () => {
     const userAToken = createAccessToken("user-a");
     const userBToken = createAccessToken("user-b");
