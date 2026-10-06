@@ -1,0 +1,366 @@
+@layer components {
+  .explorer {
+    --explorer-paper: var(--background, oklch(0.992 0.002 106));
+    --explorer-ink: var(--foreground, oklch(0.145 0.006 106));
+    --explorer-muted: color-mix(
+      in oklch,
+      var(--explorer-ink) 58%,
+      var(--explorer-paper)
+    );
+    --explorer-field: color-mix(
+      in oklch,
+      var(--explorer-ink) 3%,
+      var(--explorer-paper)
+    );
+    --explorer-line: color-mix(
+      in oklch,
+      var(--explorer-ink) 12%,
+      var(--explorer-paper)
+    );
+    background: var(--explorer-paper);
+    color: var(--explorer-ink);
+    font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 48px);
+  }
+
+  .explorer * {
+    box-sizing: border-box;
+  }
+  .explorer button,
+  .explorer select {
+    font: inherit;
+  }
+  .explorer button,
+  .explorer select,
+  .explorer summary {
+    cursor: pointer;
+  }
+  .explorer :focus-visible {
+    outline: 2px solid var(--explorer-ink);
+    outline-offset: 4px;
+  }
+  .explorer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+  .explorer-eyebrow {
+    color: var(--explorer-muted);
+    font-size: 13px;
+    margin: 0 0 12px;
+  }
+  .explorer h1 {
+    font-family: var(--font-display, ui-sans-serif, system-ui);
+    font-size: clamp(28px, 4vw, 40px);
+    letter-spacing: -0.04em;
+    font-weight: 550;
+    line-height: 1.12;
+    margin: 0;
+  }
+  .explorer-deck {
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 12px 0 0;
+    color: var(--explorer-muted);
+  }
+  .explorer-mode {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--explorer-muted);
+    text-align: right;
+    padding-top: 3px;
+  }
+  .explorer-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.85fr);
+    gap: clamp(24px, 4vw, 48px);
+    align-items: start;
+  }
+  .explorer-workspace {
+    min-width: 0;
+  }
+  .explorer-dataset-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+  }
+  .explorer h2 {
+    font-family: var(--font-display, ui-sans-serif, system-ui);
+    font-weight: 550;
+    font-size: 20px;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+  .explorer-dataset-heading p {
+    font-size: 12px;
+    margin: 7px 0 0;
+    color: var(--explorer-muted);
+    line-height: 1.5;
+  }
+  .explorer-count {
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--explorer-muted);
+    font-family: var(--font-mono, ui-monospace, monospace);
+  }
+  .explorer-metrics {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 16px;
+    margin: 26px 0;
+    padding: 22px 0;
+    border-top: 1px solid var(--explorer-line);
+    border-bottom: 1px solid var(--explorer-line);
+  }
+  .explorer-metrics dt {
+    font-size: 12px;
+    color: var(--explorer-muted);
+    margin-bottom: 8px;
+  }
+  .explorer-metrics dd {
+    font-family: var(--font-display, ui-sans-serif, system-ui);
+    font-size: clamp(20px, 2.6vw, 28px);
+    letter-spacing: -0.035em;
+    margin: 0;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .explorer-metrics dd span {
+    color: var(--explorer-muted);
+    font-size: 14px;
+  }
+  .explorer-controls {
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .explorer-grouping {
+    display: flex;
+    background: var(--explorer-field);
+    padding: 3px;
+    border-radius: 8px;
+  }
+  .explorer-grouping button {
+    background: transparent;
+    color: var(--explorer-muted);
+    border: 0;
+    padding: 8px 11px;
+    min-height: 34px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .explorer-grouping button[aria-pressed="true"] {
+    color: var(--explorer-ink);
+    background: color-mix(
+      in oklch,
+      var(--explorer-ink) 8%,
+      var(--explorer-paper)
+    );
+  }
+  .explorer-grouping button:hover {
+    color: var(--explorer-ink);
+  }
+  .explorer-figure {
+    margin: 24px 0 0;
+  }
+  .explorer-figure figcaption {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .explorer-figure figcaption span:last-child {
+    color: var(--explorer-muted);
+    font-size: 12px;
+  }
+  .explorer-chart-wrap {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .explorer-chart-axis {
+    height: 190px;
+    position: relative;
+    font-size: 11px;
+    color: var(--explorer-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .explorer-chart-axis span {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+  }
+  .explorer-chart-axis span:nth-child(1) {
+    top: 6.25%;
+  }
+  .explorer-chart-axis span:nth-child(2) {
+    top: 53.125%;
+  }
+  .explorer-chart-axis span:nth-child(3) {
+    top: 100%;
+  }
+  .explorer-chart {
+    display: block;
+    width: 100%;
+    height: 190px;
+    overflow: visible;
+  }
+  .explorer-chart-labels {
+    display: grid;
+    margin-top: 12px;
+    gap: 4px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--explorer-muted);
+  }
+  .explorer-chart-grid {
+    stroke: var(--explorer-line);
+    stroke-dasharray: 3 6;
+  }
+  .explorer-bar {
+    fill: var(--chart-2, oklch(0.6 0.118 184.704));
+  }
+  .explorer-update {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--explorer-muted);
+    margin: 10px 0 18px;
+    min-height: 20px;
+  }
+  .explorer-table-section {
+    margin-top: 10px;
+    background: var(--explorer-field);
+    border-radius: 6px;
+  }
+  .explorer-table-section summary {
+    padding: 13px 14px;
+    font-size: 13px;
+  }
+  .explorer-table-section summary span {
+    float: right;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    color: var(--explorer-muted);
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .explorer-table-scroll {
+    padding: 0 14px 14px;
+    overflow-x: auto;
+  }
+  .explorer table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .explorer caption {
+    text-align: left;
+    color: var(--explorer-muted);
+    white-space: normal;
+    padding: 4px 0 12px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .explorer th,
+  .explorer td {
+    padding: 9px 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .explorer th {
+    font-weight: 500;
+  }
+  .explorer th:first-child,
+  .explorer td:first-child {
+    padding-left: 0;
+  }
+  .explorer th:last-child,
+  .explorer td:last-child {
+    padding-right: 0;
+  }
+  .explorer thead {
+    color: var(--explorer-muted);
+  }
+  .explorer td:last-child,
+  .explorer th:last-child,
+  .explorer td:nth-last-child(2),
+  .explorer th:nth-last-child(2) {
+    text-align: right;
+  }
+  .explorer tbody tr:hover {
+    background: var(--explorer-field);
+  }
+  .explorer tfoot {
+    border-top: 1px solid var(--explorer-line);
+    font-weight: 550;
+  }
+  .explorer-assistant {
+    min-width: 0;
+  }
+  .explorer .preview-chat {
+    height: 490px;
+  }
+  .explorer .chat-heading {
+    padding: 0 0 18px;
+  }
+  .explorer .chat-heading h2 {
+    font-size: 19px;
+  }
+  .explorer-footnote {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--explorer-muted);
+    margin: 16px 0 0;
+  }
+
+  @media (max-width: 740px) {
+    .explorer {
+      padding: 24px 20px;
+    }
+    .explorer-header {
+      margin-bottom: 28px;
+    }
+    .explorer-mode {
+      max-width: 110px;
+    }
+    .explorer-layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 30px;
+    }
+    .explorer-metrics {
+      margin: 22px 0;
+    }
+    .explorer-assistant {
+      border-top: 1px solid var(--explorer-line);
+      padding-top: 26px;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .explorer {
+      padding: 20px 16px;
+    }
+    .explorer-header {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .explorer-mode {
+      max-width: none;
+      text-align: left;
+    }
+    .explorer-metrics {
+      gap: 10px;
+    }
+    .explorer-grouping button {
+      padding-inline: 10px;
+    }
+  }
+}

@@ -193,9 +193,12 @@ export class A2AThreadRuntimeCore {
   detachRuntime() {
     this.runtime = undefined;
     // Abort in-flight requests on unmount
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+    const controller = this.abortController;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -434,6 +437,7 @@ export class A2AThreadRuntimeCore {
         // that case out.
         if (this.currentTask === task && this.runGeneration === generation) {
           this.currentTask = updated;
+          this.notifyUpdate();
         }
       } catch {
         // Server cancel failed; local abort already handled

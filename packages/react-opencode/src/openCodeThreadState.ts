@@ -8,6 +8,7 @@ import type {
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
+import { nullProtoRecord } from "@assistant-ui/core/internal";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
@@ -26,11 +27,7 @@ const isSameRecord = <T>(
 
 export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
-): Record<string, OpenCodeServerMessage> =>
-  Object.assign(
-    Object.create(null) as Record<string, OpenCodeServerMessage>,
-    messagesById,
-  );
+): Record<string, OpenCodeServerMessage> => nullProtoRecord(messagesById);
 
 const extractCreatedAt = (message: Message | undefined): number | undefined => {
   const created = message?.time?.created;
@@ -107,8 +104,8 @@ const removePending = (
   state: OpenCodeThreadState,
   clientId: string,
 ): OpenCodeThreadState => {
-  if (!(clientId in state.pendingUserMessages)) return state;
-  const pendingUserMessages = { ...state.pendingUserMessages };
+  if (!Object.hasOwn(state.pendingUserMessages, clientId)) return state;
+  const pendingUserMessages = nullProtoRecord(state.pendingUserMessages);
   delete pendingUserMessages[clientId];
   return {
     ...state,
@@ -275,47 +272,28 @@ export const createOpenCodeThreadState = (
   runState: { type: "idle" },
   messageOrder: [],
   messagesById: copyMessagesById(),
-  childSessionsById: {} as Readonly<Record<string, OpenCodeThreadState>>,
-  pendingUserMessages: {} as Readonly<Record<string, PendingUserMessage>>,
+  childSessionsById: nullProtoRecord<OpenCodeThreadState>(),
+  pendingUserMessages: nullProtoRecord<PendingUserMessage>(),
   interactions: {
     permissions: {
-      pending: {} as Readonly<
-        Record<string, import("./types").OpenCodePermissionRequest>
-      >,
-      resolved: {} as Readonly<
-        Record<
-          string,
-          {
-            request: import("./types").OpenCodePermissionRequest;
-            reply: import("./types").OpenCodePermissionResponse;
-            respondedAt: number;
-          }
-        >
-      >,
+      pending: nullProtoRecord<import("./types").OpenCodePermissionRequest>(),
+      resolved: nullProtoRecord<{
+        request: import("./types").OpenCodePermissionRequest;
+        reply: import("./types").OpenCodePermissionResponse;
+        respondedAt: number;
+      }>(),
     },
     questions: {
-      pending: {} as Readonly<
-        Record<string, import("./types").OpenCodeQuestionRequest>
-      >,
-      answered: {} as Readonly<
-        Record<
-          string,
-          {
-            request: import("./types").OpenCodeQuestionRequest;
-            answers: readonly import("./types").QuestionAnswer[];
-            respondedAt: number;
-          }
-        >
-      >,
-      rejected: {} as Readonly<
-        Record<
-          string,
-          {
-            request: import("./types").OpenCodeQuestionRequest;
-            rejectedAt: number;
-          }
-        >
-      >,
+      pending: nullProtoRecord<import("./types").OpenCodeQuestionRequest>(),
+      answered: nullProtoRecord<{
+        request: import("./types").OpenCodeQuestionRequest;
+        answers: readonly import("./types").QuestionAnswer[];
+        respondedAt: number;
+      }>(),
+      rejected: nullProtoRecord<{
+        request: import("./types").OpenCodeQuestionRequest;
+        rejectedAt: number;
+      }>(),
     },
   },
   unhandledEvents: [],
@@ -448,7 +426,7 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "message.removed": {
-      if (!(event.messageId in state.messagesById)) return state;
+      if (!Object.hasOwn(state.messagesById, event.messageId)) return state;
       const messagesById = copyMessagesById(state.messagesById);
       delete messagesById[event.messageId];
       return {
@@ -543,17 +521,16 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
-    case "permission.asked":
+    case "permission.asked": {
+      const pending = nullProtoRecord(state.interactions.permissions.pending);
+      pending[event.request.id] = event.request;
       return {
         ...state,
         interactions: {
           ...state.interactions,
           permissions: {
             ...state.interactions.permissions,
-            pending: {
-              ...state.interactions.permissions.pending,
-              [event.request.id]: event.request,
-            },
+            pending,
           },
         },
         sync: {
@@ -561,6 +538,7 @@ export const reduceOpenCodeThreadState = (
           lastEventAt: Date.now(),
         },
       };
+    }
 
     case "permissions.reconciled":
       if (isSameRecord(state.interactions.permissions.pending, event.pending)) {
@@ -582,10 +560,16 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "permission.replied": {
-      const pending = { ...state.interactions.permissions.pending };
+      const pending = nullProtoRecord(state.interactions.permissions.pending);
       const request = pending[event.permissionId];
       delete pending[event.permissionId];
       if (!request) return state;
+      const resolved = nullProtoRecord(state.interactions.permissions.resolved);
+      resolved[event.permissionId] = {
+        request,
+        reply: event.reply,
+        respondedAt: Date.now(),
+      };
 
       return {
         ...state,
@@ -593,14 +577,7 @@ export const reduceOpenCodeThreadState = (
           ...state.interactions,
           permissions: {
             pending,
-            resolved: {
-              ...state.interactions.permissions.resolved,
-              [event.permissionId]: {
-                request,
-                reply: event.reply,
-                respondedAt: Date.now(),
-              },
-            },
+            resolved,
           },
         },
         sync: {
@@ -610,17 +587,16 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
-    case "question.asked":
+    case "question.asked": {
+      const pending = nullProtoRecord(state.interactions.questions.pending);
+      pending[event.request.id] = event.request;
       return {
         ...state,
         interactions: {
           ...state.interactions,
           questions: {
             ...state.interactions.questions,
-            pending: {
-              ...state.interactions.questions.pending,
-              [event.request.id]: event.request,
-            },
+            pending,
           },
         },
         sync: {
@@ -628,6 +604,7 @@ export const reduceOpenCodeThreadState = (
           lastEventAt: Date.now(),
         },
       };
+    }
 
     case "questions.reconciled":
       if (isSameRecord(state.interactions.questions.pending, event.pending)) {
@@ -649,10 +626,16 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "question.replied": {
-      const pending = { ...state.interactions.questions.pending };
+      const pending = nullProtoRecord(state.interactions.questions.pending);
       const request = pending[event.questionId];
       delete pending[event.questionId];
       if (!request) return state;
+      const answered = nullProtoRecord(state.interactions.questions.answered);
+      answered[event.questionId] = {
+        request,
+        answers: event.answers,
+        respondedAt: Date.now(),
+      };
 
       return {
         ...state,
@@ -661,14 +644,7 @@ export const reduceOpenCodeThreadState = (
           questions: {
             ...state.interactions.questions,
             pending,
-            answered: {
-              ...state.interactions.questions.answered,
-              [event.questionId]: {
-                request,
-                answers: event.answers,
-                respondedAt: Date.now(),
-              },
-            },
+            answered,
           },
         },
         sync: {
@@ -679,10 +655,15 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "question.rejected": {
-      const pending = { ...state.interactions.questions.pending };
+      const pending = nullProtoRecord(state.interactions.questions.pending);
       const request = pending[event.questionId];
       delete pending[event.questionId];
       if (!request) return state;
+      const rejected = nullProtoRecord(state.interactions.questions.rejected);
+      rejected[event.questionId] = {
+        request,
+        rejectedAt: Date.now(),
+      };
 
       return {
         ...state,
@@ -691,13 +672,7 @@ export const reduceOpenCodeThreadState = (
           questions: {
             ...state.interactions.questions,
             pending,
-            rejected: {
-              ...state.interactions.questions.rejected,
-              [event.questionId]: {
-                request,
-                rejectedAt: Date.now(),
-              },
-            },
+            rejected,
           },
         },
         sync: {
@@ -720,14 +695,14 @@ export const reduceOpenCodeThreadState = (
         },
       };
 
-    case "local.message.queued":
+    case "local.message.queued": {
+      const pendingUserMessages = nullProtoRecord(state.pendingUserMessages);
+      pendingUserMessages[event.pending.clientId] = event.pending;
       return {
         ...state,
-        pendingUserMessages: {
-          ...state.pendingUserMessages,
-          [event.pending.clientId]: event.pending,
-        },
+        pendingUserMessages,
       };
+    }
 
     case "local.message.reconciled":
       return removePending(state, event.clientId);
@@ -735,16 +710,15 @@ export const reduceOpenCodeThreadState = (
     case "local.message.failed": {
       const current = state.pendingUserMessages[event.clientId];
       if (!current) return state;
+      const pendingUserMessages = nullProtoRecord(state.pendingUserMessages);
+      pendingUserMessages[event.clientId] = {
+        ...current,
+        status: "failed",
+        error: event.error,
+      };
       return {
         ...state,
-        pendingUserMessages: {
-          ...state.pendingUserMessages,
-          [event.clientId]: {
-            ...current,
-            status: "failed",
-            error: event.error,
-          },
-        },
+        pendingUserMessages,
         runState: { type: "error", error: event.error },
       };
     }

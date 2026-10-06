@@ -3,7 +3,24 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { collectPackages, posixPath, readJson } from "./workspace.mjs";
+import {
+  apiSurfaceFileName,
+  collectPackages,
+  posixPath,
+  readJson,
+} from "./workspace.mjs";
+
+test("API surface filenames match scoped and unscoped package names", () => {
+  assert.equal(
+    apiSurfaceFileName("@assistant-ui/react"),
+    "assistant-ui__react.ts",
+  );
+  assert.equal(apiSurfaceFileName("assistant-ui"), "assistant-ui.ts");
+  assert.equal(
+    apiSurfaceFileName("create-assistant-ui"),
+    "create-assistant-ui.ts",
+  );
+});
 
 const makeRepo = (packages) => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "workspace-test-"));

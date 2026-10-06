@@ -6,20 +6,40 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
   test: {
+    coverage: {
+      include: [
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "hooks/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx,mjs}",
+        "runtimes/**/*.{ts,tsx}",
+        "instrumentation.ts",
+        "instrumentation-client.ts",
+        "proxy.ts",
+        "mdx-components.tsx",
+      ],
+      exclude: [
+        "lib/xulux/learn/courses/*/shared/**",
+        "lib/xulux/learn/courses/*/stages/**",
+      ],
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,
     globals: true,
+    setupFiles: ["./test/setup.ts"],
     env: {
       NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test",
-      NEXT_PUBLIC_SHOP_ENABLED: "1",
     },
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.
     exclude: [...defaultExclude, "generated/.repo-source/**"],
+    // Extensionless next imports in aui-auth's ESM build only resolve once vitest transforms it.
+    server: { deps: { inline: ["aui-auth"] } },
   },
   resolve: {
     alias: {
+      "@assistant-ui/ui": resolve(__dirname, "../../packages/ui/src"),
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.

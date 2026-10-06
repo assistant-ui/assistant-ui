@@ -1,3 +1,4 @@
+import { isRecord } from "@assistant-ui/core/internal";
 import {
   useState,
   useCallback,
@@ -39,6 +40,10 @@ export type UseAdkMessagesOptions = {
   };
 };
 
+type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
+  onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
+};
+
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -49,10 +54,11 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   void invokeUserCallback("react-google-adk", name, callback, ...args);
 };
 
-export const useAdkMessages = ({
+const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-}: UseAdkMessagesOptions) => {
+  onMessages,
+}: UseAdkMessagesInternalOptions) => {
   const [messages, _setMessages] = useState<AdkMessage[]>([]);
   const [stateDelta, setStateDelta] = useState<Record<string, unknown>>({});
   const [agentInfo, setAgentInfo] = useState<{
@@ -167,8 +173,11 @@ export const useAdkMessages = ({
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
-      setMessagesImmediate(accumulator.getMessages());
-      setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      const initialMessages = accumulator.getMessages();
+      const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+      const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
+      setMessagesImmediate(initialMessages);
+      setLongRunningToolIds(initialLongRunningToolIds);
       setToolConfirmations(accumulator.getToolConfirmations());
       setAuthRequests(accumulator.getAuthRequests());
       let lastTransferToAgent: string | undefined;
@@ -202,6 +211,17 @@ export const useAdkMessages = ({
             break;
           }
           const updatedMessages = accumulator.processEvent(event);
+          // Each event part can append at most one message, and a function call
+          // stays on the current assistant message until a later part finalizes
+          // it, so every message touched by this event is within this tail.
+          const affectedMessageCount = Math.max(
+            event.content?.parts?.length ?? 0,
+            1,
+          );
+          const affectedMessages = updatedMessages.slice(-affectedMessageCount);
+          if (affectedMessages.length > 0) {
+            onMessages?.(affectedMessages, config.runConfig);
+          }
           setMessagesImmediate(updatedMessages);
           setStateDelta({
             ...stateDeltaRef.current,
@@ -265,6 +285,33 @@ export const useAdkMessages = ({
         }
       } finally {
         if (abortControllerRef.current === abortController) {
+          if (abortController.signal.aborted) {
+            setLongRunningToolIds(
+              accumulator
+                .getLongRunningToolIds()
+                .filter((id) => initialLongRunningToolIds.includes(id)),
+            );
+            const updatedMessages = messagesRef.current;
+            const lastAssistantMessage = updatedMessages.findLast(
+              (m) => m.type === "ai",
+            );
+            if (
+              lastAssistantMessage &&
+              !initialMessageIds.has(lastAssistantMessage.id) &&
+              !lastAssistantMessage.status
+            ) {
+              setMessagesImmediate(
+                updatedMessages.map((m) =>
+                  m === lastAssistantMessage
+                    ? {
+                        ...lastAssistantMessage,
+                        status: { type: "incomplete", reason: "cancelled" },
+                      }
+                    : m,
+                ),
+              );
+            }
+          }
           abortControllerRef.current = null;
         }
       }
@@ -277,6 +324,7 @@ export const useAdkMessages = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
+      onMessages,
     ],
   );
 
@@ -305,6 +353,17 @@ export const useAdkMessages = ({
     applySnapshot,
   };
 };
+
+export const useAdkMessages = ({
+  stream,
+  eventHandlers,
+}: UseAdkMessagesOptions) =>
+  useAdkMessagesInternal({
+    stream,
+    ...(eventHandlers !== undefined && { eventHandlers }),
+  });
+
+export { useAdkMessagesInternal };
 
 /**
  * Transport sends every human and tool message of one `send` call as a single
@@ -395,9 +454,9 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
     role: "model",
     parts: [
       ...contentToParts(msg.content),
-      ...(msg.tool_calls?.map((tc) => ({
+      ...(msg.tool_calls ?? []).filter(isRecord).map((tc) => ({
         functionCall: { name: tc.name, id: tc.id, args: { ...tc.args } },
-      })) ?? []),
+      })),
     ],
   };
   return result;

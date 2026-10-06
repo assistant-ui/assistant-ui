@@ -32,6 +32,7 @@ import {
 } from "./OpenCodeEventSource";
 import { generateId } from "@assistant-ui/core";
 import {
+  nullProtoRecord,
   resolveFileMediaType,
   resolveImageMediaType,
   toMediaWireUrl,
@@ -443,12 +444,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   ) {
     if (this.state.childSessionsById[sessionId] === childState) return;
 
+    const childSessionsById = nullProtoRecord(this.state.childSessionsById);
+    childSessionsById[sessionId] = childState;
     this.state = {
       ...this.state,
-      childSessionsById: {
-        ...this.state.childSessionsById,
-        [sessionId]: childState,
-      },
+      childSessionsById,
     };
     this.notifyListeners();
   }
@@ -535,7 +535,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       entry.unsubscribe?.();
       entry.controller.discard();
       this.childControllersById.delete(sessionId);
-      const { [sessionId]: _removed, ...remaining } = childSessionsById;
+      const remaining = nullProtoRecord(childSessionsById);
+      delete remaining[sessionId];
       childSessionsById = remaining;
     }
 
@@ -560,10 +561,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         unsubscribe: null,
       };
       this.childControllersById.set(sessionId, entry);
-      childSessionsById = {
-        ...childSessionsById,
-        [sessionId]: controller.getState(),
-      };
+      const nextChildSessionsById = nullProtoRecord(childSessionsById);
+      nextChildSessionsById[sessionId] = controller.getState();
+      childSessionsById = nextChildSessionsById;
       added.push([sessionId, entry]);
     }
 
@@ -640,8 +640,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private reconcilePermissions(requests: readonly OpenCodePermissionRequest[]) {
-    const pending: Record<string, OpenCodePermissionRequest> =
-      Object.create(null);
+    const pending = nullProtoRecord<OpenCodePermissionRequest>();
     for (const request of requests) {
       if (request.sessionId !== this.sessionId) continue;
       if (this.permissionRepliesInFlight.has(request.id)) continue;
@@ -669,8 +668,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private reconcileQuestions(requests: readonly OpenCodeQuestionRequest[]) {
-    const pending: Record<string, OpenCodeQuestionRequest> =
-      Object.create(null);
+    const pending = nullProtoRecord<OpenCodeQuestionRequest>();
     for (const request of requests) {
       if (request.sessionID !== this.sessionId) continue;
       if (this.questionRepliesInFlight.has(request.id)) continue;

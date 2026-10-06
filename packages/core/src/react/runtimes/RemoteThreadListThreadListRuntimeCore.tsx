@@ -279,6 +279,7 @@ export class RemoteThreadListThreadListRuntimeCore
   constructor(
     options: RemoteThreadListOptions,
     contextProvider: ModelContextProvider,
+    initialThreadIdSeed?: string,
   ) {
     super();
 
@@ -304,7 +305,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this.resolveProvider(options.adapter),
     );
     this.__internal_setOptions(options);
-    this.switchToNewThread();
+    this._startSwitchToNewThread(true, initialThreadIdSeed);
   }
 
   private _initialThreadLoaded = false;
@@ -784,9 +785,16 @@ export class RemoteThreadListThreadListRuntimeCore
         );
   }
 
-  private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
+  private _startSwitchToNewThread(
+    emitThreadIdChange: boolean,
+    initialThreadIdSeed?: string,
+  ): Promise<void> {
     const generation = ++this._switchGeneration;
-    const task = this._switchToNewThread(generation, emitThreadIdChange);
+    const task = this._switchToNewThread(
+      generation,
+      emitThreadIdChange,
+      initialThreadIdSeed,
+    );
     this._switchTask = task;
     return task;
   }
@@ -794,6 +802,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private async _switchToNewThread(
     generation: number,
     emitThreadIdChange: boolean,
+    initialThreadIdSeed?: string,
   ): Promise<void> {
     // an initialization transaction is in progress, wait for it to settle
     while (
@@ -807,7 +816,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const state = this._state.baseValue;
     let id: string | undefined = this._state.value.newThreadId;
     if (id === undefined) {
-      const next = seedNewThread(state);
+      const next = seedNewThread(state, initialThreadIdSeed);
       id = next.id;
       this._state.update(next.state);
     }

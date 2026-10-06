@@ -1,6 +1,9 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { validateGeneralChatInput } from "@/lib/validate-input";
+import {
+  validateFrontendToolsInput,
+  validateGeneralChatInput,
+} from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
@@ -149,6 +152,9 @@ export async function POST(req: Request) {
 
     const inputError = validateGeneralChatInput(messages);
     if (inputError) return inputError;
+
+    const toolsError = validateFrontendToolsInput(tools);
+    if (toolsError) return toolsError;
 
     // Guard against oversized configs (token inflation / DoS)
     const configStr = JSON.stringify(builderConfig ?? {});

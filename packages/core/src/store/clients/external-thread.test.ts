@@ -1,4 +1,5 @@
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { useState } from "react";
+import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 import type { ExternalThreadMessage } from "./external-thread";
@@ -54,6 +55,41 @@ const createPart = (
 };
 
 describe("ExternalThread interaction recording", () => {
+  it("keeps a part client with its id when parts swap", () => {
+    const initial: ExternalThreadMessage = {
+      ...message,
+      content: [
+        { type: "text", id: "p1", text: "first" },
+        { type: "text", id: "p2", text: "second" },
+      ],
+    };
+    let setMessage!: (message: ExternalThreadMessage) => void;
+    const root = createTapRoot(function ExternalThreadRoot() {
+      const [current, setValue] = useState<ExternalThreadMessage>(initial);
+      setMessage = setValue;
+      return useResource(ExternalThread({ messages: [current] }));
+    });
+
+    try {
+      const first = root.getValue().message({ index: 0 }).part({ index: 0 });
+      flushTapSync(() =>
+        setMessage({
+          ...initial,
+          content: [
+            { type: "text", id: "p2", text: "second streamed" },
+            { type: "text", id: "p1", text: "first streamed" },
+          ],
+        }),
+      );
+      expect(root.getValue().message({ index: 0 }).part({ index: 1 })).toBe(
+        first,
+      );
+      expect(first.getState()).toMatchObject({ text: "first streamed" });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("threads records from parts to the callback", async () => {
     const unstable_onRecordToolInteraction = vi.fn();
     const { part, unmount } = createPart(unstable_onRecordToolInteraction);
@@ -140,6 +176,62 @@ describe("ExternalThread interaction recording", () => {
       );
     } finally {
       unmount();
+    }
+  });
+});
+
+describe("ExternalThread earlier messages", () => {
+  it("shares one in-flight load and reports it in thread state", async () => {
+    let finish!: () => void;
+    const onLoadEarlier = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    const root = createTapRoot(function ExternalThreadRoot() {
+      return useResource(
+        ExternalThread({
+          messages: [message],
+          hasEarlier: true,
+          onLoadEarlier,
+        }),
+      );
+    });
+
+    try {
+      expect(root.getValue().getState()).toMatchObject({
+        hasEarlier: true,
+        isLoadingEarlier: false,
+      });
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      flushTapSync(() => {
+        first = root.getValue().loadEarlier();
+        second = root.getValue().loadEarlier();
+      });
+      expect(second).toBe(first);
+      expect(root.getValue().getState().isLoadingEarlier).toBe(true);
+
+      await Promise.resolve();
+      finish();
+      await first;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(onLoadEarlier).toHaveBeenCalledTimes(1);
+      expect(root.getValue().getState().isLoadingEarlier).toBe(false);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("reports no earlier messages without a loader", () => {
+    const root = createTapRoot(function ExternalThreadRoot() {
+      return useResource(
+        ExternalThread({ messages: [message], hasEarlier: true }),
+      );
+    });
+
+    try {
+      expect(root.getValue().getState().hasEarlier).toBe(false);
+    } finally {
+      root.unmount();
     }
   });
 });
