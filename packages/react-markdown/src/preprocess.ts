@@ -1057,7 +1057,10 @@ function pastBlockquotes(text: string, from: number, to: number): number {
  * blank lines, indented lines, and lazy continuation lines to the owning
  * block: a list marker there vetoes indented code, so list prose is never
  * read as code. Lines indented four or more columns are code, not markers, so
- * a code block containing `- ` text does not veto itself. Conservative by
+ * a code block containing `- ` text does not veto itself. The walk stops at a
+ * non-marker line under two columns wide that follows a blank line: the
+ * shortest list content column is 2, and lazy continuations never follow a
+ * blank line, so such a line closes any list above it. Conservative by
  * design: it can only miss code blocks, never invent them.
  */
 function inListContext(text: string, lineStart: number): boolean {
@@ -1079,8 +1082,21 @@ function inListContext(text: string, lineStart: number): boolean {
     ) {
       return true;
     }
+    if (columns(text, content, wsEnd) < 2 && prevLineIsBlank(text, prevStart)) {
+      return false;
+    }
     pos = prevStart;
   }
+}
+
+/** Whether the line before the one at `lineStart` is blank (or absent). */
+function prevLineIsBlank(text: string, lineStart: number): boolean {
+  if (lineStart === 0) return true;
+  const prevStart =
+    lineStart < 2 ? 0 : text.lastIndexOf("\n", lineStart - 2) + 1;
+  const prevEnd = text.indexOf("\n", prevStart);
+  const end = prevEnd === -1 ? text.length : prevEnd;
+  return onlyWhitespace(text, pastBlockquotes(text, prevStart, end), end);
 }
 
 /**

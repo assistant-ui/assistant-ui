@@ -780,6 +780,12 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("- Plan A\nwraps here\n\n    costs \\$5 and \\$10");
   });
 
+  it("does not rewrite root code after a closed list", () => {
+    expect(
+      escapeCurrencyDollars("- Plan A\n\nSome text\n\n    total = $5 + $10"),
+    ).toBe("- Plan A\n\nSome text\n\n    total = $5 + $10");
+  });
+
   it("does not veto a code block containing marker-like text", () => {
     expect(
       escapeCurrencyDollars("notes:\n\n    - not a list $5\n    more $10"),
