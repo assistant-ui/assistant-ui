@@ -383,21 +383,21 @@ function GlyphO11y() {
 
 function GlyphExamples() {
   const windows: Array<[number, number]> = [
-    [3, 3.5],
-    [17, 3.5],
-    [3, 13],
-    [17, 13],
+    [3, 2],
+    [18, 2],
+    [3, 14],
+    [18, 14],
   ];
   return (
     <GlyphSvg>
       {windows.map(([x, y], index) => (
         <g key={index}>
-          <rect x={x} y={y} width="12" height="8" rx="1.3" className={DIM} />
-          <path d={`M${x} ${y + 2.6}H${x + 12}`} className={FAINT} />
+          <rect x={x} y={y} width="11" height="8" rx="1.3" className={DIM} />
+          <path d={`M${x} ${y + 2.6}H${x + 11}`} className={FAINT} />
           <path
             {...motion("draw", index * 90)}
             pathLength={100}
-            d={`M${x + 2.5} ${y + 5.3}H${x + 8.5}`}
+            d={`M${x + 2.3} ${y + 5.3}H${x + 7.8}`}
             className={index === 0 ? ACCENT_STROKE : DIM}
           />
         </g>
