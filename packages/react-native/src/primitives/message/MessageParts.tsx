@@ -6,10 +6,23 @@ import {
   MessagePrimitivePartByIndex as MessagePrimitivePartByIndexBase,
   messagePartsDefaultComponents,
 } from "@assistant-ui/core/react";
+import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
+
+// React Native derives no intrinsic size from a remote or data URI, so an
+// Image with no dimensions lays out at zero. The default fills the available
+// width and keeps the picture whole inside a square box; a consumer that knows
+// its own aspect ratio overrides `components.Image`.
+const DEFAULT_IMAGE_STYLE = { width: "100%", aspectRatio: 1 } as const;
 
 const rnDefaultComponents = {
   ...messagePartsDefaultComponents,
   Text: ({ text }: { text: string }) => <Text>{text}</Text>,
+  Image: () => (
+    <MessagePartPrimitiveImage
+      style={DEFAULT_IMAGE_STYLE}
+      resizeMode="contain"
+    />
+  ),
 } satisfies MessagePrimitiveParts.Props["components"];
 
 export namespace MessagePrimitiveParts {
@@ -30,7 +43,11 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
 
   const { components, ...rest } = props;
   const merged = components
-    ? { ...components, Text: components.Text ?? rnDefaultComponents.Text }
+    ? {
+        ...components,
+        Text: components.Text ?? rnDefaultComponents.Text,
+        Image: components.Image ?? rnDefaultComponents.Image,
+      }
     : rnDefaultComponents;
 
   return <MessagePrimitivePartsBase components={merged as any} {...rest} />;

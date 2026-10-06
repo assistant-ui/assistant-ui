@@ -147,6 +147,56 @@ describe("ConversationMapAui", () => {
     );
   };
 
+  it("updates the preview when a message is replaced with the same id", async () => {
+    h.messages = [
+      message("u1", "user", [text("Question")]),
+      message("a1", "assistant", [text("Old preview")]),
+    ];
+    await render();
+
+    h.messages = [
+      h.messages[0],
+      message("a1", "assistant", [text("New preview")]),
+    ];
+    await render();
+
+    expect(ticks()[0]?.getAttribute("aria-description")).toBe("New preview");
+  });
+
+  it("does not resummarize earlier turns during a streaming update", async () => {
+    let reads = 0;
+    const counted = (
+      id: string,
+      role: "user" | "assistant",
+      value: string,
+    ) => ({
+      id,
+      role,
+      attachments: [],
+      get content() {
+        reads++;
+        return [text(value)];
+      },
+    });
+    const prefix = [
+      counted("u1", "user", "First"),
+      counted("a1", "assistant", "Answer"),
+      counted("u2", "user", "Second"),
+    ];
+    h.messages = [...prefix, message("a2", "assistant", [text("Old")])];
+    await render();
+
+    reads = 0;
+    h.messages = [...prefix, message("a2", "assistant", [text("New")])];
+    await render();
+
+    expect(reads).toBe(0);
+    expect(ticks().map((tick) => tick.getAttribute("aria-label"))).toEqual([
+      "First",
+      "Second",
+    ]);
+  });
+
   it("draws one tick per turn, titled by the question and previewed by the answer", async () => {
     conversation();
     await render();

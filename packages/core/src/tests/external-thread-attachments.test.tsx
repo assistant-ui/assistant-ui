@@ -300,6 +300,26 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("does not dispatch an empty message when the only attachment is removed while it is prepared, keeping its quote", async () => {
+    const { composer, successfulUpload, onNew } = setupPartialSend();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().setQuote({ text: "quoted", messageId: "m-1" });
+    });
+    await act(async () => composer().send());
+    await act(async () => {
+      await composer().attachment({ id: "a" }).remove();
+      successfulUpload.resolve();
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(composer().getState().submission).toBeUndefined();
+    expect(composer().getState().attachments).toEqual([]);
+    expect(composer().getState().quote).toEqual({
+      text: "quoted",
+      messageId: "m-1",
+    });
+  });
+
   it("renders in-flight submission attachments as a thread message", async () => {
     const { aui, composer, successfulUpload, failedUpload, onNew } =
       setupPartialSend();
@@ -366,7 +386,7 @@ describe("ExternalThread attachments", () => {
   it.each(["reset", "cancel"] as const)(
     "does not dispatch an old edit or unlock a newer send after %s",
     async (action) => {
-      const { composer, successfulUpload, failedUpload, send, onNew } =
+      const { composer, successfulUpload, failedUpload, send, remove, onNew } =
         setupPartialSend("edit");
       await act(async () => {
         composer().beginEdit();
@@ -381,6 +401,7 @@ describe("ExternalThread attachments", () => {
       expect(composer().getState().canSend).toBe(false);
       expect(onNew).not.toHaveBeenCalled();
       expect(send).toHaveBeenCalledTimes(2);
+      expect(remove).toHaveBeenCalledWith(expect.objectContaining({ id: "a" }));
       await act(async () => failedUpload.resolve());
       expect(onNew).toHaveBeenCalledOnce();
       expect(onNew.mock.calls[0]![0].attachments).toMatchObject([{ id: "b" }]);
@@ -772,6 +793,114 @@ describe("ExternalThread attachments", () => {
       role: "assistant",
       runConfig: { custom: { model: "model-a" } },
     });
+  });
+
+  it("serializes sends while attachments are prepared", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("first message");
+      composer().send();
+      composer().setText("second message");
+      composer().send();
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+    await waitFor(() => expect(composer().getState().canSend).toBe(false));
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "first message" }],
+    });
+    expect(composer().getState()).toMatchObject({
+      text: "second message",
+      canSend: true,
+    });
+
+    act(() => composer().send());
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(onNew.mock.calls[1]![0]).toMatchObject({
+      content: [{ type: "text", text: "second message" }],
+    });
+  });
+
+  it("restores the draft after a synchronous attachment send failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const error = new Error("upload failed");
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async () => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: () => {
+          throw error;
+        },
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("hello");
+      composer().send();
+    });
+
+    await waitFor(() =>
+      expect(composer().getState()).toMatchObject({
+        text: "hello",
+        canSend: true,
+      }),
+    );
+    expect(composer().getState().attachments).toHaveLength(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to send attachments",
+      error,
+    );
   });
 
   it.each([

@@ -906,6 +906,123 @@ describe("fromSlackBlocks", () => {
   });
 
   describe("round trip", () => {
+    it.each([
+      {
+        name: "passive standalone input",
+        tree: { $type: "Input", label: "Name" },
+        actionId: "action",
+        roundTripActionId: "action",
+        dispatches: false,
+        decodedActionType: undefined,
+      },
+      {
+        name: "dispatching standalone input",
+        tree: {
+          $type: "Input",
+          label: "Name",
+          $action: { type: "save_name" },
+        },
+        actionId: "save_name",
+        roundTripActionId: "save_name",
+        dispatches: true,
+        decodedActionType: "save_name",
+      },
+      {
+        name: "multiline input with an action",
+        tree: {
+          $type: "Input",
+          label: "Notes",
+          multiline: true,
+          $action: { type: "save_notes" },
+        },
+        actionId: "save_notes",
+        roundTripActionId: "save_notes",
+        dispatches: false,
+        decodedActionType: "save_notes",
+      },
+      {
+        name: "input in an asForm card",
+        tree: {
+          $type: "Card",
+          asForm: true,
+          children: {
+            $type: "Input",
+            label: "Name",
+            $action: { type: "form_name" },
+          },
+        },
+        actionId: "form_name",
+        roundTripActionId: "action",
+        dispatches: false,
+        decodedActionType: undefined,
+      },
+      {
+        name: "dispatching input on a modal surface",
+        tree: {
+          $type: "Input",
+          label: "Name",
+          $action: { type: "modal_name" },
+        },
+        options: { surface: "modal" } as const,
+        actionId: "modal_name",
+        roundTripActionId: "modal_name",
+        dispatches: true,
+        decodedActionType: "modal_name",
+      },
+    ])(
+      "preserves input dispatch across a round trip for a $name",
+      ({
+        tree,
+        options,
+        actionId,
+        roundTripActionId,
+        dispatches,
+        decodedActionType,
+      }) => {
+        const { blocks } = toSlackBlocks(tree, options);
+        const original = blocks.find((block) => block.type === "input");
+        expect(original).toBeDefined();
+        expect(original?.element.action_id).toBe(actionId);
+        expect(Object.hasOwn(original!, "dispatch_action")).toBe(dispatches);
+        expect(Object.hasOwn(original!.element, "dispatch_action_config")).toBe(
+          dispatches,
+        );
+
+        const { nodes } = fromSlackBlocks(blocks);
+        const decodedInput = nodes.find((node) => node.$type === "Input");
+        expect(decodedInput?.$action?.type).toBe(decodedActionType);
+
+        const roundTripped = toSlackBlocks(nodes, options).blocks.find(
+          (block) => block.type === "input",
+        );
+        expect(roundTripped?.element.action_id).toBe(roundTripActionId);
+        expect(Object.hasOwn(roundTripped!, "dispatch_action")).toBe(
+          dispatches,
+        );
+        expect(
+          Object.hasOwn(roundTripped!.element, "dispatch_action_config"),
+        ).toBe(dispatches);
+      },
+    );
+
+    it("decodes a Slack-authored passive input without an action", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Name" },
+          element: { type: "plain_text_input", action_id: "external_name" },
+        },
+      ]);
+      expect(nodes[0]).not.toHaveProperty("$action");
+      const block = toSlackBlocks(nodes).blocks[0];
+      expect(block).toMatchObject({
+        type: "input",
+        element: { action_id: "action" },
+      });
+      expect(block).not.toHaveProperty("dispatch_action");
+      expect(block).not.toHaveProperty(["element", "dispatch_action_config"]);
+    });
+
     it("keeps Input and Select defaultValue props", () => {
       const tree = [
         {

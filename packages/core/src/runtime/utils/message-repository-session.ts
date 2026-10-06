@@ -2,6 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import {
   MessageRepository,
   type ExportedMessageRepository,
+  withParentsFirst,
 } from "./message-repository";
 
 export type MessageRepositorySessionOptions = {
@@ -109,26 +110,15 @@ export const createMessageRepositorySession = (
 
     if (!degenerate) {
       clear();
-      let pending = [...loaded.messages];
       const importedIds = new Set<string>();
 
-      while (pending.length > 0) {
-        const unresolved: typeof pending = [];
-        let progressed = false;
-        for (const item of pending) {
-          if (item.parentId !== null && !importedIds.has(item.parentId)) {
-            unresolved.push(item);
-            continue;
-          }
-          addOrUpdateMessage(item.parentId, item.message);
-          importedIds.add(item.message.id);
-          progressed = true;
-        }
-        if (!progressed) {
+      for (const item of withParentsFirst(loaded.messages, () => false)) {
+        if (item.parentId !== null && !importedIds.has(item.parentId)) {
           degenerate = true;
           break;
         }
-        pending = unresolved;
+        addOrUpdateMessage(item.parentId, item.message);
+        importedIds.add(item.message.id);
       }
     }
 

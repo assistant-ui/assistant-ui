@@ -8,7 +8,7 @@ export const STATUS_URL = "https://status.assistant-ui.com";
 export const SURFACES = ["react", "rn", "ink"] as const;
 export type Surface = (typeof SURFACES)[number];
 
-export const PLATFORMS = [...SURFACES, "tap", "cloud"] as const;
+export const PLATFORMS = [...SURFACES, "vue", "tap", "cloud"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 export const DEFAULT_PLATFORM: Surface = "react";
@@ -17,6 +17,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   react: "React",
   rn: "React Native",
   ink: "React Ink",
+  vue: "Vue",
   tap: "Tap",
   cloud: "assistant-cloud",
 };
@@ -104,6 +105,7 @@ export type NavGlyphKind =
   | "react"
   | "native"
   | "ink"
+  | "vue"
   | "cloud"
   | "playground"
   | "shimmer"
@@ -198,6 +200,13 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Terminal UIs on the same runtime",
             external: false,
             glyph: "ink",
+          },
+          {
+            label: "Vue",
+            href: "/docs/vue",
+            description: "Vue and Nuxt apps on the same runtime",
+            external: false,
+            glyph: "vue",
           },
         ],
       },

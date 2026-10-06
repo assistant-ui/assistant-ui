@@ -1,7 +1,7 @@
 import { htmlBlockNames, htmlRawNames } from "micromark-util-html-tag-name";
 
 /**
- * Text transforms for the `preprocess` prop of `MarkdownTextPrimitive`.
+ * Text transforms for the `preprocess` prop of `MarkdownTextPrimitive` and `StreamdownTextPrimitive`.
  *
  * Language models routinely emit math in delimiters that remark-math does not
  * recognize (LaTeX `\(...\)` / `\[...\]` brackets, `[/math]` / `[/inline]` tags),
@@ -910,7 +910,7 @@ export function rewriteCustomMathTags(text: string): string {
  * Normalizes the alternative math delimiters language models commonly emit (LaTeX
  * `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags) to the `$...$` /
  * `$$...$$` delimiters remark-math parses. Pass it to the `preprocess` prop of
- * `MarkdownTextPrimitive`.
+ * `MarkdownTextPrimitive` or `StreamdownTextPrimitive`.
  *
  * It does not touch currency. Compose it with {@link escapeCurrencyDollars} when
  * single-dollar math is enabled and your content includes prices.

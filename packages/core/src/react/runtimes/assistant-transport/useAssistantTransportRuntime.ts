@@ -36,11 +36,12 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
 import { raceWithAbortSignal } from "../../../utils/abortable-promise";
 import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
 import { generateId } from "../../../utils/id";
+import { createRuntimeExtras } from "../createRuntimeExtras";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -105,35 +106,20 @@ const readResumeState = async <T>(
   return { runId: value.runId, state: value.state as T };
 };
 
-const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
-  [symbolAssistantTransportExtras]: true;
   sendCommand: (command: AssistantTransportCommand) => void;
   state: UserExternalState;
 };
 
-const asAssistantTransportExtras = (
-  extras: unknown,
-): AssistantTransportExtras => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolAssistantTransportExtras in extras)
-  )
-    throw new Error(
-      "This method can only be called when you are using useAssistantTransportRuntime",
-    );
-
-  return extras as AssistantTransportExtras;
-};
+const assistantTransportExtras = createRuntimeExtras<AssistantTransportExtras>(
+  "useAssistantTransportRuntime",
+);
 
 export const useAssistantTransportSendCommand = () => {
   const aui = useAui();
 
   return (command: AssistantTransportCommand) => {
-    const extras = aui.thread.getState().extras;
-    const transportExtras = asAssistantTransportExtras(extras);
-    transportExtras.sendCommand(command);
+    assistantTransportExtras.get(aui).sendCommand(command);
   };
 };
 
@@ -144,9 +130,7 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return useAuiState((s) =>
-    selector(asAssistantTransportExtras(s.thread.extras).state),
-  );
+  return assistantTransportExtras.use((extras) => selector(extras.state));
 }
 
 const useAssistantTransportThreadRuntime = <T>(
@@ -449,8 +433,7 @@ const useAssistantTransportThreadRuntime = <T>(
     adapters: options.adapters,
     unstable_enableToolInvocations: true,
     setToolStatuses,
-    extras: {
-      [symbolAssistantTransportExtras]: true,
+    extras: assistantTransportExtras.provide({
       sendCommand: (command: AssistantTransportCommand) => {
         commandQueue.enqueue(
           command.type === "add-message" && command.message.role === "user"
@@ -465,7 +448,7 @@ const useAssistantTransportThreadRuntime = <T>(
         );
       },
       state: agentStateRef.current as UserExternalState,
-    } satisfies AssistantTransportExtras,
+    }),
     onNew: async (message: AppendMessage): Promise<void> =>
       enqueueAppendMessage(message),
     ...(options.capabilities?.edit && {

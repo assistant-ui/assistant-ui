@@ -411,16 +411,20 @@ const inputFrom = (
     return [];
   }
   const placeholder = element["placeholder"];
+  const multiline = element["multiline"] === true;
+  const keepsAction = block["dispatch_action"] === true || multiline;
   return [
     {
       $type: "Input",
       label: textOf(block["label"]),
       ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
-      ...(element["multiline"] === true ? { multiline: true } : {}),
+      ...(multiline ? { multiline: true } : {}),
       ...(typeof element["initial_value"] === "string"
         ? { defaultValue: element["initial_value"] }
         : {}),
-      $action: decodeAction(element["action_id"], undefined),
+      ...(keepsAction
+        ? { $action: decodeAction(element["action_id"], undefined) }
+        : {}),
     },
   ];
 };
