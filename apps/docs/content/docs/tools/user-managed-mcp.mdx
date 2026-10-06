@@ -192,7 +192,7 @@ The iteration primitives wrap each item in a server scope provider (`McpConnecto
 
 The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it, and render your inputs through `McpAddFormPrimitive.BearerTokenField` and `McpAddFormPrimitive.ScopesField` so they stay bound to the form.
 
-Servers with `bearer` or `oauth` auth must use HTTPS, or plain HTTP on a loopback host (`localhost`, `*.localhost`, `127.0.0.0/8`, or `[::1]`). The add form rejects an authenticated `http://` URL on any other host, such as a LAN address, and a server configured that way in code fails to connect with a `lastError` that says why, so serve it over HTTPS or reach it through a local tunnel.
+Servers with `bearer` or `oauth` auth must use HTTPS, or plain HTTP on a loopback host: `localhost` or `*.localhost` with or without a trailing dot, an address in `127.0.0.0/8` or its IPv4-mapped IPv6 form, or `[::1]`. The add form rejects an authenticated `http://` URL on any other host, such as a LAN address, and a server configured that way in code fails to connect with a `lastError` that says why, so serve it over HTTPS or reach it through a local tunnel.
 
 </Step>
 <Step>

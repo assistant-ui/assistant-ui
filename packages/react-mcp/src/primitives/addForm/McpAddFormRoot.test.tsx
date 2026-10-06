@@ -102,7 +102,10 @@ describe("McpAddFormPrimitiveRoot", () => {
     },
   );
 
-  const submitBearerServer = (url: string) => {
+  const submitAuthenticatedServer = (
+    url: string,
+    authType: "bearer" | "oauth" = "bearer",
+  ) => {
     render(
       <McpAddFormPrimitiveRoot>
         <McpAddFormPrimitiveNameField aria-label="Name" />
@@ -118,27 +121,44 @@ describe("McpAddFormPrimitiveRoot", () => {
     });
     fireEvent.change(screen.getByLabelText("URL"), { target: { value: url } });
     fireEvent.change(screen.getByLabelText("Auth"), {
-      target: { value: "bearer" },
+      target: { value: authType },
     });
-    fireEvent.change(screen.getByLabelText("Token"), {
-      target: { value: "secret" },
-    });
+    if (authType === "bearer") {
+      fireEvent.change(screen.getByLabelText("Token"), {
+        target: { value: "secret" },
+      });
+    }
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
   };
 
-  it("rejects bearer auth over plain HTTP to a remote host", async () => {
-    submitBearerServer("http://192.168.1.20:3000/mcp");
+  it.each(["bearer", "oauth"] as const)(
+    "rejects %s auth over plain HTTP to a remote host",
+    async (authType) => {
+      submitAuthenticatedServer("http://192.168.1.20:3000/mcp", authType);
 
-    expect(
-      await screen.findByText(
-        "Authenticated servers must use HTTPS or loopback HTTP",
-      ),
-    ).toBeTruthy();
-    expect(mocks.addCustomServer).not.toHaveBeenCalled();
+      expect(
+        await screen.findByText(
+          "Authenticated servers must use HTTPS or loopback HTTP",
+        ),
+      ).toBeTruthy();
+      expect(mocks.addCustomServer).not.toHaveBeenCalled();
+    },
+  );
+
+  it("clears the authenticated URL error when auth changes to none", async () => {
+    submitAuthenticatedServer("http://192.168.1.20:3000/mcp");
+    const message = "Authenticated servers must use HTTPS or loopback HTTP";
+    expect(await screen.findByText(message)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Auth"), {
+      target: { value: "none" },
+    });
+
+    expect(screen.queryByText(message)).toBeNull();
   });
 
   it("accepts bearer auth over loopback HTTP", async () => {
-    submitBearerServer("http://localhost:3000/mcp");
+    submitAuthenticatedServer("http://localhost:3000/mcp");
 
     await waitFor(() => expect(mocks.addCustomServer).toHaveBeenCalledOnce());
     expect(mocks.addCustomServer).toHaveBeenCalledWith({

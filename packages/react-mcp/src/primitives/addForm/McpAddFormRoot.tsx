@@ -78,7 +78,8 @@ export const McpAddFormPrimitiveRoot = forwardRef<
         const clearsError =
           prev.errorField === "form" ||
           prev.errorField === key ||
-          (key === "authType" && prev.errorField === "bearerToken");
+          (key === "authType" &&
+            (prev.errorField === "bearerToken" || prev.errorField === "url"));
         return {
           ...prev,
           [key]: value,
