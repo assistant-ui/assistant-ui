@@ -3,7 +3,26 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { collectPackages, posixPath, readJson } from "./workspace.mjs";
+import {
+  apiSurfaceFileName,
+  collectPackages,
+  parseWorkspaceGlobs,
+  posixPath,
+  readJson,
+  readWorkspaceManifestEntries,
+} from "./workspace.mjs";
+
+test("API surface filenames match scoped and unscoped package names", () => {
+  assert.equal(
+    apiSurfaceFileName("@assistant-ui/react"),
+    "assistant-ui__react.ts",
+  );
+  assert.equal(apiSurfaceFileName("assistant-ui"), "assistant-ui.ts");
+  assert.equal(
+    apiSurfaceFileName("create-assistant-ui"),
+    "create-assistant-ui.ts",
+  );
+});
 
 const makeRepo = (packages) => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "workspace-test-"));
@@ -68,6 +87,30 @@ test("posixPath and readJson round-trip", () => {
     assert.deepEqual(
       readJson(path.join(repoRoot, "packages", "alpha", "package.json")),
       { name: "alpha" },
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("readWorkspaceManifestEntries follows globs and includes private packages", () => {
+  const repoRoot = makeRepo({
+    alpha: { name: "alpha", private: true },
+    beta: { name: "beta" },
+  });
+  const source = "packages:\n  - 'packages/*'\nallowBuilds:\n  example: true\n";
+  writeFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), source);
+  try {
+    const result = readWorkspaceManifestEntries(repoRoot);
+    assert.equal(result.source, source);
+    assert.deepEqual(result.globs, ["packages/*"]);
+    assert.deepEqual(result.manifests.map(({ pkg }) => pkg.name).sort(), [
+      "alpha",
+      "beta",
+    ]);
+    assert.deepEqual(
+      parseWorkspaceGlobs("packages:\n  - packages/*\nother: true\n"),
+      ["packages/*"],
     );
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });

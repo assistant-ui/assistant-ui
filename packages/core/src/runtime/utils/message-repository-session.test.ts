@@ -147,6 +147,26 @@ describe("createMessageRepositorySession", () => {
     ]);
   });
 
+  it("preserves sibling order when a child is stored before its parent", () => {
+    const session = createMessageRepositorySession();
+
+    session.applyExternalMessageRepository({
+      headId: "A2",
+      messages: [
+        { parentId: "P", message: message("A1") },
+        { parentId: null, message: message("P") },
+        { parentId: "P", message: message("A2") },
+      ],
+    });
+
+    expect(
+      session
+        .export()
+        .messages.filter((item) => item.parentId === "P")
+        .map((item) => item.message.id),
+    ).toEqual(["A1", "A2"]);
+  });
+
   it("uses the degenerate linear path for duplicate message ids", () => {
     const session = createMessageRepositorySession();
 
