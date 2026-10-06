@@ -2,10 +2,13 @@ import type {
   ThreadListRuntimeCore,
   ThreadListRuntimeEvent,
 } from "../../runtime/interfaces/thread-list-runtime-core";
+import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   BaseSubscribable,
   WritableSubscribable,
 } from "../../subscribable/subscribable";
+import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { nullProtoRecord } from "../../utils/record";
@@ -93,6 +96,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
+  private readonly _automaticTitles = new Map<string, Unsubscribe>();
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>(
@@ -316,6 +320,7 @@ export class RemoteThreadListThreadListRuntimeCore
         loadError: undefined,
       });
       this._titleStates.clear();
+      this._disarmAutomaticTitles();
     }
 
     if (controlledThreadIdChanged) {
@@ -811,6 +816,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterGeneration(adapterGeneration);
     const initializeTask = adapter.initialize(threadId);
     let removedMappingId: string | undefined;
+    let survivorMappingId = threadId;
     const { remoteId, externalId } = await this._state.optimisticUpdate({
       execute: () => initializeTask,
       optimistic: (state) =>
@@ -825,6 +831,7 @@ export class RemoteThreadListThreadListRuntimeCore
           threadId,
         );
         removedMappingId = reconciliation.removedMappingId;
+        survivorMappingId = reconciliation.survivorMappingId;
         if (removedMappingId === this._mainThreadId) {
           this._mainThreadId = reconciliation.survivorMappingId;
         }
@@ -835,8 +842,55 @@ export class RemoteThreadListThreadListRuntimeCore
     if (removedMappingId !== undefined) {
       this._hookManager.stopThreadRuntime(removedMappingId);
     }
+    this._armAutomaticTitle(survivorMappingId);
     return { remoteId, externalId };
   };
+
+  // The thread runtime can restart before its first initialization settles,
+  // so the automatic title is owed by the list and follows whichever runtime
+  // is currently mounted for the thread.
+  private _armAutomaticTitle(threadId: string) {
+    this._automaticTitles.get(threadId)?.();
+    let runtime: ThreadRuntimeCore | undefined;
+    let unsubscribeRuntime: Unsubscribe | undefined;
+    const check = () => {
+      if (!this.getItemById(threadId)) {
+        this._disarmAutomaticTitle(threadId);
+        return;
+      }
+      const current = this._hookManager.getThreadRuntimeCore(threadId);
+      if (current !== runtime) {
+        unsubscribeRuntime?.();
+        runtime = current;
+        unsubscribeRuntime = current?.subscribe(check);
+      }
+      if (!runtime?.messages.some(isTitleSourceMessage)) return;
+      this._disarmAutomaticTitle(threadId);
+      this.generateTitle(threadId, { automatic: true }).catch(
+        (error: unknown) => {
+          if (isSilentRuntimeAction(error)) return;
+          console.error("[assistant-ui] Thread title generation failed", error);
+        },
+      );
+    };
+    const unsubscribeManager = this._hookManager.subscribe(check);
+    this._automaticTitles.set(threadId, () => {
+      unsubscribeManager();
+      unsubscribeRuntime?.();
+    });
+    check();
+  }
+
+  private _disarmAutomaticTitle(threadId: string) {
+    this._automaticTitles.get(threadId)?.();
+    this._automaticTitles.delete(threadId);
+  }
+
+  private _disarmAutomaticTitles() {
+    for (const threadId of [...this._automaticTitles.keys()]) {
+      this._disarmAutomaticTitle(threadId);
+    }
+  }
 
   public generateTitle = async (
     threadId: string,
@@ -1104,6 +1158,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public __internal_dispose() {
+    this._disarmAutomaticTitles();
     this._hookManager.__internal_dispose();
   }
 
