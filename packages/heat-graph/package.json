@@ -1,6 +1,6 @@
 {
   "name": "heat-graph",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "Headless, Radix-style React components for rendering activity heatmap graphs",
   "keywords": [
     "heatmap",
@@ -29,6 +29,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",

@@ -42,7 +42,7 @@ vi.mock("ai", async (importOriginal) => ({
 
 import { POST } from "./route";
 
-const request = () =>
+const request = (overrides?: Record<string, unknown>) =>
   new Request("https://www.assistant-ui.com/api/playground-chat", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -52,6 +52,7 @@ const request = () =>
       ],
       tools: {},
       builderConfig: {},
+      ...overrides,
     }),
   });
 
@@ -83,6 +84,26 @@ describe("POST /api/playground-chat telemetry", () => {
     const response = await POST(request());
 
     expect(response.status).toBe(429);
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+    expect(mocks.streamText).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized frontend tools before model selection", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      request({
+        tools: {
+          update: {
+            description: "x".repeat(96_000),
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
     expect(mocks.streamText).not.toHaveBeenCalled();
   });

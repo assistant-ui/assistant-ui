@@ -1,3 +1,4 @@
+import { isRecord } from "@assistant-ui/core/internal";
 import {
   generateId,
   getExternalStoreMessages,
@@ -51,7 +52,7 @@ export const getMessageContent = (msg: AppendMessage) => {
         }
         return {
           type: "file" as const,
-          mimeType: part.mimeType,
+          mimeType: source.mimeType,
           // Lands in Gemini `inlineData.data`, which takes bare base64, so a
           // data URL envelope is stripped rather than forwarded.
           data: source.data,
@@ -94,7 +95,9 @@ export const getPendingToolCalls = (messages: AdkMessage[]) => {
     messages,
     (message) => {
       if (message.type === "ai") {
-        return { toolCalls: message.tool_calls ?? [] };
+        return {
+          toolCalls: (message.tool_calls ?? []).filter(isRecord),
+        };
       }
       if (message.type === "tool") {
         return { toolCallId: message.tool_call_id };

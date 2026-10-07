@@ -1,5 +1,61 @@
 # @assistant-ui/core
 
+## 0.3.24
+
+### Patch Changes
+
+- [#8260](https://github.com/assistant-ui/assistant-ui/pull/8260) [`c883dc0`](https://github.com/assistant-ui/assistant-ui/commit/c883dc0a7283e9c97e2887eb49178d5d8714c10b) - fix(core): release realtime voice listeners when a session ends on its own ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8796](https://github.com/assistant-ui/assistant-ui/pull/8796) [`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22) - a tool approval can ask several questions at once, or let one question take several answers: `display: "questions"` with `approval.questions`, answered through `respondToApproval({ answers })` keyed by question id, validated before it reaches `onRespondToToolApproval` and recorded on `approval.answers`; the AI SDK converter reads `questions` and `answers` from the approval descriptor when a response handler is set, and the cloud format keeps them ([@okisdev](https://github.com/okisdev))
+
+- [#8749](https://github.com/assistant-ui/assistant-ui/pull/8749) [`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f) - name local runtime initial messages from React's useId during a server render, so a Next.js cacheComponents prerender no longer reads Math.random; the browser keeps random ids ([@okisdev](https://github.com/okisdev))
+
+- [#8840](https://github.com/assistant-ui/assistant-ui/pull/8840) [`ed84b12`](https://github.com/assistant-ui/assistant-ui/commit/ed84b12cdb12cbe3c265ecf64def460f8f7fb6fe) - getSuggestionKeys moved to @assistant-ui/core/internal so React and Vue key suggestions the same way. ([@okisdev](https://github.com/okisdev))
+
+- [#7099](https://github.com/assistant-ui/assistant-ui/pull/7099) [`2bc1edb`](https://github.com/assistant-ui/assistant-ui/commit/2bc1edb8c84c56d8dbe296c7161ca3dcb5a972b7) - fix: traverse deeply nested tool-call messages without overflowing the stack ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7155](https://github.com/assistant-ui/assistant-ui/pull/7155) [`5484ca4`](https://github.com/assistant-ui/assistant-ui/commit/5484ca42d6bb6a0202997de98da61b59b4888975) - feat: support message-scoped converter metadata invalidation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8798](https://github.com/assistant-ui/assistant-ui/pull/8798) [`ec48da2`](https://github.com/assistant-ui/assistant-ui/commit/ec48da206fc4d9e7c991a06d91f7c224aa1e3089) - a thread can open on its latest page and load older messages on demand: the external store adapter takes `hasEarlier` and `onLoadEarlier`, the runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()` with one load in flight at a time, `ThreadPrimitive.LoadEarlier` loads the next page, `ThreadPrimitive.Viewport` keeps the visible messages in place when it lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` pages through the runtime when it gets no `history` prop ([@okisdev](https://github.com/okisdev))
+
+- [#8110](https://github.com/assistant-ui/assistant-ui/pull/8110) [`46133cd`](https://github.com/assistant-ui/assistant-ui/commit/46133cdbc759c711b0d217a1aa70e65224c78386) - fix(core): keep the selected branch when a local run continues an existing answer ([@samdickson22](https://github.com/samdickson22))
+
+- [#7622](https://github.com/assistant-ui/assistant-ui/pull/7622) [`3effee5`](https://github.com/assistant-ui/assistant-ui/commit/3effee567af36c5aaac45c4fb4373da3f2516811) - fix: disable message speech actions when no speech adapter is configured ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8794](https://github.com/assistant-ui/assistant-ui/pull/8794) [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e) - reasoning parts carry an optional `timing` with their start and end times, typed as the new `MessagePartTiming` that `ToolCallTiming` now aliases, so a host can show how long its agent thought; the assistant-stream accumulator stamps it while reasoning streams, joined reasoning parts and the cloud format keep it, and a `MessagePrimitive.GroupedParts` group reports the span of its timed parts as `timing` ([@okisdev](https://github.com/okisdev))
+
+- [#7801](https://github.com/assistant-ui/assistant-ui/pull/7801) [`16439da`](https://github.com/assistant-ui/assistant-ui/commit/16439da6329f765f62e9977da5a3b105a7a3c0ac) - fix: preserve OpenCode interactions with prototype-named identifiers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8795](https://github.com/assistant-ui/assistant-ui/pull/8795) [`1f77d04`](https://github.com/assistant-ui/assistant-ui/commit/1f77d04435f71476172a6d1ffca871da1a0c933a) - the composer trigger popover primitives and their adapter, item, category and directive formatter types get stable names; the `Unstable_` names stay as deprecated aliases, and the trigger popover hooks stay unstable ([@okisdev](https://github.com/okisdev))
+
+- [#8799](https://github.com/assistant-ui/assistant-ui/pull/8799) [`aecb5eb`](https://github.com/assistant-ui/assistant-ui/commit/aecb5eb749e915920682bdcffddc54668f911aab) - a long thread can be virtualized per part instead of per message: `createThreadRowsSelector` flattens the thread for `useAuiState` into stable rows (a user message, each top-level part group of an assistant message, a turn end) that keep their identity while tokens stream, and `ThreadPrimitive.Row` renders one row with only the scopes it needs; a turn-end row carries the turn's start time and, once the turn completes, the latest end its messages record, so a turn footer can show how long the agent worked ([@okisdev](https://github.com/okisdev))
+
+- [#8755](https://github.com/assistant-ui/assistant-ui/pull/8755) [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956) - a server rendered local runtime now names id-less initial messages and tool calls the same way while the browser hydrates, so data-message-id and selection quotes match the client's messages ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e)]:
+  - assistant-stream@0.3.48
+
+## 0.3.23
+
+### Patch Changes
+
+- [#8680](https://github.com/assistant-ui/assistant-ui/pull/8680) [`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c) - keep pending history writes from restoring deleted messages without delaying deletion ([@okisdev](https://github.com/okisdev))
+
+- [#8723](https://github.com/assistant-ui/assistant-ui/pull/8723) [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc) - report a history write that fails in the background through a thread historyWriteError event instead of dropping it silently ([@okisdev](https://github.com/okisdev))
+
+- [#8724](https://github.com/assistant-ui/assistant-ui/pull/8724) [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a) - name a remote thread list's first new thread from React's useId during a server render, so a Next.js cacheComponents prerender no longer reads Math.random; the browser keeps a random id ([@okisdev](https://github.com/okisdev))
+
+- [#8684](https://github.com/assistant-ui/assistant-ui/pull/8684) [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd) - preserve message part state by host-supplied identity across renderers and store lookups, and carry part identity through cloud persistence; a part whose type changes at the same position now mounts fresh state. ([@okisdev](https://github.com/okisdev))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8702](https://github.com/assistant-ui/assistant-ui/pull/8702) [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd) - fix: the remaining runtime hooks keep their thread loads, runs, queued messages, subagent transcripts and event streams across a fast refresh or a StrictMode replay instead of tearing them down ([@okisdev](https://github.com/okisdev))
+
+- [#8707](https://github.com/assistant-ui/assistant-ui/pull/8707) [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc) - fix(core): resolve `aui.threads.getLoadThreadsPromise()`, `reload()` and `loadMore()` once `getState()` reports the result: the loaded list, or `loadError` when the initial load or `reload()` fails. A failed `loadMore()` request is logged and its promise still resolves. If the client can't commit within 100ms, as inside the `act()` that completes the load in a test or under a Suspense boundary that hides the client, the promises resolve anyway. In tests, await them outside that `act()` to read the loaded list. ([@bnb](https://github.com/bnb))
+
+- [#8323](https://github.com/assistant-ui/assistant-ui/pull/8323) [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4) - fix(core): end the voice session on hang up even when committing the unfinished reply throws; a synchronous voice commit failure is reported like a rejected one ([@samdickson22](https://github.com/samdickson22))
+- Updated dependencies [[`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - assistant-stream@0.3.47
+
 ## 0.3.22
 
 ### Patch Changes

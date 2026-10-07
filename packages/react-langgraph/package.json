@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.14.31",
+  "version": "0.14.33",
   "description": "LangGraph adapter for assistant-ui",
   "keywords": [
     "langgraph",
@@ -31,17 +31,18 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.22",
-    "@assistant-ui/react-langchain": "^0.0.33",
-    "@assistant-ui/store": "^0.3.16",
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/react-langchain": "^0.0.35",
+    "@assistant-ui/store": "^0.3.17",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.46"
+    "assistant-stream": "^0.3.48"
   },
   "peerDependencies": {
     "@langchain/langgraph-sdk": "^1.9.20",

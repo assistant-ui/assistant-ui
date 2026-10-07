@@ -161,4 +161,225 @@ describe("resolveToolApprovalResponse", () => {
       ),
     ).toEqual({ approvalId: "q3", approved: false, reason: "not answering" });
   });
+
+  describe('display "questions"', () => {
+    const questionnaire = {
+      id: "q",
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Which files?",
+          options: [
+            { id: "src", label: "src" },
+            { id: "tests", label: "tests" },
+          ],
+          multiple: true,
+        },
+        {
+          id: "style",
+          prompt: "Which style?",
+          options: [
+            { id: "terse", label: "Terse" },
+            { id: "verbose", label: "Verbose" },
+          ],
+          allowFreeform: true,
+        },
+        { id: "note", prompt: "Anything else?" },
+      ],
+    };
+
+    it("resolves complete answers as approved and passes them through", () => {
+      const answers = {
+        scope: { optionIds: ["src", "tests"] },
+        style: { text: "match the repo" },
+        note: { text: "keep it short" },
+      };
+      expect(
+        resolveToolApprovalResponse(questionnaire, { answers, reason: "ok" }),
+      ).toEqual({ approvalId: "q", approved: true, answers, reason: "ok" });
+    });
+
+    it("resolves approved: false as a dismissal", () => {
+      expect(
+        resolveToolApprovalResponse(questionnaire, { approved: false }),
+      ).toEqual({ approvalId: "q", approved: false });
+    });
+
+    it.each([
+      {
+        name: "a bare approval",
+        response: { approved: true },
+        error: "respond with answers",
+      },
+      {
+        name: "an option id",
+        response: { optionId: "src" },
+        error: "respond with answers",
+      },
+      {
+        name: "a bare text answer",
+        response: { text: "src" },
+        error: "respond with answers",
+      },
+      {
+        name: "answers mixed with approved",
+        response: {
+          answers: { scope: { optionIds: ["src"] } },
+          approved: true,
+        },
+        error: "takes its answers alone",
+      },
+    ])("rejects $name", ({ response, error }) => {
+      expect(() =>
+        resolveToolApprovalResponse(questionnaire, response as never),
+      ).toThrow(error);
+    });
+
+    it.each([
+      {
+        name: "a missing question",
+        answers: { scope: { optionIds: ["src"] }, style: { text: "x" } },
+        error: 'missing an answer to question "note"',
+      },
+      {
+        name: "an empty answer",
+        answers: {
+          scope: {},
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: 'missing an answer to question "scope"',
+      },
+      {
+        name: "a blank typed answer",
+        answers: {
+          scope: { optionIds: ["src"] },
+          style: { optionIds: ["terse"] },
+          note: { text: "  " },
+        },
+        error: 'missing an answer to question "note"',
+      },
+      {
+        name: "an unknown question",
+        answers: {
+          scope: { optionIds: ["src"] },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+          extra: { text: "x" },
+        },
+        error: 'no question with id "extra"',
+      },
+      {
+        name: "an option from outside the question",
+        answers: {
+          scope: { optionIds: ["terse"] },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: 'no option with id "terse"',
+      },
+      {
+        name: "an option repeated on a multiple-choice question",
+        answers: {
+          scope: { optionIds: ["src", "src"] },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: "lists an option more than once",
+      },
+      {
+        name: "two options on a single-choice question",
+        answers: {
+          scope: { optionIds: ["src"] },
+          style: { optionIds: ["terse", "verbose"] },
+          note: { text: "x" },
+        },
+        error: "takes one option, not 2",
+      },
+      {
+        name: "option ids that are not an array",
+        answers: {
+          scope: { optionIds: "src" },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: "takes optionIds as an array",
+      },
+      {
+        name: "a typed answer the question does not accept",
+        answers: {
+          scope: { optionIds: ["src"], text: "everything" },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: "does not accept a typed answer",
+      },
+    ])("rejects $name", ({ answers, error }) => {
+      expect(() =>
+        resolveToolApprovalResponse(questionnaire, {
+          answers: answers as never,
+        }),
+      ).toThrow(error);
+    });
+
+    it("rejects a request without questions or with a repeated question id", () => {
+      expect(() =>
+        resolveToolApprovalResponse(
+          { id: "q", display: "questions" },
+          { answers: {} },
+        ),
+      ).toThrow("declares no questions");
+      expect(() =>
+        resolveToolApprovalResponse(
+          {
+            id: "q",
+            display: "questions",
+            questions: [
+              { id: "a", prompt: "A?" },
+              { id: "a", prompt: "A again?" },
+            ],
+          },
+          { answers: { a: { text: "x" } } },
+        ),
+      ).toThrow('declares question "a" more than once');
+    });
+
+    it("resolves questions whose ids name object prototype keys", () => {
+      const answers = JSON.parse(
+        '{"constructor":{"text":"a"},"__proto__":{"text":"b"}}',
+      );
+      expect(
+        resolveToolApprovalResponse(
+          {
+            id: "q",
+            display: "questions",
+            questions: [
+              { id: "constructor", prompt: "A?" },
+              { id: "__proto__", prompt: "B?" },
+            ],
+          },
+          { answers },
+        ),
+      ).toEqual({ approvalId: "q", approved: true, answers });
+      expect(() =>
+        resolveToolApprovalResponse(
+          {
+            id: "q",
+            display: "questions",
+            questions: [{ id: "constructor", prompt: "A?" }],
+          },
+          { answers: {} },
+        ),
+      ).toThrow('missing an answer to question "constructor"');
+    });
+
+    it("rejects answers on a request that asks no questions", () => {
+      expect(() =>
+        resolveToolApprovalResponse(approval, {
+          answers: { scope: { text: "x" } },
+        }),
+      ).toThrow("asks no questions");
+    });
+  });
 });

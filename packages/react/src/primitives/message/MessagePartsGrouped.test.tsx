@@ -12,10 +12,12 @@ import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
+  Tools,
   useAssistantDataUI,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useAui } from "@assistant-ui/store";
+import { AuiConfig, useAui } from "@assistant-ui/store";
+import { resource } from "@assistant-ui/tap";
 import { ThreadPrimitiveMessageByIndex } from "../thread/ThreadMessages";
 import {
   type MessagePrimitiveUnstable_PartsGrouped,
@@ -48,6 +50,11 @@ const partsMessage =
 const Named = () => <b>named</b>;
 const Fallback = () => <i>fallback</i>;
 const GlobalFallback = () => <b>global-fallback</b>;
+const Mcp = () => <b>mcp</b>;
+const McpApp = resource(function McpApp() {
+  return { render: Mcp };
+});
+const mcpConfig = AuiConfig({ tools: Tools({ mcpApp: McpApp() }) });
 
 const RegisterFallbackDataUI: FC<{ render: typeof GlobalFallback }> = ({
   render,
@@ -69,11 +76,13 @@ const Example = ({
   content,
   Message: MessageComponent = Message,
   extra,
+  config,
   isRunning = false,
 }: {
   content: ThreadMessageLike["content"];
   Message?: FC;
   extra?: ReactNode;
+  config?: AuiConfig;
   isRunning?: boolean;
 }) => {
   const messages: ThreadMessageLike[] = [
@@ -86,7 +95,10 @@ const Example = ({
     onNew: async () => {},
   });
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      {...(config === undefined ? {} : { config })}
+    >
       {extra}
       <ThreadPrimitiveMessageByIndex
         index={0}
@@ -439,6 +451,17 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
     },
   );
 
+  it("falls back to the default text component for an undefined slot", () => {
+    render(
+      <Example
+        content={[{ type: "text", text: "hello" }]}
+        Message={partsMessage({ Text: undefined })}
+      />,
+    );
+
+    expect(screen.getByText("hello")).toBeTruthy();
+  });
+
   it("renders tool and data UIs registered under an inherited name", () => {
     const { container } = render(
       <Example
@@ -459,6 +482,87 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
     );
 
     expect(container.innerHTML).toBe("<b>named</b><b>named</b>");
+  });
+
+  it("renders tools.mcpApp for a tool call with a ui:// resource", () => {
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "ui://chart" } },
+          },
+        ]}
+        Message={partsMessage({ tools: { Fallback } })}
+        config={mcpConfig}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<b>mcp</b>");
+  });
+
+  it("prefers an inline by_name component over tools.mcpApp", () => {
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "ui://chart" } },
+          },
+        ]}
+        Message={partsMessage({
+          tools: { by_name: { show_chart: Named }, Fallback },
+        })}
+        config={mcpConfig}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<b>named</b>");
+  });
+
+  it("uses inline Fallback when the tool call has no ui:// resource", () => {
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "show_chart",
+            args: {},
+          },
+        ]}
+        Message={partsMessage({ tools: { Fallback } })}
+        config={mcpConfig}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<i>fallback</i>");
+  });
+
+  it("uses inline Fallback when the resource URI is not an MCP App URI", () => {
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "https://example.com/chart" } },
+          },
+        ]}
+        Message={partsMessage({ tools: { Fallback } })}
+        config={mcpConfig}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<i>fallback</i>");
   });
 
   it("uses dataRenderers.fallbacks[0] before inline data.Fallback", async () => {

@@ -1,0 +1,54 @@
+---
+title: Branching
+description: Keep every edited and regenerated version of a message and let users move between them.
+---
+
+Edits and regenerated responses create sibling versions of a message. The thread shows one path at a time. Put a branch picker inside each message row so users can return to an earlier version.
+
+## Show a picker when branches exist
+
+This component follows the branch controls in the registry `message.vue`, with styling trimmed. Render it inside a row of `ThreadPrimitiveMessages`.
+
+```vue title="app/components/BranchPicker.vue"
+<script setup lang="ts">
+import {
+  AuiIf,
+  BranchPickerPrimitiveCount,
+  BranchPickerPrimitiveNext,
+  BranchPickerPrimitiveNumber,
+  BranchPickerPrimitivePrevious,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <AuiIf :condition="(s) => s.message.branchCount > 1">
+    <div role="group" aria-label="Message branches" class="flex items-center gap-2">
+      <BranchPickerPrimitivePrevious aria-label="Previous branch">
+        Previous
+      </BranchPickerPrimitivePrevious>
+      <span><BranchPickerPrimitiveNumber /> / <BranchPickerPrimitiveCount /></span>
+      <BranchPickerPrimitiveNext aria-label="Next branch">
+        Next
+      </BranchPickerPrimitiveNext>
+    </div>
+  </AuiIf>
+</template>
+```
+
+The previous and next buttons disable at the first and last branch respectively. `AuiIf` hides the controls until the message has more than one branch.
+
+## Where branches come from
+
+Saving an edit appends a new message with the same parent as the edited message. Reloading an assistant message starts a new run from that message's parent. The original versions stay in the repository, and switching branches changes which path the thread shows. See [Editing](/docs/vue/editing) for the controls that create these versions.
+
+## Branch state
+
+`s.message.branchNumber` is the selected branch's one-based position. `s.message.branchCount` is the number of sibling versions. The number and count primitives render those values as text.
+
+Inside a message row, call `aui.message.switchToBranch({ position: "previous" })`, `aui.message.switchToBranch({ position: "next" })`, or `aui.message.switchToBranch({ branchId })`. Supply either `position` or `branchId`. A switch through `aui.message` emits `message.branchSwitched` with `threadId` and `messageId`.
+
+## During a run
+
+The picker buttons require `s.thread.capabilities.switchToBranch`. While `s.thread.isRunning` is true, they also require `s.thread.capabilities.switchBranchDuringRun`. A runtime that does not allow branch switching during a run leaves both buttons disabled until the run ends.
+
+See [Branch picker primitives](/docs/vue/primitives/branch-picker) for the individual parts.

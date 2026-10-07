@@ -1,6 +1,6 @@
 # assistant-ui
 
-Composable runtime and UI primitives for AI chat in React, React Native, and the terminal; the README carries the rest.
+Composable runtime and UI primitives for AI chat in React, Vue, React Native, and the terminal; the README carries the rest.
 
 ## Commands
 

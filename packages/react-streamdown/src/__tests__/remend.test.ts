@@ -180,11 +180,18 @@ describe("tailBoundedRemend", () => {
     it.each([
       ["a `\n- > 5\n` b\n- > 6", "a `\n- > 5\n` b\n- \\> 6"],
       ["a \\`\n- > 5", "a \\`\n- \\> 5"],
-      ["a `\\`\n- > 5\n` b", "a `\\`\n- > 5\n` b"],
     ])("preserves remend's inline code context in %j", (text, expected) => {
       expect(remend(text)).toBe(expected);
       expect(tailBoundedRemend(text)).toBe(expected);
       expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
+    it.each([
+      ["escaped backtick inside an open span", "a `\\`\n- > 5\n` b"],
+      ["span closing before a list line", "a `\\` b\n- > 5"],
+      ["blank line ending a pending span", "a `x\n- > 5\n\n- > 6"],
+    ])("matches remend after %s", (_, text) => {
+      expect(tailBoundedRemend(text)).toBe(remend(text));
     });
 
     it.each([
