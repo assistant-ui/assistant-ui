@@ -213,6 +213,27 @@ describe("edit composer cancellation focus", () => {
     );
   });
 
+  it("restores focus when cancellation hides the connected edit composer", () => {
+    cancelOverride.mockReturnValue({
+      disabled: false,
+      cancel: () => {
+        const active = document.activeElement as HTMLElement;
+        active.closest<HTMLElement>('[data-aui-composer-type="edit"]')!.hidden =
+          true;
+        active.blur();
+      },
+    });
+    const { cancel } = setup();
+    act(() => cancel.focus());
+    fireEvent.click(cancel);
+
+    expect(cancel.isConnected).toBe(true);
+    expect(cancel.closest("[hidden]")).not.toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "Main composer" }),
+    );
+  });
+
   it("does not cancel or restore focus when the consumer prevents the action", () => {
     const { cancel } = setup({
       onCancelClick: (event) => event.preventDefault(),

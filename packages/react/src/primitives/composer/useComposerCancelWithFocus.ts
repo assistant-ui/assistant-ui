@@ -40,10 +40,7 @@ export const useComposerCancelWithFocus = (cancel: () => void) => {
       cancel();
 
       if (!doc || !active || !shouldRestore) return;
-      if (
-        doc.activeElement !== active &&
-        (active.isConnected || doc.activeElement !== doc.body)
-      )
+      if (doc.activeElement !== active && doc.activeElement !== doc.body)
         return;
 
       for (const input of candidates) {
