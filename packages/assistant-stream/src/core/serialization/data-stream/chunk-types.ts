@@ -82,7 +82,13 @@ type DataStreamStreamChunkValue = {
     modelContent?: readonly ToolModelContentPart[];
     messages?: ReadonlyJSONValue;
   };
-  [DataStreamStreamChunkType.Error]: string;
+  [DataStreamStreamChunkType.Error]:
+    | string
+    | {
+        error: string;
+        code?: string;
+        severity?: "critical" | "warning" | "info";
+      };
   [DataStreamStreamChunkType.FinishStep]: {
     finishReason: LanguageModelV1FinishReason;
     usage: LanguageModelV1Usage;
