@@ -106,6 +106,16 @@ describe("ThreadListItemTitle", () => {
     expect(frame).toContain("New chat");
   });
 
+  it("renders nothing without a title or fallback", async () => {
+    const frame = await renderFrame(
+      <Box>
+        <ThreadListItemTitle dimColor />
+      </Box>,
+    );
+
+    expect(frame).toBe("");
+  });
+
   it("renders an element fallback outside Text", async () => {
     const frame = await renderFrame(
       <Box>
