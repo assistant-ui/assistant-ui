@@ -192,6 +192,9 @@ export class DataStreamEncoder
                   ...(chunk.modelContent !== undefined
                     ? { modelContent: chunk.modelContent }
                     : {}),
+                  ...(chunk.messages !== undefined
+                    ? { messages: chunk.messages }
+                    : {}),
                 },
               });
               break;
@@ -420,6 +423,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 isError,
                 isPreliminary,
                 modelContent,
+                messages,
               } = value;
               const toolCallController =
                 toolCallPartRegistry.tryGet(toolCallId);
@@ -440,6 +444,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 isError,
                 ...(isPreliminary ? { isPreliminary: true } : {}),
                 ...(modelContent !== undefined ? { modelContent } : {}),
+                ...(messages !== undefined ? { messages } : {}),
               });
               break;
             }
@@ -447,27 +452,25 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.ToolCall: {
               const { toolCallId, toolName, args } = value;
               const toolCallController =
-                toolCallPartRegistry.tryGet(toolCallId);
-
-              if (toolCallController) {
-                toolCallPartRegistry.closeArgsText(toolCallController);
-              } else {
-                const toolCallController = toolCallPartRegistry.start(
-                  toolCallId,
-                  () =>
-                    controller.addToolCallPart({
-                      toolCallId,
-                      toolName,
-                    }),
+                toolCallPartRegistry.tryGet(toolCallId) ??
+                toolCallPartRegistry.start(toolCallId, () =>
+                  controller.addToolCallPart({
+                    toolCallId,
+                    toolName,
+                  }),
                 );
-                if (args !== undefined) {
-                  toolCallPartRegistry.appendArgsText(
-                    toolCallController,
-                    JSON.stringify(args),
-                  );
-                }
-                toolCallPartRegistry.closeArgsText(toolCallController);
+
+              if (
+                args !== undefined &&
+                !toolCallPartRegistry.hasArgsText(toolCallController) &&
+                !toolCallPartRegistry.isArgsTextClosed(toolCallController)
+              ) {
+                toolCallPartRegistry.appendArgsText(
+                  toolCallController,
+                  JSON.stringify(args),
+                );
               }
+              toolCallPartRegistry.closeArgsText(toolCallController);
               break;
             }
 

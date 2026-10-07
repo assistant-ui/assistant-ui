@@ -14,6 +14,7 @@ export type McpAppResourceCSP = {
   connectDomains?: string[];
   resourceDomains?: string[];
   frameDomains?: string[];
+  baseUriDomains?: string[];
   [k: string]: unknown;
 };
 

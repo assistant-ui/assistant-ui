@@ -23,7 +23,7 @@ import { useState } from "react";
 import { useAui, type ToolCallMessagePartProps } from "@assistant-ui/react";
 import { ToolError } from "@/components/assistant-ui/elements/tool-error";
 
-function SearchTool({ toolName, args, status, result }: ToolCallMessagePartProps<{ query: string }, string>) {
+export function SearchTool({ toolName, args, status, result }: ToolCallMessagePartProps<{ query: string }, string>) {
   const [attempt, setAttempt] = useState(1);
   const aui = useAui();
 

@@ -16,9 +16,9 @@ export const Legend = ({ children }: LegendProps) => {
   return Array.from({ length: levels }, (_, i) => {
     const item: LegendItemData = { level: i, color: colorScale?.[i] };
     return (
-      <LegendItemContext key={i} value={item}>
+      <LegendItemContext.Provider key={i} value={item}>
         {children({ item })}
-      </LegendItemContext>
+      </LegendItemContext.Provider>
     );
   });
 };

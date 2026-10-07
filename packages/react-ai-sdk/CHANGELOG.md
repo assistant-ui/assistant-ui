@@ -1,5 +1,27 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.16
+
+### Patch Changes
+
+- Updated dependencies [[`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`ddb04de`](https://github.com/assistant-ui/assistant-ui/commit/ddb04deec5c1010042f99befb934c3b895ec3fc8), [`cb58bf9`](https://github.com/assistant-ui/assistant-ui/commit/cb58bf9de1ab789af81efeb8a2b991c99d9c4aa1)]:
+  - @assistant-ui/ai-sdk@0.0.11
+
+## 1.4.15
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/ai-sdk@0.0.10
+
+## 1.4.14
+
+### Patch Changes
+
+- Updated dependencies [[`3bec0dc`](https://github.com/assistant-ui/assistant-ui/commit/3bec0dccecb9b845c0ed35f21a5ec93a627e9df5), [`60c7137`](https://github.com/assistant-ui/assistant-ui/commit/60c71373e5c5463f6c701eda93dc59299397cf38), [`e558705`](https://github.com/assistant-ui/assistant-ui/commit/e55870543c1a3f1c8c4971c5283fd9d6ed9ea8f5), [`7583ee3`](https://github.com/assistant-ui/assistant-ui/commit/7583ee330a3f0ad5e71d490b4dadd27574537a4c), [`dabe34f`](https://github.com/assistant-ui/assistant-ui/commit/dabe34fca8a31bf7f8afac89827bf3bf683942e6), [`2875042`](https://github.com/assistant-ui/assistant-ui/commit/2875042512e52fbbeeee8984194596485aa67ae0), [`e01a6d5`](https://github.com/assistant-ui/assistant-ui/commit/e01a6d52802d26fad1bf06484773cfaf6bad8cdd), [`e73db99`](https://github.com/assistant-ui/assistant-ui/commit/e73db990bfb860f428da6b5979f07ef416ab3fd4), [`237e16f`](https://github.com/assistant-ui/assistant-ui/commit/237e16fd2e242bfcd2e5e3a1aa92f01936e70249)]:
+  - @assistant-ui/ai-sdk@0.0.9
+
 ## 1.4.13
 
 ### Patch Changes
