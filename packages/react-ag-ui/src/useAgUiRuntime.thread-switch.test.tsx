@@ -376,6 +376,48 @@ describe("useAgUiRuntime thread switching", () => {
     ]);
   });
 
+  it("drops a reload started by onCancel during the final reset", async () => {
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        _subscriber: Subscriber,
+        options: { signal: AbortSignal },
+      ) => {
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      },
+    );
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    let result!: ReturnType<typeof renderRuntime>["result"];
+    const onCancel = vi.fn(() => {
+      void result.current.thread.startRun({ parentId: null });
+    });
+    ({ result } = renderRuntime(
+      async () => ({ messages: [message("loaded")] }),
+      undefined,
+      agent,
+      { onCancel },
+    ));
+
+    act(() => {
+      void result.current.thread.append("old prompt");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-a");
+    });
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(result.current.thread.getState().isRunning).toBe(false);
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "loaded",
+    ]);
+  });
+
   it("lets a switch started by onCancel supersede the cancelled switch", async () => {
     const runAgent = vi.fn(
       async (
@@ -473,6 +515,7 @@ describe("useAgUiRuntime thread switching", () => {
   });
 
   it("keeps the queue usable after onCancel queues a send mid-switch", async () => {
+    const staleLoad = deferred<ThreadLoad>();
     const runAgent = vi.fn(
       async (
         _input: unknown,
@@ -487,35 +530,72 @@ describe("useAgUiRuntime thread switching", () => {
       },
     );
     const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
-    let queueDuringSwitch: (() => void) | undefined;
-    const { result } = renderRuntime(
-      async () => {
-        queueDuringSwitch?.();
-        return { messages: [message("loaded")] };
-      },
+    let result!: ReturnType<typeof renderRuntime>["result"];
+    const onCancel = vi.fn(() => {
+      void result.current.thread.append("sent mid-switch");
+    });
+    ({ result } = renderRuntime(
+      (id) =>
+        id === "thread-a"
+          ? staleLoad.promise
+          : Promise.resolve({ messages: [message("thread-b")] }),
       undefined,
       agent,
-      { unstable_enableMessageQueue: true },
-    );
-    queueDuringSwitch = () => {
-      void result.current.thread.append("sent mid-switch");
-    };
+      { unstable_enableMessageQueue: true, onCancel },
+    ));
 
     act(() => {
       void result.current.thread.append("active");
     });
     await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
-    await act(async () => {
-      await result.current.threads.switchToThread("thread-a");
+    act(() => {
+      void result.current.threads.switchToThread("thread-a");
     });
-    queueDuringSwitch = undefined;
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-b");
+    });
 
+    expect(onCancel).toHaveBeenCalledOnce();
     expect(runAgent).toHaveBeenCalledOnce();
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-b",
+    ]);
     act(() => {
       void result.current.thread.append("after the switch");
     });
     await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
   });
+
+  it.each([false, true])(
+    "accepts a send after a newer switch completes with queue %s",
+    async (unstable_enableMessageQueue) => {
+      const staleLoad = deferred<ThreadLoad>();
+      const runAgent = vi.fn(async () => {});
+      const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+      const { result } = renderRuntime(
+        (id) =>
+          id === "thread-a"
+            ? staleLoad.promise
+            : Promise.resolve({ messages: [message("thread-b")] }),
+        undefined,
+        agent,
+        { unstable_enableMessageQueue },
+      );
+
+      act(() => {
+        void result.current.threads.switchToThread("thread-a");
+      });
+      await act(async () => {
+        await result.current.threads.switchToThread("thread-b");
+      });
+      expect(result.current.threads.getState().mainThreadId).toBe("thread-b");
+
+      act(() => {
+        void result.current.thread.append("send on B");
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+    },
+  );
 
   it.each([undefined, { owner: "thread-a" }])(
     "ignores an older load and its resume request with state %j",

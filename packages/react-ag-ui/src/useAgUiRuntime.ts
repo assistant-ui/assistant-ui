@@ -65,7 +65,7 @@ export function useAgUiRuntime(
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const threadSwitchGenerationRef = useRef(0);
-  const activeThreadSwitchesRef = useRef(0);
+  const switchingGenerationRef = useRef<number | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -82,6 +82,7 @@ export function useAgUiRuntime(
       ...(options.onCancel && { onCancel: options.onCancel }),
       ...(historyAdapter && { history: historyAdapter }),
       notifyUpdate,
+      isThreadSwitching: () => switchingGenerationRef.current !== null,
     });
   }
 
@@ -125,7 +126,7 @@ export function useAgUiRuntime(
         const controller = queueRef.current;
         // A send dispatched mid-switch is dropped, and the queue released, or
         // it would wait for an idle edge that never comes.
-        if (activeThreadSwitchesRef.current > 0) {
+        if (switchingGenerationRef.current !== null) {
           controller?.notifyIdle();
           return;
         }
@@ -225,12 +226,18 @@ export function useAgUiRuntime(
       queueRef.current?.clear();
     };
 
+    const releaseSwitch = (generation: number) => {
+      if (switchingGenerationRef.current === generation) {
+        switchingGenerationRef.current = null;
+      }
+    };
+
     return {
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            activeThreadSwitchesRef.current++;
+            switchingGenerationRef.current = generation;
             try {
               abandonPreviousThread();
               if (generation !== threadSwitchGenerationRef.current) return;
@@ -245,14 +252,14 @@ export function useAgUiRuntime(
               core.applyExternalMessages([]);
               core.resetThreadState();
             } finally {
-              activeThreadSwitchesRef.current--;
+              releaseSwitch(generation);
             }
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
-            activeThreadSwitchesRef.current++;
+            switchingGenerationRef.current = generation;
             try {
               abandonPreviousThread();
               if (generation !== threadSwitchGenerationRef.current) return;
@@ -270,11 +277,13 @@ export function useAgUiRuntime(
               if (result.state !== undefined) {
                 core.loadExternalState(result.state);
               }
+              if (generation !== threadSwitchGenerationRef.current) return;
+              releaseSwitch(generation);
               if (result.unstable_resume) {
                 void core.resumeInFlightRun(result.messages);
               }
             } finally {
-              activeThreadSwitchesRef.current--;
+              releaseSwitch(generation);
             }
           }
         : undefined,
@@ -319,7 +328,7 @@ export function useAgUiRuntime(
         unstable_persistsHistory: true,
         setToolStatuses,
         onNew: (message: AppendMessage) =>
-          activeThreadSwitchesRef.current > 0
+          switchingGenerationRef.current !== null
             ? Promise.resolve()
             : core.append(message),
         onVoiceTranscript: (message) => core.appendVoiceTranscript(message),

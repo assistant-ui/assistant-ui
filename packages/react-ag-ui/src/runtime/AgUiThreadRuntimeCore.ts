@@ -113,6 +113,7 @@ type CoreOptions = {
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
   notifyUpdate: () => void;
+  isThreadSwitching?: () => boolean;
 };
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
@@ -157,6 +158,7 @@ export class AgUiThreadRuntimeCore {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
+  private readonly isThreadSwitching: (() => boolean) | undefined;
   private readonly reportedErrors = new WeakSet<object>();
 
   private runtime: AssistantRuntime | undefined;
@@ -206,6 +208,7 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
+    this.isThreadSwitching = options.isThreadSwitching;
   }
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
@@ -1161,6 +1164,7 @@ export class AgUiThreadRuntimeCore {
     resume?: ResumeDispatch,
     resumeStream?: ResumeStream,
   ): Promise<void> {
+    if (this.isThreadSwitching?.()) return;
     // A default AG-UI run supersedes the active run; the hook's opt-in message
     // queue serializes sends instead. append supersedes earlier, before it links
     // its message; this covers the entry points that start a run without one.
