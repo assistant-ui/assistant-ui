@@ -1026,93 +1026,59 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     expect(core.getMessages().map(({ id }) => id)).toEqual([editedUserId]);
   });
 
-  it("MESSAGES_SNAPSHOT without reasoning records keeps the reasoning of earlier replies", async () => {
-    let runCount = 0;
-    let userId = "";
-    const agent = {
-      runAgent: vi.fn(async (input: any, subscriber: any) => {
-        runCount++;
-        if (runCount === 1) {
-          userId = input.messages.find(
-            (m: { role: string }) => m.role === "user",
-          ).id;
-          emitReasoning(subscriber, "reasoning-1", "thinking");
-          emitAssistantText(subscriber, "assistant-1", "Hello.");
+  it.each([
+    { showThinking: true, expected: ["reasoning", "text"] },
+    { showThinking: false, expected: ["text"] },
+  ])(
+    "MESSAGES_SNAPSHOT without reasoning records keeps earlier reasoning only while showThinking is $showThinking",
+    async ({ showThinking, expected }) => {
+      let runCount = 0;
+      let userId = "";
+      const agent = {
+        runAgent: vi.fn(async (input: any, subscriber: any) => {
+          runCount++;
+          if (runCount === 1) {
+            userId = input.messages.find(
+              (m: { role: string }) => m.role === "user",
+            ).id;
+            emitReasoning(subscriber, "reasoning-1", "thinking");
+            emitAssistantText(subscriber, "assistant-1", "Hello.");
+            subscriber.onRunFinalized?.();
+            return;
+          }
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
           subscriber.onRunFinalized?.();
-          return;
-        }
-        subscriber.onMessagesSnapshotEvent?.({
-          event: {
-            type: "MESSAGES_SNAPSHOT",
-            messages: [
-              { id: userId, role: "user", content: "hi" },
-              { id: "assistant-1", role: "assistant", content: "Hello." },
-            ],
-          },
+        }),
+      } as unknown as HttpAgent;
+
+      const core = createCore(agent);
+      await core.append(createAppendMessage());
+      core.updateOptions({ agent, logger: noopLogger, showThinking });
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+
+      const first = core
+        .getMessages()
+        .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+      expect(first.content.map((part) => part.type)).toEqual(expected);
+      if (showThinking) {
+        expect(first.content[0]).toMatchObject({
+          type: "reasoning",
+          text: "thinking",
         });
-        emitAssistantText(subscriber, "assistant-2", "Hi again.");
-        subscriber.onRunFinalized?.();
-      }),
-    } as unknown as HttpAgent;
-
-    const core = createCore(agent);
-    await core.append(createAppendMessage());
-    await core.append(
-      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
-    );
-
-    const messages = core.getMessages();
-    const first = messages.find(
-      ({ id }) => id === "assistant-1",
-    ) as ThreadAssistantMessage;
-    expect(first.content[0]).toMatchObject({
-      type: "reasoning",
-      text: "thinking",
-    });
-    expect(first.content[1]).toMatchObject({ type: "text", text: "Hello." });
-  });
-
-  it("MESSAGES_SNAPSHOT does not bring back reasoning once showThinking is off", async () => {
-    let runCount = 0;
-    let userId = "";
-    const agent = {
-      runAgent: vi.fn(async (input: any, subscriber: any) => {
-        runCount++;
-        if (runCount === 1) {
-          userId = input.messages.find(
-            (m: { role: string }) => m.role === "user",
-          ).id;
-          emitReasoning(subscriber, "reasoning-1", "thinking");
-          emitAssistantText(subscriber, "assistant-1", "Hello.");
-          subscriber.onRunFinalized?.();
-          return;
-        }
-        subscriber.onMessagesSnapshotEvent?.({
-          event: {
-            type: "MESSAGES_SNAPSHOT",
-            messages: [
-              { id: userId, role: "user", content: "hi" },
-              { id: "assistant-1", role: "assistant", content: "Hello." },
-            ],
-          },
-        });
-        emitAssistantText(subscriber, "assistant-2", "Hi again.");
-        subscriber.onRunFinalized?.();
-      }),
-    } as unknown as HttpAgent;
-
-    const core = createCore(agent);
-    await core.append(createAppendMessage());
-    core.updateOptions({ agent, logger: noopLogger, showThinking: false });
-    await core.append(
-      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
-    );
-
-    const first = core
-      .getMessages()
-      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
-    expect(first.content.map((part) => part.type)).toEqual(["text"]);
-  });
+      }
+    },
+  );
 
   it("MESSAGES_SNAPSHOT without activity keeps streamed activity after its text", async () => {
     let runCount = 0;
