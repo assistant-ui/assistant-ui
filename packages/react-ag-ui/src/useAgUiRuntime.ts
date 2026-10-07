@@ -65,6 +65,7 @@ export function useAgUiRuntime(
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const threadSwitchGenerationRef = useRef(0);
+  const activeThreadSwitchesRef = useRef(0);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -122,6 +123,12 @@ export function useAgUiRuntime(
     queueRef.current = createMessageQueue({
       run: (message) => {
         const controller = queueRef.current;
+        // A send dispatched mid-switch is dropped, and the queue released, or
+        // it would wait for an idle edge that never comes.
+        if (activeThreadSwitchesRef.current > 0) {
+          controller?.notifyIdle();
+          return;
+        }
         const edgesAtDispatch = busyEdgesRef.current;
         // The queue drops the item before dispatching and stays busy until an
         // idle edge. An append observed as busy is released by that falling
@@ -205,16 +212,15 @@ export function useAgUiRuntime(
     const { onSwitchToNewThread, onSwitchToThread, ...rest } =
       threadListAdapter;
 
-    // A switch always proceeds, so nothing the previous thread was running or
-    // had queued reaches the destination, including a run onCancel starts.
-    const abandonPreviousThread = async () => {
-      try {
-        if (core.isRunning()) await core.cancel();
-      } catch (error) {
-        logger.error?.(
-          "[agui] cancelling the run on thread switch failed",
-          error,
-        );
+    const abandonPreviousThread = () => {
+      queueRef.current?.notifyCancelled();
+      if (core.isRunning()) {
+        void core.cancel().catch((error: unknown) => {
+          logger.error?.(
+            "[agui] cancelling the run on thread switch failed",
+            error,
+          );
+        });
       }
       queueRef.current?.clear();
     };
@@ -224,37 +230,51 @@ export function useAgUiRuntime(
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            await abandonPreviousThread();
-            // Clear before the thread id flips, or the old messages leak
-            // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            core.resetThreadState();
-            await onSwitchToNewThread();
-            if (generation !== threadSwitchGenerationRef.current) return;
-            await abandonPreviousThread();
-            core.applyExternalMessages([]);
-            core.resetThreadState();
+            activeThreadSwitchesRef.current++;
+            try {
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              // Clear before the thread id flips, or the old messages leak
+              // into the new thread as a sibling branch.
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+              await onSwitchToNewThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+            } finally {
+              activeThreadSwitchesRef.current--;
+            }
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
-            await abandonPreviousThread();
-            // Clear before the thread id flips, or the old messages leak
-            // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            core.resetThreadState();
-            const result = await onSwitchToThread(threadId);
-            if (generation !== threadSwitchGenerationRef.current) return;
-            await abandonPreviousThread();
-            core.applyExternalMessages([]);
-            core.resetThreadState();
-            core.applyExternalMessages(result.messages);
-            if (result.state !== undefined) {
-              core.loadExternalState(result.state);
-            }
-            if (result.unstable_resume) {
-              void core.resumeInFlightRun(result.messages);
+            activeThreadSwitchesRef.current++;
+            try {
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              // Clear before the thread id flips, or the old messages leak
+              // into the new thread as a sibling branch.
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+              const result = await onSwitchToThread(threadId);
+              if (generation !== threadSwitchGenerationRef.current) return;
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+              core.applyExternalMessages(result.messages);
+              if (result.state !== undefined) {
+                core.loadExternalState(result.state);
+              }
+              if (result.unstable_resume) {
+                void core.resumeInFlightRun(result.messages);
+              }
+            } finally {
+              activeThreadSwitchesRef.current--;
             }
           }
         : undefined,
@@ -298,7 +318,10 @@ export function useAgUiRuntime(
         unstable_enableToolInvocations: true,
         unstable_persistsHistory: true,
         setToolStatuses,
-        onNew: (message: AppendMessage) => core.append(message),
+        onNew: (message: AppendMessage) =>
+          activeThreadSwitchesRef.current > 0
+            ? Promise.resolve()
+            : core.append(message),
         onVoiceTranscript: (message) => core.appendVoiceTranscript(message),
         onEdit: (message: AppendMessage) => {
           queueController?.clear();

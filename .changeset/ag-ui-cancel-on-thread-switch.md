@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-cancel active runs and discard queued messages when switching threads
+cancel active runs, discard queued messages, and drop sends during thread switches

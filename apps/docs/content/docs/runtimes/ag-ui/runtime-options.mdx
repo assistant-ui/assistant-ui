@@ -153,7 +153,7 @@ The thread list adapter is currently experimental and may change without notice.
 | `onSwitchToNewThread` | `() => Promise<void>` | Called when the user creates a new thread. Reset your thread state here. |
 | `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state?, unstable_resume? }>` | Called when the user switches threads. Return the persisted messages and, optionally, the opaque state. Set `unstable_resume: true` when the thread has a run in flight; the runtime then resumes it through the history adapter's `resume()` method. |
 
-Switching threads cancels the active run and discards messages queued for the previous thread. A run started by `onCancel` during the switch is also cancelled.
+Switching threads cancels the active run and discards messages queued for the previous thread. No new run starts until the switch finishes, so any run that `onCancel` would start during the switch is dropped.
 
 ```tsx
 const runtime = useAgUiRuntime({

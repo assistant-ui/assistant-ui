@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { HttpAgent } from "@ag-ui/client";
-import type { ThreadMessage } from "@assistant-ui/core";
+import type { ThreadHistoryAdapter, ThreadMessage } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
 import type {
   UseAgUiRuntimeOptions,
@@ -46,19 +46,21 @@ function renderRuntime(
   options: Pick<
     UseAgUiRuntimeOptions,
     "onCancel" | "unstable_enableMessageQueue"
-  > = {},
+  > & { history?: ThreadHistoryAdapter } = {},
 ) {
   const agent = {
     runAgent: vi.fn(),
     abortRun: vi.fn(),
   } as unknown as HttpAgent;
   const runtimeAgent = agentOverride ?? agent;
+  const { history, ...runtimeOptions } = options;
   return renderHook(() => {
     const [threadId, setThreadId] = useState("initial");
     return useAgUiRuntime({
       agent: runtimeAgent,
-      ...options,
+      ...runtimeOptions,
       adapters: {
+        ...(history && { history }),
         threadList: {
           threadId,
           onSwitchToThread: (id) => {
@@ -82,14 +84,17 @@ afterEach(() => {
 
 describe("useAgUiRuntime thread switching", () => {
   it.each(["existing", "new"] as const)(
-    "cancels a streaming run before switching to the %s thread",
+    "persists a cancelled partial reply before switching to the %s thread",
     async (destination) => {
       const signals: AbortSignal[] = [];
       const onAbort = vi.fn();
-      const applyMessages = vi.spyOn(
-        AgUiThreadRuntimeCore.prototype,
-        "applyExternalMessages",
+      const appendHistory = vi.fn<ThreadHistoryAdapter["append"]>(
+        async () => {},
       );
+      const history: ThreadHistoryAdapter = {
+        load: vi.fn(async () => ({ headId: null, messages: [] })),
+        append: appendHistory,
+      };
       let subscriber!: Subscriber;
       const runAgent = vi.fn(
         async (
@@ -112,16 +117,35 @@ describe("useAgUiRuntime thread switching", () => {
         },
       );
       const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+      let adapterCalled = false;
       let cancelledAtAdapter = false;
+      let partialAtAdapter = false;
+      const inspectAtAdapter = () => {
+        adapterCalled = true;
+        cancelledAtAdapter = signals[0]?.aborted ?? false;
+        partialAtAdapter = appendHistory.mock.calls.some(
+          ([entry]) =>
+            entry.message.role === "assistant" &&
+            entry.message.status?.type === "incomplete" &&
+            entry.message.content.some(
+              (part) => part.type === "text" && part.text === "partial",
+            ),
+        );
+      };
       const { result } = renderRuntime(
         async () => {
-          cancelledAtAdapter = signals[0]?.aborted ?? false;
+          inspectAtAdapter();
           return { messages: [message("loaded")] };
         },
         async () => {
-          cancelledAtAdapter = signals[0]?.aborted ?? false;
+          inspectAtAdapter();
         },
         agent,
+        { history },
+      );
+
+      await waitFor(() =>
+        expect(result.current.thread.getState().isLoading).toBe(false),
       );
 
       act(() => {
@@ -129,32 +153,39 @@ describe("useAgUiRuntime thread switching", () => {
       });
       await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
       act(() => {
-        subscriber.onMessagesSnapshotEvent?.({
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "old-output" },
+        });
+        subscriber.onTextMessageContentEvent?.({
           event: {
-            type: "MESSAGES_SNAPSHOT",
-            messages: [{ id: "old-output", role: "assistant", content: "old" }],
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "old-output",
+            delta: "partial",
           },
         });
       });
       expect(result.current.thread.getState().messages.length).toBeGreaterThan(
         0,
       );
-      applyMessages.mockClear();
 
-      await act(async () => {
+      let switching!: Promise<void>;
+      act(() => {
         if (destination === "existing") {
-          await result.current.threads.switchToThread("thread-a");
+          switching = result.current.threads.switchToThread("thread-a");
         } else {
-          await result.current.threads.switchToNewThread();
+          switching = result.current.threads.switchToNewThread();
         }
+        expect(adapterCalled).toBe(true);
+        expect(partialAtAdapter).toBe(true);
+      });
+      await act(async () => {
+        await switching;
       });
 
       expect(cancelledAtAdapter).toBe(true);
       expect(signals[0]?.aborted).toBe(true);
       expect(onAbort).toHaveBeenCalledOnce();
-      expect(onAbort.mock.invocationCallOrder[0]).toBeLessThan(
-        applyMessages.mock.invocationCallOrder[0]!,
-      );
+      expect(partialAtAdapter).toBe(true);
       expect(
         result.current.thread.getState().messages.map((m) => m.id),
       ).toEqual(destination === "existing" ? ["loaded"] : []);
@@ -250,7 +281,7 @@ describe("useAgUiRuntime thread switching", () => {
     expect(runAgent).toHaveBeenCalledOnce();
   });
 
-  it("cancels a run started by onCancel during the switch", async () => {
+  it("drops sends from onCancel and the caller during the switch", async () => {
     const load = deferred<ThreadLoad>();
     const signals: AbortSignal[] = [];
     const runAgent = vi.fn(
@@ -278,6 +309,11 @@ describe("useAgUiRuntime thread switching", () => {
       },
     }));
 
+    act(() => {
+      void result.current.thread.append("old prompt");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+
     let switching!: Promise<void>;
     act(() => {
       switching = result.current.threads.switchToThread("thread-a");
@@ -285,18 +321,200 @@ describe("useAgUiRuntime thread switching", () => {
     act(() => {
       void result.current.thread.append("during switch");
     });
-    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
-
     await act(async () => {
       load.resolve({ messages: [message("loaded")] });
       await switching;
     });
 
-    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(runAgent).toHaveBeenCalledOnce();
     expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(result.current.thread.getState().isRunning).toBe(false);
     expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
       "loaded",
     ]);
+  });
+
+  it("drops every send started by onCancel while switching", async () => {
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        _subscriber: Subscriber,
+        options: { signal: AbortSignal },
+      ) => {
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      },
+    );
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    let result!: ReturnType<typeof renderRuntime>["result"];
+    const onCancel = vi.fn(() => {
+      void result.current.thread.append("from onCancel");
+    });
+    ({ result } = renderRuntime(
+      async () => ({ messages: [message("loaded")] }),
+      undefined,
+      agent,
+      { onCancel },
+    ));
+
+    act(() => {
+      void result.current.thread.append("old prompt");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-a");
+    });
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(result.current.thread.getState().isRunning).toBe(false);
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "loaded",
+    ]);
+  });
+
+  it("lets a switch started by onCancel supersede the cancelled switch", async () => {
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        _subscriber: Subscriber,
+        options: { signal: AbortSignal },
+      ) => {
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      },
+    );
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    let result!: ReturnType<typeof renderRuntime>["result"];
+    let switchB!: Promise<void>;
+    ({ result } = renderRuntime(
+      async (id) => ({ messages: [message(id)] }),
+      undefined,
+      agent,
+      {
+        onCancel: () => {
+          switchB = result.current.threads.switchToThread("thread-b");
+        },
+      },
+    ));
+
+    act(() => {
+      void result.current.thread.append("old prompt");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+    await act(async () => {
+      const switchA = result.current.threads.switchToThread("thread-a");
+      await Promise.all([switchA, switchB]);
+    });
+
+    expect(result.current.threads.getState().mainThreadId).toBe("thread-b");
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-b",
+    ]);
+  });
+
+  it("does not dispatch a queued send on the aborted run's idle edge", async () => {
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        _subscriber: Subscriber,
+        options: { signal: AbortSignal },
+      ) => {
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      },
+    );
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    const { result } = renderRuntime(
+      async () => ({ messages: [message("loaded")] }),
+      undefined,
+      agent,
+      { unstable_enableMessageQueue: true },
+    );
+
+    act(() => {
+      void result.current.thread.append("active");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    expect(runAgent).toHaveBeenCalledOnce();
+
+    let switching!: Promise<void>;
+    act(() => {
+      switching = result.current.threads.switchToThread("thread-a");
+    });
+    await act(async () => {
+      await switching;
+    });
+
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "loaded",
+    ]);
+    act(() => {
+      void result.current.thread.append("new thread prompt");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the queue usable after onCancel queues a send mid-switch", async () => {
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        _subscriber: Subscriber,
+        options: { signal: AbortSignal },
+      ) => {
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      },
+    );
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    let queueDuringSwitch: (() => void) | undefined;
+    const { result } = renderRuntime(
+      async () => {
+        queueDuringSwitch?.();
+        return { messages: [message("loaded")] };
+      },
+      undefined,
+      agent,
+      { unstable_enableMessageQueue: true },
+    );
+    queueDuringSwitch = () => {
+      void result.current.thread.append("sent mid-switch");
+    };
+
+    act(() => {
+      void result.current.thread.append("active");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-a");
+    });
+    queueDuringSwitch = undefined;
+
+    expect(runAgent).toHaveBeenCalledOnce();
+    act(() => {
+      void result.current.thread.append("after the switch");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
   });
 
   it.each([undefined, { owner: "thread-a" }])(
