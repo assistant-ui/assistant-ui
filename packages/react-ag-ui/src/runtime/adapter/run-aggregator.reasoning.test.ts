@@ -106,27 +106,36 @@ describe.each([true, false])(
             nextReasoning ? [{ id: "r-2", encryptedValue: "sig-r-2" }] : [],
           );
         }
-        expect(
-          toAgUiMessages([
-            {
-              id: "assistant-1",
-              role: "assistant",
-              content: previous?.content ?? [],
-              metadata: previous?.metadata,
-            },
-            {
-              id: "assistant-2",
-              role: "assistant",
-              content: latest.content ?? [],
-              metadata: latest.metadata,
-            },
-          ]).map((message) => message.id),
-        ).toEqual([
+        const exported = toAgUiMessages([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: previous?.content ?? [],
+            metadata: previous?.metadata,
+          },
+          {
+            id: "assistant-2",
+            role: "assistant",
+            content: latest.content ?? [],
+            metadata: latest.metadata,
+          },
+        ]);
+        expect(exported.map((message) => message.id)).toEqual([
           "r-1",
           "assistant-1",
           "tool-1",
           ...(nextReasoning ? ["r-2"] : []),
           "assistant-2",
+        ]);
+        expect(
+          exported.flatMap((message) =>
+            message.role === "reasoning"
+              ? [[message.id, message.encryptedValue]]
+              : [],
+          ),
+        ).toEqual([
+          ["r-1", "sig-r-1"],
+          ...(nextReasoning ? [["r-2", "sig-r-2"]] : []),
         ]);
       },
     );
