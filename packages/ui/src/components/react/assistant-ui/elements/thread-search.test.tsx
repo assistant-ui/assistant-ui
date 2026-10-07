@@ -89,8 +89,11 @@ describe("ThreadSearch", () => {
 
     expect(document.activeElement).toBe(input);
     expect(onSelect).toHaveBeenNthCalledWith(2, "migration");
-    expect(onActiveChange).toHaveBeenCalledExactlyOnceWith("release");
-    expect(release.getAttribute("aria-selected")).toBe("true");
+    expect(onActiveChange).toHaveBeenLastCalledWith("migration");
+    expect(migration.getAttribute("aria-selected")).toBe("true");
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSelect).toHaveBeenNthCalledWith(3, "migration");
   });
 
   it("does not activate a result filtered away from the active id", () => {

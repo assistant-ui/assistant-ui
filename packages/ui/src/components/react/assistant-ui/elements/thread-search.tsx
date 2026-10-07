@@ -131,7 +131,10 @@ export function ThreadSearch({
         tabIndex={-1}
         aria-selected={thread.id === activeId}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => onSelect(thread.id)}
+        onClick={() => {
+          onActiveChange?.(thread.id);
+          onSelect(thread.id);
+        }}
         className={className}
       >
         {content}
