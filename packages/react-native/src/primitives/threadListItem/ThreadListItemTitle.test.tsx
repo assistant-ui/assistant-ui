@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 import type { ThreadListItemPrimitive } from "../../index";
 import { Title as ThreadListItemTitle } from "../threadListItem";
 
@@ -102,6 +102,19 @@ describe("ThreadListItemTitle", () => {
     });
 
     expect(container.textContent).toBe("Untitled chat");
+  });
+
+  it("renders an element fallback outside Text", async () => {
+    await act(async () => {
+      root.render(
+        <ThreadListItemTitle fallback={<View testID="fallback-view" />} />,
+      );
+    });
+
+    expect(h.textChildren).toEqual([]);
+    expect(
+      container.querySelector('[data-testid="fallback-view"]'),
+    ).not.toBeNull();
   });
 
   it("renders the fallback through Text when there is no title", async () => {
