@@ -47,26 +47,24 @@ const FINISH_REASONS: ReadonlySet<unknown> = new Set([
   "other",
   "unknown",
 ]);
-const tokenCount = (value: unknown) => (typeof value === "number" ? value : 0);
 
 const readFinishFields = (value: {
   finishReason: unknown;
   usage?: unknown;
-}) => {
-  const usage = isObject(value.usage) ? value.usage : {};
-  return {
-    finishReason: (FINISH_REASONS.has(value.finishReason)
-      ? value.finishReason
-      : "unknown") as Extract<
-      AssistantStreamChunk,
-      { type: "message-finish" }
-    >["finishReason"],
-    usage: {
-      inputTokens: tokenCount(usage["inputTokens"]),
-      outputTokens: tokenCount(usage["outputTokens"]),
-    },
-  };
-};
+}) => ({
+  finishReason: (FINISH_REASONS.has(value.finishReason)
+    ? value.finishReason
+    : "unknown") as Extract<
+    AssistantStreamChunk,
+    { type: "message-finish" }
+  >["finishReason"],
+  usage: isObject(value.usage)
+    ? (value.usage as Extract<
+        AssistantStreamChunk,
+        { type: "message-finish" }
+      >["usage"])
+    : { inputTokens: 0, outputTokens: 0 },
+});
 
 const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.TextDelta]: isString,

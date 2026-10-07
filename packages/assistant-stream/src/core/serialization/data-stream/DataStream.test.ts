@@ -1313,22 +1313,22 @@ describe("DataStreamDecoder malformed frame values", () => {
     },
   );
 
-  it("fills missing token counts and maps unknown finish reasons to unknown", async () => {
+  it("passes usage through as sent and maps unknown finish reasons to unknown", async () => {
     const chunks = await decodeLines([
-      'e:{"finishReason":"abort","usage":{"inputTokens":3}}',
-      'd:{"finishReason":"stop","usage":{"promptTokens":1}}',
+      'e:{"finishReason":"abort","usage":{"promptTokens":11,"completionTokens":7},"isContinued":false}',
+      'd:{"finishReason":"stop","usage":{"inputTokens":3,"outputTokens":4}}',
     ]);
 
     expect(chunks).toEqual([
       expect.objectContaining({
         type: "step-finish",
         finishReason: "unknown",
-        usage: { inputTokens: 3, outputTokens: 0 },
+        usage: { promptTokens: 11, completionTokens: 7 },
       }),
       expect.objectContaining({
         type: "message-finish",
         finishReason: "stop",
-        usage: { inputTokens: 0, outputTokens: 0 },
+        usage: { inputTokens: 3, outputTokens: 4 },
       }),
     ]);
   });
