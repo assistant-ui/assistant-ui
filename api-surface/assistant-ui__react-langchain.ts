@@ -1105,6 +1105,23 @@ type LangChainContentBlock = {
   type: "input_json_delta" | "tool_use";
 };
 
+type LangChainMediaBlock = {
+  type: "audio" | "file" | "image" | "text-plain" | "video";
+  mimeType?: string;
+  mime_type?: string;
+  data?: string | Uint8Array;
+  base64?: string | Uint8Array;
+  url?: string;
+  fileId?: string;
+  file_id?: string;
+  id?: string;
+  text?: string;
+  source_type?: "base64" | "id" | "text" | "url";
+  metadata?: {
+    filename?: string;
+  };
+};
+
 type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & {
   uiMessagesByParent?: Map<string, UIMessage[]>;
   messageTiming?: Record<string, MessageTiming>;
@@ -2360,7 +2377,7 @@ type VoiceSessionState = {
 
 declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metadata?: LangChainMessageConverterMetadata) => useExternalMessageConverter.Message;
 
-declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
+declare const convertLangChainContentBlock: (part: LangChainContentBlock | LangChainMediaBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
   export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, normalizeToolCallArgs, uiMessageToDataPart, withAudioTranscript };
