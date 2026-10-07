@@ -689,8 +689,7 @@ function htmlBlockRanges(text: string): number[] {
 
 function rewriteOutsideBlocks(
   text: string,
-  rewrite: (text: string, offset: number) => string,
-  original = text,
+  rewrite: (text: string) => string,
 ): string {
   const ranges = htmlBlockRanges(text);
   let out = "";
@@ -698,10 +697,10 @@ function rewriteOutsideBlocks(
   for (let i = 0; i < ranges.length; i += 2) {
     const from = ranges[i]!;
     const to = ranges[i + 1]!;
-    out += rewrite(text.slice(cursor, from), cursor) + original.slice(from, to);
+    out += rewrite(text.slice(cursor, from)) + text.slice(from, to);
     cursor = to;
   }
-  return out + rewrite(text.slice(cursor), cursor);
+  return out + rewrite(text.slice(cursor));
 }
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
@@ -1241,26 +1240,21 @@ function endOfVerbatimRun(text: string, index: number): number {
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  const normalized = text.replace(/\r(?!\n)/g, "\n");
-  return rewriteOutsideBlocks(
-    normalized,
-    (slice, offset) => {
-      let out = "";
-      let index = 0;
+  return rewriteOutsideBlocks(text, (slice) => {
+    let out = "";
+    let index = 0;
 
-      while (index < slice.length) {
-        const verbatimEnd = endOfVerbatimRun(slice, index);
-        if (verbatimEnd > index) {
-          out += text.slice(offset + index, offset + verbatimEnd);
-          index = verbatimEnd;
-          continue;
-        }
-        out += opensCurrencyAmount(slice, index) ? "\\$" : "$";
-        index += 1;
+    while (index < slice.length) {
+      const verbatimEnd = endOfVerbatimRun(slice, index);
+      if (verbatimEnd > index) {
+        out += slice.slice(index, verbatimEnd);
+        index = verbatimEnd;
+        continue;
       }
+      out += opensCurrencyAmount(slice, index) ? "\\$" : "$";
+      index += 1;
+    }
 
-      return out;
-    },
-    text,
-  );
+    return out;
+  });
 }
