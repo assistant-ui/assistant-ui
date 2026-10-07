@@ -1246,7 +1246,7 @@ function convertSurface(
         setOwnProperty(
           target,
           key,
-          setIn(target[key], decodePointer(path), value),
+          setIn(target[key], decodeScopeRelativePointer(path), value),
         );
     }
     for (const target of context.actionContexts) {
