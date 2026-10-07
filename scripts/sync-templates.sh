@@ -25,6 +25,7 @@ MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
 MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
 MINIMAL_LIB_DIR="$TEMPLATES_ROOT/minimal/lib"
+CLOUD_HARNESS_DIR="$TEMPLATES_ROOT/cloud-harness"
 NUXT_DIR="$TEMPLATES_ROOT/nuxt/app/components/assistant-ui"
 
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
@@ -187,6 +188,9 @@ lib_drift=()
 vue_drift=()
 vue_missing=()
 registry_drift=()
+cloud_harness_mirrors=()
+cloud_harness_drift=()
+cloud_harness_removed=()
 aui_candidates=()
 vue_candidates=()
 ui_candidates=()
@@ -297,6 +301,31 @@ if [[ -d "$MINIMAL_LIB_DIR" ]]; then
     done < <(find "$MINIMAL_LIB_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
 fi
 
+if [[ -d "$CLOUD_HARNESS_DIR" ]]; then
+    for tree in components hooks lib; do
+        if [[ -d "$TEMPLATES_ROOT/minimal/$tree" ]]; then
+        while IFS= read -r -d '' min_file; do
+            relative="${min_file#"$TEMPLATES_ROOT/minimal/"}"
+            file="$(basename "$min_file")"
+            rendered=""
+            case "$relative" in
+            components/assistant-ui/elements/*) rendered="$RENDER_DIR/assistant-ui/$file" ;;
+            components/ui/*) rendered="$RENDER_DIR/ui/$file" ;;
+            hooks/*) rendered="$RENDER_DIR/hooks/$file" ;;
+            lib/*) rendered="$RENDER_DIR/lib/$file" ;;
+            esac
+            [[ -f "$rendered" ]] || rendered="$min_file"
+            cloud_harness_mirrors+=("$rendered:$relative")
+        done < <(find "$TEMPLATES_ROOT/minimal/$tree" -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+        fi
+        [[ -d "$CLOUD_HARNESS_DIR/$tree" ]] || continue
+        while IFS= read -r -d '' target; do
+            relative="${target#"$CLOUD_HARNESS_DIR/"}"
+            [[ -f "$TEMPLATES_ROOT/minimal/$relative" ]] || cloud_harness_removed+=("$relative")
+        done < <(find "$CLOUD_HARNESS_DIR/$tree" -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+    done
+fi
+
 format_rendered
 
 for file in "${aui_candidates[@]}"; do
@@ -335,6 +364,13 @@ for pair in "${REGISTRY_MIRRORS[@]}"; do
     fi
 done
 
+for pair in "${cloud_harness_mirrors[@]}"; do
+    target="$CLOUD_HARNESS_DIR/${pair#*:}"
+    if [[ ! -f "$target" ]] || ! same_normalized "${pair%%:*}" "$target"; then
+        cloud_harness_drift+=("$pair")
+    fi
+done
+
 # Examples, templates and apps must NOT hold byte-equal copies of any
 # packages/ui source: their tsconfig aliases already resolve the canonical
 # file, so a local copy is only justified as an intentional fork (which
@@ -349,7 +385,7 @@ redundant=()
 # through tsconfig paths, so a byte-equal stylesheet is never redundant.
 is_exempt_copy() {
     case "$1" in
-    templates/minimal/* | templates/nuxt/* | */globals.d.ts) return 0 ;;
+    templates/minimal/* | templates/cloud-harness/* | templates/nuxt/* | */globals.d.ts) return 0 ;;
     *) return 1 ;;
     esac
 }
@@ -390,7 +426,7 @@ while IFS= read -r rel; do
     done < <(awk -F/ -v base="${rel##*/}" '$NF == base' "$UI_SRC_LIST")
 done < <(git -C "$ROOT_DIR" ls-files -- examples templates apps)
 
-if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#registry_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#registry_drift[@]} -eq 0 && ${#cloud_harness_drift[@]} -eq 0 && ${#cloud_harness_removed[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
     echo "✓ minimal scaffold files are in sync with apps/registry"
     echo "✓ no redundant packages/ui copies in examples, templates or apps"
@@ -430,8 +466,18 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"
         echo "synced ${pair#*:}"
     done
+    for pair in "${cloud_harness_drift[@]}"; do
+        target="$CLOUD_HARNESS_DIR/${pair#*:}"
+        mkdir -p "$(dirname "$target")"
+        cp "${pair%%:*}" "$target"
+        echo "synced cloud-harness/${pair#*:}"
+    done
+    for relative in "${cloud_harness_removed[@]}"; do
+        rm "$CLOUD_HARNESS_DIR/$relative"
+        echo "removed cloud-harness/$relative"
+    done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} + ${#cloud_harness_drift[@]} + ${#cloud_harness_removed[@]} )) file(s)"
     drift=()
     vue_drift=()
     vue_missing=()
@@ -439,6 +485,8 @@ if [[ "$MODE" == "--write" ]]; then
     hooks_drift=()
     lib_drift=()
     registry_drift=()
+    cloud_harness_drift=()
+    cloud_harness_removed=()
     [[ ${#redundant[@]} -eq 0 ]] && exit 0
 fi
 
@@ -498,6 +546,21 @@ if [[ ${#registry_drift[@]} -gt 0 ]]; then
     done
 fi
 
+if [[ ${#cloud_harness_removed[@]} -gt 0 ]]; then
+    echo "✗ stale mirrored cloud-harness kit file(s):"
+    for relative in "${cloud_harness_removed[@]}"; do
+        annotate "templates/cloud-harness/$relative" "source was removed; run 'pnpm sync-templates --write'"
+    done
+fi
+
+if [[ ${#cloud_harness_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#cloud_harness_drift[@]} cloud-harness kit file(s):"
+    for pair in "${cloud_harness_drift[@]}"; do
+        echo "    templates/cloud-harness/${pair#*:}"
+        annotate "templates/cloud-harness/${pair#*:}" "out of sync with its canonical scaffold source; run 'pnpm sync-templates --write'"
+    done
+fi
+
 if [[ ${#redundant[@]} -gt 0 ]]; then
     echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) (use a tsconfig path alias instead):"
     for r in "${redundant[@]}"; do
@@ -507,7 +570,7 @@ if [[ ${#redundant[@]} -gt 0 ]]; then
 fi
 
 echo ""
-if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) -gt 0 ]]; then
+if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} + ${#cloud_harness_drift[@]} + ${#cloud_harness_removed[@]} )) -gt 0 ]]; then
     echo "to fix, run:    pnpm sync-templates --write"
     echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
 fi

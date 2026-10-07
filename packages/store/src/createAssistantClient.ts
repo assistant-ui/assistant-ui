@@ -108,15 +108,7 @@ const toClientSource = (
  * identity), and holds a subscription for as long as it needs the client
  * alive.
  *
- * The handle's lifecycle rides its subscriber count. Scopes render lazily on
- * the first read and mount when the first subscriber attaches; state updates
- * before that throw, so an imperative consumer without a reactive framework
- * holds a no-op subscription. When the last subscriber releases, the root
- * soft-unmounts on the next task: effects clean up, state is retained, and a
- * later subscriber remounts the same scopes. `destroy` is the permanent
- * teardown, synchronous while subscribers are attached; after the last
- * release it defers to the soft unmount that release already scheduled.
- * Releasing every subscription is the ordinary path.
+ * The handle's lifecycle rides its subscriber count. Scopes render lazily on the first read and mount when the first subscriber attaches; state updates before that throw, so an imperative consumer without a reactive framework holds a no-op subscription. When the last subscriber releases, the root soft-unmounts on the next task: effects other than insertion effects clean up, state is retained, and a later subscriber remounts the same scopes. `destroy` is the permanent teardown: it aborts the destroy signal and synchronously releases every scope, insertion effects included, whether or not subscribers are attached. A bridge that only releases its subscriptions keeps insertion effects mounted until `destroy`.
  *
  * The parent may be a plain client or another source/handle. Passing a source
  * keeps the child bound to the parent's current client across the parent's
@@ -206,6 +198,11 @@ export const createAssistantClient = (
     };
   };
 
+  const release = () => {
+    unwire?.();
+    root.unmount();
+  };
+
   return {
     getClient: () => root.getValue().client,
     subscribe: (listener) => {
@@ -221,7 +218,7 @@ export const createAssistantClient = (
         }
         // A mount notification can destroy the handle before wire() assigns
         // unwire; complete that destroy now
-        if (destroyed && unwire) flushTapSync(unwire);
+        if (destroyed) release();
       }
       let isSubscribed = true;
       return () => {
@@ -235,9 +232,10 @@ export const createAssistantClient = (
       if (destroyed) return;
       destroyed = true;
       destroyController.abort();
-      // Wired: flushTapSync lands the soft unmount before returning. Already
-      // released: the soft unmount tap scheduled then completes on its task
-      if (unwire) flushTapSync(unwire);
+      // A destroy from a mount notification lands while wire() is still
+      // mounting; subscribe completes it
+      if (subscriberCount > 0 && unwire === null) return;
+      release();
     },
   };
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { safeHref } from "../utils/href";
 import { clamp } from "../utils/range";
@@ -174,6 +174,32 @@ const relativeDate = (date: Date, locale: string, relativeTo: number) => {
     Math.round(seconds / amount),
     unit,
   );
+};
+
+const relativeRefreshDelay = (
+  columns: readonly DataTableColumn[],
+  rows: readonly DataTableRow[],
+  now: number,
+) => {
+  const relativeKeys = columns
+    .filter(
+      (column) =>
+        column.format?.kind === "date" && column.format.style === "relative",
+    )
+    .map((column) => column.key);
+  const freshestAge = rows.reduce((minimum, row) => {
+    for (const key of relativeKeys) {
+      const date = asDate(row[key]);
+      if (date) minimum = Math.min(minimum, Math.abs(now - date.getTime()));
+    }
+    return minimum;
+  }, Number.POSITIVE_INFINITY);
+
+  if (freshestAge < 60_000) return 1_000;
+  if (freshestAge < 3_600_000) return 30_000;
+  if (freshestAge < 86_400_000) return 60_000;
+  if (freshestAge < 604_800_000) return 3_600_000;
+  return 86_400_000;
 };
 
 const withUnit = (text: string, unit: string | undefined) =>
@@ -443,31 +469,47 @@ export function DataTable({
   );
   const [announcement, setAnnouncement] = useState("");
   const activeSort = sort === undefined ? internalSort : sort;
+  const hasRelativeDates = columns.some(
+    (column) =>
+      column.format?.kind === "date" && column.format.style === "relative",
+  );
+  const [, setTick] = useState(0);
   const relativeTime = relativeTo ?? Date.now();
+  const refreshDelay =
+    relativeTo === undefined && hasRelativeDates
+      ? relativeRefreshDelay(columns, rows, relativeTime)
+      : undefined;
+
+  useEffect(() => {
+    if (refreshDelay === undefined) return;
+    const timeout = window.setTimeout(
+      () => setTick((tick) => tick + 1),
+      refreshDelay,
+    );
+    return () => window.clearTimeout(timeout);
+  });
   const sortColumn = columns.find((column) => column.key === activeSort?.key);
   const collator = collatorFor(locale);
+  const indexedRows = rows.map((row, index) => ({ row, index }));
   const sortedRows =
     activeSort && sortColumn
-      ? rows
-          .map((row, index) => ({ row, index }))
-          .sort((a, b) => {
-            const result = compareValues(
-              a.row[sortColumn.key],
-              b.row[sortColumn.key],
-              sortColumn,
-              collator,
-            );
-            if (result === 0) return a.index - b.index;
-            if (
-              isEmpty(a.row[sortColumn.key]) ||
-              isEmpty(b.row[sortColumn.key])
-            ) {
-              return result;
-            }
-            return activeSort.direction === "asc" ? result : -result;
-          })
-          .map(({ row }) => row)
-      : rows;
+      ? indexedRows.sort((a, b) => {
+          const result = compareValues(
+            a.row[sortColumn.key],
+            b.row[sortColumn.key],
+            sortColumn,
+            collator,
+          );
+          if (result === 0) return a.index - b.index;
+          if (
+            isEmpty(a.row[sortColumn.key]) ||
+            isEmpty(b.row[sortColumn.key])
+          ) {
+            return result;
+          }
+          return activeSort.direction === "asc" ? result : -result;
+        })
+      : indexedRows;
   const primaryColumn =
     columns.find((column) => column.priority === "primary") ?? columns[0];
 
@@ -567,7 +609,7 @@ export function DataTable({
               </td>
             </tr>
           ) : (
-            sortedRows.map((row, index) => (
+            sortedRows.map(({ row, index }) => (
               <tr
                 key={rowIdentifier(row, rowKey, index)}
                 className="hover:bg-foreground/[0.025] transition-colors motion-reduce:transition-none"
@@ -599,7 +641,7 @@ export function DataTable({
             {emptyMessage}
           </div>
         ) : (
-          sortedRows.map((row, index) => (
+          sortedRows.map(({ row, index }) => (
             <div
               key={rowIdentifier(row, rowKey, index)}
               role="listitem"

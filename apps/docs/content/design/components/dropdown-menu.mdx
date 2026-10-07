@@ -99,7 +99,7 @@ The parts wrap Base UI's Menu primitives and accept their props.
     {
       name: "align",
       type: '"start" | "center" | "end"',
-      default: '"center"',
+      default: '"start"',
       description: "Alignment against the trigger.",
     },
     {
@@ -117,8 +117,8 @@ The parts wrap Base UI's Menu primitives and accept their props.
   type="DropdownMenuItemProps"
   parameters={[
     {
-      name: "onSelect",
-      type: "() => void",
+      name: "onClick",
+      type: "(event) => void",
       description: "Called when the item is selected.",
     },
     {

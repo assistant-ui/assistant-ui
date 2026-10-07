@@ -22,7 +22,7 @@ const getTextLength = (
   if (!message?.parts) return 0;
   let len = 0;
   for (const part of message.parts) {
-    if (part.type === "text") len += part.text.length;
+    if (part?.type === "text") len += part.text?.length ?? 0;
   }
   return len;
 };
@@ -35,7 +35,7 @@ const getToolCallCount = (
   if (!message?.parts) return 0;
   let count = 0;
   for (const part of message.parts) {
-    if (isToolUIPart(part)) count++;
+    if (typeof part?.type === "string" && isToolUIPart(part)) count++;
   }
   return count;
 };

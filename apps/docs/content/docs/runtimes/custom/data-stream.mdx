@@ -132,7 +132,7 @@ export function App() {
 
 ### Create the backend endpoint
 
-Your backend should accept POST requests and return data stream responses:
+Your backend should accept POST requests and return data stream responses.
 For React Native and Ink, host this endpoint in a separate backend project and
 point the client runtime at its absolute URL.
 
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
 
 The request body includes `messages`, `tools`, `system` (if configured), and `threadId`.
 
-`createAssistantStreamResponse` returns a standard Web `Response`. It drops into any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers) without ceremony. On frameworks that use their own response object (Express, Fastify), copy `status` and `headers` over, then pipe `response.body` into the framework's writable stream. Avoid sending the `Response` body into a `res` object whose lifecycle is already controlled by the framework (that is the `ERR_INVALID_STATE: Controller is already closed` failure mode).
+`createAssistantStreamResponse` returns a standard Web `Response`. It drops into any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers). On frameworks that use their own response object (Express, Fastify), copy `status` and `headers` over, then pipe `response.body` into the framework's writable stream. Avoid sending the `Response` body into a `res` object whose lifecycle is already controlled by the framework (that is the `ERR_INVALID_STATE: Controller is already closed` failure mode).
 
 </Step>
 </Steps>
@@ -249,7 +249,7 @@ const genericMessages = toGenericMessages(messages);
 const toolSchemas = toToolsJSONSchema(tools);
 ```
 
-`GenericMessage` is a union of `system`, `user` (with text and file parts), `assistant` (with text and tool-call parts), and `tool` (with tool-result parts). It is easy to convert to any LLM provider format.
+`GenericMessage` is a union of `system`, `user` (with text and file parts), `assistant` (with text and tool-call parts), and `tool` (with tool-result parts). Convert it to the format your LLM provider expects.
 
 ### AI SDK specific
 
@@ -305,10 +305,10 @@ See [adapters](/docs/runtimes/concepts/adapters) for adapter contracts and [Loca
 
 The runtime handles common error scenarios automatically:
 
-- Network errors: retried with exponential backoff.
-- Stream interruptions: gracefully handled with partial content preserved.
+- Network errors: the message ends with an `incomplete` status that carries the error, and `onError` is called. The request is not retried.
+- Stream interruptions: partial content is preserved.
 - Tool execution errors: displayed in the UI with error states.
-- Cancellation: clean abort signal handling.
+- Cancellation: the request is aborted through its abort signal, and `onCancel` is called.
 
 ## Examples
 

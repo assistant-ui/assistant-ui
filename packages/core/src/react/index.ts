@@ -292,6 +292,12 @@ export {
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
 export { groupPartByType, type GroupByContext } from "./utils/groupParts";
 export {
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
+} from "./utils/threadRows";
+export { ThreadPrimitiveRow } from "./primitives/thread/ThreadRow";
+export {
   MessagePrimitiveGenerativeUI,
   GenerativeUIRender,
   GenerativeUIRenderError,
