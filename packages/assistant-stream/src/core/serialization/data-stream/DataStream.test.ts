@@ -1343,9 +1343,9 @@ describe("DataStreamDecoder malformed frame values", () => {
       'a:{"toolCallId":"t1","result":1,"modelContent":null}',
     ]);
 
-    expect(chunks.find((c) => c.type === "result")).not.toHaveProperty(
-      "modelContent",
-    );
+    const result = chunks.find((c) => c.type === "result");
+    expect(result).toMatchObject({ result: 1 });
+    expect(result).not.toHaveProperty("modelContent");
   });
 
   it("rejects a source frame whose parentId is not a string", async () => {
