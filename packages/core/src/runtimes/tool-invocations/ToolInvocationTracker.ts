@@ -271,6 +271,8 @@ export class ToolInvocationTracker {
 
         this._demoteEntriesToRestored();
         this._executing.clear();
+        // Pending human requests share this signal and must remain resumable.
+        if (this._humanInput.size === 0) this._ac.abort();
         this._ac = new AbortController();
 
         const nextStatuses = new Map(this._statuses);
