@@ -1227,7 +1227,6 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const switchGeneration = this._switchGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
@@ -1237,25 +1236,21 @@ export class RemoteThreadListThreadListRuntimeCore
       await this._ensureThreadIsNotMain(data.id);
     } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
-    let wasOptimisticallyDeleted = false;
-    let result: void;
     try {
-      result = await this._state.optimisticUpdate({
+      await this._state.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           this._requireAdapterGeneration(adapterGeneration);
           return await adapter.delete(remoteId);
         },
         optimistic: (state) => {
-          wasOptimisticallyDeleted = true;
           return updateStatusReducer(state, data.id, "deleted");
         },
       });
     } catch (error) {
       const controlledThreadId = this._options.threadId;
       if (
-        wasOptimisticallyDeleted &&
-        this._switchGeneration === switchGeneration &&
+        this._switchGeneration === this._controlledSwitchGeneration &&
         controlledThreadId !== undefined &&
         this._mainThreadId !== data.id &&
         this.getItemById(controlledThreadId)?.id === data.id
@@ -1269,7 +1264,6 @@ export class RemoteThreadListThreadListRuntimeCore
     // otherwise have found it to stop.
     this._hookManager.stopThreadRuntime(data.id);
     clearThreadTitleState(this._titleStates, data.id);
-    return result;
   }
 
   public __internal_dispose() {

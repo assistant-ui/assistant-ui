@@ -212,9 +212,49 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
+  it("retries a controlled switch started while deletion is pending", async () => {
+    const deletion = deferred<void>();
+    const onThreadIdChange = vi.fn();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+            title: "Thread B",
+          },
+        ],
+      })),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const core = createCore(adapter, undefined, onThreadIdChange);
+    await core.getLoadThreadsPromise();
+    core.__internal_load();
+
+    const deleting = core.delete("thread-b").catch(() => undefined);
+    await vi.waitFor(() => expect(adapter.delete).toHaveBeenCalled());
+    expect(core.getItemById("thread-b")).toBeUndefined();
+
+    core.__internal_setOptions({
+      adapter,
+      runtimeHook: () => ({}) as never,
+      threadId: "thread-b",
+      onThreadIdChange,
+    });
+    const controlledSwitch = (core as unknown as { _switchTask: Promise<void> })
+      ._switchTask;
+    await controlledSwitch.catch(() => undefined);
+    expect(adapter.fetch).toHaveBeenCalledWith("thread-b");
+
+    deletion.reject(new Error("network"));
+    await deleting;
+    await vi.waitFor(() => expect(core.mainThreadId).toBe("thread-b"));
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("does not retry a restored controlled thread after a later switch", async () => {
     const deletion = deferred<void>();
-    const attachment = deferred<unknown>();
     const onThreadIdChange = vi.fn();
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -257,8 +297,10 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     });
 
     await core.switchToThread("thread-c");
-    attachment.resolve({});
     await controlledSwitch;
+    const startedThreadsBeforeRollback = startThreadRuntime.mock.calls.map(
+      ([threadId]) => threadId,
+    );
     deletion.reject(new Error("network"));
     await deleting;
 
@@ -266,7 +308,7 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(core.mainThreadId).toBe("thread-c");
     expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-c");
     expect(startThreadRuntime.mock.calls.map(([threadId]) => threadId)).toEqual(
-      ["thread-b", "thread-c"],
+      startedThreadsBeforeRollback,
     );
   });
 
