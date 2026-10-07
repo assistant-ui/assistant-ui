@@ -3,7 +3,7 @@ title: "Scroll anchor"
 description: "Streaming never steals your scroll position; a pill offers the way back down."
 ---
 
-A scroll anchor keeps a message list pinned to the bottom while it grows, then gets out of the way the moment someone scrolls up to read something older. With a runtime the pin and the jump-back button are the viewport's own behavior; standalone you track the pin state and the unseen count yourself.
+A scroll anchor keeps a message list pinned to the bottom while it grows, then gets out of the way the moment someone scrolls up to read something older. With a runtime the pin and the jump-back button are the viewport's own behavior; standalone, `ScrollAnchor` plays a scripted feed and tracks the pin state and the unseen count itself.
 
 ## Getting started
 
@@ -39,13 +39,13 @@ function Viewport() {
 import { ThreadPrimitive } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 
-<ThreadPrimitive.ScrollToBottom className="absolute inset-x-0 bottom-3 mx-auto flex w-fit items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs">
+<ThreadPrimitive.ScrollToBottom className="absolute inset-x-0 bottom-3 mx-auto flex w-fit items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs disabled:invisible">
   <ArrowDownIcon className="size-3 opacity-60" />
   New messages
 </ThreadPrimitive.ScrollToBottom>
 ```
 
-`ThreadPrimitive.ScrollToBottom` renders `null` on its own while the viewport is already at the bottom, so it needs no manual pinned check. It has no built-in count of how many messages were missed; track that yourself from `s.thread.messages.length` if you want the "n new messages" label `ScrollAnchor` shows standalone.
+`ThreadPrimitive.ScrollToBottom` disables its button while the viewport is already at the bottom, so `disabled:invisible` hides the pill without a manual pinned check. It has no built-in count of how many messages were missed; track that yourself from `s.thread.messages.length` if you want the "n new messages" label `ScrollAnchor` shows standalone.
 
   </Step>
 </Steps>
@@ -104,7 +104,7 @@ export function ScrollDemo() {
 </div>
 ```
 
-Standalone, appending a message only auto-scrolls while pinned; scrolling away flips `pinned` to `false` on the next appended message and the count of unseen messages grows from there. Once two or more messages arrive unseen, it jumps back on its own after 2.4 seconds unless `paused`; pressing the pill jumps immediately. `onSettled` only fires when the whole array has landed and the view is still pinned, so it never fires while the reader is scrolled away reading.
+Standalone, the first three messages render at once and the rest append one at a time. Appending a message only auto-scrolls while pinned; the component unpins itself and scrolls to the top when the fourth message arrives, and the count of unseen messages grows from there. Once two or more messages arrive unseen, it jumps back on its own after 2.4 seconds unless `paused`; pressing the pill jumps immediately. `onSettled` only fires when the whole array has landed and the view is still pinned, so it never fires while the reader is scrolled away reading.
 
 ## Examples
 
@@ -155,7 +155,7 @@ There's no equivalent pause on the runtime viewport: new messages always arrive 
 | Part | Renders | Notes |
 |------|---------|-------|
 | `ThreadPrimitive.Viewport` | `div` | Scrollable container. `autoScroll`, `turnAnchor`, and the `scrollToBottomOn*` flags control when it pins. |
-| `ThreadPrimitive.ScrollToBottom` | `button` | Renders `null` while already at the bottom. Accepts `asChild` and a `behavior` prop (`"smooth" \| "auto"`). |
+| `ThreadPrimitive.ScrollToBottom` | `button` | Disabled while already at the bottom. Accepts `asChild` and a `behavior` prop (`ScrollBehavior`: `"auto" \| "instant" \| "smooth"`). |
 
 ### Viewport props
 

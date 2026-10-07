@@ -1,5 +1,6 @@
 import { copyBounded } from "../convert/copyBounded";
 import type { Action, UIElement } from "../ir";
+import { formatTemporalUnixSeconds } from "../temporal";
 import {
   ACTIONS_ELEMENT_CAP,
   CARD_ACTIONS_CAP,
@@ -331,6 +332,27 @@ const actionElementFrom = (
         return selectFrom(element, warnings);
       case "datepicker":
         return datePickerFrom(element);
+      case "timepicker":
+        return {
+          $type: "DatePicker",
+          inputType: "time",
+          ...(typeof element["initial_time"] === "string"
+            ? { value: element["initial_time"] }
+            : {}),
+          $action: decodeAction(element["action_id"], element["value"]),
+        };
+      case "datetimepicker": {
+        const value =
+          typeof element["initial_date_time"] === "number"
+            ? formatTemporalUnixSeconds(element["initial_date_time"])
+            : undefined;
+        return {
+          $type: "DatePicker",
+          inputType: "datetime",
+          ...(value !== undefined ? { value } : {}),
+          $action: decodeAction(element["action_id"], element["value"]),
+        };
+      }
       case "checkboxes":
         return Array.isArray(element["options"]) &&
           element["options"].length > 1
@@ -372,6 +394,13 @@ const inputFrom = (
   warnings: SlackConversionWarning[],
 ): UIElement[] => {
   const element = block["element"];
+  if (
+    isRecord(element) &&
+    (element["type"] === "timepicker" || element["type"] === "datetimepicker")
+  ) {
+    const picker = actionElementFrom(element, warnings);
+    return picker ? [{ ...picker, label: textOf(block["label"]) }] : [];
+  }
   if (!isRecord(element) || element["type"] !== "plain_text_input") {
     warn(
       warnings,
@@ -382,16 +411,20 @@ const inputFrom = (
     return [];
   }
   const placeholder = element["placeholder"];
+  const multiline = element["multiline"] === true;
+  const keepsAction = block["dispatch_action"] === true || multiline;
   return [
     {
       $type: "Input",
       label: textOf(block["label"]),
       ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
-      ...(element["multiline"] === true ? { multiline: true } : {}),
+      ...(multiline ? { multiline: true } : {}),
       ...(typeof element["initial_value"] === "string"
         ? { defaultValue: element["initial_value"] }
         : {}),
-      $action: decodeAction(element["action_id"], undefined),
+      ...(keepsAction
+        ? { $action: decodeAction(element["action_id"], undefined) }
+        : {}),
     },
   ];
 };

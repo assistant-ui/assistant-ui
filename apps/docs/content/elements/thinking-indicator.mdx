@@ -16,7 +16,7 @@ The runtime does not hand you a phrase like "Reading the docs"; it hands you the
 
 ### Name what is happening from the message parts
 
-```tsx title="components/assistant-ui/elements/thinking-indicator.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
@@ -129,7 +129,7 @@ const label = pending?.type === "tool-call" ? `Running ${pending.toolName}` : "T
 
 ### Restyle the status line
 
-The dot is fixed to `bg-blue-500`; the label uses `ShimmerLabel` and the elapsed badge uses the shared `mono` token from `surfaces.tsx`. `className` on the root only affects layout (it starts as `flex items-center gap-2.5`).
+The dot is fixed to `bg-blue-500`; the label uses `ShimmerLabel` and the elapsed badge uses the shared `mono` token from `surfaces.tsx`. `className` merges onto the root, which starts as `text-foreground/55 flex items-center gap-2.5 text-sm`.
 
 ```tsx
 <ThinkingIndicator label={label} elapsed={elapsed} className="gap-1.5 text-xs" />

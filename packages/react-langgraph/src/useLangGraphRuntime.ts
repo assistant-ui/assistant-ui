@@ -41,8 +41,10 @@ import {
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
   convertLangChainMessages,
+  createLangGraphMetadataKey,
   getMessageContent,
 } from "./convertLangChainMessages";
 import {
@@ -242,6 +244,7 @@ const useLangGraphRuntimeImpl = (
             runIdByMessageIdRef.current.set(message.id, runId);
         }
         for (const toolCall of message.tool_calls ?? []) {
+          if (typeof toolCall !== "object" || toolCall === null) continue;
           const isNewTool = !toolOwnership.has(toolCall.id);
           if (isNewTool) toolOwnership.set(toolCall.id, owner);
           if (runId && isNewTool)
@@ -264,6 +267,7 @@ const useLangGraphRuntimeImpl = (
         owner = messageOwnership.get(message.id);
       }
       for (const toolCall of message.tool_calls ?? []) {
+        if (typeof toolCall !== "object" || toolCall === null) continue;
         if (!toolOwnership.has(toolCall.id))
           toolOwnership.set(toolCall.id, owner);
       }
@@ -278,8 +282,10 @@ const useLangGraphRuntimeImpl = (
       if (message.id) survivingMessageIds.add(message.id);
       if (message.type !== "ai") continue;
       if (message.id) messageIds.add(message.id);
-      for (const toolCall of message.tool_calls ?? [])
+      for (const toolCall of message.tool_calls ?? []) {
+        if (typeof toolCall !== "object" || toolCall === null) continue;
         toolCallIds.add(toolCall.id);
+      }
     }
     for (const id of runConfigByMessageIdRef.current.keys()) {
       if (!messageIds.has(id)) runConfigByMessageIdRef.current.delete(id);
@@ -316,7 +322,7 @@ const useLangGraphRuntimeImpl = (
       if (toolOwnership.has(toolCallId)) return toolOwnership.get(toolCallId);
       for (const message of history) {
         if (message.type !== "ai") continue;
-        if (message.tool_calls?.some((toolCall) => toolCall.id === toolCallId))
+        if (message.tool_calls?.some((toolCall) => toolCall?.id === toolCallId))
           return runConfigByMessageIdRef.current.get(message.id ?? "");
       }
       return undefined;
@@ -365,6 +371,7 @@ const useLangGraphRuntimeImpl = (
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const [getConverterMetadataKey] = useState(createLangGraphMetadataKey);
   // Buffers client tool results within a turn so parallel tool calls resume the
   // graph in one run once every pending call has a result. See bufferToolResult.
   const toolResultBufferRef = useRef<
@@ -379,7 +386,7 @@ const useLangGraphRuntimeImpl = (
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
-  const loadController = useMemo(createAbortableThreadLoad, []);
+  const [loadController] = useState(createAbortableThreadLoad);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -395,7 +402,6 @@ const useLangGraphRuntimeImpl = (
     [uiMessages],
   );
 
-  // fresh metadata identity invalidates the converter cache; each UI event re-converts all messages
   const converterMetadata = useMemo(
     () =>
       ({
@@ -461,6 +467,10 @@ const useLangGraphRuntimeImpl = (
     queueRef.current?.clear();
     cancel();
   }, [runQueue, cancel]);
+  const cancelActiveRunRef = useRef(cancelActiveRun);
+  useInsertionEffect(() => {
+    cancelActiveRunRef.current = cancelActiveRun;
+  }, [cancelActiveRun]);
 
   const langGraphMessagesRef = useRef(messages);
   useInsertionEffect(() => {
@@ -556,12 +566,14 @@ const useLangGraphRuntimeImpl = (
     runQueue.drop();
     const cancellations =
       autoCancelPendingToolCalls !== false
-        ? getPendingToolCalls(messages).map(
-            (t) =>
-              createToolCallCancellationStub(t) satisfies LangChainMessage & {
-                type: "tool";
-              },
-          )
+        ? getPendingToolCalls(messages)
+            .filter((t) => t.id)
+            .map(
+              (t) =>
+                createToolCallCancellationStub(t) satisfies LangChainMessage & {
+                  type: "tool";
+                },
+            )
         : [];
 
     const humanMessage = toLangGraphUserMessage(msg);
@@ -665,6 +677,7 @@ const useLangGraphRuntimeImpl = (
     messages,
     isRunning: effectiveIsRunning,
     metadata: converterMetadata,
+    getMetadataKey: getConverterMetadataKey,
   });
 
   const threadMessagesRef = useRef(threadMessages);
@@ -748,7 +761,7 @@ const useLangGraphRuntimeImpl = (
     ],
   );
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -756,9 +769,9 @@ const useLangGraphRuntimeImpl = (
       loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [loadController, runLoad]);
+  }, [threadListItem]);
 
-  useEffect(() => cancelActiveRun, [cancelActiveRun]);
+  useReplaySafeEffect(() => () => cancelActiveRunRef.current(), []);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -809,6 +822,7 @@ const useLangGraphRuntimeImpl = (
           if (runId) return `run:${runId}`;
         }
         for (const toolCall of message.tool_calls ?? []) {
+          if (typeof toolCall !== "object" || toolCall === null) continue;
           const runId = runIdByToolCallIdRef.current.get(toolCall.id);
           if (runId) return `run:${runId}`;
         }
@@ -956,6 +970,7 @@ const useLangGraphRuntimeImpl = (
 
 export const useLangGraphRuntime = ({
   cloud,
+  scopeId,
   unstable_threadListAdapter,
   create,
   delete: deleteFn,
@@ -972,6 +987,7 @@ export const useLangGraphRuntime = ({
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: LANGGRAPH_SDK,
     cloud,
+    scopeId,
     create: createCloudThreadListAdapterCreateFallback(
       create,
       aui.threadListItem,

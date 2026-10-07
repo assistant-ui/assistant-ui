@@ -3,7 +3,7 @@ title: "Command palette"
 description: "Everything the app can do, one keystroke away and grouped by where it acts."
 ---
 
-A searchable, keyboard-driven list of app actions grouped by where each one acts, with the highlighted row auto-scrolled into view as arrow keys move it. With a runtime the palette's own list, search, and keyboard handling stay application state, and only what each command actually does reaches into the runtime; standalone every command and its handler are yours.
+A searchable, keyboard-driven list of app actions grouped by where each one acts, with the highlighted row auto-scrolled into view as arrow keys move it. With a runtime the palette's own list, search, and keyboard handling stay application state, and only what each command does reaches into the runtime; standalone every command and its handler are yours.
 
 ## Getting started
 
@@ -16,7 +16,7 @@ With a runtime, there is no registry of "everything the app can do" to read: ass
 
 ### Route commands to real actions
 
-`onRun` receives the id of the chosen command; look it up and call whatever it should do. Actions on the current thread, the thread list, and the active thread's list item are all real, callable runtime methods.
+`onRun` receives the id of the chosen command; look it up and call whatever it should do. Actions on the current thread, the thread list, and the active thread's list item are all runtime methods.
 
 ```tsx title="components/assistant-ui/elements/app-command-palette.tsx"
 "use client";
@@ -131,7 +131,7 @@ Matching filters `commands` against `query` by substring on `label`, case-insens
 
 ### Grouping and filter order
 
-A command whose group has no other surviving match still gets its own heading; groups never merge or disappear, they just shrink to one row.
+A command whose group has no other surviving match still gets its own heading; groups never merge; a group with one match shrinks to one row.
 
 ```tsx
 { id: "archive", label: "Archive this thread", group: "Thread", keys: ["⌘", "⇧", "A"] }
@@ -153,7 +153,7 @@ The esc hint and every shortcut key chip share the `field` and `mono` surfaces f
 
 | Call | Type | Description |
 |------|------|-------------|
-| `aui.threads.switchToNewThread()` | `() => Promise<void>` | Starts a new thread. A natural target for a "New thread" command. |
+| `aui.threads.switchToNewThread()` | `() => void` | Starts a new thread. A natural target for a "New thread" command. |
 | `aui.thread.cancelRun()` | `() => void` | Cancels the run in progress on the active thread. |
 | `aui.threadListItem.archive()` | `() => void` | Archives the active thread's list entry. |
 
