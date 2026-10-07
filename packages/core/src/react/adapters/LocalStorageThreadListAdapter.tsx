@@ -73,11 +73,13 @@ class KeyedMutationQueue {
     matches: (key: string) => boolean,
     storage: AsyncStorageLike,
   ) {
-    await Promise.all(
+    const results = await Promise.allSettled(
       [...this.staleKeys]
         .filter(matches)
         .map((key) => this.removeStale(key, storage)),
     );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
   }
 
   // Mutations may acquire another key but must never re-enter the key they

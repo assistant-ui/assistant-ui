@@ -20,6 +20,47 @@ const surfaceFrom = (
 });
 
 describe("convertSurfaceToUISpec", () => {
+  it.each(["", "a/b~c"])("preserves the nested action key %j", (key) => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["input", "send"] },
+        { id: "input", component: "TextField", value: { path: "/form/value" } },
+        {
+          id: "send",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                payload: { [key]: { path: "/form" }, untouched: "keep" },
+              },
+            },
+          },
+        },
+      ],
+      { form: { value: "initial", fixed: "retained" } },
+    );
+    const spec = convertSurfaceToUISpec(surface).spec;
+    expect(
+      resolveFieldReferences(spec, { "/form/value": "edited" }),
+    ).toMatchObject({
+      children: [
+        {},
+        {
+          $action: {
+            context: {
+              payload: {
+                [key]: { value: "edited", fixed: "retained" },
+                untouched: "keep",
+              },
+            },
+          },
+        },
+      ],
+    });
+  });
+
   it("preserves compaction in retained custom actions and non-record contexts", () => {
     const ids = [{ path: "/a" }, { path: "/missing" }, { path: "/b" }];
     const custom = convertSurfaceToUISpec(

@@ -1678,6 +1678,70 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
     await expect(adapter.list()).resolves.toEqual({ threads: [] });
   });
 
+  it("waits for sibling removals before reusing a deleted thread", async () => {
+    const baseStorage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular", formats: ["test/v1"] },
+      ]),
+      [formattedKey]: JSON.stringify({ messages: [] }),
+    });
+    let failMessagesCleanup = true;
+    let holdFormattedCleanup = true;
+    let signalCleanupStarted!: () => void;
+    const cleanupStarted = new Promise<void>((resolve) => {
+      signalCleanupStarted = resolve;
+    });
+    let releaseCleanup!: () => void;
+    const cleanupHeld = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const storage = {
+      ...baseStorage,
+      removeItem: async (key: string) => {
+        if (key === "@assistant-ui:messages:thread-1" && failMessagesCleanup) {
+          failMessagesCleanup = false;
+          throw new Error("Storage unavailable");
+        }
+        if (key === formattedKey && holdFormattedCleanup) {
+          holdFormattedCleanup = false;
+          signalCleanupStarted();
+          await cleanupHeld;
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const formatted = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+
+    const deletion = adapter.delete("thread-1");
+    await cleanupStarted;
+    const write = adapter.initialize("thread-1").then(() =>
+      formatted.append({
+        parentId: null,
+        message: { id: "new-message", text: "fresh" },
+      }),
+    );
+    try {
+      await Promise.race([
+        write,
+        new Promise<void>((resolve) => setTimeout(resolve, 0)),
+      ]);
+    } finally {
+      releaseCleanup();
+    }
+
+    await expect(deletion).resolves.toBeUndefined();
+    await write;
+    await expect(formatted.load()).resolves.toEqual({
+      messages: [
+        { parentId: null, message: { id: "new-message", text: "fresh" } },
+      ],
+    });
+  });
+
   it("preserves a concurrent formatted write during stale history cleanup", async () => {
     const baseStorage = createStorage({
       "@assistant-ui:threads": JSON.stringify([
