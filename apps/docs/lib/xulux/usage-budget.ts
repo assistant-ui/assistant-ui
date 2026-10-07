@@ -264,13 +264,12 @@ export async function finishTurn(
   sessionId: string,
   distinctId: string,
   usage: TokenUsage,
-  modelId?: string,
   budgetDate = utcDateKey(),
 ): Promise<void> {
   const store = await getStore();
   if (!store) return;
 
-  const microUsd = estimateMicroUsd(usage, modelId);
+  const microUsd = estimateMicroUsd(usage);
   await store.addSpend(sessionId, distinctId, budgetDate, microUsd);
 }
 
@@ -307,9 +306,8 @@ export async function finishTurnWithStore(
   sessionId: string,
   distinctId: string,
   usage: TokenUsage,
-  modelId?: string,
   date = utcDateKey(),
 ): Promise<void> {
-  const microUsd = estimateMicroUsd(usage, modelId);
+  const microUsd = estimateMicroUsd(usage);
   await store.addSpend(sessionId, distinctId, date, microUsd);
 }

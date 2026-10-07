@@ -7,9 +7,9 @@ description: How to efficiently render lists of items from store state.
 
 Rendering a list of items from store state follows a three-step pattern:
 
-1. **Subscribe to the list length** with `useAuiState` — re-renders only when items are added or removed
-2. **Memoize the element array** with `useMemo` — avoids recreating elements on unrelated re-renders
-3. **Use `RenderChildrenWithAccessor`** inside each item — defers reading item state until the child actually needs it
+1. **Subscribe to the list length** with `useAuiState`, so the list re-renders only when items are added or removed
+2. **Memoize the element array** with `useMemo`, which avoids recreating elements on unrelated re-renders
+3. **Use `RenderChildrenWithAccessor`** inside each item, so item state changes re-render the item only after its children read it
 
 ```tsx
 import { useMemo } from "react";
@@ -56,14 +56,14 @@ Usage:
 
 ### Length-based subscription
 
-Subscribing to `.length` instead of the full array means the list component only re-renders when items are added or removed — not when an individual item's data changes. This is significantly cheaper than subscribing to keys or the full array.
+Subscribing to `.length` instead of the full array means the list component only re-renders when items are added or removed, not when an individual item's data changes. This is cheaper than subscribing to keys or the full array.
 
 ### RenderChildrenWithAccessor
 
-`RenderChildrenWithAccessor` provides a lazy accessor (`getItem`) instead of reading item state eagerly. This means:
+`RenderChildrenWithAccessor` passes a lazy accessor (`getItem`) instead of the item state. This means:
 
-- **Deferred reads**: If the children render function never accesses the item, no subscription is created
-- **Propless memoization**: When children returns a propless component (e.g. `{() => <Todo />}`), the output is automatically memoized — it won't re-render on parent updates
+- **Deferred reads**: Until the children render function reads the item, changes to the item's state do not re-render it
+- **Propless memoization**: When children returns a propless component (e.g. `{() => <Todo />}`), the output is memoized, so it won't re-render on parent updates
 
 The `getItem` function is a getter that reads the latest state on demand. Wrap it in a lazy property (`get todo() { return getItem(); }`) so the state is only read when the consumer accesses it.
 

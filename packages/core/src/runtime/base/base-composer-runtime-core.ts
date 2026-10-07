@@ -414,6 +414,11 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
+    if (!submission.text.trim() && finalAttachments.length === 0) {
+      this._endSubmission();
+      this._returnToDraft({ ...submission, attachments: [] });
+      return;
+    }
     this._dispatch(generation, submission, finalAttachments, context, true);
   }
 
@@ -579,8 +584,10 @@ export abstract class BaseComposerRuntimeCore
           .filter((attachment) => !this._attachmentSends.isRemoved(attachment))
           .map((attachment) => [attachment.id, attachment]),
       );
-      this._attachments = this._attachments.map(
-        (attachment) => returned.get(attachment.id) ?? attachment,
+      this._attachments = this._attachments.map((attachment) =>
+        this._attachmentSends.isRemoved(attachment)
+          ? attachment
+          : (returned.get(attachment.id) ?? attachment),
       );
     }
     this._notifySubscribers();

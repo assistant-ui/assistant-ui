@@ -416,6 +416,42 @@ describe("McpManagerResource storage failures", () => {
       consoleError.mockRestore();
     }
   });
+
+  it("preserves a custom server when its removal fails", async () => {
+    const docsServer: MCPCustomServerRecord = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" },
+      createdAt: 1,
+    };
+    const error = new Error("storage unavailable");
+    const clearAuthState = vi.fn(async () => {});
+    clearAuthState.mockRejectedValueOnce(error);
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(async () => [docsServer]),
+        saveCustomServers: vi.fn(async () => {}),
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState,
+      }),
+    );
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
+      );
+
+      await expect(root.getValue().removeServer("docs")).rejects.toBe(error);
+      expect(root.getValue().getState().customServers).toMatchObject([
+        { id: "docs", name: "Docs" },
+      ]);
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("McpManagerResource storage ordering", () => {

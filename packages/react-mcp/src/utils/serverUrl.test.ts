@@ -2,8 +2,38 @@ import { describe, expect, it } from "vitest";
 import {
   hasPersistedCredentials,
   isAuthStateForServerUrl,
+  isSecureNetworkUrl,
   normalizeMcpServerUrl,
 } from "./serverUrl";
+
+describe("isSecureNetworkUrl", () => {
+  it.each([
+    "https://mcp.example.com/mcp",
+    "http://localhost:3000/mcp",
+    "http://localhost.:3000/mcp",
+    "http://dev.localhost:3000/mcp",
+    "http://dev.localhost.:3000/mcp",
+    "http://127.0.0.1:3000/mcp",
+    "http://127.1.2.3/mcp",
+    "http://[::1]:3000/mcp",
+    "http://[::ffff:127.0.0.1]:3000/mcp",
+    "http://[::ffff:127.1.2.3]/mcp",
+  ])("accepts %s", (url) => {
+    expect(isSecureNetworkUrl(url)).toBe(true);
+  });
+
+  it.each([
+    "http://mcp.example.com/mcp",
+    "http://192.168.1.20:3000/mcp",
+    "http://localhost.example.com/mcp",
+    "http://[::ffff:10.0.0.1]/mcp",
+    "http://[::2]/mcp",
+    "ws://localhost:3000/mcp",
+    "not a url",
+  ])("rejects %s", (url) => {
+    expect(isSecureNetworkUrl(url)).toBe(false);
+  });
+});
 
 describe("normalizeMcpServerUrl", () => {
   it("normalizes host case and the default port", () => {

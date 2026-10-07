@@ -86,7 +86,7 @@ const adapter: ChatModelAdapter = {
 
 ## External Store Helpers
 
-`getExternalStoreMessage` (singular) has been removed. Use `getExternalStoreMessages` (plural), which always returns an array — even when only one source message is bound:
+`getExternalStoreMessage` (singular) has been removed. Use `getExternalStoreMessages` (plural), which always returns an array, even when only one source message is bound:
 
 ```ts
 // Before
@@ -285,9 +285,9 @@ The `components` prop is still supported on all primitives but is deprecated and
 
 Some APIs marked `@deprecated` are intentionally kept for one more release to give downstream runtimes time to migrate:
 
-- `ThreadState.threadId` and `ThreadState.metadata` — use `useThreadListItem()` (see [v0.12 guide](/docs/migrations/v0-12)). Will be removed in a future minor release.
-- Legacy context hooks under `legacy-runtime/hooks/*` (`useThreadRuntime`, `useMessageRuntime`, etc.) — replaced by `useAui()` / `useAuiState()` in v0.12. The codemod migrates these.
-- Primitive `If` components (`ThreadIf`, `MessageIf`, `ComposerIf`, `ThreadEmpty`) — replaced by `AuiIf`. The codemod migrates these.
+- `ThreadState.threadId` and `ThreadState.metadata`: use `useAuiState((s) => s.threadListItem)` (see [v0.12 guide](/docs/migrations/v0-12)). Will be removed in a future minor release.
+- Legacy context hooks under `legacy-runtime/hooks/*` (`useThreadRuntime`, `useMessageRuntime`, etc.): replaced by `useAui()` / `useAuiState()` in v0.12 and removed in [v0.15](/docs/migrations/v0-15). The codemod migrates these.
+- Primitive `If` components (`ThreadIf`, `MessageIf`, `ComposerIf`, `ThreadEmpty`): replaced by `AuiIf`. The codemod migrates these.
 
 You'll continue to see deprecation warnings on these; expect removal in a future minor release.
 
