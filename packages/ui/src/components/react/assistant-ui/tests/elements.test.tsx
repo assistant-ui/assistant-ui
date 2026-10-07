@@ -818,26 +818,22 @@ describe("todo-list", () => {
 });
 
 describe.each(Object.entries(CASES))("%s", (name, make) => {
-  it.each(HOSTILE)("survives a %s numeric prop", (_label, n, items) => {
-    const markup = renderToStaticMarkup(make(n, items));
-
-    for (const { property, value } of inlinePercentages(markup)) {
-      const share = Number.parseFloat(value);
-      expect(
-        share,
-        `${name} rendered ${property}: ${value}, which a browser drops as invalid`,
-      ).toBeGreaterThanOrEqual(0);
-      expect(
-        share,
-        `${name} rendered ${property}: ${value}, past the end of its track`,
-      ).toBeLessThanOrEqual(100);
-    }
-  });
-
   it.each(HOSTILE)(
-    "announces a %s numeric prop without the float error of deriving it",
+    "renders a %s numeric prop with valid percentages and announced values",
     (_label, n, items) => {
       const markup = renderToStaticMarkup(make(n, items));
+
+      for (const { property, value } of inlinePercentages(markup)) {
+        const share = Number.parseFloat(value);
+        expect(
+          share,
+          `${name} rendered ${property}: ${value}, which a browser drops as invalid`,
+        ).toBeGreaterThanOrEqual(0);
+        expect(
+          share,
+          `${name} rendered ${property}: ${value}, past the end of its track`,
+        ).toBeLessThanOrEqual(100);
+      }
 
       for (const [, value] of markup.matchAll(/aria-valuenow="([^"]*)"/g)) {
         expect(
