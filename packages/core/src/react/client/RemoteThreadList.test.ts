@@ -1032,8 +1032,9 @@ describe("RemoteThreadList", () => {
       [threadsKey, JSON.stringify([{ remoteId: "t1", status: "regular" }])],
       [messagesKey, JSON.stringify({ messages: [] })],
     ]);
+    const cleanupError = new Error("Storage unavailable");
     const removeItem = vi.fn(async () => {
-      throw new Error("Storage unavailable");
+      throw cleanupError;
     });
     const adapter = createLocalStorageAdapter({
       storage: {
@@ -1052,6 +1053,7 @@ describe("RemoteThreadList", () => {
       undefined,
       onDelete,
     );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const aui = handle.getClient();
       await aui.threads.getLoadThreadsPromise();
@@ -1064,6 +1066,10 @@ describe("RemoteThreadList", () => {
       ).resolves.toBeUndefined();
 
       expect(removeItem).toHaveBeenCalledWith(messagesKey);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("local history cleanup failed"),
+        cleanupError,
+      );
       expect((await adapter.list()).threads).toEqual([]);
       await vi.waitFor(() => {
         expect(aui.threads.getState().threadIds).not.toContain("t1");
@@ -1071,6 +1077,7 @@ describe("RemoteThreadList", () => {
       });
     } finally {
       handle.destroy();
+      warn.mockRestore();
     }
   });
 

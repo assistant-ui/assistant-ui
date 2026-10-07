@@ -603,9 +603,13 @@ export const createLocalStorageAdapter = (
         mutationQueue.markStale(key);
         try {
           await mutationQueue.removeStale(key, storage);
-        } catch {
+        } catch (error) {
           // Metadata deletion is committed; keep the stale marker so initialize
           // retries cleanup without rolling the client back to a deleted thread.
+          console.warn(
+            "[assistant-ui] Thread deletion committed, but local history cleanup failed:",
+            error,
+          );
         }
       });
     },
