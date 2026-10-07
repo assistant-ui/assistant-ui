@@ -563,13 +563,18 @@ export const getEveMessageContent = (
       case "text":
         return { type: "text" as const, text: part.text };
 
-      case "file":
+      case "file": {
+        const mediaType = resolveFileMediaType(
+          part.data,
+          part.mimeType || part.contentType,
+        );
         return {
           type: "file" as const,
-          data: part.data,
-          mediaType: part.mimeType,
+          data: toMediaWireUrl(part.data, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
       case "image": {
         const mediaType = resolveImageMediaType(part.image, part.contentType);

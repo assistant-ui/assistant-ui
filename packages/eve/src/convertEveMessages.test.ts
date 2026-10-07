@@ -1983,6 +1983,73 @@ describe("getEveMessageContent", () => {
     ]);
   });
 
+  it.each([
+    {
+      name: "an untyped URL",
+      data: "https://example.com/file",
+      mimeType: "",
+      mediaType: "application/octet-stream",
+      wireData: "https://example.com/file",
+    },
+    {
+      name: "a data URL without an explicit type",
+      data: "data:application/pdf;base64,JVBERi0=",
+      mimeType: "",
+      mediaType: "application/pdf",
+      wireData: "data:application/pdf;base64,JVBERi0=",
+    },
+    {
+      name: "a data URL with a conflicting envelope",
+      data: "data:application/octet-stream;base64,JVBERi0=",
+      mimeType: "application/pdf",
+      mediaType: "application/pdf",
+      wireData: "data:application/pdf;base64,JVBERi0=",
+    },
+  ])(
+    "resolves file media types for $name",
+    ({ data, mimeType, mediaType, wireData }) => {
+      const message = {
+        ...baseAppendMessage,
+        content: [{ type: "file", data, mimeType, filename: "report.pdf" }],
+      } satisfies AppendMessage;
+
+      expect(getEveMessageContent(message)).toEqual([
+        { type: "file", data: wireData, mediaType, filename: "report.pdf" },
+      ]);
+    },
+  );
+
+  it("uses a file attachment's content type when its part has none", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "file-1",
+          type: "file",
+          name: "report.pdf",
+          contentType: "application/pdf",
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/report.pdf",
+              mimeType: "",
+            },
+          ],
+          status: { type: "complete" },
+        },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mediaType: "application/pdf",
+      },
+    ]);
+  });
+
   it("converts an audio part into a file part with the format-derived media type", () => {
     const message = {
       ...baseAppendMessage,
