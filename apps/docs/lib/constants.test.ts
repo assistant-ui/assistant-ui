@@ -1,16 +1,31 @@
 import { NAV_ITEMS, STATUS_URL } from "./constants";
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.resetModules();
+});
+
 describe("NAV_ITEMS", () => {
-  it("keeps Docs first and Pricing last as links", () => {
-    expect(NAV_ITEMS[0]).toEqual({
-      type: "link",
-      label: "Docs",
-      href: "/docs",
-    });
+  it("opens with Components, then Docs, and keeps Pricing last as links", () => {
+    expect(NAV_ITEMS.slice(0, 2)).toEqual([
+      { type: "link", label: "Components", href: "/components" },
+      { type: "link", label: "Docs", href: "/docs" },
+    ]);
     expect(NAV_ITEMS.at(-1)).toEqual({
       type: "link",
       label: "Pricing",
       href: "/pricing",
+    });
+  });
+
+  it("opens with Docs when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
+    vi.resetModules();
+    const closed = await import("./constants");
+    expect(closed.NAV_ITEMS[0]).toEqual({
+      type: "link",
+      label: "Docs",
+      href: "/docs",
     });
   });
 
@@ -49,6 +64,7 @@ describe("NAV_ITEMS", () => {
       "React",
       "React Native",
       "Ink",
+      "Vue",
       "Cloud",
       "Playground",
       "tw-shimmer",

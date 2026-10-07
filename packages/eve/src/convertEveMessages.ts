@@ -19,7 +19,10 @@ import {
 } from "@assistant-ui/core";
 import {
   httpUrlPattern,
+  resolveFileMediaType,
   resolveFilePartSource,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   EveAuthorizationOutcome,
@@ -31,6 +34,7 @@ import type {
   EveMessagePart,
 } from "eve/react";
 import type { InputResponse } from "eve/client";
+import type { MessageStreamEvent } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -64,6 +68,12 @@ export type ConvertEveMessagesOptions = {
    */
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
+  /**
+   * The session's stream events. A `turn.failed` or `turn.cancelled` event
+   * marks its turn's assistant message as incomplete, with a failure's code
+   * and message as its error.
+   */
+  readonly events?: readonly MessageStreamEvent[] | undefined;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -88,8 +98,15 @@ const toMessageStatus = (
   index: number,
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions,
+  interruptedTurns: ReadonlyMap<string, MessageStatus>,
 ): MessageStatus => {
   if (message.role !== "assistant") return USER_FALLBACK_STATUS;
+
+  const interrupted =
+    message.metadata?.turnId === undefined
+      ? undefined
+      : interruptedTurns.get(message.metadata.turnId);
+  if (interrupted) return interrupted;
 
   const isLast = index === messages.length - 1;
   const hasPendingApproval = message.parts.some(
@@ -123,9 +140,7 @@ const toMessageStatus = (
     return ASSISTANT_RUNNING_STATUS;
   }
 
-  // Eve's default reducer never terminalizes the "streaming" marker on
-  // cancellation or turn/session failure, so liveness comes from isRunning and
-  // a leftover marker means the turn was interrupted.
+  // Some eve versions leave the streaming marker after cancellation or failure.
   if (message.metadata?.status === "streaming") {
     if (options.isRunning === undefined) {
       return ASSISTANT_RUNNING_STATUS;
@@ -361,7 +376,7 @@ const convertFilePart = (
   return {
     type: "file",
     data: part.url,
-    mimeType: part.mediaType ?? "unknown/unknown",
+    mimeType: resolveFileMediaType(part.url, part.mediaType),
     ...(part.filename && { filename: part.filename }),
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
@@ -469,6 +484,21 @@ export const convertEveMessage = (
   index: number,
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions = {},
+): ThreadMessage =>
+  convertEveMessageWithInterruptions(
+    message,
+    index,
+    messages,
+    options,
+    getInterruptedTurns(options.events),
+  );
+
+const convertEveMessageWithInterruptions = (
+  message: EveMessage,
+  index: number,
+  messages: readonly EveMessage[],
+  options: ConvertEveMessagesOptions,
+  interruptedTurns: ReadonlyMap<string, MessageStatus>,
 ): ThreadMessage => {
   const createdAt = options.getCreatedAt?.(message) ?? new Date();
   const metadata = {
@@ -501,8 +531,61 @@ export const convertEveMessage = (
   return fromThreadMessageLike(
     like,
     message.id,
-    toMessageStatus(message, index, messages, options),
+    toMessageStatus(message, index, messages, options, interruptedTurns),
   );
+};
+
+export type InterruptedTurnEventCache = {
+  lastEvents: readonly MessageStreamEvent[];
+  interruptions: readonly MessageStreamEvent[];
+};
+
+const isTurnInterruption = (event: MessageStreamEvent) =>
+  event.type === "turn.failed" || event.type === "turn.cancelled";
+
+/**
+ * Collects the `turn.failed` and `turn.cancelled` events of an append-only
+ * event log, scanning only the events appended since the cached call. The
+ * returned array keeps its identity until a new interruption arrives.
+ */
+export const collectInterruptedTurnEvents = (
+  events: readonly MessageStreamEvent[],
+  cache: InterruptedTurnEventCache,
+): readonly MessageStreamEvent[] => {
+  if (events === cache.lastEvents) return cache.interruptions;
+
+  const scanned = cache.lastEvents;
+  const resumesScan =
+    scanned.length === 0 ||
+    events[scanned.length - 1] === scanned[scanned.length - 1];
+
+  let interruptions = resumesScan ? cache.interruptions : [];
+  for (let i = resumesScan ? scanned.length : 0; i < events.length; i++) {
+    const event = events[i]!;
+    if (isTurnInterruption(event)) interruptions = [...interruptions, event];
+  }
+
+  cache.lastEvents = events;
+  cache.interruptions = interruptions;
+  return interruptions;
+};
+
+const getInterruptedTurns = (
+  events: readonly MessageStreamEvent[] | undefined,
+) => {
+  const interrupted = new Map<string, MessageStatus>();
+  for (const event of events ?? []) {
+    if (event.type === "turn.failed") {
+      interrupted.set(event.data.turnId, {
+        type: "incomplete",
+        reason: "error",
+        error: { code: event.data.code, message: event.data.message },
+      });
+    } else if (event.type === "turn.cancelled") {
+      interrupted.set(event.data.turnId, ASSISTANT_CANCELLED_STATUS);
+    }
+  }
+  return interrupted;
 };
 
 /**
@@ -511,10 +594,18 @@ export const convertEveMessage = (
 export const convertEveMessages = (
   data: EveMessageData,
   options: ConvertEveMessagesOptions = {},
-): ThreadMessage[] =>
-  data.messages.map((message, index, messages) =>
-    convertEveMessage(message, index, messages, options),
+): ThreadMessage[] => {
+  const interruptedTurns = getInterruptedTurns(options.events);
+  return data.messages.map((message, index, messages) =>
+    convertEveMessageWithInterruptions(
+      message,
+      index,
+      messages,
+      options,
+      interruptedTurns,
+    ),
   );
+};
 
 /**
  * Structural subset of the `string | UserContent` message content Eve's `send`
@@ -533,6 +624,10 @@ export type EveMessageContent =
         }
     )[];
 
+type OutboundPart = AppendMessage["content"][number] & {
+  readonly contentType?: string | undefined;
+};
+
 /**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
@@ -540,9 +635,14 @@ export type EveMessageContent =
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
-  const content = [
+  const content: OutboundPart[] = [
     ...message.content,
-    ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
+    ...(message.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        ...part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
 
   const parts = content.flatMap((part) => {
@@ -551,21 +651,31 @@ export const getEveMessageContent = (
       case "text":
         return { type: "text" as const, text: part.text };
 
-      case "file":
+      case "file": {
+        const mediaType = resolveFileMediaType(
+          part.data,
+          part.mimeType || part.contentType,
+        );
         return {
           type: "file" as const,
-          data: part.data,
-          mediaType: part.mimeType,
+          data:
+            part.sourceType === "id"
+              ? part.data
+              : toMediaWireUrl(part.data, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
-      case "image":
+      case "image": {
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file" as const,
-          data: part.image,
-          mediaType: "image/*",
+          data: toMediaWireUrl(part.image, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the

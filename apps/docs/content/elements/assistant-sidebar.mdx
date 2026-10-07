@@ -55,13 +55,15 @@ Neither panel sets a `defaultSize` or `minSize`, so the group starts at an even 
 
 ### Constrain the split
 
+Sizes given as numbers are pixels; use a string such as `"70%"` for a share of the group.
+
 ```tsx
 <ResizablePanelGroup orientation="horizontal">
-  <ResizablePanel defaultSize={70} minSize={30}>
+  <ResizablePanel defaultSize="70%" minSize="30%">
     {children}
   </ResizablePanel>
   <ResizableHandle />
-  <ResizablePanel defaultSize={30} minSize={20}>
+  <ResizablePanel defaultSize="30%" minSize="20%">
     <Thread />
   </ResizablePanel>
 </ResizablePanelGroup>
@@ -85,6 +87,6 @@ Neither panel sets a `defaultSize` or `minSize`, so the group starts at an even 
 
 ### Panels
 
-`ResizablePanelGroup`, `ResizablePanel`, and `ResizableHandle` come from `@/components/ui/resizable`, a thin wrapper over `react-resizable-panels`; every prop of the underlying library, including `defaultSize`, `minSize`, `maxSize`, and `order`, passes straight through.
+`ResizablePanelGroup`, `ResizablePanel`, and `ResizableHandle` come from `@/components/ui/resizable`, a thin wrapper over `react-resizable-panels`; every prop of the underlying library, including `defaultSize`, `minSize`, `maxSize`, and `collapsible`, passes straight through.
 
 </RuntimeMode>

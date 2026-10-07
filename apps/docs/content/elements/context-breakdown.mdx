@@ -14,13 +14,14 @@ With a runtime, assistant-ui does not label context usage by category the way th
 <Steps>
   <Step>
 
-### Derive the segments that are actually real
+### Derive the segments the runtime reports
 
 A finer split, separating tool schema tokens from the rest of the prompt, or metering files apart from the running conversation, is not something the thread state tracks: providers report input as one combined figure. Stick to the two segments the runtime can tell you about, and add flat, application-known segments (a fixed system-prompt cost, for instance) alongside them only when you already track that cost yourself.
 
 ```tsx title="components/assistant-ui/elements/thread-context-breakdown.tsx"
 "use client";
 
+import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import {
   ContextBreakdown,
@@ -28,8 +29,9 @@ import {
 } from "@/components/assistant-ui/elements/context-breakdown";
 
 function useTurnUsage() {
-  return useAuiState((s) =>
-    s.thread.messages.reduce(
+  const messages = useAuiState((s) => s.thread.messages);
+  return useMemo(() =>
+    messages.reduce(
       (sum, message) => {
         for (const step of message.metadata.steps ?? []) {
           sum.input += step.usage?.inputTokens ?? 0;
@@ -39,6 +41,7 @@ function useTurnUsage() {
       },
       { input: 0, output: 0 },
     ),
+    [messages],
   );
 }
 
@@ -105,7 +108,7 @@ export function ContextPanel() {
 </div>
 ```
 
-Headroom is not a segment you pass; it is `limit` minus the sum of every segment's `tokens`, floored at zero, and it never gets a bar slice of its own, only a legend row. A zero `limit` is treated as zero pressure rather than dividing by it, so the header stays plain instead of showing a red or broken percentage. Every segment supplies its own `tint`, a Tailwind background class shared verbatim between the bar slice and the legend dot, so the two never disagree. Each painted segment is a named meter whose `0…100` value matches its share of the context limit and whose value text reads the same token count the legend prints. A segment that rounds to no announced width is left out of the bar entirely rather than announced as an empty one.
+Headroom is not a segment you pass; it is `limit` minus the sum of every segment's `tokens`, floored at zero, and it never gets a bar slice of its own, only a legend row. A zero `limit` is treated as zero pressure rather than dividing by it, so the header count keeps its muted color instead of turning amber. Every segment supplies its own `tint`, a Tailwind background class shared verbatim between the bar slice and the legend dot, so the two never disagree. Each painted segment is a named meter whose `0…100` value matches its share of the context limit and whose value text reads the same token count the legend prints. A segment that rounds to no announced width is left out of the bar entirely rather than announced as an empty one.
 
 ## Examples
 

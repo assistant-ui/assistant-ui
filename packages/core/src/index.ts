@@ -25,8 +25,12 @@ export type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
+  ToolApprovalAnswer,
+  ToolApprovalQuestion,
+  ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   Unstable_ToolInteraction,
   Unstable_ToolInteractionInput,
@@ -82,16 +86,23 @@ export type {
 export type { QuoteInfo } from "./types/quote";
 
 export type {
+  DirectiveSegment,
+  DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
 } from "./types/directive";
 
 export type {
+  TriggerItem,
+  TriggerCategory,
   Unstable_TriggerItem,
   Unstable_TriggerCategory,
 } from "./types/trigger";
 
-export type { Unstable_TriggerAdapter } from "./adapters/trigger";
+export type {
+  TriggerAdapter,
+  Unstable_TriggerAdapter,
+} from "./adapters/trigger";
 
 export type {
   // Language model settings
@@ -174,7 +185,10 @@ export type {
 export { createSuggestionAdapter } from "./adapters/suggestion";
 
 // Directive formatter
-export { unstable_defaultDirectiveFormatter } from "./adapters/directive-formatter";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "./adapters/directive-formatter";
 
 // Thread history adapters
 export type {

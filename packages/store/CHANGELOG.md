@@ -1,5 +1,23 @@
 # @assistant-ui/store
 
+## 0.3.17
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.3.16
+
+### Patch Changes
+
+- [#7825](https://github.com/assistant-ui/assistant-ui/pull/7825) [`2e066e2`](https://github.com/assistant-ui/assistant-ui/commit/2e066e20ef116f234e10aa8ae42181c8130bc595) - fix: deliver scoped events from remote thread clients ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8597](https://github.com/assistant-ui/assistant-ui/pull/8597) [`ce5b7ed`](https://github.com/assistant-ui/assistant-ui/commit/ce5b7ed5e07bd2a26c9e30e02455b9749c31ae53) - fix: remove runtime import cycles from development bundles ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8518](https://github.com/assistant-ui/assistant-ui/pull/8518) [`e73db99`](https://github.com/assistant-ui/assistant-ui/commit/e73db990bfb860f428da6b5979f07ef416ab3fd4) - fix: runtime hooks keep their clients, runs, streams, queued sends and pending history copies across a fast refresh or a StrictMode replay instead of rebuilding or tearing them down ([@okisdev](https://github.com/okisdev))
+
+- [#8590](https://github.com/assistant-ui/assistant-ui/pull/8590) [`c980b36`](https://github.com/assistant-ui/assistant-ui/commit/c980b36c33a0b8c384184eded99acc46122484e3) - fix: run `useInsertionEffect` cleanups only when a resource is released for good, as React does, let `createTapRoot().unmount()` release a `mountOnSubscribe` root instead of throwing, and have `destroy()` release an assistant client's resources for good ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.15
 
 ### Patch Changes
