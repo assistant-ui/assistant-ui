@@ -2050,6 +2050,24 @@ describe("getEveMessageContent", () => {
     ]);
   });
 
+  it("preserves opaque file references", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "file",
+          data: "file_abc123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+        },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      { type: "file", data: "file_abc123", mediaType: "application/pdf" },
+    ]);
+  });
+
   it("converts an audio part into a file part with the format-derived media type", () => {
     const message = {
       ...baseAppendMessage,

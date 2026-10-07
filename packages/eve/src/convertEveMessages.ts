@@ -570,7 +570,10 @@ export const getEveMessageContent = (
         );
         return {
           type: "file" as const,
-          data: toMediaWireUrl(part.data, mediaType),
+          data:
+            part.sourceType === "id"
+              ? part.data
+              : toMediaWireUrl(part.data, mediaType),
           mediaType,
           ...(part.filename && { filename: part.filename }),
         };
