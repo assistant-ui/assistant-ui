@@ -14,6 +14,15 @@ export interface SafeContentFrameOptions {
   salt?: string;
 }
 
+export interface SafeContentFrameRenderOptions {
+  /** Cancels the render while its iframe is still loading. */
+  signal?: AbortSignal;
+}
+
+export interface SafeContentFrameHtmlRenderOptions extends SafeContentFrameRenderOptions {
+  unsafeDocumentWrite?: boolean;
+}
+
 /**
  * Why a frame never signalled a completed render. `shim-unavailable` means the
  * shim never acknowledged that it started, so the document at the shim URL is
@@ -135,7 +144,7 @@ export class SafeContentFrame {
   async renderHtml(
     html: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
     return this.render(
       new TextEncoder().encode(html),
@@ -149,25 +158,29 @@ export class SafeContentFrame {
     content: Uint8Array | string,
     mimeType: string,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
     const data =
       typeof content === "string" ? new TextEncoder().encode(content) : content;
-    return this.render(data, mimeType, container);
+    return this.render(data, mimeType, container, opts);
   }
 
   async renderPdf(
     content: Uint8Array,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
-    return this.render(content, "application/pdf", container);
+    return this.render(content, "application/pdf", container, opts);
   }
 
   private async render(
     content: Uint8Array,
     mimeType: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
+    const signal = opts?.signal;
+    signal?.throwIfAborted();
     const origin = window.location.origin;
     const salt = this.options.salt
       ? (new TextEncoder().encode(this.options.salt).buffer as ArrayBuffer)
@@ -175,7 +188,9 @@ export class SafeContentFrame {
         ? await contentSalt(content, location.pathname)
         : randomSalt();
 
+    signal?.throwIfAborted();
     const hash = await computeOriginHash(this.product, salt, origin);
+    signal?.throwIfAborted();
     const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
@@ -213,14 +228,15 @@ export class SafeContentFrame {
 
         if (event.data?.type === "ready") shimReady = true;
         else if (event.data?.type === "error") {
-          onLoadError(shimLoadError("shim-error", event.data.message));
+          failPendingLoad(shimLoadError("shim-error", event.data.message));
         }
       };
       window.addEventListener("message", onWindowMessage);
 
-      const cleanup = () => {
+      function cleanup() {
         if (cleanedUp) return;
         cleanedUp = true;
+        signal?.removeEventListener("abort", onAbort);
         iframe.onload = null;
         iframe.onerror = null;
         window.removeEventListener("message", onWindowMessage);
@@ -228,7 +244,21 @@ export class SafeContentFrame {
         channel.port1.close();
         if (!channelTransferred) channel.port2.close();
         mountElement.remove();
-      };
+      }
+
+      function onAbort() {
+        if (!signal) return;
+        cleanup();
+        reject(signal.reason);
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+
+      function failPendingLoad(error: Error) {
+        onLoadError(error);
+        if (channelTransferred) return;
+        cleanup();
+        reject(error);
+      }
 
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
@@ -259,6 +289,7 @@ export class SafeContentFrame {
             [channel.port2],
           );
           channelTransferred = true;
+          signal?.removeEventListener("abort", onAbort);
         } catch (error) {
           cleanup();
           reject(error);

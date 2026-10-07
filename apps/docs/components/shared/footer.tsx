@@ -5,6 +5,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { LegalLinks } from "@/components/shared/legal-links";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { checkoutEnabled } from "@/lib/checkout/config";
 
 type FooterLinkItem = {
   label: string;
@@ -24,6 +25,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Ink", href: "/ink" },
   ],
   Extend: [
+    ...(checkoutEnabled ? [{ label: "Components", href: "/components" }] : []),
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
   ],

@@ -29,7 +29,7 @@ await slack.chat.postMessage({ channel: "#orders", blocks });
 
 ## Warnings
 
-Conversion is total. Every downgrade is reported rather than thrown, so one unsupported node never costs you the whole message:
+Conversion is total. Every downgrade is reported rather than thrown, so one unsupported node does not fail the whole message:
 
 ```ts
 type SlackConversionWarning = {
@@ -39,7 +39,7 @@ type SlackConversionWarning = {
 };
 ```
 
-`clamped` means content was truncated to fit a Slack limit, `dropped` means a node or one of its props was discarded and may have left a placeholder note behind (an oversized button payload is dropped while the button itself is kept, a `Chart` becomes an omission note), and `fallback` means the node rendered through a different construct than requested. Warnings arrive in traversal order and are not deduplicated. Logging them in development is the fastest way to see why a composition looks different on Slack than in the browser.
+`clamped` means content was truncated to fit a Slack limit, `dropped` means a node or one of its props was discarded and may have left a placeholder note behind (an oversized button payload is dropped while the button itself is kept, a `Chart` becomes an omission note), and `fallback` means the node rendered through a different construct than requested. Warnings arrive in traversal order and are not deduplicated. Log them in development to see why a composition looks different on Slack than in the browser.
 
 ## Component mapping
 
@@ -64,8 +64,8 @@ type SlackConversionWarning = {
 | `CheckboxGroup` | `checkboxes` element | An option without a string label and value is dropped with a warning; Slack allows 10 options |
 | `Checkbox` | `checkboxes` element with a single option | The `switch` variant uses the same element |
 | `Slider` | Its own `input` block with `number_input` | `min`, `max`, and `defaultValue` map to number bounds and initial value; fractional steps allow decimal input |
-| `DatePicker` | `datepicker` element | `min` and `max` are dropped; a non-`YYYY-MM-DD` value is dropped with a warning |
-| `Input` | Its own `input` block | Not grouped into an `actions` block |
+| `DatePicker` | `datepicker`, `timepicker`, or `datetimepicker` elements | `inputType` selects the mode; local datetimes use a date and time pair. See [Date and time pickers](#date-and-time-pickers) |
+| `Input` | Its own `input` block for text and number; an omission note for password | Number uses `plain_text_input`, stays a string, and has no native numeric validation; Slack shows no password field, and an action drops the omitted password's value |
 | `Form` | Children inline, then a "Submit" button | Slack has no form container |
 | `Row` | One `context` block when every child is a `Badge` or `Caption`, otherwise flattened | Horizontal layout is lost in the flattened case |
 | `Col`, `Box` | Flattened into the sibling block stream | Slack has no nesting container |
@@ -78,7 +78,17 @@ Slack has no undo surface, so a Button with `undoable` fires immediately.
 
 An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
 
-Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: Slack has no client-side form model to submit into, so a submit button and a click button both convert to the same `button` element carrying the node's `$action`, and a card marked `asForm` converts exactly like one that is not.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. Slack has no client-side form model to submit into, so `Button`'s `submit` is dropped: a submit button and a click button both convert to the same `button` element carrying the node's `$action`. A `Card` marked `asForm` also cannot collect its child values into a browser-style form payload, but it keeps child `Input` actions passive so those inputs do not dispatch separately.
+
+### Date and time pickers
+
+`DatePicker.inputType` defaults to `"date"`, which emits a `datepicker` with a `YYYY-MM-DD` value. `"time"` emits a `timepicker` with `HH:mm`; nonzero seconds in an `HH:mm:ss` value are dropped with a `dropped` warning. Neither time-only pickers nor the time half of a local datetime set Slack's `timezone` field.
+
+With `"datetime"`, a value carrying `Z` or an offset such as `+02:00` is an instant. It emits a `datetimepicker` initialized with Unix seconds, which Slack displays in the viewer's zone. Decoding preserves the original offset spelling at seconds precision. An empty datetime also emits a `datetimepicker`; once selected, it decodes with `Z` at seconds precision because Slack's payload carries no viewer offset. Nonzero fractional seconds are dropped with a `dropped` warning because Slack's instant picker only supports second precision.
+
+A datetime without an offset, such as `2025-12-15T17:00`, is local wall time. It emits separate `datepicker` and `timepicker` controls for the same field and decodes to `YYYY-MM-DDTHH:mm`. Nonzero seconds or fractions are dropped with a warning. A field reference resolves to `""` when either half is empty; an action from either half returns `undefined` until both have a value. Pass the companion state values to `decodeBlockAction` so it can merge the selections.
+
+`min` and `max` are dropped in all modes. A value that does not match its mode is omitted with a `dropped` warning. The mode, original offset, and split-pair identity travel in the existing block ID metadata, including for unnamed controls. The same 255-character cap and omission warning apply.
 
 ### Cards
 
@@ -126,18 +136,20 @@ A node's `$action` is split across two Block Kit fields. `$action.type` becomes 
 becomes a button with `action_id: "approve_order"` and `value: "{\"orderId\":\"48213\"}"`.
 
 <Callout type="warn">
-Only buttons carry `value`. `Select`, `Input`, `Slider`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them. A `{ "$field": name }` reference in a button's payload becomes its `fallback`, or is dropped when it has none, with a `fallback` warning, because a button click carries no other control's value.
+Only buttons carry `value`. `Select`, `Input`, `Slider`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them. A `{ "$field": name }` reference in a button payload resolves from the current state values when the decoder receives them. Named controls carry their field names in their block IDs; controls sharing an `actions` block use a per-element mapping. Slack limits block IDs to 255 characters, so a mapping that exceeds that limit is omitted with a `dropped` warning.
 </Callout>
 
 ### Inbound
 
-Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and rebuilds the action your tree dispatched, with the user's runtime selection under `$input`:
+A single-line `Input` outside a `Form` or `Card` with `asForm`, with a non-empty `$action.type`, enables `block_actions` on its containing input block and configures `on_enter_pressed`, so Slack sends its typed text when the user presses Enter. Inputs inside either form remain passive rather than firing their own action. Multiline inputs also remain passive: Slack's dispatch configuration does not expose the browser vocabulary's Ctrl/Cmd+Enter shortcut. A modal's `view_submission` handler can collect passive input values, including inputs without an actionable type.
+
+Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's state values, then rebuilds the action your tree dispatched. Messages carry these values in `payload.state.values`, while modals and Home tabs carry them in `payload.view.state.values`. A control's runtime selection appears under `$input` when supplied; a button with a JSON-serialized `value` contributes its payload fields directly. `{ "$field": name }` references in the action payload resolve from named controls in that state:
 
 ```ts
 import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
 
-const action = decodeBlockAction(payload.actions[0]);
-// { type: "approve_order", orderId: "48213", $input: "…" }
+const action = decodeBlockAction(payload.actions[0], payload.state?.values ?? payload.view?.state?.values);
+// { type: "approve_order", orderId: "48213" }
 ```
 
 It returns `undefined` for anything without a usable `action_id`, and never throws. `type` always comes from `action_id`, so a payload key named `type` cannot override it, and a `$input` key smuggled into the serialized payload is always stripped.
@@ -148,16 +160,24 @@ What lands in `$input` depends on the element:
 |---|---|
 | `static_select`, `radio_buttons` | The selected option's value, as a string |
 | `datepicker` | The selected date, as `YYYY-MM-DD` |
+| `timepicker` | The selected time, as `HH:mm` |
+| `datetimepicker` | The selected instant at seconds precision, with the original offset spelling or `Z` for an initially empty value |
 | `checkboxes` | An array of selected values, empty when nothing is checked |
 | `plain_text_input` | The typed text |
 | `number_input` | The entered number |
 | `button` | The raw `value` string, when it is not a serialized object |
 
+A `{ "$field": name }` reference to a named `Checkbox` resolves from state values to `true` when checked or `false` when unchecked.
+
+For the two halves of a local datetime, `$input` is the merged `YYYY-MM-DDTHH:mm` value rather than the individual selection. A `{ "$field": name }` reference uses the same canonical value. Keep the picker's `block_id` on the action entry passed to the decoder so it can recover the temporal metadata.
+
 ### Reading a tree back
 
 `fromSlackBlocks` is the inverse direction, mapping a Block Kit payload into vocabulary nodes and returning `{ nodes, warnings }`. It accepts a bare array or a `{ blocks }` wrapper.
 
-The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning.
+The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning. An input keeps its `action_id` as `$action` only when its block sets `dispatch_action` or the input is multiline, so a passive single-line input, including one from a form, returns without an action and stays passive when converted back.
+
+Native `timepicker` and `datetimepicker` elements return as `DatePicker` nodes with `inputType: "time"` and `inputType: "datetime"`. A native datetime's initial Unix timestamp becomes a `Z` value at seconds precision. Reverse conversion reads each control separately, so a local datetime pair returns as separate date and time nodes.
 
 ## Before interactions work
 
@@ -167,7 +187,7 @@ Converting and posting a tree needs only a bot token with `chat:write`. Making i
 - **An acknowledgement within 3 seconds.** Return HTTP 200 first and do the work afterwards; the payload's `response_url` accepts up to five follow-up posts within 30 minutes if you need to update or replace the message.
 - **[Request signature verification](https://docs.slack.dev/authentication/verifying-requests-from-slack)** on that endpoint, using your signing secret.
 
-Receiving the webhook, verifying it, and routing the decoded action to your handler stay your application's responsibility. The converter only speaks JSON in and JSON out.
+Receiving the webhook, verifying it, and routing the decoded action to your handler stay your application's responsibility. The converter only maps JSON to JSON.
 
 ## Reference
 

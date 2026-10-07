@@ -1,3 +1,5 @@
+import type { KnownModelId } from "@/lib/model";
+
 export type BudgetDenyCode =
   | "CHAT_TURN_LIMIT"
   | "CHAT_BUDGET_EXCEEDED"
@@ -24,8 +26,11 @@ export type TokenUsage = {
   outputTokens?: number | undefined;
 };
 
-const DEFAULT_INPUT_MICRO_USD_PER_M = 250_000;
-const DEFAULT_OUTPUT_MICRO_USD_PER_M = 2_000_000;
+/** The model every xulux turn runs on; the per-token rates below are its gateway price. */
+export const XULUX_MODEL_ID = "gpt-6-luna" satisfies KnownModelId;
+
+const DEFAULT_INPUT_MICRO_USD_PER_M = 100_000;
+const DEFAULT_OUTPUT_MICRO_USD_PER_M = 500_000;
 
 export function usdToMicroUsd(usd: number): number {
   return Math.round(usd * 1_000_000);
@@ -77,7 +82,7 @@ export function getBudgetLimits(): BudgetLimits {
   };
 }
 
-export function estimateMicroUsd(usage: TokenUsage, _modelId?: string): number {
+export function estimateMicroUsd(usage: TokenUsage): number {
   const inputTokens = usage.inputTokens ?? 0;
   const outputTokens = usage.outputTokens ?? 0;
   const inputMicro = (inputTokens * DEFAULT_INPUT_MICRO_USD_PER_M) / 1_000_000;

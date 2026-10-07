@@ -38,6 +38,7 @@ export const PLATFORM_ENTRY_PATHS: Record<Platform, string> = {
   react: "/docs/installation",
   rn: "/docs/react-native",
   ink: "/docs/ink",
+  vue: "/docs/vue",
   tap: "/docs/tap",
   cloud: "/docs/cloud",
 };
