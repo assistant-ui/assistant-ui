@@ -3,7 +3,7 @@ title: Project read API
 description: Read project runs, usage, threads and scores from a backend with an API key.
 ---
 
-The project read API answers project wide observability and conversation reads for a backend service. Send an API key to `https://backend.assistant-api.com` with the `Aui-User-Id` and `Aui-Workspace-Id` headers like every API key request; the workspace header is required but does not scope these reads, which cover the whole project. The cloud never returns system runs such as thread title runs. See [Conventions](/docs/cloud/api) for the shared hosts and credentials, and [Errors](/docs/cloud/api#errors) for error shapes.
+The project read API answers project wide observability and conversation reads for a backend service. Send an API key to `https://backend.assistant-api.com` with the `Aui-User-Id` and `Aui-Workspace-Id` headers like every API key request; the workspace header is required but does not scope these reads, which cover the whole project. Every route on this page is read only. The cloud never returns system runs such as thread title runs. See [Conventions](/docs/cloud/api) for the shared hosts and credentials, and [Errors](/docs/cloud/api#errors) for error shapes.
 
 ## The project run object
 
@@ -94,11 +94,9 @@ The cursor is a strict base64url encoding of JSON shaped like `{ "created_at": I
 |---|---|---|
 | `200` | A runs array and a `next_cursor` value. | The read completed. The array is empty when no runs match. |
 | `400` | A schema validation error object. | A query value failed validation. |
-| `400` | Plain text: `Invalid run cursor` | `cursor` is not a valid project run cursor. |
+| `400` | `{ "error": "Invalid run cursor" }` | `cursor` is not a valid project run cursor. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The credential is not an API key, or the API key cannot use this route. |
-
-This route is read only and has no side effects. Repeating the same request is idempotent. The query always stays within the authenticated project and excludes runs whose source is `system`.
+| `403` | `{ "error": "This endpoint requires an API key" }` | The credential is not an API key, or the API key cannot use this route. |
 
 ## Get a project run
 
@@ -163,10 +161,10 @@ The response is the project run object plus `spans`. Spans are ordered by `start
 | `200` | The run object with `spans`. | The run is visible in the authenticated project. |
 | `400` | A schema validation error object. | `runId` failed validation, including a value longer than 48 characters. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The request does not use an API key. |
-| `404` | Plain text: `Run not found` | No matching non system run is visible in the project. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `404` | `{ "error": "Run not found" }` | No matching non system run is visible in the project. |
 
-This route is read only and has no side effects. Repeating it is idempotent. The span order is part of the response contract, so clients can render a stable sequence without sorting the returned array.
+The span order is part of the response contract, so clients can render a stable sequence without sorting the returned array.
 
 ## Get daily project usage
 
@@ -217,11 +215,9 @@ curl "https://backend.assistant-api.com/v1/projects/usage/daily?from=2026-09-01&
 |---|---|---|
 | `200` | A `days` array. | The usage range was read. |
 | `400` | A schema validation error object. | A query value failed validation. |
-| `400` | Plain text: `Usage day range must span at most 366 days` | The range is negative, greater than 366 days or contains a date that is not a real UTC day. |
+| `400` | `{ "error": "Usage day range must span at most 366 days" }` | The range is negative, greater than 366 days or contains a date that is not a real UTC day. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The request does not use an API key. |
-
-This route is read only and has no side effects. Repeating it is idempotent. The grouping choice changes the rows returned but does not change the stored usage.
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
 
 ## Get the current usage period
 
@@ -274,10 +270,10 @@ curl https://backend.assistant-api.com/v1/projects/usage/period \
 |---|---|---|
 | `200` | The full usage period object. | The project exists and the period was read. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The request does not use an API key. |
-| `404` | Plain text: `Project not found` | The project row does not exist. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `404` | `{ "error": "Project not found" }` | The project row does not exist. |
 
-This route is read only and has no side effects. Repeating it is idempotent. The response reports the current UTC period and does not reserve or consume allowance.
+The response reports the current UTC period and does not reserve or consume allowance.
 
 ## List project threads
 
@@ -292,7 +288,7 @@ GET /v1/projects/threads
 | `limit` | integer | 20 | 1 to 100. |
 | `after` | thread id | | Continue after this thread in the list order. |
 
-The query is the same as [the thread list](/docs/cloud/api/threads#list-threads). The route searches every workspace in the project. It returns raw thread table rows, not the workspace scoped `ThreadDTO` mapping.
+The query is the same as [the thread list](/docs/cloud/api/threads#list-threads). The route searches every workspace in the project. It returns raw thread table rows, which carry more fields than [the thread object](/docs/cloud/api/threads#the-thread-object).
 
 ```http title="Request"
 GET /v1/projects/threads?is_archived=false&limit=20
@@ -350,9 +346,7 @@ Threads use the thread list ordering and `after` cursor rules. A successful resp
 | `200` | A `threads` array. | The project wide read completed. |
 | `400` | A schema validation error object. | A query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide thread listing requires API key authentication` | The credential is not an API key, or API key access failed. |
-
-This route is read only and has no side effects. Repeating it is idempotent. Because it spans every workspace, the result can contain threads belonging to different workspace ids.
+| `403` | `{ "error": "Project-wide thread listing requires API key authentication" }` | The credential is not an API key, or API key access failed. |
 
 ## List messages in a project thread
 
@@ -367,7 +361,7 @@ GET /v1/projects/threads/{thread_id}/messages
 | `limit` | integer | no | 200 | 1 to 200. |
 | `after` | message id | no | | Continue after this message. |
 
-The route applies the same format conversion as the user message list. Stored `aui/v0` rows can convert to `ai-sdk/v5` or `ai-sdk/v6`, and stored `ai-sdk/v5` rows can convert to `ai-sdk/v6`. Other formats are returned as stored. A conversion that cannot parse a row skips that row rather than failing the whole list. When R2 is configured, attachment URLs in the content are replaced with signed reads.
+The route applies the same format conversion as the user message list. Stored `aui/v0` rows can convert to `ai-sdk/v5` or `ai-sdk/v6`, and stored `ai-sdk/v5` rows can convert to `ai-sdk/v6`. Other formats are returned as stored. A conversion that cannot parse a row skips that row rather than failing the whole list. When attachment storage is configured, attachment URLs in the content are replaced with signed reads.
 
 ```http title="Request"
 GET /v1/projects/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages?format=ai-sdk%2Fv6&limit=200
@@ -399,16 +393,16 @@ curl "https://backend.assistant-api.com/v1/projects/threads/thread_0qzof3jPoDwr7
 }
 ```
 
-The response contains raw message rows with the requested `format` and converted `content`, not `ThreadMessageDTO` objects.
+The response contains raw message rows with the requested `format` and converted `content`.
 
 | Status | Body | When |
 |---|---|---|
 | `200` | A `messages` array. | The project wide message read completed. |
 | `400` | A schema validation error object. | A parameter or query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide message listing requires API key authentication` | The request does not use an API key, or API key access failed. |
+| `403` | `{ "error": "Project-wide message listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |
 
-This route is read only and has no side effects. Repeating it is idempotent. Format conversion and attachment signing affect the returned representation only; they do not rewrite stored messages.
+Format conversion and attachment signing affect the returned representation only; they do not rewrite stored messages.
 
 ## List project scores
 
@@ -467,9 +461,7 @@ Each score contains `id`, `thread_id`, `message_id`, `run_id`, `name`, `data_typ
 | `200` | A `scores` array. | The score read completed. There is no `next_cursor` field. |
 | `400` | A schema validation error object. | A query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide score listing requires API key authentication` | The request does not use an API key, or API key access failed. |
-
-This route is read only and has no side effects. Repeating it is idempotent. The `after` value is a score id cursor, and the response body never includes a cursor for the next page.
+| `403` | `{ "error": "Project-wide score listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |
 
 ## List project skills
 
@@ -584,4 +576,4 @@ const loadSkill = {
 |---|---|---|
 | `200` | `{ "skills": [...] }` | The skills were read in name order. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project skills require API key authentication` | A JWT caller uses this API key only route. |
+| `403` | `{ "error": "Project skills require API key authentication" }` | A JWT caller uses this API key only route. |

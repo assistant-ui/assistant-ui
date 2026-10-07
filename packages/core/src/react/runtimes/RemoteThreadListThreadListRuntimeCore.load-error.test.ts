@@ -59,6 +59,8 @@ describe("RemoteThreadListThreadListRuntimeCore load errors", () => {
     expect(core.threadIds).toEqual([]);
     expect(core.archivedThreadIds).toEqual([]);
     expect(core.getItemById("thread-1")).toBeUndefined();
+    expect(core.mainThreadId).not.toBe("thread-1");
+    expect(core.getItemById(core.mainThreadId!)).toBeDefined();
     expect(core.loadError).toBe(error);
   });
 

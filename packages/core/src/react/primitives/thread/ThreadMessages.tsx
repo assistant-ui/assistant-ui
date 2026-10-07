@@ -86,7 +86,10 @@ const messageIdSetCache = new WeakMap<
   ReadonlySet<string>
 >();
 
-const hasMessageId = (messages: readonly MessageState[], messageId: string) => {
+export const hasMessageId = (
+  messages: readonly MessageState[],
+  messageId: string,
+) => {
   let ids = messageIdSetCache.get(messages);
   if (!ids) {
     ids = new Set(messages.map((m) => m.id));

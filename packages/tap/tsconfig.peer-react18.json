@@ -1,0 +1,5 @@
+{
+  "extends": ["./tsconfig.json", "@assistant-ui/x-react18/tsconfig.json"],
+  "include": ["dist/**/*.d.ts"],
+  "exclude": ["dist/react-shim", "dist/standalone-shim"]
+}

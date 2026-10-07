@@ -87,7 +87,7 @@ export type ReasoningTriggerProps = Omit<
   "children"
 > & {
   active?: boolean;
-  duration?: number;
+  duration?: number | undefined;
 };
 
 export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
@@ -108,7 +108,8 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
       )}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ expanded: isOpen, busy: active === true }}
+      aria-expanded={isOpen}
+      aria-busy={active === true}
       hitSlop={textButtonHitSlop}
       onPress={(event) => {
         onPress?.(event);

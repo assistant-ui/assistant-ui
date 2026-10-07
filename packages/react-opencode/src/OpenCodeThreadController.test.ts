@@ -124,61 +124,77 @@ describe("OpenCodeThreadController", () => {
     {
       label: "wraps a bare base64 file payload",
       data: "JVBERi0xLjQ=",
+      mimeType: "application/pdf",
+      mime: "application/pdf",
       url: "data:application/pdf;base64,JVBERi0xLjQ=",
     },
     {
       label: "forwards a data url untouched",
       data: "data:application/pdf;base64,JVBERi0xLjQ=",
+      mimeType: "application/pdf",
+      mime: "application/pdf",
       url: "data:application/pdf;base64,JVBERi0xLjQ=",
     },
     {
       label: "forwards an http source untouched",
       data: "https://cdn.example.com/a.pdf",
+      mimeType: "application/pdf",
+      mime: "application/pdf",
       url: "https://cdn.example.com/a.pdf",
     },
-  ])("$label into a parsable file part url", async ({ data, url }) => {
-    const client = {
-      session: { promptAsync: vi.fn().mockResolvedValue({}) },
-    };
-    const controller = new OpenCodeThreadController(
-      client as never,
-      () => ({ subscribe: () => () => {} }),
-      "ses_1",
-    );
+    {
+      label: "types a media-less base64 data url",
+      data: "data:;base64,AA==",
+      mimeType: "",
+      mime: "application/octet-stream",
+      url: "data:application/octet-stream;base64,AA==",
+    },
+  ])(
+    "$label into a parsable file part url",
+    async ({ data, mimeType, mime, url }) => {
+      const client = {
+        session: { promptAsync: vi.fn().mockResolvedValue({}) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
 
-    await controller.stageMessage(
-      {
-        role: "user",
-        parentId: null,
-        sourceId: null,
-        content: [
-          {
-            type: "file",
-            data,
-            mimeType: "application/pdf",
-            filename: "a.pdf",
-          },
-        ],
-        attachments: [],
-        metadata: { custom: {} },
-        runConfig: {},
-        createdAt: new Date(),
-      } as never,
-      { model: { providerID: "anthropic", modelID: "claude" } },
-    );
+      await controller.stageMessage(
+        {
+          role: "user",
+          parentId: null,
+          sourceId: null,
+          content: [
+            {
+              type: "file",
+              data,
+              mimeType,
+              filename: "file.bin",
+            },
+          ],
+          attachments: [],
+          metadata: { custom: {} },
+          runConfig: {},
+          createdAt: new Date(),
+        } as never,
+        { model: { providerID: "anthropic", modelID: "claude" } },
+      );
 
-    const pendingId = Object.keys(
-      controller.getState().pendingUserMessages,
-    )[0]!;
-    await controller.sendStagedMessage(`local:${pendingId}`);
+      const pendingId = Object.keys(
+        controller.getState().pendingUserMessages,
+      )[0]!;
+      await controller.sendStagedMessage(`local:${pendingId}`);
 
-    const sent = client.session.promptAsync.mock.calls[0]![0] as {
-      parts: Array<Record<string, unknown>>;
-    };
-    const filePart = sent.parts.find((part) => part["type"] === "file");
-    expect(filePart).toMatchObject({ mime: "application/pdf", url });
-    expect(() => new URL(String(filePart!["url"]))).not.toThrow();
-  });
+      const sent = client.session.promptAsync.mock.calls[0]![0] as {
+        parts: Array<Record<string, unknown>>;
+      };
+      const filePart = sent.parts.find((part) => part["type"] === "file");
+      expect(filePart).toMatchObject({ mime, url });
+      expect(() => new URL(String(filePart!["url"]))).not.toThrow();
+    },
+  );
 
   it.each([
     {
@@ -1443,6 +1459,158 @@ describe("OpenCodeThreadController", () => {
     ).toBe(pendingQuestion);
   });
 
+  it.each(["constructor", "toString", "__proto__"])(
+    "reconciles the prototype-named interaction id %s across reconnect",
+    async (id) => {
+      const permission = {
+        id,
+        sessionID: "ses_1",
+        permission: "fs.read",
+        metadata: { title: "Read file" },
+      };
+      const question = {
+        id,
+        sessionID: "ses_1",
+        questions: [{ header: "Continue", question: "Continue?" }],
+      };
+      const createSubject = () => {
+        const eventSource = createEventSource();
+        const client = createReconnectClient({
+          permissions: vi.fn().mockResolvedValue({ data: [permission] }),
+          questions: vi.fn().mockResolvedValue({ data: [question] }),
+        });
+        const controller = new OpenCodeThreadController(
+          client as never,
+          () => eventSource,
+          "ses_1",
+        );
+        controller.subscribe(vi.fn());
+        return { client, controller, eventSource };
+      };
+      const reconnect = async (
+        subject: ReturnType<typeof createSubject>,
+      ): Promise<void> => {
+        subject.eventSource.emit(streamReconnected);
+        await vi.waitFor(() => {
+          expect(subject.client.permission.list).toHaveBeenCalledTimes(1);
+          expect(subject.client.question.list).toHaveBeenCalledTimes(1);
+        });
+      };
+      const askPermission = (subject: ReturnType<typeof createSubject>) => {
+        subject.eventSource.emit({
+          type: "permission.asked",
+          sessionId: "ses_1",
+          properties: permission,
+          raw: {},
+        });
+      };
+      const askQuestion = (subject: ReturnType<typeof createSubject>) => {
+        subject.eventSource.emit({
+          type: "question.asked",
+          sessionId: "ses_1",
+          properties: question,
+          raw: {},
+        });
+      };
+
+      const active = createSubject();
+      await reconnect(active);
+      expect(
+        Object.hasOwn(
+          active.controller.getState().interactions.permissions.pending,
+          id,
+        ),
+      ).toBe(true);
+      expect(
+        Object.hasOwn(
+          active.controller.getState().interactions.questions.pending,
+          id,
+        ),
+      ).toBe(true);
+
+      const pending = createSubject();
+      askPermission(pending);
+      askQuestion(pending);
+      const pendingPermission =
+        pending.controller.getState().interactions.permissions.pending[id];
+      const pendingQuestion =
+        pending.controller.getState().interactions.questions.pending[id];
+      await reconnect(pending);
+      expect(
+        pending.controller.getState().interactions.permissions.pending[id],
+      ).toBe(pendingPermission);
+      expect(
+        pending.controller.getState().interactions.questions.pending[id],
+      ).toBe(pendingQuestion);
+
+      const resolved = createSubject();
+      askPermission(resolved);
+      resolved.eventSource.emit({
+        type: "permission.replied",
+        sessionId: "ses_1",
+        properties: { requestID: id, reply: "once" },
+        raw: {},
+      });
+      await reconnect(resolved);
+      expect(
+        Object.hasOwn(
+          resolved.controller.getState().interactions.permissions.pending,
+          id,
+        ),
+      ).toBe(false);
+      expect(
+        Object.hasOwn(
+          resolved.controller.getState().interactions.permissions.resolved,
+          id,
+        ),
+      ).toBe(true);
+
+      const answered = createSubject();
+      askQuestion(answered);
+      answered.eventSource.emit({
+        type: "question.replied",
+        sessionId: "ses_1",
+        properties: { requestID: id, answers: [] },
+        raw: {},
+      });
+      await reconnect(answered);
+      expect(
+        Object.hasOwn(
+          answered.controller.getState().interactions.questions.pending,
+          id,
+        ),
+      ).toBe(false);
+      expect(
+        Object.hasOwn(
+          answered.controller.getState().interactions.questions.answered,
+          id,
+        ),
+      ).toBe(true);
+
+      const rejected = createSubject();
+      askQuestion(rejected);
+      rejected.eventSource.emit({
+        type: "question.rejected",
+        sessionId: "ses_1",
+        properties: { requestID: id },
+        raw: {},
+      });
+      await reconnect(rejected);
+      expect(
+        Object.hasOwn(
+          rejected.controller.getState().interactions.questions.pending,
+          id,
+        ),
+      ).toBe(false);
+      expect(
+        Object.hasOwn(
+          rejected.controller.getState().interactions.questions.rejected,
+          id,
+        ),
+      ).toBe(true);
+    },
+  );
+
   it("refreshes pending reconnect interactions with the latest payload", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({
@@ -1791,6 +1959,9 @@ describe("OpenCodeThreadController", () => {
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
     });
+    expect(Object.getPrototypeOf(controller.getState().childSessionsById)).toBe(
+      null,
+    );
 
     eventSource.emit({
       type: "message.updated",
@@ -1923,6 +2094,9 @@ describe("OpenCodeThreadController", () => {
     });
 
     expect(controller.getState().childSessionsById).toEqual({});
+    expect(Object.getPrototypeOf(controller.getState().childSessionsById)).toBe(
+      null,
+    );
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
 
     unsubscribe();
