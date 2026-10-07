@@ -461,6 +461,33 @@ describe("BaseComposerRuntimeCore", () => {
     );
   });
 
+  it("stops a dictation session once when stopped again before the first stop settles", async () => {
+    let settle!: () => void;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      ),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    composer.startDictation();
+    composer.stopDictation();
+    composer.stopDictation();
+    settle();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(session.stop).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeUndefined();
+  });
+
   it("finishes dictation cleanup when an unsubscribe throws", async () => {
     const cleanupError = new Error("cleanup failed");
     const laterCleanup = vi.fn();

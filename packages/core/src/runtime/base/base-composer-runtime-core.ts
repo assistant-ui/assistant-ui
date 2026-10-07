@@ -1012,6 +1012,7 @@ export abstract class BaseComposerRuntimeCore
 
   private _dictation: DictationState | undefined;
   private _dictationSession: DictationAdapter.Session | undefined;
+  private _stoppingDictationSession: DictationAdapter.Session | undefined;
   private _dictationUnsubscribes: Unsubscribe[] = [];
   private _dictationBaseText = "";
   private _currentInterimText = "";
@@ -1189,6 +1190,8 @@ export abstract class BaseComposerRuntimeCore
     if (!this._dictationSession) return;
 
     const session = this._dictationSession;
+    if (this._stoppingDictationSession === session) return;
+    this._stoppingDictationSession = session;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
     this._stopDictationSession(session, cleanup);
@@ -1235,6 +1238,7 @@ export abstract class BaseComposerRuntimeCore
       const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
+      this._stoppingDictationSession = undefined;
       this._activeDictationSessionId = undefined;
       this._dictation = undefined;
       this._dictationBaseText = "";

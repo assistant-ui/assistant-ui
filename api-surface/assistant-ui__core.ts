@@ -1048,6 +1048,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   getModelContext(): ModelContext$1;
   protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
+  __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore>;
   protected _isVoiceMessage(messageId: string | null): boolean;
   protected _resolveAppendParent(parentId: string | null): string | null;
   beginEdit(messageId: string): void;
@@ -3853,6 +3854,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3911,6 +3913,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3969,6 +3972,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4098,6 +4102,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4156,6 +4161,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5464,6 +5470,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5586,6 +5593,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe$1;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
