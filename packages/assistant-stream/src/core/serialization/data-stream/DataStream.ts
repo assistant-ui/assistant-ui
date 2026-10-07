@@ -631,7 +631,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 result,
                 isError,
                 ...(isPreliminary ? { isPreliminary: true } : {}),
-                ...(modelContent !== undefined ? { modelContent } : {}),
+                ...(modelContent != null ? { modelContent } : {}),
                 ...(messages !== undefined ? { messages } : {}),
               });
               break;

@@ -1337,6 +1337,17 @@ describe("DataStreamDecoder malformed frame values", () => {
     ]);
   });
 
+  it("treats a null modelContent on a result frame as absent", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'a:{"toolCallId":"t1","result":1,"modelContent":null}',
+    ]);
+
+    expect(chunks.find((c) => c.type === "result")).not.toHaveProperty(
+      "modelContent",
+    );
+  });
+
   it("rejects a source frame whose parentId is not a string", async () => {
     await expect(
       decodeLines([
