@@ -9,7 +9,7 @@ Typing `/` at the start of the draft opens a floating menu of commands above the
 
 <RuntimeMode>
 
-assistant-ui's composer has a trigger system for character-activated popovers: a character like `/` opens a scoped popover with its own search, keyboard navigation, and selection, without touching the rest of the input. These primitives are marked `Unstable_`: the shape may still change in a future release.
+assistant-ui's composer has stable primitives and types for character-activated popovers: a character like `/` opens a scoped popover with its own search, keyboard navigation, and selection, without touching the rest of the input. The `unstable_useSlashCommandAdapter` helper and trigger popover context hooks remain unstable.
 
 <Steps>
   <Step>
@@ -50,17 +50,17 @@ export function ComposerBar() {
   const slash = useComposerCommands();
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-      <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slash.adapter}>
-        <ComposerPrimitive.Unstable_TriggerPopover.Action
+    <ComposerPrimitive.TriggerPopoverRoot>
+      <ComposerPrimitive.TriggerPopover char="/" adapter={slash.adapter}>
+        <ComposerPrimitive.TriggerPopover.Action
           onExecute={slash.action.onExecute}
           removeOnExecute={slash.action.removeOnExecute}
         />
-        <ComposerPrimitive.Unstable_TriggerPopoverItems>
+        <ComposerPrimitive.TriggerPopoverItems>
           {(items) => (
             <div className={cn(floating, "absolute bottom-full z-10 mb-2 w-72 rounded-2xl p-1.5")}>
               {items.map((item, index) => (
-                <ComposerPrimitive.Unstable_TriggerPopoverItem
+                <ComposerPrimitive.TriggerPopoverItem
                   key={item.id}
                   item={item}
                   index={index}
@@ -68,21 +68,21 @@ export function ComposerBar() {
                 >
                   <span className="text-[13.5px] font-medium">/{item.id}</span>
                   {item.description && <span className="text-foreground/45 text-xs">{item.description}</span>}
-                </ComposerPrimitive.Unstable_TriggerPopoverItem>
+                </ComposerPrimitive.TriggerPopoverItem>
               ))}
             </div>
           )}
-        </ComposerPrimitive.Unstable_TriggerPopoverItems>
-      </ComposerPrimitive.Unstable_TriggerPopover>
+        </ComposerPrimitive.TriggerPopoverItems>
+      </ComposerPrimitive.TriggerPopover>
       <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[24px] p-2.5">
         <ComposerPrimitive.Input placeholder="Message, or / for commands..." rows={1} className="min-h-11 w-full resize-none bg-transparent px-3 outline-none" />
       </ComposerPrimitive.Root>
-    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 }
 ```
 
-`Unstable_TriggerPopoverRoot` wraps the whole bar, not just the input; `Unstable_TriggerPopover` and `ComposerPrimitive.Root` sit side by side inside it. The `.Action` behavior fires `onExecute` at the moment a command is picked; pass `removeOnExecute` from the adapter so the `/summarize` text clears when `false` would otherwise leave it behind as an audit trail. `Unstable_TriggerPopoverItem` sets `data-highlighted` on whichever row keyboard navigation has reached, so the active tint is a plain `data-[highlighted]:` class rather than state you track. assistant-ui ships this whole composition pre-built: installing [Composer trigger popover](/elements/composer-trigger-popover) gives you the categories, search-empty, and loading states without assembling them by hand.
+`TriggerPopoverRoot` wraps the whole bar, not only the input; `TriggerPopover` and `ComposerPrimitive.Root` sit side by side inside it. The `.Action` behavior fires `onExecute` at the moment a command is picked; `removeOnExecute` defaults to `false`, which replaces the typed `/query` with the command's directive text as an audit trail; pass `removeOnExecute: true` to the adapter to strip the trigger text instead. `TriggerPopoverItem` sets `data-highlighted` on whichever row keyboard navigation has reached, so the active tint is a plain `data-[highlighted]:` class rather than state you track. assistant-ui ships this whole composition pre-built: installing [Composer trigger popover](/elements/composer-trigger-popover) gives you the categories, search-empty, and loading states without assembling them by hand.
 
   </Step>
 </Steps>
@@ -149,7 +149,7 @@ export function ChatBox() {
 </div>
 ```
 
-The menu only opens while the draft starts with `/`; anything typed after the slash is the filter query, matched against the start of each command's id. `ComposerCommandItem`'s `active` prop is purely visual (background tint plus the trailing `↵` hint); which row counts as active is state the caller tracks, in both lanes.
+Standalone, the menu only opens while the draft starts with `/`; anything typed after the slash is the filter query, matched against the start of each command's `name`. With a runtime, the trigger opens on a `/` at the start of the draft or after whitespace, and the query matches anywhere in a command's `id`, `label`, or `description`. `ComposerCommandItem`'s `active` prop is purely visual (background tint plus the trailing `↵` hint); which row counts as active is state the caller tracks, in both lanes.
 
 ## Examples
 
@@ -167,7 +167,7 @@ slash.adapter.search("sum"); // → [{ id: "summarize", ... }]
 
 <StandaloneMode>
 
-`useSlashMatches` runs the same prefix match against the command's `name`:
+`useSlashMatches` runs a prefix match against the command's `name`:
 
 ```tsx
 const matches = useSlashMatches("/sum", commands); // → [commands[0]]
@@ -193,21 +193,21 @@ Both lanes render into `ComposerMenu`, which takes `className` and reads `open` 
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `Unstable_TriggerPopoverRoot` | provider | Wraps the composer once per bar; groups every trigger char registered inside it. |
-| `Unstable_TriggerPopover` | `div` (when open) | `char="/"`, `adapter`; renders nothing until a behavior child registers and the trigger is active. |
-| `Unstable_TriggerPopover.Action` | behavior | `onExecute(item)`, `formatter?`, `removeOnExecute?` (default `false`, keeps the `/id` text). |
-| `Unstable_TriggerPopoverItems` | render prop | `{(items) => ReactNode}`; renders only while a category is active or search mode is on. |
-| `Unstable_TriggerPopoverItem` | `button` | `item`, `index?`; gets `data-highlighted` under keyboard navigation. |
-| `Unstable_TriggerPopoverCategories` / `CategoryItem` / `Back` | render prop / `button` / `button` | Only needed when the adapter groups commands into categories. |
+| `TriggerPopoverRoot` | provider | Wraps the composer once per bar; groups every trigger char registered inside it. |
+| `TriggerPopover` | `div` (when open) | `char="/"`, `adapter`; renders nothing until a behavior child registers and the trigger is active. |
+| `TriggerPopover.Action` | behavior | `onExecute(item)`, `formatter?`, `removeOnExecute?` (default `false`, which leaves the command's directive text in the input). |
+| `TriggerPopoverItems` | render prop | `{(items) => ReactNode}`; renders only while a category is active or search mode is on. |
+| `TriggerPopoverItem` | `button` | `item`, `index?`; gets `data-highlighted` under keyboard navigation. |
+| `TriggerPopoverCategories` / `TriggerPopoverCategoryItem` / `TriggerPopoverBack` | render prop / `button` / `button` | Only needed when the adapter groups commands into categories. |
 
 ### unstable_useSlashCommandAdapter
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `commands` | `Unstable_SlashCommand[]` | `{ id, label?, description?, icon?, execute }`. |
-| `removeOnExecute` | `boolean` | Strips the `/id` text after running. @default `false` |
+| `removeOnExecute` | `boolean` | Strips the trigger text when a command is picked, instead of replacing it with directive text. @default `false` |
 
-Returns `{ adapter, action, iconMap?, fallbackIcon? }`; spread `action` onto `Unstable_TriggerPopover.Action`.
+Returns `{ adapter, action, iconMap?, fallbackIcon? }`; spread `action` onto `TriggerPopover.Action`.
 
 </RuntimeMode>
 

@@ -1,14 +1,22 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
+import { A2uiBindingContext } from "../a2ui/BindingContext";
 import { applyA2uiOperations } from "../a2ui/reducer";
+import { A2uiPresentRenderer } from "../a2ui/PresentRenderer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
+import { AnsweredValuesProvider } from "../answeredValues";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import { renderGenerativeUI } from "../renderGenerativeUI";
+import {
+  fromLocalDateTime,
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+} from "../temporal";
 import { defaultGenerativeUILibrary } from "./index";
 
 (
@@ -27,6 +35,7 @@ afterEach(async () => {
   await act(async () => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
+  vi.useRealTimers();
 });
 
 const view = (node: unknown, dispatch?: GenerativeUIDispatch) => (
@@ -52,6 +61,39 @@ const mount = async (
   });
   return container;
 };
+
+describe("Input", () => {
+  it("keeps password and number single-line when multiline is set", async () => {
+    const container = await mount(
+      [
+        {
+          $type: "Input",
+          name: "password",
+          inputType: "password",
+          multiline: true,
+        },
+        {
+          $type: "Input",
+          name: "number",
+          inputType: "number",
+          multiline: true,
+        },
+        { $type: "Input", name: "text", inputType: "text", multiline: true },
+        { $type: "Input", name: "default", multiline: true },
+      ],
+      {},
+    );
+
+    expect(
+      Array.from(container.querySelectorAll("input, textarea")).map(
+        (control) =>
+          control instanceof HTMLInputElement
+            ? control.type
+            : control.tagName.toLowerCase(),
+      ),
+    ).toEqual(["password", "number", "textarea", "textarea"]);
+  });
+});
 
 describe("RadioGroup", () => {
   it("keeps repeated logical fields exclusive within one root without a form", async () => {
@@ -422,6 +464,432 @@ describe("CheckboxGroup", () => {
   });
 });
 
+describe("Button undo window", () => {
+  it("keeps counting down while a bound input changes and dispatches its latest value", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const registry = createActionRegistry({ save });
+    const BindingContext = A2uiBindingContext!;
+    const Surface = () => {
+      const [name, setName] = useState("Initial");
+      return (
+        <BindingContext.Provider
+          value={{
+            fields: new Map([["/name", { value: name, arrayValue: false }]]),
+            update: (_path, value) => setName(String(value)),
+          }}
+        >
+          <div data-aui="root">
+            {renderGenerativeUI(
+              [
+                { $type: "Input", name: "/name", value: name },
+                {
+                  $type: "Button",
+                  label: "Save",
+                  undoable: true,
+                  $action: { type: "save", name: { $field: "/name" } },
+                },
+              ],
+              defaultGenerativeUILibrary,
+              { status: "done", dispatch: registry.dispatch },
+            )}
+          </div>
+        </BindingContext.Provider>
+      );
+    };
+    root = createRoot(container);
+    await act(async () => root!.render(<Surface />));
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+    const input = container.querySelector<HTMLInputElement>("input")!;
+    await act(async () => button.click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "Edited");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(button.textContent).toContain("Undo 4");
+    for (let seconds = 0; seconds < 4; seconds++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+    }
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", name: "Edited" },
+    });
+  });
+
+  it("counts down for five seconds before firing once", async () => {
+    vi.useFakeTimers();
+    const purchase = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Purchase",
+        undoable: true,
+        $action: { type: "purchase" },
+      },
+      { purchase },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.dataset.auiState).toBe("pending");
+    expect(button.textContent).toContain("Undo 5");
+    expect(button.getAttribute("aria-label")).toBe("Undo Purchase");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      "Purchase in 5 seconds",
+    );
+    expect(purchase).not.toHaveBeenCalled();
+
+    for (const seconds of [4, 3, 2, 1]) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(button.textContent).toContain(`Undo ${seconds}`);
+      expect(purchase).not.toHaveBeenCalled();
+    }
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(purchase).toHaveBeenCalledTimes(1);
+    expect(purchase).toHaveBeenCalledWith({ payload: { type: "purchase" } });
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Purchase");
+  });
+
+  it("keeps the generic undo label when its text label is empty", async () => {
+    vi.useFakeTimers();
+    const remove = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "",
+        undoable: true,
+        $action: { type: "remove" },
+      },
+      { remove },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.getAttribute("aria-label")).toBe("Undo");
+  });
+
+  it("cancels when clicked again", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Send",
+        undoable: true,
+        $action: { type: "send" },
+      },
+      { send },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+    await act(async () => button.click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Send");
+  });
+
+  it("cancels when Escape is pressed while focused", async () => {
+    vi.useFakeTimers();
+    const remove = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Delete",
+        undoable: true,
+        $action: { type: "remove" },
+      },
+      { remove },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+    button.focus();
+    await act(async () => {
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Delete");
+  });
+
+  it("clears the timer on unmount", async () => {
+    vi.useFakeTimers();
+    const purchase = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Purchase",
+        undoable: true,
+        $action: { type: "purchase" },
+      },
+      { purchase },
+    );
+
+    await act(async () => container.querySelector("button")!.click());
+    await act(async () => root!.unmount());
+    root = undefined;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(purchase).not.toHaveBeenCalled();
+  });
+
+  it("leaves an undoable button without a dispatcher unchanged", async () => {
+    vi.useFakeTimers();
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        view({
+          $type: "Button",
+          label: "Purchase",
+          undoable: true,
+          $action: { type: "purchase" },
+        }),
+      );
+    });
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Purchase");
+  });
+});
+
+describe("Slider", () => {
+  it("renders a labelled range with its current value and unit", async () => {
+    const container = await mount(
+      {
+        $type: "Slider",
+        name: "volume",
+        label: "Volume",
+        min: 0,
+        max: 10,
+        defaultValue: 4,
+        unit: "%",
+      },
+      {},
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    expect(slider.type).toBe("range");
+    expect(slider.getAttribute("aria-valuetext")).toBe("4 %");
+    expect(
+      container.querySelector('[data-aui="slider-value"]')?.textContent,
+    ).toBe("4 %");
+  });
+
+  it("normalizes malformed range props before rendering", () => {
+    function Slider() {
+      return defaultGenerativeUILibrary.Slider!.render({
+        $status: "done",
+        min: Number.NaN,
+        max: Number.POSITIVE_INFINITY,
+        step: Number.NEGATIVE_INFINITY,
+        defaultValue: Number.NaN,
+      });
+    }
+
+    const markup = renderToString(<Slider />);
+
+    expect(markup).toContain('min="0"');
+    expect(markup).toContain('max="100"');
+    expect(markup).toContain('step="1"');
+    expect(markup).toContain('value="0"');
+  });
+
+  it("fires once with a number for a committed adjustment", async () => {
+    const setVolume = vi.fn();
+    const container = await mount(
+      {
+        $type: "Slider",
+        name: "volume",
+        min: 0,
+        max: 10,
+        $action: { type: "set_volume" },
+      },
+      { set_volume: setVolume },
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    await act(async () => {
+      slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      slider.value = "7";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+      slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(setVolume).toHaveBeenCalledTimes(1);
+    expect(setVolume).toHaveBeenCalledWith({
+      payload: { type: "set_volume", $input: 7 },
+    });
+  });
+
+  it("does not dispatch when a pointer interaction keeps the initial value", async () => {
+    const setVolume = vi.fn();
+    const container = await mount(
+      {
+        $type: "Slider",
+        min: 0,
+        max: 10,
+        defaultValue: 4,
+        $action: { type: "set_volume" },
+      },
+      { set_volume: setVolume },
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    await act(async () => {
+      slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    });
+
+    expect(setVolume).not.toHaveBeenCalled();
+  });
+
+  it("collects as a number in a Form", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "submit" },
+        children: [
+          {
+            $type: "Slider",
+            name: "volume",
+            min: 0,
+            max: 10,
+            defaultValue: 3,
+          },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      },
+      { submit },
+    );
+
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(submit).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: { volume: 3 } },
+    });
+  });
+
+  it("restores an answered numeric value", () => {
+    function Slider() {
+      return defaultGenerativeUILibrary.Slider!.render({
+        $status: "done",
+        name: "volume",
+        min: 0,
+        max: 10,
+        defaultValue: 3,
+      });
+    }
+
+    const markup = renderToString(
+      <AnsweredValuesProvider values={{ volume: 7 }}>
+        <Slider />
+      </AnsweredValuesProvider>,
+    );
+
+    expect(markup).toContain('value="7"');
+  });
+});
+
+describe("Checkbox and option descriptions", () => {
+  it("renders a switch role and preserves its boolean form value", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "submit" },
+        children: [
+          {
+            $type: "Checkbox",
+            name: "enabled",
+            label: "Enabled",
+            variant: "switch",
+            defaultChecked: true,
+          },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      },
+      { submit },
+    );
+
+    expect(container.querySelector('input[role="switch"]')).not.toBeNull();
+    await act(async () => container.querySelector("button")!.click());
+    expect(submit).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: { enabled: true } },
+    });
+  });
+
+  it.each(["RadioGroup", "CheckboxGroup"])(
+    "renders an option description for %s",
+    async ($type) => {
+      const container = await mount(
+        {
+          $type,
+          options: [
+            {
+              label: "Free",
+              description: "For personal projects",
+              value: "free",
+            },
+          ],
+        },
+        {},
+      );
+
+      expect(
+        container.querySelector('[data-aui="option-description"]')?.textContent,
+      ).toBe("For personal projects");
+    },
+  );
+});
+
 describe("$field references", () => {
   it("resolve from the enclosing form, or else the generative UI root, at the moment the action fires", async () => {
     const save = vi.fn();
@@ -671,6 +1139,50 @@ describe("A2UI two-way binding", () => {
     });
   });
 
+  it("sends a userMessage bound to an input as the text the user entered", async () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "s",
+          dataModel: { note: "Draft" },
+          components: [
+            { id: "root", component: "Column", children: ["note", "send"] },
+            { id: "note", component: "TextField", value: { path: "/note" } },
+            {
+              id: "send",
+              component: "Button",
+              label: "Send",
+              action: {
+                event: { name: "send", userMessage: { path: "/note" } },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const send = vi.fn();
+    const container = await mount(
+      convertSurfaceToUISpec(state.get("s")!).spec,
+      { "a2ui:action": send },
+    );
+
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui="input"]',
+    )!.value = "Ship it";
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(send).toHaveBeenCalledWith({
+      payload: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "s",
+        sourceComponentId: "send",
+        userMessage: "Ship it",
+      },
+    });
+  });
+
   it("sends the agent's values when an overridden Button dispatches $action itself", async () => {
     const { state } = applyA2uiOperations(new Map(), [
       { version: "v0.9", createSurface: { surfaceId: "s" } },
@@ -846,7 +1358,9 @@ describe("A2UI two-way binding", () => {
       plan: container.querySelector<HTMLInputElement>(
         'input[type="radio"]:checked',
       )?.value,
-      size: container.querySelector("select")!.value,
+      size: container.querySelector<HTMLInputElement>(
+        'input[data-aui-field-name="/size"]:checked',
+      )?.value,
       extras: [
         ...container.querySelectorAll<HTMLInputElement>(
           'fieldset[data-aui="checkboxgroup"] input:checked',
@@ -869,7 +1383,9 @@ describe("A2UI two-way binding", () => {
     container.querySelectorAll<HTMLInputElement>(
       'input[type="radio"]',
     )[1]!.checked = true;
-    container.querySelector("select")!.value = edited.size;
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui-field-name="/size"][value="pro"]',
+    )!.checked = true;
     container.querySelectorAll<HTMLInputElement>(
       'fieldset[data-aui="checkboxgroup"] input',
     )[1]!.checked = true;
@@ -902,4 +1418,330 @@ describe("A2UI two-way binding", () => {
       day: "2026-05-06",
     });
   });
+});
+
+describe.each([
+  { version: "v0.9", live: false },
+  { version: "v0.9", live: true },
+  { version: "v0.9.1", live: false },
+  { version: "v0.9.1", live: true },
+])("A2UI input contracts ($version, live: $live)", ({ version, live }) => {
+  const mountSurface = async (
+    field: Record<string, unknown>,
+    initial: unknown,
+    previewPath = "/form/value",
+  ) => {
+    const send = vi.fn();
+    const registry = createActionRegistry({ "a2ui:action": send });
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const render = async (value: unknown) => {
+      const operations = [
+        { version, createSurface: { surfaceId: "s" } },
+        {
+          version,
+          updateComponents: {
+            surfaceId: "s",
+            components: [
+              {
+                id: "root",
+                component: "Column",
+                children: ["field", "preview", "send"],
+              },
+              {
+                id: "field",
+                label: "Value",
+                ...field,
+                value: { path: "/form/value" },
+              },
+              { id: "preview", component: "Text", text: { path: previewPath } },
+              {
+                id: "send",
+                component: "Button",
+                label: "Send",
+                action: {
+                  event: {
+                    name: "send",
+                    context: {
+                      value: { path: "/form/value" },
+                      form: { path: "/form" },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          version,
+          updateDataModel: {
+            surfaceId: "s",
+            path: "/",
+            value: { form: value === undefined ? {} : { value } },
+          },
+        },
+      ];
+      const surface = applyA2uiOperations(new Map(), operations).state.get(
+        "s",
+      )!;
+      const converted = convertSurfaceToUISpec(surface);
+      expect(converted.warnings).toEqual([]);
+      await act(async () =>
+        root!.render(
+          live ? (
+            <div data-aui="root">
+              <A2uiPresentRenderer
+                surfaceId="s"
+                operations={operations}
+                fallback={converted.spec}
+                library={defaultGenerativeUILibrary}
+                status="done"
+                dispatch={registry.dispatch}
+              />
+            </div>
+          ) : (
+            view(converted.spec, registry.dispatch)
+          ),
+        ),
+      );
+    };
+    await render(initial);
+    const submit = async (value: unknown) => {
+      await act(async () => container.querySelector("button")!.click());
+      expect(send).toHaveBeenLastCalledWith({
+        payload: {
+          type: "a2ui:action",
+          name: "send",
+          surfaceId: "s",
+          sourceComponentId: "send",
+          context: { value, form: { value } },
+        },
+      });
+    };
+    return { container, render, submit };
+  };
+
+  it.each([
+    {
+      title: "obscured text",
+      field: { component: "TextField", variant: "obscured" },
+      initial: "s3cret",
+      edited: "  new secret  ",
+      type: "password",
+    },
+    {
+      title: "number text",
+      field: { component: "TextField", variant: "number" },
+      initial: "3",
+      edited: "12.5",
+      type: "number",
+    },
+    {
+      title: "floating date and time",
+      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial: "2025-12-15T17:00",
+      edited: "2025-12-16T08:30",
+      type: "datetime-local",
+    },
+    {
+      title: "floating date and time with seconds",
+      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial: "2025-12-15T17:00:00",
+      displayed: "2025-12-15T17:00",
+      edited: "2025-12-16T08:30",
+      type: "datetime-local",
+    },
+    {
+      title: "timestamp in date mode",
+      field: { component: "DateTimeInput", enableDate: true },
+      initial: "2025-12-15T17:00:00Z",
+      edited: "2025-12-16T08:30:00Z",
+      type: "text",
+    },
+    {
+      title: "time only",
+      field: { component: "DateTimeInput", enableTime: true },
+      initial: "17:00:00",
+      displayed: "17:00",
+      edited: "08:30:45",
+      type: "time",
+    },
+    {
+      title: "fractional time",
+      field: { component: "DateTimeInput", enableTime: true },
+      initial: "17:00:00.000",
+      displayed: "17:00",
+      edited: "08:30",
+      type: "time",
+    },
+    {
+      title: "omitted temporal flags",
+      field: { component: "DateTimeInput" },
+      initial: "2025-12-15",
+      edited: "2025-12-16",
+      type: "date",
+    },
+    {
+      title: "disabled temporal flags",
+      field: {
+        component: "DateTimeInput",
+        enableDate: false,
+        enableTime: false,
+      },
+      initial: "",
+      edited: "2025-12-16",
+      type: "date",
+    },
+    {
+      title: "date only",
+      field: { component: "DateTimeInput", enableDate: true },
+      initial: "2025-12-15",
+      edited: "2025-12-16",
+      type: "date",
+    },
+    {
+      title: "unresolved obscured text",
+      field: { component: "TextField", variant: "obscured" },
+      initial: undefined,
+      edited: "s3cret",
+      type: "password",
+    },
+    {
+      title: "unresolved number text",
+      field: { component: "TextField", variant: "number" },
+      initial: undefined,
+      edited: "12.5",
+      type: "number",
+    },
+    {
+      title: "unresolved time",
+      field: { component: "DateTimeInput", enableTime: true },
+      initial: undefined,
+      edited: "08:30",
+      type: "time",
+    },
+  ])(
+    "preserves untouched, edited, and cleared $title values",
+    async ({ field, initial, displayed, edited, type }) => {
+      const { container, render, submit } = await mountSurface(field, initial);
+      const input = () =>
+        container.querySelector<HTMLInputElement>('input[name="/form/value"]')!;
+      const preview = () =>
+        container.querySelector('[data-aui="markdown"]')?.textContent ?? "";
+      const edit = async (value: string) => {
+        await act(async () => {
+          const control = input();
+          Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype,
+            "value",
+          )!.set!.call(control, value);
+          control.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      };
+
+      expect(input().type).toBe(type);
+      expect(input().getAttribute("aria-label")).toBe("Value");
+      expect(input().value).toBe(displayed ?? initial ?? "");
+      if (type === "number") expect(input().step).toBe("any");
+      await submit(initial ?? "");
+
+      await edit(edited);
+      expect(input().value).toBe(edited);
+      if (type === "number") expect(input().validity.stepMismatch).toBe(false);
+      if (live) expect(preview()).toBe(edited);
+      await submit(edited);
+
+      await edit("");
+      expect(input().type).toBe(type);
+      expect(input().value).toBe("");
+      if (live) expect(preview()).toBe("");
+      await submit("");
+
+      await render(initial);
+      expect(input().value).toBe("");
+      await submit("");
+      await render(edited);
+      expect(input().value).toBe(edited);
+      expect(preview()).toBe(edited);
+      await submit(edited);
+    },
+  );
+
+  it("preserves an instant offset in the A2UI button context", async () => {
+    const initial = "2025-12-15T17:00:00+02:00";
+    const { container, submit } = await mountSurface(
+      { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      'input[name="/form/value"]',
+    )!;
+    expect(input.type).toBe("datetime-local");
+    expect(input.value).toBe(
+      normalizeTemporalInputValue(toLocalDateTime(initial)),
+    );
+    await submit(initial);
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "2025-12-16T09:30");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(input.value).toBe("2025-12-16T09:30");
+    await submit(fromLocalDateTime("2025-12-16T09:30", initial));
+  });
+
+  it.each([undefined, "Pick one"])(
+    "keeps chips empty until selected with placeholder %s",
+    async (placeholder) => {
+      const { container, render, submit } = await mountSurface(
+        {
+          component: "ChoicePicker",
+          displayStyle: "chips",
+          placeholder,
+          options: [
+            { label: "A", value: "a" },
+            { label: "B", value: "b" },
+          ],
+        },
+        [],
+        "/form/value/0",
+      );
+      const radios = () => [
+        ...container.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
+      ];
+      const selected = () =>
+        radios()
+          .filter((input) => input.checked)
+          .map((input) => input.value);
+
+      await submit([]);
+      expect(container.querySelector("select")).toBeNull();
+      expect(radios()).toHaveLength(2);
+      expect(
+        container.querySelector("fieldset")?.getAttribute("aria-label"),
+      ).toBe("Value");
+      expect(selected()).toEqual([]);
+
+      await act(async () => radios()[1]!.click());
+      expect(selected()).toEqual(["b"]);
+      if (live)
+        expect(
+          container.querySelector('[data-aui="markdown"]')?.textContent,
+        ).toBe("b");
+      await submit(["b"]);
+      await render([]);
+      expect(selected()).toEqual(["b"]);
+      await submit(["b"]);
+      await render(["a"]);
+      expect(selected()).toEqual(["a"]);
+      await submit(["a"]);
+      await render([]);
+      expect(selected()).toEqual([]);
+      await submit([]);
+    },
+  );
 });

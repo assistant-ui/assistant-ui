@@ -654,6 +654,45 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await removePromise;
   });
 
+  it("removes a file added during a send when the draft is cleared", async () => {
+    const upload = deferred();
+    const remove = vi.fn<AttachmentAdapter["remove"]>(async () => {});
+    const { composer } = makeComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+        remove,
+      }),
+    );
+
+    await composer.addAttachment(
+      new File(["a"], "a.txt", { type: "text/plain" }),
+    );
+    void composer.send();
+    await vi.waitFor(() =>
+      expect(composer.submission?.attachments).toHaveLength(1),
+    );
+    await composer.addAttachment(
+      new File(["b"], "b.txt", { type: "text/plain" }),
+    );
+    await composer.clearAttachments();
+
+    expect(remove.mock.calls.map(([attachment]) => attachment.id)).toEqual([
+      "b.txt",
+    ]);
+    expect(composer.attachments).toEqual([]);
+  });
+
   it("keeps in-flight attachments when clearing the draft", async () => {
     const upload = Promise.withResolvers<void>();
     const remove = vi.fn(async () => {});
@@ -769,6 +808,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     });
     const { composer, append } = makeComposer(adapter);
 
+    composer.setText("hello");
     await composer.addAttachment(textFile());
 
     const sendPromise = composer.send();
@@ -779,6 +819,31 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(append).toHaveBeenCalledTimes(1);
     const message = append.mock.calls[0]![0];
     expect(message.attachments).toHaveLength(0);
+  });
+
+  it("does not dispatch an empty message when the only attachment is removed while it is prepared, keeping its quote", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+    composer.setQuote({ text: "quoted", messageId: "m-1" });
+
+    const sendPromise = composer.send();
+    await composer.removeAttachment("att-1");
+    resolveSend();
+    await sendPromise;
+
+    expect(append).not.toHaveBeenCalled();
+    expect(composer.submission).toBeUndefined();
+    expect(composer.attachments).toEqual([]);
+    expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
   });
 
   it("keeps an attachment re-added under a removed id during an in-flight send", async () => {

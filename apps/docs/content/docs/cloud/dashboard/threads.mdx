@@ -11,13 +11,13 @@ Threads is the conversation list. It starts with every thread in the selected ra
 
 Archived threads are listed too, with an Archived mark beside the title: an end user archiving a thread is housekeeping on their side, and the thread's runs, cost and ratings still belong to the project, so a figure that links here opens exactly that many rows. The volume strip shows threads in each time bucket. Select a bar to narrow the list to that bucket.
 
-Search matches a thread title or a full text match over stored message content.
+Search matches a thread title or the full text of stored message content.
 
 The table has **Title**, **Topic**, **User**, **Tokens**, **Cost** and **Updated** columns. **Topic** appears once conversations are classified. A thread's thumbs up and thumbs down counts and its latest review verdict appear as marks beside the title, only on the threads that have them. **Tokens** and **Cost** can be sorted. The table loads 50 rows at a time. [Export](/docs/cloud/dashboard/exports) appears on plans that include exports.
 
 ## Filter by conversation and behaviour
 
-The filter bar always shows **Feedback**, **Review**, **Satisfaction**, **Signal**, and **Ended on the user's message**. Other facets appear only when they have options in the selected range. Its values describe the threads in that range, archived ones included.
+The filter bar always shows **Feedback**, **Review**, **Satisfaction**, **Signal**, and **Ended on the user's message**. Other facets appear only when they have options in the selected range. Facet values describe the threads in that range, archived ones included.
 
 | Facet | Values and reading |
 |---|---|
@@ -88,7 +88,7 @@ The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The main colu
 
 The right rail has five tabs: **Details**, **Turns**, **Activity**, **Review** and **Raw**. It opens on **Details**; a thread opened from the **Review** view or from a list filtered by review state opens on **Review** instead. On the **Review** tab a person on the team records a verdict for the whole conversation: **Good**, **Needs work** or **Unclear**. They can add an optional note, then choose **Save** or **Save and next**. `g`, `n` and `u` choose the verdict. `Mod+Enter` saves and moves on. `j` and `k` move to the next and previous thread.
 
-The header includes **Back to threads**, and **Exit review** while a review walk is active. **Previous** and **Next** follow the list the thread was opened from, including that list's filters and sort. The counter reads **N of M** outside review and **N left of M** in review. Each reviewer has one review per thread and can change it. The **Save** control reads **Update** once the viewer has a review. Other reviewers' reviews are listed below the form.
+The header links back to the list the thread was opened from: **Back to threads**, **Back to user**, **Back to topic** or **Back to task**. It also includes **Exit review** while a review walk is active. **Previous** and **Next** stay within that list's range, filters and sort, including a user's threads or an Intelligence topic or task. The counter reads **N of M** outside review and **N left of M** in review. Each reviewer has one review per thread and can change it. The **Save** control reads **Update** once the viewer has a review. Other reviewers' reviews are listed below the form.
 
 The **Details** tab has **External id**, when the thread has one and with a copy control, then **Title**, which reads how the thread got its name or why it has none, then **Created**, **Last message** and **Runs**. **Environment** and **Release** show the distinct values across the thread's runs and link to [Runs](/docs/cloud/dashboard/runs) filtered to that value. **Tags** are badges that link to [Runs](/docs/cloud/dashboard/runs) filtered to the tag. The **Metadata** ledger appears only when the thread has metadata.
 

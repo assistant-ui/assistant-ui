@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { connection } from "next/server";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import {
@@ -29,44 +31,23 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-// api.npmjs.org allows about forty requests a minute per IP, which a build
-// shares with every other build on the platform, so npm is read at request time.
-export const dynamic = "force-dynamic";
+const grouped = groupByCategory(PACKAGES);
+const directoryCategories: DirectoryCategory[] = (
+  Object.keys(PACKAGE_CATEGORIES) as PackageCategory[]
+)
+  .filter((c) => (grouped[c]?.length ?? 0) > 0)
+  .map((category) => ({
+    key: category,
+    label: PACKAGE_CATEGORIES[category].label,
+    description: PACKAGE_CATEGORIES[category].description,
+    count: grouped[category]?.length ?? 0,
+  }));
 
-export default async function PackagesPage() {
-  const npm = await fetchNpmDownloads();
-
-  const ranked = PACKAGES.filter((pkg) => !pkg.deprecated)
-    .map((pkg) => ({
-      name: pkg.name,
-      weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
-    }))
-    .filter((row) => row.weekly > 0)
-    .sort((a, b) => b.weekly - a.weekly);
-
-  const leaders = ranked.slice(0, 4);
-  const tail = ranked.slice(4);
-  const tailWeekly = tail.reduce((sum, row) => sum + row.weekly, 0);
-  const rankedWeekly = ranked.reduce((sum, row) => sum + row.weekly, 0);
-
-  const grouped = groupByCategory(PACKAGES);
-  const visibleCategories = (
-    Object.keys(PACKAGE_CATEGORIES) as PackageCategory[]
-  ).filter((c) => (grouped[c]?.length ?? 0) > 0);
-
-  const activeCount = PACKAGES.filter((pkg) => !pkg.deprecated).length;
-
-  const directoryCategories: DirectoryCategory[] = visibleCategories.map(
-    (category) => ({
-      key: category,
-      label: PACKAGE_CATEGORIES[category].label,
-      description: PACKAGE_CATEGORIES[category].description,
-      count: grouped[category]?.length ?? 0,
-    }),
-  );
-
-  const directoryRows: DirectoryRow[] = PACKAGES.map((pkg) => {
-    const stats = npm.perPackage[pkg.name];
+const directoryRows = (
+  npm?: Awaited<ReturnType<typeof fetchNpmDownloads>>,
+): DirectoryRow[] =>
+  PACKAGES.map((pkg) => {
+    const stats = npm?.perPackage[pkg.name];
     const weekly = stats?.weekly ?? 0;
     const mom = computeMoM(stats?.monthly ?? 0, stats?.prevMonthly ?? 0);
     return {
@@ -81,6 +62,9 @@ export default async function PackagesPage() {
     };
   });
 
+export default function PackagesPage() {
+  const activeCount = PACKAGES.filter((pkg) => !pkg.deprecated).length;
+
   return (
     <PageFrame pad="sub" className="flex flex-col gap-16 md:gap-20">
       <header className="max-w-2xl">
@@ -90,17 +74,17 @@ export default async function PackagesPage() {
         </p>
       </header>
 
-      <PackageDirectory
-        categories={directoryCategories}
-        rows={directoryRows}
-        concentration={{
-          leaders,
-          tailNames: tail.map((row) => row.name),
-          tailCount: tail.length,
-          tailWeekly,
-          total: rankedWeekly,
-        }}
-      />
+      <Suspense
+        fallback={
+          <PackageDirectory
+            categories={directoryCategories}
+            rows={directoryRows()}
+            concentration={null}
+          />
+        }
+      >
+        <Directory />
+      </Suspense>
 
       <footer>
         <Link
@@ -112,6 +96,40 @@ export default async function PackagesPage() {
         </Link>
       </footer>
     </PageFrame>
+  );
+}
+
+async function Directory() {
+  // api.npmjs.org limits requests per IP, so npm is read at request time.
+  await connection();
+  const npm = await fetchNpmDownloads();
+
+  const ranked =
+    npm.totalWeekly === null
+      ? []
+      : PACKAGES.filter((pkg) => !pkg.deprecated)
+          .map((pkg) => ({
+            name: pkg.name,
+            weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
+          }))
+          .filter((row) => row.weekly > 0)
+          .sort((a, b) => b.weekly - a.weekly);
+
+  const leaders = ranked.slice(0, 4);
+  const tail = ranked.slice(4);
+
+  return (
+    <PackageDirectory
+      categories={directoryCategories}
+      rows={directoryRows(npm)}
+      concentration={{
+        leaders,
+        tailNames: tail.map((row) => row.name),
+        tailCount: tail.length,
+        tailWeekly: tail.reduce((sum, row) => sum + row.weekly, 0),
+        total: ranked.reduce((sum, row) => sum + row.weekly, 0),
+      }}
+    />
   );
 }
 

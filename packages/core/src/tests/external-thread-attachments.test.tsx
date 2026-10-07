@@ -2,7 +2,7 @@
 
 import { getEventListeners } from "node:events";
 import { act, render, waitFor } from "@testing-library/react";
-import { Activity, type FC } from "react";
+import { Activity, type FC, version } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
@@ -19,6 +19,13 @@ import type {
   CompleteAttachment,
   PendingAttachment,
 } from "../types/attachment";
+
+const onReact18 = version.startsWith("18.");
+
+// useAssistantClientDestroySignal fails outside a tap resource on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+const useDestroySignalProbe = onReact18
+  ? () => undefined
+  : useAssistantClientDestroySignal;
 
 const { mockGenerateId, realGenerateId } = vi.hoisted(() => {
   const realGenerateId = { current: (): string => "" };
@@ -293,6 +300,26 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("does not dispatch an empty message when the only attachment is removed while it is prepared, keeping its quote", async () => {
+    const { composer, successfulUpload, onNew } = setupPartialSend();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().setQuote({ text: "quoted", messageId: "m-1" });
+    });
+    await act(async () => composer().send());
+    await act(async () => {
+      await composer().attachment({ id: "a" }).remove();
+      successfulUpload.resolve();
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(composer().getState().submission).toBeUndefined();
+    expect(composer().getState().attachments).toEqual([]);
+    expect(composer().getState().quote).toEqual({
+      text: "quoted",
+      messageId: "m-1",
+    });
+  });
+
   it("renders in-flight submission attachments as a thread message", async () => {
     const { aui, composer, successfulUpload, failedUpload, onNew } =
       setupPartialSend();
@@ -359,7 +386,7 @@ describe("ExternalThread attachments", () => {
   it.each(["reset", "cancel"] as const)(
     "does not dispatch an old edit or unlock a newer send after %s",
     async (action) => {
-      const { composer, successfulUpload, failedUpload, send, onNew } =
+      const { composer, successfulUpload, failedUpload, send, remove, onNew } =
         setupPartialSend("edit");
       await act(async () => {
         composer().beginEdit();
@@ -374,6 +401,7 @@ describe("ExternalThread attachments", () => {
       expect(composer().getState().canSend).toBe(false);
       expect(onNew).not.toHaveBeenCalled();
       expect(send).toHaveBeenCalledTimes(2);
+      expect(remove).toHaveBeenCalledWith(expect.objectContaining({ id: "a" }));
       await act(async () => failedUpload.resolve());
       expect(onNew).toHaveBeenCalledOnce();
       expect(onNew.mock.calls[0]![0].attachments).toMatchObject([{ id: "b" }]);
@@ -765,6 +793,293 @@ describe("ExternalThread attachments", () => {
       role: "assistant",
       runConfig: { custom: { model: "model-a" } },
     });
+  });
+
+  it("serializes sends while attachments are prepared", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("first message");
+      composer().send();
+      composer().setText("second message");
+      composer().send();
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+    await waitFor(() => expect(composer().getState().canSend).toBe(false));
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "first message" }],
+    });
+    expect(composer().getState()).toMatchObject({
+      text: "second message",
+      canSend: true,
+    });
+
+    act(() => composer().send());
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(onNew.mock.calls[1]![0]).toMatchObject({
+      content: [{ type: "text", text: "second message" }],
+    });
+  });
+
+  it("restores the draft after a synchronous attachment send failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const error = new Error("upload failed");
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async () => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: () => {
+          throw error;
+        },
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("hello");
+      composer().send();
+    });
+
+    await waitFor(() =>
+      expect(composer().getState()).toMatchObject({
+        text: "hello",
+        canSend: true,
+      }),
+    );
+    expect(composer().getState().attachments).toHaveLength(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to send attachments",
+      error,
+    );
+  });
+
+  it.each([
+    ["remove", "pending", 1],
+    ["reset", "pending", 1],
+    ["reset", "failed", 2],
+    ["reset", "pending-then-failed", 1],
+    ["clearAttachments", "pending", 1],
+    ["clearAttachments", "failed", 2],
+    ["clearAttachments", "pending-then-failed", 1],
+  ] as const)(
+    "removes a draft attachment on %s unless its removal is in flight (%s)",
+    async (action, state, removals) => {
+      const removal = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const aui = renderThreadWithProps({
+        attachmentAdapter: {
+          accept: "*",
+          add: async ({ file }) => ({
+            id: "att-1",
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          send: async () => ({}) as never,
+          remove,
+        },
+      });
+      const composer = () => aui().thread.composer();
+
+      await act(() =>
+        composer().addAttachment(
+          new File(["data"], "notes.txt", { type: "text/plain" }),
+        ),
+      );
+      let removing!: Promise<unknown>;
+      act(() => {
+        removing = composer()
+          .attachment({ id: "att-1" })
+          .remove()
+          .then(
+            () => undefined,
+            (error: unknown) => error,
+          );
+      });
+      if (state === "failed")
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await removing;
+        });
+      await act(() =>
+        action === "remove"
+          ? composer().attachment({ id: "att-1" }).remove()
+          : composer()[action](),
+      );
+      let outcome: unknown;
+      await act(async () => {
+        if (state === "pending") removal.resolve();
+        if (state === "pending-then-failed")
+          removal.reject(new Error("remove failed"));
+        outcome = await removing;
+      });
+
+      expect(outcome).toEqual(
+        state === "pending" ? undefined : new Error("remove failed"),
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(composer().getState().attachments).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["failed", "b", 2],
+    ["pending", "a", 1],
+  ] as const)(
+    "removes an edit's attachment again after its removal %s and the upload of %s failed the send",
+    async (state, failing, removals) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const { composer, successfulUpload, failedUpload, remove } =
+        setupPartialSend("edit");
+      const removal = deferred();
+      remove.mockReturnValueOnce(removal.promise);
+      await act(async () => composer().beginEdit());
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+        await composer().addAttachment(new File(["b"], "b"));
+        composer().send();
+      });
+      let removing!: Promise<unknown>;
+      act(() => {
+        removing = composer()
+          .attachment({ id: "a" })
+          .remove()
+          .then(
+            () => undefined,
+            (error: unknown) => error,
+          );
+      });
+      if (state === "failed")
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await removing;
+        });
+      await act(async () => {
+        if (failing === "a") {
+          successfulUpload.reject(new Error("upload failed"));
+          failedUpload.resolve();
+        } else {
+          successfulUpload.resolve();
+          failedUpload.reject(new Error("upload failed"));
+        }
+      });
+      await act(() => composer().attachment({ id: "a" }).remove());
+      let outcome: unknown;
+      await act(async () => {
+        if (state === "pending") removal.resolve();
+        outcome = await removing;
+      });
+
+      expect(outcome).toEqual(
+        state === "failed" ? new Error("remove failed") : undefined,
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(
+        composer()
+          .getState()
+          .attachments.map(({ id }) => id),
+      ).toEqual(["b"]);
+    },
+  );
+
+  it("removes a file added during a send when the draft is cleared", async () => {
+    const upload = deferred();
+    const remove = vi.fn<AttachmentAdapter["remove"]>(async () => {});
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+        remove,
+      },
+      onNew: vi.fn(),
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() =>
+      composer().addAttachment(
+        new File(["a"], "a.txt", { type: "text/plain" }),
+      ),
+    );
+    await act(async () => {
+      composer().send();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["b"], "b.txt", { type: "text/plain" }),
+      ),
+    );
+    await act(() => composer().clearAttachments());
+
+    expect(remove.mock.calls.map(([attachment]) => attachment.id)).toEqual([
+      "b.txt",
+    ]);
+    expect(composer().getState().attachments).toEqual([]);
   });
 
   it.each([
@@ -1454,6 +1769,65 @@ describe("cancelled edit sessions", () => {
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
+  it("removes an edit's attachment once when the edit is cancelled while its removal is pending", async () => {
+    let finish!: () => void;
+    const remove = vi
+      .fn(async () => {})
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((r) => {
+            finish = r;
+          }),
+      );
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }: { file: File }) => ({
+          id: "pending-1",
+          type: "document",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "running", reason: "uploading", progress: 0 },
+        }),
+        send: async () => ({}) as never,
+        remove,
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+    let removing!: Promise<void>;
+    act(() => {
+      removing = composer().attachment({ id: "pending-1" }).remove();
+    });
+    await act(async () => {
+      composer().cancel();
+    });
+    await act(async () => {
+      finish();
+      await removing;
+    });
+
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the thread composer's in-flight add across a run cancel", async () => {
     let resolveAdd!: (attachment: PendingAttachment) => void;
     const aui = renderThreadWithProps({
@@ -1519,7 +1893,7 @@ describe("attachment sends and the client lifetime", () => {
     } = {};
     const Capture: FC = () => {
       captured.aui = useAui();
-      captured.destroySignal = useAssistantClientDestroySignal();
+      captured.destroySignal = useDestroySignalProbe();
       return null;
     };
     const Chat: FC = () => (
@@ -1531,11 +1905,14 @@ describe("attachment sends and the client lifetime", () => {
         <Capture />
       </AuiProvider>
     );
-    const App: FC<{ hidden: boolean }> = ({ hidden }) => (
-      <Activity mode={hidden ? "hidden" : "visible"}>
+    const App: FC<{ hidden: boolean }> = ({ hidden }) =>
+      onReact18 ? (
         <Chat />
-      </Activity>
-    );
+      ) : (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Chat />
+        </Activity>
+      );
     const view = render(<App hidden={false} />);
     return {
       aui: () => captured.aui!,
@@ -1630,26 +2007,30 @@ describe("attachment sends and the client lifetime", () => {
     },
   );
 
-  it("finishes a send while the client is hidden", async () => {
-    const { adapter, upload, signals } = slowAdapter();
-    const onNew = vi.fn();
-    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-    const composer = () => thread.aui().thread.composer();
-    await act(async () => {
-      await composer().addAttachment(new File(["a"], "a"));
-      composer().setText("hello");
-      composer().send();
-    });
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "finishes a send while the client is hidden",
+    async () => {
+      const { adapter, upload, signals } = slowAdapter();
+      const onNew = vi.fn();
+      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+      const composer = () => thread.aui().thread.composer();
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+        composer().setText("hello");
+        composer().send();
+      });
 
-    await thread.hide();
-    await act(async () => upload.resolve());
-    expect(onNew).toHaveBeenCalledOnce();
-    expect(signals[0]?.aborted).toBe(false);
+      await thread.hide();
+      await act(async () => upload.resolve());
+      expect(onNew).toHaveBeenCalledOnce();
+      expect(signals[0]?.aborted).toBe(false);
 
-    await thread.reveal();
-    expect(onNew).toHaveBeenCalledOnce();
-    expect(composer().getState().submission).toBeUndefined();
-  });
+      await thread.reveal();
+      expect(onNew).toHaveBeenCalledOnce();
+      expect(composer().getState().submission).toBeUndefined();
+    },
+  );
 
   it("never calls send for an upload that finishes after the client is destroyed", async () => {
     const finishUpload = deferred();
@@ -1698,23 +2079,27 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  it("leaves a finished send's signal alone when the client is destroyed later", async () => {
-    const { adapter, upload, signals } = slowAdapter();
-    const onNew = vi.fn();
-    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-    const composer = () => thread.aui().thread.composer();
-    const listeners = thread.destroyListeners();
-    await act(async () => {
-      await composer().addAttachment(new File(["a"], "a"));
-      composer().send();
-    });
-    await act(async () => upload.resolve());
-    expect(onNew).toHaveBeenCalledOnce();
-    expect(thread.destroyListeners()).toBe(listeners);
+  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+  it.skipIf(onReact18)(
+    "leaves a finished send's signal alone when the client is destroyed later",
+    async () => {
+      const { adapter, upload, signals } = slowAdapter();
+      const onNew = vi.fn();
+      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+      const composer = () => thread.aui().thread.composer();
+      const listeners = thread.destroyListeners();
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+        composer().send();
+      });
+      await act(async () => upload.resolve());
+      expect(onNew).toHaveBeenCalledOnce();
+      expect(thread.destroyListeners()).toBe(listeners);
 
-    await thread.destroy();
-    expect(signals[0]?.aborted).toBe(false);
-  });
+      await thread.destroy();
+      expect(signals[0]?.aborted).toBe(false);
+    },
+  );
 
   it("never calls the adapter for a send made after the client is destroyed", async () => {
     const { adapter, send } = slowAdapter();
@@ -1733,7 +2118,10 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  it.each(["the adapter's send", "an upload in add()"] as const)(
+  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+  it
+    .skipIf(onReact18)
+    .each(["the adapter's send", "an upload in add()"] as const)(
     "releases the destroy signal when a send stalled on %s is cancelled",
     async (stall) => {
       const { adapter } = slowAdapter();
