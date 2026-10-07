@@ -286,7 +286,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       const body = await createReplayBoundaryStream(response, {
         setReplaying: setIsReplaying,
-        waitForRender: waitForReplayRender,
+        waitForRender: () => abortable(signal, waitForReplayRender),
       });
 
       // Select decoder based on protocol option
