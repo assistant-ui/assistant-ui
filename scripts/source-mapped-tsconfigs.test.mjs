@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
@@ -40,7 +40,7 @@ const isSourceEntry = (target) =>
     [".ts", ".tsx"].some((extension) => existsSync(`${base}${extension}`)),
   );
 
-const sourceMappedTsconfigs = spawnSync(
+const sourceMappedTsconfigs = execFileSync(
   "git",
   [
     "ls-files",
@@ -52,7 +52,7 @@ const sourceMappedTsconfigs = spawnSync(
   ],
   { cwd: repoRoot, encoding: "utf8" },
 )
-  .stdout.split("\0")
+  .split("\0")
   .filter(
     (file) =>
       file !== "" && readJson(file).compilerOptions?.paths?.[SOURCE_WILDCARD],
@@ -71,7 +71,7 @@ for (const file of sourceMappedTsconfigs) {
     const { paths } = readJson(file).compilerOptions;
     for (const dir of AUGMENTED_PACKAGES) {
       const pkg = readJson(`packages/${dir}/package.json`);
-      const sourceRoot = path.join(repoRoot, "packages", dir, "src");
+      const sourceRoot = path.join(repoRoot, "packages", dir, "src", path.sep);
       for (const entry of Object.keys(pkg.exports)) {
         if (entry === "./package.json") continue;
         const specifier = path.posix.join(pkg.name, entry);
@@ -79,7 +79,7 @@ for (const file of sourceMappedTsconfigs) {
         const target =
           mapped && path.resolve(repoRoot, path.dirname(file), mapped);
         assert.ok(
-          target?.startsWith(sourceRoot),
+          target && path.join(target, path.sep).startsWith(sourceRoot),
           `${specifier} resolves to ${mapped ?? "the built dist"}; map it to packages/${dir}/src in ${file}`,
         );
         assert.ok(
