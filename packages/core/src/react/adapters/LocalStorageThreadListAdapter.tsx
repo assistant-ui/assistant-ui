@@ -573,8 +573,13 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         if (!remoteId) return { messages: [] };
 
         const key = formattedMessagesKey(this.prefix, remoteId, format);
-        await this.mutationQueue.removeStale(key, this.storage);
-        const raw = await this.storage.getItem(key);
+        const raw = await this.mutationQueue.run(
+          this._messagesKey(remoteId),
+          async () => {
+            await this.mutationQueue.removeStale(key, this.storage);
+            return this.storage.getItem(key);
+          },
+        );
         return {
           messages: parseStoredFormatEntries(raw, format).map((entry) =>
             formatAdapter.decode(entry as MessageStorageEntry<TStorageFormat>),
