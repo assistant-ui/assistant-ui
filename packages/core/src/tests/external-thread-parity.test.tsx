@@ -593,6 +593,39 @@ describe("ExternalThread composer", () => {
     ]);
   });
 
+  it("drops the kept non-text parts when the edit composer is reset", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "answer" },
+          ],
+          createdAt: new Date(0),
+          status: { type: "complete", reason: "stop" },
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "a1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    await composer().reset();
+    composer().setText("fresh");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].content).toEqual([
+      { type: "text", text: "fresh" },
+    ]);
+  });
+
   it("throws on edit-composer send before beginEdit", () => {
     const { aui } = renderThread({
       messages: [

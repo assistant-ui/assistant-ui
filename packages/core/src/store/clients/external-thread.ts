@@ -1218,6 +1218,7 @@ const useComposerClientResource = ({
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
+      nonTextPassthrough.current = [];
       await Promise.all([removePendingAttachments(removed), discarded]);
     },
     send: (opts?: ComposerSendOptions) => {
