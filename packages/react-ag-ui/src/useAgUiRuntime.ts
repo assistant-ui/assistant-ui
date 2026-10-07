@@ -205,32 +205,40 @@ export function useAgUiRuntime(
     const { onSwitchToNewThread, onSwitchToThread, ...rest } =
       threadListAdapter;
 
+    const resetThreadForSwitch = (generation: number) => {
+      queueController?.clear();
+      core.applyExternalMessages([]);
+      core.resetThreadState();
+      if (generation === threadSwitchGenerationRef.current) {
+        queueController?.clear();
+      }
+    };
+
     return {
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
+            resetThreadForSwitch(generation);
+            if (generation !== threadSwitchGenerationRef.current) return;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            core.resetThreadState();
             await onSwitchToNewThread();
             if (generation !== threadSwitchGenerationRef.current) return;
-            core.applyExternalMessages([]);
-            core.resetThreadState();
+            resetThreadForSwitch(generation);
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
+            resetThreadForSwitch(generation);
+            if (generation !== threadSwitchGenerationRef.current) return;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            core.resetThreadState();
             const result = await onSwitchToThread(threadId);
             if (generation !== threadSwitchGenerationRef.current) return;
-            core.applyExternalMessages([]);
-            core.resetThreadState();
+            resetThreadForSwitch(generation);
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);
@@ -241,7 +249,7 @@ export function useAgUiRuntime(
           }
         : undefined,
     };
-  }, [threadListAdapter, core]);
+  }, [threadListAdapter, core, queueController]);
 
   const adapters = options.adapters;
   const adapterAdapters = useMemo(

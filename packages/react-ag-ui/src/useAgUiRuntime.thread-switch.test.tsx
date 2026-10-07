@@ -6,7 +6,10 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
-import type { UseAgUiThreadListAdapter } from "./runtime/types";
+import type {
+  UseAgUiRuntimeOptions,
+  UseAgUiThreadListAdapter,
+} from "./runtime/types";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 
 type ThreadLoad = Awaited<
@@ -40,6 +43,10 @@ function renderRuntime(
   load: (id: string) => Promise<ThreadLoad>,
   create: () => Promise<void> = async () => {},
   agentOverride?: HttpAgent,
+  options: Pick<
+    UseAgUiRuntimeOptions,
+    "onCancel" | "unstable_enableMessageQueue"
+  > = {},
 ) {
   const agent = {
     runAgent: vi.fn(),
@@ -50,6 +57,7 @@ function renderRuntime(
     const [threadId, setThreadId] = useState("initial");
     return useAgUiRuntime({
       agent: runtimeAgent,
+      ...options,
       adapters: {
         threadList: {
           threadId,
@@ -73,6 +81,118 @@ afterEach(() => {
 });
 
 describe("useAgUiRuntime thread switching", () => {
+  it.each(["existing", "new"] as const)(
+    "discards queued sends while switching to a %s thread",
+    async (destination) => {
+      const signals: AbortSignal[] = [];
+      const runAgent = vi.fn(
+        async (
+          _input: unknown,
+          _subscriber: Subscriber,
+          options: { signal: AbortSignal },
+        ) => {
+          signals.push(options.signal);
+          await new Promise<void>((resolve) =>
+            options.signal.addEventListener("abort", () => resolve(), {
+              once: true,
+            }),
+          );
+        },
+      );
+      const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+      let result!: ReturnType<typeof renderRuntime>["result"];
+      const onCancel = vi.fn(() => {
+        void result.current.thread.append("queued from cancellation");
+      });
+      result = renderRuntime(
+        async () => ({ messages: [message("loaded")] }),
+        async () => {},
+        agent,
+        { onCancel, unstable_enableMessageQueue: true },
+      ).result;
+
+      act(() => {
+        void result.current.thread.append("active");
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+      await act(async () => {
+        await result.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "queued for old thread" }],
+          parentId:
+            result.current.thread.getState().messages.at(-1)?.id ?? null,
+        });
+      });
+      expect(runAgent).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        if (destination === "existing") {
+          await result.current.threads.switchToThread("thread-a");
+        } else {
+          await result.current.threads.switchToNewThread();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+      expect(onCancel).toHaveBeenCalledOnce();
+      expect(signals[0]?.aborted).toBe(true);
+      expect(runAgent).toHaveBeenCalledOnce();
+      expect(result.current.thread.getState().isRunning).toBe(false);
+      expect(result.current.thread.composer.getState().queue).toEqual([]);
+      expect(result.current.threads.getState().mainThreadId).toBe(
+        destination === "existing" ? "thread-a" : "thread-new",
+      );
+      expect(
+        result.current.thread.getState().messages.map((m) => m.id),
+      ).toEqual(destination === "existing" ? ["loaded"] : []);
+    },
+  );
+
+  it("skips a stale adapter call when cancellation starts a newer selection", async () => {
+    const signals: AbortSignal[] = [];
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        _subscriber: Subscriber,
+        options: { signal: AbortSignal },
+      ) => {
+        signals.push(options.signal);
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      },
+    );
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    const load = vi.fn(async (id: string) => ({ messages: [message(id)] }));
+    let switchToNewer = () => {};
+    const { result } = renderRuntime(load, undefined, agent, {
+      onCancel: () => switchToNewer(),
+    });
+    switchToNewer = () => {
+      void result.current.threads.switchToThread("newer");
+    };
+
+    act(() => {
+      void result.current.thread.append("active");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      await result.current.threads.switchToThread("stale");
+    });
+    await waitFor(() =>
+      expect(result.current.threads.getState().mainThreadId).toBe("newer"),
+    );
+
+    expect(signals[0]?.aborted).toBe(true);
+    expect(load).toHaveBeenCalledExactlyOnceWith("newer");
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "newer",
+    ]);
+  });
+
   it.each([undefined, { owner: "thread-a" }])(
     "ignores an older load and its resume request with state %j",
     async (state) => {

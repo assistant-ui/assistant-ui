@@ -17,7 +17,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
-| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
+| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel, thread switching, and runtime teardown. |
 | `unstable_enableMessageQueue` | `boolean` | Buffer a message sent while a run is in flight and send it once the run settles. Pending messages are exposed on `composer.queue`. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
@@ -152,6 +152,8 @@ The thread list adapter is currently experimental and may change without notice.
 | `threadId` | `string` | The currently active thread ID. |
 | `onSwitchToNewThread` | `() => Promise<void>` | Called when the user creates a new thread. Reset your thread state here. |
 | `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state?, unstable_resume? }>` | Called when the user switches threads. Return the persisted messages and, optionally, the opaque state. Set `unstable_resume: true` when the thread has a run in flight; the runtime then resumes it through the history adapter's `resume()` method. |
+
+Switching threads cancels the active run and discards sends queued for the thread being left.
 
 ```tsx
 const runtime = useAgUiRuntime({
