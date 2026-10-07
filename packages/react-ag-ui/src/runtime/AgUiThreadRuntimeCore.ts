@@ -1774,7 +1774,7 @@ export class AgUiThreadRuntimeCore {
   ): ThreadAssistantMessage["content"] {
     const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
       part.type === "reasoning"
-        ? !snapshotHasReasoning
+        ? this.showThinking && !snapshotHasReasoning
         : isActivityPart(part) && !snapshotHasActivity;
     const kept = previous.filter(shouldKeep);
     const merged = this.preserveToolInteractions(previous, next);
