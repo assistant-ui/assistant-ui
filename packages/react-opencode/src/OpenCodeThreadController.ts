@@ -53,6 +53,8 @@ type InteractionRecoveryEvents = {
   questions: Map<string, OpenCodeServerEvent[]>;
 };
 
+const MAX_INTERACTION_RECOVERY_EVENTS = 25;
+
 const createInteractionRecoveryEvents = (): InteractionRecoveryEvents => ({
   permissions: new Map(),
   questions: new Map(),
@@ -462,6 +464,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
     const retained = events.get(event.sessionId) ?? [];
     retained.push(event);
+    if (retained.length > MAX_INTERACTION_RECOVERY_EVENTS) retained.shift();
     events.set(event.sessionId, retained);
   }
 
@@ -703,8 +706,33 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     for (const request of requests) {
       if (request.sessionId !== this.sessionId) continue;
       if (this.permissionRepliesInFlight.has(request.id)) continue;
-      if (this.permissionRecoveryFence.has(request.id)) continue;
       const settled = this.state.interactions.permissions.resolved[request.id];
+      if (
+        this.isChildSession &&
+        this.permissionRecoveryFence.get(request.id) === "settled" &&
+        !settled
+      ) {
+        const reply = this.interactionRecoveryEvents.permissions
+          .get(this.sessionId)
+          ?.findLast(
+            (event) =>
+              event.type === "permission.replied" &&
+              event.properties.requestID === request.id,
+          );
+        if (
+          reply &&
+          (reply.properties.reply === "once" ||
+            reply.properties.reply === "always" ||
+            reply.properties.reply === "reject")
+        ) {
+          this.dispatch({ type: "permission.asked", request });
+          this.handleServerEvent(reply);
+        } else {
+          pending[request.id] = request;
+        }
+        continue;
+      }
+      if (this.permissionRecoveryFence.has(request.id)) continue;
       if (settled && hasSamePermissionPayload(settled.request, request))
         continue;
       const existing = this.state.interactions.permissions.pending[request.id];
@@ -731,10 +759,35 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     for (const request of requests) {
       if (request.sessionID !== this.sessionId) continue;
       if (this.questionRepliesInFlight.has(request.id)) continue;
-      if (this.questionRecoveryFence.has(request.id)) continue;
       const settled =
         this.state.interactions.questions.answered[request.id] ??
         this.state.interactions.questions.rejected[request.id];
+      if (
+        this.isChildSession &&
+        this.questionRecoveryFence.get(request.id) === "settled" &&
+        !settled
+      ) {
+        const reply = this.interactionRecoveryEvents.questions
+          .get(this.sessionId)
+          ?.findLast(
+            (event) =>
+              (event.type === "question.replied" ||
+                event.type === "question.rejected") &&
+              event.properties.requestID === request.id,
+          );
+        if (
+          reply &&
+          (reply.type === "question.rejected" ||
+            Array.isArray(reply.properties.answers))
+        ) {
+          this.dispatch({ type: "question.asked", request });
+          this.handleServerEvent(reply);
+        } else {
+          pending[request.id] = request;
+        }
+        continue;
+      }
+      if (this.questionRecoveryFence.has(request.id)) continue;
       if (settled && hasSameQuestionPayload(settled.request, request)) continue;
       const existing = this.state.interactions.questions.pending[request.id];
       pending[request.id] =
