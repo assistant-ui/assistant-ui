@@ -266,6 +266,16 @@ describe("thread runtime lifecycle media sessions", () => {
     expect(dictation.session.cancel).not.toHaveBeenCalled();
   });
 
+  it("stops a dictation session once when a superseded runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    thread.composer.startDictation();
+
+    supersedeThreadRuntime(thread);
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+  });
+
   it("ends dictation started in an edit composer when the thread runtime is disposed", async () => {
     const { thread, dictation } = await localThread();
     const messageId = thread.messages[0]!.id;

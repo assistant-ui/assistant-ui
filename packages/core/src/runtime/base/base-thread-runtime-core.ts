@@ -208,7 +208,7 @@ export abstract class BaseThreadRuntimeCore
     return this._editComposers.get(messageId);
   }
 
-  public __internal_getEditComposers() {
+  public __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore> {
     return this._editComposers.values();
   }
   protected _isVoiceMessage(messageId: string | null) {

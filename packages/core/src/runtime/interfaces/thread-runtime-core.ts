@@ -239,6 +239,11 @@ export type ThreadRuntimeCore = Readonly<{
 
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  /**
+   * Every edit composer the runtime retains, including those whose message is
+   * off the visible branch. Thread disposal uses it to end their sessions; a
+   * runtime without it only has the edit composers of visible messages ended.
+   */
   __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
 
