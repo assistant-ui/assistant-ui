@@ -25,6 +25,7 @@ import type {
   Attachment,
   CompleteAttachment,
   CreateAttachment,
+  PendingAttachment,
 } from "../../types/attachment";
 import {
   isAttachmentComplete,
@@ -737,15 +738,22 @@ const useComposerClientResource = ({
   // and can still be taken out of the message that is being sent.
   const handleRemoveSubmittedAttachment = useCallback(
     async (attachment: Attachment) => {
+      if (attachmentSends.isRemovalPending(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
         // An attachment whose removal failed stays out of the message it was
-        // taken from and shows why, so the removal can be tried again.
+        // taken from and shows why, so the removal can be tried again. Once
+        // that message is back in the draft, it is a draft attachment again.
         await removeAttachmentThroughAdapter(
           attachment,
           attachmentAdapter,
-          (message) =>
+          (message) => {
+            const fail = (candidate: PendingAttachment) =>
+              attachmentSends.transfer(candidate, {
+                ...candidate,
+                status: { type: "incomplete", reason: "error", message },
+              });
             setSubmission((prev) =>
               prev
                 ? {
@@ -756,20 +764,21 @@ const useComposerClientResource = ({
                         isAttachmentComplete(candidate)
                       )
                         return candidate;
-                      const failed = attachmentSends.transfer(candidate, {
-                        ...candidate,
-                        status: {
-                          type: "incomplete",
-                          reason: "error",
-                          message,
-                        },
-                      });
-                      attachmentSends.markRemoved(failed);
+                      const failed = fail(candidate);
+                      attachmentSends.holdOut(failed);
                       return failed;
                     }),
                   }
                 : prev,
-            ),
+            );
+            setAttachments((prev) =>
+              prev.includes(attachment)
+                ? prev.map((candidate) =>
+                    candidate === attachment ? fail(attachment) : candidate,
+                  )
+                : prev,
+            );
+          },
         );
       }
       setSubmission((prev) =>
@@ -782,11 +791,15 @@ const useComposerClientResource = ({
             }
           : prev,
       );
+      setAttachments((prev) =>
+        prev.includes(attachment) ? prev.filter((a) => a !== attachment) : prev,
+      );
     },
     [
       attachmentAddOperations,
       attachmentAdapter,
       attachmentSends,
+      setAttachments,
       setSubmission,
     ],
   );
@@ -937,10 +950,10 @@ const useComposerClientResource = ({
       );
       return;
     }
-    const kept = content.attachments.filter(
-      (attachment) => !attachmentSends.isRemoved(attachment),
+    const returned = content.attachments.map((attachment) =>
+      attachmentSends.restore(attachment),
     );
-    setAttachments((prev) => [...kept, ...prev]);
+    setAttachments((prev) => [...returned, ...prev]);
     setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
     setQuote((prev) => prev ?? content.quote);
   };
@@ -961,7 +974,11 @@ const useComposerClientResource = ({
     // An attachment the draft still holds is removed along with the draft.
     const drafted = new Set(attachmentsRef.current.map((a) => a.id));
     await removePendingAttachments(
-      current.attachments.filter((attachment) => !drafted.has(attachment.id)),
+      current.attachments.filter(
+        (attachment) =>
+          !drafted.has(attachment.id) &&
+          !attachmentSends.isRemovalPending(attachment),
+      ),
     );
   };
 
@@ -978,9 +995,14 @@ const useComposerClientResource = ({
         failures.set(sent[index]!.id, result.reason);
     });
     // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try.
+    // the draft it returns to shows which file needs another try. One removed
+    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = current.attachments.map((attachment) => {
-      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+      if (
+        !failures.has(attachment.id) ||
+        isAttachmentComplete(attachment) ||
+        attachmentSends.isRemoved(attachment)
+      )
         return attachment;
       const failure = failures.get(attachment.id);
       return attachmentSends.transfer(attachment, {
