@@ -155,7 +155,7 @@ describe("DataStreamEncoder streamed tool-call args", () => {
     expect(lines).toEqual([
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
-      '3:"rate limit warning"',
+      '3:{"error":"rate limit warning","severity":"info"}',
       'c:{"toolCallId":"t1","argsTextDelta":"\\"cats\\"}"}',
       'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
     ]);
@@ -1062,4 +1062,88 @@ describe("DataStreamDecoder strict: false", () => {
     ).toBe(true);
     expect(error).toHaveBeenCalledTimes(1);
   });
+});
+
+describe("DataStreamEncoder error metadata", () => {
+  it("encodes and decodes code and severity", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "rate_limit",
+        severity: "warning",
+      },
+    ]);
+
+    expect(lines).toEqual([
+      '3:{"error":"rate limited","code":"rate_limit","severity":"warning"}',
+    ]);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks).toEqual([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "rate_limit",
+        severity: "warning",
+      },
+    ]);
+  });
+
+  it("keeps an error without code or severity a bare string on the wire", async () => {
+    const lines = await encodeChunks([
+      { type: "error", path: [], error: "failed" },
+    ]);
+
+    expect(lines).toEqual(['3:"failed"']);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks).toEqual([{ type: "error", path: [], error: "failed" }]);
+  });
+
+  it.each([
+    ["null", "null"],
+    ["42", "42"],
+    ['{"code":"x"}', '{"code":"x"}'],
+    ['{"error":7,"severity":"info"}', '{"error":7,"severity":"info"}'],
+  ])(
+    "surfaces a malformed error frame %s as an error and keeps decoding",
+    async (payload, error) => {
+      const chunks = await decodeLines([`3:${payload}`, '0:"after"']);
+      expect(chunks[0]).toEqual({ type: "error", path: [], error });
+      expect(chunks).toContainEqual(
+        expect.objectContaining({ type: "text-delta", textDelta: "after" }),
+      );
+    },
+  );
+
+  it("drops code and severity values outside the declared types", async () => {
+    const chunks = await decodeLines([
+      '3:{"error":"failed","code":5,"severity":"fatal"}',
+    ]);
+    expect(chunks).toEqual([{ type: "error", path: [], error: "failed" }]);
+  });
+
+  it("decodes the legacy string-only error wire format", async () => {
+    const chunks = await decodeLines(['3:"legacy failure"']);
+    expect(chunks).toEqual([
+      { type: "error", path: [], error: "legacy failure" },
+    ]);
+  });
+
+  it.each(["critical", "warning", "info"] as const)(
+    "round-trips severity %s",
+    async (severity) => {
+      const chunk = {
+        type: "error" as const,
+        path: [],
+        error: "fatal",
+        code: "boom",
+        severity,
+      };
+      expect(await decodeLines(await encodeChunks([chunk]))).toEqual([chunk]);
+    },
+  );
 });
