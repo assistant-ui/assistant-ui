@@ -1907,8 +1907,10 @@ function pruneUnused(ast: t.File): void {
 
         path.node.body = path.node.body.filter((stmt) => {
           if (
-            (t.isFunctionDeclaration(stmt) || t.isClassDeclaration(stmt)) &&
-            stmt.id &&
+            ((t.isFunctionDeclaration(stmt) && stmt.id) ||
+              (t.isClassDeclaration(stmt) &&
+                stmt.id &&
+                isRemovableClass(stmt))) &&
             isUnused(stmt.id.name)
           ) {
             removedSomething = true;
@@ -1985,6 +1987,24 @@ function isPlainPattern(node: t.Node): boolean {
   return false; // AssignmentPattern (default), member expr, etc.
 }
 
+function isRemovableClass(node: t.Class): boolean {
+  if (node.superClass && !isRemovableInit(node.superClass)) return false;
+  return node.body.body.every((member) => {
+    if (t.isStaticBlock(member)) return false;
+    if ("computed" in member && member.computed) return false;
+    if (
+      (t.isClassProperty(member) ||
+        t.isClassPrivateProperty(member) ||
+        t.isClassAccessorProperty(member)) &&
+      member.static &&
+      !isRemovableInit(member.value)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 /** Whether a variable initializer is safe to drop (no observable side effects). */
 function isRemovableInit(node: t.Expression | null | undefined): boolean {
   if (node == null) return true;
@@ -2015,12 +2035,39 @@ function isRemovableInit(node: t.Expression | null | undefined): boolean {
   return (
     t.isArrowFunctionExpression(node) ||
     t.isFunctionExpression(node) ||
-    t.isClassExpression(node) ||
+    (t.isClassExpression(node) && isRemovableClass(node)) ||
     t.isIdentifier(node) ||
     // non-computed only — `obj[fn()]` could hide a side-effectful key
     (t.isMemberExpression(node) && !node.computed) ||
-    t.isJSXElement(node) ||
-    t.isJSXFragment(node) ||
+    ((t.isJSXElement(node) || t.isJSXFragment(node)) && isRemovableJSX(node)) ||
     t.isLiteral(node)
   );
+}
+
+function isRemovableJSX(node: t.JSXElement | t.JSXFragment): boolean {
+  if (t.isJSXElement(node)) {
+    for (const attribute of node.openingElement.attributes) {
+      if (t.isJSXSpreadAttribute(attribute)) return false;
+      if (attribute.value && !isRemovableJSXChild(attribute.value)) {
+        return false;
+      }
+    }
+  }
+  return node.children.every(isRemovableJSXChild);
+}
+
+function isRemovableJSXChild(
+  node: t.JSXElement["children"][number] | NonNullable<t.JSXAttribute["value"]>,
+): boolean {
+  if (t.isJSXExpressionContainer(node)) {
+    return (
+      t.isJSXEmptyExpression(node.expression) ||
+      isRemovableInit(node.expression)
+    );
+  }
+  if (t.isJSXSpreadChild(node)) return false;
+  if (t.isJSXElement(node) || t.isJSXFragment(node)) {
+    return isRemovableJSX(node);
+  }
+  return true;
 }

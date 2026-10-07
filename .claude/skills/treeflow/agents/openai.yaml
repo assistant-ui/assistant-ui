@@ -1,0 +1,4 @@
+interface:
+  display_name: "Treeflow"
+  short_description: "Git worktree PR, CI, and review flow, with opt-in auto merge"
+  default_prompt: "Use $treeflow to implement this change in a worktree, open a PR, and monitor CI and reviews until it is ready to merge."

@@ -1,10 +1,9 @@
 ---
 title: Integrations
-description: Adapters for Vercel AI SDK, LangChain, LangGraph, Mastra, plus auth, persistence, observability, and tool services — drop into a React chat UI built with assistant-ui.
+description: Adapters for Vercel AI SDK, LangChain, LangGraph, Mastra, plus auth, persistence, observability, and tool services, for a React chat UI built with assistant-ui.
 ---
 
 import { CloudflareIcon } from "@/components/icons/cloudflare";
-import { HeliconeIcon } from "@/components/icons/helicone";
 import { MastraIcon } from "@/components/icons/mastra";
 import { LangfuseIcon } from "@/components/icons/langfuse";
 import { LangChainIcon } from "@/components/icons/langchain";
@@ -19,7 +18,7 @@ Integrations are wiring guides for using third-party services with assistant-ui,
 flowchart LR
     client["client"] --> route["your API route"] --> provider["LLM provider"]
     route -->|"agent frameworks (e.g. Mastra)"| server["run on the server,<br/>then forward calls"]
-    server -->|"observability proxies (e.g. Helicone, Langfuse)"| provider
+    server -->|"observability tools (e.g. Langfuse, LangSmith)"| provider
 ```
 
 Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.
@@ -81,12 +80,6 @@ OpenAI-compatible proxies that add catalog routing, fallback, BYOK, or self-host
 Log, monitor, trace, and evaluate LLM calls. These pair with any runtime.
 
 <Cards>
-  <Card
-    icon={<HeliconeIcon width={20} height={20} />}
-    title="Helicone"
-    description="Observability proxy. Drop-in baseURL swap that logs cost, latency, and prompts."
-    href="/docs/integrations/observability/helicone"
-  />
   <Card
     icon={<LangfuseIcon width={20} height={20} />}
     title="Langfuse"
@@ -157,7 +150,7 @@ Upload chat attachments to object storage instead of inlining as data URLs.
 
 assistant-ui doesn't ship a guide for every tool, but most fit one of two patterns:
 
-- **Routes through your AI SDK handler** (agent frameworks, observability proxies, gateways): adapt the [Mastra full-stack](/docs/integrations/frameworks/mastra/full-stack) or [Helicone proxy](/docs/integrations/observability/helicone) pattern using the service's own SDK.
+- **Routes through your AI SDK handler** (agent frameworks, observability tools, gateways): adapt the [Mastra full-stack](/docs/integrations/frameworks/mastra/full-stack) or [LLM gateway](/docs/integrations/gateways) pattern using the service's own SDK.
 - **Replaces the runtime entirely** (custom backends): see [custom backend](/docs/runtimes/custom/overview).
 
 If you build something useful, [open an issue](https://github.com/assistant-ui/assistant-ui/issues) or post in [Discord](https://discord.gg/S9dwgCNEFs); the docs are open to contributions.

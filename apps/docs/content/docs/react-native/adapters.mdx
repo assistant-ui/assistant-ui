@@ -7,7 +7,7 @@ Adapters customize runtime behavior. They can be passed as options to `useLocalR
 
 ## Persistence
 
-By default, `useLocalRuntime` stores threads and messages in memory only -- they are lost when the app restarts. To persist data, use one of these approaches:
+By default, `useLocalRuntime` stores threads and messages in memory only, so they are lost when the app restarts. To persist data, use one of these approaches:
 
 ### Assistant Cloud
 
@@ -18,12 +18,14 @@ import { useLocalRuntime } from "@assistant-ui/react-native";
 import { AssistantCloud } from "assistant-cloud";
 
 const cloud = new AssistantCloud({
-  baseUrl: "https://backend.assistant-ui.com",
+  baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
   authToken: () => fetchTokenFromYourBackend(),
 });
 
 const runtime = useLocalRuntime(chatModel, { cloud });
 ```
+
+Set `EXPO_PUBLIC_ASSISTANT_BASE_URL` in `.env` as the [Cloud quickstart](/docs/cloud/quickstart) describes.
 
 This gives you multi-thread support with server-side persistence, cross-device sync, and automatic title generation.
 
@@ -58,7 +60,7 @@ const runtime = useLocalRuntime(chatModel, {
 
 For full backend thread management (thread list, archiving, cross-device sync), use `useRemoteThreadListRuntime`. See the [Custom Backend](/docs/react-native/custom-backend) page for a full example.
 
-## RemoteThreadListAdapter
+## Title generation
 
 Title generation is configured via the `generateTitle` method on `RemoteThreadListAdapter`. See the [Custom Backend](/docs/react-native/custom-backend) page for a full example.
 

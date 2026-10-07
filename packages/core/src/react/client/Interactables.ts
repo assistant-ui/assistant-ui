@@ -526,10 +526,10 @@ const useInteractablesResource = ({
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
+      if (!stateRef.current.definitions[id]) return;
       touchedIdsRef.current.add(id);
       setStateAndRef((prev) => {
-        const existing = prev.definitions[id];
-        if (!existing) return prev;
+        const existing = prev.definitions[id]!;
         return {
           ...prev,
           definitions: nullProtoRecord(prev.definitions, {
@@ -773,12 +773,13 @@ const useInteractablesResource = ({
           const existing = prev.definitions[def.id];
           if (existing) {
             if (existing.scope === "thread") {
-              const threadId = getCurrentThreadId();
-              if (threadId) {
-                let stateById = detachedThreadStateRef.current.get(threadId);
+              const ownerThreadId = threadId ?? getCurrentThreadId();
+              if (ownerThreadId) {
+                let stateById =
+                  detachedThreadStateRef.current.get(ownerThreadId);
                 if (!stateById) {
                   stateById = new Map();
-                  detachedThreadStateRef.current.set(threadId, stateById);
+                  detachedThreadStateRef.current.set(ownerThreadId, stateById);
                 }
                 stateById.set(def.id, existing.state);
               }

@@ -100,7 +100,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Three Namespaces
 
-ThreadList is split across three namespaces to keep each level of abstraction composable:
+ThreadList is split across three namespaces:
 
 - **`ThreadListPrimitive`**: The outer container. `Root` wraps the list, `New` creates threads, and `Items` iterates over them.
 - **`ThreadListItemPrimitive`**: An individual thread row. `Root` provides context, `Trigger` switches to the thread, `Title` shows the thread name, and action buttons (Archive, Unarchive, Delete) manage the thread lifecycle.
@@ -120,7 +120,9 @@ The `New` button gets `data-active` when the user is on a fresh, unsaved thread.
 
 ### Keyboard Navigation
 
-Every item stays a native Tab stop, and arrow keys are layered on top. Up/Down move between items and Right focuses an item's `More` button (Left/Right are mirrored in RTL). This is built into the primitives — no prop is required.
+Every item stays a native Tab stop, and arrow keys are layered on top. Up/Down move between items and Right focuses an item's `More` button (Left/Right are mirrored in RTL). This is built into the primitives, so no prop is required.
+
+The list's focus-navigation handlers and `sharedFocusGroup` menu open/close handlers ignore arrow keys modified with Alt, Ctrl, Meta, or Shift. Standard Radix menu keyboard behavior still applies, including ArrowDown opening the More menu from its trigger.
 
 To fold the `More` menu into the same navigation, opt it in with `sharedFocusGroup`:
 
@@ -131,11 +133,11 @@ To fold the `More` menu into the same navigation, opt it in with `sharedFocusGro
 </ThreadListItemMorePrimitive.Root>
 ```
 
-`sharedFocusGroup` joins the menu to the list's focus group, so its trigger and the open menu act as one keyboard-navigable unit: Right opens it and Left/Escape close it, synchronously restoring focus to the trigger so a `group-has-focus-visible` highlight never flickers. Enabling it forces the menu non-modal, because a focus trap and a shared focus group are mutually exclusive — the trap keeps focus inside the menu, the shared group lets it move out across the boundary. Without `sharedFocusGroup` the menu keeps its standard Radix `DropdownMenu` keyboard behavior (modal by default), so menus you already render are unchanged. Our assistant-ui [thread-list](/elements/thread-list) registry component sets `sharedFocusGroup` for you.
+`sharedFocusGroup` joins the menu to the list's focus group, so its trigger and the open menu act as one keyboard-navigable unit: Right opens it and Left/Escape close it, synchronously restoring focus to the trigger so a `group-has-focus-visible` highlight never flickers. Enabling it forces the menu non-modal, because a focus trap and a shared focus group are mutually exclusive: the trap keeps focus inside the menu, while the shared group lets it move out across the boundary. Without `sharedFocusGroup` the menu keeps its standard Radix `DropdownMenu` keyboard behavior (modal by default), so menus you already render are unchanged. The [ThreadList](/elements/thread-list) element sets `sharedFocusGroup` for you.
 
 ### Items Iterator
 
-`ThreadListPrimitive.Items` now prefers a children render function, similar to `ThreadPrimitive.Messages`:
+`ThreadListPrimitive.Items` takes a children render function, like `ThreadPrimitive.Messages`:
 
 ```tsx
 <ThreadListPrimitive.Items>
@@ -167,11 +169,11 @@ Pass `archived` to `Items` to render archived threads separately:
 
 ### Thread Actions
 
-`Archive`, `Unarchive`, and `Delete` buttons disable automatically when the runtime capability is unavailable.
+`Archive`, `Unarchive`, and `Delete` call the matching thread list item action on click. They do not disable themselves, and an action the runtime does not support throws, so render only the actions your runtime supports.
 
 ### Composing Actions with Menu Items
 
-The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `ThreadListItemMorePrimitive.Item` to get both the action behavior AND the menu item styling:
+The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `ThreadListItemMorePrimitive.Item` to get both the action behavior and the menu item behavior:
 
 ```tsx
 <ThreadListItemPrimitive.Archive asChild>
@@ -181,11 +183,11 @@ The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `T
 </ThreadListItemPrimitive.Archive>
 ```
 
-`Archive` provides the click handler and disabled logic. `Item` provides the menu item behavior and styling. `asChild` merges them into a single element.
+`Archive` provides the click handler. `Item` provides the menu item behavior. `asChild` merges them into a single element.
 
 ## Accessibility
 
-The thread list leans on native button semantics and Radix's `DropdownMenu`; the arrow-key navigation is layered on top as a convenience, not a requirement.
+The thread list leans on native button semantics and Radix's `DropdownMenu`; the arrow-key navigation is layered on top as a convenience.
 
 - Each `ThreadListItemPrimitive.Trigger` is a native `<button>` and its own Tab stop, so the whole list is reachable with <Kbd>Tab</Kbd> alone. The arrow keys (see [Keyboard Navigation](#keyboard-navigation)) speed traversal up, but nothing depends on them.
 - The item representing the current thread sets `aria-current="true"` (alongside `data-active`) on `ThreadListItemPrimitive.Root`, so assistive tech announces which conversation is open.

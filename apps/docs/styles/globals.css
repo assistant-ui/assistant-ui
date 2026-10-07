@@ -10,6 +10,19 @@
 @custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
 
 @theme inline {
+  @keyframes unfold {
+    from {
+      grid-template-rows: 0fr;
+    }
+  }
+  @keyframes fold {
+    to {
+      grid-template-rows: 0fr;
+    }
+  }
+  --animate-unfold: unfold var(--tw-duration, 0.3s) var(--tw-ease, ease-out);
+  --animate-fold: fold var(--tw-duration, 0.3s) var(--tw-ease, ease-out)
+    forwards;
   @keyframes collapsible-down {
     from {
       height: 0;

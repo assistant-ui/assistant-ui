@@ -29,6 +29,7 @@ const compactionRequested = (at: string, turnId = TURN) =>
       modelId: "m",
       sequence: 3,
       sessionId: "s",
+      stepIndex: 0,
       turnId,
       usageInputTokens: null,
     },

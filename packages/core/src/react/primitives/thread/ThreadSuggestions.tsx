@@ -8,29 +8,8 @@ import {
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { SuggestionState } from "../../../store/scopes/suggestion";
-import type { ThreadSuggestion } from "../../../runtime/interfaces/thread-runtime-core";
+import { getSuggestionKeys } from "../../../utils/getSuggestionKeys";
 import { SuggestionByIndexProvider } from "../../providers/SuggestionByIndexProvider";
-
-/**
- * A suggestion carries no id, so its identity is its content. Repeats of the
- * same content get an occurrence suffix, because React keys must be unique
- * and two suggestions that render the same thing are interchangeable.
- */
-const toSuggestionKeys = (
-  suggestions: readonly ThreadSuggestion[],
-): string[] => {
-  const seen = new Map<string, number>();
-  return suggestions.map((suggestion) => {
-    const content = JSON.stringify([
-      suggestion.title,
-      suggestion.label,
-      suggestion.prompt,
-    ]);
-    const occurrence = seen.get(content) ?? 0;
-    seen.set(content, occurrence + 1);
-    return occurrence === 0 ? content : `${content}:${occurrence}`;
-  });
-};
 
 type SuggestionsComponentConfig = {
   /** Component used to render each suggestion */
@@ -91,7 +70,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
   children: (value: { suggestion: SuggestionState }) => ReactNode;
 }> = ({ children }) => {
   const suggestionKeys = useAuiState(
-    useShallowSelector((s) => toSuggestionKeys(s.suggestions.suggestions)),
+    useShallowSelector((s) => getSuggestionKeys(s.suggestions.suggestions)),
   );
 
   return useMemo(() => {

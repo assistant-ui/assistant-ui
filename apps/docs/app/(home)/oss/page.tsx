@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import {
@@ -28,8 +29,14 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
+async function getOssStats() {
+  "use cache";
+  cacheLife("hours");
+  return fetchOssStats();
+}
+
 export default async function OssPage() {
-  const stats = await fetchOssStats();
+  const stats = await getOssStats();
 
   const flagship = OSS_PROJECTS.find((project) => project.category === "sdk");
   const rest = OSS_PROJECTS.filter((project) => project !== flagship);
