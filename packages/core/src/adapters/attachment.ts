@@ -219,17 +219,6 @@ export function fileMatchesAccept(
   return false;
 }
 
-export function attachmentsEqual(
-  a: readonly CompleteAttachment[],
-  b: readonly CompleteAttachment[],
-): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i]?.id !== b[i]?.id) return false;
-  }
-  return true;
-}
-
 export function partToCompleteAttachment(
   part: Exclude<ThreadUserMessagePart, { type: "text" }>,
 ): CompleteAttachment {
