@@ -760,12 +760,39 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("- Plan A\n\n    Costs \\$5 per month and \\$10 extra.");
   });
 
-  it("still escapes indented lines inside a list item", () => {
-    // Conservative: any list context vetoes indented code, so this stays
-    // escaped rather than risk reading list prose as code.
-    expect(escapeCurrencyDollars("- item\n\n      total = $5")).toBe(
-      "- item\n\n      total = \\$5",
-    );
+  it("does not rewrite code indented past a list item's content column", () => {
+    const markdown = "- item\n\n      total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("resumes escaping after indented code ends inside a list item", () => {
+    expect(
+      escapeCurrencyDollars("- item\n\n      total = $5\n    prose $10"),
+    ).toBe("- item\n\n      total = $5\n    prose \\$10");
+  });
+
+  it("does not rewrite indented code after an ATX heading", () => {
+    const markdown = "# Pricing\n    total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it.each(["\r", "\r\n"])(
+    "does not rewrite indented code after a blank line using %j endings",
+    (ending) => {
+      const markdown = `Pricing:${ending}${ending}    total = $5`;
+      expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+    },
+  );
+
+  it.each([
+    ["root code", "    code\npara\n\n"],
+    ["list code", "- item\n\n      total = $5\n\n"],
+  ])("scans 20000 repeated %s blocks within 500 ms", (_, block) => {
+    const markdown = block.repeat(20_000);
+    const start = performance.now();
+    escapeCurrencyDollars(markdown);
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(500);
   });
 
   it("still escapes a nested sublist paragraph", () => {

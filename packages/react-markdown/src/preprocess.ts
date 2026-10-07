@@ -549,6 +549,7 @@ function htmlBlockRanges(text: string): number[] {
 function rewriteOutsideHtml(
   text: string,
   rewrite: (text: string, offset: number) => string,
+  original = text,
 ): string {
   const ranges = htmlBlockRanges(text);
   let out = "";
@@ -556,7 +557,7 @@ function rewriteOutsideHtml(
   for (let i = 0; i < ranges.length; i += 2) {
     const from = ranges[i]!;
     const to = ranges[i + 1]!;
-    out += rewrite(text.slice(cursor, from), cursor) + text.slice(from, to);
+    out += rewrite(text.slice(cursor, from), cursor) + original.slice(from, to);
     cursor = to;
   }
   return out + rewrite(text.slice(cursor), cursor);
@@ -1065,62 +1066,62 @@ function blockquoteDepth(text: string, from: number, to: number): number {
   return depth;
 }
 
-/**
- * Whether the line at `lineStart` sits inside a list item. Walks back over
- * blank lines, indented lines, and lazy continuation lines to the owning
- * block: a list marker there vetoes indented code, so list prose is never
- * read as code. Lines indented four or more columns are code, not markers, so
- * a code block containing `- ` text does not veto itself. The walk stops at a
- * non-marker line under two columns wide that follows a blank line: the
- * shortest list content column is 2, and lazy continuations never follow a
- * blank line, so such a line closes any list above it. Conservative by
- * design: it can only miss code blocks, never invent them.
- */
-function inListContext(text: string, lineStart: number): boolean {
-  const targetDepth = blockquoteDepth(
-    text,
-    lineStart,
-    text.indexOf("\n", lineStart) === -1
-      ? text.length
-      : text.indexOf("\n", lineStart),
-  );
-  let pos = lineStart;
-  for (;;) {
-    if (pos === 0) return false;
-    const prevStart = pos < 2 ? 0 : text.lastIndexOf("\n", pos - 2) + 1;
-    const prevEnd = text.indexOf("\n", prevStart);
-    const end = prevEnd === -1 ? text.length : prevEnd;
-    const content = pastBlockquotes(text, prevStart, end);
-    if (onlyWhitespace(text, content, end)) {
-      pos = prevStart;
-      continue;
+/** List content column before each line, with earlier markers and closers scanned once. */
+function listContentColumns(text: string): Map<number, number> {
+  const contexts = new Map<number, number>();
+  const contentClosers = new Map<number, number>();
+  let marker = -1;
+  let markerContent = 0;
+  let rawCloser = -1;
+  let rawCloserDepth = -1;
+  let otherRawCloser = -1;
+  let previousBlank = true;
+
+  for (let start = 0; start < text.length;) {
+    const newline = text.indexOf("\n", start);
+    const end = newline === -1 ? text.length : newline;
+    const content = pastBlockquotes(text, start, end);
+    const depth = blockquoteDepth(text, start, end);
+    const closer = Math.max(
+      depth === rawCloserDepth ? otherRawCloser : rawCloser,
+      contentClosers.get(depth) ?? -1,
+    );
+    const listContent = marker > closer ? markerContent : 0;
+    contexts.set(start, listContent);
+
+    const blank = onlyWhitespace(text, content, end);
+    if (!blank) {
+      const first = whitespaceEnd(text, content, end);
+      const indent = columns(text, content, first);
+      const markerEnd = listMarkerEnd(text, first, end);
+      const bare = isBareMarker(text, first, end);
+      const footnote = isFootnoteDef(text, first, end);
+      if (
+        (indent < 4 || (listContent > 0 && indent < listContent + 4)) &&
+        (markerEnd !== first || bare || footnote)
+      ) {
+        marker = start;
+        markerContent = footnote
+          ? Number.POSITIVE_INFINITY
+          : markerEnd !== first
+            ? columns(text, content, markerEnd)
+            : indent + 2;
+      } else if (
+        previousBlank &&
+        columns(text, start, whitespaceEnd(text, start, end)) < 2
+      ) {
+        if (depth !== rawCloserDepth) {
+          otherRawCloser = rawCloser;
+        }
+        rawCloser = start;
+        rawCloserDepth = depth;
+        if (indent < 2) contentClosers.set(depth, start);
+      }
     }
-    const wsEnd = whitespaceEnd(text, content, end);
-    if (
-      columns(text, content, wsEnd) < 4 &&
-      (listMarkerEnd(text, wsEnd, end) !== wsEnd ||
-        isBareMarker(text, wsEnd, end) ||
-        isFootnoteDef(text, wsEnd, end))
-    ) {
-      return true;
-    }
-    // A line closes the list only if its indentation is under 2 columns
-    // *at the target's quote depth*: measure past the quote markers when the
-    // depths match (a `>   para` line inside a quoted list is not a closer),
-    // but use the raw indentation when they differ (a `   > ` line inside an
-    // unquoted list item, or a `> ` line that starts a new blockquote, must
-    // not look like a column-0 closer).
-    const depth = blockquoteDepth(text, prevStart, end);
-    const indentBase = depth === targetDepth ? content : prevStart;
-    const indentEnd = whitespaceEnd(text, indentBase, end);
-    if (
-      columns(text, indentBase, indentEnd) < 2 &&
-      prevLineIsBlank(text, prevStart)
-    ) {
-      return false;
-    }
-    pos = prevStart;
+    previousBlank = blank;
+    start = end + 1;
   }
+  return contexts;
 }
 
 /**
@@ -1143,7 +1144,7 @@ function isBareMarker(text: string, from: number, to: number): boolean {
 /**
  * Whether `[from, to)` starts a GFM footnote definition (`[^label]:`).
  * Indented content under a footnote definition is footnote prose, not an
- * indented code block, so the walk vetoes code below one just like a list.
+ * indented code block.
  */
 function isFootnoteDef(text: string, from: number, to: number): boolean {
   if (
@@ -1170,31 +1171,43 @@ function prevLineIsBlank(text: string, lineStart: number): boolean {
   return onlyWhitespace(text, pastBlockquotes(text, prevStart, end), end);
 }
 
+function prevLineIsHeading(text: string, lineStart: number): boolean {
+  if (lineStart === 0) return false;
+  const prevStart =
+    lineStart < 2 ? 0 : text.lastIndexOf("\n", lineStart - 2) + 1;
+  const content = pastBlockquotes(text, prevStart, lineStart - 1);
+  const first = whitespaceEnd(text, content, lineStart - 1);
+  return (
+    columns(text, content, first) < 4 &&
+    isAtxHeading(text, first, lineStart - 1)
+  );
+}
+
 /**
  * Whether the line at `index` opens an indented code block: it starts a line,
  * carries non-whitespace past any blockquote markers, sits at four or more
- * columns of indentation, follows a blank line or the start of input
- * (indented code cannot interrupt a paragraph), and sits outside any list item.
- * The line itself is read from `text`, but list context may be read from the
- * wider `contextText` at `contextIndex`: `rewriteOutsideHtml` hands each
- * slice to the rewrite callback separately, and a slice that starts below an
- * HTML block would otherwise lose the list above it.
+ * columns of indentation past its containing list item's content column and
+ * follows a blank line, an ATX heading, or the start of input.
+ * List context uses the full input because HTML blocks split rewrite slices.
  */
 function opensIndentedCode(
   text: string,
   index: number,
-  contextText: string,
   contextIndex: number,
+  listContexts: Map<number, number>,
 ): boolean {
   if (index !== 0 && text[index - 1] !== "\n") return false;
   const lineEnd = text.indexOf("\n", index);
   const end = lineEnd === -1 ? text.length : lineEnd;
   const content = pastBlockquotes(text, index, end);
   if (onlyWhitespace(text, content, end)) return false;
-  if (!prevLineIsBlank(text, index)) return false;
+  if (!prevLineIsBlank(text, index) && !prevLineIsHeading(text, index))
+    return false;
   const wsEnd = whitespaceEnd(text, content, end);
-  if (columns(text, content, wsEnd) < 4) return false;
-  return !inListContext(contextText, contextIndex);
+  const indent = columns(text, content, wsEnd);
+  if (indent < 4) return false;
+  const listContent = listContexts.get(contextIndex) ?? 0;
+  return listContent === 0 || indent >= listContent + 4;
 }
 
 /**
@@ -1206,10 +1219,11 @@ function opensIndentedCode(
 function indentedCodeEnd(
   text: string,
   index: number,
-  contextText: string,
   contextIndex: number,
+  listContexts: Map<number, number>,
 ): number {
-  if (!opensIndentedCode(text, index, contextText, contextIndex)) return -1;
+  if (!opensIndentedCode(text, index, contextIndex, listContexts)) return -1;
+  const requiredIndent = Math.max(4, (listContexts.get(contextIndex) ?? 0) + 4);
   let lineStart = index;
   for (;;) {
     const lineEnd = text.indexOf("\n", lineStart);
@@ -1217,7 +1231,7 @@ function indentedCodeEnd(
     const content = pastBlockquotes(text, lineStart, end);
     if (!onlyWhitespace(text, content, end)) {
       const wsEnd = whitespaceEnd(text, content, end);
-      if (columns(text, content, wsEnd) < 4) return lineStart;
+      if (columns(text, content, wsEnd) < requiredIndent) return lineStart;
     }
     if (lineEnd === -1) return text.length;
     lineStart = lineEnd + 1;
@@ -1233,8 +1247,8 @@ function indentedCodeEnd(
 function endOfVerbatimRun(
   text: string,
   index: number,
-  contextText: string,
   contextIndex: number,
+  listContexts: Map<number, number>,
 ): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
@@ -1243,7 +1257,7 @@ function endOfVerbatimRun(
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
-  const indentedEnd = indentedCodeEnd(text, index, contextText, contextIndex);
+  const indentedEnd = indentedCodeEnd(text, index, contextIndex, listContexts);
   if (indentedEnd !== -1) return indentedEnd;
   if (char !== "$") return index + 1;
 
@@ -1272,21 +1286,32 @@ function endOfVerbatimRun(
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  return rewriteOutsideHtml(text, (slice, offset) => {
-    let out = "";
-    let index = 0;
+  const normalized = text.replace(/\r(?!\n)/g, "\n");
+  const listContexts = listContentColumns(normalized);
+  return rewriteOutsideHtml(
+    normalized,
+    (slice, offset) => {
+      let out = "";
+      let index = 0;
 
-    while (index < slice.length) {
-      const verbatimEnd = endOfVerbatimRun(slice, index, text, offset + index);
-      if (verbatimEnd > index) {
-        out += slice.slice(index, verbatimEnd);
-        index = verbatimEnd;
-        continue;
+      while (index < slice.length) {
+        const verbatimEnd = endOfVerbatimRun(
+          slice,
+          index,
+          offset + index,
+          listContexts,
+        );
+        if (verbatimEnd > index) {
+          out += text.slice(offset + index, offset + verbatimEnd);
+          index = verbatimEnd;
+          continue;
+        }
+        out += opensCurrencyAmount(slice, index) ? "\\$" : "$";
+        index += 1;
       }
-      out += opensCurrencyAmount(slice, index) ? "\\$" : "$";
-      index += 1;
-    }
 
-    return out;
-  });
+      return out;
+    },
+    text,
+  );
 }
