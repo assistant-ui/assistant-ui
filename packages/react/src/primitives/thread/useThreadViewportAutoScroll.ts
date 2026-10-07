@@ -14,10 +14,7 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
-// Enter and Space activate focused controls, while navigation keys can
-// interrupt scrolling without producing a scroll event.
-const INTENT_CANCEL_KEYS = new Set([
-  "Enter",
+const SCROLL_KEYS = new Set([
   " ",
   "ArrowUp",
   "ArrowDown",
@@ -26,6 +23,10 @@ const INTENT_CANCEL_KEYS = new Set([
   "Home",
   "End",
 ]);
+
+// Enter and Space activate focused controls, while navigation keys can
+// interrupt scrolling without producing a scroll event.
+const INTENT_CANCEL_KEYS = new Set(["Enter", ...SCROLL_KEYS]);
 
 // A control that consumes the activation key itself instead of acting on thread
 // content. `contenteditable="false"` marks a non-editable island inside an
@@ -53,19 +54,10 @@ const isOpeningDisclosure = (target: Element): boolean => {
     return control.parentElement?.hasAttribute("open") === false;
   return (
     control.getAttribute("aria-expanded") === "false" &&
-    !control.hasAttribute("aria-haspopup") &&
+    (control.getAttribute("aria-haspopup") ?? "false") === "false" &&
     control.getAttribute("role") !== "combobox"
   );
 };
-
-const SCROLL_KEYS = new Set([
-  "ArrowUp",
-  "ArrowDown",
-  "PageUp",
-  "PageDown",
-  "Home",
-  "End",
-]);
 
 type MessageOffset = { readonly id: string; readonly offset: number };
 
@@ -518,16 +510,24 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scrollToBottom(behavior);
   });
 
+  const endFollowPause = () => {
+    if (!followPausedRef.current) return;
+    followPausedRef.current = false;
+    const div = divRef.current;
+    followBottomRef.current =
+      autoScroll && div !== null && isViewportAtBottom(div);
+  };
+
   useAuiEvent("thread.runStart", () => {
     prependAnchorRef.current = null;
-    followPausedRef.current = false;
+    endFollowPause();
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
     scheduleScrollToBottom("auto");
   });
 
   useAuiEvent("threads.selectionChanged", () => {
-    followPausedRef.current = false;
+    endFollowPause();
     if (!scrollToBottomOnThreadSwitch) return;
     scheduleScrollToBottom("instant");
   });

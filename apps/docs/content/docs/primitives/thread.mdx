@@ -106,7 +106,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Viewport & Auto-Scroll
 
-`Viewport` is the scrollable container. It auto-scrolls to the bottom as new content streams in, but only if the user hasn't scrolled up manually. Expanding a disclosure inside a message, such as a collapsible tool call card (a control with `aria-expanded="false"` that opens no popup, or the `<summary>` of a closed `<details>`), pauses it so the card stays where the user opened it; other clicks, text selection and keystrokes keep following, and scrolling back to the bottom or using `ThreadPrimitive.ScrollToBottom` resumes it. Set `autoScroll={false}` to disable this entirely.
+`Viewport` is the scrollable container. It auto-scrolls to the bottom as new content streams in, but only if the user hasn't scrolled up manually. Expanding a disclosure inside a message, such as a collapsible tool call card (a control with `aria-expanded="false"` that opens no popup, or the `<summary>` of a closed `<details>`), pauses it so the card stays where the user opened it; other clicks, text selection and keystrokes keep following, and scrolling back to the bottom or using `ThreadPrimitive.ScrollToBottom` resumes it, as does a new run or a thread switch. Set `autoScroll={false}` to disable this entirely.
 
 ```tsx
 <ThreadPrimitive.Viewport autoScroll={true}>

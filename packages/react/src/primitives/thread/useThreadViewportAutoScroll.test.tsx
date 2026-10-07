@@ -771,6 +771,33 @@ describe("useThreadViewportAutoScroll", () => {
       expect(viewport.scrollTop).toBe(scrollTop);
     });
 
+    it("treats aria-haspopup=false as a disclosure", async () => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+
+      click(addTrigger({ "aria-expanded": "false", "aria-haspopup": "false" }));
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("follows again after the reader pages back to the bottom with Space", async () => {
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      act(() => {
+        viewport.dispatchEvent(
+          new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+        );
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
     it("keeps following after a non-activating key on a collapsed trigger", async () => {
       const viewport = await renderPinned();
 
@@ -815,10 +842,6 @@ describe("useThreadViewportAutoScroll", () => {
           content: [{ type: "text", text: "next" }],
         });
       });
-      act(() => {
-        viewport.scrollTop = getMaxScrollTop(viewport);
-        viewport.dispatchEvent(new Event("scroll"));
-      });
       growContent();
 
       expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
@@ -848,7 +871,13 @@ describe("useThreadViewportAutoScroll", () => {
               type="button"
               data-testid="switch"
               onClick={() =>
-                setThread({ id: "b", messages: messages.slice(2) })
+                setThread({
+                  id: "b",
+                  messages: messages.map((message, index) => ({
+                    ...message,
+                    content: [{ type: "text", text: `Reply ${index + 1}` }],
+                  })),
+                })
               }
             />
           </AssistantRuntimeProvider>
@@ -869,10 +898,6 @@ describe("useThreadViewportAutoScroll", () => {
       click(addTrigger({ "aria-expanded": "false" }));
       await act(async () => {
         fireEvent.click(screen.getByTestId("switch"));
-      });
-      act(() => {
-        viewport.scrollTop = getMaxScrollTop(viewport);
-        fireEvent.scroll(viewport);
       });
       growContent();
 
