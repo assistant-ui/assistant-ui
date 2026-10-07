@@ -595,6 +595,130 @@ describe("useThreadViewportAutoScroll", () => {
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 
+  describe("disclosures in a message", () => {
+    const renderPinned = async () => {
+      render(
+        <SyncRuntimeProvider>
+          <BottomAnchorThread />
+        </SyncRuntimeProvider>,
+      );
+      const viewport = getViewport();
+      await waitFor(() => {
+        expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+      });
+      return viewport;
+    };
+    const growContent = () => {
+      viewportMeasurementOffset += 200;
+      act(notifyResizeObservers);
+    };
+    const lastMessage = () => screen.getAllByTestId("thread-message").at(-1)!;
+    const addTrigger = (expanded: boolean, parent: Element = lastMessage()) => {
+      const trigger = document.createElement("button");
+      trigger.setAttribute("aria-expanded", String(expanded));
+      parent.append(trigger);
+      return trigger;
+    };
+
+    it.each([
+      {
+        label: "pointerdown",
+        make: () => new Event("pointerdown", { bubbles: true }),
+      },
+      {
+        label: "Enter keydown",
+        make: () =>
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      },
+      {
+        label: "Space keydown",
+        make: () => new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      },
+    ])(
+      "stops following after a $label expands a collapsed trigger",
+      async ({ make }) => {
+        const viewport = await renderPinned();
+        const scrollTop = viewport.scrollTop;
+
+        act(() => {
+          addTrigger(false).dispatchEvent(make());
+        });
+        growContent();
+
+        expect(viewport.scrollTop).toBe(scrollTop);
+        expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+      },
+    );
+
+    it("stops following after opening a closed details summary", async () => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      details.append(summary);
+      lastMessage().append(details);
+
+      act(() => {
+        summary.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("keeps following after collapsing an expanded trigger", async () => {
+      const viewport = await renderPinned();
+
+      act(() => {
+        addTrigger(true).dispatchEvent(
+          new Event("pointerdown", { bubbles: true }),
+        );
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps following after a non-activating key on a collapsed trigger", async () => {
+      const viewport = await renderPinned();
+
+      act(() => {
+        addTrigger(false).dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+        );
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps following after expanding a trigger outside the messages", async () => {
+      const viewport = await renderPinned();
+
+      act(() => {
+        addTrigger(false, viewport).dispatchEvent(
+          new Event("pointerdown", { bubbles: true }),
+        );
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps following after clicking a plain control in a message", async () => {
+      const viewport = await renderPinned();
+      const button = document.createElement("button");
+      lastMessage().append(button);
+
+      act(() => {
+        button.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+  });
+
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
     { label: "wheel", make: () => new WheelEvent("wheel") },

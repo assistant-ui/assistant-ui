@@ -42,6 +42,16 @@ const TEXT_ENTRY_SELECTOR = [
 
 const MESSAGE_SELECTOR = "[data-message-id]";
 
+const DISCLOSURE_SELECTOR = "[aria-expanded], summary";
+
+const isOpeningDisclosure = (target: Element): boolean => {
+  const control = target.closest(DISCLOSURE_SELECTOR);
+  if (!control) return false;
+  if (control.tagName === "SUMMARY")
+    return control.parentElement?.hasAttribute("open") === false;
+  return control.getAttribute("aria-expanded") === "false";
+};
+
 type MessageOffset = { readonly id: string; readonly offset: number };
 
 const offsetInViewport = (element: Element, viewport: Element) =>
@@ -345,6 +355,26 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
       cancelPendingScrollToBottom();
     };
+    // Expanding a disclosure inside a message, such as a reasoning block or a
+    // tool call card, means the reader is inspecting it, so bottom follow
+    // stops the way a scroll-up stops it. Every other interaction, including
+    // copying or selecting text, keeps following.
+    const releaseFollowOnExpand = (event: Event) => {
+      if (
+        event instanceof KeyboardEvent &&
+        event.key !== "Enter" &&
+        event.key !== " "
+      )
+        return;
+      const target = event.target as Element | null;
+      if (
+        !target?.closest?.(MESSAGE_SELECTOR) ||
+        target.closest(TEXT_ENTRY_SELECTOR) ||
+        !isOpeningDisclosure(target)
+      )
+        return;
+      followBottomRef.current = false;
+    };
     const releasePrependAnchor = () => {
       prependAnchorRef.current = null;
     };
@@ -358,6 +388,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       passive: true,
     });
     el.addEventListener("keydown", cancelOnKeyDown);
+    el.addEventListener("pointerdown", releaseFollowOnExpand);
+    el.addEventListener("keydown", releaseFollowOnExpand);
     for (const gesture of gestures) {
       el.addEventListener(gesture, releasePrependAnchor, { passive: true });
     }
@@ -367,6 +399,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       el.removeEventListener("wheel", cancelPendingScrollToBottom);
       el.removeEventListener("touchstart", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
+      el.removeEventListener("pointerdown", releaseFollowOnExpand);
+      el.removeEventListener("keydown", releaseFollowOnExpand);
       for (const gesture of gestures) {
         el.removeEventListener(gesture, releasePrependAnchor);
       }
