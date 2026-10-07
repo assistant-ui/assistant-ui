@@ -731,6 +731,49 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
+  it("resets volume when a session ends on its own", () => {
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    const listener = vi.fn();
+    runtime.subscribeVoiceVolume(listener);
+    runtime.connectVoice();
+    expect(listener).toHaveBeenCalledOnce();
+    listener.mockClear();
+
+    voice.emitVolume(0.8);
+    expect(listener).toHaveBeenCalledOnce();
+    listener.mockClear();
+
+    voice.session.status = { type: "ended", reason: "finished" };
+    voice.emitStatus(voice.session.status);
+
+    expect(runtime.getVoiceVolume()).toBe(0);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("notifies volume subscribers when an ended-session hook throws", () => {
+    const hookError = new Error("voice disconnected hook failed");
+    class ThrowingHookRuntime extends TestRuntime {
+      protected override _onVoiceDisconnected() {
+        throw hookError;
+      }
+    }
+    const voice = createVoiceAdapter();
+    const runtime = new ThrowingHookRuntime(voice);
+    const listener = vi.fn();
+    runtime.subscribeVoiceVolume(listener);
+    runtime.connectVoice();
+    listener.mockClear();
+    voice.emitVolume(0.8);
+    listener.mockClear();
+
+    voice.session.status = { type: "ended", reason: "finished" };
+    expect(() => voice.emitStatus(voice.session.status)).toThrow(hookError);
+
+    expect(runtime.getVoiceVolume()).toBe(0);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
   it("finishes disconnecting when a session cleanup throws", () => {
     const cleanupError = new Error("cleanup failed");
     const laterCleanup = vi.fn();
