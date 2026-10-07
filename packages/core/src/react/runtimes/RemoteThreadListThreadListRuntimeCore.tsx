@@ -1243,22 +1243,34 @@ export class RemoteThreadListThreadListRuntimeCore
       await this._ensureThreadIsNotMain(data.id);
     } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
-    const result = await this._state.optimisticUpdate({
-      execute: async () => {
-        const { remoteId } = await data.initializeTask;
-        this._requireAdapterGeneration(adapterGeneration);
-        return await adapter.delete(remoteId);
-      },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "deleted");
-      },
-    });
+    try {
+      await this._state.optimisticUpdate({
+        execute: async () => {
+          const { remoteId } = await data.initializeTask;
+          this._requireAdapterGeneration(adapterGeneration);
+          return await adapter.delete(remoteId);
+        },
+        optimistic: (state) => {
+          return updateStatusReducer(state, data.id, "deleted");
+        },
+      });
+    } catch (error) {
+      const controlledThreadId = this._options.threadId;
+      if (
+        this._switchGeneration === this._controlledSwitchGeneration &&
+        controlledThreadId !== undefined &&
+        this._mainThreadId !== data.id &&
+        this.getItemById(controlledThreadId)?.id === data.id
+      ) {
+        this._switchToThreadFromProp(controlledThreadId).catch(() => {});
+      }
+      throw error;
+    }
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would
     // otherwise have found it to stop.
     this._hookManager.stopThreadRuntime(data.id);
     clearThreadTitleState(this._titleStates, data.id);
-    return result;
   }
 
   public __internal_dispose() {
