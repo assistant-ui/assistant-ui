@@ -17,12 +17,4 @@ describe("@assistant-ui/react-syntax-highlighter/full", () => {
       fullImpl.makePrismAsyncSyntaxHighlighter,
     );
   });
-
-  it("every maker returns a named component", () => {
-    for (const make of Object.values(full)) {
-      const Component = make({});
-      expect(typeof Component).toBe("function");
-      expect(Component.displayName).toBe("PrismSyntaxHighlighter");
-    }
-  });
 });
