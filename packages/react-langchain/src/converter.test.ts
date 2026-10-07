@@ -210,7 +210,7 @@ describe("convertLangChainContentBlock standard content blocks", () => {
     ).toBeUndefined();
   });
 
-  it("converts a text-plain block carrying inline text to a file part", () => {
+  it("converts a text-plain block carrying inline text to a base64 file part", () => {
     expect(
       convertLangChainContentBlock({
         type: "text-plain",
@@ -219,9 +219,18 @@ describe("convertLangChainContentBlock standard content blocks", () => {
     ).toEqual({
       type: "file",
       filename: "file",
-      data: "hello",
+      data: "aGVsbG8=",
       mimeType: "text/plain",
     });
+  });
+
+  it("round-trips non-ASCII inline text through base64", () => {
+    const text = "héllo ✓ https://example.com";
+    const part = convertLangChainContentBlock({ type: "text-plain", text });
+    expect(part).toMatchObject({ type: "file", mimeType: "text/plain" });
+    const data = (part as { data: string }).data;
+    const bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
+    expect(new TextDecoder().decode(bytes)).toBe(text);
   });
 });
 

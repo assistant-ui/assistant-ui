@@ -106,8 +106,17 @@ const resolveMediaSource = (
   const data = part.data ?? part.base64;
   if (typeof data === "string") return { data };
   if (part.type === "text-plain" && typeof part.text === "string")
-    return { data: part.text };
+    return { data: textToBase64(part.text) };
   return undefined;
+};
+
+const textToBase64 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
 };
 
 const resolveMediaMimeType = (part: LangChainMediaBlock): string | undefined =>
