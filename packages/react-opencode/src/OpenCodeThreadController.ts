@@ -240,21 +240,10 @@ const extractQuestionRequest = (
   event: OpenCodeServerEvent,
 ): OpenCodeQuestionRequest | null => toQuestionRequest(event.properties);
 
-const canonicalStringify = (value: unknown) =>
-  JSON.stringify(value, (_key, nested) =>
-    isRecord(nested) && !Array.isArray(nested)
-      ? Object.fromEntries(
-          Object.keys(nested)
-            .sort()
-            .map((key) => [key, nested[key]]),
-        )
-      : nested,
-  );
-
 const hasSamePermissionPayload = (
   left: OpenCodePermissionRequest,
   right: OpenCodePermissionRequest,
-) => canonicalStringify(left.raw) === canonicalStringify(right.raw);
+) => JSON.stringify(left.raw) === JSON.stringify(right.raw);
 
 const hasSameQuestionPayload = (
   left: OpenCodeQuestionRequest,
@@ -262,7 +251,7 @@ const hasSameQuestionPayload = (
 ) => {
   const { askedAt: _leftAskedAt, ...leftPayload } = left;
   const { askedAt: _rightAskedAt, ...rightPayload } = right;
-  return canonicalStringify(leftPayload) === canonicalStringify(rightPayload);
+  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
 };
 
 const normalizeUnhandledEvent = (
@@ -489,9 +478,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const requests =
       events.get(event.sessionId) ??
       new Map<string, InteractionRecoveryEntry>();
+    const entry = requests.get(requestId);
     requests.set(
       requestId,
-      isAsk ? { asked: event } : { ...requests.get(requestId), settled: event },
+      isAsk ? { ...entry, asked: event } : { ...entry, settled: event },
     );
     events.set(event.sessionId, requests);
   }
@@ -754,8 +744,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         continue;
       }
       if (this.permissionRecoveryFence.has(request.id)) continue;
-      if (settled && hasSamePermissionPayload(settled.request, request))
-        continue;
+      if (settled) continue;
       const existing = this.state.interactions.permissions.pending[request.id];
       pending[request.id] =
         existing && hasSamePermissionPayload(existing, request)
@@ -809,7 +798,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         continue;
       }
       if (this.questionRecoveryFence.has(request.id)) continue;
-      if (settled && hasSameQuestionPayload(settled.request, request)) continue;
+      if (settled) continue;
       const existing = this.state.interactions.questions.pending[request.id];
       pending[request.id] =
         existing && hasSameQuestionPayload(existing, request)
@@ -1187,7 +1176,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
-    const request = this.state.interactions.permissions.pending[permissionId];
     this.beginReply(this.permissionRepliesInFlight, permissionId);
     try {
       await this.client.permission.reply(
@@ -1198,8 +1186,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
 
-      if (this.state.interactions.permissions.pending[permissionId] !== request)
-        return;
       this.fencePermission(permissionId, "settled");
       this.dispatch({
         type: "permission.replied",
@@ -1215,7 +1201,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     questionId: string,
     answers: readonly QuestionAnswer[],
   ) {
-    const request = this.state.interactions.questions.pending[questionId];
     this.beginReply(this.questionRepliesInFlight, questionId);
     try {
       await this.client.question.reply(
@@ -1226,8 +1211,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
 
-      if (this.state.interactions.questions.pending[questionId] !== request)
-        return;
       this.fenceQuestion(questionId, "settled");
       this.dispatch({
         type: "question.replied",
@@ -1240,7 +1223,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async rejectQuestion(questionId: string) {
-    const request = this.state.interactions.questions.pending[questionId];
     this.beginReply(this.questionRepliesInFlight, questionId);
     try {
       await this.client.question.reject(
@@ -1250,8 +1232,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
 
-      if (this.state.interactions.questions.pending[questionId] !== request)
-        return;
       this.fenceQuestion(questionId, "settled");
       this.dispatch({
         type: "question.rejected",
