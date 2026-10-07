@@ -181,6 +181,16 @@ describe("DefaultEditComposerRuntimeCore", () => {
       expect(composer.parentId).toBe("parent-7");
       expect(composer.sourceId).toBe("msg-1");
     });
+
+    it("seeds the quote from the edited message", () => {
+      const { runtime } = makeRuntime();
+      const quote = { text: "quoted", messageId: "a-1" };
+      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+        parentId: null,
+        message: makeUserMessage({ metadata: { custom: { quote } } }),
+      });
+      expect(composer.quote).toEqual(quote);
+    });
   });
 
   describe("send behavior", () => {
@@ -215,6 +225,36 @@ describe("DefaultEditComposerRuntimeCore", () => {
       expect(appended.content).toEqual([{ type: "text", text: "new" }]);
       expect(appended.parentId).toBe("p1");
       expect(appended.sourceId).toBe("msg-1");
+    });
+
+    it("keeps the quote of the edited message on the sent message", async () => {
+      const { runtime, append } = makeRuntime();
+      const quote = { text: "quoted", messageId: "a-1" };
+      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+        parentId: "p1",
+        message: makeUserMessage({
+          content: [{ type: "text", text: "old" }],
+          metadata: { custom: { quote } },
+        }),
+      });
+      composer.setText("new");
+      await composer.send();
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.metadata?.custom).toEqual({ quote });
+    });
+
+    it("sends no quote once the quote is dismissed", async () => {
+      const { runtime, append } = makeRuntime();
+      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+        parentId: "p1",
+        message: makeUserMessage({
+          metadata: { custom: { quote: { text: "quoted", messageId: "a-1" } } },
+        }),
+      });
+      composer.setQuote(undefined);
+      await composer.send();
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.metadata?.custom).toEqual({});
     });
 
     it("drops a removed attachment from the sent message", async () => {
