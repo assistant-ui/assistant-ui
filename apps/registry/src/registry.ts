@@ -1189,7 +1189,25 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/elements/context-display.tsx",
       },
     ],
-    registryDependencies: ["tooltip"],
+    registryDependencies: [
+      "tooltip",
+      "https://r.assistant-ui.com/elements-context-usage.json",
+    ],
+  },
+  {
+    name: "elements-context-usage",
+    type: "registry:component",
+    title: "Elements Context Usage",
+    description:
+      "Shared token formatting, usage colors, and segment labels for context displays.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/context-usage.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/context-usage.ts",
+      },
+    ],
   },
   {
     name: "voice",
@@ -1546,6 +1564,20 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "elements-modal-size",
+    type: "registry:component",
+    title: "Elements Modal Size",
+    description: "Shared resizing and stored size for the assistant modal.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/modal-size.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/modal-size.ts",
+      },
+    ],
+  },
+  {
     name: "assistant-modal",
     type: "registry:component",
     title: "Assistant Modal",
@@ -1564,6 +1596,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread.json",
       "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/elements-modal-size.json",
     ],
     baseDependencies: ["@base-ui/react"],
   },
@@ -1870,7 +1903,26 @@ export const registry: RegistryItem[] = [
     dependencies: ["lucide-react", "class-variance-authority"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
-    registryDependencies: ["command", "popover"],
+    registryDependencies: [
+      "command",
+      "popover",
+      "https://r.assistant-ui.com/elements-model-selection.json",
+    ],
+  },
+  {
+    name: "elements-model-selection",
+    type: "registry:component",
+    title: "Elements Model Selection",
+    description:
+      "Shared model selection state and effort resolution for model selectors.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/model-selection.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/model-selection.ts",
+      },
+    ],
   },
   {
     name: "logos",
@@ -2111,8 +2163,6 @@ export const registry: RegistryItem[] = [
     },
   },
 ];
-
-export const vueRegistry: RegistryItem[] = [];
 
 type NativeElementRegistryEntry = {
   slug: string;
@@ -2612,12 +2662,7 @@ export const nativeRegistry: RegistryItem[] = [
   },
 ];
 
-/**
- * Vue items staged for the `@assistant-ui/vue` publish flip. The build
- * machinery and tests exercise them, but they stay out of the emitted
- * registry until the package they install is public.
- */
-export const stagedVueRegistry: RegistryItem[] = [
+export const vueRegistry: RegistryItem[] = [
   {
     name: "thread-list",
     type: "registry:component",
@@ -2659,12 +2704,25 @@ export const stagedVueRegistry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/vue/assistant-ui/markdown-text.vue",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/reasoning.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/reasoning.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tool-fallback.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/tool-fallback.vue",
+      },
     ],
     dependencies: [
       "@assistant-ui/core",
       "@assistant-ui/vue",
       "@lucide/vue",
       "markdown-it",
+      "reka-ui",
     ],
     devDependencies: ["@types/markdown-it"],
   },

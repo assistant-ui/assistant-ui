@@ -7,18 +7,18 @@ Every assistant-ui runtime starts with a single in-memory thread. Multi-thread s
 
 ## Single thread (default)
 
-With no thread configuration, the runtime renders one thread that resets when the page reloads. Fine for prototypes, demos, and stateless interactions.
+With no thread configuration, the runtime renders one thread that resets when the page reloads. This is enough for prototypes, demos, and stateless interactions.
 
 If you only want session persistence (single thread, durable across reloads), provide a [history adapter](/docs/runtimes/concepts/adapters#history-adapter) instead of going to multi-thread.
 
 ## Multi-thread paths
 
-Three options. Choose based on what you want to own.
+Choose based on what you want to own.
 
 | Path | Runtime | Who owns thread metadata | Best for |
 | --- | --- | --- | --- |
 | AssistantCloud | LocalRuntime and runtime adapters that accept `cloud` | assistant-cloud | You want the thread list managed; auth and sync handled |
-| RemoteThreadListRuntime | LocalRuntime and adapters built on it | Your database | You have your own backend and want full control |
+| RemoteThreadListRuntime | Any runtime hook passed as `runtimeHook` | Your database | You have your own backend and want full control |
 | ExternalStoreThreadListAdapter | ExternalStoreRuntime only | Your store | You keep state in redux, zustand, etc. |
 
 ## AssistantCloud
@@ -56,7 +56,7 @@ See the [cloud documentation](/docs/cloud) for setup, auth, and self-host option
 
 `useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it reloads the list and drops cached threads that are not in the replacement page.
 
-Works with any `LocalRuntime`-based runtime, including framework adapters that build on it (`ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
+`runtimeHook` accepts any runtime hook, such as `useLocalRuntime`, `useDataStreamRuntime`, or `useChatRuntime`.
 
 ```tsx title="app/MyProvider.tsx"
 "use client";
@@ -333,7 +333,7 @@ export function ThreadList() {
 }
 ```
 
-A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
+`loadMore()` has these invariants:
 
 - **Empty-string cursors collapse to "no more pages".** `nextCursor: ""` is treated the same as `nextCursor: undefined`, so an off-by-one in your backend that returns an empty cursor will not loop forever.
 - **Concurrent `loadMore()` calls are deduped.** The runtime keeps a single in-flight promise per page, so calling `loadMore()` from a sentinel and a button at the same time issues only one network request.
@@ -448,7 +448,7 @@ function ThreadListItemMeta() {
 
 ## ExternalStoreThreadListAdapter
 
-For `ExternalStoreRuntime` users only. Wires multi-thread support into an external state store.
+This adapter is for `ExternalStoreRuntime` only. It wires multi-thread support into an external state store.
 
 ```tsx
 const threadListAdapter: ExternalStoreThreadListAdapter = {
@@ -482,7 +482,7 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-Unlike `RemoteThreadListAdapter`, this adapter is synchronous and inline. You keep thread metadata and messages in your own store; the runtime just renders what you provide.
+Unlike `RemoteThreadListAdapter`, this adapter is synchronous and inline. You keep thread metadata and messages in your own store; the runtime renders what you provide.
 
 <Callout type="warn">
 The runtime's `currentThreadId` and your store's selected thread must stay in sync. Mismatched thread ids cause messages to appear in the wrong thread or vanish entirely. Centralize thread id state in a context, never in component-local state.
@@ -493,7 +493,7 @@ The runtime's `currentThreadId` and your store's selected thread must stay in sy
 Ask three questions in order:
 
 1. **Do you want it managed?** Use `AssistantCloud`. You do not write database code.
-2. **Do you have your own backend?** Use `RemoteThreadListRuntime` if you are on `LocalRuntime` (or any adapter built on it). You implement the adapter, you own the data.
+2. **Do you have your own backend?** Use `RemoteThreadListRuntime` around your runtime hook. You implement the adapter and own the data.
 3. **Are you on `ExternalStoreRuntime`?** Use `ExternalStoreThreadListAdapter`. Threads live in your store next to messages.
 
 ## Related

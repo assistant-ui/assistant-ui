@@ -7,7 +7,7 @@ By default, `useLocalRuntime` manages threads and messages on-device. You can co
 
 ## Option 1: ChatModelAdapter only
 
-The simplest approach — keep thread management local, but send messages to your backend for inference.
+The simplest approach: keep thread management local, but send messages to your backend for inference.
 
 ```tsx title="adapters/my-chat-adapter.ts"
 import type { ChatModelAdapter } from "@assistant-ui/react-native";

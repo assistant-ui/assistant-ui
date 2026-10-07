@@ -86,6 +86,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         return {
           type: `data-${part.name}`,
           data: part.data,
+          ...(part.id !== undefined && { id: part.id }),
         };
       default:
         throw new Error(`Unsupported part type: ${part.type}`);

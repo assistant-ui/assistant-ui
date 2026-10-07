@@ -22,6 +22,7 @@ import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { renderSlot } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
@@ -121,7 +122,7 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
- * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * When rendered inside `TriggerPopoverRoot` and a popover is open, the
  * underlying `<textarea>` automatically receives `aria-controls`,
  * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
  * combobox relationship. These computed attributes override user-provided
@@ -206,7 +207,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
       // ignore IME composition events
-      if (e.isComposing) return;
+      if (isCompositionKey(e)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
@@ -228,7 +229,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (isDisabled) return;
 
       // ignore IME composition events
-      if (e.nativeEvent.isComposing) return;
+      if (isCompositionKey(e.nativeEvent)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle keyboard events first
       if (pluginRegistry) {

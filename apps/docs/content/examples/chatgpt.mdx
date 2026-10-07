@@ -1,11 +1,11 @@
 ---
 title: ChatGPT Clone Example
-description: Open-source ChatGPT clone built in React with assistant-ui — centered welcome composer, high-contrast user bubbles, tooltipped controls, and full assistant action bar.
+description: Open-source ChatGPT clone built in React with assistant-ui. Centered welcome composer, high-contrast user bubbles, tooltipped controls, and a full assistant action bar.
 ---
 
 ## Overview
 
-The ChatGPT Clone demonstrates how to customize assistant-ui to match OpenAI's ChatGPT interface. This version mirrors the current chatgpt.com layout: a centered welcome composer, tooltipped attachment/dictation/voice controls, high-contrast user bubbles with Copy + Edit actions, and an always-visible assistant action bar with thumbs, share, speak, reload, and more.
+The ChatGPT Clone demonstrates how to customize assistant-ui to match OpenAI's ChatGPT interface. It mirrors the chatgpt.com layout: a centered welcome composer, tooltipped attachment/dictation/voice controls, high-contrast user bubbles with Copy + Edit actions, and an always-visible assistant action bar with thumbs, share, speak, reload, and more.
 
 ## Features
 
@@ -13,7 +13,7 @@ The ChatGPT Clone demonstrates how to customize assistant-ui to match OpenAI's C
 - **Centered Empty State**: "Where should we begin?" heading + composer rendered together above the viewport center
 - **Tooltipped Composer Controls**: Add attachment, Dictate, and voice-mode buttons use ChatGPT's circular controls and hover tooltips
 - **Four-State Primary Action**: Cancel (running), StopDictation (recording), Send (typing), Dictate + voice mode (idle)
-- **Assistant Action Bar**: Always visible — Copy, Good response, Bad response, Read aloud, Share, Regenerate, More
+- **Assistant Action Bar**: Always visible, with Copy, Good response, Bad response, Read aloud, Share, Regenerate, More
 - **User Bubble**: Right-aligned high-contrast bubble with Copy + Edit actions below on hover
 - **Sticky Footer**: Composer + "ChatGPT can make mistakes" disclaimer at the bottom of the chat
 
@@ -133,7 +133,7 @@ The conditions are mutually exclusive in priority order (`Cancel > StopDictation
 |---------|-------|------|
 | Background | `#ffffff` | `#000000` |
 | Composer surface | `#ffffff` | `#212121` |
-| Composer border / edge | `#e5e5e5` | `transparent` + inset white edge |
+| Composer border | `#e5e5e5` | `transparent` |
 | Primary text | `#0d0d0d` | `#ececec` |
 | Muted text | `#5d5d5d` | `#afafaf` |
 | User bubble | `#0d0d0d` (white text) | `#ececec` (`#0d0d0d` text) |
@@ -143,7 +143,7 @@ The conditions are mutually exclusive in priority order (`Cancel > StopDictation
 
 ### Styling Details
 
-- **Composer**: `rounded-[28px]` with a thin light-mode border, dark `#212121` surface, and an inset dark-mode edge
+- **Composer**: `rounded-[28px]` with a thin light-mode border and a dark `#212121` surface
 - **Empty Layout**: 24px/400 heading + composer raised above center; no avatar
 - **Composer Buttons**: 36px circular controls with hover tooltips and background-only hover states
 - **Assistant Action Bar**: 32px controls, 8px radius, zero gap, background-only hover, and tooltips on every action

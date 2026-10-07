@@ -73,6 +73,7 @@ export function ShareButton({ className }: ShareButtonProps) {
           : "text-muted-foreground hover:text-foreground",
         className,
       )}
+      aria-label={copied ? "Copied!" : "Share"}
       title={copied ? "Link copied to clipboard" : "Copy shareable link"}
     >
       {copied ? (

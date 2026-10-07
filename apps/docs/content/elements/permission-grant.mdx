@@ -59,7 +59,7 @@ function ShellApprovalGate({ args, approval, respondToApproval }: ToolCallMessag
 
 ### Answer with respondToApproval
 
-Each declared option carries its own `grants`, the patterns or rules choosing it would persist. Show them before the user commits, not after:
+Each declared option carries its own `grants`, the patterns or rules choosing it would persist. Show them before the user commits:
 
 ```tsx
 {(approval.options ?? []).map((option) => (

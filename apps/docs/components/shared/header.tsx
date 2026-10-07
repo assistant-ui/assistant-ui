@@ -48,7 +48,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
         aria-label="Search (⌘K)"
       >
         Search
-        <KbdGroup className="hidden lg:inline-flex">
+        <KbdGroup className="hidden xl:inline-flex">
           <Kbd>⌘</Kbd>
           <Kbd>K</Kbd>
         </KbdGroup>
@@ -69,14 +69,14 @@ export function Header() {
         <div
           className={headerBarClassName(
             scrolled,
-            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:grid md:grid-cols-[1fr_auto_1fr]",
+            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 lg:grid lg:grid-cols-[1fr_auto_1fr]",
           )}
         >
           <HeaderBrandLink className="justify-self-start" />
 
           <NavItems
             items={NAV_ITEMS}
-            className="hidden items-center md:flex"
+            className="hidden items-center lg:flex"
             contentClassName="mx-auto max-w-7xl"
           />
 
@@ -92,7 +92,7 @@ export function Header() {
               aria-label="Ask AI (⌘I)"
             >
               Ask AI
-              <KbdGroup className="hidden lg:inline-flex">
+              <KbdGroup className="hidden xl:inline-flex">
                 <Kbd>⌘</Kbd>
                 <Kbd>I</Kbd>
               </KbdGroup>
@@ -112,7 +112,7 @@ export function Header() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors md:hidden"
+              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors lg:hidden"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
@@ -126,7 +126,7 @@ export function Header() {
 
         <div
           className={cn(
-            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
+            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 lg:hidden",
             mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
