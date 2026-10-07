@@ -601,7 +601,12 @@ export const createLocalStorageAdapter = (
           await saveThreadMetadata(filtered);
         });
         mutationQueue.markStale(key);
-        await mutationQueue.removeStale(key, storage);
+        try {
+          await mutationQueue.removeStale(key, storage);
+        } catch {
+          // Metadata deletion is committed; keep the stale marker so initialize
+          // retries cleanup without rolling the client back to a deleted thread.
+        }
       });
     },
 

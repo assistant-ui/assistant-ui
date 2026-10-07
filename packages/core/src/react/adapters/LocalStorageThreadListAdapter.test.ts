@@ -1086,7 +1086,7 @@ describe("createLocalStorageAdapter", () => {
     ).toHaveLength(1);
   });
 
-  it("clears stale history before reinitializing after cleanup fails", async () => {
+  it("completes deletion and retries failed cleanup before reinitializing", async () => {
     const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";
     const baseStorage = createStorage({
@@ -1104,7 +1104,6 @@ describe("createLocalStorageAdapter", () => {
       ...baseStorage,
       removeItem: async (key) => {
         if (key === messagesKey && failCleanup) {
-          failCleanup = false;
           throw new Error("Storage unavailable");
         }
         await baseStorage.removeItem(key);
@@ -1125,9 +1124,14 @@ describe("createLocalStorageAdapter", () => {
         }) as never,
     );
 
-    await expect(adapter.delete("thread-1")).rejects.toThrow(
+    await expect(adapter.delete("thread-1")).resolves.toBeUndefined();
+    expect((await adapter.list()).threads).toEqual([]);
+    expect(storage.get(messagesKey)).toBeDefined();
+    await expect(adapter.initialize("thread-1")).rejects.toThrow(
       "Storage unavailable",
     );
+    expect((await adapter.list()).threads).toEqual([]);
+    failCleanup = false;
     await adapter.initialize("thread-1");
     await history.append({
       message: storedMessage("new-message"),
