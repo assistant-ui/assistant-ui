@@ -11,13 +11,13 @@ A thread's Conversation section has two views. **Structured**, the default, is t
 |---|---|
 | Text, reasoning, sources, images, files, audio | Natively: markdown, collapsible reasoning with its duration, a source ledger, image and file chips. |
 | A tool call | Its name, arguments, result or error, and its cancelled, approval and interrupt states, with timing, the artifact, a sub-agent's messages and an MCP App's server and resource. |
-| A `present` call with the default vocabulary | Drawn read only with the default vocabulary of `@assistant-ui/react-generative-ui`, with a Raw toggle. Nothing in it can be clicked or submitted. |
-| A `present` call with your own components | Your components appear as labelled blocks with their props and children, inside the drawn tree. |
-| An A2UI surface from AG-UI or A2A | The basic catalog components are drawn natively; other components are labelled blocks. |
+| A tool call whose arguments carry a `$type` root with the default vocabulary | Drawn read only with the default vocabulary of `@assistant-ui/react-generative-ui`, with a Raw toggle. Nothing in it can be clicked or submitted. |
+| A tool call whose arguments carry a `$type` root with your own components | Your components appear as labelled blocks with their props and children, inside the drawn tree. |
+| An A2UI surface from AG-UI or A2A | Redrawn from the operations in `artifact.a2ui`, with the stored arguments as a fallback. The basic catalog components are drawn natively; other components are labelled blocks. |
 | A `generative-ui` part | Every node is a labelled block with its props, since the allowlist of components lives in your app. |
 | A data part (data UIs, AG-UI activity and custom events) | Its name and JSON. |
-| What the user did in a drawn UI or a tool call | Listed under it with the time: an action with its input, or the answer to a request for input. |
-| An A2A task's artifacts, an AG-UI agent's state | Collapsed blocks under the answer. |
+| What the user did in a drawn UI or a tool call | Listed under it with the time: an action with its input, or the answer to a request for input. Recorded from `@assistant-ui/react` 0.15.22 with `@assistant-ui/react-ai-sdk` 1.4.13, `@assistant-ui/react-ag-ui` 0.0.61 or `@assistant-ui/react-a2a` 0.2.37. |
+| An A2A task's artifacts, an AG-UI agent's state | Collapsed blocks under the answer. Stored from `@assistant-ui/react-a2a` 0.2.37 and `@assistant-ui/react-ag-ui` 0.0.61. |
 | A part or a format the dashboard does not know | An unsupported chip, or the stored content, instead of the message. |
 
 MCP App widgets are not loaded in either view; the tool call names the server and the resource.
@@ -35,7 +35,7 @@ The views can only draw what reached the cloud. [Which runtime](/docs/cloud/runt
 
 ## Show a conversation as your users saw it
 
-Mount `CloudRendererHost` on a route of your app, around the thread UI your app already renders. When your tool UIs, data UIs or generative UI are registered through the `aui` or `config` you pass to `AssistantRuntimeProvider`, pass the same one to the host so they render as they do in the app:
+`CloudRendererHost` is available from `@assistant-ui/react` 0.15.22. Mount it on a route of your app, around the thread UI your app already renders. When your tool UIs, data UIs or generative UI are registered through the `aui` or `config` you pass to `AssistantRuntimeProvider`, pass the same one to the host so they render as they do in the app:
 
 ```tsx title="app/assistant-renderer/page.tsx"
 "use client";
@@ -58,6 +58,6 @@ Then set that page's URL as the project's **Renderer URL** under [Settings › T
 |---|---|
 | Your page allows framing by the dashboard: the `frame-ancestors` of its Content Security Policy names the dashboard's origin, `https://cloud.assistant-ui.com` or your self-hosted one, and it sends no `X-Frame-Options: DENY`. | The dashboard embeds it. |
 | The host's `allowedOrigins` prop names your dashboard. It defaults to `https://cloud.assistant-ui.com`, so set it for any other dashboard, for example a self-hosted one. | The host answers only the origins it allows, and only its parent window. |
-| The Renderer URL is `https`, or `http` on localhost while you develop. | The setting refuses anything else. |
+| The Renderer URL is `https`, or `http` on `localhost` or `127.0.0.1` while you develop. | The setting refuses anything else. |
 
 The host draws the thread read only inside an inert element, so a viewer cannot click, focus or type into it, and no action, approval, link, form or follow-up message can start from it. Your components still run what they do when they mount, such as requests, analytics or media, so keep those free of side effects on this route. Keep the route outside your own `AssistantRuntimeProvider` too: in a Next app, move the provider into a route group that does not contain this page, so opening a preview neither starts a session nor loads the thread list. MCP App widgets are never loaded; the tool's own UI or fallback draws those calls. Your page receives the whole conversation, attachments included, so point the Renderer URL only at a page you run. If it does not answer within 10 seconds, the dashboard says what is missing and offers Structured.

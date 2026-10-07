@@ -3,7 +3,7 @@ import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { posixPath, readJson } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
@@ -289,7 +289,10 @@ export function collectBarrelParity({
     for (const symbol of exportsOf(barrel.file)) {
       const target = resolve(symbol);
       const origin = originOf(target);
-      if (!isShared(origin)) continue;
+      // Every unresolved export shares TypeScript's unknown symbol, which would
+      // otherwise reach publicNames and pair unrelated names.
+      if (origin === undefined) continue;
+      if (!isShared(origin) && !publicNames.has(target)) continue;
       let byName = groups.get(target);
       if (!byName) {
         byName = new Map();
@@ -412,7 +415,7 @@ function main() {
       console.error("");
     }
     console.error(
-      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares reaches",
+      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares or re-exports reaches",
     );
     console.error(
       "consumers only through the distribution they installed, and an app never installs two",

@@ -1,0 +1,242 @@
+---
+title: Composer
+description: Build the message input, the send and stop buttons, attachment controls, and in-place message editing.
+---
+
+The composer primitives bind a textarea and a few buttons to the nearest composer scope. At thread level they write new messages. Inside a message row rendered by `ThreadPrimitiveMessages`, the same primitives edit that message.
+
+```vue title="app/components/Composer.vue"
+<script setup lang="ts">
+import {
+  AuiIf,
+  ComposerPrimitiveCancel,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <div class="flex items-end gap-2 rounded-2xl border p-2.5">
+    <ComposerPrimitiveInput
+      class="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2.5 py-1 outline-none"
+      placeholder="Send a message..."
+      aria-label="Message"
+      rows="1"
+    />
+    <AuiIf :condition="(s) => !s.thread.isRunning">
+      <ComposerPrimitiveSend
+        class="bg-primary text-primary-foreground rounded-full px-3 py-1.5 text-sm disabled:opacity-50"
+      >
+        Send
+      </ComposerPrimitiveSend>
+    </AuiIf>
+    <AuiIf :condition="(s) => s.thread.isRunning">
+      <ComposerPrimitiveCancel
+        class="bg-primary text-primary-foreground rounded-full px-3 py-1.5 text-sm"
+      >
+        Stop
+      </ComposerPrimitiveCancel>
+    </AuiIf>
+  </div>
+</template>
+```
+
+Render the component anywhere under an `AuiProvider` whose config has a runtime. The [quickstart](/docs/vue/quickstart) sets one up.
+
+There is no form wrapper. `ComposerPrimitiveInput` sends on Enter and `ComposerPrimitiveSend` sends on click, so the parts can sit in any layout.
+
+## Thread composer and edit composer
+
+`s.composer` resolves to the nearest composer scope, and the primitives act on whichever one that is.
+
+| Placement | Scope | `s.composer.type` | Send | Cancel |
+|---|---|---|---|---|
+| Under `AuiProvider`, outside the message list | The thread composer | `"thread"` | Appends a new user message | Stops the running response |
+| Inside a row of `ThreadPrimitiveMessages` | That message's edit composer | `"edit"` | Saves the edit as a new branch | Discards the edit |
+
+An edit composer starts closed. `ActionBarPrimitiveEdit`, or `aui.composer.beginEdit()`, opens it with the message text, and `s.composer.isEditing` turns true. While it is closed, the input stays empty and ignores typing. Gate the edit form on that flag:
+
+```vue title="app/components/EditComposer.vue"
+<script setup lang="ts">
+import {
+  ComposerPrimitiveCancel,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const editing = useAuiState((s) => s.composer.isEditing);
+</script>
+
+<template>
+  <div v-if="editing" class="flex flex-col gap-2 rounded-xl border p-2">
+    <ComposerPrimitiveInput
+      class="w-full resize-none bg-transparent px-1 py-0.5 outline-none"
+      aria-label="Edit message"
+      rows="2"
+    />
+    <div class="flex justify-end gap-2 text-sm">
+      <ComposerPrimitiveCancel class="rounded-lg px-2 py-1">
+        Discard
+      </ComposerPrimitiveCancel>
+      <ComposerPrimitiveSend
+        class="bg-primary text-primary-foreground rounded-lg px-2 py-1 disabled:opacity-50"
+      >
+        Save
+      </ComposerPrimitiveSend>
+    </div>
+  </div>
+</template>
+```
+
+Render it inside the message component that `ThreadPrimitiveMessages` repeats. The [editing guide](/docs/vue/editing) covers the full flow.
+
+## Sending
+
+Enter sends the message. Shift+Enter inserts a newline, and Enter during IME composition is ignored. When the composer cannot send, Enter inserts a newline instead of doing nothing.
+
+`ComposerPrimitiveSend` and Enter are both blocked while either of these holds:
+
+- `s.composer.canSend` is false. The text is empty and there are no attachments, a send is still being prepared, or the runtime set `isSendDisabled`.
+- A response is running, the runtime does not queue messages (`s.thread.capabilities.queue` is false), and no voice session is connected.
+
+A listener you attach runs before the primitive's own handler. Call `preventDefault()` in a `@keydown` listener on the input, or a `@click` listener on a button, to stop the send:
+
+```vue title="app/components/GatedComposer.vue"
+<script setup lang="ts">
+import { ComposerPrimitiveInput, ComposerPrimitiveSend } from "@assistant-ui/vue";
+
+const props = defineProps<{ blocked: boolean }>();
+
+const hold = (event: Event) => {
+  if (props.blocked) event.preventDefault();
+};
+</script>
+
+<template>
+  <ComposerPrimitiveInput aria-label="Message" @keydown="hold" />
+  <ComposerPrimitiveSend @click="hold">Send</ComposerPrimitiveSend>
+</template>
+```
+
+### Send with Ctrl+Enter
+
+Set `:submit-on-enter="false"` so Enter always inserts a newline, then send from your own key handler:
+
+```vue title="app/components/CtrlEnterInput.vue"
+<script setup lang="ts">
+import { ComposerPrimitiveInput, useAui, useAuiState } from "@assistant-ui/vue";
+
+const aui = useAui();
+const canSend = useAuiState((s) => s.composer.canSend && !s.thread.isRunning);
+
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return;
+  event.preventDefault();
+  if (canSend.value) aui.composer.send();
+};
+</script>
+
+<template>
+  <ComposerPrimitiveInput
+    :submit-on-enter="false"
+    placeholder="Press Ctrl+Enter to send"
+    aria-label="Message"
+    @keydown="onKeydown"
+  />
+</template>
+```
+
+### Read and write the text
+
+The input is bound to `s.composer.text`, so do not put `v-model` on it. Read the text with `useAuiState` and change it with `aui.composer.setText`:
+
+```vue title="app/components/ComposerCounter.vue"
+<script setup lang="ts">
+import { useAui, useAuiState } from "@assistant-ui/vue";
+
+const aui = useAui();
+const length = useAuiState((s) => s.composer.text.length);
+</script>
+
+<template>
+  <div class="text-muted-foreground flex items-center gap-2 text-xs">
+    <span>{{ length }} characters</span>
+    <button type="button" @click="aui.composer.setText('')">Clear</button>
+  </div>
+</template>
+```
+
+## Attachments
+
+`ComposerPrimitiveAttachments` repeats its slot once per pending attachment, with `s.attachment` scoped to it. `ComposerPrimitiveAddAttachment` opens a file picker, and `ComposerPrimitiveAttachmentDropzone` accepts dropped files. This block is lifted from the registry `thread.vue`, abridged:
+
+```vue
+<ComposerPrimitiveAttachmentDropzone
+  class="flex flex-col gap-2 rounded-2xl border p-2.5 data-[dragging=true]:border-primary"
+>
+  <div class="flex flex-wrap gap-2 empty:hidden">
+    <ComposerPrimitiveAttachments>
+      <div class="flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
+        <AttachmentPrimitiveThumb class="font-mono uppercase" />
+        <span class="max-w-40 truncate"><AttachmentPrimitiveName /></span>
+        <AttachmentPrimitiveRemove aria-label="Remove attachment">
+          <XIcon class="size-3" />
+        </AttachmentPrimitiveRemove>
+      </div>
+    </ComposerPrimitiveAttachments>
+  </div>
+  <ComposerPrimitiveInput placeholder="Send a message..." rows="1" />
+  <AuiIf :condition="(s) => s.thread.capabilities.attachments">
+    <ComposerPrimitiveAddAttachment aria-label="Add attachment">
+      <PaperclipIcon class="size-4" />
+    </ComposerPrimitiveAddAttachment>
+  </AuiIf>
+</ComposerPrimitiveAttachmentDropzone>
+```
+
+The runtime decides which files are accepted. See [Attachments](/docs/vue/attachments) for adapters, and [Attachment](/docs/vue/primitives/attachment) for the parts that render one attachment.
+
+## Parts
+
+Every part that renders an element passes its attributes and listeners through to that element, so `class`, `aria-*`, `data-*`, and native listeners work as on a plain element. A `disabled` attribute disables a button part on top of its own rules.
+
+### ComposerPrimitiveInput
+
+A `<textarea name="input">` bound to the composer text. It is disabled while `s.thread.isDisabled` is true or an active dictation sets `s.composer.dictation.inputDisabled`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `submitOnEnter` | `boolean` | `true` | Send on Enter. With `false`, Enter always inserts a newline. |
+
+### ComposerPrimitiveSend
+
+A `<button type="button">` that calls `aui.composer.send()`. Its default slot is the button content. It has no props.
+
+### ComposerPrimitiveCancel
+
+A `<button type="button">` that calls `aui.composer.cancel()`. In the thread composer it is enabled while a response is running and the runtime can cancel it, or while a send is still being prepared. In an edit composer it is always enabled and discards the edit. It has no props.
+
+### ComposerPrimitiveAttachments
+
+Renders no element of its own. Its default slot renders once per entry in `s.composer.attachments`, keyed by attachment id, with `s.attachment` scoped to that entry.
+
+### ComposerPrimitiveAddAttachment
+
+A `<button type="button">` that opens the browser file picker and adds the chosen files to the composer. The picker's file filter follows `s.composer.attachmentAccept`. It is disabled while the composer is not editing.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `multiple` | `boolean` | `true` | Allow choosing more than one file. |
+
+### ComposerPrimitiveAttachmentDropzone
+
+A `<div>` that adds dropped files to the composer. While a file drag hovers it, the element carries `data-dragging="true"`. Unless `disabled` is set, it claims file drags, so a missed drop does not open the file in the tab, and it ignores the files when the runtime does not support attachments.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `disabled` | `boolean` | `false` | Ignore drags and drops. |
+
+## Compared with React
+
+Vue has no `ComposerPrimitive.Root` form and no `asChild`; style the rendered element through its attributes instead. Mentions, slash commands, dictation, quotes, and the message queue parts are React only.

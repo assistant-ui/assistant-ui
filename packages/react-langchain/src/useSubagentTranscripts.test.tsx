@@ -185,6 +185,7 @@ describe("useSubagentTranscripts", () => {
     expect(stream.acquire).toHaveBeenCalledTimes(2);
     expect(stream.resolveSubagentNamespace).not.toHaveBeenCalled();
     hook.unmount();
+    await act(async () => {});
     expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce();
     expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
   });
@@ -773,6 +774,7 @@ describe("useSubagentTranscripts", () => {
     expect(channelSpecs[0]?.namespace).toEqual(["tools:parent", "tools:child"]);
 
     hook.unmount();
+    await act(async () => {});
     expect(
       stream.uiReleases.get("tools:parent/tools:child"),
     ).toHaveBeenCalledOnce();

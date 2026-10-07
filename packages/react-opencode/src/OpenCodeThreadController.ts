@@ -8,7 +8,7 @@ import type {
 import {
   copyMessagesById,
   createOpenCodeThreadState,
-  reduceOpenCodeThreadState,
+  reduceOpenCodeThreadStateInternal,
   isOpenCodeStateRunning,
 } from "./openCodeThreadState";
 import type {
@@ -32,6 +32,7 @@ import {
 } from "./OpenCodeEventSource";
 import { generateId } from "@assistant-ui/core";
 import {
+  nullProtoRecord,
   resolveFileMediaType,
   resolveImageMediaType,
   toMediaWireUrl,
@@ -46,6 +47,21 @@ type ChildControllerEntry = {
   controller: OpenCodeThreadController;
   unsubscribe: (() => void) | null;
 };
+
+type InteractionRecoveryEntry = {
+  asked?: OpenCodeServerEvent;
+  settled?: OpenCodeServerEvent;
+};
+
+type InteractionRecoveryEvents = {
+  permissions: Map<string, Map<string, InteractionRecoveryEntry>>;
+  questions: Map<string, Map<string, InteractionRecoveryEntry>>;
+};
+
+const createInteractionRecoveryEvents = (): InteractionRecoveryEvents => ({
+  permissions: new Map(),
+  questions: new Map(),
+});
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
   serializeOpenCodeParts(parts).trim();
@@ -126,17 +142,22 @@ const getRecordValue = (
   return undefined;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 const toPermissionRequest = (
-  request: PermissionRequest,
+  value: unknown,
 ): OpenCodePermissionRequest | null => {
-  if (typeof request.id !== "string" || typeof request.sessionID !== "string") {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.sessionID !== "string" ||
+    typeof value.permission !== "string"
+  ) {
     return null;
   }
 
-  const metadata =
-    typeof request.metadata === "object" && request.metadata !== null
-      ? (request.metadata as Record<string, unknown>)
-      : {};
+  const metadata = isRecord(value.metadata) ? value.metadata : {};
 
   const titleValue = getRecordValue(metadata, ["title", "message", "prompt"]);
   const toolNameValue = getRecordValue(metadata, [
@@ -152,11 +173,12 @@ const toPermissionRequest = (
     "arguments",
   ]);
 
+  const request = value as PermissionRequest;
   return {
     id: request.id,
     sessionId: request.sessionID,
     permission: request.permission,
-    patterns: request.patterns,
+    patterns: Array.isArray(request.patterns) ? request.patterns : [],
     metadata,
     always: Array.isArray(request.always) ? request.always : [],
     tool: request.tool,
@@ -171,26 +193,52 @@ const toPermissionRequest = (
 
 const extractPermissionRequest = (
   event: OpenCodeServerEvent,
-): OpenCodePermissionRequest | null =>
-  toPermissionRequest(event.properties as PermissionRequest);
+): OpenCodePermissionRequest | null => toPermissionRequest(event.properties);
 
-const toQuestionRequest = (
-  request: QuestionRequest,
-): OpenCodeQuestionRequest | null => {
-  if (typeof request.id !== "string" || typeof request.sessionID !== "string") {
+const toQuestionRequest = (value: unknown): OpenCodeQuestionRequest | null => {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.sessionID !== "string" ||
+    !Array.isArray(value.questions)
+  ) {
     return null;
   }
 
+  const request = value as QuestionRequest;
   return {
     ...request,
     askedAt: Date.now(),
   };
 };
 
+const toPermissionRequests = (
+  items: readonly unknown[],
+): readonly OpenCodePermissionRequest[] | null => {
+  const requests: OpenCodePermissionRequest[] = [];
+  for (const item of items) {
+    const request = toPermissionRequest(item);
+    if (!request) return null;
+    requests.push(request);
+  }
+  return requests;
+};
+
+const toQuestionRequests = (
+  items: readonly unknown[],
+): readonly OpenCodeQuestionRequest[] | null => {
+  const requests: OpenCodeQuestionRequest[] = [];
+  for (const item of items) {
+    const request = toQuestionRequest(item);
+    if (!request) return null;
+    requests.push(request);
+  }
+  return requests;
+};
+
 const extractQuestionRequest = (
   event: OpenCodeServerEvent,
-): OpenCodeQuestionRequest | null =>
-  toQuestionRequest(event.properties as unknown as QuestionRequest);
+): OpenCodeQuestionRequest | null => toQuestionRequest(event.properties);
 
 const hasSamePermissionPayload = (
   left: OpenCodePermissionRequest,
@@ -317,6 +365,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
+  private readonly permissionRecoveryFence = new Map<
+    string,
+    "asked" | "settled"
+  >();
+  private permissionRecoveryToken: number | null = null;
+  private readonly questionRecoveryFence = new Map<
+    string,
+    "asked" | "settled"
+  >();
+  private questionRecoveryToken: number | null = null;
+  private readonly permissionRepliesInFlight = new Map<string, number>();
+  private readonly questionRepliesInFlight = new Map<string, number>();
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -324,6 +384,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     ChildControllerEntry
   >();
   private readonly childSessionIdByPartId = new Map<string, string>();
+  private interactionRecoveryEvents = createInteractionRecoveryEvents();
   private ancestorSessionIds: ReadonlySet<string>;
   private isChildSession = false;
   private readonly stagedMessages = new Map<
@@ -350,6 +411,95 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.ancestorSessionIds = new Set([sessionId]);
   }
 
+  private beginReply(repliesInFlight: Map<string, number>, id: string) {
+    repliesInFlight.set(id, (repliesInFlight.get(id) ?? 0) + 1);
+  }
+
+  private endReply(repliesInFlight: Map<string, number>, id: string) {
+    const remaining = (repliesInFlight.get(id) ?? 0) - 1;
+    if (remaining > 0) repliesInFlight.set(id, remaining);
+    else repliesInFlight.delete(id);
+  }
+
+  private fencePermission(id: string, state: "asked" | "settled") {
+    if (this.permissionRecoveryToken !== null) {
+      this.permissionRecoveryFence.set(id, state);
+    }
+  }
+
+  private fenceQuestion(id: string, state: "asked" | "settled") {
+    if (this.questionRecoveryToken !== null) {
+      this.questionRecoveryFence.set(id, state);
+    }
+  }
+
+  private cancelInteractionRecovery() {
+    this.reconnectSyncToken += 1;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
+    for (const entry of this.childControllersById.values()) {
+      entry.controller.cancelInteractionRecovery();
+    }
+    if (!this.isChildSession) {
+      this.interactionRecoveryEvents.permissions.clear();
+      this.interactionRecoveryEvents.questions.clear();
+    }
+  }
+
+  private retainInteractionRecoveryEvent(event: OpenCodeServerEvent) {
+    if (this.isChildSession || !event.sessionId) return;
+
+    const events =
+      event.type === "permission.asked" || event.type === "permission.replied"
+        ? this.permissionRecoveryToken !== null
+          ? this.interactionRecoveryEvents.permissions
+          : null
+        : event.type === "question.asked" ||
+            event.type === "question.replied" ||
+            event.type === "question.rejected"
+          ? this.questionRecoveryToken !== null
+            ? this.interactionRecoveryEvents.questions
+            : null
+          : null;
+    if (!events) return;
+
+    const isAsk =
+      event.type === "permission.asked" || event.type === "question.asked";
+    const requestId = isAsk
+      ? (event.type === "permission.asked"
+          ? extractPermissionRequest(event)
+          : extractQuestionRequest(event)
+        )?.id
+      : event.properties.requestID;
+    if (typeof requestId !== "string") return;
+
+    const requests =
+      events.get(event.sessionId) ??
+      new Map<string, InteractionRecoveryEntry>();
+    const entry = requests.get(requestId);
+    requests.set(
+      requestId,
+      isAsk ? { ...entry, asked: event } : { ...entry, settled: event },
+    );
+    events.set(event.sessionId, requests);
+  }
+
+  private replayInteractionRecoveryEvents() {
+    for (const { asked, settled } of [
+      ...(this.interactionRecoveryEvents.permissions
+        .get(this.sessionId)
+        ?.values() ?? []),
+      ...(this.interactionRecoveryEvents.questions
+        .get(this.sessionId)
+        ?.values() ?? []),
+    ]) {
+      if (asked) this.handleServerEvent(asked);
+      if (settled) this.handleServerEvent(settled);
+    }
+  }
+
   private notifyListeners() {
     for (const listener of this.listeners) {
       try {
@@ -366,12 +516,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   ) {
     if (this.state.childSessionsById[sessionId] === childState) return;
 
+    const childSessionsById = nullProtoRecord(this.state.childSessionsById);
+    childSessionsById[sessionId] = childState;
     this.state = {
       ...this.state,
-      childSessionsById: {
-        ...this.state.childSessionsById,
-        [sessionId]: childState,
-      },
+      childSessionsById,
     };
     this.notifyListeners();
   }
@@ -402,7 +551,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.loadPromise = null;
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
-    this.reconnectSyncToken += 1;
+    this.cancelInteractionRecovery();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -458,7 +607,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       entry.unsubscribe?.();
       entry.controller.discard();
       this.childControllersById.delete(sessionId);
-      const { [sessionId]: _removed, ...remaining } = childSessionsById;
+      const remaining = nullProtoRecord(childSessionsById);
+      delete remaining[sessionId];
       childSessionsById = remaining;
     }
 
@@ -476,15 +626,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         sessionId,
       ]);
       controller.isChildSession = true;
+      controller.permissionRecoveryToken = this.permissionRecoveryToken;
+      controller.questionRecoveryToken = this.questionRecoveryToken;
+      controller.interactionRecoveryEvents = this.interactionRecoveryEvents;
+      controller.replayInteractionRecoveryEvents();
       const entry: ChildControllerEntry = {
         controller,
         unsubscribe: null,
       };
       this.childControllersById.set(sessionId, entry);
-      childSessionsById = {
-        ...childSessionsById,
-        [sessionId]: controller.getState(),
-      };
+      const nextChildSessionsById = nullProtoRecord(childSessionsById);
+      nextChildSessionsById[sessionId] = controller.getState();
+      childSessionsById = nextChildSessionsById;
       added.push([sessionId, entry]);
     }
 
@@ -498,7 +651,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private syncChildSessionIndex(event: OpenCodeStateEvent) {
+  private syncChildSessionIndex(
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+  ) {
     switch (event.type) {
       case "history.loaded":
       case "message.removed":
@@ -515,19 +670,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private findController(
-    sessionId: string,
-  ): OpenCodeThreadController | undefined {
-    if (sessionId === this.sessionId) return this;
-
-    for (const { controller } of this.childControllersById.values()) {
-      const match = controller.findController(sessionId);
-      if (match) return match;
-    }
-
-    return undefined;
-  }
-
   private ensureEventSubscription() {
     if (this.unsubscribeFromEvents) return;
 
@@ -536,46 +678,158 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         this.handleStreamReconnect();
         return;
       }
+      this.retainInteractionRecoveryEvent(event);
       if (event.sessionId !== this.sessionId) return;
       this.handleServerEvent(event);
     });
   }
 
-  private routeReconnectPermission(item: PermissionRequest) {
-    const request = toPermissionRequest(item);
-    if (!request) return true;
-    const controller = this.findController(request.sessionId);
-    if (!controller) return false;
-    const { pending, resolved } = controller.state.interactions.permissions;
-    if (request.id in resolved) return true;
-    const existing = pending[request.id];
-    if (existing && hasSamePermissionPayload(existing, request)) return true;
-    controller.dispatch({ type: "permission.asked", request });
-    return true;
+  private collectInteractionRecoveryTargets(
+    targets = new Map<string, OpenCodeThreadController>(),
+    recoveryToken?: number,
+  ) {
+    if (recoveryToken !== undefined) {
+      this.permissionRecoveryFence.clear();
+      this.questionRecoveryFence.clear();
+      this.permissionRecoveryToken = recoveryToken;
+      this.questionRecoveryToken = recoveryToken;
+    }
+    targets.set(this.sessionId, this);
+    for (const entry of this.childControllersById.values()) {
+      entry.controller.collectInteractionRecoveryTargets(
+        targets,
+        recoveryToken,
+      );
+    }
+    return targets;
   }
 
-  private routeReconnectQuestion(item: QuestionRequest) {
-    const request = toQuestionRequest(item);
-    if (!request) return true;
-    const controller = this.findController(request.sessionID);
-    if (!controller) return false;
-    const { pending, answered, rejected } =
-      controller.state.interactions.questions;
-    if (request.id in answered || request.id in rejected) return true;
-    const existing = pending[request.id];
-    if (existing && hasSameQuestionPayload(existing, request)) return true;
-    controller.dispatch({ type: "question.asked", request });
-    return true;
+  private finishPermissionRecovery(token: number) {
+    if (this.permissionRecoveryToken !== token) return;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+    if (!this.isChildSession) {
+      this.interactionRecoveryEvents.permissions.clear();
+    }
+  }
+
+  private finishQuestionRecovery(token: number) {
+    if (this.questionRecoveryToken !== token) return;
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
+    if (!this.isChildSession) {
+      this.interactionRecoveryEvents.questions.clear();
+    }
+  }
+
+  private reconcilePermissions(requests: readonly OpenCodePermissionRequest[]) {
+    const pending = nullProtoRecord<OpenCodePermissionRequest>();
+    for (const request of requests) {
+      if (request.sessionId !== this.sessionId) continue;
+      if (this.permissionRepliesInFlight.has(request.id)) continue;
+      const settled = this.state.interactions.permissions.resolved[request.id];
+      if (
+        this.permissionRecoveryFence.get(request.id) === "settled" &&
+        !settled
+      ) {
+        const reply = this.interactionRecoveryEvents.permissions
+          .get(this.sessionId)
+          ?.get(request.id)?.settled?.properties.reply;
+        if (reply === "once" || reply === "always" || reply === "reject") {
+          this.dispatchSettled(
+            { type: "permission.asked", request },
+            { type: "permission.replied", permissionId: request.id, reply },
+          );
+        }
+        continue;
+      }
+      if (this.permissionRecoveryFence.has(request.id)) continue;
+      if (settled) continue;
+      const existing = this.state.interactions.permissions.pending[request.id];
+      pending[request.id] =
+        existing && hasSamePermissionPayload(existing, request)
+          ? existing
+          : request;
+    }
+    for (const [id, request] of Object.entries(
+      this.state.interactions.permissions.pending,
+    )) {
+      if (
+        this.permissionRepliesInFlight.has(id) ||
+        this.permissionRecoveryFence.get(id) === "asked"
+      ) {
+        pending[id] = request;
+      }
+    }
+    this.dispatch({ type: "permissions.reconciled", pending });
+  }
+
+  private reconcileQuestions(requests: readonly OpenCodeQuestionRequest[]) {
+    const pending = nullProtoRecord<OpenCodeQuestionRequest>();
+    for (const request of requests) {
+      if (request.sessionID !== this.sessionId) continue;
+      if (this.questionRepliesInFlight.has(request.id)) continue;
+      const settled =
+        this.state.interactions.questions.answered[request.id] ??
+        this.state.interactions.questions.rejected[request.id];
+      if (
+        this.questionRecoveryFence.get(request.id) === "settled" &&
+        !settled
+      ) {
+        const reply = this.interactionRecoveryEvents.questions
+          .get(this.sessionId)
+          ?.get(request.id)?.settled;
+        const answers = reply?.properties.answers;
+        if (reply?.type === "question.rejected") {
+          this.dispatchSettled(
+            { type: "question.asked", request },
+            { type: "question.rejected", questionId: request.id },
+          );
+        } else if (Array.isArray(answers)) {
+          this.dispatchSettled(
+            { type: "question.asked", request },
+            {
+              type: "question.replied",
+              questionId: request.id,
+              answers: answers as never,
+            },
+          );
+        }
+        continue;
+      }
+      if (this.questionRecoveryFence.has(request.id)) continue;
+      if (settled) continue;
+      const existing = this.state.interactions.questions.pending[request.id];
+      pending[request.id] =
+        existing && hasSameQuestionPayload(existing, request)
+          ? existing
+          : request;
+    }
+    for (const [id, request] of Object.entries(
+      this.state.interactions.questions.pending,
+    )) {
+      if (
+        this.questionRepliesInFlight.has(id) ||
+        this.questionRecoveryFence.get(id) === "asked"
+      ) {
+        pending[id] = request;
+      }
+    }
+    this.dispatch({ type: "questions.reconciled", pending });
   }
 
   private handleStreamReconnect() {
-    const historyRefresh = this.refreshInBackground().then(() =>
-      this.waitForChildLoads(),
-    );
+    this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
     if (this.isChildSession) return;
+    this.interactionRecoveryEvents.permissions.clear();
+    this.interactionRecoveryEvents.questions.clear();
+    const interactionRecoveryTargets = this.collectInteractionRecoveryTargets(
+      new Map(),
+      token,
+    );
 
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
@@ -598,35 +852,66 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     void this.client.permission
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
-        const unmatched = (response.data ?? []).filter(
-          (item) => !this.routeReconnectPermission(item),
+      .then(async (response) => {
+        if (token !== this.reconnectSyncToken) return;
+        const recoveryControllers = new Set(
+          interactionRecoveryTargets.values(),
         );
-        if (unmatched.length === 0) return;
-        void historyRefresh.then(() => {
-          if (token !== this.reconnectSyncToken) return;
-          for (const item of unmatched) this.routeReconnectPermission(item);
-        });
+        try {
+          const requests =
+            response && Array.isArray(response.data)
+              ? toPermissionRequests(response.data)
+              : null;
+          await this.visitInteractionRecoveryTree(
+            (controller) => {
+              recoveryControllers.add(controller);
+              if (requests) controller.reconcilePermissions(requests);
+            },
+            () => token === this.reconnectSyncToken,
+          );
+        } finally {
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
+          for (const controller of recoveryControllers) {
+            controller.finishPermissionRecovery(token);
+          }
+        }
       });
 
     void this.client.question
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
-        const unmatched = (response.data ?? []).filter(
-          (item) => !this.routeReconnectQuestion(item),
+      .then(async (response) => {
+        if (token !== this.reconnectSyncToken) return;
+        const recoveryControllers = new Set(
+          interactionRecoveryTargets.values(),
         );
-        if (unmatched.length === 0) return;
-        void historyRefresh.then(() => {
-          if (token !== this.reconnectSyncToken) return;
-          for (const item of unmatched) this.routeReconnectQuestion(item);
-        });
+        try {
+          const requests =
+            response && Array.isArray(response.data)
+              ? toQuestionRequests(response.data)
+              : null;
+          await this.visitInteractionRecoveryTree(
+            (controller) => {
+              recoveryControllers.add(controller);
+              if (requests) controller.reconcileQuestions(requests);
+            },
+            () => token === this.reconnectSyncToken,
+          );
+        } finally {
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
+          for (const controller of recoveryControllers) {
+            controller.finishQuestionRecovery(token);
+          }
+        }
       });
   }
 
   public dispose() {
+    this.cancelInteractionRecovery();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     this.detachChildControllers();
@@ -891,52 +1176,70 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
-    await this.client.permission.reply(
-      {
-        requestID: permissionId,
-        reply: response,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    this.beginReply(this.permissionRepliesInFlight, permissionId);
+    try {
+      await this.client.permission.reply(
+        {
+          requestID: permissionId,
+          reply: response,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.dispatch({
-      type: "permission.replied",
-      permissionId,
-      reply: response,
-    });
+      this.fencePermission(permissionId, "settled");
+      this.dispatch({
+        type: "permission.replied",
+        permissionId,
+        reply: response,
+      });
+    } finally {
+      this.endReply(this.permissionRepliesInFlight, permissionId);
+    }
   }
 
   public async replyToQuestion(
     questionId: string,
     answers: readonly QuestionAnswer[],
   ) {
-    await this.client.question.reply(
-      {
-        requestID: questionId,
-        answers: answers.slice(),
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    this.beginReply(this.questionRepliesInFlight, questionId);
+    try {
+      await this.client.question.reply(
+        {
+          requestID: questionId,
+          answers: answers.slice(),
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.dispatch({
-      type: "question.replied",
-      questionId,
-      answers,
-    });
+      this.fenceQuestion(questionId, "settled");
+      this.dispatch({
+        type: "question.replied",
+        questionId,
+        answers,
+      });
+    } finally {
+      this.endReply(this.questionRepliesInFlight, questionId);
+    }
   }
 
   public async rejectQuestion(questionId: string) {
-    await this.client.question.reject(
-      {
-        requestID: questionId,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    this.beginReply(this.questionRepliesInFlight, questionId);
+    try {
+      await this.client.question.reject(
+        {
+          requestID: questionId,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.dispatch({
-      type: "question.rejected",
-      questionId,
-    });
+      this.fenceQuestion(questionId, "settled");
+      this.dispatch({
+        type: "question.rejected",
+        questionId,
+      });
+    } finally {
+      this.endReply(this.questionRepliesInFlight, questionId);
+    }
   }
 
   private async refreshInBackground() {
@@ -957,13 +1260,32 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private async waitForChildLoads() {
-    await Promise.all(
-      [...this.childControllersById.values()].map(async ({ controller }) => {
-        await controller.waitForLoadChain();
-        await controller.waitForChildLoads();
-      }),
+  private async visitInteractionRecoveryTree(
+    visit: (controller: OpenCodeThreadController) => void,
+    isCurrent: () => boolean,
+  ): Promise<void> {
+    if (!isCurrent()) return;
+    visit(this);
+    const children = new Set(
+      [...this.childControllersById.values()].map(
+        ({ controller }) => controller,
+      ),
     );
+    await Promise.all([
+      ...[...children].map((controller) =>
+        controller.visitInteractionRecoveryTree(visit, isCurrent),
+      ),
+      this.waitForLoadChain().then(async () => {
+        if (!isCurrent()) return;
+        await Promise.all(
+          [...this.childControllersById.values()]
+            .filter(({ controller }) => !children.has(controller))
+            .map(({ controller }) =>
+              controller.visitInteractionRecoveryTree(visit, isCurrent),
+            ),
+        );
+      }),
+    ]);
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
@@ -1102,6 +1424,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "permission.asked": {
         const request = extractPermissionRequest(event);
         if (request) {
+          this.fencePermission(request.id, "asked");
           this.dispatch({
             type: "permission.asked",
             request,
@@ -1111,12 +1434,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
 
       case "permission.replied":
-        if (
-          typeof event.properties.requestID === "string" &&
-          (event.properties.reply === "once" ||
-            event.properties.reply === "always" ||
-            event.properties.reply === "reject")
-        ) {
+        if (typeof event.properties.requestID === "string") {
+          this.fencePermission(event.properties.requestID, "settled");
+          if (
+            event.properties.reply !== "once" &&
+            event.properties.reply !== "always" &&
+            event.properties.reply !== "reject"
+          ) {
+            return;
+          }
           this.dispatch({
             type: "permission.replied",
             permissionId: event.properties.requestID,
@@ -1128,6 +1454,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "question.asked": {
         const request = extractQuestionRequest(event);
         if (request) {
+          this.fenceQuestion(request.id, "asked");
           this.dispatch({
             type: "question.asked",
             request,
@@ -1137,10 +1464,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
 
       case "question.replied":
-        if (
-          typeof event.properties.requestID === "string" &&
-          Array.isArray(event.properties.answers)
-        ) {
+        if (typeof event.properties.requestID === "string") {
+          this.fenceQuestion(event.properties.requestID, "settled");
+          if (!Array.isArray(event.properties.answers)) return;
           this.dispatch({
             type: "question.replied",
             questionId: event.properties.requestID,
@@ -1151,6 +1477,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "question.rejected":
         if (typeof event.properties.requestID === "string") {
+          this.fenceQuestion(event.properties.requestID, "settled");
           this.dispatch({
             type: "question.rejected",
             questionId: event.properties.requestID,
@@ -1166,7 +1493,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private trackHistoryEvent(
-    event: Parameters<typeof reduceOpenCodeThreadState>[1],
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
   ) {
     const syncWindow = this.historySyncWindow;
     if (!syncWindow) return;
@@ -1210,17 +1537,30 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+  private dispatch(
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+  ) {
     this.trackHistoryEvent(event);
-    const nextState = reduceOpenCodeThreadState(this.state, event);
+    const nextState = reduceOpenCodeThreadStateInternal(this.state, event);
     this.commitState(event, nextState);
+  }
+
+  private dispatchSettled(
+    asked: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+    settled: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+  ) {
+    const nextState = reduceOpenCodeThreadStateInternal(
+      reduceOpenCodeThreadStateInternal(this.state, asked),
+      settled,
+    );
+    this.commitState(settled, nextState);
   }
 
   private dispatchHistoryLoaded(
     event: Extract<OpenCodeStateEvent, { type: "history.loaded" }>,
     changedMessageIds: ReadonlySet<string>,
   ) {
-    let nextState = reduceOpenCodeThreadState(this.state, event);
+    let nextState = reduceOpenCodeThreadStateInternal(this.state, event);
     let messagesById: ReturnType<typeof copyMessagesById> | null = null;
     for (const messageId of changedMessageIds) {
       const shadowParts = this.state.messagesById[messageId]?.shadowParts;
@@ -1234,7 +1574,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private commitState(
-    event: OpenCodeStateEvent,
+    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
     nextState: OpenCodeThreadState,
   ) {
     if (nextState === this.state) return;

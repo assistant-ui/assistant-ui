@@ -44,9 +44,11 @@ function TooltipProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <TooltipDispatchContext value={dispatch}>
-      <TooltipStateContext value={tooltipState}>{children}</TooltipStateContext>
-    </TooltipDispatchContext>
+    <TooltipDispatchContext.Provider value={dispatch}>
+      <TooltipStateContext.Provider value={tooltipState}>
+        {children}
+      </TooltipStateContext.Provider>
+    </TooltipDispatchContext.Provider>
   );
 }
 
@@ -64,13 +66,13 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
     );
 
     return (
-      <HeatGraphContext value={state}>
+      <HeatGraphContext.Provider value={state}>
         <TooltipProvider>
           <div ref={ref} {...props}>
             {children}
           </div>
         </TooltipProvider>
-      </HeatGraphContext>
+      </HeatGraphContext.Provider>
     );
   },
 );

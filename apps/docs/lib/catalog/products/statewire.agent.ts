@@ -1,0 +1,21 @@
+import "server-only";
+
+export const STATEWIRE_AGENT_PROMPTS = new Map<string, string>([
+  [
+    "statewire",
+    `Build the application described in the user's setup instructions with Statewire and Cloudflare Durable Objects. Preserve any other requirements in those instructions. If the build brief is missing, ask what they want to build before proposing a plan; in a setup session use \`ask "What do you want to build with Statewire?" --wait\`.
+
+Read https://www.assistant-ui.com/statewire.md for the verified installation path and host/client examples. The Durable Objects adapter is currently provided in official-source archives, not an npm release. Do not run npm install statewire-durable-objects from the registry or invent a published version.
+
+1. Inspect the selected project and existing package manager. If there is no suitable React project, ask which project or folder to use before creating one. In a setup session you can propose the React project product with \`ask "Choose the React project for this application" --product react-app --wait\`; install into the selected folder. Statewire does not require assistant-ui chat components or Assistant Cloud.
+2. Download https://www.assistant-ui.com/downloads/statewire-tic-tac-toe.zip into a temporary directory and inspect its README, vendor/provenance.json, worker/index.ts, worker/lobby.ts, src/game.ts and src/App.tsx. Copy its vendor archives into the chosen project's vendor directory and install those local Statewire 0.19.3 and Durable Objects 0.2.0 archives with one shared @assistant-ui/tap runtime. Keep the archive files in the project so installs remain reproducible. Use the starter's verified tooling and source revision; do not substitute a different Statewire version without checking compatibility.
+3. Implement the requested application's state and typed commands in a tap resource using useStatewireState and useStatewireCommands from statewire/host. The server validates commands and owns the committed state. Restore the saved snapshot in the resource initializer, and expose snapshot/subscribe through getStateHost so the adapter persists updates. Adapt the starter to the user's brief; do not leave an unrelated tic-tac-toe game in their application.
+4. Mount the resource with StatewireDurableObject, export its Durable Object class, route named rooms through routeStatewireRequest, and add the matching binding plus a new_sqlite_classes migration to Wrangler. Preserve existing bindings and migration history. Keep each room's instance name stable. Add a lobby only when the requested application needs matchmaking.
+5. Connect the existing React UI with useStatewire and StatewireWebsocket. The browser reads replicated state and sends typed commands; do not use a client-only store as the source of truth. Follow the project's existing frontend/server structure. A Vite project can use the starter's Worker asset serving; for another framework, integrate the Worker URL and development proxy without replacing the app's framework.
+6. Add application authorization when the requested data is private or the rules depend on trusted identity. Browser-generated demo IDs are not authentication. Configure secrets with the user's chosen environment tooling rather than exposing them to clients.
+7. Start Wrangler locally with an explicit persistence directory and the frontend. Build and typecheck. Open two independent browser clients in the same room, make a change from each, and confirm both receive the host's state. Confirm a different room is isolated and invalid commands are rejected. Wait at least two seconds after a write, restart the Worker with the same persistence directory, and confirm the saved state restores. The adapter saves on a one-second debounce, so abrupt termination before a pending save can lose recent changes.
+8. Run wrangler deploy --dry-run. If deployment is part of the approved setup, ask which Cloudflare account and unique Worker name to use, then use Wrangler's existing authenticated workflow. Do not overwrite another Worker or fabricate an account ID. Otherwise leave the deployment command and verified local result for the user.
+
+Verify the application in the user's brief, not only the starter. Report the local URL, the shared-room behavior, persistence result, and any remaining deployment requirement.`,
+  ],
+]);

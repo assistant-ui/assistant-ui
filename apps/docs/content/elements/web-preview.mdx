@@ -9,7 +9,7 @@ Web preview is chrome around a preview: a reload button, a URL bar, and an open-
 
 <RuntimeMode>
 
-`WebPreview` never sandboxes its `children` itself, so pairing it with a tool that returns model-written markup means isolating that markup yourself. [`safe-content-frame`](/safe-content-frame) is built for exactly this: it mounts an iframe on a separate, per-render origin so model-generated script cannot reach your page's cookies, storage, or DOM.
+`WebPreview` never sandboxes its `children` itself, so pairing it with a tool that returns model-written markup means isolating that markup yourself. [`safe-content-frame`](/safe-content-frame) is built for this: it mounts an iframe on a separate, per-render origin so model-generated script cannot reach your page's cookies, storage, or DOM.
 
 <Steps>
   <Step>
@@ -31,7 +31,7 @@ export const RenderPreviewToolUI: ToolCallMessagePartComponent<
   { html: string }
 > = ({ result }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderedRef = useRef<RenderedFrame>();
+  const renderedRef = useRef<RenderedFrame | undefined>(undefined);
   const [origin, setOrigin] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -173,12 +173,14 @@ useEffect(() => {
 ```tsx
 <div data-slot="web-preview">
   <div>{/* reload button, origin field, open-in-new-tab button */}</div>
-  <div>{/* children, faded to invisible while loading */}</div>
-  {/* a shimmering "Loading preview" label, centered over the content area, only while loading */}
+  <div>
+    <div>{/* children, faded to invisible while loading */}</div>
+    {/* a shimmering "Loading preview" label, centered over the content area, only while loading */}
+  </div>
 </div>
 ```
 
-`loading` hides `children` with `invisible` and `opacity-0` rather than unmounting it, so a frame already in flight keeps loading in the background while the shimmer label covers it. The reload button's icon spins for as long as `loading` is true. `onReload` and `onOpenExternal` are both optional: the buttons render regardless and are simply no-ops without a handler.
+`loading` hides `children` with `invisible` and `opacity-0` rather than unmounting it, so a frame already in flight keeps loading in the background while the shimmer label covers it. The reload button's icon spins for as long as `loading` is true. `onReload` and `onOpenExternal` are both optional: the buttons render regardless and are no-ops without a handler.
 
 ## Examples
 

@@ -69,6 +69,7 @@ export const MODEL_PROVIDERS: Record<string, ModelProvider> = {
       hint: "Open the Anthropic Console and create a key under Settings › API keys.",
     },
     reasoning: true,
+    defaultModel: "claude-sonnet-5",
     listModels: (apiKey) =>
       fetch("https://api.anthropic.com/v1/models?limit=100", {
         headers: {
@@ -87,6 +88,7 @@ export const MODEL_PROVIDERS: Record<string, ModelProvider> = {
       hint: "Open Google AI Studio and click Create API key.",
     },
     reasoning: true,
+    defaultModel: "gemini-2.5-flash",
     listModels: (apiKey) =>
       fetch(
         "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",

@@ -10,7 +10,7 @@ This page covers the few places tap deliberately differs.
 ## Effects run in call order
 
 In React, effects run children-first (inside-out), because a component can only
-reach its children by returning them. In tap, `useResource` is just another hook,
+reach its children by returning them. In tap, `useResource` is a hook,
 so **effects run in the exact order they are called**, and you can place effects
 before or after a child.
 
@@ -52,11 +52,11 @@ breaks this chain by creating a new root with its own scheduler. Everything
 below it re-renders independently, and the parent does not re-render when that
 root updates.
 
-## `useLayoutEffect` and `useInsertionEffect` collapse onto `useEffect`
+## `useLayoutEffect` collapses onto `useEffect`
 
-tap has a single effect primitive. `useLayoutEffect` and `useInsertionEffect`
-are accepted (so React code ports cleanly) but behave like `useEffect` inside a
-resource.
+tap has no layout phase. `useLayoutEffect` is accepted, so React code ports cleanly, but it behaves like `useEffect` inside a resource.
+
+`useInsertionEffect` keeps React's lifetime instead: it sets up before the resource's other effects, and its cleanup runs only when the resource is released for good, never on a soft unmount such as a hidden `<Activity>` or a Strict Mode effect replay (see [Lifecycle](/docs/tap/lifecycle#mount-and-unmount)).
 
 ## Where a throwing snapshot surfaces depends on the host
 
