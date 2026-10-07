@@ -187,9 +187,9 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
-  // What the host holds as far as this runtime knows: the branch the last
-  // snapshot pass derived, before the placeholder, or the array last handed
-  // to setMessages, whichever is newer.
+  // What the host holds or has moved past, as far as this runtime knows: the
+  // branch the last snapshot pass derived, before the placeholder, or the array
+  // last handed to setMessages, whichever was written last.
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private _runStarts = 0;
