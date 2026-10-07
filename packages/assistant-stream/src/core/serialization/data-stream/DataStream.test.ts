@@ -725,11 +725,11 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
     expect(argsTextOf(chunks)).toBe('{"q":1}');
   });
 
-  it("does not repeat streamed args when the complete tool call frame arrives", async () => {
+  it("keeps streamed args over the args of a later complete tool call frame", async () => {
     const chunks = await decodeLines([
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":1}"}',
-      '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+      '9:{"toolCallId":"t1","toolName":"search","args":{"q":2}}',
     ]);
 
     expect(argsTextOf(chunks)).toBe('{"q":1}');
