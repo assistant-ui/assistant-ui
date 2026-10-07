@@ -3945,6 +3945,67 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
+  it.each([
+    { kind: "permission", terminal: "permission.replied" },
+    { kind: "question", terminal: "question.replied" },
+    { kind: "reject", terminal: "question.rejected" },
+  ] as const)(
+    "settles a root $kind when its ask precedes recovery",
+    async ({ kind, terminal }) => {
+      const eventSource = createEventSource();
+      const list = createDeferred<{ data: unknown[] }>();
+      const permission = createPermissionRequest();
+      const question = createQuestionRequest();
+      const isPermission = kind === "permission";
+      const request = isPermission ? permission : question;
+      const client = createReconnectClient(
+        isPermission
+          ? { permissions: vi.fn(() => list.promise) }
+          : { questions: vi.fn(() => list.promise) },
+      );
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      await controller.load();
+
+      eventSource.emit(streamReconnected);
+      await vi.waitFor(() =>
+        expect(
+          isPermission ? client.permission.list : client.question.list,
+        ).toHaveBeenCalled(),
+      );
+      eventSource.emit({
+        type: terminal,
+        sessionId: "ses_1",
+        properties: isPermission
+          ? { requestID: request.id, reply: "once" }
+          : kind === "question"
+            ? { requestID: request.id, answers: [["yes"]] }
+            : { requestID: request.id },
+        raw: {},
+      });
+      list.resolve({ data: [request] });
+
+      await vi.waitFor(() => {
+        const interactions = controller.getState().interactions;
+        const record = isPermission
+          ? interactions.permissions.resolved[request.id]
+          : kind === "question"
+            ? interactions.questions.answered[request.id]
+            : interactions.questions.rejected[request.id];
+        expect(record).toBeDefined();
+        expect(
+          isPermission
+            ? interactions.permissions.pending[request.id]
+            : interactions.questions.pending[request.id],
+        ).toBeUndefined();
+      });
+    },
+  );
+
   it.each(["permission", "question"] as const)(
     "preserves an unchanged $kind request during recovery",
     async (kind) => {

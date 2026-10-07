@@ -445,7 +445,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private retainDescendantInteractionRecoveryEvent(event: OpenCodeServerEvent) {
+  private retainInteractionRecoveryEvent(event: OpenCodeServerEvent) {
     if (this.isChildSession || !event.sessionId) return;
 
     const events =
@@ -655,10 +655,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         this.handleStreamReconnect();
         return;
       }
-      if (event.sessionId !== this.sessionId) {
-        this.retainDescendantInteractionRecoveryEvent(event);
-        return;
-      }
+      this.retainInteractionRecoveryEvent(event);
+      if (event.sessionId !== this.sessionId) return;
       this.handleServerEvent(event);
     });
   }
@@ -708,7 +706,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       if (this.permissionRepliesInFlight.has(request.id)) continue;
       const settled = this.state.interactions.permissions.resolved[request.id];
       if (
-        this.isChildSession &&
         this.permissionRecoveryFence.get(request.id) === "settled" &&
         !settled
       ) {
@@ -761,7 +758,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         this.state.interactions.questions.answered[request.id] ??
         this.state.interactions.questions.rejected[request.id];
       if (
-        this.isChildSession &&
         this.questionRecoveryFence.get(request.id) === "settled" &&
         !settled
       ) {
