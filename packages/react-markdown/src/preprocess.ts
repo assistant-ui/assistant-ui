@@ -603,27 +603,21 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     const continued: boolean = inParagraph;
-    const ruleLine =
+    const ruleLine: boolean =
       shallow &&
-      isRuleLine(text, i, lineEnd, continued && depth === lastQuoteDepth);
+      (isRuleLine(text, i, lineEnd, continued && depth === lastQuoteDepth) ||
+        (blockStart !== i &&
+          !markersInProse &&
+          isRuleLine(text, listMarkerEnd(text, i, lineEnd), lineEnd, false)));
     inParagraph =
       first !== -1 &&
       fenceChar === 0 &&
       mathEnd <= lineEnd &&
       htmlKind === 0 &&
       !closesBlock &&
+      !ruleLine &&
       !(
-        shallow &&
-        (isAtxHeading(text, markersInProse ? i : blockStart, lineEnd) ||
-          isRuleLine(
-            text,
-            i,
-            lineEnd,
-            inParagraph && depth === lastQuoteDepth,
-          ) ||
-          (blockStart !== i &&
-            !markersInProse &&
-            isRuleLine(text, listMarkerEnd(text, i, lineEnd), lineEnd, false)))
+        shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd)
       );
     if (inParagraph) {
       paragraphItemIndent =

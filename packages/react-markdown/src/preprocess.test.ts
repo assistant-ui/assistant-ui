@@ -767,6 +767,19 @@ describe("escapeCurrencyDollars", () => {
     },
   );
 
+  it.each(["1. ---\n       total = $5", "1. ***\n       total = $5"])(
+    "does not rewrite indented code right after a thematic break in a list item: %j",
+    (input) => {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+    },
+  );
+
+  it("still escapes a continuation below the code column after a thematic break in a list item", () => {
+    expect(escapeCurrencyDollars("1. ---\n      total = $5")).toBe(
+      "1. ---\n      total = \\$5",
+    );
+  });
+
   it("closes a list item at root prose after a blank-line-terminated code block", () => {
     const input = "- item\n\n      code $1\n\nroot prose\n\n    root code $6";
     expect(escapeCurrencyDollars(input)).toBe(input);
