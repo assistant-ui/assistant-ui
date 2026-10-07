@@ -253,64 +253,73 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
-  it("does not retry a restored controlled thread after a later switch", async () => {
-    const deletion = deferred<void>();
-    const onThreadIdChange = vi.fn();
-    const adapter = makeAdapter({
-      list: vi.fn(async () => ({
-        threads: [
-          {
-            status: "regular" as const,
-            remoteId: "thread-b",
-            externalId: "thread-b",
-            title: "Thread B",
-          },
-          {
-            status: "regular" as const,
-            remoteId: "thread-c",
-            externalId: "thread-c",
-            title: "Thread C",
-          },
-        ],
-      })),
-      delete: vi.fn(() => deletion.promise),
-    });
-    const core = createCore(adapter, undefined, onThreadIdChange);
-    await core.getLoadThreadsPromise();
-    core.__internal_load();
-    const startThreadRuntime = vi.fn(async (_threadId: string) => ({}));
-    setStartThreadRuntime(core, startThreadRuntime);
+  it.each(["before", "after"] as const)(
+    "does not retry a restored controlled thread when a later switch occurs %s deletion",
+    async (timing) => {
+      const deletion = deferred<void>();
+      const onThreadIdChange = vi.fn();
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            {
+              status: "regular" as const,
+              remoteId: "thread-b",
+              externalId: "thread-b",
+              title: "Thread B",
+            },
+            {
+              status: "regular" as const,
+              remoteId: "thread-c",
+              externalId: "thread-c",
+              title: "Thread C",
+            },
+          ],
+        })),
+        delete: vi.fn(() => deletion.promise),
+      });
+      const core = createCore(adapter, undefined, onThreadIdChange);
+      await core.getLoadThreadsPromise();
+      core.__internal_load();
+      const startThreadRuntime = vi.fn(async (_threadId: string) => ({}));
+      setStartThreadRuntime(core, startThreadRuntime);
 
-    core.__internal_setOptions({
-      adapter,
-      runtimeHook: () => ({}) as never,
-      threadId: "thread-b",
-      onThreadIdChange,
-    });
-    const controlledSwitch = (core as unknown as { _switchTask: Promise<void> })
-      ._switchTask;
+      core.__internal_setOptions({
+        adapter,
+        runtimeHook: () => ({}) as never,
+        threadId: "thread-b",
+        onThreadIdChange,
+      });
+      const controlledSwitch = (
+        core as unknown as { _switchTask: Promise<void> }
+      )._switchTask;
 
-    const deleting = core.delete("thread-b").catch(() => undefined);
-    await vi.waitFor(() => {
-      expect(core.getItemById("thread-b")).toBeUndefined();
-      expect(adapter.delete).toHaveBeenCalledWith("thread-b");
-    });
+      if (timing === "before") {
+        await controlledSwitch;
+        await core.switchToThread("thread-c");
+      }
 
-    await core.switchToThread("thread-c");
-    await controlledSwitch;
-    const startedThreadsBeforeRollback = startThreadRuntime.mock.calls.map(
-      ([threadId]) => threadId,
-    );
-    deletion.reject(new Error("network"));
-    await deleting;
+      const deleting = core.delete("thread-b").catch(() => undefined);
+      await vi.waitFor(() => {
+        expect(core.getItemById("thread-b")).toBeUndefined();
+        expect(adapter.delete).toHaveBeenCalledWith("thread-b");
+      });
 
-    expect(core.getItemById("thread-b")?.status).toBe("regular");
-    expect(core.mainThreadId).toBe("thread-c");
-    expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-c");
-    expect(startThreadRuntime.mock.calls.map(([threadId]) => threadId)).toEqual(
-      startedThreadsBeforeRollback,
-    );
-  });
+      if (timing === "after") await core.switchToThread("thread-c");
+      await controlledSwitch;
+      const startedThreadsBeforeRollback = startThreadRuntime.mock.calls.map(
+        ([threadId]) => threadId,
+      );
+      deletion.reject(new Error("network"));
+      await deleting;
+
+      expect(core.getItemById("thread-b")?.status).toBe("regular");
+      expect(core.mainThreadId).toBe("thread-c");
+      expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-c");
+      expect(
+        startThreadRuntime.mock.calls.map(([threadId]) => threadId),
+      ).toEqual(startedThreadsBeforeRollback);
+    },
+  );
 
   it("clears the deleted thread's title state on successful deletion", async () => {
     const adapter = makeAdapter({
