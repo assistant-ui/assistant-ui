@@ -281,6 +281,13 @@ function htmlBlockEnds(
 function htmlBlockRanges(text: string): number[] {
   const ranges: number[] = [];
   const listItems: { content: number; depth: number; footnote: boolean }[] = [];
+  const closeDeeperLists = (depth: number) => {
+    while (
+      listItems.length > 0 &&
+      depth < listItems[listItems.length - 1]!.depth
+    )
+      listItems.pop();
+  };
   let codeStart = -1;
   let codeIndent = 0;
   let codeQuoteDepth = 0;
@@ -327,13 +334,15 @@ function htmlBlockRanges(text: string): number[] {
     let quoteStart = lineStart;
     let blockContentStart = lineStart;
     let contentStart = lineStart;
+    let column = 0;
+    let contentColumn = 0;
     let indentedMarker = false;
     let literalQuoteDepth = -1;
     const quoteIndents: number[] = [];
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
-        const quoteIndent = columns(text, contentStart, i);
+        const quoteIndent = column - contentColumn;
         const item = listItems.findLast((item) => item.depth === depth);
         const itemIndent =
           item && quoteIndent >= item.content ? item.content : 0;
@@ -349,14 +358,17 @@ function htmlBlockRanges(text: string): number[] {
         if (depth === blockQuoteDepth) quoteStart = i;
         depth += 1;
         contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
+        const padding = text.charCodeAt(i + 1);
+        contentColumn = column + (padding === SPACE || padding === TAB ? 2 : 1);
         if (depth === blockQuoteDepth) blockContentStart = contentStart;
       } else if (!isSpace(c)) {
         break;
       }
+      column += c === TAB ? 4 - (column % 4) : 1;
       i += 1;
     }
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
-    const indent = columns(text, contentStart, i);
+    const indent = column - contentColumn;
     const codeDepth = literalQuoteDepth === -1 ? depth : literalQuoteDepth;
     const codeLineIndent = quoteIndents[codeDepth] ?? indent;
     if (
@@ -446,11 +458,7 @@ function htmlBlockRanges(text: string): number[] {
       ranges.push(codeStart, lineStart);
       codeStart = -1;
     }
-    while (
-      listItems.length > 0 &&
-      codeDepth < listItems[listItems.length - 1]!.depth
-    )
-      listItems.pop();
+    if (!inParagraph) closeDeeperLists(codeDepth);
     if (previousBlank && first !== -1) {
       while (listItems.length > 0) {
         const item = listItems[listItems.length - 1]!;
@@ -516,6 +524,7 @@ function htmlBlockRanges(text: string): number[] {
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
 
     if (first !== -1 && !markersInProse) {
+      if (blockStart !== i) closeDeeperLists(outerListDepth);
       if (outerListIndent !== 0 && depth > outerListDepth) {
         while (
           listItems.length > 0 &&
@@ -537,6 +546,7 @@ function htmlBlockRanges(text: string): number[] {
         bareMarker !== 0 ||
         footnote
       ) {
+        closeDeeperLists(depth);
         while (
           listItems.length > 0 &&
           depth === listItems[listItems.length - 1]!.depth &&
@@ -642,6 +652,7 @@ function htmlBlockRanges(text: string): number[] {
       !(
         shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd)
       );
+    if (!inParagraph) closeDeeperLists(codeDepth);
     if (inParagraph) {
       paragraphItemIndent =
         blockStart !== i && !markersInProse

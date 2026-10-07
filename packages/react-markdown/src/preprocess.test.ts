@@ -935,6 +935,34 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("retains quoted list indentation across lazy paragraph continuations", () => {
+    expect(
+      escapeCurrencyDollars("> - a\nlazy\n>\n>     costs $5 and $10"),
+    ).toBe("> - a\nlazy\n>\n>     costs \\$5 and \\$10");
+  });
+
+  it.each([">\t> $5", ">\t $5", "> \t$5", "> \t $5"])(
+    "escapes quoted prose with absolute tab stops: %j",
+    (markdown) => {
+      expect(escapeCurrencyDollars(markdown)).toBe(
+        markdown.replace("$5", "\\$5"),
+      );
+    },
+  );
+
+  it.each([">\t  $5", "> - a\n# heading\n    code $5", "> - a\n\n    code $5"])(
+    "preserves code after tab padding or a quoted list boundary: %j",
+    (markdown) => {
+      expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+    },
+  );
+
+  it("starts a root list after a quoted list paragraph", () => {
+    expect(escapeCurrencyDollars("> - a\n- b\n\n    prose $5")).toBe(
+      "> - a\n- b\n\n    prose \\$5",
+    );
+  });
+
   it("still escapes footnote prose", () => {
     expect(
       escapeCurrencyDollars("[^1]: Pricing note\n\n    Plans cost $5 and $10"),
