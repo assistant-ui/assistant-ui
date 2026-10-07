@@ -114,6 +114,22 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 </ThreadPrimitive.Viewport>
 ```
 
+Custom collapsibles can pause bottom-following while users inspect expanded content. Call `pauseAutoScroll()` when one opens and `resumeAutoScroll()` when it closes. The `autoScrollPaused` state is available to custom UI, and following resumes when the user scrolls to the bottom, starts a new run, changes threads, or uses a scroll-to-bottom control.
+
+```tsx
+import { useThreadViewport } from "@assistant-ui/react";
+
+const usePauseAutoScrollOnExpand = () => {
+  const pauseAutoScroll = useThreadViewport((state) => state.pauseAutoScroll);
+  const resumeAutoScroll = useThreadViewport((state) => state.resumeAutoScroll);
+
+  return (expanded: boolean) => {
+    if (expanded) pauseAutoScroll();
+    else resumeAutoScroll();
+  };
+};
+```
+
 ### Turn Anchor
 
 By default, new messages appear at the bottom and scroll down. With `turnAnchor="top"`, the user's message anchors to the top of the viewport. The question stays at the top and the response streams in below it.
