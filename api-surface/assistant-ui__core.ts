@@ -1048,7 +1048,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   getModelContext(): ModelContext$1;
   protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
-  __internal_getEditComposers(): MapIterator<DefaultEditComposerRuntimeCore>;
+  __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore>;
   protected _isVoiceMessage(messageId: string | null): boolean;
   protected _resolveAppendParent(parentId: string | null): string | null;
   beginEdit(messageId: string): void;
