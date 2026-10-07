@@ -152,6 +152,7 @@ const useAssistantTransportThreadRuntime = <T>(
   const [isReplaying, setIsReplaying] = useState(false);
   const waitForReplayRender = useReplayRenderWait();
   const parentIdRef = useRef<string | null | undefined>(undefined);
+  const cancelledCommandsRef = useRef<QueuedCommand[]>([]);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
@@ -342,15 +343,11 @@ const useAssistantTransportThreadRuntime = <T>(
       }
     },
     onFinish: options.onFinish,
-    onCancel: () => {
+    onCancel: (afterError) => {
       setIsReplaying(false);
-      const cmds = [
-        ...commandQueue.state.inTransit,
-        ...commandQueue.state.queued,
-      ];
-
-      commandQueue.reset();
-      parentIdRef.current = undefined;
+      const cmds = cancelledCommandsRef.current;
+      cancelledCommandsRef.current = [];
+      if (afterError && cmds.length === 0) return;
 
       options.onCancel?.({
         commands: cmds,
@@ -466,7 +463,11 @@ const useAssistantTransportThreadRuntime = <T>(
     }),
     onCancel: async () => {
       resumeFlagRef.current = false;
-      runManager.cancel();
+      if (!runManager.cancel()) return;
+      const { inTransit, queued } = commandQueue.state;
+      cancelledCommandsRef.current.push(...inTransit, ...queued);
+      commandQueue.reset();
+      parentIdRef.current = undefined;
     },
     onResume: async () => {
       if (!options.resumeApi)
