@@ -23,6 +23,7 @@ export type ToolCallStreamController = {
 
 type ToolCallStreamOptions = {
   strict?: boolean | undefined;
+  onClose?: (() => void) | undefined;
 };
 
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
@@ -30,19 +31,21 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
   private _mergeTask: Promise<void>;
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+  private _options: ToolCallStreamOptions;
 
   constructor(
     _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
     options: ToolCallStreamOptions = {},
   ) {
     this._controller = _controller;
+    this._options = options;
     const stream = createTextStream(
       {
         start: (c) => {
           this._argsTextController = c;
         },
       },
-      options,
+      { strict: this._options.strict },
     );
 
     let hasArgsText = false;
@@ -119,6 +122,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     if (this._isClosed) return;
 
     this._isClosed = true;
+    this._options.onClose?.();
     this._argsTextController.close();
     await this._mergeTask;
 

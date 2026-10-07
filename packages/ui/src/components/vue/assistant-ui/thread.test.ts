@@ -5,6 +5,7 @@ import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type {
   ExternalStoreAdapter,
   ThreadMessageLike,
+  ToolCallMessagePart,
 } from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
@@ -16,17 +17,24 @@ import Thread from "./thread.vue";
 
 const mountThread = (
   messages: readonly ThreadMessageLike[],
-  options: { isRunning?: boolean } = {},
+  options: {
+    isRunning?: boolean;
+    adapter?: Partial<ExternalStoreAdapter<ThreadMessageLike>>;
+  } = {},
 ) => {
-  const adapter: ExternalStoreAdapter<ThreadMessageLike> = {
-    messages: [...messages],
+  const createAdapter = (
+    current: readonly ThreadMessageLike[],
+    isRunning: boolean | undefined,
+  ): ExternalStoreAdapter<ThreadMessageLike> => ({
+    messages: [...current],
     convertMessage: (message) => message,
     onNew: async () => {},
-    ...(options.isRunning === undefined
-      ? {}
-      : { isRunning: options.isRunning }),
-  };
-  const core = new ExternalStoreRuntimeCore(adapter);
+    ...(isRunning === undefined ? {} : { isRunning }),
+    ...options.adapter,
+  });
+  const core = new ExternalStoreRuntimeCore(
+    createAdapter(messages, options.isRunning),
+  );
   const runtime = new AssistantRuntimeImpl(core);
   const app = createApp(
     defineComponent({
@@ -42,6 +50,10 @@ const mountThread = (
   app.mount(el);
   return {
     el,
+    update: (
+      next: readonly ThreadMessageLike[],
+      nextOptions: { isRunning?: boolean } = {},
+    ) => core.setAdapter(createAdapter(next, nextOptions.isRunning)),
     unmount: () => {
       app.unmount();
       el.remove();
@@ -52,6 +64,44 @@ const mountThread = (
 const rows = (root: ParentNode) => [
   ...root.querySelectorAll<HTMLElement>("li[data-role]"),
 ];
+
+const buttons = (root: ParentNode) => [
+  ...root.querySelectorAll<HTMLButtonElement>("button"),
+];
+
+const button = (root: ParentNode, label: string) => {
+  const match = buttons(root).find(
+    (item) => item.textContent?.trim() === label,
+  );
+  if (!match) throw new Error(`no "${label}" button`);
+  return match;
+};
+
+const answerField = (root: ParentNode, label: string) =>
+  root.querySelector<HTMLTextAreaElement>(`textarea[aria-label="${label}"]`);
+
+const type = (field: HTMLTextAreaElement, value: string) => {
+  field.value = value;
+  field.dispatchEvent(new Event("input"));
+};
+
+const trigger = (root: ParentNode, slot: string) =>
+  root.querySelector<HTMLButtonElement>(`[data-slot="${slot}"]`)!;
+
+const pendingApproval = (
+  approval: Omit<NonNullable<ToolCallMessagePart["approval"]>, "id"> = {},
+): ThreadMessageLike => ({
+  role: "assistant",
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "delete_file",
+      args: { path: "notes.txt" },
+      approval: { id: "approval-1", ...approval },
+    },
+  ],
+});
 
 const settle = (assert: () => void) =>
   vi.waitFor(async () => {
@@ -176,6 +226,585 @@ describe("vue thread", () => {
     ).not.toBeNull();
     expect(assistant!.querySelector('[aria-label="Edit"]')).toBeNull();
     expect(user!.querySelector('[aria-label="Copy"]')).not.toBeNull();
+
+    unmount();
+  });
+
+  it("renders an unregistered tool call through the fallback with its args and result", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "get_weather",
+            args: { city: "sf" },
+            result: { temperature: 72 },
+          },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(el.textContent).toContain("Used tool: get_weather"),
+    );
+    expect(el.querySelector('[data-slot="aui_tool-fallback-args"]')).toBeNull();
+
+    trigger(el, "aui_tool-fallback-trigger").click();
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_tool-fallback-args"]')?.textContent,
+      ).toBe('{"city":"sf"}'),
+    );
+    expect(
+      el.querySelector('[data-slot="aui_tool-fallback-result"]')?.textContent,
+    ).toContain('"temperature": 72');
+
+    unmount();
+  });
+
+  it("locks the thread viewport while the tool fallback toggles", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "get_weather",
+            args: { city: "sf" },
+            result: "sunny",
+          },
+        ],
+      },
+    ]);
+    const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    viewport.style.overflowY = "auto";
+    viewport.scrollTop = 120;
+
+    await settle(() =>
+      expect(trigger(el, "aui_tool-fallback-trigger")).toBeDefined(),
+    );
+    trigger(el, "aui_tool-fallback-trigger").click();
+    expect(viewport.style.scrollbarWidth).toBe("none");
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(120);
+
+    await settle(() =>
+      expect(
+        trigger(el, "aui_tool-fallback-trigger").getAttribute("data-state"),
+      ).toBe("open"),
+    );
+    viewport.scrollTop = 160;
+    trigger(el, "aui_tool-fallback-trigger").click();
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(160);
+
+    unmount();
+    expect(viewport.style.scrollbarWidth).toBe("");
+  });
+
+  it("opens a tool call awaiting approval and answers it from the fallback", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread([pendingApproval()], {
+      adapter: { onRespondToToolApproval },
+    });
+
+    await settle(() =>
+      expect(el.textContent).toContain("Waiting on tool: delete_file"),
+    );
+    button(el, "Allow").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      approved: true,
+    });
+    expect(button(el, "Deny").disabled).toBe(true);
+
+    unmount();
+  });
+
+  it("confirms a declared approval option before answering with it", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [
+        pendingApproval({
+          options: [
+            { id: "once", kind: "allow-once" },
+            { id: "always", kind: "allow-always", confirm: true },
+            { id: "never", kind: "reject-once" },
+          ],
+        }),
+      ],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(button(el, "Always allow")).toBeDefined());
+    expect(
+      buttons(el).filter((item) => item.textContent?.trim() === "Deny"),
+    ).toHaveLength(1);
+    button(el, "Always allow").click();
+
+    await settle(() => expect(el.textContent).toContain("Always allow?"));
+    expect(onRespondToToolApproval).not.toHaveBeenCalled();
+    button(el, "Confirm").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      optionId: "always",
+    });
+
+    unmount();
+  });
+
+  it("gives a later interrupt on the same call fresh controls", async () => {
+    const onResumeToolCall = vi.fn();
+    const toolCall = (interrupt?: string): ThreadMessageLike => ({
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "confirm_step",
+          args: {},
+          ...(interrupt && {
+            interrupt: { type: "human" as const, payload: interrupt },
+          }),
+        },
+      ],
+    });
+    const { el, update, unmount } = mountThread([toolCall("first")], {
+      adapter: { onResumeToolCall },
+    });
+
+    await settle(() => expect(button(el, "Allow").disabled).toBe(false));
+    button(el, "Allow").click();
+    await settle(() => expect(onResumeToolCall).toHaveBeenCalledTimes(1));
+    expect(button(el, "Allow").disabled).toBe(true);
+
+    update([toolCall()], { isRunning: true });
+    await settle(() =>
+      expect(el.textContent).toContain("Running tool: confirm_step"),
+    );
+
+    update([toolCall("second")]);
+    await settle(() => expect(button(el, "Allow").disabled).toBe(false));
+
+    unmount();
+  });
+
+  it("sends a free-form answer to a text request", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [pendingApproval({ prompt: "Which branch?", display: "text" })],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(answerField(el, "Which branch?")).not.toBeNull());
+    expect(
+      buttons(el).some((item) => item.textContent?.trim() === "Deny"),
+    ).toBe(false);
+    type(answerField(el, "Which branch?")!, "release");
+    button(el, "Send").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      text: "release",
+    });
+
+    unmount();
+  });
+
+  it("answers every question of a questionnaire together", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [
+        pendingApproval({
+          display: "questions",
+          questions: [
+            {
+              id: "env",
+              prompt: "Which environment?",
+              options: [
+                { id: "prod", label: "Production" },
+                { id: "dev", label: "Development" },
+              ],
+            },
+            { id: "why", prompt: "Why now?" },
+          ],
+        }),
+      ],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(button(el, "Production")).toBeDefined());
+    expect(button(el, "Send").disabled).toBe(true);
+    button(el, "Production").click();
+    type(answerField(el, "Why now?")!, "hotfix");
+
+    await settle(() => expect(button(el, "Send").disabled).toBe(false));
+    button(el, "Send").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      answers: { env: { optionIds: ["prod"] }, why: { text: "hotfix" } },
+    });
+
+    unmount();
+  });
+
+  it("dismisses a dismissible question without an answer", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { el, unmount } = mountThread(
+      [
+        pendingApproval({
+          prompt: "Pick a target",
+          display: "select",
+          dismissible: true,
+          options: [{ id: "staging", kind: "_target", label: "Staging" }],
+        }),
+      ],
+      { adapter: { onRespondToToolApproval } },
+    );
+
+    await settle(() => expect(button(el, "Dismiss")).toBeDefined());
+    expect(
+      buttons(el).some((item) => item.textContent?.trim() === "Deny"),
+    ).toBe(false);
+    button(el, "Dismiss").click();
+
+    await settle(() => expect(onRespondToToolApproval).toHaveBeenCalled());
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      approved: false,
+    });
+
+    unmount();
+  });
+
+  it("reopens the controls with the host's error when it rejects an answer", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {
+      throw new Error("host refused");
+    });
+    const { el, unmount } = mountThread([pendingApproval()], {
+      adapter: { onRespondToToolApproval },
+    });
+
+    await settle(() => expect(button(el, "Allow")).toBeDefined());
+    button(el, "Allow").click();
+
+    await settle(() =>
+      expect(el.querySelector('[role="alert"]')?.textContent).toContain(
+        "host refused",
+      ),
+    );
+    expect(button(el, "Allow").disabled).toBe(false);
+
+    unmount();
+  });
+
+  it("shows a settled approval as a receipt instead of live controls", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "delete_file",
+            args: { path: "notes.txt" },
+            result: "deleted",
+            approval: { id: "approval-1", approved: false },
+          },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(el.textContent).toContain("Used tool: delete_file"),
+    );
+    trigger(el, "aui_tool-fallback-trigger").click();
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_tool-fallback-approval-receipt"]')
+          ?.textContent,
+      ).toContain("Denied"),
+    );
+    expect(
+      buttons(el).some((item) => item.textContent?.trim() === "Allow"),
+    ).toBe(false);
+
+    unmount();
+  });
+
+  it("collapses finished reasoning behind a trigger that reveals its markdown", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "weighing **options**" },
+          { type: "text", text: "done" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-trigger"]'),
+      ).not.toBeNull(),
+    );
+    expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull();
+
+    trigger(el, "aui_reasoning-trigger").click();
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-text"] strong')
+          ?.textContent,
+      ).toBe("options"),
+    );
+
+    unmount();
+  });
+
+  it("locks the thread viewport while reasoning toggles", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [{ type: "reasoning", text: "weighing options" }],
+      },
+    ]);
+    const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    viewport.style.overflowY = "auto";
+    viewport.scrollTop = 120;
+
+    await settle(() =>
+      expect(trigger(el, "aui_reasoning-trigger")).toBeDefined(),
+    );
+    trigger(el, "aui_reasoning-trigger").click();
+    expect(viewport.style.scrollbarWidth).toBe("none");
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(120);
+
+    await settle(() =>
+      expect(
+        trigger(el, "aui_reasoning-trigger").getAttribute("data-state"),
+      ).toBe("open"),
+    );
+    viewport.scrollTop = 160;
+    trigger(el, "aui_reasoning-trigger").click();
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(160);
+
+    unmount();
+    expect(viewport.style.scrollbarWidth).toBe("");
+  });
+
+  it("holds reasoning open while it streams", async () => {
+    const { el, unmount } = mountThread(
+      [
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "still thinking" }],
+        },
+      ],
+      { isRunning: true },
+    );
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-text"]')?.textContent,
+      ).toContain("still thinking"),
+    );
+    expect(
+      el
+        .querySelector('[data-slot="aui_reasoning-content"]')
+        ?.getAttribute("aria-busy"),
+    ).toBe("true");
+
+    unmount();
+  });
+
+  it("locks the thread viewport when streaming reasoning collapses", async () => {
+    const { el, update, unmount } = mountThread(
+      [
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "still thinking" }],
+        },
+      ],
+      { isRunning: true },
+    );
+    const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    viewport.style.overflowY = "auto";
+    viewport.scrollTop = 120;
+
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-text"]'),
+      ).not.toBeNull(),
+    );
+    update([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "still thinking" },
+          { type: "text", text: "done" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull(),
+    );
+    expect(viewport.style.scrollbarWidth).toBe("none");
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll"));
+    expect(viewport.scrollTop).toBe(120);
+
+    unmount();
+  });
+
+  it("groups consecutive reasoning before text in one disclosure", async () => {
+    const { el, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first **thought**" },
+          { type: "reasoning", text: "second *thought*" },
+          { type: "text", text: "answer" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(1),
+    );
+    trigger(el, "aui_reasoning-trigger").click();
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-text"] .aui-md'),
+      ).toHaveLength(2),
+    );
+    const reasoning = el.querySelector('[data-slot="aui_reasoning-text"]')!;
+    expect(reasoning.textContent).toContain("first thought");
+    expect(reasoning.textContent).toContain("second thought");
+    expect(reasoning.querySelector("strong")?.textContent).toBe("thought");
+    expect(reasoning.querySelector("em")?.textContent).toBe("thought");
+    expect(el.querySelector('li[data-role="assistant"]')?.textContent).toMatch(
+      /first thought.*second thought.*answer/s,
+    );
+
+    unmount();
+  });
+
+  it("separates reasoning runs interrupted by text", async () => {
+    const { el, update, unmount } = mountThread([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first thought" },
+          { type: "text", text: "middle answer" },
+          { type: "reasoning", text: "last thought" },
+        ],
+      },
+    ]);
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(2),
+    );
+    el.querySelectorAll<HTMLButtonElement>(
+      '[data-slot="aui_reasoning-trigger"]',
+    ).forEach((item) => item.click());
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-text"]'),
+      ).toHaveLength(2),
+    );
+    expect(el.querySelector('li[data-role="assistant"]')?.textContent).toMatch(
+      /first thought.*middle answer.*last thought/s,
+    );
+
+    update([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first thought" },
+          { type: "reasoning", text: "continued thought" },
+          { type: "text", text: "middle answer" },
+          { type: "reasoning", text: "last thought" },
+        ],
+      },
+    ]);
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(2),
+    );
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-text"]')[0]?.textContent,
+      ).toContain("continued thought"),
+    );
+
+    unmount();
+  });
+
+  it("streams a reasoning run when a later part is running and collapses on completion", async () => {
+    const content = [
+      { type: "reasoning" as const, text: "first thought" },
+      { type: "reasoning" as const, text: "live thought" },
+    ];
+    const { el, update, unmount } = mountThread(
+      [{ role: "assistant", content }],
+      { isRunning: true },
+    );
+
+    await settle(() =>
+      expect(
+        el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+      ).toHaveLength(1),
+    );
+    await settle(() =>
+      expect(
+        el.querySelector('[data-slot="aui_reasoning-text"]')?.textContent,
+      ).toContain("live thought"),
+    );
+    expect(
+      el
+        .querySelector('[data-slot="aui_reasoning-content"]')
+        ?.getAttribute("aria-busy"),
+    ).toBe("true");
+
+    update([
+      {
+        role: "assistant",
+        content: [...content, { type: "text", text: "done" }],
+      },
+    ]);
+    await settle(() =>
+      expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull(),
+    );
+    expect(
+      el.querySelectorAll('[data-slot="aui_reasoning-root"]'),
+    ).toHaveLength(1);
 
     unmount();
   });

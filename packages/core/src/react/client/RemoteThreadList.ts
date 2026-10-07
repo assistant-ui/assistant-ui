@@ -24,17 +24,16 @@ import {
 } from "../../store/clients/thread-selection-events";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
-  classifyThreads,
+  applyInitialThreadPage,
+  appendThreadPage,
   createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
-  normalizeCursor,
   reconcileInitializedThread,
   promoteNewThreadReducer,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
-  preserveMidLoadTransitions,
   seedNewThread,
   statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
@@ -600,23 +599,7 @@ const useRemoteThreadList = (
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
-          const fresh = classifyThreads(page.threads, {
-            threadIds: [],
-            archivedThreadIds: [],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-          const merged = {
-            ...state,
-            isLoading: false,
-            loadError: undefined,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: fresh.threadIds,
-            archivedThreadIds: fresh.archivedThreadIds,
-            threadIdMap: fresh.threadIdMap,
-            threadData: fresh.threadData,
-          };
-          return preserveMidLoadTransitions(merged, state, statusAtRequest);
+          return applyInitialThreadPage(state, page, statusAtRequest);
         },
       })
       .catch((error: unknown) => {
@@ -716,21 +699,7 @@ const useRemoteThreadList = (
         },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
-          const appended = classifyThreads(page.threads, {
-            threadIds: [...state.threadIds],
-            archivedThreadIds: [...state.archivedThreadIds],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-          return {
-            ...state,
-            isLoadingMore: false,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: appended.threadIds,
-            archivedThreadIds: appended.archivedThreadIds,
-            threadIdMap: appended.threadIdMap,
-            threadData: appended.threadData,
-          };
+          return appendThreadPage(state, page);
         },
       })
       .catch((error: unknown) => {

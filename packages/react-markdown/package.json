@@ -26,12 +26,19 @@
     "./code-fence": {
       "types": "./dist/code-fence.d.ts",
       "default": "./dist/code-fence.js"
+    },
+    "./preprocess": {
+      "types": "./dist/preprocess.d.ts",
+      "default": "./dist/preprocess.js"
     }
   },
   "typesVersions": {
     "*": {
       "code-fence": [
         "./dist/code-fence.d.ts"
+      ],
+      "preprocess": [
+        "./dist/preprocess.d.ts"
       ]
     }
   },
@@ -47,6 +54,8 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "bench": "vitest bench --run src/memoization.bench.ts",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",

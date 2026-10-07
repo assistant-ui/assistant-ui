@@ -13,18 +13,23 @@ import {
 } from "@assistant-ui/core";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import { readMcpAppResourceUri } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
-import type { AgUiEvent, AgUiInterrupt } from "../types";
+import {
+  AG_UI_METADATA_NAMESPACE,
+  A2UI_SURFACE_ACTIVITY_TYPE,
+  MCP_APPS_ACTIVITY_TYPE,
+  type AgUiCustomMetadata,
+  type AgUiEvent,
+  type AgUiInterrupt,
+  type AgUiOpaqueReasoning,
+} from "../types";
 import type { Logger } from "../logger";
-
-export const AG_UI_METADATA_NAMESPACE = "agui";
 
 const ROOT_SCOPE = "";
 
@@ -68,20 +73,6 @@ type BuildContext = {
     opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[];
     lastMaterializedIndex: number;
   };
-};
-
-export type AgUiOpaqueReasoning = {
-  id: string;
-  encryptedValue: string;
-  after?: boolean;
-};
-
-export type AgUiCustomMetadata = {
-  /** Wire role restored on export for messages the internal model cannot
-   * represent (a developer record rides as a system message). */
-  role?: "developer";
-  interrupts?: AgUiInterrupt[];
-  opaqueReasoning?: AgUiOpaqueReasoning[];
 };
 
 type Emit = (update: ChatModelRunResult) => void;
@@ -177,10 +168,6 @@ const scanJSONContainerDelta = (
 
   return completed && scanner.state === "complete";
 };
-
-export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
-
-export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
 
 export const isPlainObject = (
   value: unknown,
@@ -748,23 +735,27 @@ export class RunAggregator {
 
     const activeToolCallIds = new Set<string>();
     for (const [surfaceId, surface] of surfaces) {
-      const toolCallId = `a2ui:${surfaceId}`;
-      const { spec, warnings } = convertSurfaceToUISpec(surface);
+      const { toolCall, warnings } = surfaceToPresentToolCall(
+        surfaceId,
+        surface,
+      );
       for (const warning of warnings) {
         this.logger.debug("[agui] a2ui surface conversion warning", warning);
       }
-      if (!spec) continue;
+      if (!toolCall) continue;
+
+      const { toolCallId } = toolCall;
 
       activeToolCallIds.add(toolCallId);
 
       const entry: ToolCallState = {
-        toolCallId,
-        toolCallName: "present",
-        argsText: JSON.stringify(spec),
-        parsedArgs: spec,
-        result: {},
+        toolCallId: toolCall.toolCallId,
+        toolCallName: toolCall.toolName,
+        argsText: toolCall.argsText,
+        parsedArgs: toolCall.args,
+        result: toolCall.result,
         isError: undefined,
-        artifact: { a2ui: surfaceToOperations(surface) },
+        artifact: toolCall.artifact,
         snapshotResultApplied: false,
       };
       if (!this.toolCalls.has(toolCallId)) {

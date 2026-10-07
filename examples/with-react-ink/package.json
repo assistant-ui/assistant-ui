@@ -7,7 +7,8 @@
     "dev": "node --import tsx/esm src/dev.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@assistant-ui/react-ink": "workspace:*",
@@ -19,6 +20,8 @@
     "@types/react": "^19.3.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "ink-testing-library": "^4.0.0",
+    "vitest": "^5.0.3"
   }
 }

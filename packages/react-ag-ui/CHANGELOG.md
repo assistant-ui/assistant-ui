@@ -1,5 +1,19 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.65
+
+### Patch Changes
+
+- [#8797](https://github.com/assistant-ui/assistant-ui/pull/8797) [`ef266b4`](https://github.com/assistant-ui/assistant-ui/commit/ef266b4de9442107d459a1c79183c3457dc94e10) - opencode and ag-ui reasoning parts, and opencode tool call parts, now carry the start and end times their sources record ([@okisdev](https://github.com/okisdev))
+
+- [#7099](https://github.com/assistant-ui/assistant-ui/pull/7099) [`2bc1edb`](https://github.com/assistant-ui/assistant-ui/commit/2bc1edb8c84c56d8dbe296c7161ca3dcb5a972b7) - fix: convert deeply nested tool calls without overflowing the stack ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8462](https://github.com/assistant-ui/assistant-ui/pull/8462) [`19fe995`](https://github.com/assistant-ui/assistant-ui/commit/19fe995569c1e88787fa1550b2622a5e237d9d55) - Hold queued messages while sending is disabled. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`c883dc0`](https://github.com/assistant-ui/assistant-ui/commit/c883dc0a7283e9c97e2887eb49178d5d8714c10b), [`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f), [`ed84b12`](https://github.com/assistant-ui/assistant-ui/commit/ed84b12cdb12cbe3c265ecf64def460f8f7fb6fe), [`2bc1edb`](https://github.com/assistant-ui/assistant-ui/commit/2bc1edb8c84c56d8dbe296c7161ca3dcb5a972b7), [`70c9a6e`](https://github.com/assistant-ui/assistant-ui/commit/70c9a6e3cd7ab73071f0b4edf1040a035773ffe7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`5484ca4`](https://github.com/assistant-ui/assistant-ui/commit/5484ca42d6bb6a0202997de98da61b59b4888975), [`ec48da2`](https://github.com/assistant-ui/assistant-ui/commit/ec48da206fc4d9e7c991a06d91f7c224aa1e3089), [`46133cd`](https://github.com/assistant-ui/assistant-ui/commit/46133cdbc759c711b0d217a1aa70e65224c78386), [`3effee5`](https://github.com/assistant-ui/assistant-ui/commit/3effee567af36c5aaac45c4fb4373da3f2516811), [`48601e4`](https://github.com/assistant-ui/assistant-ui/commit/48601e40fed32f8ec469fd1f17a64ad24a3e7484), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e), [`16439da`](https://github.com/assistant-ui/assistant-ui/commit/16439da6329f765f62e9977da5a3b105a7a3c0ac), [`1f77d04`](https://github.com/assistant-ui/assistant-ui/commit/1f77d04435f71476172a6d1ffca871da1a0c933a), [`aecb5eb`](https://github.com/assistant-ui/assistant-ui/commit/aecb5eb749e915920682bdcffddc54668f911aab), [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956)]:
+  - @assistant-ui/core@0.3.24
+  - assistant-stream@0.3.48
+  - @assistant-ui/react-generative-ui@0.0.24
+
 ## 0.0.64
 
 ### Patch Changes

@@ -1,0 +1,193 @@
+---
+title: Assistant client
+description: AuiConfig, Derived, createAssistantClient, and the constructors that fill each config key.
+---
+
+`@assistant-ui/vue` re-exports the client APIs from `@assistant-ui/store/client`. The signatures below use type names from that entry; the types `@assistant-ui/vue` itself exports are listed under [Exported types](#exported-types). `AuiProvider` builds an `AssistantClient` from an `AuiConfig` and provides it to its descendants. See [State and actions](/docs/vue/state) for reading that client in a component.
+
+## Configure client scopes
+
+### AuiConfig
+
+```ts
+function AuiConfig(config: AuiConfig.Input): AuiConfig;
+
+namespace AuiConfig {
+  type Input = {
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+  };
+}
+```
+
+`AuiConfig` marks a map of scope names to resource elements for `AuiProvider`. These are the config keys and constructors commonly used in a Vue app:
+
+| Key | Constructor | Import path | Role |
+|---|---|---|---|
+| `threads` | `AISDKChat()` | `@assistant-ui/ai-sdk` | One AI SDK chat. |
+| `threads` | `AISDKThreads()` | `@assistant-ui/ai-sdk` | An AI SDK chat for each thread. |
+| `threads` | `RuntimeAdapter(runtime)` | `@assistant-ui/core/store` | Adapt an `AssistantRuntime` to client scopes. |
+| `tools` | `Tools({ toolkit })` | `@assistant-ui/core/react` | Register toolkit definitions and tool UI entries. |
+| `dataRenderers` | `DataRenderers()` | `@assistant-ui/core/react` | Register renderers for named data parts. |
+| `suggestions` | `Suggestions(items)` | `@assistant-ui/core/store` | Supply static prompt suggestions. |
+| `modelContext` | `ModelContext()` | `@assistant-ui/core/store` | Collect model context from providers. |
+| `chainOfThought` | `ChainOfThoughtClient({ parts, getMessagePart })` | `@assistant-ui/core/store` | Manage a reasoning and tool part group. |
+
+When `threads` uses `AISDKChat`, `AISDKThreads`, or `RuntimeAdapter`, its scope transform fills these absent keys:
+
+| Absent key | Installed scope |
+|---|---|
+| `thread` | The main thread selected from `threads`. |
+| `threadListItem` | The main thread's list item. |
+| `composer` | The main thread's composer. |
+| `modelContext` | `ModelContext()` when the parent has no model context. |
+| `tools` | `Tools({})` when the parent has no tools scope. |
+| `dataRenderers` | `DataRenderers()` when the parent has no data renderers scope. |
+| `suggestions` | The current thread's suggestions when the parent has no suggestions scope. |
+
+`chainOfThought` is not installed by these runtime transforms. The defaults leave an explicit config key in place. `Tools` also installs `ModelContext()` when it is absent and the parent has no model context.
+
+Tool and data UI entries rendered by Vue must be Vue components. See [Tool UI](/docs/vue/tool-ui) for the Vue registration path.
+
+`AuiProvider` watches its `config` prop. A key that stays in the config keeps its scope state while its constructor arguments update. Adding or removing a key mounts or unmounts that scope. Pass a computed config when its arguments or keys depend on Vue state:
+
+```vue title="app/components/AssistantClient.client.vue"
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import { Suggestions } from "@assistant-ui/core/store";
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import Thread from "~/components/assistant-ui/thread.vue";
+
+const props = defineProps<{ prompt: string }>();
+const showSuggestions = ref(true);
+
+const config = computed(() =>
+  AuiConfig({
+    threads: AISDKChat(),
+    ...(showSuggestions.value
+      ? { suggestions: Suggestions([props.prompt]) }
+      : {}),
+  }),
+);
+</script>
+
+<template>
+  <button type="button" @click="showSuggestions = !showSuggestions">
+    Toggle suggestions
+  </button>
+  <AuiProvider :config="config">
+    <Thread />
+  </AuiProvider>
+</template>
+```
+
+### Derived
+
+```ts
+function Derived<K extends ClientNames>(
+  config: { get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>> } & ClientMeta<K>,
+): DerivedElement<K>;
+```
+
+`Derived` binds an existing client selected from another scope into a config key. Use it when an app needs to choose a scope from a parent or sibling client, such as selecting a message from a thread. It applies only to scope schemas that declare `meta`.
+
+| Field | Purpose |
+|---|---|
+| `get` | Return the selected bound client from the supplied `AssistantClient`. |
+| `source` | Name the source scope declared by the target scope's metadata. |
+| `query` | Give the selector fields declared by that metadata. |
+
+For example, a derived `thread` can use `source: "threads"`, `query: { type: "main" }`, and `get: (aui) => aui.threads.thread("main")`. The runtime constructors above install this selection for the main thread.
+
+## Create a client outside Vue components
+
+### createAssistantClient
+
+```ts
+function createAssistantClient(
+  config: AuiConfig.Input | AssistantConfigSource,
+  options?: { parent?: AssistantClient | AssistantClientSource },
+): AssistantClientHandle;
+type AssistantClientHandle = AssistantClientSource & { destroy(): void };
+```
+
+`createAssistantClient` creates a client without a Vue component. It accepts a plain config, or a config source whose `subscribe` callback announces changes. A `parent` can be a client or a live client source.
+
+| Input | Behavior |
+|---|---|
+| `config` | Installs the scope elements in the client. A plain config is captured at creation. |
+| `AssistantConfigSource` | Supplies `getConfig()` and `subscribe(listener)` so key and argument changes update the client. |
+| `options.parent` | Inherits scopes from the given client or follows the current client of a source. |
+
+The returned `AssistantClientHandle` provides `getClient()`, `subscribe(listener)`, and `destroy()`:
+
+| Method | Behavior |
+|---|---|
+| `getClient()` | Read the current `AssistantClient`. Read it again after a structural change, which can replace the client object. |
+| `subscribe(listener)` | Hold a lifetime subscription and receive state or structural changes. Returns an unsubscribe function. |
+| `destroy()` | Permanently release the scopes and their effects. |
+
+Scopes mount when the first subscriber attaches. When the last subscriber leaves, the root soft unmounts on the next task and retains state for a later subscription. Call `destroy()` for permanent teardown. Hold a subscription while making imperative state updates; updates before the first subscription throw.
+
+This standalone file reads a configured scope in a test and releases the handle afterward:
+
+```ts title="app/lib/read-suggestions.ts"
+import { Suggestions } from "@assistant-ui/core/store";
+import { AuiConfig, createAssistantClient } from "@assistant-ui/vue";
+
+export function readSuggestions() {
+  const handle = createAssistantClient(
+    AuiConfig({ suggestions: Suggestions(["What can you do?"]) }),
+  );
+  const release = handle.subscribe(() => {});
+
+  try {
+    return handle.getClient().suggestions.getState().suggestions;
+  } finally {
+    release();
+    handle.destroy();
+  }
+}
+```
+
+## Read scopes and events
+
+### AssistantClient
+
+```ts
+type AssistantClient = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
+} & {
+  readonly optional: {
+    readonly [K in ClientNames]: AssistantClientAccessor<K> | undefined;
+  };
+  subscribe(listener: () => void): Unsubscribe;
+  on<TEvent extends AssistantEventName>(
+    selector: AssistantEventSelector<TEvent>,
+    callback: AssistantEventCallback<TEvent>,
+  ): Unsubscribe;
+};
+```
+
+| Member | Behavior |
+|---|---|
+| `aui.thread`, `aui.composer`, and other scopes | Bound accessors with scope methods plus `name`, `source`, and `query` selection metadata. An unavailable scope throws when used. |
+| `aui.optional.thread` and other optional scopes | Return `undefined` when that scope is unavailable. Use this to check availability. |
+| `aui.subscribe(listener)` | Notify on state or structural changes and return an unsubscribe function. |
+| `aui.on(selector, callback)` | Listen for a typed event and return an unsubscribe function. A selector is an event name or `{ scope, event }`. |
+
+An unavailable accessor remains truthy and has `source: null`, so use `optional` for availability checks. See [Events](/docs/vue/api-reference/events) for event selectors and callbacks.
+
+## Exported types
+
+All of these types are re-exported from `@assistant-ui/vue`:
+
+| Type | Meaning |
+|---|---|
+| `AssistantClientSource` | Live client source with `getClient()` and `subscribe(listener)`. |
+| `AssistantConfigSource` | Live config source with `getConfig()` and `subscribe(listener)`. |
+| `AssistantState` | State inferred from scope `getState()` methods, with an `optional` view. |
+| `AssistantEventName` | Union of registered event names and the `"*"` wildcard. |
+| `AssistantEventSelector<TEvent>` | Event name or scoped `{ scope, event }` selector. |
+| `AssistantEventCallback<TEvent>` | Callback receiving the selected event's payload. |
+| `Unsubscribe` | Zero argument function that releases a subscription. |
