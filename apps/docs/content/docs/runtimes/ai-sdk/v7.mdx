@@ -610,6 +610,13 @@ const runtime = useChatRuntime({
 });
 ```
 
+`useChatRuntime`, `AISDKChat`, and `AISDKThreads` clone
+`AssistantChatTransport` instances per thread so their assistant-ui runtime
+wiring stays isolated. Subclasses that keep additional constructor arguments or
+instance fields should override `__internal_clone()` to preserve that state.
+Other AI SDK `ChatTransport` instances passed directly are shared as-is;
+`AISDKThreads` invokes a transport factory once per thread.
+
 If you need a transport that does not inherit from `AssistantChatTransport`, you forfeit automatic system-message and frontend-tool forwarding; the transport is then a regular AI SDK `ChatTransport` and you control everything explicitly.
 
 ## Runtime options

@@ -22,9 +22,12 @@ export const equalData = (left: unknown, right: unknown): boolean => {
   );
 };
 
-export const resolvePointer = (source: unknown, path: string): unknown => {
+export const resolvePath = (
+  source: unknown,
+  segments: readonly string[],
+): unknown => {
   let current = source;
-  for (const segment of decodeScopeRelativePointer(path)) {
+  for (const segment of segments) {
     if (Array.isArray(current)) {
       if (!/^(0|[1-9]\d*)$/.test(segment)) return undefined;
       current = current[Number(segment)];
@@ -37,6 +40,9 @@ export const resolvePointer = (source: unknown, path: string): unknown => {
   }
   return current;
 };
+
+export const resolvePointer = (source: unknown, path: string): unknown =>
+  resolvePath(source, decodeScopeRelativePointer(path));
 
 export const reconcileDataModel = (
   previous: unknown,

@@ -2,6 +2,8 @@ import type {
   Message,
   MessageWithParts,
   OpenCodeServerMessage,
+  OpenCodePermissionRequest,
+  OpenCodeQuestionRequest,
   OpenCodeStateEvent,
   OpenCodeThreadState,
   Part,
@@ -13,6 +15,31 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
+
+type OpenCodeReconciliationEvent =
+  | {
+      type: "permissions.reconciled";
+      pending: Readonly<Record<string, OpenCodePermissionRequest>>;
+    }
+  | {
+      type: "questions.reconciled";
+      pending: Readonly<Record<string, OpenCodeQuestionRequest>>;
+    };
+
+type OpenCodeThreadStateEvent =
+  | OpenCodeStateEvent
+  | OpenCodeReconciliationEvent;
+
+const isSameRecord = <T>(
+  left: Readonly<Record<string, T>>,
+  right: Readonly<Record<string, T>>,
+) => {
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => left[key] === right[key])
+  );
+};
 
 export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
@@ -289,9 +316,9 @@ export const createOpenCodeThreadState = (
   sync: {},
 });
 
-export const reduceOpenCodeThreadState = (
+export const reduceOpenCodeThreadStateInternal = (
   state: OpenCodeThreadState,
-  event: OpenCodeStateEvent,
+  event: OpenCodeThreadStateEvent,
 ): OpenCodeThreadState => {
   switch (event.type) {
     case "history.loading":
@@ -529,6 +556,25 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
+    case "permissions.reconciled":
+      if (isSameRecord(state.interactions.permissions.pending, event.pending)) {
+        return state;
+      }
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          permissions: {
+            ...state.interactions.permissions,
+            pending: event.pending,
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
     case "permission.replied": {
       const pending = nullProtoRecord(state.interactions.permissions.pending);
       const request = pending[event.permissionId];
@@ -575,6 +621,25 @@ export const reduceOpenCodeThreadState = (
         },
       };
     }
+
+    case "questions.reconciled":
+      if (isSameRecord(state.interactions.questions.pending, event.pending)) {
+        return state;
+      }
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending: event.pending,
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
 
     case "question.replied": {
       const pending = nullProtoRecord(state.interactions.questions.pending);
@@ -675,6 +740,11 @@ export const reduceOpenCodeThreadState = (
     }
   }
 };
+
+export const reduceOpenCodeThreadState = (
+  state: OpenCodeThreadState,
+  event: OpenCodeStateEvent,
+): OpenCodeThreadState => reduceOpenCodeThreadStateInternal(state, event);
 
 /** Stable placeholder state used before a session controller is attached. */
 export const EMPTY_OPENCODE_THREAD_STATE =

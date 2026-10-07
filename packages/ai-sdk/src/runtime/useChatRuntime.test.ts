@@ -1,3 +1,4 @@
+import type { ChatTransport, UIMessage } from "ai";
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -18,7 +19,9 @@ const mocks = vi.hoisted(() => {
       getModelContext: () => ({}),
       subscribe: (callback: () => void) => {
         subscribers.add(callback);
-        return () => subscribers.delete(callback);
+        return () => {
+          subscribers.delete(callback);
+        };
       },
     },
     threads: {
@@ -83,6 +86,7 @@ import {
   createResumableSessionStorage,
   RESUMABLE_STREAM_ID_HEADER,
 } from "../transport/resumable";
+import { getResumedStreamIds } from "./DynamicChatTransport";
 import { AI_SDK_SDK } from "./sdkIdentity";
 import { useChatRuntime } from "./useChatRuntime";
 
@@ -99,11 +103,52 @@ const sendMessagesOptions = {
 // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
 describe.skipIf(onReact18)("useChatRuntime", () => {
   beforeEach(() => {
+    mocks.useAISDKRuntime.mockImplementation(() => mocks.runtime);
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
     mocks.state.mainThreadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
+  });
+
+  it("refreshes AssistantChatTransport wiring when the runtime changes", async () => {
+    const bodies: Array<{ system: string }> = [];
+    const transport = new AssistantChatTransport({
+      fetch: vi.fn(async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(
+          new ReadableStream({ start: (controller) => controller.close() }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      }),
+    });
+    const createRuntime = (system: string) => ({
+      thread: {
+        getState: () => ({ isLoading: false }),
+        getModelContext: () => ({ system }),
+        subscribe: () => () => {},
+      },
+      threads: { mainItem: undefined },
+    });
+    let currentRuntime = createRuntime("system-a");
+    mocks.useAISDKRuntime.mockImplementation(() => currentRuntime);
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+    const { rerender } = renderHook(() => useChatRuntime({ transport }));
+    const dynamicTransport = mocks.useChat.mock.lastCall?.[0].chat
+      .transport as ChatTransport<UIMessage>;
+
+    await dynamicTransport.sendMessages(sendMessagesOptions as never);
+    currentRuntime = createRuntime("system-b");
+    rerender();
+    await dynamicTransport.sendMessages(sendMessagesOptions as never);
+
+    expect(bodies).toEqual([
+      expect.objectContaining({ system: "system-a" }),
+      expect.objectContaining({ system: "system-b" }),
+    ]);
   });
 
   it("forwards the Cloud scope to the thread-list adapter", () => {
@@ -472,6 +517,48 @@ describe.skipIf(onReact18)("useChatRuntime", () => {
     rerender({ transport: transportB });
 
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not resume an unchanged stream id already handled by replacement storage", () => {
+    mocks.state.isLoadingHistory = true;
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "ready",
+    });
+    const storageA = {
+      getStreamId: (): string | null => "stream-1",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    const storageB = {
+      getStreamId: (): string | null => "stream-1",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    getResumedStreamIds(storageB).add("stream-1");
+    const transportA = {
+      getResumableAdapter: () => ({
+        storage: storageA,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+    const transportB = {
+      getResumableAdapter: () => ({
+        storage: storageB,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport: transport as never }),
+      { initialProps: { transport: transportA } },
+    );
+
+    mocks.state.isLoadingHistory = false;
+    rerender({ transport: transportB });
+
+    expect(resumeStream).not.toHaveBeenCalled();
   });
 
   it("does not clear a newer stream id when an older resume fails", async () => {

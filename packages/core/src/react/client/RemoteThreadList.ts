@@ -520,6 +520,7 @@ const useRemoteThreadList = (
         loadMorePromise: undefined as Promise<void> | undefined,
         lastNotifiedRemoteId: undefined as string | undefined,
         lastControlledThreadId: undefined as string | undefined,
+        controlledSwitchGeneration: undefined as number | undefined,
         switchTask: undefined as Promise<void> | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
@@ -543,6 +544,7 @@ const useRemoteThreadList = (
     initialMainId,
   ]);
   const [backgroundThreads] = useState(props.backgroundThreads === true);
+  const [settledLoads, setSettledLoads] = useState(0);
   const assignMainThreadId = useCallback(
     (id: string) => {
       session.mainThreadId = id;
@@ -612,7 +614,7 @@ const useRemoteThreadList = (
           loadError: error,
         });
       })
-      .then(() => {});
+      .then(() => setSettledLoads((count) => count + 1));
     return session.loadPromise;
   }, [session, store]);
 
@@ -710,6 +712,7 @@ const useRemoteThreadList = (
         if (session.loadMorePromise === task) {
           session.loadMorePromise = undefined;
         }
+        setSettledLoads((count) => count + 1);
       });
     session.loadMorePromise = task;
     return task;
@@ -860,6 +863,9 @@ const useRemoteThreadList = (
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
 
+  // A switch can land on the thread before the caller resumes, so callers
+  // that act on the thread afterwards repeat this until it is still not main
+  // in their own continuation.
   const ensureNotMain = useCallback(
     async (threadId: string) => {
       if (threadId === store.value.newThreadId) {
@@ -1085,7 +1091,9 @@ const useRemoteThreadList = (
       if (data.status !== "regular") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
       }
-      await ensureNotMain(data.id);
+      do {
+        await ensureNotMain(data.id);
+      } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
       return store.optimisticUpdate({
         execute: async () => {
@@ -1141,7 +1149,9 @@ const useRemoteThreadList = (
       if (data.status !== "regular" && data.status !== "archived") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
       }
-      await ensureNotMain(data.id);
+      do {
+        await ensureNotMain(data.id);
+      } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
       const result = await store.optimisticUpdate({
         execute: async () => {
@@ -1230,10 +1240,12 @@ const useRemoteThreadList = (
 
   const detach = useCallback(
     async (threadId: string) => {
-      await ensureNotMain(threadId);
+      do {
+        await ensureNotMain(threadId);
+      } while (isSameThread(store.value, threadId, session.mainThreadId));
       setStartedIds((prev) => prev.filter((id) => id !== threadId));
     },
-    [ensureNotMain],
+    [ensureNotMain, session, store],
   );
 
   const { mainThreadClient, itemOrder, threadListItems } =
@@ -1274,9 +1286,11 @@ const useRemoteThreadList = (
       session.isFirstThreadIdEffect = false;
       session.lastControlledThreadId = threadId;
       if (threadId === undefined) return;
-      handleThreadListAction("switch", () =>
-        switchToThread(threadId, undefined, false),
-      );
+      handleThreadListAction("switch", () => {
+        const task = switchToThread(threadId, undefined, false);
+        session.controlledSwitchGeneration = session.switchGeneration;
+        return task;
+      });
       return;
     }
     if (Object.is(session.lastControlledThreadId, threadId)) return;
@@ -1285,10 +1299,29 @@ const useRemoteThreadList = (
       handleThreadListAction("create", () => switchToNewThread(false));
       return;
     }
-    handleThreadListAction("switch", () =>
-      switchToThread(threadId, undefined, false),
-    );
+    handleThreadListAction("switch", () => {
+      const task = switchToThread(threadId, undefined, false);
+      session.controlledSwitchGeneration = session.switchGeneration;
+      return task;
+    });
   }, [session, switchToNewThread, switchToThread, threadId]);
+
+  // A controlled switch can fail before the list knows its thread; apply it
+  // again once a load lands, unless another switch has started since.
+  useEffect(() => {
+    const controlledId = session.lastControlledThreadId;
+    if (listState.isLoading || listState.isLoadingMore) return;
+    if (controlledId === undefined) return;
+    if (session.controlledSwitchGeneration !== session.switchGeneration) return;
+    if (getThreadData(listState, controlledId) === undefined) return;
+    if (isSameThread(listState, controlledId, session.mainThreadId)) return;
+    handleThreadListAction("switch", () => {
+      const task = switchToThread(controlledId, undefined, false);
+      session.controlledSwitchGeneration = session.switchGeneration;
+      return task;
+    });
+    // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
+  }, [settledLoads]);
 
   const state = useMemo(
     () => ({

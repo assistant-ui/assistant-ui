@@ -9,6 +9,8 @@ import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
+import { createAssistantStream } from "../modules/assistant-stream";
+import { AssistantMessageStream } from "../accumulators/AssistantMessageStream";
 
 const createDelayedTool = (delay: number, result?: string): Tool => ({
   parameters: { type: "object", properties: {} },
@@ -59,6 +61,42 @@ afterEach(() => {
 });
 
 describe("unstable_runPendingTools", () => {
+  it.each([false, true])(
+    "allows tools to mutate nested arguments (streamed: %s)",
+    async (streamed) => {
+      const message = await AssistantMessageStream.fromAssistantStream(
+        createAssistantStream(async (controller) => {
+          const call = controller.addToolCallPart({
+            toolName: "sort",
+            toolCallId: "sort-1",
+          });
+          const text = '{"items":[3,1,2],"filter":{"enabled":true}}';
+          for (const delta of streamed ? text : [text])
+            call.argsText.append(delta);
+          await call.close();
+        }),
+      ).unstable_result();
+      const result = await unstable_runPendingTools(
+        message,
+        {
+          sort: {
+            parameters: { type: "object" },
+            execute: (args) => {
+              (args.items as number[]).sort();
+              (args.filter as { enabled: boolean }).enabled = false;
+              return args;
+            },
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      );
+      expect(result.parts[0]).toMatchObject({
+        result: { items: [1, 2, 3], filter: { enabled: false } },
+      });
+    },
+  );
+
   it("keeps provider messages when a pending tool settles", async () => {
     const settled = await unstable_runPendingTools(
       createPendingToolMessage("messages"),
