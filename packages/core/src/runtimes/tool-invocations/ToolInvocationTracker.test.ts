@@ -445,7 +445,7 @@ describe("ToolInvocationTracker", () => {
     },
   );
 
-  it.each(["resume", "abort"] as const)(
+  it.each(["resume", "abort", "reset"] as const)(
     "clears the status when %s() ends a request no execution owns after a pipeline restart",
     async (ending) => {
       let signal: AbortSignal | undefined;
@@ -493,8 +493,14 @@ describe("ToolInvocationTracker", () => {
       expect(statuses["tool-1"]?.type).toBe("interrupt");
       if (ending === "resume")
         expect(tracker.resume("tool-1", true)).toBe(true);
+      else if (ending === "reset") tracker.reset();
       else await tracker.abort();
       expect(statuses).toEqual({});
+      expect(signal!.aborted).toBe(ending !== "resume");
+      if (ending === "resume") {
+        await tracker.abort();
+        expect(signal!.aborted).toBe(true);
+      }
     },
   );
 
@@ -1161,8 +1167,8 @@ describe("ToolInvocationTracker", () => {
         expect(statuses.get("tool-1")).toBeUndefined();
       });
       expect(
-        (tracker as unknown as { _executing: Set<symbol> })._executing,
-      ).toHaveLength(0);
+        (tracker as unknown as { _executing: Set<symbol> })._executing.size,
+      ).toBe(0);
 
       execution.resolve({ ok: true });
       await abort;

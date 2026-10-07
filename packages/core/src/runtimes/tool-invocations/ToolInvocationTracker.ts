@@ -153,6 +153,7 @@ export class ToolInvocationTracker {
   private _statuses = new Map<string, ToolExecutionStatus>();
 
   private _ac: AbortController = new AbortController();
+  private _retiredAc: AbortController | undefined;
   private _pendingRestore = true;
 
   /** Cached last snapshot, used to skip processing on identical re-renders. */
@@ -273,6 +274,7 @@ export class ToolInvocationTracker {
         this._executing.clear();
         // Pending human requests share this signal and must remain resumable.
         if (this._humanInput.size === 0) this._ac.abort();
+        else this._retiredAc = this._ac;
         this._ac = new AbortController();
 
         const nextStatuses = new Map(this._statuses);
@@ -390,6 +392,8 @@ export class ToolInvocationTracker {
         }
       }
 
+      this._retiredAc?.abort();
+      this._retiredAc = undefined;
       this._ac.abort();
       this._ac = new AbortController();
 

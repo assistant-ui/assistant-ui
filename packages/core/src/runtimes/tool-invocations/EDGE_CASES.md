@@ -309,8 +309,11 @@ waiters before processing the replacement snapshot. Pending human-input
 requests retain their `interrupt` status and can still be resumed or aborted.
 The outgoing abort signal is cancelled only when no human-input request is
 pending, because every tool in that run shares the signal. With a pending
-request, that signal also remains live for any sibling executions; restart
-still drops their statuses and ignores their late completions.
+request, the tracker retains the outgoing controller so a later `abort()` or
+`reset()` cancels its signal as well as the replacement pipeline's signal.
+Resuming a request leaves its signal live so the tool can continue. Sibling
+executions share that signal; restart drops their statuses and ignores their
+late completions, and a later abort still reaches them.
 
 Starting it over re-fires `streamCall`, which the restart path already
 does for any demoted entry whose signature later changes. A change that
