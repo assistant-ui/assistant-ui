@@ -237,10 +237,21 @@ const extractQuestionRequest = (
   event: OpenCodeServerEvent,
 ): OpenCodeQuestionRequest | null => toQuestionRequest(event.properties);
 
+const canonicalStringify = (value: unknown) =>
+  JSON.stringify(value, (_key, nested) =>
+    isRecord(nested) && !Array.isArray(nested)
+      ? Object.fromEntries(
+          Object.keys(nested)
+            .sort()
+            .map((key) => [key, nested[key]]),
+        )
+      : nested,
+  );
+
 const hasSamePermissionPayload = (
   left: OpenCodePermissionRequest,
   right: OpenCodePermissionRequest,
-) => JSON.stringify(left.raw) === JSON.stringify(right.raw);
+) => canonicalStringify(left.raw) === canonicalStringify(right.raw);
 
 const hasSameQuestionPayload = (
   left: OpenCodeQuestionRequest,
@@ -248,7 +259,7 @@ const hasSameQuestionPayload = (
 ) => {
   const { askedAt: _leftAskedAt, ...leftPayload } = left;
   const { askedAt: _rightAskedAt, ...rightPayload } = right;
-  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
+  return canonicalStringify(leftPayload) === canonicalStringify(rightPayload);
 };
 
 const normalizeUnhandledEvent = (

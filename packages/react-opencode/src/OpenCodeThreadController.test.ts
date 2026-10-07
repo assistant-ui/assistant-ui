@@ -4822,6 +4822,104 @@ describe("OpenCodeThreadController", () => {
   );
 
   it.each(["permission", "question"] as const)(
+    "keeps a settled $kind when reconnect lists the same payload in a different key order",
+    async (kind) => {
+      const eventSource = createEventSource();
+      const list = createDeferred<{ data: unknown[] }>();
+      const isPermission = kind === "permission";
+      const id = isPermission ? "perm_1" : "q_1";
+      const initialRequest = isPermission
+        ? createPermissionRequest({
+            id,
+            metadata: {
+              source: "tool",
+              detail: { operation: "write", path: "/tmp/file" },
+            },
+          })
+        : createQuestionRequest({
+            id,
+            questions: [
+              {
+                header: "Confirm",
+                question: "Continue?",
+                options: [{ label: "Yes", description: "Proceed" }],
+              },
+            ],
+            tool: { messageID: "msg_1", callID: "call_1" },
+          });
+      const listedRequest = isPermission
+        ? {
+            metadata: {
+              detail: { path: "/tmp/file", operation: "write" },
+              source: "tool",
+            },
+            always: [],
+            patterns: [],
+            permission: "fs.write",
+            sessionID: "ses_1",
+            id,
+          }
+        : {
+            tool: { callID: "call_1", messageID: "msg_1" },
+            questions: [
+              {
+                options: [{ description: "Proceed", label: "Yes" }],
+                question: "Continue?",
+                header: "Confirm",
+              },
+            ],
+            sessionID: "ses_1",
+            id,
+          };
+      const client = createReconnectClient(
+        isPermission
+          ? { permissions: vi.fn(() => list.promise) }
+          : { questions: vi.fn(() => list.promise) },
+      );
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      eventSource.emit({
+        type: isPermission ? "permission.asked" : "question.asked",
+        sessionId: "ses_1",
+        properties: initialRequest,
+        raw: {},
+      } as never);
+      eventSource.emit({
+        type: isPermission ? "permission.replied" : "question.replied",
+        sessionId: "ses_1",
+        properties: isPermission
+          ? { requestID: id, reply: "once" }
+          : { requestID: id, answers: [] },
+        raw: {},
+      } as never);
+
+      eventSource.emit(streamReconnected);
+      await vi.waitFor(() =>
+        expect(
+          isPermission ? client.permission.list : client.question.list,
+        ).toHaveBeenCalled(),
+      );
+      list.resolve({ data: [listedRequest] });
+      await list.promise;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const interactions = controller.getState().interactions;
+      const settled = isPermission
+        ? interactions.permissions.resolved[id]
+        : interactions.questions.answered[id];
+      const pending = isPermission
+        ? interactions.permissions.pending[id]
+        : interactions.questions.pending[id];
+      expect(settled).toBeDefined();
+      expect(pending).toBeUndefined();
+    },
+  );
+
+  it.each(["permission", "question"] as const)(
     "keeps a same-ID snapshot independent from an in-flight $kind reply",
     async (replyKind) => {
       const eventSource = createEventSource();
