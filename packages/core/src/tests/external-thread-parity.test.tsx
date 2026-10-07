@@ -477,6 +477,66 @@ describe("ExternalThread composer", () => {
     await waitFor(() => expect(composer().getState().isEditing).toBe(false));
   });
 
+  it("keeps the quote of the edited message on the sent message", async () => {
+    const onEdit = vi.fn();
+    const quote = { text: "quoted", messageId: "a0" };
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: { quote } },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().quote).toEqual(quote));
+    composer().setText("edited");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].metadata.custom).toEqual({ quote });
+  });
+
+  it("does not carry a quote set during a cancelled edit into the next edit", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().setQuote({ text: "stale", messageId: "a0" });
+    composer().cancel();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(false));
+
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].metadata.custom).toEqual({});
+  });
+
   it("prefills the edit composer from the message on beginEdit", async () => {
     const onEdit = vi.fn();
     const { aui } = renderThread({

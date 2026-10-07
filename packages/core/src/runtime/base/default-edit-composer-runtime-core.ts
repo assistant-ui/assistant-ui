@@ -91,7 +91,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       );
     }
     this.setAttachments(attachments);
-    this.setQuote(message.metadata.custom["quote"] as QuoteInfo | undefined);
+    this.setQuote(message.metadata.custom.quote as QuoteInfo | undefined);
 
     this.setRunConfig({ ...runtime.composer.runConfig });
   }
