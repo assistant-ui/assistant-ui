@@ -963,6 +963,24 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it.each(["# Pricing", "***", "```\nx\n```"])(
+    "closes a root list before the block %j",
+    (block) => {
+      const markdown = `- a\n${block}\n    total = $5`;
+      expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+    },
+  );
+
+  it.each([
+    "- > - # Heading\n  >\n  >     costs $5",
+    "> - # Heading\n>\n>     costs $5",
+    "- # Heading\n\n    costs $5",
+  ])("retains list prose after an item heading: %j", (markdown) => {
+    expect(escapeCurrencyDollars(markdown)).toBe(
+      markdown.replace("$5", "\\$5"),
+    );
+  });
+
   it("still escapes footnote prose", () => {
     expect(
       escapeCurrencyDollars("[^1]: Pricing note\n\n    Plans cost $5 and $10"),

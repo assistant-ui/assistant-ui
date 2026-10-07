@@ -281,10 +281,12 @@ function htmlBlockEnds(
 function htmlBlockRanges(text: string): number[] {
   const ranges: number[] = [];
   const listItems: { content: number; depth: number; footnote: boolean }[] = [];
-  const closeDeeperLists = (depth: number) => {
+  const closeLists = (depth: number, indent = Number.POSITIVE_INFINITY) => {
     while (
       listItems.length > 0 &&
-      depth < listItems[listItems.length - 1]!.depth
+      (depth < listItems[listItems.length - 1]!.depth ||
+        (depth === listItems[listItems.length - 1]!.depth &&
+          indent < listItems[listItems.length - 1]!.content))
     )
       listItems.pop();
   };
@@ -458,7 +460,7 @@ function htmlBlockRanges(text: string): number[] {
       ranges.push(codeStart, lineStart);
       codeStart = -1;
     }
-    if (!inParagraph) closeDeeperLists(codeDepth);
+    if (!inParagraph) closeLists(codeDepth);
     if (previousBlank && first !== -1) {
       while (listItems.length > 0) {
         const item = listItems[listItems.length - 1]!;
@@ -524,7 +526,7 @@ function htmlBlockRanges(text: string): number[] {
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
 
     if (first !== -1 && !markersInProse) {
-      if (blockStart !== i) closeDeeperLists(outerListDepth);
+      if (blockStart !== i) closeLists(outerListDepth);
       if (outerListIndent !== 0 && depth > outerListDepth) {
         while (
           listItems.length > 0 &&
@@ -546,7 +548,7 @@ function htmlBlockRanges(text: string): number[] {
         bareMarker !== 0 ||
         footnote
       ) {
-        closeDeeperLists(depth);
+        closeLists(depth);
         while (
           listItems.length > 0 &&
           depth === listItems[listItems.length - 1]!.depth &&
@@ -652,7 +654,12 @@ function htmlBlockRanges(text: string): number[] {
       !(
         shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd)
       );
-    if (!inParagraph) closeDeeperLists(codeDepth);
+    if (!inParagraph) {
+      closeLists(
+        depth,
+        first === -1 ? Number.POSITIVE_INFINITY : blockItemIndent || indent,
+      );
+    }
     if (inParagraph) {
       paragraphItemIndent =
         blockStart !== i && !markersInProse
