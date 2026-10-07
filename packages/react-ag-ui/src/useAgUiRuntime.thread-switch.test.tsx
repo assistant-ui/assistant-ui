@@ -461,6 +461,29 @@ describe("useAgUiRuntime thread switching", () => {
     ]);
   });
 
+  it("resumes an in-flight run through history after the switch", async () => {
+    const resume = vi.fn(async function* () {
+      yield { content: [{ type: "text" as const, text: "resumed" }] };
+    });
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn(async () => ({ headId: null, messages: [] })),
+      append: vi.fn(async () => {}),
+      resume,
+    };
+    const { result } = renderRuntime(
+      async () => ({ messages: [message("loaded")], unstable_resume: true }),
+      undefined,
+      undefined,
+      { history },
+    );
+
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-a");
+    });
+
+    await waitFor(() => expect(resume).toHaveBeenCalledOnce());
+  });
+
   it("does not dispatch a queued send on the aborted run's idle edge", async () => {
     const runAgent = vi.fn(
       async (
@@ -681,9 +704,7 @@ describe("useAgUiRuntime thread switching", () => {
       act(() => {
         switchNew = result.current.threads.switchToNewThread();
       });
-      await waitFor(() =>
-        expect(result.current.thread.export().messages).toEqual([]),
-      );
+      expect(result.current.thread.export().messages).toEqual([]);
       await waitFor(() =>
         expect(result.current.threads.getState().mainThreadId).toBe(
           "thread-new",
