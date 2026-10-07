@@ -73,11 +73,13 @@ class KeyedMutationQueue {
     matches: (key: string) => boolean,
     storage: AsyncStorageLike,
   ) {
-    await Promise.all(
+    const results = await Promise.allSettled(
       [...this.staleKeys]
         .filter(matches)
         .map((key) => this.removeStale(key, storage)),
     );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
   }
 
   // Mutations may acquire another key but must never re-enter the key they
@@ -789,11 +791,20 @@ export const createLocalStorageAdapter = (
         ];
         for (const staleKey of keys) mutationQueue.markStale(staleKey);
         const formattedPrefix = `${prefix}formatted-messages:[${JSON.stringify(remoteId)},`;
-        await mutationQueue.removeStaleMatching(
-          (staleKey) =>
-            staleKey === key || staleKey.startsWith(formattedPrefix),
-          storage,
-        );
+        try {
+          await mutationQueue.removeStaleMatching(
+            (staleKey) =>
+              staleKey === key || staleKey.startsWith(formattedPrefix),
+            storage,
+          );
+        } catch (error) {
+          // Metadata deletion is committed; retain stale markers for cleanup
+          // retry without rolling the client back to a deleted thread.
+          console.warn(
+            "[assistant-ui] Thread deletion committed, but local history cleanup failed:",
+            error,
+          );
+        }
       });
     },
 
