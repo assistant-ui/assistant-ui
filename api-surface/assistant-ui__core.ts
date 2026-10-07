@@ -5879,6 +5879,15 @@ type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult, TValue
   result: TResult | undefined;
 }) => TValue | undefined | null);
 
+type ToolCallLike = {
+  readonly toolName: string;
+  readonly mcp?: {
+    readonly app?: {
+      readonly resourceUri?: string | undefined;
+    };
+  } | undefined;
+};
+
 type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly type: "tool-call";
   readonly toolCallId: string;
@@ -6056,6 +6065,15 @@ type ToolRegistration = {
   readonly render: ToolCallMessagePartComponent;
   readonly renderText?: ToolCallText$1<any, any, unknown> | undefined;
   readonly standalone: boolean;
+};
+
+type ToolRenderState<TRender> = {
+  readonly toolUIs: Readonly<Record<string, readonly {
+    readonly render: TRender;
+  }[] | undefined>>;
+  readonly mcpApp?: {
+    readonly render: TRender;
+  } | undefined;
 };
 
 declare class ToolResponse<TResult> {
@@ -6669,7 +6687,7 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalMessageMetadataKeySelector, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, TOOL_INTERACTION_LIMITS, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolCallTreeEntry, ToolInvocationTracker, abortableIterable, appendToolInteraction, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createExternalMessageMetadataKey, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, createToolInteraction, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getMessagePartKeys, getSuggestionKeys, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isJSONValueEqual, isParsableUrl, isRecord, iterateToolCallParts, mapToolCallPartsDeep, notifyEventListeners, nullProtoRecord, openAbortableIterable, parseDataUrl, promoteNewThreadReducer, readToolInteractionLog, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, scanPendingToolCalls, shallowArrayEqual, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer, walkToolCallTree };
+  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalMessageMetadataKeySelector, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, TOOL_INTERACTION_LIMITS, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolCallTreeEntry, ToolInvocationTracker, abortableIterable, appendToolInteraction, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createExternalMessageMetadataKey, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, createToolInteraction, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getMessagePartKeys, getSuggestionKeys, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isJSONValueEqual, isParsableUrl, isRecord, iterateToolCallParts, mapToolCallPartsDeep, notifyEventListeners, nullProtoRecord, openAbortableIterable, parseDataUrl, promoteNewThreadReducer, readToolInteractionLog, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, resolveToolRender, scanPendingToolCalls, shallowArrayEqual, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer, walkToolCallTree };
 }
 
 declare namespace entry_store_internal_exports {
@@ -6723,7 +6741,7 @@ declare const nullProtoRecord: <T>(base?: Readonly<Record<string, T>>, ...rest: 
 
 declare const openAbortableIterable: <T>(source: AsyncIterable<T> | Promise<AsyncIterable<T>>, signal: AbortSignal) => Promise<AsyncIterable<T> | undefined>;
 
-declare function parseDataUrl(value: string): {
+declare function parseDataUrl(value: string, fallbackMimeType?: string): {
   mimeType: string;
   data: string;
 } | null;
@@ -6749,6 +6767,8 @@ declare function resolveImageMediaType(image: string, contentType?: string | und
 declare const resolveToolApprovalResponse: (approval: ResolvableApproval, response: ToolApprovalResponse) => RespondToToolApprovalOptions;
 
 declare const resolveToolCallText: <TArgs extends Record<string, unknown>, TResult, TValue>(text: ToolCallText$1<TArgs, TResult, TValue>, part: ToolCallTextPart<TArgs, TResult>) => TValue | undefined | null;
+
+declare const resolveToolRender: <TRender>(toolsState: ToolRenderState<TRender>, part: ToolCallLike, byName?: TRender | undefined) => TRender | null;
 
 declare const runtimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 
