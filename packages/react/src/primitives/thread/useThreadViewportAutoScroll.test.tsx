@@ -20,7 +20,10 @@ import {
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../context";
-import { useThreadViewport } from "../../context/react/ThreadViewportContext";
+import {
+  useThreadViewport,
+  useThreadViewportStore,
+} from "../../context/react/ThreadViewportContext";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
@@ -53,7 +56,7 @@ const getMaxScrollTop = (element: Element) =>
 let forceShortViewportMeasurement = false;
 let viewportMeasurementOffset = 0;
 const messageHeights = new Map<string, number>();
-const resizeObserverCallbacks = new Set<ResizeObserverCallback>();
+const resizeObservers = new Set<TestResizeObserver>();
 
 const messageRows = () => [
   ...document.querySelectorAll<HTMLElement>('[data-testid="thread-message"]'),
@@ -66,22 +69,37 @@ const rowsHeight = (rows: readonly Element[]) =>
   rows.reduce((height, row) => height + rowHeight(row), 0);
 
 class TestResizeObserver {
-  private callback: ResizeObserverCallback;
+  readonly targets = new Set<Element>();
+  readonly callback: ResizeObserverCallback;
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
-    resizeObserverCallbacks.add(callback);
+    resizeObservers.add(this);
   }
 
-  observe() {}
+  observe(target: Element) {
+    this.targets.add(target);
+  }
+  unobserve(target: Element) {
+    this.targets.delete(target);
+  }
   disconnect() {
-    resizeObserverCallbacks.delete(this.callback);
+    resizeObservers.delete(this);
   }
 }
 
 const notifyResizeObservers = () => {
-  for (const callback of resizeObserverCallbacks) {
-    callback([], {} as ResizeObserver);
+  for (const observer of resizeObservers) {
+    observer.callback([], {} as ResizeObserver);
+  }
+};
+
+/** Resizes only `target`, as a child growing without a DOM mutation does. */
+const notifyResizeOf = (target: Element) => {
+  for (const observer of resizeObservers) {
+    if (observer.targets.has(target)) {
+      observer.callback([], {} as ResizeObserver);
+    }
   }
 };
 
@@ -176,7 +194,7 @@ afterEach(() => {
   forceShortViewportMeasurement = false;
   viewportMeasurementOffset = 0;
   messageHeights.clear();
-  resizeObserverCallbacks.clear();
+  resizeObservers.clear();
   cleanup();
 });
 
@@ -199,6 +217,16 @@ const Message: FC = () => (
 const AtBottom: FC = () => {
   const isAtBottom = useThreadViewport((s) => s.isAtBottom);
   return <output data-testid="is-at-bottom">{String(isAtBottom)}</output>;
+};
+
+const RequestSmoothScrollToBottom: FC = () => {
+  const threadViewportStore = useThreadViewportStore();
+
+  useEffect(() => {
+    threadViewportStore.getState().scrollToBottom({ behavior: "smooth" });
+  }, [threadViewportStore]);
+
+  return null;
 };
 
 const Thread = ({
@@ -327,6 +355,74 @@ describe("useThreadViewportAutoScroll", () => {
     }
   });
 
+  it("updates isAtBottom when a wheel interrupts a smooth scroll short of the bottom", async () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="smooth">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    const scrollToSpy = vi
+      .spyOn(viewport, "scrollTo")
+      .mockImplementation(() => {});
+    try {
+      view.rerender(
+        <SyncRuntimeProvider>
+          <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+          <ThreadPrimitiveScrollToBottom behavior="smooth">
+            Scroll to bottom
+          </ThreadPrimitiveScrollToBottom>
+          <RequestSmoothScrollToBottom />
+        </SyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(scrollToSpy).toHaveBeenCalledWith({
+          top: viewport.scrollHeight,
+          behavior: "smooth",
+        });
+      });
+
+      act(() => {
+        viewport.scrollTop = 100;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Scroll to bottom",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(true);
+
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+      });
+
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Scroll to bottom",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false);
+    } finally {
+      scrollToSpy.mockRestore();
+    }
+  });
+
   it("scrolls sync initialMessages to the bottom when the viewport mounts after initialization", async () => {
     render(
       <SyncRuntimeProvider>
@@ -436,6 +532,47 @@ describe("useThreadViewportAutoScroll", () => {
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 
+  it("follows a message that grows without a DOM mutation", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    const lastRow = messageRows().at(-1)!;
+    messageHeights.set(lastRow.getAttribute("data-message-id")!, 280);
+    act(() => notifyResizeOf(lastRow));
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("reports leaving the bottom when a message grows without a DOM mutation", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+    });
+
+    const lastRow = messageRows().at(-1)!;
+    messageHeights.set(lastRow.getAttribute("data-message-id")!, 280);
+    act(() => notifyResizeOf(lastRow));
+
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+  });
+
   it("keeps following after a pointerdown that does not scroll the viewport", async () => {
     render(
       <SyncRuntimeProvider>
@@ -460,6 +597,8 @@ describe("useThreadViewportAutoScroll", () => {
 
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
+    { label: "wheel", make: () => new WheelEvent("wheel") },
+    { label: "touchstart", make: () => new Event("touchstart") },
     {
       label: "Enter keydown",
       make: () => new KeyboardEvent("keydown", { key: "Enter" }),
@@ -468,6 +607,12 @@ describe("useThreadViewportAutoScroll", () => {
       label: "Space keydown",
       make: () => new KeyboardEvent("keydown", { key: " " }),
     },
+    ...["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].map(
+      (key) => ({
+        label: `${key} keydown`,
+        make: () => new KeyboardEvent("keydown", { key }),
+      }),
+    ),
   ])(
     "drops pending bottom-scroll intent after a $label in a thread that cannot scroll",
     async ({ make }) => {
@@ -503,6 +648,8 @@ describe("useThreadViewportAutoScroll", () => {
 
   it.each([
     { label: "pointerdown", make: () => new Event("pointerdown") },
+    { label: "wheel", make: () => new WheelEvent("wheel") },
+    { label: "touchstart", make: () => new Event("touchstart") },
     {
       label: "Enter keydown",
       make: () => new KeyboardEvent("keydown", { key: "Enter" }),
@@ -510,6 +657,10 @@ describe("useThreadViewportAutoScroll", () => {
     {
       label: "Space keydown",
       make: () => new KeyboardEvent("keydown", { key: " " }),
+    },
+    {
+      label: "ArrowDown keydown",
+      make: () => new KeyboardEvent("keydown", { key: "ArrowDown" }),
     },
   ])(
     "cancels the frame a pending bottom scroll queued when a $label arrives first",
@@ -566,73 +717,66 @@ describe("useThreadViewportAutoScroll", () => {
     },
   );
 
-  it.each([
-    "Shift",
-    "Control",
-    "Meta",
-    "Tab",
-    "ArrowDown",
-    "PageDown",
-    "Escape",
-    "a",
-  ])("keeps pending bottom-scroll intent through a %s press", async (key) => {
-    forceShortViewportMeasurement = true;
+  it.each(["Shift", "Control", "Meta", "Tab", "Escape", "a"])(
+    "keeps pending bottom-scroll intent through a %s press",
+    async (key) => {
+      forceShortViewportMeasurement = true;
 
-    render(
-      <AsyncRuntimeProvider>
-        <Thread />
-      </AsyncRuntimeProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("thread-message")).toHaveLength(
-        messages.length,
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
       );
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // neither an activation key nor consumed by a text field
-    act(() => {
-      getViewport().dispatchEvent(new KeyboardEvent("keydown", { key }));
-    });
-
-    forceShortViewportMeasurement = false;
-    act(notifyResizeObservers);
-
-    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
-  });
-
-  it("keeps pending bottom-scroll intent while the user types in the composer", async () => {
-    forceShortViewportMeasurement = true;
-
-    render(
-      <AsyncRuntimeProvider>
-        <Thread />
-      </AsyncRuntimeProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("thread-message")).toHaveLength(
-        messages.length,
-      );
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    act(() => {
-      screen
-        .getByTestId("composer")
-        // Space is an activation key, so this reaches the text-entry check
-        // instead of short-circuiting on the allowlist
-        .dispatchEvent(
-          new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
         );
-    });
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    forceShortViewportMeasurement = false;
-    act(notifyResizeObservers);
+      // neither an activation key nor consumed by a text field
+      act(() => {
+        getViewport().dispatchEvent(new KeyboardEvent("keydown", { key }));
+      });
 
-    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
-  });
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+    },
+  );
+
+  it.each([" ", "ArrowDown"])(
+    "keeps pending bottom-scroll intent through a %s press in the composer",
+    async (key) => {
+      forceShortViewportMeasurement = true;
+
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      act(() => {
+        screen
+          .getByTestId("composer")
+          .dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      });
+
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+    },
+  );
 
   it.each([
     { label: "a checkbox", testid: "checkbox" },

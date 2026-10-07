@@ -107,6 +107,11 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
     | undefined;
   cloud?: AssistantCloud | undefined;
   /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
+  /**
    * A `RemoteThreadListAdapter` to use instead of the cloud adapter.
    * Use with `createAdkSessionAdapter` for ADK session-backed persistence.
    */
@@ -579,6 +584,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
 export const useAdkRuntime = ({
   cloud,
+  scopeId,
   sessionAdapter,
   create,
   delete: deleteFn,
@@ -589,6 +595,7 @@ export const useAdkRuntime = ({
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: ADK_SDK,
     cloud,
+    scopeId,
     create: createCloudThreadListAdapterCreateFallback(
       create,
       aui.threadListItem,

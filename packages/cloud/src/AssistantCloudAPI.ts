@@ -103,6 +103,7 @@ type MakeRequestOptions = {
 };
 
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+const authGenerations = new WeakMap<AssistantCloudAPI, number>();
 
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
@@ -153,12 +154,20 @@ export class AssistantCloudAPI {
     return !!(await this._auth.getAuthHeaders());
   }
 
+  public invalidateAuth(): void {
+    authGenerations.set(this, (authGenerations.get(this) ?? 0) + 1);
+    this._auth.invalidate();
+  }
+
   public async makeRawRequest(
     endpoint: string,
     options: MakeRequestOptions = {},
   ) {
+    const authGeneration = authGenerations.get(this) ?? 0;
     const authHeaders = await this._auth.getAuthHeaders();
-    if (!authHeaders) throw new Error("Authorization failed");
+    if (authGeneration !== (authGenerations.get(this) ?? 0) || !authHeaders) {
+      throw new Error("Authorization failed");
+    }
 
     const headers = {
       ...authHeaders,
@@ -189,7 +198,9 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    this._auth.readAuthHeaders(response.headers);
+    if (authGeneration === (authGenerations.get(this) ?? 0)) {
+      this._auth.readAuthHeaders(response.headers);
+    }
 
     if (!response.ok) {
       const text = await response.text();

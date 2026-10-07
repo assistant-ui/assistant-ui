@@ -14,11 +14,18 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
-// Enter and Space activate a focused control, which is how a collapsible tool
-// call expands without a pointer event ever firing. No other key changes thread
-// content: the keys that scroll the viewport reach handleScroll, which already
-// clears the intent when the user scrolls up.
-const ACTIVATION_KEYS = new Set(["Enter", " "]);
+// Enter and Space activate focused controls, while navigation keys can
+// interrupt scrolling without producing a scroll event.
+const INTENT_CANCEL_KEYS = new Set([
+  "Enter",
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
 
 // A control that consumes the activation key itself instead of acting on thread
 // content. `contenteditable="false"` marks a non-editable island inside an
@@ -231,7 +238,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     const newIsAtBottom = isViewportAtBottom(div);
 
     const isInFlightDownwardScroll =
-      !newIsAtBottom && lastScrollTop.current < div.scrollTop;
+      scrollingToBottomBehaviorRef.current !== null &&
+      !newIsAtBottom &&
+      lastScrollTop.current < div.scrollTop;
     if (isInFlightDownwardScroll) {
       // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
       // before landing, don't flicker isAtBottom or clear intent mid-animation
@@ -315,16 +324,23 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     // activation reaches that same content without ever emitting a pointer
     // event, so it has to cancel the intent too.
     const cancelPendingScrollToBottom = () => {
+      // With nothing pending, the last scroll event already published isAtBottom.
+      if (
+        scrollingToBottomBehaviorRef.current === null &&
+        scheduledFrameRef.current === null
+      )
+        return;
       // A scheduled frame re-plants the intent when it runs, so clearing the
       // ref alone leaves the gesture undone.
       cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
+      handleScroll();
     };
     // The composer renders inside the viewport, so its keystrokes bubble here;
-    // only an activation key aimed at something other than a text field is a
-    // gesture on thread content.
+    // cancellation keys only represent a gesture on thread content when they
+    // originate outside text entry.
     const cancelOnKeyDown = (event: KeyboardEvent) => {
-      if (!ACTIVATION_KEYS.has(event.key)) return;
+      if (!INTENT_CANCEL_KEYS.has(event.key)) return;
       const target = event.target as Element | null;
       if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
       cancelPendingScrollToBottom();
@@ -335,6 +351,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     const gestures = ["pointerdown", "wheel", "touchstart", "keydown"] as const;
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+    el.addEventListener("wheel", cancelPendingScrollToBottom, {
+      passive: true,
+    });
+    el.addEventListener("touchstart", cancelPendingScrollToBottom, {
+      passive: true,
+    });
     el.addEventListener("keydown", cancelOnKeyDown);
     for (const gesture of gestures) {
       el.addEventListener(gesture, releasePrependAnchor, { passive: true });
@@ -342,6 +364,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     return () => {
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+      el.removeEventListener("wheel", cancelPendingScrollToBottom);
+      el.removeEventListener("touchstart", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
       for (const gesture of gestures) {
         el.removeEventListener(gesture, releasePrependAnchor);

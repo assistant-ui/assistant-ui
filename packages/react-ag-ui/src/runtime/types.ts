@@ -15,6 +15,24 @@ import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { McpToolCallResult } from "./mcp-tool-result";
 
+export const AG_UI_METADATA_NAMESPACE = "agui";
+export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
+export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
+
+export type AgUiOpaqueReasoning = {
+  id: string;
+  encryptedValue: string;
+  after?: boolean;
+};
+
+export type AgUiCustomMetadata = {
+  /** Wire role restored on export for messages the internal model cannot
+   * represent (a developer record rides as a system message). */
+  role?: "developer";
+  interrupts?: AgUiInterrupt[];
+  opaqueReasoning?: AgUiOpaqueReasoning[];
+};
+
 /**
  * @experimental This API is still under active development and might change without notice.
  *

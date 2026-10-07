@@ -14,8 +14,7 @@ on:
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
       - "scripts/update-api-surface.test.mjs"
-      - "scripts/lib/changed-files.mjs"
-      - "scripts/lib/changed-files.test.mjs"
+      - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -23,6 +22,7 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -41,7 +41,6 @@ on:
       - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
@@ -67,8 +66,7 @@ on:
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
       - "scripts/update-api-surface.test.mjs"
-      - "scripts/lib/changed-files.mjs"
-      - "scripts/lib/changed-files.test.mjs"
+      - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -76,6 +74,7 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -94,7 +93,6 @@ on:
       - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
@@ -158,6 +156,9 @@ jobs:
         with:
           runtime: node@24
           install: false
+
+      - name: Test the shared script helpers
+        run: node --test scripts/lib/*.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
@@ -380,6 +381,9 @@ jobs:
 
       - name: Test CI task planner
         run: node --test scripts/ci-has-tasks.test.mjs
+
+      - name: Test source-mapped tsconfig paths
+        run: node --test scripts/source-mapped-tsconfigs.test.mjs
 
       - name: Setup pnpm and node.js
         if: steps.app_build_inputs.outputs.run == 'true'
