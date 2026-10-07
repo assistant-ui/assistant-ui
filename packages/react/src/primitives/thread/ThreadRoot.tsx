@@ -1,6 +1,7 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import {
   type ComponentRef,
   forwardRef,
@@ -64,6 +65,8 @@ export const ThreadPrimitiveRoot = forwardRef<
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      // An Escape that ends an IME composition belongs to the input method.
+      if (isCompositionKey(event)) return;
       if (event.defaultPrevented || aui.thread.source === null) return;
       const eventThreadRoot =
         escapeEventThreadRoots.get(event) ??

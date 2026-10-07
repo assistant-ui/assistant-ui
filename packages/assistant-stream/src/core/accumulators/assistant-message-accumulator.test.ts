@@ -401,6 +401,47 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
   });
 
+  it("should record reasoning timing on the part", async () => {
+    const before = Date.now();
+    const chunks: AssistantStreamChunk[] = [
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "text-delta", path: [0], textDelta: "thinking" },
+      { type: "part-finish", path: [0] },
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "text-delta", path: [1], textDelta: "answer" },
+      { type: "part-finish", path: [1] },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const after = Date.now();
+
+    const streamingPart = messages
+      .find((m) =>
+        m.parts.some(
+          (p) => p.type === "reasoning" && p.status.type === "running",
+        ),
+      )!
+      .parts.find((p) => p.type === "reasoning")!;
+    expect(streamingPart.timing!.startedAt).toBeGreaterThanOrEqual(before);
+    expect(streamingPart.timing!.completedAt).toBeUndefined();
+
+    const last = messages.at(-1)!;
+    const settledPart = last.parts.find((p) => p.type === "reasoning")!;
+    expect(settledPart.timing!.completedAt).toBeGreaterThanOrEqual(
+      settledPart.timing!.startedAt,
+    );
+    expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
+    expect(last.parts.find((p) => p.type === "text")).not.toHaveProperty(
+      "timing",
+    );
+  });
+
   it("should include timing on flush when stream closes without message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [
       { type: "part-start", path: [0], part: { type: "text" } },
@@ -994,5 +1035,68 @@ describe("AssistantMessageAccumulator content alias", () => {
     for (const message of messages) {
       expect(message.content).toBe(message.parts);
     }
+  });
+});
+
+describe("AssistantMessageAccumulator tool arguments", () => {
+  it("keeps nested values and partial arguments across small deltas", async () => {
+    const input = '{"query":"pizza","filters":{"limit":2}}';
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "search" },
+      },
+      ...[...input].map((text) => ({
+        type: "text-delta" as const,
+        path: [0],
+        textDelta: text,
+      })),
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    const partial = messages.slice(0, -1).find((message) => {
+      const part = message.parts[0];
+      return (
+        part?.type === "tool-call" &&
+        part.args.query === "pizza" &&
+        part.argsText !== input
+      );
+    });
+
+    expect(partial?.parts[0]).toMatchObject({
+      type: "tool-call",
+      args: { query: "pizza" },
+    });
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      type: "tool-call",
+      argsText: input,
+      args: { query: "pizza", filters: { limit: 2 } },
+    });
+  });
+
+  it("exposes tool arguments as plain cloneable objects", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"query":"pizza",' },
+      { type: "text-delta", path: [0], textDelta: '"limit":2}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    const part = messages.at(-1)?.parts[0];
+    expect(part?.type).toBe("tool-call");
+    if (part?.type !== "tool-call") throw new Error("Expected a tool call");
+
+    expect(Object.getPrototypeOf(part.args)).toBe(Object.prototype);
+    expect(structuredClone(part.args)).toEqual({ query: "pizza", limit: 2 });
+
+    const mutableArgs = part.args as Record<string, unknown>;
+    mutableArgs.query = "updated";
+    expect(mutableArgs.query).toBe("updated");
   });
 });

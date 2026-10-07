@@ -38,10 +38,42 @@ const objectWith = (
 };
 const unchecked = () => true;
 
+const FINISH_REASONS: ReadonlySet<unknown> = new Set([
+  "stop",
+  "length",
+  "content-filter",
+  "tool-calls",
+  "error",
+  "other",
+  "unknown",
+]);
+const tokenCount = (value: unknown) => (typeof value === "number" ? value : 0);
+
+const readFinishFields = (value: {
+  finishReason: unknown;
+  usage?: unknown;
+}) => {
+  const usage = isObject(value.usage) ? value.usage : {};
+  return {
+    finishReason: (FINISH_REASONS.has(value.finishReason)
+      ? value.finishReason
+      : "unknown") as Extract<
+      AssistantStreamChunk,
+      { type: "message-finish" }
+    >["finishReason"],
+    usage: {
+      inputTokens: tokenCount(usage["inputTokens"]),
+      outputTokens: tokenCount(usage["outputTokens"]),
+    },
+  };
+};
+
 const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.TextDelta]: isString,
   [DataStreamStreamChunkType.Data]: isArray,
-  [DataStreamStreamChunkType.Error]: isString,
+  // readErrorValue turns any payload into an error chunk, so a malformed
+  // error frame still surfaces as an error instead of being dropped.
+  [DataStreamStreamChunkType.Error]: unchecked,
   [DataStreamStreamChunkType.Annotation]: isArray,
   [DataStreamStreamChunkType.ToolCall]: objectWith({
     toolCallId: isString,
@@ -76,7 +108,9 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     messageId: isString,
   }),
   [DataStreamStreamChunkType.ReasoningDelta]: isString,
-  [DataStreamStreamChunkType.Source]: isObject,
+  [DataStreamStreamChunkType.Source]: objectWith({
+    parentId: optional(isString),
+  }),
   [DataStreamStreamChunkType.RedactedReasoning]: unchecked,
   [DataStreamStreamChunkType.ReasoningSignature]: unchecked,
   [DataStreamStreamChunkType.File]: objectWith({
@@ -102,6 +136,38 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     unstable_summary: optional(isString),
     parentId: optional(isString),
   }),
+};
+
+const ERROR_SEVERITIES: ReadonlySet<unknown> = new Set([
+  "critical",
+  "warning",
+  "info",
+]);
+
+const readErrorValue = (
+  value: unknown,
+): Extract<AssistantStreamChunk, { type: "error" }> => {
+  if (typeof value === "string")
+    return { type: "error", path: [], error: value };
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "string"
+  ) {
+    const code = "code" in value ? value.code : undefined;
+    const severity = "severity" in value ? value.severity : undefined;
+    return {
+      type: "error",
+      path: [],
+      error: value.error,
+      ...(typeof code === "string" ? { code } : {}),
+      ...(ERROR_SEVERITIES.has(severity)
+        ? { severity: severity as "critical" | "warning" | "info" }
+        : {}),
+    };
+  }
+  return { type: "error", path: [], error: JSON.stringify(value) ?? "" };
 };
 
 export class DataStreamEncoder
@@ -278,6 +344,9 @@ export class DataStreamEncoder
                   ...(chunk.modelContent !== undefined
                     ? { modelContent: chunk.modelContent }
                     : {}),
+                  ...(chunk.messages !== undefined
+                    ? { messages: chunk.messages }
+                    : {}),
                 },
               });
               break;
@@ -311,14 +380,27 @@ export class DataStreamEncoder
             case "error": {
               // A warning or info error does not end the message, so tool-call
               // arguments still streaming stay open across it. Only the encoder
-              // can make this call: severity does not cross the wire, so a
-              // closed args stream is reported to the decoder as an explicit
-              // final args frame rather than inferred from the error.
+              // can make this call: older encoders never send severity, so a
+              // decoder cannot rely on it, and a closed args stream is reported
+              // as an explicit final args frame rather than inferred from the
+              // error. An error without metadata stays a bare string, the shape
+              // older decoders and other data stream parsers read.
               if (chunk.severity !== "warning" && chunk.severity !== "info")
                 finishOpenToolCallArgs(controller);
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
-                value: chunk.error,
+                value:
+                  chunk.code === undefined && chunk.severity === undefined
+                    ? chunk.error
+                    : {
+                        error: chunk.error,
+                        ...(chunk.code !== undefined
+                          ? { code: chunk.code }
+                          : {}),
+                        ...(chunk.severity !== undefined
+                          ? { severity: chunk.severity }
+                          : {}),
+                      },
               });
               break;
             }
@@ -521,6 +603,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 isError,
                 isPreliminary,
                 modelContent,
+                messages,
               } = value;
               const toolCallController =
                 toolCallPartRegistry.tryGet(toolCallId);
@@ -541,6 +624,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 isError,
                 ...(isPreliminary ? { isPreliminary: true } : {}),
                 ...(modelContent !== undefined ? { modelContent } : {}),
+                ...(messages !== undefined ? { messages } : {}),
               });
               break;
             }
@@ -549,27 +633,25 @@ export class DataStreamDecoder extends PipeableTransformStream<
               const { toolCallId, toolName } = value;
               const args = value.args ?? undefined;
               const toolCallController =
-                toolCallPartRegistry.tryGet(toolCallId);
-
-              if (toolCallController) {
-                toolCallPartRegistry.closeArgsText(toolCallController);
-              } else {
-                const toolCallController = toolCallPartRegistry.start(
-                  toolCallId,
-                  () =>
-                    controller.addToolCallPart({
-                      toolCallId,
-                      toolName,
-                    }),
+                toolCallPartRegistry.tryGet(toolCallId) ??
+                toolCallPartRegistry.start(toolCallId, () =>
+                  controller.addToolCallPart({
+                    toolCallId,
+                    toolName,
+                  }),
                 );
-                if (args !== undefined) {
-                  toolCallPartRegistry.appendArgsText(
-                    toolCallController,
-                    JSON.stringify(args),
-                  );
-                }
-                toolCallPartRegistry.closeArgsText(toolCallController);
+
+              if (
+                args !== undefined &&
+                !toolCallPartRegistry.hasArgsText(toolCallController) &&
+                !toolCallPartRegistry.isArgsTextClosed(toolCallController)
+              ) {
+                toolCallPartRegistry.appendArgsText(
+                  toolCallController,
+                  JSON.stringify(args),
+                );
               }
+              toolCallPartRegistry.closeArgsText(toolCallController);
               break;
             }
 
@@ -577,6 +659,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               closeOpenToolCallArgs();
               controller.enqueue({
                 ...value,
+                ...readFinishFields(value),
                 type: "message-finish",
                 path: [],
               });
@@ -594,6 +677,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               closeOpenToolCallArgs();
               controller.enqueue({
                 ...value,
+                ...readFinishFields(value),
                 isContinued: value.isContinued ?? false,
                 type: "step-finish",
                 path: [],
@@ -627,17 +711,15 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case DataStreamStreamChunkType.Error:
-              // An error frame carries no severity, so it cannot say whether it
-              // ends the message. A producer that ends one closes its open args
-              // streams with a final args frame ahead of the error, and the
-              // step, message and stream ends close whatever is left.
-              controller.enqueue({
-                type: "error",
-                path: [],
-                error: value,
-              });
+            case DataStreamStreamChunkType.Error: {
+              // An error frame cannot say whether it ends the message, since
+              // older encoders send no severity. A producer that ends one
+              // closes its open args streams with a final args frame ahead of
+              // the error, and the step, message and stream ends close
+              // whatever is left.
+              controller.enqueue(readErrorValue(value));
               break;
+            }
 
             case DataStreamStreamChunkType.File: {
               const { parentId, ...fileData } = value;

@@ -1,6 +1,6 @@
 ---
 title: Gemini Clone
-description: Open-source Gemini clone in React with a centered greeting over an ambient glow, a single-row pill composer, avatar-free assistant replies, and disabled, ready, and stop send states.
+description: Open-source Gemini clone in React with a centered greeting over an ambient glow, a single-row pill composer, avatar-free assistant replies, and send and stop states.
 ---
 
 ## Overview
@@ -9,11 +9,11 @@ The Gemini Clone shows how to restyle assistant-ui to match Google Gemini's curr
 
 ## Features
 
-- **Centered greeting**: one "How can I help you today?" headline, centered over a blurred radial glow.
+- **Centered greeting**: one "How can I help you today?" headline, centered above the composer and its blurred glow.
 - **Single-row composer**: a 32px pill that holds the `+` menu, the input, the model picker, the mic, and send on one line.
 - **Combined `+` menu**: "Add photos & files" sits next to the Deep Research, Canvas, Create image, and Guided Learning tools.
-- **Model picker**: Fast and Thinking, each with a short description and a check mark on the active model.
-- **Send states**: a disabled grey arrow when empty, a blue arrow when ready, and a stop square while a response streams.
+- **Model picker**: Flash and Thinking, each with a short description and a check mark on the active model.
+- **Send states**: no button when empty, a blue arrow when there is text, and a stop square while a response streams.
 - **Avatar-free replies**: assistant messages are full-width markdown, with the action bar revealed on hover.
 - **Grey user bubble**: a `rounded-3xl` warm-grey bubble, right-aligned, with copy and edit actions on hover.
 
@@ -35,7 +35,7 @@ import {
 } from "@assistant-ui/react";
 
 export const Gemini = () => (
-  <ThreadPrimitive.Root className="bg-[#fdfcfc] dark:bg-[#131314]">
+  <ThreadPrimitive.Root className="bg-[#fdfcfc] dark:bg-[#0c0c0c]">
     <AuiIf condition={(s) => s.thread.isEmpty}>
       <EmptyState />
     </AuiIf>
@@ -51,7 +51,7 @@ export const Gemini = () => (
 );
 
 const Composer = () => (
-  <ComposerPrimitive.Root className="flex flex-col rounded-4xl bg-white p-3 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.18)] dark:bg-[#1e1f20]">
+  <ComposerPrimitive.Root className="flex flex-col rounded-4xl bg-white p-3 dark:bg-[#1e1f20]">
     <AuiIf condition={(s) => s.composer.attachments.length > 0}>
       <ComposerPrimitive.Attachments
         components={{ Attachment: GeminiAttachment }}
@@ -73,18 +73,18 @@ const Composer = () => (
 
 ### Send states
 
-The trailing slot swaps between Send and Cancel with `AuiIf`. `ComposerPrimitive.Send` disables itself while the composer is empty, so the disabled, ready, and running looks are all driven by state instead of manual class toggling:
+The trailing slot swaps between Send and Cancel with `AuiIf`. Send renders only when the composer has text and no response is streaming, so the slot is empty until the user types:
 
 ```tsx
-{/* Send: disabled grey when empty, blue when there is text */}
-<AuiIf condition={(s) => !s.thread.isRunning}>
-  <ComposerPrimitive.Send className="bg-[#d3e3fd] text-[#062e6f] disabled:bg-[#e8eaed] disabled:text-[#1f1f1f]/40">
+{/* Send: blue arrow when there is text */}
+<AuiIf condition={(s) => !s.thread.isRunning && !s.composer.isEmpty}>
+  <ComposerPrimitive.Send className="bg-[#1f3b9b] text-white disabled:bg-[#e8eaed] disabled:text-[#1f1f1f]/40">
     <ArrowUpIcon />
   </ComposerPrimitive.Send>
 </AuiIf>
 {/* Cancel: stop square while a response streams */}
 <AuiIf condition={(s) => s.thread.isRunning}>
-  <ComposerPrimitive.Cancel className="bg-[#d3e3fd] text-[#062e6f]">
+  <ComposerPrimitive.Cancel className="bg-[#1f3b9b] text-white">
     <span className="size-3 rounded-[3px] bg-current" />
   </ComposerPrimitive.Cancel>
 </AuiIf>
@@ -125,16 +125,16 @@ import {
 
 ### Ambient glow
 
-The empty state places a single blurred ellipse behind the greeting and composer. It is decorative, so it is `pointer-events-none` and `aria-hidden`:
+The empty state places a single blurred shape behind the composer, below the greeting. It is decorative, so it is `pointer-events-none` and `aria-hidden`:
 
 ```tsx
-<div className="relative flex grow items-center justify-center">
+<p className="relative z-10 mb-6 text-center text-4xl">How can I help you today?</p>
+<div className="relative">
   <div
     aria-hidden="true"
-    className="pointer-events-none absolute top-1/2 left-1/2 h-[330px] w-[720px] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(closest-side,#a9d1fb,transparent)] opacity-70 blur-[55px] dark:bg-[radial-gradient(closest-side,#1d4068,transparent)] dark:opacity-65"
+    className="pointer-events-none absolute top-1/2 left-1/2 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-[140px] bg-[#a9d1fb]/60 blur-[90px] dark:bg-[#1b2f9c]/50"
   />
   <div className="relative z-10">
-    <h1 className="text-center text-4xl">How can I help you today?</h1>
     <Composer />
   </div>
 </div>
@@ -144,13 +144,13 @@ The empty state places a single blurred ellipse behind the greeting and composer
 
 | Element            | Light                 | Dark      |
 | ------------------ | --------------------- | --------- |
-| Background         | `#fdfcfc`             | `#131314` |
+| Background         | `#fdfcfc`             | `#0c0c0c` |
 | Composer surface   | `#ffffff`             | `#1e1f20` |
 | Primary text       | `#1f1f1f`             | `#e3e3e3` |
 | Muted text & icons | `#444746`             | `#c4c7c5` |
 | User bubble        | `#f2f0f0`             | `#333537` |
-| Send (ready)       | `#d3e3fd`             | `#1f3760` |
-| Ambient glow       | `#a9d1fb`             | `#1d4068` |
+| Send               | `#1f3b9b`             | `#1f3b9b` |
+| Ambient glow       | `#a9d1fb`             | `#1b2f9c` |
 
 ### Messages
 

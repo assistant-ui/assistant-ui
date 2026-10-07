@@ -156,7 +156,7 @@ describe("DataStreamEncoder streamed tool-call args", () => {
     expect(lines).toEqual([
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
-      '3:"rate limit warning"',
+      '3:{"error":"rate limit warning","severity":"info"}',
       'c:{"toolCallId":"t1","argsTextDelta":"\\"cats\\"}"}',
       'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
     ]);
@@ -710,6 +710,50 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
       warn.mockRestore();
     }
   });
+
+  const argsTextOf = (chunks: AssistantStreamChunk[]) =>
+    chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+
+  it("keeps the args of a complete tool call frame that follows a start", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+    ]);
+
+    expect(argsTextOf(chunks)).toBe('{"q":1}');
+  });
+
+  it("keeps streamed args over the args of a later complete tool call frame", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":1}"}',
+      '9:{"toolCallId":"t1","toolName":"search","args":{"q":2}}',
+    ]);
+
+    expect(argsTextOf(chunks)).toBe('{"q":1}');
+  });
+
+  it("ignores a complete tool call frame that arrives after the result", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'a:{"toolCallId":"t1","result":"ok"}',
+        '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+      ]);
+
+      expect(chunks.some((c) => c.type === "result" && c.result === "ok")).toBe(
+        true,
+      );
+      expect(argsTextOf(chunks)).not.toContain('{"q":1}');
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
 
 describe("file parts on the data stream", () => {
@@ -797,24 +841,47 @@ describe("file parts on the data stream", () => {
   });
 });
 
-describe("DataStream tool result modelContent", () => {
-  const modelContent = [
-    { type: "text" as const, text: "The report is ready." },
-    {
-      type: "file" as const,
-      data: "AAAA",
-      mediaType: "application/pdf",
-      filename: "report.pdf",
-    },
-  ];
+type ResultChunk = Extract<AssistantStreamChunk, { type: "result" }>;
 
-  const streamWithResult = (
-    result: Extract<AssistantStreamChunk, { type: "result" }>,
-  ): AssistantStreamChunk[] => [
+describe.each([
+  {
+    field: "modelContent",
+    toolName: "report",
+    value: [
+      { type: "text", text: "The report is ready." },
+      {
+        type: "file",
+        data: "AAAA",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ],
+    encoded:
+      '[{"type":"text","text":"The report is ready."},' +
+      '{"type":"file","data":"AAAA","mediaType":"application/pdf","filename":"report.pdf"}]',
+  },
+  {
+    field: "messages",
+    toolName: "agent",
+    value: [
+      {
+        id: "n1",
+        role: "assistant",
+        content: [{ type: "text", text: "nested reply" }],
+      },
+    ],
+    encoded:
+      '[{"id":"n1","role":"assistant","content":[{"type":"text","text":"nested reply"}]}]',
+  },
+])("DataStream tool result $field", ({ field, toolName, value, encoded }) => {
+  const withField = (result: ResultChunk) =>
+    ({ ...result, [field]: value }) as ResultChunk;
+
+  const streamWithResult = (result: ResultChunk): AssistantStreamChunk[] => [
     {
       type: "part-start",
       path: [],
-      part: { type: "tool-call", toolCallId: "t1", toolName: "report" },
+      part: { type: "tool-call", toolCallId: "t1", toolName },
     },
     { type: "text-delta", path: [0], textDelta: "{}" },
     { type: "tool-call-args-text-finish", path: [0] },
@@ -823,65 +890,78 @@ describe("DataStream tool result modelContent", () => {
   ];
 
   const accumulate = (chunks: AssistantStreamChunk[]) =>
-    roundTripFirstPart<{
-      result: unknown;
-      artifact?: unknown;
-      modelContent?: unknown;
-    }>(chunks);
+    roundTripFirstPart<Record<string, unknown>>(chunks);
 
-  it("carries modelContent on the result frame", async () => {
+  it(`carries ${field} on the result frame`, async () => {
     const lines = await encodeChunks(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: { blob: "x".repeat(16) },
-        artifact: { reportId: "r1" },
-        isError: false,
-        modelContent,
-      }),
+      streamWithResult(
+        withField({
+          type: "result",
+          path: [0],
+          result: { blob: "x".repeat(16) },
+          artifact: { reportId: "r1" },
+          isError: false,
+        }),
+      ),
     );
 
     expect(lines.at(-1)).toBe(
       'a:{"toolCallId":"t1","result":{"blob":"xxxxxxxxxxxxxxxx"},' +
-        '"artifact":{"reportId":"r1"},"modelContent":[' +
-        '{"type":"text","text":"The report is ready."},' +
-        '{"type":"file","data":"AAAA","mediaType":"application/pdf","filename":"report.pdf"}]}',
+        `"artifact":{"reportId":"r1"},"${field}":${encoded}}`,
     );
   });
 
-  it("keeps modelContent distinct from the result through encode, decode and accumulate", async () => {
+  it.each([true, false])(
+    `decodes ${field} off the result frame with strict: %s`,
+    async (strict) => {
+      const chunks = await decodeLines(
+        [
+          `b:{"toolCallId":"t1","toolName":"${toolName}"}`,
+          `a:{"toolCallId":"t1","result":"done","${field}":${encoded}}`,
+        ],
+        { strict },
+      );
+
+      expect(chunks.find((c) => c.type === "result")).toMatchObject({
+        result: "done",
+        [field]: value,
+      });
+    },
+  );
+
+  it(`keeps ${field} distinct from the result through encode, decode and accumulate`, async () => {
     const part = await accumulate(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: { blob: "x".repeat(16) },
-        isError: false,
-        modelContent,
-      }),
+      streamWithResult(
+        withField({
+          type: "result",
+          path: [0],
+          result: { blob: "x".repeat(16) },
+          isError: false,
+        }),
+      ),
     );
 
-    expect(part.result).toEqual({ blob: "x".repeat(16) });
-    expect(part.modelContent).toEqual(modelContent);
+    expect(part["result"]).toEqual({ blob: "x".repeat(16) });
+    expect(part[field]).toEqual(value);
   });
 
-  it("carries modelContent on a preliminary result", async () => {
+  it(`carries ${field} on a preliminary result`, async () => {
     const part = await accumulate(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: "partial",
-        isError: false,
-        isPreliminary: true,
-        modelContent: [{ type: "text", text: "still working" }],
-      }),
+      streamWithResult(
+        withField({
+          type: "result",
+          path: [0],
+          result: "partial",
+          isError: false,
+          isPreliminary: true,
+        }),
+      ),
     );
 
-    expect(part.modelContent).toEqual([
-      { type: "text", text: "still working" },
-    ]);
+    expect(part[field]).toEqual(value);
   });
 
-  it("omits modelContent when the result does not carry it", async () => {
+  it(`omits ${field} when the result does not carry it`, async () => {
     const chunks = streamWithResult({
       type: "result",
       path: [0],
@@ -892,7 +972,12 @@ describe("DataStream tool result modelContent", () => {
     expect(await encodeChunks(chunks)).toContain(
       'a:{"toolCallId":"t1","result":"plain"}',
     );
-    expect(await accumulate(chunks)).not.toHaveProperty("modelContent");
+    const decoded = await decodeLines([
+      `b:{"toolCallId":"t1","toolName":"${toolName}"}`,
+      'a:{"toolCallId":"t1","result":"plain"}',
+    ]);
+    expect(decoded.find((c) => c.type === "result")).not.toHaveProperty(field);
+    expect(await accumulate(chunks)).not.toHaveProperty(field);
   });
 });
 
@@ -998,7 +1083,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     "8:null",
     'aui-state:"x"',
   ];
-  const coercionFrames = ["0:null", "0:123", "g:{}", "3:null"];
+  const coercionFrames = ["0:null", "0:123", "g:{}"];
   const partShapeFrames = [
     "k:{}",
     "aui-data:{}",
@@ -1220,8 +1305,41 @@ describe("DataStreamDecoder malformed frame values", () => {
         "step-finish",
         "message-finish",
       ]);
+      for (const chunk of chunks) {
+        if (chunk.type === "step-finish" || chunk.type === "message-finish") {
+          expect(chunk.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+        }
+      }
     },
   );
+
+  it("fills missing token counts and maps unknown finish reasons to unknown", async () => {
+    const chunks = await decodeLines([
+      'e:{"finishReason":"abort","usage":{"inputTokens":3}}',
+      'd:{"finishReason":"stop","usage":{"promptTokens":1}}',
+    ]);
+
+    expect(chunks).toEqual([
+      expect.objectContaining({
+        type: "step-finish",
+        finishReason: "unknown",
+        usage: { inputTokens: 3, outputTokens: 0 },
+      }),
+      expect.objectContaining({
+        type: "message-finish",
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      }),
+    ]);
+  });
+
+  it("rejects a source frame whose parentId is not a string", async () => {
+    await expect(
+      decodeLines([
+        'h:{"sourceType":"url","id":"s1","url":"https://x","parentId":5}',
+      ]),
+    ).rejects.toThrow('Invalid value for data-stream chunk type "h"');
+  });
 
   it.each([true, false])(
     "accepts a document source without a url with strict: %s",
@@ -1278,4 +1396,88 @@ describe("DataStreamDecoder malformed frame values", () => {
       "unsupported chunk type: zz",
     );
   });
+});
+
+describe("DataStreamEncoder error metadata", () => {
+  it("encodes and decodes code and severity", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "rate_limit",
+        severity: "warning",
+      },
+    ]);
+
+    expect(lines).toEqual([
+      '3:{"error":"rate limited","code":"rate_limit","severity":"warning"}',
+    ]);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks).toEqual([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "rate_limit",
+        severity: "warning",
+      },
+    ]);
+  });
+
+  it("keeps an error without code or severity a bare string on the wire", async () => {
+    const lines = await encodeChunks([
+      { type: "error", path: [], error: "failed" },
+    ]);
+
+    expect(lines).toEqual(['3:"failed"']);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks).toEqual([{ type: "error", path: [], error: "failed" }]);
+  });
+
+  it.each([
+    ["null", "null"],
+    ["42", "42"],
+    ['{"code":"x"}', '{"code":"x"}'],
+    ['{"error":7,"severity":"info"}', '{"error":7,"severity":"info"}'],
+  ])(
+    "surfaces a malformed error frame %s as an error and keeps decoding",
+    async (payload, error) => {
+      const chunks = await decodeLines([`3:${payload}`, '0:"after"']);
+      expect(chunks[0]).toEqual({ type: "error", path: [], error });
+      expect(chunks).toContainEqual(
+        expect.objectContaining({ type: "text-delta", textDelta: "after" }),
+      );
+    },
+  );
+
+  it("drops code and severity values outside the declared types", async () => {
+    const chunks = await decodeLines([
+      '3:{"error":"failed","code":5,"severity":"fatal"}',
+    ]);
+    expect(chunks).toEqual([{ type: "error", path: [], error: "failed" }]);
+  });
+
+  it("decodes the legacy string-only error wire format", async () => {
+    const chunks = await decodeLines(['3:"legacy failure"']);
+    expect(chunks).toEqual([
+      { type: "error", path: [], error: "legacy failure" },
+    ]);
+  });
+
+  it.each(["critical", "warning", "info"] as const)(
+    "round-trips severity %s",
+    async (severity) => {
+      const chunk = {
+        type: "error" as const,
+        path: [],
+        error: "fatal",
+        code: "boom",
+        severity,
+      };
+      expect(await decodeLines(await encodeChunks([chunk]))).toEqual([chunk]);
+    },
+  );
 });

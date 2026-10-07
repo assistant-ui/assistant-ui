@@ -3,14 +3,14 @@ title: User-managed MCP servers
 description: Let end users add and authenticate MCP servers from the browser with @assistant-ui/react-mcp.
 ---
 
-[`@assistant-ui/react-mcp`](https://npmjs.com/package/@assistant-ui/react-mcp) is the user-facing layer for MCP. Where the [server-side MCP guide](/docs/tools/mcp) wires a single fixed set of MCP servers into your API route, this package lets *end users* see a list of connectors, sign in via OAuth, paste a custom server URL, and have the resulting tool catalog flow into the chat — automatically.
+[`@assistant-ui/react-mcp`](https://npmjs.com/package/@assistant-ui/react-mcp) is the user-facing layer for MCP. Where the [server-side MCP guide](/docs/tools/mcp) wires a single fixed set of MCP servers into your API route, this package lets *end users* see a list of connectors, sign in via OAuth, paste a custom server URL, and have the resulting tool catalog flow into the chat automatically.
 
 Two ways a server reaches the user:
 
-- **Connector** — a preset declared by the app developer with `defineConnector(...)`. The user just clicks Connect (and completes auth).
-- **Custom server** — the user supplies the URL, name, and auth in `<McpAddFormPrimitive>`. Hide the add UI to disable.
+- **Connector**: a preset declared by the app developer with `defineConnector(...)`. The user clicks Connect and completes auth.
+- **Custom server**: the user supplies the URL, name, and auth in `<McpAddFormPrimitive>`. Hide the add UI to disable.
 
-Both flow through one connection lifecycle, one persisted state surface, and one tool registration path.
+Both use the same connection lifecycle, persisted state, and tool registration path.
 
 <AgentSetup product="guides/user-managed-mcp" />
 
@@ -24,7 +24,7 @@ AuiConfig({ mcp: McpManagerResource({ connectors }) })
         └─ Registers connected tools as frontend tools — your chat sees them automatically
 ```
 
-The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
+The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are supported. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
 
 <Callout type="info">
 The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/2026-07-28/changelog) deprecates RFC 7591 dynamic client registration in favor of [Client ID Metadata Documents](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents), which clients should prefer over DCR when the authorization server advertises `client_id_metadata_document_supported`. Dynamic client registration remains available for backwards compatibility with authorization servers that do not support CIMD, and the spec's deprecation policy sets a minimum twelve-month window before removal, so the flow described here keeps working. Against a CIMD-only authorization server that exposes no `registration_endpoint`, supply a pre-registered [`clientId`](#auth) instead.
@@ -44,7 +44,7 @@ The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/202
 
 ### Mount the manager
 
-Declare your connectors and provide the `mcp` scope via `AuiProvider`. No imperative hooks:
+Declare your connectors and provide the `mcp` scope via `AuiProvider`:
 
 ```tsx title="app/providers.tsx"
 "use client";
@@ -87,10 +87,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
 Defaults and useful options:
 
-- `storage` — `McpLocalStorage()` (override for production; see [Storage](#storage))
-- `oauthRedirectUri` — `${window.location.origin}/mcp/callback`
-- `autoConnect` — `true` (connect on mount when usable auth is persisted)
-- `connectionTimeout` — optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
+- `storage`: `McpLocalStorage()` (override for production; see [Storage](#storage))
+- `oauthRedirectUri`: `${window.location.origin}/mcp/callback`
+- `autoConnect`: `true` (connect on mount when usable auth is persisted)
+- `connectionTimeout`: optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
 - Connector `id` values must be unique. The id is used for server lookup, OAuth routing, and model-visible tool names such as `linear__search`.
 
 </Step>
@@ -100,7 +100,7 @@ Defaults and useful options:
 
 You have two options:
 
-**Drop-in shadcn dialog** (recommended for most apps) — install the `mcp-config` component via the assistant-ui registry, then render `<McpConfigDialog />` anywhere inside the provider. You get a styled trigger, server cards, status badges, error banners, and the add form for free:
+**Drop-in shadcn dialog** (recommended for most apps). Install the `mcp-config` component via the assistant-ui registry, then render `<McpConfigDialog />` anywhere inside the provider. It includes a styled trigger, server cards, status badges, error banners, and the add form:
 
 <InstallCommand shadcn={["mcp-config"]} />
 
@@ -169,9 +169,9 @@ export default function McpPage() {
 }
 ```
 
-To disable custom servers entirely, just don't render `AddCustomTrigger` and `CustomServers`.
+To disable custom servers entirely, don't render `AddCustomTrigger` and `CustomServers`.
 
-The iteration primitives wrap each item in an `McpServerByIdProvider`, so the nested `<McpServerPrimitive.*>` automatically reads the right scope. `<ConnectButton>`, `<DisconnectButton>`, `<OAuthLink>` and `<RemoveButton>` only render when the relevant state matches — no manual gating. `<RemoveButton>` is also hidden on connector items (which the user can't remove).
+The iteration primitives wrap each item in a server scope provider (`McpConnectorByIndexProvider` or `McpCustomServerByIndexProvider`), so the nested `<McpServerPrimitive.*>` reads the right scope. `<ConnectButton>`, `<DisconnectButton>`, `<OAuthLink>` and `<RemoveButton>` only render when the relevant state matches, so you do not gate them yourself. `<RemoveButton>` is also hidden on connector items (which the user can't remove).
 
 </Step>
 <Step>
@@ -191,6 +191,8 @@ The iteration primitives wrap each item in an `McpServerByIdProvider`, so the ne
 ```
 
 The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it, and render your inputs through `McpAddFormPrimitive.BearerTokenField` and `McpAddFormPrimitive.ScopesField` so they stay bound to the form.
+
+Servers with `bearer` or `oauth` auth must use HTTPS, or plain HTTP on a loopback host: `localhost` or `*.localhost` with or without a trailing dot, an address in `127.0.0.0/8` or its IPv4-mapped IPv6 form, or `[::1]`. The add form rejects an authenticated `http://` URL on any other host, such as a LAN address, and a server configured that way in code fails to connect with a `lastError` that says why, so serve it over HTTPS or reach it through a local tunnel.
 
 </Step>
 <Step>
@@ -221,9 +223,9 @@ The callback reads `?state=...` plus either `code` or an OAuth `error` from the 
 </Step>
 <Step>
 
-### That's it — the chat sees your tools
+### Use the tools in chat
 
-`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model — no `useMcpTools` hook, no adapter call.
+`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model without a separate hook or adapter call.
 
 ```tsx
 "use client";
@@ -255,9 +257,11 @@ const out = await aui.mcp.server({ id: "linear" }).callTool("search", { q });
 
 ## Form elicitation
 
-Connected servers can request structured user input through form-mode elicitation. Render `McpElicitationPrimitive.Items` inside a server-scoped subtree, then compose fields and response actions from the unstyled primitives:
+Connected servers can request structured user input through form-mode elicitation.
 
 Answering a request requires composing `McpElicitationPrimitive`, because the server waits for the form response otherwise. Set `elicitation: false` on a connector or custom server to opt it out of advertising the capability. Numeric fields can stay text inputs (parseable strings are coerced); boolean fields must compose a checkbox, because string drafts for booleans are flagged invalid rather than coerced. Clearing a field returns it to the unanswered state, so an empty text input is omitted from the response rather than submitted as `""` or flagged invalid, unless the schema admits `""` for that property through an `enum` member or a `""` default. Render `enum` properties as a select; when `""` is not a member, its blank option is the unanswered state.
+
+Render `McpElicitationPrimitive.Items` inside a server-scoped subtree, then compose fields and response actions from the unstyled primitives:
 
 ```tsx
 import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
@@ -299,13 +303,13 @@ Client-side validation errors keep the elicitation pending so the user can corre
 
 ## Storage
 
-All persisted state — custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
+All persisted state (custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info) goes through a single `MCPStorage` resource. Three are built in:
 
-- `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
-- `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
-- `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
+- `McpLocalStorage()`: the default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
+- `McpMemoryStorage()`: an in-process Map. Use for SSR/tests where localStorage is absent.
+- `McpCustomStorage({...})`: bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
 
-A storage can declare a `scopeId` — a stable identity for its backing data (two storages sharing a `scopeId` must read and write the same persisted state). When the scope changes, the manager removes the previous scope's custom servers, sets `isHydrated` to `false`, and then loads the replacement. Servers with `bearer` or `oauth` auth also reconnect and rebind the OAuth provider instead of leaving a live connection writing auth state to the replaced store. Without a `scopeId`, a storage swap does not reload custom servers or trigger a reconnect: records from the previous storage remain loaded and the next add or remove can persist them into the replacement. Give every swappable storage a `scopeId`, or remount the manager instead of swapping its `storage`. `McpLocalStorage()` derives a scope automatically for the shared `window.localStorage` (pass `scopeId` yourself when overriding the backing `storage`); `McpMemoryStorage()` scopes each instance uniquely; `McpCustomStorage` takes whatever identity its backend already has.
+A storage can declare a `scopeId`, a stable identity for its backing data (two storages sharing a `scopeId` must read and write the same persisted state). When the scope changes, the manager removes the previous scope's custom servers, sets `isHydrated` to `false`, and then loads the replacement. Servers with `bearer` or `oauth` auth also reconnect and rebind the OAuth provider instead of leaving a live connection writing auth state to the replaced store. Without a `scopeId`, a storage swap does not reload custom servers or trigger a reconnect: records from the previous storage remain loaded and the next add or remove can persist them into the replacement. Give every swappable storage a `scopeId`, or remount the manager instead of swapping its `storage`. `McpLocalStorage()` derives a scope automatically for the shared `window.localStorage` (pass `scopeId` yourself when overriding the backing `storage`); `McpMemoryStorage()` scopes each instance uniquely; `McpCustomStorage` takes whatever identity its backend already has.
 
 If `loadCustomServers` fails, the manager keeps later edits in memory but does not save them because the persisted list is unknown. It logs the failed load and the first blocked edit. Remount the manager to retry loading before making changes that must persist.
 
@@ -354,11 +358,11 @@ Three modes, declared per-connector or per-custom-record:
 }
 ```
 
-The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591 — [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
+The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591, [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
 
 ## State & methods
 
-Render-time state — `useAuiState`:
+Read render-time state with `useAuiState`:
 
 ```ts
 import { useAuiState } from "@assistant-ui/store";
@@ -368,7 +372,7 @@ const connectionState = useAuiState((s) => s.mcpServer.connectionState);
 //                                          ^ requires McpServerByIdProvider
 ```
 
-Imperative methods: `useAui` + resolve in a callback (never during render):
+Call imperative methods through `useAui` inside a callback, never during render:
 
 ```ts
 const aui = useAui();
