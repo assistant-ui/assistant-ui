@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { UIElement } from "../ir";
-import { convertSurfaceToUISpec } from "./convert";
+import { resolveFieldReferences } from "../fieldReferences";
+import { convertSurfaceToUISpec, createLiveSurfaceConverter } from "./convert";
 import { applyA2uiOperations } from "./reducer";
 import { surfaceToOperations } from "./snapshot";
 import type { A2uiSurfaceState } from "./types";
@@ -19,13 +20,112 @@ const surfaceFrom = (
 });
 
 describe("convertSurfaceToUISpec", () => {
+  it.each(["", "a/b~c"])("preserves the nested action key %j", (key) => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["input", "send"] },
+        { id: "input", component: "TextField", value: { path: "/form/value" } },
+        {
+          id: "send",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                payload: { [key]: { path: "/form" }, untouched: "keep" },
+              },
+            },
+          },
+        },
+      ],
+      { form: { value: "initial", fixed: "retained" } },
+    );
+    const spec = convertSurfaceToUISpec(surface).spec;
+    expect(
+      resolveFieldReferences(spec, { "/form/value": "edited" }),
+    ).toMatchObject({
+      children: [
+        {},
+        {
+          $action: {
+            context: {
+              payload: {
+                [key]: { value: "edited", fixed: "retained" },
+                untouched: "keep",
+              },
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserves compaction in retained custom actions and non-record contexts", () => {
+    const ids = [{ path: "/a" }, { path: "/missing" }, { path: "/b" }];
+    const custom = convertSurfaceToUISpec(
+      surfaceFrom(
+        [
+          {
+            id: "root",
+            component: "ReturnPanel",
+            action: { event: { name: "go", context: { ids } } },
+          },
+        ],
+        { a: "A", b: "B" },
+      ),
+      { keepUnknownComponents: true },
+    );
+    expect(custom.spec).toMatchObject({
+      action: { event: { context: { ids: ["A", "B"] } } },
+    });
+    const button = convertSurfaceToUISpec(
+      surfaceFrom(
+        [
+          {
+            id: "root",
+            component: "Button",
+            label: "Go",
+            action: { event: { name: "go", context: ids } },
+          },
+        ],
+        { a: "A", b: "B" },
+      ),
+    );
+    expect(button.spec?.$action?.["context"]).toEqual(["A", "B"]);
+  });
+
+  it("compacts missing non-input event values after resolving nested bindings", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                ids: [{ path: "/a" }, { path: "/missing" }, { path: "/b" }],
+              },
+            },
+          },
+        },
+      ],
+      { a: "A", b: "B" },
+    );
+    expect(convertSurfaceToUISpec(surface).spec?.$action?.["context"]).toEqual({
+      ids: ["A", "B"],
+    });
+  });
+
   it("keeps absolute bindings rooted while resolving relative template bindings locally", () => {
     const surface = surfaceFrom(
       [
         {
           id: "root",
           component: "List",
-          children: { template: { componentId: "row", path: "/items" } },
+          children: { componentId: "row", path: "/items" },
         },
         {
           id: "row",
@@ -55,7 +155,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "nested",
           component: "List",
-          children: { template: { componentId: "label", path: "/labels" } },
+          children: { componentId: "label", path: "/labels" },
         },
         { id: "label", component: "Text", text: { path: "name" } },
       ],
@@ -114,9 +214,7 @@ describe("convertSurfaceToUISpec", () => {
             {
               id: "items",
               component: "List",
-              children: {
-                template: { componentId: "item", path: "/items" },
-              },
+              children: { componentId: "item", path: "/items" },
             },
             {
               id: "item",
@@ -460,6 +558,7 @@ describe("convertSurfaceToUISpec", () => {
           },
           {
             $type: "DatePicker",
+            inputType: "date",
             value: "2026-06-01",
             min: "2026-01-01",
             max: "2026-12-31",
@@ -530,7 +629,7 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
-  it("passes a chips ChoicePicker value to Select as its initial value", () => {
+  it("passes a chips ChoicePicker value to RadioGroup as its initial value", () => {
     const result = convertSurfaceToUISpec(
       surfaceFrom([
         {
@@ -545,13 +644,462 @@ describe("convertSurfaceToUISpec", () => {
 
     expect(result).toEqual({
       spec: {
-        $type: "Select",
+        $type: "RadioGroup",
         options: [{ label: "Express", value: "express" }],
         defaultValue: "express",
       },
       warnings: [],
     });
   });
+
+  it.each([
+    ["obscured", "password", "s3cret"],
+    ["obscured", "password", ""],
+    ["number", "number", "12.5"],
+    ["number", "number", ""],
+  ])(
+    "maps a %s TextField to a %s Input holding %j",
+    (variant, inputType, value) => {
+      const result = convertSurfaceToUISpec(
+        surfaceFrom(
+          [
+            { id: "root", component: "Column", children: ["field", "send"] },
+            {
+              id: "field",
+              component: "TextField",
+              variant,
+              label: "Value",
+              value: { path: "/form/value" },
+            },
+            {
+              id: "send",
+              component: "Button",
+              action: {
+                event: { name: "send", context: { form: { path: "/form" } } },
+              },
+            },
+          ],
+          { form: { value } },
+        ),
+      );
+
+      expect(result.warnings).toEqual([]);
+      expect(result.spec?.children).toEqual([
+        {
+          $type: "Input",
+          inputType,
+          label: "Value",
+          name: "/form/value",
+          defaultValue: value,
+        },
+        {
+          $type: "Button",
+          $action: {
+            type: "a2ui:action",
+            name: "send",
+            surfaceId: "",
+            sourceComponentId: "send",
+            context: {
+              form: { value: { $field: "/form/value", fallback: value } },
+            },
+          },
+        },
+      ]);
+    },
+  );
+
+  it.each([
+    { mode: {}, value: "2025-12-15", type: "DatePicker", inputType: "date" },
+    {
+      mode: { enableDate: false, enableTime: false },
+      value: "2025-12-15",
+      type: "DatePicker",
+      inputType: "date",
+    },
+    {
+      mode: { enableDate: true },
+      value: "2025-12-15",
+      type: "DatePicker",
+      inputType: "date",
+    },
+    {
+      mode: { enableDate: true, enableTime: false },
+      value: "2025-12-15",
+      type: "DatePicker",
+      inputType: "date",
+    },
+    {
+      mode: { enableDate: true },
+      value: "",
+      type: "DatePicker",
+      inputType: "date",
+    },
+    {
+      mode: { enableDate: true },
+      value: undefined,
+      type: "DatePicker",
+      inputType: "date",
+    },
+    { mode: {}, value: undefined, type: "DatePicker", inputType: "date" },
+    {
+      mode: {},
+      value: "2025-12-15T17:00:00Z",
+      type: "DatePicker",
+      inputType: "datetime",
+    },
+    {
+      mode: { enableDate: true },
+      value: "2025-12-15T17:00:00Z",
+      type: "Input",
+    },
+    {
+      mode: { enableDate: true, enableTime: true },
+      value: "2025-12-15T17:00:00Z",
+      type: "DatePicker",
+      inputType: "datetime",
+    },
+    {
+      mode: { enableDate: true, enableTime: true },
+      value: "2025-12-15",
+      type: "Input",
+    },
+    {
+      mode: { enableTime: true },
+      value: "17:00:00",
+      type: "DatePicker",
+      inputType: "time",
+    },
+    {
+      mode: { enableDate: false, enableTime: true },
+      value: "17:00:00",
+      type: "DatePicker",
+      inputType: "time",
+    },
+    {
+      mode: { enableDate: true },
+      value: "2025-12-15T17:00:00+02:00",
+      type: "Input",
+    },
+  ])(
+    "maps DateTimeInput $mode holding $value to $type with live field references",
+    ({ mode, value, type, inputType }) => {
+      const reference = {
+        $field: "/form/due",
+        ...(value !== undefined ? { fallback: value } : {}),
+      };
+      const result = convertSurfaceToUISpec(
+        surfaceFrom(
+          [
+            {
+              id: "root",
+              component: "Column",
+              children: ["due", "send", "call"],
+            },
+            {
+              id: "due",
+              component: "DateTimeInput",
+              ...mode,
+              label: "Due",
+              value: { path: "/form/due" },
+              min: "2025-01-01",
+              max: "2025-12-31",
+            },
+            {
+              id: "send",
+              component: "Button",
+              action: {
+                event: {
+                  name: "send",
+                  context: {
+                    due: { path: "/form/due" },
+                    form: { path: "/form" },
+                  },
+                  userMessage: { path: "/form/due" },
+                },
+              },
+            },
+            {
+              id: "call",
+              component: "Button",
+              action: {
+                functionCall: {
+                  call: "save",
+                  args: { due: { path: "/form/due" } },
+                },
+              },
+            },
+          ],
+          { form: value === undefined ? {} : { due: value } },
+        ),
+      );
+
+      const bounds =
+        inputType === "date"
+          ? { min: "2025-01-01", max: "2025-12-31" }
+          : inputType === "datetime"
+            ? { min: "2025-01-01T00:00", max: "2025-12-31T23:59:59.999" }
+            : {};
+      expect(result.warnings).toEqual(
+        inputType === "time"
+          ? [
+              'A2UI DateTimeInput "min" of "2025-01-01" is not a time value and was dropped.',
+              'A2UI DateTimeInput "max" of "2025-12-31" is not a time value and was dropped.',
+            ]
+          : [],
+      );
+      expect(result.spec?.children).toEqual([
+        {
+          $type: type,
+          ...(inputType !== undefined ? { inputType } : {}),
+          label: "Due",
+          name: "/form/due",
+          ...(value !== undefined
+            ? { [type === "DatePicker" ? "value" : "defaultValue"]: value }
+            : {}),
+          ...bounds,
+        },
+        {
+          $type: "Button",
+          $action: {
+            type: "a2ui:action",
+            name: "send",
+            surfaceId: "",
+            sourceComponentId: "send",
+            context: { due: reference, form: { due: reference } },
+            userMessage: reference,
+          },
+        },
+        {
+          $type: "Button",
+          $action: {
+            type: "a2ui:functionCall",
+            call: "save",
+            surfaceId: "",
+            sourceComponentId: "call",
+            args: { due: reference },
+          },
+        },
+      ]);
+    },
+  );
+
+  const convertedDateTimeInput = (
+    value: string | undefined,
+    mode: Record<string, unknown> = {},
+    bounds: Record<string, unknown> = {},
+    warnings: readonly string[] = [],
+  ) => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "DateTimeInput",
+          ...mode,
+          ...bounds,
+          value: { path: "/due" },
+        },
+      ],
+      value === undefined ? {} : { due: value },
+    );
+    const result = convertSurfaceToUISpec(surface);
+    expect(result.warnings).toEqual(warnings);
+    return result.spec;
+  };
+
+  it.each([
+    [{ enableDate: true, enableTime: true }, "2025-12-15T17:00Z", "datetime"],
+    [{ enableTime: true }, "17:00", "time"],
+    [{ enableDate: true }, "2025-12-15", "date"],
+    [{ enableDate: false, enableTime: false }, "2025-12-15", "date"],
+    [{ enableDate: true, enableTime: true }, "", "datetime"],
+  ] as const)(
+    "follows DateTimeInput flags %j for %j",
+    (mode, value, inputType) => {
+      expect(convertedDateTimeInput(value, mode)).toEqual({
+        $type: "DatePicker",
+        inputType,
+        value,
+        name: "/due",
+      });
+    },
+  );
+
+  it.each([
+    ["2025-12-15", "date"],
+    ["2025-12-15T17:00", "datetime"],
+    ["2025-12-15T17:00:30.125+02:00", "datetime"],
+    ["17:00", "time"],
+    ["17:00:30", "time"],
+    ["", "date"],
+    [undefined, "date"],
+  ] as const)("infers DateTimeInput type %s from %j", (value, inputType) => {
+    expect(convertedDateTimeInput(value)).toEqual({
+      $type: "DatePicker",
+      inputType,
+      ...(value !== undefined ? { value } : {}),
+      name: "/due",
+    });
+  });
+
+  it.each([
+    ["2025-12-15T17:00", { enableDate: true }],
+    ["17:00", { enableDate: true }],
+    ["2025-12-15", { enableDate: true, enableTime: true }],
+    ["2025-12-15", { enableTime: true }],
+    ["17:00Z", { enableTime: true }],
+    ["not a date", {}],
+    ["2025-02-30", {}],
+  ] as const)(
+    "keeps incompatible DateTimeInput value %j in a text Input",
+    (value, mode) => {
+      expect(convertedDateTimeInput(value, mode)).toEqual({
+        $type: "Input",
+        defaultValue: value,
+        name: "/due",
+      });
+    },
+  );
+
+  it.each([
+    {
+      value: "2025-12-15",
+      mode: { enableDate: true },
+      bounds: { min: "2025-01-01", max: "17:00" },
+      inputType: "date",
+      expected: { min: "2025-01-01" },
+      warnings: [
+        'A2UI DateTimeInput "max" of "17:00" is not a date value and was dropped.',
+      ],
+    },
+    {
+      value: "17:00",
+      mode: { enableTime: true },
+      bounds: { min: "16:00", max: "2025-12-31" },
+      inputType: "time",
+      expected: { min: "16:00" },
+      warnings: [
+        'A2UI DateTimeInput "max" of "2025-12-31" is not a time value and was dropped.',
+      ],
+    },
+    {
+      value: "2025-12-15T17:00Z",
+      mode: { enableDate: true, enableTime: true },
+      bounds: { min: "2025-01-01T08:00+02:00", max: "17:00" },
+      inputType: "datetime",
+      expected: { min: "2025-01-01T08:00+02:00" },
+      warnings: [
+        'A2UI DateTimeInput "max" of "17:00" is not a datetime value and was dropped.',
+      ],
+    },
+    {
+      value: "17:00",
+      mode: { enableTime: true },
+      bounds: { min: "2025-12-31", max: "18:00" },
+      inputType: "time",
+      expected: { max: "18:00" },
+      warnings: [
+        'A2UI DateTimeInput "min" of "2025-12-31" is not a time value and was dropped.',
+      ],
+    },
+    {
+      value: "2025-12-15T17:00Z",
+      mode: { enableDate: true, enableTime: true },
+      bounds: { min: "2025-01-01", max: "2025-12-31" },
+      inputType: "datetime",
+      expected: { min: "2025-01-01T00:00", max: "2025-12-31T23:59:59.999" },
+      warnings: [],
+    },
+  ] as const)(
+    "resolves DateTimeInput bounds $bounds for a $inputType value",
+    ({ value, mode, bounds, inputType, expected, warnings }) => {
+      expect(convertedDateTimeInput(value, mode, bounds, warnings)).toEqual({
+        $type: "DatePicker",
+        inputType,
+        value,
+        ...expected,
+        name: "/due",
+      });
+    },
+  );
+
+  it("keeps a DateTimeInput control shape tied to the agent model during local edits", () => {
+    const surface = surfaceFrom(
+      [{ id: "root", component: "DateTimeInput", value: { path: "/due" } }],
+      { due: "2025-12-15T17:00Z" },
+    );
+    const convert = createLiveSurfaceConverter(surface);
+    expect(convert(surface.dataModel).spec).toMatchObject({
+      $type: "DatePicker",
+      inputType: "datetime",
+    });
+    expect(convert({ due: "2025-12-15" }).spec).toMatchObject({
+      $type: "DatePicker",
+      inputType: "datetime",
+    });
+  });
+
+  it.each([undefined, "mutuallyExclusive"])(
+    "keeps chips with variant %s list-valued when empty and selected",
+    (variant) => {
+      for (const value of [[], ["b"]]) {
+        const options = [
+          { label: "A", value: "a" },
+          { label: "B", value: "b" },
+        ];
+        const result = convertSurfaceToUISpec(
+          surfaceFrom(
+            [
+              { id: "root", component: "Column", children: ["choice", "send"] },
+              {
+                id: "choice",
+                component: "ChoicePicker",
+                variant,
+                displayStyle: "chips",
+                options,
+                value: { path: "/form/choice" },
+              },
+              {
+                id: "send",
+                component: "Button",
+                action: {
+                  name: "send",
+                  context: { choice: { path: "/form/choice" } },
+                },
+              },
+            ],
+            { form: { choice: value } },
+          ),
+        );
+        const reference = {
+          $field: "/form/choice",
+          ...(value[0] !== undefined ? { fallback: value[0] } : {}),
+        };
+        expect(result.warnings).toEqual([]);
+        expect(result.spec?.children).toEqual([
+          {
+            $type: "RadioGroup",
+            name: "/form/choice",
+            options,
+            ...(value[0] !== undefined ? { defaultValue: value[0] } : {}),
+          },
+          {
+            $type: "Button",
+            $action: {
+              type: "a2ui:action",
+              name: "send",
+              surfaceId: "",
+              sourceComponentId: "send",
+              context: { choice: [reference] },
+            },
+          },
+        ]);
+        expect(resolveFieldReferences([reference], {})).toEqual(value);
+        expect(
+          resolveFieldReferences([reference], { "/form/choice": "b" }),
+        ).toEqual(["b"]);
+      }
+    },
+  );
 
   it("drops an unresolvable bound prop without throwing", () => {
     const surface = surfaceFrom([
@@ -648,6 +1196,104 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps a bound Slider with the spec's min default and a continuous step", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Slider",
+          label: "Volume",
+          max: 1,
+          value: { path: "/volume" },
+        },
+      ],
+      { volume: 0.35 },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Slider",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        defaultValue: 0.35,
+        label: "Volume",
+        name: "/volume",
+      },
+      warnings: [],
+    });
+  });
+
+  it("divides a Slider range by its steps and keeps integer values exact", () => {
+    const stepped = surfaceFrom([
+      { id: "root", component: "Slider", max: 100, steps: 4, value: 50 },
+    ]);
+    const wide = surfaceFrom([
+      { id: "root", component: "Slider", min: 0, max: 1000, value: 537 },
+    ]);
+
+    expect(convertSurfaceToUISpec(stepped).spec).toEqual({
+      $type: "Slider",
+      min: 0,
+      max: 100,
+      step: 25,
+      defaultValue: 50,
+    });
+    expect(convertSurfaceToUISpec(wide).spec).toEqual({
+      $type: "Slider",
+      min: 0,
+      max: 1000,
+      step: 1,
+      defaultValue: 537,
+    });
+  });
+
+  it("sends a Slider's live value to an action bound to its path", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["volume", "save"] },
+        {
+          id: "volume",
+          component: "Slider",
+          max: 10,
+          value: { path: "/volume" },
+        },
+        {
+          id: "save",
+          component: "Button",
+          label: "Save",
+          action: {
+            event: { name: "save", context: { volume: { path: "/volume" } } },
+          },
+        },
+      ],
+      { volume: 4 },
+    );
+
+    const result = convertSurfaceToUISpec(surface);
+    expect(result.warnings).toEqual([]);
+    expect(result.spec).toMatchObject({
+      children: [
+        { $type: "Slider", name: "/volume", defaultValue: 4 },
+        {
+          $action: {
+            context: { volume: { $field: "/volume", fallback: 4 } },
+          },
+        },
+      ],
+    });
+  });
+
+  it("skips a Slider without a numeric max", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Slider", value: 3 },
+    ]);
+
+    expect(convertSurfaceToUISpec(surface).warnings).toEqual([
+      'A2UI component "Slider" could not be mapped and was skipped.',
+    ]);
+  });
+
   it("warns and omits a malformed formatString template", () => {
     const surface = surfaceFrom([
       {
@@ -685,7 +1331,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "rows",
           component: "Column",
-          children: { template: { componentId: "row", path: "/items" } },
+          children: { componentId: "row", path: "/items" },
         },
         {
           id: "row",
@@ -708,13 +1354,8 @@ describe("convertSurfaceToUISpec", () => {
         children: [
           { $type: "Markdown", value: usd(12) },
           {
-            $type: "ListView",
-            children: [
-              {
-                $type: "ListViewItem",
-                children: { $type: "Markdown", value: `Tea: ${usd(3)}` },
-              },
-            ],
+            $type: "Col",
+            children: [{ $type: "Markdown", value: `Tea: ${usd(3)}` }],
           },
         ],
       },
@@ -957,10 +1598,8 @@ describe("convertSurfaceToUISpec", () => {
       [
         {
           id: "root",
-          component: "Column",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          component: "List",
+          children: { componentId: "item", path: "/items" },
         },
         {
           id: "item",
@@ -989,6 +1628,107 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("keeps a Row or Column template in its own container", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["days", "hours"] },
+        {
+          id: "days",
+          component: "Row",
+          justify: "spaceBetween",
+          children: { componentId: "day", path: "/days" },
+        },
+        {
+          id: "hours",
+          component: "Column",
+          align: "center",
+          children: { componentId: "day", path: "/hours" },
+        },
+        { id: "day", component: "Text", text: { path: "label" } },
+      ],
+      {
+        days: [{ label: "Tue" }, { label: "Wed" }],
+        hours: [{ label: "9am" }],
+      },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Row",
+            justify: "spaceBetween",
+            children: [
+              { $type: "Markdown", value: "Tue" },
+              { $type: "Markdown", value: "Wed" },
+            ],
+          },
+          {
+            $type: "Col",
+            align: "center",
+            children: [{ $type: "Markdown", value: "9am" }],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("expands a template on a component without a child list into a ListView", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Divider",
+          children: { componentId: "item", path: "/items" },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("reads template children wrapped in a template key", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "List",
+          children: { template: { componentId: "item", path: "/items" } },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("preserves a horizontal list container when expanding templates", () => {
     const surface = surfaceFrom(
       [
@@ -997,9 +1737,7 @@ describe("convertSurfaceToUISpec", () => {
           component: "List",
           direction: "horizontal",
           align: "center",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1040,9 +1778,7 @@ describe("convertSurfaceToUISpec", () => {
             id: "root",
             component: "List",
             direction: "horizontal",
-            children: {
-              template: { componentId: "item", path: "/items" },
-            },
+            children: { componentId: "item", path: "/items" },
           }),
           dataModel,
         ),
@@ -1052,9 +1788,7 @@ describe("convertSurfaceToUISpec", () => {
           components({
             id: "root",
             component: "CustomList",
-            children: {
-              template: { componentId: "item", path: "/items" },
-            },
+            children: { componentId: "item", path: "/items" },
           }),
           dataModel,
         ),
@@ -1078,9 +1812,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "Column",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         {
           id: "item",
@@ -1163,6 +1895,175 @@ describe("convertSurfaceToUISpec", () => {
         ],
       },
       warnings: [],
+    });
+  });
+
+  it("carries an event's userMessage when it resolves to a string", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Row", children: ["greet", "count"] },
+        {
+          id: "greet",
+          component: "Button",
+          label: "Greet",
+          action: {
+            event: {
+              name: "greet",
+              userMessage: {
+                call: "formatString",
+                args: { value: "Greet ${/name}" },
+              },
+            },
+          },
+        },
+        {
+          id: "count",
+          component: "Button",
+          label: "Count",
+          action: { event: { name: "count", userMessage: { path: "/count" } } },
+        },
+      ],
+      { name: "Ada", count: 3 },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Row",
+        children: [
+          {
+            $type: "Button",
+            label: "Greet",
+            $action: {
+              type: "a2ui:action",
+              name: "greet",
+              surfaceId: "",
+              sourceComponentId: "greet",
+              userMessage: "Greet Ada",
+            },
+          },
+          {
+            $type: "Button",
+            label: "Count",
+            $action: {
+              type: "a2ui:action",
+              name: "count",
+              surfaceId: "",
+              sourceComponentId: "count",
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("points a userMessage only at a lone text input bound to its exact path", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Column",
+          children: [
+            "email",
+            "volume",
+            "note",
+            "qty",
+            "qty-level",
+            "form",
+            "level",
+            "draft",
+            "copy",
+          ],
+        },
+        { id: "email", component: "TextField", value: { path: "/form/email" } },
+        {
+          id: "volume",
+          component: "Slider",
+          max: 10,
+          value: { path: "/volume" },
+        },
+        { id: "note", component: "TextField", value: { path: "/note" } },
+        { id: "qty", component: "TextField", value: { path: "/qty" } },
+        {
+          id: "qty-level",
+          component: "Slider",
+          max: 10,
+          value: { path: "/qty" },
+        },
+        {
+          id: "form",
+          component: "Button",
+          label: "Form",
+          action: { event: { name: "form", userMessage: { path: "/form" } } },
+        },
+        {
+          id: "level",
+          component: "Button",
+          label: "Level",
+          action: {
+            event: { name: "level", userMessage: { path: "/volume" } },
+          },
+        },
+        {
+          id: "draft",
+          component: "Button",
+          label: "Draft",
+          action: { event: { name: "draft", userMessage: { path: "/note" } } },
+        },
+        {
+          id: "copy",
+          component: "Button",
+          label: "Copy",
+          action: { event: { name: "copy", userMessage: { path: "/qty" } } },
+        },
+      ],
+      { form: { email: "ada@example.com" }, volume: 4, qty: "2" },
+    );
+
+    const { spec, warnings } = convertSurfaceToUISpec(surface);
+
+    expect(warnings).toEqual([]);
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Form",
+      $action: {
+        type: "a2ui:action",
+        name: "form",
+        surfaceId: "",
+        sourceComponentId: "form",
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Level",
+      $action: {
+        type: "a2ui:action",
+        name: "level",
+        surfaceId: "",
+        sourceComponentId: "level",
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Draft",
+      $action: {
+        type: "a2ui:action",
+        name: "draft",
+        surfaceId: "",
+        sourceComponentId: "draft",
+        userMessage: { $field: "/note" },
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Copy",
+      $action: {
+        type: "a2ui:action",
+        name: "copy",
+        surfaceId: "",
+        sourceComponentId: "copy",
+        userMessage: "2",
+      },
     });
   });
 
@@ -1293,6 +2194,18 @@ describe("convertSurfaceToUISpec", () => {
 
     expect(warnings).toEqual([]);
     expect(spec?.["children"]).toContainEqual({
+      $type: "DatePicker",
+      inputType: "date",
+      value: "2026-01-02",
+      name: "/form/start",
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "DatePicker",
+      inputType: "datetime",
+      value: "2025-12-15T17:00:00Z",
+      name: "/form/due",
+    });
+    expect(spec?.["children"]).toContainEqual({
       $type: "Button",
       label: "Send",
       $action: {
@@ -1308,7 +2221,7 @@ describe("convertSurfaceToUISpec", () => {
             size: { $field: "/form/size", fallback: "m" },
             agree: { $field: "/form/agree", fallback: false },
             start: { $field: "/form/start", fallback: "2026-01-02" },
-            due: "2025-12-15T17:00:00Z",
+            due: { $field: "/form/due", fallback: "2025-12-15T17:00:00Z" },
             id: 7,
           },
           owner: "u1",
@@ -1337,7 +2250,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "lines",
           component: "List",
-          children: { template: { componentId: "line", path: "/items" } },
+          children: { componentId: "line", path: "/items" },
         },
         { id: "line", component: "Row", children: ["qty", "remove"] },
         {
@@ -1933,9 +2846,7 @@ describe("convertSurfaceToUISpec", () => {
           $action: { type: "injected" },
           $key: "injected",
           $status: "injected",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1966,9 +2877,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "CustomList",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1996,9 +2905,7 @@ describe("convertSurfaceToUISpec", () => {
           id: "root",
           component: "CustomList",
           title: { path: "/title" },
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -2030,4 +2937,86 @@ describe("convertSurfaceToUISpec", () => {
       warnings: ['A2UI root component "root" was not found.'],
     });
   });
+});
+
+it("keeps live controls internal and action-free while plain conversion stays uncontrolled", () => {
+  const surface = applyA2uiOperations(new Map(), [
+    {
+      version: "v1.0",
+      createSurface: {
+        surfaceId: "main",
+        components: [
+          {
+            id: "root",
+            component: "Column",
+            children: ["field", "pick", "slider"],
+          },
+          { id: "field", component: "TextField", text: { path: "/name" } },
+          {
+            id: "pick",
+            component: "ChoicePicker",
+            value: { path: "/choices" },
+            options: [{ label: "A", value: "a" }],
+          },
+          {
+            id: "slider",
+            component: "Slider",
+            value: { path: "/count" },
+            min: 0,
+            max: 10,
+          },
+        ],
+        dataModel: { name: "Ada", choices: ["a"], count: 2 },
+      },
+    },
+  ]).state.get("main")!;
+  expect(convertSurfaceToUISpec(surface).spec).toMatchObject({
+    children: [
+      { $type: "Input", defaultValue: "Ada" },
+      { $type: "RadioGroup", defaultValue: "a" },
+      { $type: "Slider", defaultValue: 2 },
+    ],
+  });
+  const convert = createLiveSurfaceConverter(surface);
+  const live = convert(surface.dataModel);
+  expect(live.spec).toEqual({
+    $type: "Col",
+    children: [
+      {
+        $type: "Input",
+        value: "Ada",
+        name: "/name",
+      },
+      {
+        $type: "RadioGroup",
+        value: "a",
+        name: "/choices",
+        options: [{ label: "A", value: "a" }],
+      },
+      {
+        $type: "Slider",
+        value: 2,
+        name: "/count",
+        min: 0,
+        max: 10,
+        step: 0.1,
+      },
+    ],
+  });
+  expect(live.bindings).toEqual(
+    new Map([
+      ["/name", { value: "Ada", arrayValue: false }],
+      ["/choices", { value: "a", arrayValue: true }],
+      ["/count", { value: 2, arrayValue: false }],
+    ]),
+  );
+  const updated = convert({ name: "Grace", choices: ["a"], count: 2 });
+  expect((updated.spec!.children as UIElement[])[0]).toEqual({
+    $type: "Input",
+    name: "/name",
+    value: "Grace",
+  });
+  expect((updated.spec!.children as UIElement[])[2]).toBe(
+    (live.spec!.children as UIElement[])[2],
+  );
 });

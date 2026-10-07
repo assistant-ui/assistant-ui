@@ -3,6 +3,7 @@ import type { ToolCallStreamController } from "../modules/tool-call";
 export const createToolCallPartRegistry = () => {
   const toolCallControllers = new Map<string, ToolCallStreamController>();
   const closedToolCallArgs = new Set<ToolCallStreamController>();
+  const toolCallsWithArgsText = new Set<ToolCallStreamController>();
 
   const tryGet = (toolCallId: string) => toolCallControllers.get(toolCallId);
 
@@ -35,6 +36,10 @@ export const createToolCallPartRegistry = () => {
       argsTextDelta: string,
     ) => {
       toolCallController.argsText.append(argsTextDelta);
+      toolCallsWithArgsText.add(toolCallController);
+    },
+    hasArgsText: (toolCallController: ToolCallStreamController) => {
+      return toolCallsWithArgsText.has(toolCallController);
     },
     closeArgsText,
     isArgsTextClosed: (toolCallController: ToolCallStreamController) => {
@@ -60,6 +65,7 @@ export const createToolCallPartRegistry = () => {
       });
       toolCallControllers.clear();
       closedToolCallArgs.clear();
+      toolCallsWithArgsText.clear();
     },
   };
 };

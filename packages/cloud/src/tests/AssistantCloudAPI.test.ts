@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantCloudAPI, CloudAPIError } from "../AssistantCloudAPI";
 import { CloudResponseError } from "../cloudResponse";
 
+const createAccessToken = (subject: string) =>
+  `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: subject })).toString("base64url")}.sig`;
+
 describe("AssistantCloudAPI", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -159,6 +162,235 @@ describe("AssistantCloudAPI", () => {
       "Authorization failed",
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects old headers if auth is invalidated while headers resolve", async () => {
+    const userAToken = createAccessToken("user-a");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => userAToken,
+    });
+    const oldHeaders = await api._auth.getAuthHeaders();
+    if (!oldHeaders) throw new Error("Expected auth headers");
+
+    let resolveHeaders: (headers: Record<string, string>) => void = () => {};
+    vi.spyOn(api._auth, "getAuthHeaders").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveHeaders = resolve;
+        }),
+    );
+
+    const oldRequest = api.makeRawRequest("/threads");
+    api.invalidateAuth();
+    resolveHeaders(oldHeaders);
+
+    await expect(oldRequest).rejects.toThrow("Authorization failed");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses fresh headers for a request started after invalidation", async () => {
+    const userAToken = createAccessToken("user-a");
+    const userBToken = createAccessToken("user-b");
+    const internalUserAToken = createAccessToken("internal-user-a");
+    let currentToken = userAToken;
+    const authToken = vi.fn(async () => currentToken);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ Authorization: `Bearer ${internalUserAToken}` }),
+      })
+      .mockResolvedValue({ ok: true, headers: new Headers() });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken,
+    });
+    await api.makeRawRequest("/threads");
+    expect(await api._auth.getAuthHeaders()).toEqual({
+      Authorization: `Bearer ${internalUserAToken}`,
+    });
+
+    currentToken = userBToken;
+    api.invalidateAuth();
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userAToken}`,
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops authenticating after the provider session is invalidated", async () => {
+    const userAToken = createAccessToken("user-a");
+    const internalUserAToken = createAccessToken("internal-user-a");
+    let currentToken: string | null = userAToken;
+    const authToken = vi.fn(async () => currentToken);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ Authorization: `Bearer ${internalUserAToken}` }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken,
+    });
+    await api.makeRawRequest("/threads");
+    expect(await api._auth.getAuthHeaders()).toEqual({
+      Authorization: `Bearer ${internalUserAToken}`,
+    });
+
+    currentToken = null;
+    api.invalidateAuth();
+
+    await expect(api.makeRawRequest("/threads")).rejects.toThrow(
+      "Authorization failed",
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let an old response restore a superseded identity", async () => {
+    const userAToken = createAccessToken("user-a");
+    const userBToken = createAccessToken("user-b");
+    const internalUserAToken = createAccessToken("internal-user-a");
+    let currentToken = userAToken;
+    let resolveUserAResponse: (response: Response) => void = () => {};
+    const userAResponse = new Promise<Response>((resolve) => {
+      resolveUserAResponse = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(() => userAResponse)
+      .mockResolvedValue({
+        ok: true,
+        headers: new Headers(),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => currentToken,
+    });
+
+    const userARequest = api.makeRawRequest("/threads");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    currentToken = userBToken;
+    api.invalidateAuth();
+    await api.makeRawRequest("/threads");
+
+    resolveUserAResponse({
+      ok: true,
+      headers: new Headers({
+        Authorization: `Bearer ${internalUserAToken}`,
+      }),
+    } as Response);
+    await userARequest;
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userAToken}`,
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
+    expect(fetchMock.mock.calls[2]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
+  });
+
+  it("accepts token rotations from concurrent requests in the same session", async () => {
+    const providerToken = createAccessToken("user-a");
+    const firstInternalToken = createAccessToken("internal-user-a-1");
+    const secondInternalToken = createAccessToken("internal-user-a-2");
+    const authToken = vi.fn(async () => providerToken);
+    let resolveFirstResponse: (response: Response) => void = () => {};
+    let resolveSecondResponse: (response: Response) => void = () => {};
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirstResponse = resolve;
+    });
+    const secondResponse = new Promise<Response>((resolve) => {
+      resolveSecondResponse = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(() => firstResponse)
+      .mockImplementationOnce(() => secondResponse)
+      .mockResolvedValue({ ok: true, headers: new Headers() } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken,
+    });
+
+    const firstRequest = api.makeRawRequest("/threads");
+    const secondRequest = api.makeRawRequest("/threads");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    resolveFirstResponse({
+      ok: true,
+      headers: new Headers({
+        Authorization: `Bearer ${firstInternalToken}`,
+      }),
+    } as Response);
+    await firstRequest;
+
+    resolveSecondResponse({
+      ok: true,
+      headers: new Headers({
+        Authorization: `Bearer ${secondInternalToken}`,
+      }),
+    } as Response);
+    await secondRequest;
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock.mock.calls[2]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${secondInternalToken}`,
+    });
+    expect(authToken).toHaveBeenCalledOnce();
+  });
+
+  it("does not cache a malformed rotated token", async () => {
+    const providerToken = createAccessToken("user-a");
+    const authToken = vi.fn(async () => providerToken);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ Authorization: "Bearer malformed" }),
+      })
+      .mockResolvedValue({ ok: true, headers: new Headers() });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken,
+    });
+
+    await expect(api.makeRawRequest("/threads")).rejects.toThrow(
+      "Unable to determine the token expiry",
+    );
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${providerToken}`,
+    });
+    expect(authToken).toHaveBeenCalledOnce();
   });
 
   it("returns false from initializeAuth when auth token callback returns null", async () => {

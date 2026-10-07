@@ -2,7 +2,7 @@ import type { CatalogProduct } from "../types";
 
 export const cloud: CatalogProduct = {
   slug: "cloud",
-  href: "/shop/cloud",
+  href: "/components/cloud",
   purchase: "cart",
   name: "Assistant Cloud",
   tagline:
@@ -26,7 +26,8 @@ export const cloud: CatalogProduct = {
     "An assistant-ui app on the AI SDK, LangGraph, or another runtime",
     "A project at cloud.assistant-ui.com",
   ],
-  agentMinutes: [5, 10],
+  preview: "thread-list",
+  agentMinutes: [4, 6],
   steps: [
     {
       title: "Create a cloud project",

@@ -11,10 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import {
-  useNormalizeInterruptedXuluxThreads,
-  useXuluxStoredThreads,
-} from "../runtime/xulux-local-storage";
+import { useXuluxStoredThreads } from "../runtime/xulux-local-storage";
 import type { XuluxStoredThread } from "../runtime/types";
 
 function formatUpdatedAt(updatedAt: number): string {
@@ -43,7 +40,6 @@ export function XuluxHistoryMenu({
   onRestoreThread: (thread: XuluxStoredThread) => void;
   onNewChat: () => void;
 }) {
-  useNormalizeInterruptedXuluxThreads();
   const threads = useXuluxStoredThreads().filter(
     (thread) => thread.status === "regular",
   );
@@ -70,6 +66,7 @@ export function XuluxHistoryMenu({
             variant="outline"
             size="sm"
             className="relative h-7 gap-1.5 px-2.5 text-xs"
+            aria-label="History"
           />
         }
       >

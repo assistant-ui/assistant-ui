@@ -145,7 +145,7 @@ export function VoiceInput() {
 </div>
 ```
 
-The two states are not "recording" and "idle": they are "recording" and "settling". `ComposerVoice` has no third, blank state, so mounting it always implies a capture is either happening or just finished; the bars themselves ripple from a sine wave seeded by the bar's index and the elapsed seconds, so the pattern shifts continuously rather than looping.
+The two states are "recording" and "settling". `ComposerVoice` has no idle state, so mounting it implies a capture is either happening or has finished. The bars ripple from a sine wave seeded by the bar's index and the elapsed seconds, so the pattern shifts continuously rather than looping.
 
 ## Examples
 
@@ -157,7 +157,7 @@ The two states are not "recording" and "idle": they are "recording" and "settlin
 const dictationAvailable = WebSpeechDictationAdapter.isSupported();
 ```
 
-Configuring the adapter only when this is `true` (as in Getting started) is enough; `s.thread.capabilities.dictation` then reflects it automatically, so the mic button never needs its own support check.
+Configuring the adapter only when this is `true` (as in Getting started) is enough; `s.thread.capabilities.dictation` then reflects it, so the mic button never needs its own support check.
 
 </RuntimeMode>
 

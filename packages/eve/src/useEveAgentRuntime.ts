@@ -29,6 +29,8 @@ import {
   useRemoteThreadListRuntime,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import {
@@ -38,10 +40,12 @@ import {
   type UseEveAgentStatus,
 } from "eve/react";
 import {
+  collectInterruptedTurnEvents,
   convertEveMessages,
   findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
+  type InterruptedTurnEventCache,
 } from "./convertEveMessages";
 import {
   collectTurnTimestamps,
@@ -69,35 +73,6 @@ const sendAbandonedError = new Error(
 
 const isDroppedSend = (error: unknown) =>
   error === sendCancelledError || error === sendAbandonedError;
-
-type EveLifecycleCallbackName =
-  | "onError"
-  | "onEvent"
-  | "onFinish"
-  | "onSessionChange";
-
-const reportEveLifecycleCallbackError = (
-  name: EveLifecycleCallbackName,
-  error: unknown,
-) => {
-  console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
-};
-
-const invokeEveLifecycleCallback = <T>(
-  name: EveLifecycleCallbackName,
-  callback: ((value: T) => unknown) | undefined,
-  value: T,
-) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(value)).catch((error) => {
-      reportEveLifecycleCallbackError(name, error);
-    });
-  } catch (error) {
-    reportEveLifecycleCallbackError(name, error);
-  }
-};
 
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
@@ -226,18 +201,33 @@ const useEveThreadRuntime = (
     ...(onError
       ? {
           onError: (error) =>
-            invokeEveLifecycleCallback("onError", onError, error),
+            void invokeUserCallback(
+              "assistant-ui/eve",
+              "onError",
+              onError,
+              error,
+            ),
         }
       : {}),
     ...(onEvent
       ? {
           onEvent: (event) =>
-            invokeEveLifecycleCallback("onEvent", onEvent, event),
+            void invokeUserCallback(
+              "assistant-ui/eve",
+              "onEvent",
+              onEvent,
+              event,
+            ),
         }
       : {}),
     onFinish: (snapshot) => {
       lastFinishStatusRef.current = snapshot.status;
-      invokeEveLifecycleCallback("onFinish", onFinish, snapshot);
+      void invokeUserCallback(
+        "assistant-ui/eve",
+        "onFinish",
+        onFinish,
+        snapshot,
+      );
     },
     ...(onSessionChange || cloudThread?.isNew
       ? {
@@ -253,7 +243,8 @@ const useEveThreadRuntime = (
               if (aui.threadListItem.getState().status === "new")
                 aui.threadListItem.initialize().catch(() => {});
             }
-            invokeEveLifecycleCallback(
+            void invokeUserCallback(
+              "assistant-ui/eve",
               "onSessionChange",
               onSessionChange,
               session,
@@ -296,6 +287,15 @@ const useEveThreadRuntime = (
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
     [agent.events],
   );
+  const interruptionCacheRef = useRef<InterruptedTurnEventCache>({
+    lastEvents: [],
+    interruptions: [],
+  });
+  const interruptionEvents = useMemo(
+    () =>
+      collectInterruptedTurnEvents(agent.events, interruptionCacheRef.current),
+    [agent.events],
+  );
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
@@ -309,6 +309,7 @@ const useEveThreadRuntime = (
     return convertEveMessages(agent.data, {
       isRunning,
       error: agent.error,
+      events: interruptionEvents,
       getCreatedAt: (message) => {
         const turnId = message.metadata?.turnId;
         const durable =
@@ -325,7 +326,7 @@ const useEveThreadRuntime = (
         return createdAt;
       },
     });
-  }, [agent.data, agent.error, isRunning, turnTimestamps]);
+  }, [agent.data, agent.error, interruptionEvents, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
@@ -378,9 +379,16 @@ const useEveThreadRuntime = (
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      sendEpochRef.current += 1;
     };
   }, []);
+
+  // A replay (Fast Refresh, StrictMode) must not cancel the sends queued behind the active turn.
+  useReplaySafeEffect(
+    () => () => {
+      sendEpochRef.current += 1;
+    },
+    [],
+  );
 
   // A replay rides the send chain because `resume()` rejects during a turn and upstream refuses sends while it runs; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
   const enqueueResume = useCallback(
@@ -405,7 +413,7 @@ const useEveThreadRuntime = (
     };
   }, [enqueueResume, resumesOnMount]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (!cloudThread?.isNew) return;
     return () => cloudThread.sessions.release(cloudThread.id);
   }, [cloudThread]);
