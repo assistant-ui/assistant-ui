@@ -19,7 +19,10 @@ import {
 } from "@assistant-ui/core";
 import {
   httpUrlPattern,
+  resolveFileMediaType,
   resolveFilePartSource,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   EveAuthorizationOutcome,
@@ -286,7 +289,7 @@ const convertDynamicToolPart = (
     toolCallId: part.toolCallId,
     toolName: part.toolName,
     args: toJsonObject(part.input),
-    argsText: stringifyArgs(part.input),
+    argsText: part.state === "input-streaming" ? "" : stringifyArgs(part.input),
     ...(approval && { approval }),
     ...(providerMetadata && { providerMetadata }),
   };
@@ -373,7 +376,7 @@ const convertFilePart = (
   return {
     type: "file",
     data: part.url,
-    mimeType: part.mediaType ?? "unknown/unknown",
+    mimeType: resolveFileMediaType(part.url, part.mediaType),
     ...(part.filename && { filename: part.filename }),
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
@@ -621,6 +624,10 @@ export type EveMessageContent =
         }
     )[];
 
+type OutboundPart = AppendMessage["content"][number] & {
+  readonly contentType?: string | undefined;
+};
+
 /**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
@@ -628,9 +635,14 @@ export type EveMessageContent =
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
-  const content = [
+  const content: OutboundPart[] = [
     ...message.content,
-    ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
+    ...(message.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        ...part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
 
   const parts = content.flatMap((part) => {
@@ -639,21 +651,31 @@ export const getEveMessageContent = (
       case "text":
         return { type: "text" as const, text: part.text };
 
-      case "file":
+      case "file": {
+        const mediaType = resolveFileMediaType(
+          part.data,
+          part.mimeType || part.contentType,
+        );
         return {
           type: "file" as const,
-          data: part.data,
-          mediaType: part.mimeType,
+          data:
+            part.sourceType === "id"
+              ? part.data
+              : toMediaWireUrl(part.data, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
-      case "image":
+      case "image": {
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file" as const,
-          data: part.image,
-          mediaType: "image/*",
+          data: toMediaWireUrl(part.image, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the

@@ -22,6 +22,7 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -73,6 +74,7 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -379,6 +381,9 @@ jobs:
 
       - name: Test CI task planner
         run: node --test scripts/ci-has-tasks.test.mjs
+
+      - name: Test source-mapped tsconfig paths
+        run: node --test scripts/source-mapped-tsconfigs.test.mjs
 
       - name: Setup pnpm and node.js
         if: steps.app_build_inputs.outputs.run == 'true'

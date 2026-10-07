@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -89,7 +90,7 @@ const useLocalThreadRuntime = (
     };
   }, [runtime]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 
