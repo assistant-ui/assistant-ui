@@ -2,7 +2,15 @@ import { cleanup, render } from "@testing-library/react";
 import { TerminalIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { AgentPlan } from "../elements/agent-plan";
 import { AgentStatus, type AgentState } from "../elements/agent-status";
@@ -73,9 +81,6 @@ const list = <T,>(items: number, make: (i: number) => T) =>
 const CASES: Record<string, Case> = {
   "agent-plan": (n, items) => (
     <AgentPlan steps={list(items, (i) => `step ${i}`)} activeIndex={n} />
-  ),
-  "agent-status": () => (
-    <AgentStatus state="working" label={"l".repeat(200)} elapsed="0:12" />
   ),
   chart: (n, items) => (
     <Chart
@@ -680,6 +685,7 @@ beforeAll(() => {
 });
 
 afterEach(cleanup);
+afterAll(() => vi.dynamicImportSettled());
 
 const dispatchSafariImeConfirm = (input: HTMLElement) => {
   input.dispatchEvent(

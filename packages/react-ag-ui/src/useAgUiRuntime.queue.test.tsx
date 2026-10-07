@@ -96,11 +96,67 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     );
   });
 
+  it("holds queued sends while sending is disabled", async () => {
+    const { agent, runAgent, release } = gatedAgent();
+
+    const { result, rerender } = renderHook(
+      ({ isSendDisabled }) =>
+        useAgUiRuntime({
+          agent,
+          unstable_enableMessageQueue: true,
+          isSendDisabled,
+        }),
+      { initialProps: { isSendDisabled: false } },
+    );
+    mount(result.current);
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+    rerender({ isSendDisabled: true });
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().isRunning).toBe(false),
+    );
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("queued").textContent).toBe("second");
+
+    rerender({ isSendDisabled: false });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe(""),
+    );
+  });
+
   it("preserves queued sends when the active run is cancelled", async () => {
     const { agent, runAgent, release } = gatedAgent();
 
-    const { result } = renderHook(() =>
-      useAgUiRuntime({ agent, unstable_enableMessageQueue: true }),
+    const { result, rerender } = renderHook(
+      ({ isSendDisabled }) =>
+        useAgUiRuntime({
+          agent,
+          unstable_enableMessageQueue: true,
+          isSendDisabled,
+        }),
+      { initialProps: { isSendDisabled: false } },
     );
     mount(result.current);
 
@@ -134,6 +190,11 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     await waitFor(() =>
       expect(screen.getByTestId("queued").textContent).toBe("second"),
     );
+
+    rerender({ isSendDisabled: true });
+    rerender({ isSendDisabled: false });
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("queued").textContent).toBe("second");
 
     await act(async () => {
       await result.current.thread.append({

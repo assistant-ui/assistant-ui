@@ -255,6 +255,23 @@ describe("vue primitives", () => {
     unmount();
   });
 
+  it("names the textarea input unless the caller passes a name", () => {
+    const { runtime } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(ComposerPrimitiveInput),
+        h(ComposerPrimitiveInput, { name: "prompt" }),
+      ],
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    expect(
+      [...el.querySelectorAll("textarea")].map((textarea) => textarea.name),
+    ).toEqual(["input", "prompt"]);
+
+    unmount();
+  });
+
   it("cancels a running turn through the cancel button", async () => {
     const { runtime, setRunning, onCancel } = createTestRuntime();
     const View = defineComponent({

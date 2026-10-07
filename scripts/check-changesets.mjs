@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { globSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { committedRangeChangedFiles } from "./lib/changed-files.mjs";
+import { parseReleaseLine, readChangesetSource } from "./lib/changesets.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { hasOption } from "./lib/script-options.mjs";
-import { readJson } from "./lib/workspace.mjs";
+import { readJson, readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -13,7 +15,6 @@ const repoRoot = path.resolve(
 );
 
 const BUMP_VALUES = new Set(["patch", "minor", "major"]);
-const RELEASE_VALUES = new Set([...BUMP_VALUES, "none"]);
 const TEST_DIRECTORIES = new Set(["__fixtures__", "__tests__", "tests"]);
 const TEST_FILE = /\.(?:bench|spec|test)\.[^/]+$/;
 const RELEASE_REWRITTEN_KEYS = new Set(["version"]);
@@ -26,78 +27,23 @@ const DEPENDENCY_KEYS = new Set([
 const CONSUMER_RUN_SCRIPTS = new Set(["install", "postinstall", "preinstall"]);
 const RELEASE_MANAGED_RANGE = "<release managed>";
 
-export function parseWorkspaceGlobs(source) {
-  const globs = [];
-  let inPackages = false;
-  for (const line of source.split("\n")) {
-    if (/^packages:\s*$/.test(line)) {
-      inPackages = true;
-      continue;
-    }
-    if (!inPackages) continue;
-    if (/^\s*(?:#.*)?$/.test(line)) continue;
-    const entry = line.match(
-      /^\s+-\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/,
-    );
-    if (!entry) break;
-    globs.push(entry[1] ?? entry[2] ?? entry[3]);
-  }
-  return globs;
-}
-
-export function parseBumpLine(line) {
-  const release = parseReleaseLine(line);
-  return release && BUMP_VALUES.has(release.bump) ? release : null;
-}
-
-function parseReleaseLine(line) {
-  const entry = line
-    .trim()
-    .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
-  if (!entry) return null;
-  const value = entry[4].match(
-    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))\s*(?:#.*)?$/,
-  );
-  if (!value) return null;
-  const bump = value[1] ?? value[2] ?? value[3];
-  if (!RELEASE_VALUES.has(bump)) return null;
-  return { name: entry[1] ?? entry[2] ?? entry[3], bump };
-}
-
-// A copy of `mdRegex` from `@changesets/parse`, which `changeset version` uses
-// to read a changeset. The checks run in CI without installed dependencies, so
-// they cannot import it; keep the two patterns identical.
-const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
-
-export function readChangesetSource(source) {
-  const match = CHANGESET_SOURCE.exec(source);
-  return match ? { frontmatter: match[1], body: match[2] } : null;
-}
-
 export function readWorkspacePackages(root) {
-  const globs = parseWorkspaceGlobs(
-    readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-  );
+  const { globs, manifests } = readWorkspaceManifestEntries(root);
   if (globs.length === 0) {
     throw new Error("pnpm-workspace.yaml declares no `packages:` entries.");
   }
   const byName = new Map();
-  for (const glob of globs) {
-    for (const manifest of globSync(`${glob}/package.json`, {
-      cwd: root,
-    })) {
-      const pkg = readJson(path.join(root, manifest));
-      if (typeof pkg.name !== "string") continue;
-      byName.set(pkg.name, {
-        manifest: manifest.replaceAll("\\", "/"),
-        isPrivate: pkg.private === true,
-        hasVersion: Boolean(pkg.version),
-        releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["."])
-          .filter((entry) => typeof entry === "string")
-          .map((entry) => entry.replace(/^(!?)\.\//, "$1"))
-          .filter(Boolean),
-      });
-    }
+  for (const { manifest, pkg } of manifests) {
+    if (typeof pkg.name !== "string") continue;
+    byName.set(pkg.name, {
+      manifest: manifest.replaceAll("\\", "/"),
+      isPrivate: pkg.private === true,
+      hasVersion: Boolean(pkg.version),
+      releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["."])
+        .filter((entry) => typeof entry === "string")
+        .map((entry) => entry.replace(/^(!?)\.\//, "$1"))
+        .filter(Boolean),
+    });
   }
   return byName;
 }
@@ -304,18 +250,6 @@ function runGit(root, args) {
   });
 }
 
-function listChangedFiles(root, baseSha, headSha) {
-  return runGit(root, [
-    "diff",
-    "--name-only",
-    "--no-renames",
-    "-z",
-    `${baseSha}...${headSha}`,
-  ])
-    .split("\0")
-    .filter(Boolean);
-}
-
 function listTreeFiles(root, ref) {
   return new Set(
     runGit(root, ["ls-tree", "-r", "-z", "--name-only", ref])
@@ -340,8 +274,11 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
   let forkPointFiles;
   let headFiles;
   try {
-    forkPoint = runGit(root, ["merge-base", baseSha, headSha]).trim();
-    changedFiles = listChangedFiles(root, baseSha, headSha);
+    ({ forkPoint, files: changedFiles } = committedRangeChangedFiles(
+      root,
+      baseSha,
+      headSha,
+    ));
     forkPointFiles = listTreeFiles(root, forkPoint);
     headFiles = listTreeFiles(root, headSha);
   } catch (error) {

@@ -59,7 +59,7 @@ export const ComposerPrimitiveInput = defineComponent({
     return () =>
       h(
         "textarea",
-        mergeProps(attrs, {
+        mergeProps({ name: "input" }, attrs, {
           value: text.value,
           disabled: threadDisabled.value || isAttrDisabled(attrs),
           onInput,

@@ -72,6 +72,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _iframeWindow: Window;
   private _targetOrigin: string;
   private _disposed = false;
+  private _providerDisposed = false;
 
   constructor(
     iframeWindow: Window,
@@ -98,7 +99,19 @@ export class AssistantFrameHost implements ModelContextProvider {
 
     switch (message.type) {
       case "model-context-update": {
+        this._providerDisposed = false;
         this.updateContext(message.context);
+        break;
+      }
+
+      case "provider-disposed": {
+        this._providerDisposed = true;
+        const error = new Error("AssistantFrameProvider has been disposed");
+        for (const [id, pending] of this._pendingRequests) {
+          this._pendingRequests.delete(id);
+          this.cancelToolCall(id);
+          pending.reject(error);
+        }
         break;
       }
 
@@ -163,6 +176,11 @@ export class AssistantFrameHost implements ModelContextProvider {
   ): Promise<any> {
     if (this._disposed) {
       return Promise.reject(new Error("AssistantFrameHost has been disposed"));
+    }
+    if (this._providerDisposed) {
+      return Promise.reject(
+        new Error("AssistantFrameProvider has been disposed"),
+      );
     }
     if (abortSignal?.aborted) {
       return Promise.reject(getAbortReason(abortSignal));
