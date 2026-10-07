@@ -266,7 +266,9 @@ export class RemoteThreadListThreadListRuntimeCore
     if (threadId === undefined) return;
     const data = this.getItemById(threadId);
     if (
-      (replacedList && switchGenerationAtLoad !== this._switchGeneration) ||
+      (replacedList &&
+        switchGenerationAtLoad !== this._switchGeneration &&
+        this._controlledSwitchGeneration !== this._switchGeneration) ||
       (!replacedList &&
         (data === undefined ||
           this._controlledSwitchGeneration !== this._switchGeneration))
