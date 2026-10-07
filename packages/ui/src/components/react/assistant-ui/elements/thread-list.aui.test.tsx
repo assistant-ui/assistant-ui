@@ -7,6 +7,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
+import { useClientResource } from "@assistant-ui/store/client";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import {
   AuiConfig,
   AuiProvider,
@@ -107,6 +110,111 @@ afterEach(() => {
 });
 
 describe("ThreadList", () => {
+  it("server renders dated threads in runtime order and groups after hydration", async () => {
+    const startOfToday = freezeClockAtMidday();
+    const datedItems = [
+      {
+        id: "older",
+        remoteId: "older",
+        externalId: undefined,
+        title: "Older thread",
+        lastMessageAt: new Date(startOfToday - 2 * 86_400_000),
+        status: "regular" as const,
+        isRunning: false,
+      },
+      {
+        id: "newer",
+        remoteId: "newer",
+        externalId: undefined,
+        title: "Newer thread",
+        lastMessageAt: new Date(startOfToday + 60_000),
+        status: "regular" as const,
+        isRunning: false,
+      },
+    ];
+    const state = {
+      mainThreadId: "older",
+      newThreadId: null,
+      isLoading: false,
+      loadError: undefined,
+      isLoadingMore: false,
+      hasMore: false,
+      threadIds: datedItems.map((item) => item.id),
+      archivedThreadIds: [],
+      threadItems: datedItems,
+      main: STUB_THREAD_STATE,
+    };
+    const useStaticItem = ({ index }: { index: number }) => ({
+      getState: () => datedItems[index]!,
+    });
+    const StaticItem = resource(useStaticItem);
+    const useStaticThreads = () => {
+      const older = useClientResource(StaticItem({ index: 0 }));
+      const newer = useClientResource(StaticItem({ index: 1 }));
+      const items = [older.methods, newer.methods];
+      return {
+        getState: () => state,
+        item: ({ index }: { index: number }) => items[index],
+        switchToNewThread: () => {},
+      };
+    };
+    const StaticThreads = resource(useStaticThreads);
+    const app = (
+      <AuiProvider config={AuiConfig({ threads: StaticThreads() as never })}>
+        <ThreadList />
+      </AuiProvider>
+    );
+    const container = document.body.appendChild(document.createElement("div"));
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    const RealDate = Date;
+    try {
+      vi.stubGlobal(
+        "Date",
+        new Proxy(RealDate, {
+          construct(target, args, newTarget) {
+            if (args.length === 0) throw new Error("server read the clock");
+            return Reflect.construct(target, args, newTarget);
+          },
+          get(target, property, receiver) {
+            if (property === "now") {
+              return () => {
+                throw new Error("server read the clock");
+              };
+            }
+            return Reflect.get(target, property, receiver);
+          },
+        }),
+      );
+      try {
+        container.innerHTML = renderToString(app);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+
+      expect(texts(container, "item-title")).toEqual([
+        "Older thread",
+        "Newer thread",
+      ]);
+      expect(slots(container, "group-label")).toHaveLength(0);
+
+      const error = vi.spyOn(console, "error");
+      await act(async () => {
+        root = hydrateRoot(container, app);
+      });
+      expect(
+        error.mock.calls.some((args) =>
+          args.some((arg) => /hydrat|mismatch/i.test(String(arg))),
+        ),
+      ).toBe(false);
+      expect(texts(container, "group-label")).toEqual(["Today", "Earlier"]);
+    } finally {
+      await act(async () => {
+        root?.unmount();
+      });
+      container.remove();
+    }
+  });
+
   it("renders one row per thread and no group labels when no thread has a date", async () => {
     const { container } = renderThreadList(
       makeAdapter(withTitles("First thread", "Second thread")),
@@ -174,7 +282,7 @@ describe("ThreadList", () => {
 
   it("shows skeleton rows while the list loads and drops them once it resolves", async () => {
     let resolveList!: (response: { threads: RemoteThreadMetadata[] }) => void;
-    const { container } = renderThreadList(
+    const { container, queryAllByRole } = renderThreadList(
       makeAdapter([], {
         list: () =>
           new Promise((resolve) => {
@@ -186,11 +294,15 @@ describe("ThreadList", () => {
     await waitFor(() =>
       expect(slots(container, "skeleton-wrapper")).toHaveLength(5),
     );
+    expect(queryAllByRole("status", { name: "Loading threads" })).toHaveLength(
+      1,
+    );
     expect(
       slots(container, "skeleton-wrapper").every(
         (row) =>
-          row.getAttribute("role") === "status" &&
-          row.getAttribute("aria-label") === "Loading threads",
+          row.getAttribute("aria-hidden") === "true" &&
+          !row.hasAttribute("role") &&
+          !row.hasAttribute("aria-label"),
       ),
     ).toBe(true);
     expect(slots(container, "item")).toHaveLength(0);
@@ -203,6 +315,9 @@ describe("ThreadList", () => {
       expect(texts(container, "item-title")).toEqual(["Loaded thread"]),
     );
     expect(slots(container, "skeleton-wrapper")).toHaveLength(0);
+    expect(queryAllByRole("status", { name: "Loading threads" })).toHaveLength(
+      0,
+    );
   });
 
   it("groups threads by day, newest first, and coalesces a repeated label", async () => {
