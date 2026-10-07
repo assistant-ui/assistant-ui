@@ -271,6 +271,7 @@ describe("thread runtime lifecycle media sessions", () => {
     thread.composer.startDictation();
 
     supersedeThreadRuntime(thread);
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
     disposeThreadRuntime(thread);
 
     expect(dictation.session.stop).toHaveBeenCalledTimes(1);
