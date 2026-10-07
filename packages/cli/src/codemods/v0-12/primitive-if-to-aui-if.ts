@@ -29,13 +29,16 @@ const messagePropMap: Record<
   string,
   (value: unknown) => ConditionFragment | null
 > = {
-  user: () => ({ expression: 's.message.role === "user"', negated: false }),
-  assistant: () => ({
-    expression: 's.message.role === "assistant"',
+  user: (v) => ({
+    expression: `s.message.role ${v === false ? "!==" : "==="} "user"`,
     negated: false,
   }),
-  system: () => ({
-    expression: 's.message.role === "system"',
+  assistant: (v) => ({
+    expression: `s.message.role ${v === false ? "!==" : "==="} "assistant"`,
+    negated: false,
+  }),
+  system: (v) => ({
+    expression: `s.message.role ${v === false ? "!==" : "==="} "system"`,
     negated: false,
   }),
   hasBranches: () => ({

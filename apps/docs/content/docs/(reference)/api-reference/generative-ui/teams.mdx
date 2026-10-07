@@ -70,7 +70,7 @@ column count.
 Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
 non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
 Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
-CheckboxGroup/Checkbox/DatePicker whose id would be the reserved
+CheckboxGroup/Checkbox/Slider/DatePicker whose id would be the reserved
 RESERVED_INPUT_ID is renamed with a warning (see `decodeSubmitData`).
 Never throws: an unknown `$type` is skipped with a "dropped" warning, and a
 malformed input resolves to an empty card plus a "dropped" warning instead

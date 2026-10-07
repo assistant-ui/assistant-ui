@@ -17,6 +17,7 @@ import {
   normalizePartStatus,
 } from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
+import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 
 const useThreadMessagePartClient = ({
   part,
@@ -90,12 +91,11 @@ const useThreadMessageClient = ({
   const isMessageRunning =
     message.role === "assistant" && message.status.type === "running";
 
+  const partKeys = getMessagePartKeys(message.content);
   const parts = useClientLookup(
     message.content.map((part, idx) =>
       withKey(
-        "toolCallId" in part && part.toolCallId != null
-          ? `toolCallId-${part.toolCallId}`
-          : `index-${idx}`,
+        partKeys[idx]!,
         ThreadMessagePartClient({ part, isMessageRunning }),
         [part, isMessageRunning],
       ),
@@ -148,7 +148,13 @@ const useThreadMessageClient = ({
       if ("index" in selector) {
         return parts.get({ index: selector.index });
       } else {
-        return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        return parts.get({
+          index: message.content.findIndex(
+            (part) =>
+              part.type === "tool-call" &&
+              part.toolCallId === selector.toolCallId,
+          ),
+        });
       }
     },
     attachment: (selector) => {
