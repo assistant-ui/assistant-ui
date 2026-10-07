@@ -214,7 +214,8 @@ export class ExternalStoreThreadRuntimeCore
    * status changes synchronously. Re-entering the snapshot pipeline from
    * inside them would feed the tracker a stale snapshot and consume the
    * restore arming a reset just installed, so the running refresh is
-   * deferred until the mutation returns and stays off the tracker.
+   * deferred until the mutation returns and re-derives the published
+   * messages without feeding the tracker.
    */
   private _runTrackerUpdate(fn: () => void): void {
     this._inTrackerUpdate = true;
@@ -230,11 +231,9 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private _refreshEffectiveIsRunning(): void {
-    const isRunning = this._getEffectiveIsRunning(this._store);
-    if (this._effectiveIsRunning === isRunning) return;
-    this._effectiveIsRunning = isRunning;
-    this._notifyEventSubscribers(isRunning ? "runStart" : "runEnd", {});
-    this._notifySubscribers();
+    if (this._effectiveIsRunning === this._getEffectiveIsRunning(this._store))
+      return;
+    this._updateStoreSnapshot(this._store, false);
   }
 
   private _hasExecutingTools(store: ExternalStoreAdapter<any>): boolean {
@@ -271,7 +270,10 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
-  private _updateStoreSnapshot(store: ExternalStoreAdapter<any>) {
+  private _updateStoreSnapshot(
+    store: ExternalStoreAdapter<any>,
+    fromHostSnapshot = true,
+  ) {
     const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
     this.isSendDisabled = store.isSendDisabled ?? false;
@@ -540,10 +542,12 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    if (repositoryChanged) {
-      this._runTrackerUpdate(() => this._toolInvocations?.reset());
+    if (fromHostSnapshot) {
+      if (repositoryChanged) {
+        this._runTrackerUpdate(() => this._toolInvocations?.reset());
+      }
+      this._runTrackerUpdate(() => this._driveToolInvocations());
     }
-    this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();
   }
