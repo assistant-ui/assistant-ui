@@ -37,6 +37,14 @@ const objectWith = (
     isObject(value) && entries.every(([key, check]) => check(value[key]));
 };
 const unchecked = () => true;
+const isPath = (value: unknown) =>
+  Array.isArray(value) && value.every(isString);
+const isStateOperation = (value: unknown) =>
+  isObject(value) &&
+  isPath(value["path"]) &&
+  (value["type"] === "set"
+    ? present(value["value"])
+    : value["type"] === "append-text" && isString(value["value"]));
 
 const FINISH_REASONS: ReadonlySet<unknown> = new Set([
   "stop",
@@ -54,7 +62,7 @@ const readFinishFields = (value: {
 }) => ({
   finishReason: (FINISH_REASONS.has(value.finishReason)
     ? value.finishReason
-    : "unknown") as Extract<
+    : "other") as Extract<
     AssistantStreamChunk,
     { type: "message-finish" }
   >["finishReason"],
@@ -82,6 +90,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     toolCallId: isString,
     isError: optional(isBoolean),
     isPreliminary: optional(isBoolean),
+    modelContent: optional(isArray),
   }),
   [DataStreamStreamChunkType.StartToolCall]: objectWith({
     toolCallId: isString,
@@ -116,7 +125,8 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
     mimeType: isString,
     parentId: optional(isString),
   }),
-  [DataStreamStreamChunkType.AuiUpdateStateOperations]: isArray,
+  [DataStreamStreamChunkType.AuiUpdateStateOperations]: (value) =>
+    Array.isArray(value) && value.every(isStateOperation),
   [DataStreamStreamChunkType.AuiTextDelta]: objectWith({
     textDelta: isString,
     parentId: isString,

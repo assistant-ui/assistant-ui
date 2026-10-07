@@ -1092,6 +1092,10 @@ describe("DataStreamDecoder malformed frame values", () => {
     "e:{}",
     "f:{}",
     'd:{"finishReason":5}',
+    'a:{"toolCallId":"t1","result":"x","modelContent":{}}',
+    "aui-state:[{}]",
+    'aui-state:[{"type":"set","path":"x","value":1}]',
+    'aui-state:[{"type":"append-text","path":["a"],"value":1}]',
   ];
 
   it.each([...crashFrames, ...coercionFrames, ...partShapeFrames])(
@@ -1313,7 +1317,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     },
   );
 
-  it("passes usage through as sent and maps unknown finish reasons to unknown", async () => {
+  it("passes usage through as sent and maps unrecognized finish reasons to other", async () => {
     const chunks = await decodeLines([
       'e:{"finishReason":"abort","usage":{"promptTokens":11,"completionTokens":7},"isContinued":false}',
       'd:{"finishReason":"stop","usage":{"inputTokens":3,"outputTokens":4}}',
@@ -1322,7 +1326,7 @@ describe("DataStreamDecoder malformed frame values", () => {
     expect(chunks).toEqual([
       expect.objectContaining({
         type: "step-finish",
-        finishReason: "unknown",
+        finishReason: "other",
         usage: { promptTokens: 11, completionTokens: 7 },
       }),
       expect.objectContaining({
