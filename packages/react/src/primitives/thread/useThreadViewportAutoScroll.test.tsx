@@ -811,7 +811,7 @@ describe("useThreadViewportAutoScroll", () => {
       expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
     });
 
-    it("clears the pause when a run starts, even when run start does not scroll", async () => {
+    const renderWithoutRunStartScroll = async () => {
       let runtime: ReturnType<typeof useLocalRuntime> | null = null;
       const Harness: FC = () => {
         runtime = useLocalRuntime(adapter, { initialMessages: messages });
@@ -834,17 +834,52 @@ describe("useThreadViewportAutoScroll", () => {
       await waitFor(() => {
         expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
       });
+      const startRun = () =>
+        act(async () => {
+          runtime!.thread.append({
+            role: "user",
+            content: [{ type: "text", text: "next" }],
+          });
+        });
+      return { viewport, startRun };
+    };
+
+    it("clears the pause when a run starts, even when run start does not scroll", async () => {
+      const { viewport, startRun } = await renderWithoutRunStartScroll();
 
       click(addTrigger({ "aria-expanded": "false" }));
-      await act(async () => {
-        runtime!.thread.append({
-          role: "user",
-          content: [{ type: "text", text: "next" }],
-        });
-      });
+      await startRun();
       growContent();
 
       expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("follows again after a run starts even when the expansion moved the reader off the bottom", async () => {
+      const { viewport, startRun } = await renderWithoutRunStartScroll();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+      await startRun();
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps the reader's place after a run starts when they scrolled up during the pause", async () => {
+      const { viewport, startRun } = await renderWithoutRunStartScroll();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+        viewport.scrollTop = getMaxScrollTop(viewport) - 50;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      const scrollTop = viewport.scrollTop;
+      await startRun();
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
     });
 
     it("clears the pause on a thread switch, even when the switch does not scroll", async () => {

@@ -190,10 +190,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
-  // Set by expanding a disclosure and cleared when a reader's scroll reaches
-  // an overflowing bottom, a run starts, the thread changes, or the reader
-  // asks for the bottom again: content that still fits the viewport reads as
-  // being at the bottom, so without it the next resize would resume follow.
+  // Set by expanding a disclosure; suspends follow without clearing its intent
+  // until a scroll gesture reaches an overflowing bottom (content that fits
+  // reads as at the bottom), a run starts, the thread changes, or the reader
+  // asks for the bottom again.
   const followPausedRef = useRef(false);
   const scrolledSincePauseRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
@@ -284,8 +284,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           scrollingToBottomBehaviorRef.current = null;
           if (scrolledSincePauseRef.current) followPausedRef.current = false;
         }
-        if (autoScroll && !followPausedRef.current)
-          followBottomRef.current = true;
+        if (autoScroll) followBottomRef.current = true;
       } else if (userScrolledUp) {
         cancelScheduledFrame();
         scrollingToBottomBehaviorRef.current = null;
@@ -330,7 +329,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     } else if (
       autoScroll &&
       !(isRunning && hasActiveTopAnchor()) &&
-      followBottomRef.current
+      followBottomRef.current &&
+      !followPausedRef.current
     ) {
       scrollToBottom("instant");
     } else if (
@@ -386,7 +386,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         !isOpeningDisclosure(target)
       )
         return;
-      followBottomRef.current = false;
       followPausedRef.current = true;
       scrolledSincePauseRef.current = false;
       cancelPendingScrollToBottom();
@@ -461,7 +460,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       !div ||
       previousFirstMessageId === undefined ||
       previousFirstMessageId === firstMessageId ||
-      (autoScroll && followBottomRef.current) ||
+      (autoScroll && followBottomRef.current && !followPausedRef.current) ||
       scrollingToBottomBehaviorRef.current !== null
     )
       return;
@@ -510,24 +509,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scrollToBottom(behavior);
   });
 
-  const endFollowPause = () => {
-    if (!followPausedRef.current) return;
-    followPausedRef.current = false;
-    const div = divRef.current;
-    followBottomRef.current =
-      autoScroll && div !== null && isViewportAtBottom(div);
-  };
-
   useAuiEvent("thread.runStart", () => {
     prependAnchorRef.current = null;
-    endFollowPause();
+    followPausedRef.current = false;
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
     scheduleScrollToBottom("auto");
   });
 
   useAuiEvent("threads.selectionChanged", () => {
-    endFollowPause();
+    followPausedRef.current = false;
     if (!scrollToBottomOnThreadSwitch) return;
     scheduleScrollToBottom("instant");
   });
