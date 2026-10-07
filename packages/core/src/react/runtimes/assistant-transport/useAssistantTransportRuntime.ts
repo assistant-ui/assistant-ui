@@ -36,9 +36,11 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
 import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
+import { generateId } from "../../../utils/id";
+import { createRuntimeExtras } from "../createRuntimeExtras";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -65,6 +67,7 @@ const convertAppendMessageToCommand = (
     type: "add-message",
     message: {
       role: "user",
+      id: generateId(),
       parts,
     },
     parentId: message.parentId,
@@ -113,35 +116,20 @@ const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
       .finally(() => signal.removeEventListener("abort", onAbort));
   });
 
-const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
-  [symbolAssistantTransportExtras]: true;
   sendCommand: (command: AssistantTransportCommand) => void;
   state: UserExternalState;
 };
 
-const asAssistantTransportExtras = (
-  extras: unknown,
-): AssistantTransportExtras => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolAssistantTransportExtras in extras)
-  )
-    throw new Error(
-      "This method can only be called when you are using useAssistantTransportRuntime",
-    );
-
-  return extras as AssistantTransportExtras;
-};
+const assistantTransportExtras = createRuntimeExtras<AssistantTransportExtras>(
+  "useAssistantTransportRuntime",
+);
 
 export const useAssistantTransportSendCommand = () => {
   const aui = useAui();
 
   return (command: AssistantTransportCommand) => {
-    const extras = aui.thread.getState().extras;
-    const transportExtras = asAssistantTransportExtras(extras);
-    transportExtras.sendCommand(command);
+    assistantTransportExtras.get(aui).sendCommand(command);
   };
 };
 
@@ -152,9 +140,7 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return useAuiState((s) =>
-    selector(asAssistantTransportExtras(s.thread.extras).state),
-  );
+  return assistantTransportExtras.use((extras) => selector(extras.state));
 }
 
 const useAssistantTransportThreadRuntime = <T>(
@@ -421,23 +407,51 @@ const useAssistantTransportThreadRuntime = <T>(
     runManager.isRunning,
     toolStatuses,
   );
+  const messages = useMemo(() => {
+    const pendingIds = new Set(
+      pendingCommands.flatMap((command) =>
+        command.type === "add-message" && command.message.role === "user"
+          ? [command.message.id]
+          : [],
+      ),
+    );
+    if (!converted.messages.some((message) => pendingIds.has(message.id)))
+      return converted.messages;
+    return converted.messages.map((message) =>
+      pendingIds.has(message.id)
+        ? {
+            ...message,
+            metadata: { ...message.metadata, isOptimistic: true },
+          }
+        : message,
+    );
+  }, [converted.messages, pendingCommands]);
 
   // Create runtime
   const runtime = useExternalStoreRuntime({
-    messages: converted.messages,
+    messages,
     state: converted.state,
     isRunning: converted.isRunning,
     isLoading: isReplaying,
     adapters: options.adapters,
     unstable_enableToolInvocations: true,
     setToolStatuses,
-    extras: {
-      [symbolAssistantTransportExtras]: true,
+    extras: assistantTransportExtras.provide({
       sendCommand: (command: AssistantTransportCommand) => {
-        commandQueue.enqueue(command);
+        commandQueue.enqueue(
+          command.type === "add-message" && command.message.role === "user"
+            ? {
+                ...command,
+                message: {
+                  ...command.message,
+                  id: command.message.id ?? generateId(),
+                },
+              }
+            : command,
+        );
       },
       state: agentStateRef.current as UserExternalState,
-    } satisfies AssistantTransportExtras,
+    }),
     onNew: async (message: AppendMessage): Promise<void> =>
       enqueueAppendMessage(message),
     ...(options.capabilities?.edit && {

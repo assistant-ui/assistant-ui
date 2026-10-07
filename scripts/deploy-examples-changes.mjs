@@ -15,7 +15,7 @@ export const EXAMPLES = {
   },
   "with-react-ink-web": {
     matrix: { example: "with-react-ink-web" },
-    extraInputs: [],
+    extraInputs: ["examples/with-react-ink"],
   },
 };
 

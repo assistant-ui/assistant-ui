@@ -3,6 +3,7 @@ import {
   actionBarCopyDisabled,
   actionBarEditDisabled,
   actionBarReloadDisabled,
+  actionBarSpeakDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,
   composerCancelDisabled,
@@ -143,6 +144,35 @@ describe("primitive predicates", () => {
             parts: [{ type: "text", text: "" }],
           },
         }),
+      ),
+    ).toBe(true);
+  });
+
+  it("actionBarSpeakDisabled also requires speech support", () => {
+    const message = {
+      role: "assistant",
+      status: { type: "complete" },
+      parts: [{ type: "text", text: "hi" }],
+    };
+    expect(
+      actionBarSpeakDisabled(
+        state({
+          optional: { thread: { capabilities: { speech: true } } },
+          message,
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      actionBarSpeakDisabled(
+        state({
+          optional: { thread: { capabilities: { speech: false } } },
+          message,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarSpeakDisabled(
+        state({ optional: { thread: undefined }, message }),
       ),
     ).toBe(true);
   });

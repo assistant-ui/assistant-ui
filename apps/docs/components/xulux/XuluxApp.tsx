@@ -61,11 +61,13 @@ export function XuluxApp({
   courseId = DEFAULT_LEARN_COURSE_ID,
   autoStart = false,
   autoStartSource = "suggestion",
+  active = true,
 }: {
   mode?: XuluxMode;
   courseId?: string;
   autoStart?: boolean;
   autoStartSource?: LearnAutoStartSource;
+  active?: boolean;
 }) {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [learnProgress, setLearnProgress] = useState<LearnProgress>(() =>
@@ -112,6 +114,7 @@ export function XuluxApp({
           courseId={courseId}
           autoStart={autoStart}
           autoStartSource={autoStartSource}
+          active={active}
           learnProgress={learnProgress}
           learnReady={learnReady}
           onUpdateLearnProgress={updateLearnProgress}

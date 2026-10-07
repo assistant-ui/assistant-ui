@@ -23,7 +23,7 @@ import { useState } from "react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { ToolCall } from "@/components/assistant-ui/elements/tool-call";
 
-type SearchDocsResult = { count: number; bestPath: string };
+export type SearchDocsResult = { count: number; bestPath: string };
 
 export const SearchDocsToolUI: ToolCallMessagePartComponent<
   { query: string },
@@ -53,7 +53,10 @@ export const SearchDocsToolUI: ToolCallMessagePartComponent<
 ```tsx title="app/toolkit.ts"
 import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
-import { SearchDocsToolUI } from "@/components/assistant-ui/elements/search-docs-tool-ui";
+import {
+  SearchDocsToolUI,
+  type SearchDocsResult,
+} from "@/components/assistant-ui/elements/search-docs-tool-ui";
 
 export const toolkit = defineToolkit({
   search_docs: {
@@ -159,7 +162,7 @@ async function search(query: string) {
 </div>
 ```
 
-The trigger is always visible; the checkmark only replaces the empty space once `running` turns false. The content panel's height animates between zero and its measured height, so opening and closing never jumps. `open` is entirely driven by `onOpenChange`: there is no internal state, no wrap-around, and no disabled state, since a tool call with an empty request or result just renders empty strings.
+The trigger is always visible; the checkmark only replaces the empty space once `running` turns false. The content panel's height animates between zero and its measured height, so opening and closing never jumps. `open` is controlled: the element keeps no internal open state and calls `onOpenChange` when the trigger is clicked. There is no disabled state; a tool call with an empty request or result renders empty strings.
 
 ## Examples
 

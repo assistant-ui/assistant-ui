@@ -415,6 +415,11 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
+    if (!submission.text.trim() && finalAttachments.length === 0) {
+      this._endSubmission();
+      this._returnToDraft({ ...submission, attachments: [] });
+      return;
+    }
     this._dispatch(generation, submission, finalAttachments, context, true);
   }
 
@@ -540,6 +545,15 @@ export abstract class BaseComposerRuntimeCore
     this._sendGeneration++;
     this._submission = undefined;
     this._submissionSend = undefined;
+  }
+
+  /** Drops the send being prepared without returning it to the draft, for a thread runtime disposed for good. */
+  public __internal_dispose() {
+    this._cancelAllAttachmentAdds();
+    if (!this._submission) return;
+    this._submissionSend?.controller.abort();
+    this._endSubmission();
+    this._notifySubscribers();
   }
 
   /**
