@@ -422,6 +422,7 @@ function htmlBlockRanges(text: string): number[] {
     }
     if (codeStart !== -1) {
       if (first === -1 || (depth === codeQuoteDepth && indent >= codeIndent)) {
+        previousBlank = first === -1;
         lineStart = nextLine;
         continue;
       }
