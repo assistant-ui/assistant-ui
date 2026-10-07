@@ -2,4 +2,4 @@
 "@assistant-ui/ai-sdk": patch
 ---
 
-fix: keep history loading active while a thread waits for its remote id
+fix: report history as loading while a deferred load runs after a thread's remote id arrives
