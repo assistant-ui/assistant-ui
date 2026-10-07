@@ -205,17 +205,33 @@ export function useAgUiRuntime(
     const { onSwitchToNewThread, onSwitchToThread, ...rest } =
       threadListAdapter;
 
+    // A switch always proceeds, so nothing the previous thread was running or
+    // had queued reaches the destination, including a run onCancel starts.
+    const abandonPreviousThread = async () => {
+      try {
+        if (core.isRunning()) await core.cancel();
+      } catch (error) {
+        logger.error?.(
+          "[agui] cancelling the run on thread switch failed",
+          error,
+        );
+      }
+      queueRef.current?.clear();
+    };
+
     return {
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
+            await abandonPreviousThread();
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
             await onSwitchToNewThread();
             if (generation !== threadSwitchGenerationRef.current) return;
+            await abandonPreviousThread();
             core.applyExternalMessages([]);
             core.resetThreadState();
           }
@@ -223,12 +239,14 @@ export function useAgUiRuntime(
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
+            await abandonPreviousThread();
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
             const result = await onSwitchToThread(threadId);
             if (generation !== threadSwitchGenerationRef.current) return;
+            await abandonPreviousThread();
             core.applyExternalMessages([]);
             core.resetThreadState();
             core.applyExternalMessages(result.messages);
@@ -241,7 +259,7 @@ export function useAgUiRuntime(
           }
         : undefined,
     };
-  }, [threadListAdapter, core]);
+  }, [threadListAdapter, core, logger]);
 
   const adapters = options.adapters;
   const adapterAdapters = useMemo(
