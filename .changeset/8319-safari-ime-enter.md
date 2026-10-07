@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/react-lexical": patch
+"@assistant-ui/vue": patch
 ---
 
-fix(react-lexical): ignore Safari's IME-confirming Enter before plugin delegation
+Prevent Safari's IME confirmation Enter from sending messages in Lexical and Vue composers.
