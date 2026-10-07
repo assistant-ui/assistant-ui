@@ -48,12 +48,15 @@ type ChildControllerEntry = {
   unsubscribe: (() => void) | null;
 };
 
-type InteractionRecoveryEvents = {
-  permissions: Map<string, OpenCodeServerEvent[]>;
-  questions: Map<string, OpenCodeServerEvent[]>;
+type InteractionRecoveryEntry = {
+  asked?: OpenCodeServerEvent;
+  settled?: OpenCodeServerEvent;
 };
 
-const MAX_INTERACTION_RECOVERY_EVENTS = 25;
+type InteractionRecoveryEvents = {
+  permissions: Map<string, Map<string, InteractionRecoveryEntry>>;
+  questions: Map<string, Map<string, InteractionRecoveryEntry>>;
+};
 
 const createInteractionRecoveryEvents = (): InteractionRecoveryEvents => ({
   permissions: new Map(),
@@ -473,18 +476,37 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           : null;
     if (!events) return;
 
-    const retained = events.get(event.sessionId) ?? [];
-    retained.push(event);
-    if (retained.length > MAX_INTERACTION_RECOVERY_EVENTS) retained.shift();
-    events.set(event.sessionId, retained);
+    const isAsk =
+      event.type === "permission.asked" || event.type === "question.asked";
+    const requestId = isAsk
+      ? (event.type === "permission.asked"
+          ? extractPermissionRequest(event)
+          : extractQuestionRequest(event)
+        )?.id
+      : event.properties.requestID;
+    if (typeof requestId !== "string") return;
+
+    const requests =
+      events.get(event.sessionId) ??
+      new Map<string, InteractionRecoveryEntry>();
+    requests.set(
+      requestId,
+      isAsk ? { asked: event } : { ...requests.get(requestId), settled: event },
+    );
+    events.set(event.sessionId, requests);
   }
 
   private replayInteractionRecoveryEvents() {
-    for (const event of [
-      ...(this.interactionRecoveryEvents.permissions.get(this.sessionId) ?? []),
-      ...(this.interactionRecoveryEvents.questions.get(this.sessionId) ?? []),
+    for (const { asked, settled } of [
+      ...(this.interactionRecoveryEvents.permissions
+        .get(this.sessionId)
+        ?.values() ?? []),
+      ...(this.interactionRecoveryEvents.questions
+        .get(this.sessionId)
+        ?.values() ?? []),
     ]) {
-      this.handleServerEvent(event);
+      if (asked) this.handleServerEvent(asked);
+      if (settled) this.handleServerEvent(settled);
     }
   }
 
@@ -722,19 +744,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       ) {
         const reply = this.interactionRecoveryEvents.permissions
           .get(this.sessionId)
-          ?.findLast(
-            (event) =>
-              event.type === "permission.replied" &&
-              event.properties.requestID === request.id,
+          ?.get(request.id)?.settled?.properties.reply;
+        if (reply === "once" || reply === "always" || reply === "reject") {
+          this.dispatchSettled(
+            { type: "permission.asked", request },
+            { type: "permission.replied", permissionId: request.id, reply },
           );
-        if (
-          reply &&
-          (reply.properties.reply === "once" ||
-            reply.properties.reply === "always" ||
-            reply.properties.reply === "reject")
-        ) {
-          this.dispatch({ type: "permission.asked", request });
-          this.handleServerEvent(reply);
         }
         continue;
       }
@@ -774,19 +789,22 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       ) {
         const reply = this.interactionRecoveryEvents.questions
           .get(this.sessionId)
-          ?.findLast(
-            (event) =>
-              (event.type === "question.replied" ||
-                event.type === "question.rejected") &&
-              event.properties.requestID === request.id,
+          ?.get(request.id)?.settled;
+        const answers = reply?.properties.answers;
+        if (reply?.type === "question.rejected") {
+          this.dispatchSettled(
+            { type: "question.asked", request },
+            { type: "question.rejected", questionId: request.id },
           );
-        if (
-          reply &&
-          (reply.type === "question.rejected" ||
-            Array.isArray(reply.properties.answers))
-        ) {
-          this.dispatch({ type: "question.asked", request });
-          this.handleServerEvent(reply);
+        } else if (Array.isArray(answers)) {
+          this.dispatchSettled(
+            { type: "question.asked", request },
+            {
+              type: "question.replied",
+              questionId: request.id,
+              answers: answers as never,
+            },
+          );
         }
         continue;
       }
@@ -1545,6 +1563,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.trackHistoryEvent(event);
     const nextState = reduceOpenCodeThreadStateInternal(this.state, event);
     this.commitState(event, nextState);
+  }
+
+  private dispatchSettled(
+    asked: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+    settled: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
+  ) {
+    const nextState = reduceOpenCodeThreadStateInternal(
+      reduceOpenCodeThreadStateInternal(this.state, asked),
+      settled,
+    );
+    this.commitState(settled, nextState);
   }
 
   private dispatchHistoryLoaded(

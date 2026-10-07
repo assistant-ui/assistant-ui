@@ -1672,10 +1672,18 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
-  it("bounds descendant recovery events while replaying recent requests", async () => {
+  it("keeps an early child settlement when many interactions follow it during recovery", async () => {
     const eventSource = createEventSource();
     const reconnectHistory = createDeferred<{ data: unknown[] }>();
     let parentLoads = 0;
+    const permission = createPermissionRequest({
+      id: "perm_0",
+      sessionID: "ses_child",
+    });
+    const question = createQuestionRequest({
+      id: "q_0",
+      sessionID: "ses_child",
+    });
     const client = createReconnectClient({
       messages: vi.fn(({ sessionID }: { sessionID: string }) => {
         if (sessionID !== "ses_parent") return Promise.resolve({ data: [] });
@@ -1684,6 +1692,8 @@ describe("OpenCodeThreadController", () => {
           ? Promise.resolve({ data: [] })
           : reconnectHistory.promise;
       }),
+      permissions: vi.fn().mockResolvedValue({ data: [permission] }),
+      questions: vi.fn().mockResolvedValue({ data: [question] }),
     });
     const controller = new OpenCodeThreadController(
       client as never,
@@ -1697,7 +1707,19 @@ describe("OpenCodeThreadController", () => {
     await vi.waitFor(() =>
       expect(client.session.messages).toHaveBeenCalledTimes(2),
     );
-    for (let index = 0; index < 30; index += 1) {
+    eventSource.emit({
+      type: "permission.replied",
+      sessionId: "ses_child",
+      properties: { requestID: permission.id, reply: "once" },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.replied",
+      sessionId: "ses_child",
+      properties: { requestID: question.id, answers: [["yes"]] },
+      raw: {},
+    });
+    for (let index = 1; index <= 30; index += 1) {
       eventSource.emit({
         type: "permission.asked",
         sessionId: "ses_child",
@@ -1718,11 +1740,12 @@ describe("OpenCodeThreadController", () => {
       });
     }
     expect(
-      controller["interactionRecoveryEvents"].permissions.get("ses_child"),
-    ).toHaveLength(25);
+      controller["interactionRecoveryEvents"].permissions.get("ses_child")
+        ?.size,
+    ).toBe(31);
     expect(
-      controller["interactionRecoveryEvents"].questions.get("ses_child"),
-    ).toHaveLength(25);
+      controller["interactionRecoveryEvents"].questions.get("ses_child")?.size,
+    ).toBe(31);
 
     reconnectHistory.resolve({
       data: [
@@ -1732,18 +1755,23 @@ describe("OpenCodeThreadController", () => {
     await vi.waitFor(() => {
       expect(controller["interactionRecoveryEvents"].permissions.size).toBe(0);
       expect(controller["interactionRecoveryEvents"].questions.size).toBe(0);
-      const child = controller.getState().childSessionsById.ses_child;
-      expect(child?.interactions.permissions.pending.perm_29).toBeDefined();
-      expect(child?.interactions.questions.pending.q_29).toBeDefined();
-      expect(child?.interactions.permissions.pending.perm_0).toBeUndefined();
-      expect(child?.interactions.questions.pending.q_0).toBeUndefined();
+      const interactions =
+        controller.getState().childSessionsById.ses_child?.interactions;
+      expect(interactions?.permissions.resolved.perm_0).toBeDefined();
+      expect(interactions?.questions.answered.q_0).toBeDefined();
+      expect(Object.keys(interactions?.permissions.pending ?? {})).toEqual(
+        Array.from({ length: 30 }, (_, index) => `perm_${index + 1}`),
+      );
+      expect(Object.keys(interactions?.questions.pending ?? {})).toEqual(
+        Array.from({ length: 30 }, (_, index) => `q_${index + 1}`),
+      );
     });
   });
 
   it.each([
-    { kind: "permission", replyShape: "evicted" },
+    { kind: "permission", replyShape: "crowded" },
     { kind: "permission", replyShape: "malformed" },
-    { kind: "question", replyShape: "evicted" },
+    { kind: "question", replyShape: "crowded" },
     { kind: "question", replyShape: "malformed" },
   ] as const)(
     "does not restore a child $kind after a $replyShape reply",
@@ -1805,7 +1833,7 @@ describe("OpenCodeThreadController", () => {
         },
         raw: {},
       } as never);
-      if (replyShape === "evicted") {
+      if (replyShape === "crowded") {
         for (let index = 0; index < 25; index += 1) {
           eventSource.emit({
             type:
@@ -1818,16 +1846,6 @@ describe("OpenCodeThreadController", () => {
             raw: {},
           } as never);
         }
-        const retained =
-          kind === "permission"
-            ? controller["interactionRecoveryEvents"].permissions
-            : controller["interactionRecoveryEvents"].questions;
-        expect(retained.get("ses_child")).toHaveLength(25);
-        expect(
-          retained
-            .get("ses_child")
-            ?.some((event) => event.properties.requestID === request.id),
-        ).toBe(false);
       }
 
       list.resolve({ data: [request] });
@@ -1844,6 +1862,12 @@ describe("OpenCodeThreadController", () => {
           ? child?.interactions.permissions.pending[request.id]
           : child?.interactions.questions.pending[request.id],
       ).toBeUndefined();
+      const record =
+        kind === "permission"
+          ? child?.interactions.permissions.resolved[request.id]
+          : child?.interactions.questions.answered[request.id];
+      if (replyShape === "crowded") expect(record).toBeDefined();
+      else expect(record).toBeUndefined();
     },
   );
 
@@ -3950,7 +3974,7 @@ describe("OpenCodeThreadController", () => {
     { kind: "question", terminal: "question.replied" },
     { kind: "reject", terminal: "question.rejected" },
   ] as const)(
-    "settles a root $kind when its ask precedes recovery",
+    "settles a root $kind asked before recovery without surfacing it as pending",
     async ({ kind, terminal }) => {
       const eventSource = createEventSource();
       const list = createDeferred<{ data: unknown[] }>();
@@ -3968,7 +3992,13 @@ describe("OpenCodeThreadController", () => {
         () => eventSource,
         "ses_1",
       );
-      controller.subscribe(vi.fn());
+      let surfacedAsPending = false;
+      controller.subscribe(() => {
+        const { permissions, questions } = controller.getState().interactions;
+        if ((isPermission ? permissions : questions).pending[request.id]) {
+          surfacedAsPending = true;
+        }
+      });
       await controller.load();
 
       eventSource.emit(streamReconnected);
@@ -4003,6 +4033,7 @@ describe("OpenCodeThreadController", () => {
             : interactions.questions.pending[request.id],
         ).toBeUndefined();
       });
+      expect(surfacedAsPending).toBe(false);
     },
   );
 
