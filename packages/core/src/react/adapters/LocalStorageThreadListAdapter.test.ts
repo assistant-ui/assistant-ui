@@ -1675,4 +1675,80 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
     expect(storage.get(formattedKey)).toBeUndefined();
     await expect(adapter.list()).resolves.toEqual({ threads: [] });
   });
+
+  it("preserves a concurrent formatted write during stale history cleanup", async () => {
+    const baseStorage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular", formats: ["test/v1"] },
+      ]),
+      [formattedKey]: JSON.stringify({ messages: [] }),
+    });
+    let removalAttempts = 0;
+    let signalCleanupStarted!: () => void;
+    const cleanupStarted = new Promise<void>((resolve) => {
+      signalCleanupStarted = resolve;
+    });
+    let releaseCleanup!: () => void;
+    const cleanupHeld = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const storage = {
+      ...baseStorage,
+      removeItem: async (key: string) => {
+        if (key === formattedKey) {
+          removalAttempts++;
+          if (removalAttempts === 1) throw new Error("Storage unavailable");
+          if (removalAttempts === 2) {
+            signalCleanupStarted();
+            await cleanupHeld;
+          }
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+    await adapter.initialize("thread-1");
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const formatted = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+
+    const load = formatted.load();
+    await cleanupStarted;
+    const write = formatted.append({
+      parentId: null,
+      message: { id: "new-message", text: "fresh" },
+    });
+    try {
+      await Promise.race([
+        write,
+        new Promise<void>((resolve) => setTimeout(resolve, 0)),
+      ]);
+    } finally {
+      releaseCleanup();
+    }
+
+    await expect(load).resolves.toEqual({ messages: [] });
+    await write;
+    expect(storage.get(formattedKey)).toBeDefined();
+    expect(JSON.parse(storage.get(formattedKey) ?? "")).toEqual({
+      messages: [
+        {
+          id: "new-message",
+          parent_id: null,
+          format: "test/v1",
+          content: { text: "fresh" },
+        },
+      ],
+    });
+    await expect(formatted.load()).resolves.toEqual({
+      messages: [
+        { parentId: null, message: { id: "new-message", text: "fresh" } },
+      ],
+    });
+  });
 });
