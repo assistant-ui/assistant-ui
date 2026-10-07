@@ -26,7 +26,7 @@ function streamIteratorPolyfill<T>(
     }
   };
 
-  const iterator: AsyncIterableIterator<T> & Partial<AsyncDisposable> = {
+  const iterator: AsyncIterableIterator<T> = {
     next: () =>
       enqueue(async () => {
         if (finished) return { done: true, value: undefined };
@@ -57,10 +57,15 @@ function streamIteratorPolyfill<T>(
       return this;
     },
   };
-  if (Symbol.asyncDispose) {
-    iterator[Symbol.asyncDispose] = async () => {
-      await iterator.return!();
-    };
+  const asyncDispose = (Symbol as { asyncDispose?: symbol }).asyncDispose;
+  if (asyncDispose) {
+    Object.defineProperty(iterator, asyncDispose, {
+      value: async () => {
+        await iterator.return!();
+      },
+      writable: true,
+      configurable: true,
+    });
   }
   return iterator;
 }

@@ -233,7 +233,7 @@ describe.each(["native", "polyfilled"] as const)(
       expect(cancel).not.toHaveBeenCalled();
       expect(stream.locked).toBe(false);
     });
-    it.each([false, true])(
+    it.runIf(typeof Symbol.asyncDispose === "symbol").each([false, true])(
       "disposes the iterator (completed: %s)",
       async (completed) => {
         const cancel = vi.fn();
