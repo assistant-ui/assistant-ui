@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.14.19
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.14.18
+
+### Patch Changes
+
+- [#8562](https://github.com/assistant-ui/assistant-ui/pull/8562) [`b48b05d`](https://github.com/assistant-ui/assistant-ui/commit/b48b05d05b9714e71453435712552eac40ed76f3) - preserve currency and math delimiters inside html blocks during preprocessing. ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.17
 
 ### Patch Changes

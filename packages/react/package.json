@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.15.22",
+  "version": "0.15.25",
   "description": "Open-source TypeScript/React library for building production-grade AI chat experiences",
   "keywords": [
     "ai",
@@ -59,18 +59,21 @@
     "postpack": "rm -f ./README.md && ln -s ../../README.md ./README.md",
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
-    "test:watch": "vitest"
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:watch": "vitest",
+    "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.21",
-    "@assistant-ui/store": "^0.3.15",
-    "@assistant-ui/tap": "^0.9.19",
-    "assistant-cloud": "^0.2.3",
-    "assistant-stream": "^0.3.45",
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/store": "^0.3.17",
+    "@assistant-ui/tap": "^0.9.21",
+    "assistant-cloud": "^0.2.5",
+    "assistant-stream": "^0.3.48",
     "radix-ui": "^1.6.7",
     "react-textarea-autosize": "^8.5.9",
-    "safe-content-frame": "^0.0.31",
+    "safe-content-frame": "^0.0.33",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
@@ -91,15 +94,16 @@
   "devDependencies": {
     "@assistant-ui/vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

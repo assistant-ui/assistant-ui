@@ -4,12 +4,12 @@ description: Tailwind CSS v4 plugin for shimmer effects.
 platforms: ["react"]
 ---
 
-`tw-shimmer` is a zero-dependency Tailwind CSS v4 plugin that provides polished shimmer animations for both text and skeleton loaders. It uses sine-eased gradients with 17 carefully calculated stops and OKLCH color mixing for smooth, banding-free effects.
+`tw-shimmer` is a zero-dependency Tailwind CSS v4 plugin that provides shimmer animations for text and skeleton loaders. It uses sine-eased gradients with 17 stops and OKLCH color mixing to avoid banding.
 
-- **CSS-only** — No JavaScript runtime, pure Tailwind utilities
-- **Text + Background** — Shimmer text or skeleton placeholders
-- **Auto-sizing** — CSS container queries size the animation track automatically
-- **Customizable** — Speed, spread, angle, color, and timing
+- **CSS-only**: Tailwind utilities with no JavaScript runtime
+- **Text + Background**: shimmer text or skeleton placeholders
+- **Auto-sizing**: CSS container queries size the animation track automatically
+- **Customizable**: speed, spread, angle, color, and timing
 
 See the [interactive demo](/tw-shimmer) for live examples.
 
@@ -119,7 +119,7 @@ CSS-only auto-sizing helper using container queries. It uses the container width
 | `shimmer-repeat-delay-{ms}` | `100`              | `20`         | Pause between cycles               |
 | `shimmer-invert`            | —                  | —            | Use a contrasting highlight color  |
 
-All utilities are **inheritable** — set on a parent to affect all shimmer children.
+All utilities are inheritable: set one on a parent to affect all shimmer children.
 
 ### Speed and Track Width
 

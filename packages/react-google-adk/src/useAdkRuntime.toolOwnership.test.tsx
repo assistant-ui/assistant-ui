@@ -14,6 +14,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAdkRuntime } from "./useAdkRuntime";
 import type { AdkEvent } from "./types";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
@@ -153,9 +154,9 @@ const renderStreamingAdk = async (first: AdkEvent, second: AdkEvent) => {
     render(<Inner />);
   });
   await waitFor(() => expect(capture.runtime).not.toBeNull());
-  await act(async () => {
-    await capture.runtime!.threads.switchToThread("adk-1");
-  });
+  await settleOutsideAct(() =>
+    capture.runtime!.threads.switchToThread("adk-1"),
+  );
   await act(async () => {
     await new Promise((r) => setTimeout(r, 0));
   });

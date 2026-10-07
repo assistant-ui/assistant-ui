@@ -5,7 +5,10 @@ import { type FC, useEffect } from "react";
 import { describe, expect, it } from "vitest";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
-import { makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  makeAdapter,
+  settleOutsideAct,
+} from "./remote-thread-list-test-helpers";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
 import { AssistantRuntimeProvider } from "../context";
 import type { ChatModelAdapter } from "../index";
@@ -74,15 +77,11 @@ describe("threads.reloadMainThread", () => {
     const capture = await renderThreadList(mounts);
     const runtime = capture.runtime!;
 
-    await act(async () => {
-      await runtime.threads.switchToThread("t-1");
-    });
+    await settleOutsideAct(() => runtime.threads.switchToThread("t-1"));
     const beforeReload = await settle(mounts);
     expect(beforeReload).toBeGreaterThan(0);
 
-    await act(async () => {
-      await runtime.threads.reloadMainThread();
-    });
+    await settleOutsideAct(() => runtime.threads.reloadMainThread());
 
     await waitFor(() => expect(mounts.count).toBeGreaterThan(beforeReload));
   });
@@ -92,18 +91,14 @@ describe("threads.reloadMainThread", () => {
     const capture = await renderThreadList(mounts);
     const runtime = capture.runtime!;
 
-    await act(async () => {
-      await runtime.threads.switchToThread("t-1");
-    });
+    await settleOutsideAct(() => runtime.threads.switchToThread("t-1"));
 
     const seen: boolean[] = [];
     const unsubscribe = runtime.threads.subscribe(() => {
       seen.push(runtime.threads.getState().mainThreadId === "t-1");
     });
 
-    await act(async () => {
-      await runtime.threads.reloadMainThread();
-    });
+    await settleOutsideAct(() => runtime.threads.reloadMainThread());
     unsubscribe();
 
     expect(seen.length).toBeGreaterThan(0);

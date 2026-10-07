@@ -2,18 +2,19 @@
 
 import { useSyncExternalStore } from "react";
 import { CHECKOUT_BASE_URL, checkoutEnabled } from "@/lib/checkout/config";
+import { isAgentToolCartEntry, type CartEntry } from "./cart-entries";
 
 export type CheckoutSession = {
   id: string;
   products: readonly string[];
   startedAt: number;
   instructions?: string;
+  cartEntries?: readonly CartEntry[];
+  cartInstructions?: string;
   /** The products came out of the cart and return to it when the setup is abandoned. */
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
   introSeen?: boolean;
-  /** The user accepted the license agreement the wizard shows before connecting. */
-  licenseAccepted?: boolean;
 };
 
 const storageKey = "aui-checkout-session";
@@ -46,7 +47,8 @@ const normalize = (value: unknown): CheckoutSession | null => {
     instructions,
     fromCart,
     introSeen,
-    licenseAccepted,
+    cartEntries,
+    cartInstructions,
   } = value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
@@ -61,7 +63,13 @@ const normalize = (value: unknown): CheckoutSession | null => {
       instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart === true && { fromCart }),
     ...(introSeen === true && { introSeen }),
-    ...(licenseAccepted === true && { licenseAccepted }),
+    ...(Array.isArray(cartEntries) && {
+      cartEntries: cartEntries.filter(
+        (entry): entry is CartEntry =>
+          typeof entry === "string" || isAgentToolCartEntry(entry),
+      ),
+    }),
+    ...(typeof cartInstructions === "string" && { cartInstructions }),
   };
 };
 
@@ -125,6 +133,16 @@ export const getCheckoutSession = (): CheckoutSession | null => {
   return session;
 };
 
+export const canRestoreCheckoutSession = (sessionId: string, url: string) => {
+  if (readStored()?.id !== sessionId) return false;
+  try {
+    const storedLink = window.localStorage.getItem(linkKey);
+    return storedLink !== null && checkoutUrl(storedLink) === url;
+  } catch {
+    return false;
+  }
+};
+
 let linkId: string | null = null;
 
 /** The browser's link to its coding agent. It is created once and outlives every setup, so an agent that keeps its stream open stays connected for the next one. */
@@ -147,7 +165,15 @@ export const agentLinkUrl = () => checkoutUrl(getAgentLinkId());
 export const startCheckout = (
   products: readonly string[],
   instructions = "",
-  { fromCart = false } = {},
+  {
+    fromCart = false,
+    cartEntries,
+    cartInstructions,
+  }: {
+    fromCart?: boolean;
+    cartEntries?: readonly CartEntry[];
+    cartInstructions?: string;
+  } = {},
 ): CheckoutSession | null => {
   if (!checkoutEnabled) return null;
   load();
@@ -160,6 +186,8 @@ export const startCheckout = (
     startedAt: Date.now(),
     ...(instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart && { fromCart }),
+    ...(cartEntries && { cartEntries }),
+    ...(cartInstructions !== undefined && { cartInstructions }),
   };
   writeStored(session);
   notify();
@@ -170,14 +198,6 @@ export const acknowledgeSetupIntro = () => {
   load();
   if (session === null || session.introSeen) return;
   session = { ...session, introSeen: true };
-  writeStored(session);
-  notify();
-};
-
-export const acceptSetupLicense = () => {
-  load();
-  if (session === null || session.licenseAccepted) return;
-  session = { ...session, licenseAccepted: true };
   writeStored(session);
   notify();
 };
