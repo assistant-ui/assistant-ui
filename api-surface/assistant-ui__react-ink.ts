@@ -4632,6 +4632,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -4648,6 +4649,7 @@ type ThreadRuntimeState = {
 type ThreadState = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;

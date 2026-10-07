@@ -158,6 +158,11 @@ export type ThreadRuntimeState = {
   readonly isDisabled: boolean;
 
   /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
+
+  /**
    * Whether the thread is loading its history.
    */
   readonly isLoading: boolean;
@@ -240,6 +245,7 @@ export const getThreadState = (
     metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
+    isSendDisabled: runtime.isSendDisabled,
     isLoading: runtime.isLoading,
     hasEarlier: runtime.hasEarlier ?? false,
     isLoadingEarlier: runtime.isLoadingEarlier ?? false,
