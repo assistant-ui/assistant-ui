@@ -315,7 +315,7 @@ Resuming a request leaves its signal live so the tool can continue. Sibling
 executions share that signal; restart drops their statuses and ignores their
 late completions, and a later abort still reaches them.
 
-Starting it over re-fires `streamCall`, which the restart path already
+Restarting a dropped entry re-fires `streamCall`, which the restart path already
 does for any demoted entry whose signature later changes. A change that
 already happened after completion (A.4) is not such a change: the demoted
 entry carries the changed text, so the restart does not promote it. The rebuilt
