@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -10,8 +10,13 @@ import {
   Derived,
   attachTransformScopes,
   useClientResource,
+  useDestroySignalProvider,
 } from "@assistant-ui/store/client";
-import { useThreadSelectionEvents } from "../../store/internal";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  useThreadListItemSelectionEvents,
+  useThreadSelectionEvents,
+} from "../../store/clients/thread-selection-events";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { Tools } from "./Tools";
@@ -20,6 +25,10 @@ import { DataRenderers } from "./DataRenderers";
 const RESOLVED_PROMISE = Promise.resolve();
 
 export type InMemoryThreadListProps = {
+  /**
+   * Creates the selected thread resource. The list keys the returned element
+   * by `threadId`, so thread-owned state does not survive a selection change.
+   */
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
@@ -36,6 +45,8 @@ type ThreadData = {
 // ThreadListItem Client
 const useThreadListItemClient = (props: {
   data: ThreadData;
+  isMain: boolean;
+  isInitialMain: boolean;
   isRunning: boolean;
   onSwitchTo: () => void;
   onRename: (title: string) => void;
@@ -46,6 +57,8 @@ const useThreadListItemClient = (props: {
 }): ClientOutput<"threadListItem"> => {
   const {
     data,
+    isMain,
+    isInitialMain,
     isRunning,
     onSwitchTo,
     onRename,
@@ -66,6 +79,7 @@ const useThreadListItemClient = (props: {
     }),
     [data.id, data.title, data.status, data.custom, isRunning],
   );
+  useThreadListItemSelectionEvents(data.id, isMain, isInitialMain);
 
   return {
     getState: () => state,
@@ -83,6 +97,62 @@ const useThreadListItemClient = (props: {
 
 const ThreadListItemClient = resource(useThreadListItemClient);
 
+const createThreadLifetimes = () => {
+  const controllers = new Map<string, AbortController>();
+  let owner: AbortSignal | undefined;
+  let unlinkOwner: (() => void) | undefined;
+  const abortAll = () => {
+    unlinkOwner?.();
+    unlinkOwner = undefined;
+    for (const controller of controllers.values()) {
+      controller.abort(owner?.reason);
+    }
+  };
+  return {
+    signalFor(threadId: string, ownerSignal: AbortSignal | undefined) {
+      let controller = controllers.get(threadId);
+      if (!controller) {
+        controller = new AbortController();
+        if (ownerSignal?.aborted) controller.abort(ownerSignal.reason);
+        controllers.set(threadId, controller);
+      }
+      return controller.signal;
+    },
+    release(threadId: string) {
+      controllers.get(threadId)?.abort();
+      controllers.delete(threadId);
+    },
+    bindOwner(signal: AbortSignal | undefined) {
+      if (owner === signal) return;
+      unlinkOwner?.();
+      unlinkOwner = undefined;
+      owner = signal;
+      if (!signal) return;
+      if (signal.aborted) {
+        abortAll();
+        return;
+      }
+      signal.addEventListener("abort", abortAll);
+      unlinkOwner = () => signal.removeEventListener("abort", abortAll);
+    },
+  };
+};
+
+const useOwnedThread = ({
+  destroySignal,
+  thread,
+}: {
+  destroySignal: AbortSignal;
+  thread: ResourceElement<ClientOutput<"thread">>;
+}): ClientOutput<"thread"> =>
+  useDestroySignalProvider(destroySignal, function useSelectedThread() {
+    return useClientResource(thread).methods;
+  });
+
+const OwnedThread = resource(useOwnedThread);
+
+const INITIAL_THREAD_ID = "main";
+
 // InMemoryThreadList Client
 const useInMemoryThreadList = (
   props: InMemoryThreadListProps,
@@ -93,13 +163,23 @@ const useInMemoryThreadList = (
     onSwitchToNewThread,
     onDelete,
   } = props;
+  const ownerDestroySignal = useAssistantClientDestroySignal();
+  const [lifetimes] = useState(createThreadLifetimes);
+  const [knownThreadIds] = useState(() => new Set<string>([INITIAL_THREAD_ID]));
+
+  // No cleanup: a hidden list must still abort its threads' sends when the owner is destroyed.
+  useEffect(() => {
+    lifetimes.bindOwner(ownerDestroySignal);
+  }, [lifetimes, ownerDestroySignal]);
 
   const [{ threads, mainThreadId }, setListState] = useState<{
     threads: readonly ThreadData[];
     mainThreadId: string;
   }>(() => ({
-    threads: [{ id: "main", title: "Main Thread", status: "regular" }],
-    mainThreadId: "main",
+    threads: [
+      { id: INITIAL_THREAD_ID, title: "Main Thread", status: "regular" },
+    ],
+    mainThreadId: INITIAL_THREAD_ID,
   }));
   const setThreads = (
     update: (prev: readonly ThreadData[]) => readonly ThreadData[],
@@ -108,6 +188,7 @@ const useInMemoryThreadList = (
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
+    if (!knownThreadIds.has(threadId)) return;
     setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
@@ -144,10 +225,13 @@ const useInMemoryThreadList = (
   };
 
   const handleDelete = (threadId: string) => {
+    lifetimes.release(threadId);
     // Deleting the last thread starts a fresh one; the removed id must not
     // stay selected. The fallback id is minted eagerly so the updater stays
     // pure under batched deletes.
     const fallbackId = `thread-${generateId()}`;
+    knownThreadIds.delete(threadId);
+    if (knownThreadIds.size === 0) knownThreadIds.add(fallbackId);
     setListState((prev) => {
       const remaining = prev.threads.filter((t) => t.id !== threadId);
       if (remaining.length === 0) {
@@ -170,6 +254,7 @@ const useInMemoryThreadList = (
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
+    knownThreadIds.add(newId);
     setListState((prev) => ({
       threads: [
         ...prev.threads,
@@ -181,7 +266,15 @@ const useInMemoryThreadList = (
   };
 
   // Only the main thread is mounted, so it is the only thread that can run.
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+  const mainThreadClient = useClientResource(
+    withKey(
+      mainThreadId,
+      OwnedThread({
+        destroySignal: lifetimes.signalFor(mainThreadId, ownerDestroySignal),
+        thread: threadFactory(mainThreadId),
+      }),
+    ),
+  );
 
   const threadListItems = useClientLookup(
     threads.map((t) =>
@@ -189,6 +282,8 @@ const useInMemoryThreadList = (
         t.id,
         ThreadListItemClient({
           data: t,
+          isMain: t.id === mainThreadId,
+          isInitialMain: t.id === INITIAL_THREAD_ID,
           isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
           onSwitchTo: () => handleSwitchToThread(t.id),
           onRename: (title) => handleRename(t.id, title),
@@ -231,7 +326,7 @@ const useInMemoryThreadList = (
     item: (selector) => {
       if (selector === "main") {
         const index = threads.findIndex((t) => t.id === mainThreadId);
-        return threadListItems.get({ index: index === -1 ? 0 : index });
+        return threadListItems.get({ index });
       }
       if ("id" in selector) {
         const index = threads.findIndex((t) => t.id === selector.id);

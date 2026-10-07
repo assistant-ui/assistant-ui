@@ -49,29 +49,3 @@ export function scanForImport(
 
   return false;
 }
-
-export function getFilesContaining(
-  searchString: string,
-  options: ScanOptions = {},
-): string[] {
-  const cwd = options.cwd || process.cwd();
-  const pattern = options.pattern || "**/*.{js,jsx,ts,tsx}";
-  const ignore = options.ignore || [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/build/**",
-  ];
-
-  const result: string[] = [];
-
-  for (const { fullPath, content } of readProjectFiles(pattern, {
-    cwd,
-    ignore,
-  })) {
-    if (content.includes(searchString)) {
-      result.push(fullPath);
-    }
-  }
-
-  return result;
-}

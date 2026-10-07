@@ -20,6 +20,7 @@ export type {
   SlackDataTableRawNumberCell,
   SlackDataTableRawTextCell,
   SlackDatePickerElement,
+  SlackDateTimePickerElement,
   SlackDividerBlock,
   SlackHeaderBlock,
   SlackImageBlock,
@@ -33,5 +34,6 @@ export type {
   SlackSectionBlock,
   SlackStaticSelectElement,
   SlackTextObject,
+  SlackTimePickerElement,
   ToSlackBlocksOptions,
 } from "./slack/types";

@@ -601,11 +601,11 @@ A tool call with a pending approval pauses the run, whether or not the tool is l
 
 Once every pending approval on the message is decided and every listed human tool has a result, the runtime invokes your adapter again. Read the decisions from `unstable_getMessage().content`, perform the approved actions, and return the follow-up response. A tool call that carries an approval is owned by the gate: it does not additionally require a result, even when its name is listed in `unstable_humanToolNames`.
 
-If the user sends another message instead of answering, the pause ends there, because a run only resumes from the last message. Each open approval records `approval.resolution: "cancelled"` and the paused message settles as `incomplete` with reason `cancelled`; a later answer to that approval is rejected, and a result added to it later is stored without invoking your adapter again. The next run still receives those calls without results, and providers reject a tool call that no result answers, so your adapter must supply one when it converts the history; `toGenericMessages` from `assistant-stream` reports each as not completed.
+If the user sends another message instead of answering, the pause ends there, because a run only resumes from the last message, and deleting that message later does not reopen it. Each open approval records `approval.resolution: "cancelled"` and the paused message settles as `incomplete` with reason `cancelled`; a later answer to that approval is rejected, and a result added to it later is stored without invoking your adapter again. The next run still receives those calls without results, and providers reject a tool call that no result answers, so your adapter must supply one when it converts the history; `toGenericMessages` from `assistant-stream` reports each as not completed.
 
 ## Resuming a run
 
-`resumeRun` reconnects to an in-progress assistant run. Useful for page refresh, network reconnect, tab backgrounding, or thread switching when the backend is still generating.
+`resumeRun` reconnects to an in-progress assistant run. Use it after a page refresh, network reconnect, tab backgrounding, or thread switch when the backend is still generating.
 
 Unlike `startRun` (which uses the `ChatModelAdapter`), `resumeRun` requires a `stream` parameter; you provide the async generator that produces the response.
 
@@ -631,7 +631,7 @@ aui.thread.resumeRun({
 });
 ```
 
-A common pattern is to check whether the backend is still running on mount, then reconnect:
+A common pattern is to check whether the backend is still running on mount, then reconnect. Here `streamFromBackend` stands for your own async generator that reads the running job's output:
 
 ```tsx
 function useStreamReconnect(threadId: string) {
@@ -648,7 +648,10 @@ function useStreamReconnect(threadId: string) {
       );
       if (status.isRunning) {
         const parentId = aui.thread.getState().messages.at(-1)?.id ?? null;
-        aui.thread.resumeRun({ parentId });
+        aui.thread.resumeRun({
+          parentId,
+          stream: () => streamFromBackend(threadId),
+        });
       }
     })();
   }, [aui, threadId]);
@@ -657,7 +660,7 @@ function useStreamReconnect(threadId: string) {
 
 ## Queueing messages during a run
 
-Set `unstable_enableMessageQueue` to keep the composer usable while a run is in progress. A message sent during a queued run steers by default — it lands in the steer lane, ahead of previously queued items; `send({ steer: false })` queues a follow-up behind them instead. Pending items are held in `composer.queue` and drain once the run settles.
+Set `unstable_enableMessageQueue` to keep the composer usable while a run is in progress. A message sent during a queued run steers by default: it lands in the steer lane, ahead of previously queued items. `send({ steer: false })` queues a follow-up behind them instead. Pending items are held in `composer.queue` and drain once the run settles.
 
 ```tsx
 const runtime = useLocalRuntime(MyModelAdapter, {
@@ -760,7 +763,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
    ```tsx
    fetch(url, { signal: abortSignal });
    ```
-2. **Handle errors gracefully.** Swallow `AbortError` (it is the user cancelling); rethrow others to surface in the UI.
+2. **Handle errors.** Swallow `AbortError` (it is the user cancelling); rethrow others to surface in the UI.
 3. **Yield cumulative state, not deltas.** Each yield replaces the previous content; if you yield deltas the UI flickers.
 4. **Accumulate tool calls outside the streaming loop**, otherwise they vanish on the first text-only chunk.
 
@@ -770,7 +773,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
 
 **Streaming not working.** Use `async *run` (with the asterisk). A plain `async run` cannot yield.
 
-**Tool UI flickers and disappears.** state is being reset between chunks. Accumulate tool calls in a `Map` declared outside the `for await` loop.
+**Tool UI flickers and disappears.** State is being reset between chunks. Accumulate tool calls in a `Map` declared outside the `for await` loop.
 
 ## API reference
 
@@ -781,7 +784,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
   parameters={[
     {
       name: "run",
-      type: "ChatModelRunOptions => ChatModelRunResult | AsyncGenerator<ChatModelRunResult>",
+      type: "(options: ChatModelRunOptions) => Promise<ChatModelRunResult> | AsyncGenerator<ChatModelRunResult, void>",
       description:
         "Function that sends messages to your API and returns the response.",
       required: true,
@@ -821,19 +824,19 @@ const CustomAPIAdapter: ChatModelAdapter = {
     },
     {
       name: "unstable_assistantMessageId",
-      type: "string | Undefined",
+      type: "string | undefined",
       description:
         "ID of the assistant message being generated. Useful for tracking or updating specific messages.",
     },
     {
       name: "unstable_threadId",
-      type: "string | Undefined",
+      type: "string | undefined",
       description:
         "Current thread/conversation identifier. Useful for passing to your backend API.",
     },
     {
       name: "unstable_parentId",
-      type: "string | Null | Undefined",
+      type: "string | null | undefined",
       description:
         "ID of the parent message this response is replying to. null if this is the first message.",
     },
@@ -854,7 +857,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
     {
       name: "initialMessages",
       type: "readonly ThreadMessageLike[]",
-      description: "Pre-populate the thread with messages.",
+      description: "Pre-populate the thread with messages. A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents.",
     },
     {
       name: "maxSteps",

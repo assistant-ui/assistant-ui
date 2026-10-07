@@ -50,6 +50,11 @@ export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
      */
     cloud?: AssistantCloud | undefined;
     /**
+     * Stable identity for the account or workspace owning Cloud runtime state.
+     * Provide it from the first render and change it when that scope changes.
+     */
+    scopeId?: string | undefined;
+    /**
      * Controlled thread id for the cloud list. Ignored without `cloud`.
      */
     threadId?: string | undefined;
@@ -61,7 +66,7 @@ export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
 
 type AISDKThreadChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
   AISDKThreadsOptions<UI_MESSAGE>,
-  "cloud" | "threadId" | "onThreadIdChange"
+  "cloud" | "scopeId" | "threadId" | "onThreadIdChange"
 >;
 
 type ChatOptionsRef<UI_MESSAGE extends UIMessage> = {
@@ -182,7 +187,8 @@ const AISDKChatThread = resource(useAISDKChatThread);
 const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKThreadsOptions<UI_MESSAGE>,
 ) => {
-  const { cloud, threadId, onThreadIdChange, ...threadOptions } = options ?? {};
+  const { cloud, scopeId, threadId, onThreadIdChange, ...threadOptions } =
+    options ?? {};
   const [chats] = useState(() => new Map<string, ChatEntry<UI_MESSAGE>>());
   const bindCloud = cloud !== undefined;
 
@@ -198,7 +204,11 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
   });
 
-  const cloudAdapter = useCloudThreadListAdapter({ cloud, sdk: AI_SDK_SDK });
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud,
+    scopeId,
+    sdk: AI_SDK_SDK,
+  });
   const thread = (id: string) => {
     const element = AISDKChatThread({
       threadId: id,

@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
 import { useActionBarFeedbackNegative } from "@assistant-ui/core/react";
-import { Pressable, type PressableProps } from "../internal/Pressable";
+import {
+  Pressable,
+  type PressableProps,
+  type PressableState,
+} from "../internal/Pressable";
 
 export type ActionBarFeedbackNegativeProps = Omit<
   PressableProps,
   "onPress" | "children"
 > & {
-  children: ReactNode | ((props: { isSubmitted: boolean }) => ReactNode);
+  children:
+    | ReactNode
+    | ((props: PressableState & { isSubmitted: boolean }) => ReactNode);
 };
 
 export const ActionBarFeedbackNegative = ({
@@ -17,7 +23,9 @@ export const ActionBarFeedbackNegative = ({
 
   return (
     <Pressable onPress={submit} {...pressableProps}>
-      {typeof children === "function" ? children({ isSubmitted }) : children}
+      {typeof children === "function"
+        ? (state) => children({ ...state, isSubmitted })
+        : children}
     </Pressable>
   );
 };

@@ -1,4 +1,3 @@
-import { getCatalogItem } from "@/lib/catalog";
 import {
   parseChoiceAnswer,
   parseModelAnswer,
@@ -40,10 +39,6 @@ export const describeAnswer = (input: Checkout.Input): string | undefined => {
         .filter((part) => part !== undefined)
         .join(" · ");
     }
-    case "product": {
-      const name = getCatalogItem(input.product ?? "")?.name ?? input.product;
-      return name ? `Added ${name} to this setup` : "Added to this setup";
-    }
     default:
       return answer;
   }
@@ -64,10 +59,7 @@ export function AnswerReview({
       </p>
       <div className="bg-muted rounded-lg p-4">
         <p className="text-sm [overflow-wrap:anywhere]">
-          {answer ??
-            (input.kind === "product"
-              ? "You declined to add it."
-              : "You skipped this question.")}
+          {answer ?? "You skipped this question."}
         </p>
         {input.note ? (
           <p className="text-muted-foreground mt-2 text-sm [overflow-wrap:anywhere]">

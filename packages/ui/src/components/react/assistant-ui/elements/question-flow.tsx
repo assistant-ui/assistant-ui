@@ -168,12 +168,16 @@ export function QuestionFlow({
       setStepIndex(currentIndex + 1);
       return;
     }
+    const stepIds = new Set(steps.map((step) => step.id));
+    const completedAnswers = Object.fromEntries(
+      Object.entries(nextAnswers).filter(([id]) => stepIds.has(id)),
+    );
     setIsCompleting(true);
     try {
-      return Promise.resolve(onComplete(nextAnswers)).then(
+      return Promise.resolve(onComplete(completedAnswers)).then(
         () => {
           setAnswers(nextAnswers);
-          setConfirmedAnswers(nextAnswers);
+          setConfirmedAnswers(completedAnswers);
         },
         (error) => {
           setIsCompleting(false);
