@@ -224,6 +224,9 @@ export class DataStreamEncoder
                   ...(chunk.modelContent !== undefined
                     ? { modelContent: chunk.modelContent }
                     : {}),
+                  ...(chunk.messages !== undefined
+                    ? { messages: chunk.messages }
+                    : {}),
                 },
               });
               break;
@@ -465,6 +468,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 isError,
                 isPreliminary,
                 modelContent,
+                messages,
               } = value;
               const toolCallController =
                 toolCallPartRegistry.tryGet(toolCallId);
@@ -485,6 +489,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 isError,
                 ...(isPreliminary ? { isPreliminary: true } : {}),
                 ...(modelContent !== undefined ? { modelContent } : {}),
+                ...(messages !== undefined ? { messages } : {}),
               });
               break;
             }
