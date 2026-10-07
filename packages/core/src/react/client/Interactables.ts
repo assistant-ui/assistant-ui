@@ -235,6 +235,7 @@ const useInteractablesResource = ({
     discardPending,
     flushIfPending,
     getDirtyIds,
+    isSaving,
     schedulePersistence,
     flush: flushPersistence,
   } = useInteractablePersistenceQueue({
@@ -755,6 +756,12 @@ const useInteractablesResource = ({
               def.initialState,
           },
         }),
+        persistence:
+          prev.persistence[def.id] === undefined && isSaving(def.id)
+            ? nullProtoRecord(prev.persistence, {
+                [def.id]: { isPending: true, error: undefined },
+              })
+            : prev.persistence,
       }));
 
       return () => {
@@ -804,6 +811,7 @@ const useInteractablesResource = ({
       clientRef,
       getCurrentThreadId,
       installUpdateToolUI,
+      isSaving,
       setStateAndRef,
     ],
   );
