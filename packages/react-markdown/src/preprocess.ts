@@ -445,6 +445,11 @@ function htmlBlockRanges(text: string): number[] {
     const codeColumn = listItem?.footnote
       ? Number.POSITIVE_INFINITY
       : (listItem?.content ?? 0) + 4;
+    // Inside a blockquote the four-space rule counts past its markers: a quote
+    // nested in a list item needs only four spaces past `>` for indented code,
+    // while a list item at the quote's own depth still needs its content
+    // column. A `>` indented four or more spaces is literal text instead, so
+    // the absolute column of the first marker decides then.
     const nestedQuote =
       depth > 0 &&
       !indentedMarker &&

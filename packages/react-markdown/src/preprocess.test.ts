@@ -887,8 +887,18 @@ describe("escapeCurrencyDollars", () => {
         "- > item\n  >\n  >     prose $5\n  >\n  >       code $10\n\n    after $15",
       ),
     ).toBe(
-      "- > item\n  >\n  >     prose \\$5\n  >\n  >       code $10\n\n    after \\$15",
+      "- > item\n  >\n  >     prose $5\n  >\n  >       code $10\n\n    after \\$15",
     );
+  });
+
+  it("does not rewrite quoted indented code inside a list item", () => {
+    const markdown = "- item\n\n  >     total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("does not rewrite code whose quote marker is itself indented", () => {
+    const markdown = "- item\n\n        >     total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
   });
 
   it("still escapes footnote prose", () => {
