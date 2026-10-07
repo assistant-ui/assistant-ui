@@ -30,6 +30,24 @@ const Suspend = ({ pending }: { pending: Promise<never> }) => {
 };
 
 describe("useCloudThreadListAdapter", () => {
+  it("replaces the list adapter when its scope changes", () => {
+    const cloud = {
+      registerSdk: vi.fn(),
+      threads: {},
+    } as unknown as AssistantCloud;
+    const { result, rerender } = renderHook(
+      ({ scopeId }) => useCloudThreadListAdapter({ cloud, scopeId }),
+      { initialProps: { scopeId: "workspace-a" } },
+    );
+    const first = result.current;
+
+    rerender({ scopeId: "workspace-a" });
+    expect(result.current).toBe(first);
+
+    rerender({ scopeId: "workspace-b" });
+    expect(result.current).not.toBe(first);
+  });
+
   it("keeps operations scoped to the committed Cloud options", async () => {
     const deleteA = vi.fn(async () => {});
     const deleteB = vi.fn(async () => {});
@@ -108,6 +126,22 @@ describe("useCloudThreadListAdapter", () => {
 
     expect(deleteB).toHaveBeenCalledWith("thread-2");
     expect(cloudDeleteB).toHaveBeenCalledWith("thread-2");
+  });
+
+  it("registers the SDK that arrives with a new cloud on that cloud", () => {
+    const cloudA = { registerSdk: vi.fn() } as unknown as AssistantCloud;
+    const cloudB = { registerSdk: vi.fn() } as unknown as AssistantCloud;
+    const sdkA = { name: "sdk-a", version: "1.0.0" };
+    const sdkB = { name: "sdk-b", version: "1.0.0" };
+    const { rerender } = renderHook(
+      ({ cloud, sdk }) => useCloudThreadListAdapter({ cloud, sdk }),
+      { initialProps: { cloud: cloudA, sdk: sdkA } },
+    );
+
+    rerender({ cloud: cloudB, sdk: sdkB });
+
+    expect(cloudB.registerSdk).toHaveBeenCalledWith(sdkB);
+    expect(cloudB.registerSdk).not.toHaveBeenCalledWith(sdkA);
   });
 
   it("loads archived Cloud threads alongside regular threads", async () => {

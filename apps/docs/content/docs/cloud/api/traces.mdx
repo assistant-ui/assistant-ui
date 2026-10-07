@@ -54,8 +54,8 @@ When all spans are accepted, the response is `{}`. When spans are rejected, `par
 | `200` | `{}` | Every span was accepted. |
 | `200` | `{ "partialSuccess": { "rejectedSpans": n, "errorMessage": "..." } }` | One or more spans were rejected while the export was processed. |
 | `400` | `{ "error": "<parser message>" }` | The OTLP body is malformed. The parser message is returned in `error`. |
-| `401` | Plain text: `Authorization header is missing` | `Authorization` is missing. |
-| `403` | Plain text: `This endpoint requires an API key` | The caller supplied a JWT instead of an API key. |
+| `401` | `{ "error": "Authorization header is missing" }` | `Authorization` is missing. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The caller supplied a JWT instead of an API key. |
 | `413` | `{ "error": "Export exceeds the 4 MB limit" }` | The declared or streamed body is over 4 MB. |
 | `415` | `{ "error": "Send application/json or application/x-protobuf" }` | `Content-Type` is not supported. |
 | `415` | `{ "error": "Unsupported content encoding <enc>" }` | `Content-Encoding` is not `gzip`, `deflate` or `identity`. |

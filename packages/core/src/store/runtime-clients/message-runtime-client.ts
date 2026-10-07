@@ -13,6 +13,7 @@ import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
 import type { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
+import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 
 const useMessageAttachmentClientByIndex = ({
   runtime,
@@ -106,14 +107,8 @@ const useMessageClient = ({
     }),
   );
   const parts = useClientLookup(
-    runtimeState.content.map((part, idx) =>
-      withKey(
-        "toolCallId" in part && part.toolCallId != null
-          ? `toolCallId-${part.toolCallId}`
-          : `index-${idx}`,
-        MessagePartByIndex({ runtime, index: idx }),
-        [runtime, idx],
-      ),
+    getMessagePartKeys(runtimeState.content).map((key, idx) =>
+      withKey(key, MessagePartByIndex({ runtime, index: idx }), [runtime, idx]),
     ),
   );
 
@@ -172,7 +167,12 @@ const useMessageClient = ({
       if ("index" in selector) {
         return parts.get({ index: selector.index });
       } else {
-        return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        const index = runtimeState.content.findIndex(
+          (part) =>
+            part.type === "tool-call" &&
+            part.toolCallId === selector.toolCallId,
+        );
+        return parts.get({ index });
       }
     },
 

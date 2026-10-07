@@ -1,9 +1,14 @@
+import { cacheLife } from "next/cache";
 import { buildSearchIndex } from "@/lib/search/pages";
 
-export const revalidate = false;
+async function getSearchIndex() {
+  "use cache";
+  cacheLife("max");
+  return buildSearchIndex();
+}
 
 export async function GET() {
-  return Response.json(await buildSearchIndex(), {
+  return Response.json(await getSearchIndex(), {
     headers: {
       "X-Robots-Tag": "noindex, follow",
     },

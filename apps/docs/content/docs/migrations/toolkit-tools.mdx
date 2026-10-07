@@ -125,7 +125,7 @@ export default defineToolkit({
 ```
 
 Register it like any toolkit: `config={config}` where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
-Render-only entries upload no schema and run no browser code — they only attach
+Render-only entries upload no schema and run no browser code. They only attach
 UI for matching tool-call message parts. For MCP server catalogs, spread
 `defineMcpToolkit({ ... })` in the same generative toolkit.
 
