@@ -1070,8 +1070,7 @@ function blockquoteDepth(text: string, from: number, to: number): number {
 function listContentColumns(text: string): Map<number, number> {
   const contexts = new Map<number, number>();
   const contentClosers = new Map<number, number>();
-  let marker = -1;
-  let markerContent = 0;
+  const items: { marker: number; content: number; depth: number }[] = [];
   let rawCloser = -1;
   let rawCloserDepth = -1;
   let otherRawCloser = -1;
@@ -1086,8 +1085,10 @@ function listContentColumns(text: string): Map<number, number> {
       depth === rawCloserDepth ? otherRawCloser : rawCloser,
       contentClosers.get(depth) ?? -1,
     );
-    const listContent = marker > closer ? markerContent : 0;
-    contexts.set(start, listContent);
+    while (items.length > 0 && items[items.length - 1]!.marker <= closer) {
+      items.pop();
+    }
+    const listContent = items[items.length - 1]?.content ?? 0;
 
     const blank = onlyWhitespace(text, content, end);
     if (!blank) {
@@ -1100,23 +1101,42 @@ function listContentColumns(text: string): Map<number, number> {
         (indent < 4 || (listContent > 0 && indent < listContent + 4)) &&
         (markerEnd !== first || bare || footnote)
       ) {
-        marker = start;
-        markerContent = footnote
-          ? Number.POSITIVE_INFINITY
-          : markerEnd !== first
-            ? columns(text, content, markerEnd)
-            : indent + 2;
-      } else if (
-        previousBlank &&
-        columns(text, start, whitespaceEnd(text, start, end)) < 2
-      ) {
-        if (depth !== rawCloserDepth) {
-          otherRawCloser = rawCloser;
+        contexts.set(start, listContent);
+        while (items.length > 0 && indent < items[items.length - 1]!.content) {
+          items.pop();
         }
-        rawCloser = start;
-        rawCloserDepth = depth;
-        if (indent < 2) contentClosers.set(depth, start);
+        items.push({
+          marker: start,
+          depth,
+          content: footnote
+            ? Number.POSITIVE_INFINITY
+            : markerEnd !== first
+              ? columns(text, content, markerEnd)
+              : indent + 2,
+        });
+      } else {
+        if (previousBlank) {
+          if (columns(text, start, whitespaceEnd(text, start, end)) < 2) {
+            if (depth !== rawCloserDepth) {
+              otherRawCloser = rawCloser;
+            }
+            rawCloser = start;
+            rawCloserDepth = depth;
+            if (indent < 2) contentClosers.set(depth, start);
+          }
+          while (
+            items.length > 0 &&
+            depth === items[items.length - 1]!.depth &&
+            items[items.length - 1]!.content !== Number.POSITIVE_INFINITY &&
+            indent < items[items.length - 1]!.content
+          ) {
+            items.pop();
+          }
+        }
+        contexts.set(start, items[items.length - 1]?.content ?? 0);
       }
+    } else {
+      contexts.set(start, listContent);
     }
     previousBlank = blank;
     start = end + 1;

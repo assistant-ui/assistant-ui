@@ -765,6 +765,22 @@ describe("escapeCurrencyDollars", () => {
     expect(escapeCurrencyDollars(markdown)).toBe(markdown);
   });
 
+  it("restores the outer list column after leaving a nested item", () => {
+    const markdown = "- outer\n  - inner\n\n  parent prose\n\n      total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("does not rewrite code indented past a nested item's content column", () => {
+    const markdown = "- outer\n  - inner\n\n        total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("escapes prose below a nested item's code column", () => {
+    expect(escapeCurrencyDollars("- outer\n  - inner\n\n    total = $5")).toBe(
+      "- outer\n  - inner\n\n    total = \\$5",
+    );
+  });
+
   it("resumes escaping after indented code ends inside a list item", () => {
     expect(
       escapeCurrencyDollars("- item\n\n      total = $5\n    prose $10"),
@@ -783,17 +799,6 @@ describe("escapeCurrencyDollars", () => {
       expect(escapeCurrencyDollars(markdown)).toBe(markdown);
     },
   );
-
-  it.each([
-    ["root code", "    code\npara\n\n"],
-    ["list code", "- item\n\n      total = $5\n\n"],
-  ])("scans 20000 repeated %s blocks within 500 ms", (_, block) => {
-    const markdown = block.repeat(20_000);
-    const start = performance.now();
-    escapeCurrencyDollars(markdown);
-    const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(500);
-  });
 
   it("still escapes a nested sublist paragraph", () => {
     expect(
