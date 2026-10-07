@@ -118,7 +118,7 @@ const formattedMessagesKey = (
   prefix: string,
   remoteId: string,
   format: string,
-) => `${prefix}messages:${remoteId}:${format}`;
+) => `${prefix}formatted-messages:${JSON.stringify([remoteId, format])}`;
 
 type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
 type StoredUserMessage = Extract<ThreadMessage, { role: "user" }>;
@@ -577,9 +577,25 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         const ids = new Set(
           items.map((item) => formatAdapter.getId(item.message)),
         );
-        await writeEntries((entries) =>
-          entries.filter((entry) => !ids.has(entry.id)),
-        );
+        await writeEntries((entries) => {
+          const parents = new Map(
+            entries.map((entry) => [entry.id, entry.parent_id]),
+          );
+          return entries.flatMap((entry) => {
+            if (ids.has(entry.id)) return [];
+            let parentId = entry.parent_id;
+            const visited = new Set<string>();
+            while (parentId !== null && ids.has(parentId)) {
+              if (visited.has(parentId)) {
+                parentId = null;
+                break;
+              }
+              visited.add(parentId);
+              parentId = parents.get(parentId) ?? null;
+            }
+            return [{ ...entry, parent_id: parentId }];
+          });
+        });
       },
     };
   }

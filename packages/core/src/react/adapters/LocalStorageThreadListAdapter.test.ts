@@ -1306,7 +1306,124 @@ const createThreadClient = (
 };
 
 describe("createLocalStorageHistoryAdapter withFormat", () => {
-  const formattedKey = "@assistant-ui:messages:thread-1:test/v1";
+  const formattedKey =
+    '@assistant-ui:formatted-messages:["thread-1","test/v1"]';
+
+  it("keeps formatted history separate from a legacy thread with the colliding id", async () => {
+    const legacyKey = "@assistant-ui:messages:a:ai-sdk/v6";
+    const storage = createStorage({
+      [legacyKey]: JSON.stringify({
+        messages: [{ message: storedMessage("legacy"), parentId: null }],
+      }),
+    });
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["a", "a:ai-sdk/v6"]);
+    const history = createHistory(storage, client.getAui as () => never);
+    const formatted = history.withFormat?.({
+      ...testFormat,
+      format: "ai-sdk/v6",
+    });
+    if (!formatted) throw new Error("withFormat is missing");
+
+    await formatted.append({
+      parentId: null,
+      message: { id: "formatted", text: "hello" },
+    });
+    expect(storage.get(legacyKey)).toBeDefined();
+    expect(
+      JSON.parse(storage.get(legacyKey) ?? "").messages[0].message.id,
+    ).toBe("legacy");
+    await expect(formatted.load()).resolves.toEqual({
+      messages: [
+        { parentId: null, message: { id: "formatted", text: "hello" } },
+      ],
+    });
+
+    await adapter.delete("a");
+    client.switchTo("a:ai-sdk/v6");
+    await expect(
+      createHistory(storage, client.getAui as () => never).load(),
+    ).resolves.toMatchObject({
+      messages: [{ message: { id: "legacy" }, parentId: null }],
+    });
+  });
+
+  it("encodes thread ids and formats without collisions", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["a:b", "a"]);
+    const first = createHistory(
+      storage,
+      client.getAui as () => never,
+    ).withFormat?.({
+      ...testFormat,
+      format: "c",
+    });
+    if (!first) throw new Error("withFormat is missing");
+    await first.append({ parentId: null, message: { id: "first", text: "1" } });
+    client.switchTo("a");
+    const second = createHistory(
+      storage,
+      client.getAui as () => never,
+    ).withFormat?.({
+      ...testFormat,
+      format: "b:c",
+    });
+    if (!second) throw new Error("withFormat is missing");
+    await second.append({
+      parentId: null,
+      message: { id: "second", text: "2" },
+    });
+
+    client.switchTo("a:b");
+    await expect(first.load()).resolves.toEqual({
+      messages: [{ parentId: null, message: { id: "first", text: "1" } }],
+    });
+    client.switchTo("a");
+    await expect(second.load()).resolves.toEqual({
+      messages: [{ parentId: null, message: { id: "second", text: "2" } }],
+    });
+  });
+
+  it("reads existing unformatted history", async () => {
+    const storage = createStorage({
+      "@assistant-ui:messages:thread-1": JSON.stringify({
+        messages: [{ message: storedMessage("legacy"), parentId: null }],
+      }),
+    });
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1"]);
+
+    await expect(
+      createHistory(storage, client.getAui as () => never).load(),
+    ).resolves.toMatchObject({
+      messages: [{ message: { id: "legacy" }, parentId: null }],
+    });
+  });
+
+  it("preserves later turns after deleting a middle turn and reloading", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const formatted = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+    const turns = [
+      { parentId: null, message: { id: "user-1", text: "one" } },
+      { parentId: "user-1", message: { id: "assistant-1", text: "two" } },
+      { parentId: "assistant-1", message: { id: "user-2", text: "three" } },
+      { parentId: "user-2", message: { id: "assistant-2", text: "four" } },
+    ];
+    for (const turn of turns) await formatted.append(turn);
+    await formatted.delete?.([turns[1]!]);
+
+    const reloaded = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+    await expect(reloaded.load()).resolves.toEqual({
+      messages: [turns[0], { ...turns[2], parentId: "user-1" }, turns[3]],
+    });
+  });
 
   it("appends, updates, deletes, and reloads formatted messages", async () => {
     const storage = createStorage();
@@ -1414,7 +1531,7 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
       ),
     ).toEqual(["edited"]);
     expect(
-      storage.get("@assistant-ui:messages:thread-2:test/v1"),
+      storage.get('@assistant-ui:formatted-messages:["thread-2","test/v1"]'),
     ).toBeUndefined();
   });
 
