@@ -198,10 +198,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
-  // Set by expanding a disclosure and cleared only when a reader's scroll
-  // gesture reaches an overflowing bottom, a run starts, or the thread
-  // changes: content that still fits the viewport reads as being at the
-  // bottom, so without it the next resize would resume follow.
+  // Set by expanding a disclosure and cleared when a reader's scroll reaches
+  // an overflowing bottom, a run starts, the thread changes, or the reader
+  // asks for the bottom again: content that still fits the viewport reads as
+  // being at the bottom, so without it the next resize would resume follow.
   const followPausedRef = useRef(false);
   const scrolledSincePauseRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
