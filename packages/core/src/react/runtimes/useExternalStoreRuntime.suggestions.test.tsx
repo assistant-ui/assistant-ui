@@ -26,16 +26,19 @@ const Consumer = () => {
 
 const App = ({
   suggestions,
+  isSendDisabled,
   config,
   strict,
 }: {
   suggestions?: ThreadSuggestion[];
+  isSendDisabled?: boolean;
   config?: AuiConfig;
   strict?: boolean;
 }) => {
   const runtime = useExternalStoreRuntime<ThreadMessage>({
     messages: [],
     onNew: async () => {},
+    ...(isSendDisabled === undefined ? {} : { isSendDisabled }),
     ...(suggestions && { suggestions }),
   });
   const tree = (
@@ -96,6 +99,16 @@ describe("useExternalStoreRuntime suggestions scope", () => {
     render(<App />);
 
     expect(scopeSuggestions).toEqual([]);
+  });
+
+  it("projects the external send policy onto thread state", async () => {
+    const view = render(<App isSendDisabled={false} />);
+    expect(aui.thread.getState().isSendDisabled).toBe(false);
+
+    view.rerender(<App isSendDisabled />);
+    await waitFor(() => {
+      expect(aui.thread.getState().isSendDisabled).toBe(true);
+    });
   });
 
   it("follows runtime suggestion updates", async () => {
