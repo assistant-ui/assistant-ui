@@ -56,8 +56,10 @@ const endMediaSessions = (runtime: ThreadRuntimeCore) => {
   if (runtime.voice) endMediaSession(() => runtime.disconnectVoice(), "Voice");
   if (runtime.composer.dictation)
     endMediaSession(() => runtime.composer.stopDictation(), "Dictation");
-  for (const message of runtime.messages) {
-    const edit = runtime.getEditComposer(message.id);
+  const edits =
+    runtime.__internal_getEditComposers?.() ??
+    runtime.messages.map((message) => runtime.getEditComposer(message.id));
+  for (const edit of edits) {
     if (edit?.dictation)
       endMediaSession(() => edit.stopDictation(), "Dictation");
   }

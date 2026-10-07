@@ -240,6 +240,21 @@ describe("thread runtime lifecycle media sessions", () => {
     return { thread, dictation, speech };
   };
 
+  const addSiblingBranch = (
+    thread: Awaited<ReturnType<typeof localThread>>["thread"],
+  ) => {
+    const original = thread.messages[0]!;
+    const siblingId = "sibling";
+    thread.import({
+      headId: original.id,
+      messages: [
+        ...thread.export().messages,
+        { parentId: null, message: { ...original, id: siblingId } },
+      ],
+    });
+    return siblingId;
+  };
+
   it("ends a live dictation session when the thread runtime is disposed", async () => {
     const { thread, dictation } = await localThread();
     thread.composer.startDictation();
@@ -265,6 +280,27 @@ describe("thread runtime lifecycle media sessions", () => {
     expect(dictation.session.cancel).not.toHaveBeenCalled();
   });
 
+  it("ends dictation in an off-branch edit composer when the thread runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    const siblingId = addSiblingBranch(thread);
+    thread.beginEdit(messageId);
+    const edit = thread.getEditComposer(messageId)!;
+    edit.startDictation();
+
+    thread.switchToBranch(siblingId);
+    expect(thread.messages.map((message) => message.id)).not.toContain(
+      messageId,
+    );
+    expect(thread.getEditComposer(messageId)).toBe(edit);
+    expect(edit.dictation).toBeDefined();
+
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
+  });
+
   it("stops speech when the thread runtime is disposed", async () => {
     const { thread, speech } = await localThread();
     const messageId = thread.messages[0]!.id;
@@ -274,6 +310,23 @@ describe("thread runtime lifecycle media sessions", () => {
     disposeThreadRuntime(thread);
 
     expect(speech.utterance.cancel).toHaveBeenCalled();
+  });
+
+  it("stops speech for an off-branch message when the thread runtime is disposed", async () => {
+    const { thread, speech } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    const siblingId = addSiblingBranch(thread);
+    thread.speak(messageId);
+
+    thread.switchToBranch(siblingId);
+    expect(thread.messages.map((message) => message.id)).not.toContain(
+      messageId,
+    );
+    expect(thread.speech?.messageId).toBe(messageId);
+
+    disposeThreadRuntime(thread);
+
+    expect(speech.utterance.cancel).toHaveBeenCalledTimes(1);
   });
 
   it("ends the dictation of an external-store thread the list switches away from", () => {

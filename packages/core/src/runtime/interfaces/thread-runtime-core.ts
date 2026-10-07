@@ -239,6 +239,7 @@ export type ThreadRuntimeCore = Readonly<{
 
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
 
   getQueueItems?: () => readonly QueueItemState[];

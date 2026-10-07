@@ -207,6 +207,10 @@ export abstract class BaseThreadRuntimeCore
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
   }
+
+  public __internal_getEditComposers() {
+    return this._editComposers.values();
+  }
   protected _isVoiceMessage(messageId: string | null) {
     return (
       messageId !== null && this._voiceMessages.some((m) => m.id === messageId)
