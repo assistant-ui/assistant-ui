@@ -54,7 +54,7 @@ import { ToolResponse } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { QueueItemState } from "../scopes/queue-item";
 import type { ComposerSendOptions } from "../scopes/composer";
-import { fileMatchesAccept } from "../../adapters/attachment";
+import { fileMatchesAccept, liftNonTextParts } from "../../adapters/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
 import { createToolInteraction } from "../../runtime/utils/tool-interactions";
@@ -627,6 +627,9 @@ const useComposerClientResource = ({
     [],
   );
   const attachmentSends = useMemo(() => new AttachmentSendOperations(), []);
+  const nonTextPassthrough = useRef<
+    readonly ExternalThreadMessage["content"][number][]
+  >([]);
   const destroySignal = useAssistantClientDestroySignal();
   const [submission, setSubmission, submissionRef] = useLiveState<
     ComposerSubmission | undefined
@@ -700,7 +703,15 @@ const useComposerClientResource = ({
     const restored = message.attachments ?? [];
     for (const attachment of restored)
       attachmentSends.unmarkRemoved(attachment);
-    setAttachments(restored);
+    if (message.role === "user") {
+      setAttachments([...restored, ...liftNonTextParts(message.content)]);
+      nonTextPassthrough.current = [];
+    } else {
+      setAttachments(restored);
+      nonTextPassthrough.current = message.content.filter(
+        (part) => part.type !== "text",
+      );
+    }
   };
 
   const handleRemoveAttachment = useCallback(
@@ -1032,9 +1043,12 @@ const useComposerClientResource = ({
   ) => {
     const composedMessage: AppendMessage = {
       role: current.role,
-      content: current.text
-        ? [{ type: "text" as const, text: current.text }]
-        : [],
+      content: [
+        ...(current.text
+          ? [{ type: "text" as const, text: current.text }]
+          : []),
+        ...nonTextPassthrough.current,
+      ] as AppendMessage["content"],
       attachments,
       createdAt: new Date(),
       parentId: null,
@@ -1241,6 +1255,7 @@ const useComposerClientResource = ({
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
+      nonTextPassthrough.current = [];
       await Promise.all([
         removePendingAttachments(draftUploadsToRemove(removed)),
         discarded,
