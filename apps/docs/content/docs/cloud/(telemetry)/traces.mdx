@@ -107,7 +107,7 @@ An all accepted export returns `{}`. An export with rejected spans still returns
 }
 ```
 
-When the receiver has no individual error text, `errorMessage` is `"<n> spans were rejected"`. Use this response rather than assuming that `200` means every span became a run.
+When the receiver has no individual error text, `errorMessage` is `"<n> spans were rejected"`. Check `partialSuccess` in the response: a `200` does not mean every span became a run.
 
 ## How spans become runs
 
@@ -159,7 +159,9 @@ A trace root's id is deterministic: `run_<first 24 hexadecimal characters of sha
 |---|---|
 | `source`, `created_by`, and `created_at` | The client owned value. |
 | `thread_id`, `assistant_id`, and `message_id` | The client owned value. |
-| `tags`, `environment`, `release`, and `first_token_ms` | The client owned value. |
+| `tags`, `environment`, and `release` | The client owned value. |
+| `first_token_ms` | The exported value, when present. |
+| `error_code` | The existing value. |
 | `aborted` or `disconnected` outcome | The client owned outcome. |
 | Any attribute beginning `client.` | The client owned value. |
 

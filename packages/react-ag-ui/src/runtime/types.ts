@@ -15,6 +15,24 @@ import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { McpToolCallResult } from "./mcp-tool-result";
 
+export const AG_UI_METADATA_NAMESPACE = "agui";
+export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
+export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
+
+export type AgUiOpaqueReasoning = {
+  id: string;
+  encryptedValue: string;
+  after?: boolean;
+};
+
+export type AgUiCustomMetadata = {
+  /** Wire role restored on export for messages the internal model cannot
+   * represent (a developer record rides as a system message). */
+  role?: "developer";
+  interrupts?: AgUiInterrupt[];
+  opaqueReasoning?: AgUiOpaqueReasoning[];
+};
+
 /**
  * @experimental This API is still under active development and might change without notice.
  *
@@ -180,16 +198,22 @@ export type AgUiEvent =
       delta: string;
       subagentRunId?: string;
     }
-  | { type: "THINKING_START"; title?: string }
-  | { type: "THINKING_TEXT_MESSAGE_START" }
+  | { type: "THINKING_START"; title?: string; timestamp?: number }
+  | { type: "THINKING_TEXT_MESSAGE_START"; timestamp?: number }
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
-  | { type: "THINKING_TEXT_MESSAGE_END" }
-  | { type: "THINKING_END" }
-  | { type: "REASONING_START"; messageId?: string; subagentRunId?: string }
+  | { type: "THINKING_TEXT_MESSAGE_END"; timestamp?: number }
+  | { type: "THINKING_END"; timestamp?: number }
+  | {
+      type: "REASONING_START";
+      messageId?: string;
+      subagentRunId?: string;
+      timestamp?: number;
+    }
   | {
       type: "REASONING_MESSAGE_START";
       messageId?: string;
       subagentRunId?: string;
+      timestamp?: number;
     }
   | {
       type: "REASONING_MESSAGE_CONTENT";
@@ -201,6 +225,7 @@ export type AgUiEvent =
       type: "REASONING_MESSAGE_END";
       messageId?: string;
       subagentRunId?: string;
+      timestamp?: number;
     }
   | {
       type: "REASONING_ENCRYPTED_VALUE";
@@ -209,7 +234,12 @@ export type AgUiEvent =
       encryptedValue: string;
       subagentRunId?: string;
     }
-  | { type: "REASONING_END"; messageId?: string; subagentRunId?: string }
+  | {
+      type: "REASONING_END";
+      messageId?: string;
+      subagentRunId?: string;
+      timestamp?: number;
+    }
   | {
       type: "TOOL_CALL_START";
       toolCallId: string;
@@ -247,6 +277,13 @@ export type AgUiEvent =
       content: Record<string, unknown>;
       messageId?: string;
       replace?: boolean;
+      subagentRunId?: string;
+    }
+  | {
+      type: "ACTIVITY_DELTA";
+      messageId: string;
+      activityType: string;
+      patch: any[];
       subagentRunId?: string;
     }
   | { type: "RAW"; event: any; source?: string }

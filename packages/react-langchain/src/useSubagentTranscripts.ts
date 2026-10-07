@@ -14,6 +14,7 @@ import {
   type ExternalMessageConversionCache,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
 import type { BaseMessage } from "@langchain/core/messages";
 import { channelProjection, type Event } from "@langchain/langgraph-sdk/stream";
@@ -513,7 +514,7 @@ export const useSubagentTranscripts = (
     source.reconcile(controller, stream.subagents, uiMessagesByParent);
   }, [controller, source, stream.subagents, uiMessagesByParent]);
 
-  useEffect(() => () => source.dispose(), [source]);
+  useReplaySafeEffect(() => () => source.dispose(), [source]);
 
   return useSyncExternalStore(
     source.subscribe,

@@ -64,6 +64,7 @@ vi.mock("react-native", async (importOriginal) => {
     accessibilityLabel,
     accessibilityHint,
     accessibilityRole,
+    "aria-current": current,
     "aria-selected": selected,
     hitSlop: _hitSlop,
     delayLongPress: _delayLongPress,
@@ -81,6 +82,7 @@ vi.mock("react-native", async (importOriginal) => {
         className,
         "aria-label": accessibilityLabel,
         "aria-description": accessibilityHint,
+        "aria-current": current,
         "aria-selected": selected,
         role: accessibilityRole,
         onClick: onPress,
@@ -145,6 +147,89 @@ describe("ConversationMapAui", () => {
     );
   };
 
+  it("updates the preview when a message is replaced with the same id", async () => {
+    h.messages = [
+      message("u1", "user", [text("Question")]),
+      message("a1", "assistant", [text("Old preview")]),
+    ];
+    await render();
+
+    h.messages = [
+      h.messages[0],
+      message("a1", "assistant", [text("New preview")]),
+    ];
+    await render();
+
+    expect(ticks()[0]?.getAttribute("aria-description")).toBe("New preview");
+  });
+
+  it("rebuilds a turn when its user head is replaced by an assistant", async () => {
+    const first = message("u1", "user", [text("First")]);
+    const firstAnswer = message("a1", "assistant", [text("First answer")]);
+    const second = message("u2", "user", [text("Second")]);
+    h.messages = [first, firstAnswer, second];
+    await render();
+
+    h.messages = [
+      first,
+      firstAnswer,
+      message("a2", "assistant", [text("Continued answer")]),
+    ];
+    await render();
+
+    expect(ticks().map((tick) => tick.getAttribute("aria-label"))).toEqual([
+      "First",
+    ]);
+  });
+
+  it("does not reproject completed turns during a streaming update", async () => {
+    let reads = 0;
+    const counted = (
+      id: string,
+      role: "user" | "assistant",
+      value: string,
+    ) => ({
+      attachments: [],
+      get id() {
+        reads++;
+        return id;
+      },
+      get role() {
+        reads++;
+        return role;
+      },
+      get content() {
+        reads++;
+        return [text(value)];
+      },
+    });
+    const prefix = Array.from({ length: 100 }, (_, index) => [
+      counted(`u${index}`, "user", `Question ${index}`),
+      counted(`a${index}`, "assistant", `Answer ${index}`),
+    ]).flat();
+    const tail = message("tail", "user", [text("Tail question")]);
+    h.messages = [
+      ...prefix,
+      tail,
+      message("stream", "assistant", [text("Old")]),
+    ];
+    await render();
+
+    reads = 0;
+    h.messages = [
+      ...prefix,
+      tail,
+      message("stream", "assistant", [text("New")]),
+    ];
+    await render();
+
+    expect(reads).toBe(0);
+    expect(ticks().map((tick) => tick.getAttribute("aria-label"))).toEqual([
+      ...Array.from({ length: 100 }, (_, index) => `Question ${index}`),
+      "Tail question",
+    ]);
+  });
+
   it("draws one tick per turn, titled by the question and previewed by the answer", async () => {
     conversation();
     await render();
@@ -164,19 +249,19 @@ describe("ConversationMapAui", () => {
     h.viewport.visibleMessageIds = ["a1", "u2", "a2"];
     await render();
 
-    expect(ticks().map((tick) => tick.getAttribute("aria-selected"))).toEqual([
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
       "true",
-      "false",
-      "false",
+      null,
+      null,
     ]);
 
     h.viewport.descent = 1;
     await render();
 
-    expect(ticks().map((tick) => tick.getAttribute("aria-selected"))).toEqual([
-      "false",
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      null,
       "true",
-      "false",
+      null,
     ]);
   });
 
