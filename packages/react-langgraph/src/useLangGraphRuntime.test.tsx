@@ -3515,16 +3515,74 @@ describe("useLangGraphRuntime", () => {
       ]);
     });
 
-    it("stops an edit that is still looking up its checkpoint", async () => {
+    it("stops the active stream for a staged edit without starting another run", async () => {
+      const releaseStale = deferred<void>();
+      const stream = vi.fn(
+        (
+          _messages: LangChainMessage[],
+          _config: { abortSignal: AbortSignal },
+        ) =>
+          (async function* () {
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-1", content: "stale partial" }],
+            };
+            await releaseStale.promise;
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-2", content: "stale late" }],
+            };
+          })(),
+      );
+      const getCheckpointId = vi.fn(async () => "cp-1");
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        getCheckpointId,
+      );
+
+      await act(async () => {
+        result.current.thread.append("original question");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("stale partial"),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((message) => message.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[0]![1].abortSignal.aborted).toBe(true);
+      expect(stream).toHaveBeenCalledTimes(1);
+      expect(getCheckpointId).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseStale.resolve();
+      });
+      expect(textsOf(result.current)).toEqual(["staged question"]);
+    });
+
+    it("restores an edit stopped during checkpoint lookup before the next send", async () => {
       const checkpoint = deferred<string | null>();
-      const stream = vi.fn((_messages: unknown, _config: unknown) =>
-        (async function* () {
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
           yield {
             event: "messages/complete",
-            data: [{ type: "ai", id: "answer", content: "answer" }],
+            data: [{ type: "ai", id: `answer-${call}`, content: "answer" }],
           };
-        })(),
-      );
+        })();
+      });
       const { result } = renderHook(() =>
         useLangGraphRuntime({
           stream:
@@ -3569,7 +3627,7 @@ describe("useLangGraphRuntime", () => {
         checkpoint.resolve("cp-1");
       });
       expect(stream).toHaveBeenCalledTimes(1);
-      expect(textsOf(result.current)).toEqual(["edited question"]);
+      expect(textsOf(result.current)).toEqual(["question", "answer"]);
 
       await act(async () => {
         result.current.thread.append("next");
@@ -3583,7 +3641,8 @@ describe("useLangGraphRuntime", () => {
       ]);
       expect(stream.mock.calls[1]![1]).not.toHaveProperty("checkpointId");
       expect(textsOf(result.current)).toEqual([
-        "edited question",
+        "question",
+        "answer",
         "next",
         "answer",
       ]);

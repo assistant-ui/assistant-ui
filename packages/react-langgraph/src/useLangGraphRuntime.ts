@@ -926,19 +926,33 @@ const useLangGraphRuntimeImpl = (
       ? async (msg) => {
           toolResultBufferRef.current.clear();
           cancelActiveRun();
-          truncationRef.current++;
+          const truncation = ++truncationRef.current;
+          const previousInterrupt = interruptRef.current;
+          const previousInterruptRunConfig = interruptRunConfigRef.current;
+          const previousUnsentTranscriptIds = [
+            ...unsentTranscriptIdsRef.current,
+          ];
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
           );
-          setMessages(truncated);
-          setUIMessages(
-            filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+          const kept = new Set(truncated);
+          const removed = langGraphMessagesRef.current.filter(
+            (message) => !kept.has(message),
           );
-          pruneMessageCaches(truncated);
+          const keptUIMessages = filterUIMessagesBySurvivingIds(
+            uiMessagesRef.current,
+            truncated,
+          );
+          const removedUIMessages = uiMessagesRef.current.filter(
+            (message) => !keptUIMessages.includes(message),
+          );
+          setMessages(truncated);
+          setUIMessages(keptUIMessages);
           interruptRunConfigRef.current = undefined;
           setInterrupt(undefined);
           if (!(msg.startRun ?? msg.role === "user")) {
+            pruneMessageCaches(truncated);
             const stagedMessage = toLangGraphUserMessage(msg);
             stageAttachments(stagedMessage.id, msg.attachments);
             stagedMessagesRef.current.set(stagedMessage.id, {
@@ -958,10 +972,38 @@ const useLangGraphRuntimeImpl = (
           const shownMessages = [...truncated, editMessage];
           langGraphMessagesRef.current = shownMessages;
           setMessages(shownMessages);
+          if (!externalId) pruneMessageCaches(shownMessages);
           return handleSendMessage(
             [...transcripts, editMessage],
             { runConfig: msg.runConfig },
             externalId ? () => getCheckpointId(externalId, base) : undefined,
+            externalId
+              ? (sent) => {
+                  if (sent) {
+                    pruneMessageCaches(shownMessages);
+                    return;
+                  }
+                  if (truncationRef.current !== truncation) return;
+                  for (const id of previousUnsentTranscriptIds)
+                    unsentTranscriptIdsRef.current.add(id);
+                  const restored = appendMissing(
+                    langGraphMessagesRef.current.filter(
+                      (message) => message.id !== editMessage.id,
+                    ),
+                    removed,
+                  );
+                  langGraphMessagesRef.current = restored;
+                  setMessages(restored);
+                  setUIMessages(
+                    appendMissing(uiMessagesRef.current, removedUIMessages),
+                  );
+                  pruneMessageCaches(restored);
+                  if (interruptRef.current === undefined) {
+                    interruptRunConfigRef.current = previousInterruptRunConfig;
+                    setInterrupt(previousInterrupt);
+                  }
+                }
+              : undefined,
           );
         }
       : undefined,
