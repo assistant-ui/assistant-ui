@@ -1,8 +1,10 @@
+import { decodeAbsolutePointer } from "./pointer";
 import {
   A2UI_SURFACE_ID,
   type A2uiOperationResult,
   type A2uiState,
   type A2uiSurfaceState,
+  type A2uiVersion,
 } from "./types";
 
 const OPERATION_KEYS = new Set([
@@ -12,14 +14,14 @@ const OPERATION_KEYS = new Set([
   "deleteSurface",
 ]);
 // This defensive ceiling is well above the renderer's displayed-item limit.
-const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
+export const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
 const INVALID_POINTER = Symbol("invalidPointer");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isVersion = (value: unknown): value is "v0.9" | "v1.0" =>
-  value === "v0.9" || value === "v1.0";
+const isVersion = (value: unknown): value is A2uiVersion =>
+  value === "v0.9" || value === "v0.9.1" || value === "v1.0";
 
 const surfaceIdOf = (payload: Record<string, unknown>): string | undefined => {
   const surfaceId = payload["surfaceId"];
@@ -105,25 +107,16 @@ const upsertComponents = (
   }
 };
 
-const decodePointer = (path: string): string[] | undefined => {
-  if (path === "" || path === "/") return [];
-  if (!path.startsWith("/")) return undefined;
-  return path
-    .slice(1)
-    .split("/")
-    .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
-};
-
 const isArrayIndex = (segment: string): boolean =>
   segment === "0" || /^[1-9]\d*$/.test(segment);
 
-const setAtPointer = (
+export const setAtPointer = (
   model: unknown,
   path: string,
   value: unknown,
   nullDeletes: boolean,
 ): { readonly ok: boolean; readonly value: unknown } => {
-  const segments = decodePointer(path);
+  const segments = decodeAbsolutePointer(path);
   if (!segments) return { ok: false, value: model };
   if (segments.length === 0) return { ok: true, value };
 

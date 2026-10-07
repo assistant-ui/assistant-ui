@@ -10,13 +10,18 @@ type Msg = { id: string; role: string };
 
 const h = vi.hoisted(() => ({
   state: {
-    thread: { messages: [] as Msg[] },
+    thread: {
+      messages: [] as Msg[],
+      hasEarlier: false,
+      isLoadingEarlier: false,
+    },
     message: { role: "user" as string, composer: { isEditing: false } },
   },
   itemState: { role: "user" } as { role: string; parts?: unknown[] },
   events: {} as Record<string, Set<() => void>>,
   flatListProps: null as Record<string, unknown> | null,
   scrollToOffset: vi.fn(),
+  loadEarlier: vi.fn(async () => {}),
 }));
 
 vi.mock("react-native", async (importOriginal) => {
@@ -79,7 +84,9 @@ vi.mock("react-native", async (importOriginal) => {
 vi.mock("@assistant-ui/store", async () => {
   const React = await import("react");
 
+  const aui = { thread: { loadEarlier: h.loadEarlier } };
   return {
+    useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
     useAuiEvent: (
       selector: string | { scope: string; event: string },
@@ -400,6 +407,26 @@ describe("ThreadMessages", () => {
   });
 
   describe("MessagesFlatList history", () => {
+    it("pages through the runtime when no history prop is given", async () => {
+      h.state.thread.hasEarlier = true;
+      try {
+        await mountFlatList({ components: messageComponents });
+        getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+        expect(h.loadEarlier).toHaveBeenCalledOnce();
+
+        h.state.thread.isLoadingEarlier = true;
+        await mountFlatList({ components: messageComponents });
+        expect(getFlatListProps().onStartReached).toBeUndefined();
+      } finally {
+        h.state.thread.hasEarlier = false;
+        h.state.thread.isLoadingEarlier = false;
+      }
+
+      await mountFlatList({ components: messageComponents });
+      expect(getFlatListProps().onStartReached).toBeUndefined();
+      expect(getFlatListProps().onStartReachedThreshold).toBeUndefined();
+    });
+
     it("wires loadMore only while history can load more", async () => {
       const loadMore = vi.fn();
 

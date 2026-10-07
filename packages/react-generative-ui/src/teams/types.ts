@@ -55,6 +55,11 @@ export interface TeamsSubmitData {
   };
 }
 
+export type TeamsTemporalField = { readonly fieldId: string } & (
+  | { readonly role: "date" }
+  | { readonly role: "time"; readonly previousValue?: string }
+);
+
 /**
  * A submit action. `data` carries the resume payload under an `aui` key so
  * {@link decodeSubmitData} can invert it out of the merged `activity.value`
@@ -109,11 +114,12 @@ export interface TeamsInputChoice {
   readonly value: string;
 }
 
-/** A dropdown (`compact`) or radio group (`expanded`) input. */
+/** A dropdown (`compact`), radio group (`expanded`), or checkbox group (`expanded` with `isMultiSelect`) input. */
 export interface TeamsInputChoiceSet {
   readonly type: "Input.ChoiceSet";
   readonly id: string;
   readonly style: "compact" | "expanded";
+  readonly isMultiSelect?: true;
   readonly choices: readonly TeamsInputChoice[];
   readonly placeholder?: string;
   readonly label?: string;
@@ -138,8 +144,10 @@ export interface TeamsInputToggle {
 export interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
+  readonly value?: string;
   readonly isMultiline?: true;
   readonly separator?: true;
   readonly spacing?: "large";
@@ -148,6 +156,17 @@ export interface TeamsInputText {
 /** A date input, restricted to `YYYY-MM-DD` values. */
 export interface TeamsInputDate {
   readonly type: "Input.Date";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+export interface TeamsInputTime {
+  readonly type: "Input.Time";
   readonly id: string;
   readonly label?: string;
   readonly value?: string;
@@ -196,6 +215,7 @@ export type TeamsCardElement =
   | TeamsInputToggle
   | TeamsInputText
   | TeamsInputDate
+  | TeamsInputTime
   | TeamsTable;
 
 /** A Microsoft Teams Adaptive Card, pinned to schema version 1.5 (the Teams desktop/web cap; mobile clients cap at 1.2). */

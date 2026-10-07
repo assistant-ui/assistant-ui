@@ -67,6 +67,18 @@ const emitAssistantText = (
   });
 };
 
+const emitReasoning = (subscriber: any, messageId: string, delta: string) => {
+  subscriber.onReasoningMessageStartEvent?.({
+    event: { type: "REASONING_MESSAGE_START", messageId },
+  });
+  subscriber.onReasoningMessageContentEvent?.({
+    event: { type: "REASONING_MESSAGE_CONTENT", messageId, delta },
+  });
+  subscriber.onReasoningMessageEndEvent?.({
+    event: { type: "REASONING_MESSAGE_END", messageId },
+  });
+};
+
 describe("AgUiThreadRuntimeCore branch flows", () => {
   it("append: records the visible pair and persists user then assistant with correct parents", async () => {
     const agent = finalizingAgent("Hello");
@@ -263,6 +275,85 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
         content: [{ type: "text", text: "continued" }],
       },
     });
+  });
+
+  it("reload: keeps an earlier answer when a tool snapshot ends at its parent", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "c1",
+              toolCallName: "lookup",
+              parentMessageId: "a1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "c1" },
+          });
+          subscriber.onToolCallResultEvent?.({
+            event: {
+              type: "TOOL_CALL_RESULT",
+              toolCallId: "c1",
+              messageId: "t1",
+              content: "ok",
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "a1",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "c1",
+                      type: "function",
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "t1",
+                  role: "tool",
+                  toolCallId: "c1",
+                  content: "ok",
+                },
+              ],
+            },
+          });
+        }
+
+        emitAssistantText(subscriber, `b${runCount}`, `answer ${runCount}`);
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    userId = core.getMessages()[0]!.id;
+    await core.reload("a1");
+
+    const repository = core.getMessageRepository();
+    const answerBranches = repository.messages
+      .filter(({ message }) => message.id === "b1" || message.id === "b2")
+      .map(({ message, parentId }) => [message.id, parentId]);
+    expect(answerBranches).toEqual([
+      ["b1", "a1"],
+      ["b2", "a1"],
+    ]);
+    expect(core.getMessages().map(({ id }) => id)).toEqual([
+      userId,
+      "a1",
+      "b2",
+    ]);
   });
 
   it("reload: follows a snapshot head introduced during a branch run", async () => {
@@ -889,5 +980,239 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     });
     expect(tail.metadata.isOptimistic).toBeUndefined();
     expect(tail.id.startsWith("__optimistic__")).toBe(false);
+  });
+
+  it("edit: adds the edited message as a sibling branch and keeps the original turn", async () => {
+    let callCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        callCount++;
+        emitAssistantText(
+          subscriber,
+          `assistant-${callCount}`,
+          `answer ${callCount}`,
+        );
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    const originalUserId = core.getMessages()[0]!.id;
+    const originalAssistantId = core.getMessages()[1]!.id;
+
+    await core.edit(
+      createAppendMessage({
+        parentId: null,
+        sourceId: originalUserId,
+        startRun: false,
+      }),
+    );
+    const editedUserId = core.getMessages()[0]!.id;
+
+    const entries = core.getMessageRepository().messages;
+    expect(entries.map(({ message }) => message.id)).toContain(originalUserId);
+    expect(entries.map(({ message }) => message.id)).toContain(
+      originalAssistantId,
+    );
+    expect(
+      entries.find(({ message }) => message.id === originalAssistantId)
+        ?.parentId,
+    ).toBe(originalUserId);
+    expect(
+      entries.find(({ message }) => message.id === editedUserId)?.parentId,
+    ).toBeNull();
+    expect(core.getMessages().map(({ id }) => id)).toEqual([editedUserId]);
+  });
+
+  it.each([
+    { showThinking: true, expected: ["reasoning", "text"] },
+    { showThinking: false, expected: ["text"] },
+  ])(
+    "MESSAGES_SNAPSHOT without reasoning records keeps earlier reasoning only while showThinking is $showThinking",
+    async ({ showThinking, expected }) => {
+      let runCount = 0;
+      let userId = "";
+      const agent = {
+        runAgent: vi.fn(async (input: any, subscriber: any) => {
+          runCount++;
+          if (runCount === 1) {
+            userId = input.messages.find(
+              (m: { role: string }) => m.role === "user",
+            ).id;
+            emitReasoning(subscriber, "reasoning-1", "thinking");
+            emitAssistantText(subscriber, "assistant-1", "Hello.");
+            subscriber.onRunFinalized?.();
+            return;
+          }
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+          subscriber.onRunFinalized?.();
+        }),
+      } as unknown as HttpAgent;
+
+      const core = createCore(agent);
+      await core.append(createAppendMessage());
+      core.updateOptions({ agent, logger: noopLogger, showThinking });
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+
+      const first = core
+        .getMessages()
+        .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+      expect(first.content.map((part) => part.type)).toEqual(expected);
+      expect(first.content.at(-1)).toMatchObject({
+        type: "text",
+        text: "Hello.",
+      });
+      if (showThinking) {
+        expect(first.content[0]).toMatchObject({
+          type: "reasoning",
+          text: "thinking",
+        });
+      }
+    },
+  );
+
+  it("MESSAGES_SNAPSHOT without activity keeps streamed activity after its text", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+          subscriber.onActivitySnapshotEvent?.({
+            event: {
+              type: "ACTIVITY_SNAPSHOT",
+              messageId: "activity-1",
+              activityType: "progress",
+              content: { step: 1 },
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(
+      (core.getMessages()[1] as ThreadAssistantMessage).content,
+    ).toMatchObject([
+      { type: "text", text: "Hello." },
+      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+    ]);
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core
+      .getMessages()
+      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(first.content).toMatchObject([
+      { type: "text", text: "Hello." },
+      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+    ]);
+  });
+
+  it("MESSAGES_SNAPSHOT without reasoning keeps reasoning around a tool call", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitReasoning(subscriber, "reasoning-a", "A");
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tool-x",
+              toolCallName: "lookup",
+              parentMessageId: "assistant-1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "tool-x" },
+          });
+          emitReasoning(subscriber, "reasoning-b", "B");
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "tool-x",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "tool-x",
+                      type: "function",
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(
+      (core.getMessages()[1] as ThreadAssistantMessage).content,
+    ).toMatchObject([
+      { type: "reasoning", text: "A" },
+      { type: "tool-call", toolCallId: "tool-x" },
+      { type: "reasoning", text: "B" },
+      { type: "text", text: "Hello." },
+    ]);
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core
+      .getMessages()
+      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(first.content).toMatchObject([
+      { type: "reasoning", text: "A" },
+      { type: "tool-call", toolCallId: "tool-x" },
+      { type: "reasoning", text: "B" },
+      { type: "text", text: "Hello." },
+    ]);
   });
 });

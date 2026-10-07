@@ -3,7 +3,7 @@ title: Custom Runtime
 description: Build a React chat UI for any AI backend with assistant-ui — four runtime patterns covering local state, REST, custom protocols, and external runtimes.
 ---
 
-If no [framework adapter](/docs/runtimes/pick-a-runtime) fits your backend, this section gives you four building blocks. All four are built on one of the two core runtimes; understanding the layering (see [architecture](/docs/runtimes/concepts/architecture)) makes the choice clear.
+If no [framework adapter](/docs/runtimes/pick-a-runtime) fits your backend, this section gives you four building blocks. All four are built on one of the two core runtimes (see [architecture](/docs/runtimes/concepts/architecture)).
 
 ## The four paths
 
@@ -39,7 +39,7 @@ do you have an AI SDK / LangGraph / Google ADK / A2A backend?
 
 **`DataStream`** is `LocalRuntime` plus a wire protocol. You do not write a `ChatModelAdapter`; your backend emits a standardized stream of message parts and the runtime consumes it directly.
 
-**`AssistantTransport`** is `ExternalStoreRuntime` plus a state-streaming protocol. Instead of sending message parts, your backend sends snapshots of its full agent state. The UI is a stateless view on top of that state. Supports custom commands beyond the built-in `add-message` and `add-tool-result`.
+**`AssistantTransport`** is `ExternalStoreRuntime` plus a state-streaming protocol. Instead of sending message parts, your backend sends snapshots of its full agent state. The UI is a stateless view on top of that state. It supports custom commands beyond the built-in `add-message` and `add-tool-result`.
 
 ## Common building blocks
 

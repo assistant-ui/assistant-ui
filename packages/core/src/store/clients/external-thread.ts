@@ -1,7 +1,11 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
+import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
-import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  useAssistantClientDestroySignal,
+  useOptionalAssistantClientRef,
+} from "@assistant-ui/store/internal";
 import {
   useClientLookup,
   attachTransformScopes,
@@ -93,6 +97,10 @@ export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
   isLoading?: boolean | undefined;
+  /** Whether messages exist before the first one in `messages`; takes effect with `onLoadEarlier`. */
+  hasEarlier?: boolean | undefined;
+  /** Loads the page before the first message, which the host prepends to `messages`; one call runs at a time. */
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   /**
@@ -193,10 +201,11 @@ const useMessageClient = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
+  const partKeys = getMessagePartKeys(message.content);
   const partClients = useClientLookup(
     message.content.map((part, idx) =>
       withKey(
-        idx,
+        partKeys[idx]!,
         PartResource({
           part,
           status: derivePartStatus(message, idx, part),
@@ -1094,12 +1103,13 @@ const useComposerClientResource = ({
         ? []
         : [result.value],
     );
-    dispatchMessage(
-      submissionRef.current ?? current,
-      finalAttachments,
-      context,
-      true,
-    );
+    const submitted = submissionRef.current ?? current;
+    if (!submitted.text.trim() && finalAttachments.length === 0) {
+      endSubmission();
+      returnToDraft({ ...submitted, attachments: [] });
+      return;
+    }
+    dispatchMessage(submitted, finalAttachments, context, true);
   };
 
   return {
@@ -1366,6 +1376,8 @@ const useExternalThread = ({
   messages: messagesProp,
   isRunning = false,
   isLoading = false,
+  hasEarlier: hasEarlierProp = false,
+  onLoadEarlier,
   state: threadState,
   extras,
   isSendDisabled = false,
@@ -1387,10 +1399,34 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const clientRef = useOptionalAssistantClientRef();
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
   );
+
+  const hasEarlier = hasEarlierProp && !!onLoadEarlier;
+  const loadingEarlierRef = useRef<Promise<void> | undefined>(undefined);
+  const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
+  const loadEarlier = useCallback((): Promise<void> => {
+    if (loadingEarlierRef.current) return loadingEarlierRef.current;
+    if (!hasEarlier || !onLoadEarlier) return Promise.resolve();
+    const loading = Promise.resolve()
+      .then(() => onLoadEarlier())
+      .catch((error: unknown) => {
+        console.error(
+          "[ExternalThread] onLoadEarlier callback rejected",
+          error,
+        );
+      })
+      .finally(() => {
+        loadingEarlierRef.current = undefined;
+        setIsLoadingEarlier(false);
+      });
+    loadingEarlierRef.current = loading;
+    setIsLoadingEarlier(true);
+    return loading;
+  }, [hasEarlier, onLoadEarlier]);
 
   // Local entries are optimistic: they apply only while the message's
   // external submittedFeedback still equals the value seen at click time.
@@ -1609,6 +1645,8 @@ const useExternalThread = ({
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
+  const hasAnswerToolCall =
+    !!onAddToolResult || !!onResumeToolCall || !!onRespondToToolApproval;
   const state = useMemo(() => {
     const messageStates =
       pendingClients.state.length === 0
@@ -1619,6 +1657,8 @@ const useExternalThread = ({
       isEmpty: messageStates.length === 0 && !isLoading,
       isDisabled: false,
       isLoading,
+      hasEarlier,
+      isLoadingEarlier,
       isRunning,
       capabilities: {
         edit: hasEdit,
@@ -1635,6 +1675,7 @@ const useExternalThread = ({
         unstable_copy: false,
         dictation: false,
         queue: hasQueue,
+        answerToolCall: hasAnswerToolCall,
       },
       messages: messageStates,
       tasks,
@@ -1648,6 +1689,8 @@ const useExternalThread = ({
   }, [
     isRunning,
     isLoading,
+    hasEarlier,
+    isLoadingEarlier,
     threadState,
     extras,
     hasQueue,
@@ -1659,6 +1702,7 @@ const useExternalThread = ({
     hasAttachments,
     hasFeedback,
     hasSpeech,
+    hasAnswerToolCall,
     speech,
     messageClients.state,
     pendingClients.state,
@@ -1722,6 +1766,7 @@ const useExternalThread = ({
       onResume();
     },
     cancelRun: handleCancelRun,
+    loadEarlier,
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)
@@ -1730,7 +1775,12 @@ const useExternalThread = ({
         );
       onLoadExternalState(state);
     },
-    getModelContext: () => ({ tools: {}, config: {} }),
+    getModelContext: () => {
+      const modelContext = clientRef?.current?.modelContext;
+      return modelContext?.source != null
+        ? modelContext().getModelContext()
+        : { tools: {}, config: {} };
+    },
     export: () => ({ messages: [] }),
     import: () => {},
     reset: () => {},

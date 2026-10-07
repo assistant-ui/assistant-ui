@@ -56,6 +56,32 @@ const chatCallbacks = () => ({
 });
 
 describe("AISDKThreads", () => {
+  it("emits the selected thread id when its composer sends", async () => {
+    const { transport } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    try {
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const sent = vi.fn();
+      aui.on({ scope: "thread", event: "composer.send" }, sent);
+
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+
+      await vi.waitFor(() => {
+        expect(sent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            threadId: aui.threads.getState().mainThreadId,
+          }),
+        );
+      });
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("runs one chat per thread and keeps histories isolated across switches", async () => {
     const { transport, emit, close } = createControlledTransport();
     const handle = createAssistantClient(

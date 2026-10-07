@@ -64,4 +64,4 @@ What the AI SDK runtime sends for the first turn of a new conversation, in order
 | The run is reported | `POST /v1/runs` | Stores the run and rolls up the day's figures |
 | The user acts | `POST /v1/events` in batches | Stores the events and the day's rollup |
 
-The local runtime follows the same sequence with `aui/v0` messages. LangGraph, LangChain and ADK skip the two message requests and the run report, because their backend keeps the transcript. A server with an API key makes the same calls itself, minus the token routes. [Which runtime](/docs/cloud/runtimes) lists what each integration stores and reports.
+The local runtime follows the same sequence with `aui/v0` messages. When `cloud` is passed, LangGraph, LangChain and ADK copy their settled messages after a run; their backend remains the transcript source and they do not send browser run reports. `telemetry: { messages: false }` keeps those copies out. A server with an API key makes the same calls itself, minus the token routes. [Which runtime](/docs/cloud/runtimes) lists what each integration stores and reports.

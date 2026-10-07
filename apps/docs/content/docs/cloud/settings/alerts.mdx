@@ -20,7 +20,7 @@ Once an hour, the cloud calculates each project's totals for the current UTC day
 | `daily_incomplete_rate_change` | Today's incomplete rate compared with the preceding 7 days. | % rise | Fewer than 3 days of history exist, either rate is unavailable, or the baseline is zero. |
 | `daily_runs_change` | Today's runs compared with the mean of the preceding 7 days. | % rise | Fewer than 3 days of history exist, or the baseline is zero. |
 
-The cloud calculates daily metrics once for the project, then evaluates its rules. A successful delivery writes a delivery event, records when the rule last triggered and clears the rule's last error. The cooldown is counted from that successful delivery. A failed delivery writes a failed event and updates the last error, but does not begin the cooldown.
+A successful delivery writes a delivery event, records when the rule last triggered and clears the rule's last error. The cooldown is counted from that successful delivery. A failed delivery writes a failed event and updates the last error, but does not begin the cooldown.
 
 ## Configure a rule
 
@@ -30,14 +30,14 @@ The cloud calculates daily metrics once for the project, then evaluates its rule
 |---|---|---|---|
 | **Name** |  | A trimmed name from 1 to 64 characters. | Names the rule and must be unique in the project. An empty name reads `Enter a name`. |
 | **Metric** | Daily cost | One of the metrics above. | Chooses the figure and unit the threshold uses. |
-| **Threshold**, **Threshold (%)** or **Threshold (% rise)** |  | A finite value of 0 or more. | The generic validation message is `Enter a value of 0 or more`. Daily error rate and daily incomplete rate also accept at most 100 with up to 2 decimal places, or read `Enter a percentage from 0 to 100 with up to two decimals`. |
+| **Threshold**, **Threshold (%)** or **Threshold (% rise)** |  | A finite value of 0 or more. | A blank value reads `Enter a threshold`. A value that is not finite or is below 0 reads `Enter a value of 0 or more`. Daily error rate and daily incomplete rate also accept at most 100 with up to 2 decimal places, or read `Enter a percentage from 0 to 100 with up to two decimals`. |
 | **Cooldown minutes** | 1,440 minutes | Whole minutes from 5 to 10,080. | Waits this long after a successful delivery. A value outside the range reads `Enter whole minutes from 5 to 10,080`. |
 | **Webhook URL** |  | A trimmed URL from 1 to 2,048 characters, using public HTTPS. | Receives a signed JSON `POST`. An empty value reads `Enter a webhook URL`. |
 | **Enabled** | On | On or off. | Off retains the rule, its secret and its history, but stops evaluation and delivery. |
 
 The two rate metrics, `daily_error_rate` and `daily_incomplete_rate`, are stored as fractions. The form divides their displayed percentage by 100 when it saves and multiplies it by 100 when it reads it. Every other threshold is stored exactly as typed.
 
-Create returns the webhook signing secret once, and the secret dialog says `Copy this secret now. It will not be shown again.` Edit changes a rule and records `alert_rule.update`. Enable and disable are edits that change `enabled` and also record `alert_rule.update`. Rotate secret returns a new secret once and records `alert_rule.rotate_secret`. Delete removes the rule and its delivery events and records `alert_rule.delete`. **Send test** delivers immediately, records a test delivery event, and records `alert_rule.test` with the delivery status and response code. Creating a rule records `alert_rule.create`.
+Create records `alert_rule.create` and returns the webhook signing secret once, and the secret dialog says `Copy this secret now. It will not be shown again.` Edit changes a rule and records `alert_rule.update`. Enable and disable are edits that change `enabled` and also record `alert_rule.update`. Rotate secret returns a new secret once and records `alert_rule.rotate_secret`. Delete removes the rule and its delivery events and records `alert_rule.delete`. **Send test** delivers immediately, records a test delivery event, and records `alert_rule.test` with the delivery status and response code.
 
 ### Rule allowance
 
