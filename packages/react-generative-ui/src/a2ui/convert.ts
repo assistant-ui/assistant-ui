@@ -7,7 +7,7 @@ import {
 } from "./valueFunctions";
 import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
 import type { A2uiBinding } from "./BindingContext";
-import { resolvePointer } from "./dataModel";
+import { resolvePath, resolvePointer } from "./dataModel";
 import { decodeScopeRelativePointer } from "./pointer";
 
 const DEPTH_CAP = 32;
@@ -329,7 +329,7 @@ type ConversionContext = {
   readonly boundActionEntries: {
     readonly target: Record<string, unknown>;
     readonly key: string;
-    readonly path: string;
+    readonly path: readonly string[];
     readonly pointer: string;
   }[];
   readonly boundUserMessages: {
@@ -457,7 +457,12 @@ const recordBindings = (
   const target = functionCall ? action["args"] : action["context"];
   if (!isRecord(rawEntries) || !isRecord(target)) return;
   if (!functionCall) context.actionContexts.add(target);
-  const visit = (entry: unknown, key: string, path: string, depth: number) => {
+  const visit = (
+    entry: unknown,
+    key: string,
+    path: readonly string[],
+    depth: number,
+  ) => {
     if (depth >= DEPTH_CAP) return;
     if (isBinding(entry)) {
       context.boundActionEntries.push({
@@ -471,17 +476,12 @@ const recordBindings = (
       (isPlainObject(entry) && !isFunctionCall(entry))
     ) {
       for (const [childKey, child] of Object.entries(entry)) {
-        visit(
-          child,
-          key,
-          `${path}/${childKey.replaceAll("~", "~0").replaceAll("/", "~1")}`,
-          depth + 1,
-        );
+        visit(child, key, [...path, childKey], depth + 1);
       }
     }
   };
   for (const [key, entry] of Object.entries(rawEntries)) {
-    visit(entry, key, "", 0);
+    visit(entry, key, [], 0);
   }
 };
 
@@ -1238,16 +1238,12 @@ function convertSurface(
     );
     for (const { target, key, path, pointer } of context.boundActionEntries) {
       const value = withFieldReferences(
-        resolvePointer(target[key], path),
+        resolvePath(target[key], path),
         pointer,
         context.inputFields,
       );
       if (value !== undefined)
-        setOwnProperty(
-          target,
-          key,
-          setIn(target[key], decodePointer(path), value),
-        );
+        setOwnProperty(target, key, setIn(target[key], path, value));
     }
     for (const target of context.actionContexts) {
       for (const [key, value] of Object.entries(target)) {
