@@ -1,5 +1,30 @@
 # @assistant-ui/react-a2a
 
+## 0.2.41
+
+### Patch Changes
+
+- [#8310](https://github.com/assistant-ui/assistant-ui/pull/8310) [`e4fb092`](https://github.com/assistant-ui/assistant-ui/commit/e4fb09226f324a069e9d3d476ddb5800858a6752) - fix: keep runs started by onCancel abortable during runtime detachment ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`c883dc0`](https://github.com/assistant-ui/assistant-ui/commit/c883dc0a7283e9c97e2887eb49178d5d8714c10b), [`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f), [`ed84b12`](https://github.com/assistant-ui/assistant-ui/commit/ed84b12cdb12cbe3c265ecf64def460f8f7fb6fe), [`2bc1edb`](https://github.com/assistant-ui/assistant-ui/commit/2bc1edb8c84c56d8dbe296c7161ca3dcb5a972b7), [`70c9a6e`](https://github.com/assistant-ui/assistant-ui/commit/70c9a6e3cd7ab73071f0b4edf1040a035773ffe7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`5484ca4`](https://github.com/assistant-ui/assistant-ui/commit/5484ca42d6bb6a0202997de98da61b59b4888975), [`ec48da2`](https://github.com/assistant-ui/assistant-ui/commit/ec48da206fc4d9e7c991a06d91f7c224aa1e3089), [`46133cd`](https://github.com/assistant-ui/assistant-ui/commit/46133cdbc759c711b0d217a1aa70e65224c78386), [`3effee5`](https://github.com/assistant-ui/assistant-ui/commit/3effee567af36c5aaac45c4fb4373da3f2516811), [`48601e4`](https://github.com/assistant-ui/assistant-ui/commit/48601e40fed32f8ec469fd1f17a64ad24a3e7484), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e), [`16439da`](https://github.com/assistant-ui/assistant-ui/commit/16439da6329f765f62e9977da5a3b105a7a3c0ac), [`1f77d04`](https://github.com/assistant-ui/assistant-ui/commit/1f77d04435f71476172a6d1ffca871da1a0c933a), [`aecb5eb`](https://github.com/assistant-ui/assistant-ui/commit/aecb5eb749e915920682bdcffddc54668f911aab), [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956)]:
+  - @assistant-ui/core@0.3.24
+  - assistant-stream@0.3.48
+  - @assistant-ui/react-generative-ui@0.0.24
+
+## 0.2.40
+
+### Patch Changes
+
+- [#8133](https://github.com/assistant-ui/assistant-ui/pull/8133) [`bddb41d`](https://github.com/assistant-ui/assistant-ui/commit/bddb41dc74955eeb2396374b76586eafaad849bf) - fix: `a2aPartsToContent` and `a2aMessageToContent` skip null part entries instead of throwing, `a2aPartToContent` returns an empty text part for a null part, and a part with a null `text`, `url` or `raw` is read as if the field were absent, the way `A2AClient` already normalizes it ([@samdickson22](https://github.com/samdickson22))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7109](https://github.com/assistant-ui/assistant-ui/pull/7109) [`4a0e3e5`](https://github.com/assistant-ui/assistant-ui/commit/4a0e3e5432b1f1a6a35078e2620a68a52ffbc6bf) - Notify task subscribers when an owned server cancellation response updates the task. ([@sicauzxl](https://github.com/sicauzxl))
+- Updated dependencies [[`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c), [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc), [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a), [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9), [`c0fc010`](https://github.com/assistant-ui/assistant-ui/commit/c0fc01067497e71e74b5b24bb5f1221b0c2319be), [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd), [`a1ce9e0`](https://github.com/assistant-ui/assistant-ui/commit/a1ce9e0ff564d63232954aaa1c6a944324af961e), [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc), [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4)]:
+  - @assistant-ui/core@0.3.23
+  - assistant-stream@0.3.47
+  - @assistant-ui/react-generative-ui@0.0.23
+  - @assistant-ui/store@0.3.17
+
 ## 0.2.39
 
 ### Patch Changes

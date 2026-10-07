@@ -766,12 +766,13 @@ const useInteractablesResource = ({
           const existing = prev.definitions[def.id];
           if (existing) {
             if (existing.scope === "thread") {
-              const threadId = getCurrentThreadId();
-              if (threadId) {
-                let stateById = detachedThreadStateRef.current.get(threadId);
+              const ownerThreadId = threadId ?? getCurrentThreadId();
+              if (ownerThreadId) {
+                let stateById =
+                  detachedThreadStateRef.current.get(ownerThreadId);
                 if (!stateById) {
                   stateById = new Map();
-                  detachedThreadStateRef.current.set(threadId, stateById);
+                  detachedThreadStateRef.current.set(ownerThreadId, stateById);
                 }
                 stateById.set(def.id, existing.state);
               }

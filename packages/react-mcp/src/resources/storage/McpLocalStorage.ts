@@ -6,7 +6,10 @@ import {
   OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
 } from "@modelcontextprotocol/core";
-import { normalizeMcpServerUrl } from "../../utils/serverUrl";
+import {
+  isSecureNetworkUrl,
+  normalizeMcpServerUrl,
+} from "../../utils/serverUrl";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -144,24 +147,6 @@ const normalizeClientInformation = (
   return result.success ? result.data : undefined;
 };
 
-const isSecureNetworkUrl = (value: unknown): value is string => {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(url.hostname);
-    return (
-      url.protocol === "https:" ||
-      (url.protocol === "http:" &&
-        (url.hostname === "localhost" ||
-          url.hostname.endsWith(".localhost") ||
-          isIpv4Loopback ||
-          url.hostname === "[::1]"))
-    );
-  } catch {
-    return false;
-  }
-};
-
 const isMcpServerUrl = (value: unknown): value is string => {
   if (typeof value !== "string") return false;
   try {
@@ -175,7 +160,11 @@ const isMcpServerUrl = (value: unknown): value is string => {
 const normalizeDiscoveryState = (
   value: unknown,
 ): MCPPersistedAuthState["discoveryState"] | undefined => {
-  if (!isRecord(value) || !isSecureNetworkUrl(value.authorizationServerUrl)) {
+  if (
+    !isRecord(value) ||
+    typeof value.authorizationServerUrl !== "string" ||
+    !isSecureNetworkUrl(value.authorizationServerUrl)
+  ) {
     return undefined;
   }
 
@@ -186,7 +175,10 @@ const normalizeDiscoveryState = (
     authorizationServerUrl: value.authorizationServerUrl,
   };
 
-  if (isSecureNetworkUrl(value.resourceMetadataUrl)) {
+  if (
+    typeof value.resourceMetadataUrl === "string" &&
+    isSecureNetworkUrl(value.resourceMetadataUrl)
+  ) {
     state.resourceMetadataUrl = value.resourceMetadataUrl;
   }
 

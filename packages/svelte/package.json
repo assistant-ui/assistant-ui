@@ -30,13 +30,14 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.22",
-    "@assistant-ui/store": "^0.3.16",
-    "@assistant-ui/tap": "^0.9.20"
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/store": "^0.3.17",
+    "@assistant-ui/tap": "^0.9.21"
   },
   "peerDependencies": {
     "svelte": "^5.29.0"

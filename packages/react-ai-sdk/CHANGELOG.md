@@ -1,5 +1,20 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.16
+
+### Patch Changes
+
+- Updated dependencies [[`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`ddb04de`](https://github.com/assistant-ui/assistant-ui/commit/ddb04deec5c1010042f99befb934c3b895ec3fc8), [`cb58bf9`](https://github.com/assistant-ui/assistant-ui/commit/cb58bf9de1ab789af81efeb8a2b991c99d9c4aa1)]:
+  - @assistant-ui/ai-sdk@0.0.11
+
+## 1.4.15
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/ai-sdk@0.0.10
+
 ## 1.4.14
 
 ### Patch Changes

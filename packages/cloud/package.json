@@ -1,6 +1,6 @@
 {
   "name": "assistant-cloud",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Cloud integration for assistant-ui",
   "keywords": [
     "assistant",
@@ -37,6 +37,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "pnpm run test:v7 && pnpm run test:peer-v6 && pnpm run test:types:peer-v6",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:v7": "vitest run",
     "test:peer-v6": "vitest run --config vitest.peer-v6.config.ts",
@@ -44,7 +45,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.46"
+    "assistant-stream": "^0.3.47"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",

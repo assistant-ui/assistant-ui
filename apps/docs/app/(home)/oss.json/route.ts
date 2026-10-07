@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { BASE_URL } from "@/lib/constants";
 import {
   OSS_CATEGORIES,
@@ -7,12 +8,12 @@ import {
   ossRepoUrl,
 } from "@/lib/oss";
 
-export const revalidate = false;
-
 const absolute = (url: string) =>
   url.startsWith("http") ? url : BASE_URL + url;
 
-export function GET() {
+async function getBody() {
+  "use cache";
+  cacheLife("max");
   const body = {
     organization: "assistant-ui",
     categories: OSS_CATEGORIES,
@@ -29,7 +30,11 @@ export function GET() {
     })),
   };
 
-  return Response.json(body, {
+  return body;
+}
+
+export async function GET() {
+  return Response.json(await getBody(), {
     headers: { "Cache-Control": "public, max-age=0, s-maxage=3600" },
   });
 }

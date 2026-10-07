@@ -1,7 +1,4 @@
-import {
-  defaultGenerativeUILibrary,
-  type UISpec,
-} from "@assistant-ui/react-generative-ui";
+import type { UISpec } from "@assistant-ui/react-generative-ui";
 
 export type ComponentCategory = {
   label: string;
@@ -575,75 +572,3 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
     ],
   },
 };
-
-{
-  const libraryNames = Object.keys(defaultGenerativeUILibrary);
-  const librarySet = new Set(libraryNames);
-  const categoryNames = COMPONENT_CATEGORIES.flatMap(
-    (category) => category.components,
-  );
-  const exampleNames = Object.keys(COMPONENT_EXAMPLES);
-
-  const categorySeen = new Set<string>();
-  const categoryDuplicates: string[] = [];
-  for (const name of categoryNames) {
-    if (categorySeen.has(name)) categoryDuplicates.push(name);
-    categorySeen.add(name);
-  }
-
-  const exampleSeen = new Set<string>();
-  const exampleDuplicates: string[] = [];
-  for (const name of exampleNames) {
-    if (exampleSeen.has(name)) exampleDuplicates.push(name);
-    exampleSeen.add(name);
-  }
-
-  const missingFromCategories = libraryNames.filter(
-    (name) => !categorySeen.has(name),
-  );
-  const extraInCategories = categoryNames.filter(
-    (name) => !librarySet.has(name),
-  );
-  const missingFromExamples = libraryNames.filter(
-    (name) => !(name in COMPONENT_EXAMPLES),
-  );
-  const extraInExamples = exampleNames.filter((name) => !librarySet.has(name));
-
-  const problems: string[] = [];
-  if (categoryDuplicates.length > 0) {
-    problems.push(
-      `duplicated in COMPONENT_CATEGORIES: ${categoryDuplicates.join(", ")}`,
-    );
-  }
-  if (exampleDuplicates.length > 0) {
-    problems.push(
-      `duplicated in COMPONENT_EXAMPLES: ${exampleDuplicates.join(", ")}`,
-    );
-  }
-  if (missingFromCategories.length > 0) {
-    problems.push(
-      `in defaultGenerativeUILibrary but missing from COMPONENT_CATEGORIES: ${missingFromCategories.join(", ")}`,
-    );
-  }
-  if (extraInCategories.length > 0) {
-    problems.push(
-      `in COMPONENT_CATEGORIES but missing from defaultGenerativeUILibrary: ${extraInCategories.join(", ")}`,
-    );
-  }
-  if (missingFromExamples.length > 0) {
-    problems.push(
-      `in defaultGenerativeUILibrary but missing from COMPONENT_EXAMPLES: ${missingFromExamples.join(", ")}`,
-    );
-  }
-  if (extraInExamples.length > 0) {
-    problems.push(
-      `in COMPONENT_EXAMPLES but missing from defaultGenerativeUILibrary: ${extraInExamples.join(", ")}`,
-    );
-  }
-
-  if (problems.length > 0) {
-    throw new Error(
-      `[@assistant-ui/docs] generative UI component reference drift:\n- ${problems.join("\n- ")}`,
-    );
-  }
-}

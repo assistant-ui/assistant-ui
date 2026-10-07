@@ -94,9 +94,9 @@ The cursor is a strict base64url encoding of JSON shaped like `{ "created_at": I
 |---|---|---|
 | `200` | A runs array and a `next_cursor` value. | The read completed. The array is empty when no runs match. |
 | `400` | A schema validation error object. | A query value failed validation. |
-| `400` | Plain text: `Invalid run cursor` | `cursor` is not a valid project run cursor. |
+| `400` | `{ "error": "Invalid run cursor" }` | `cursor` is not a valid project run cursor. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The credential is not an API key, or the API key cannot use this route. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The credential is not an API key, or the API key cannot use this route. |
 
 ## Get a project run
 
@@ -161,8 +161,8 @@ The response is the project run object plus `spans`. Spans are ordered by `start
 | `200` | The run object with `spans`. | The run is visible in the authenticated project. |
 | `400` | A schema validation error object. | `runId` failed validation, including a value longer than 48 characters. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The request does not use an API key. |
-| `404` | Plain text: `Run not found` | No matching non system run is visible in the project. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `404` | `{ "error": "Run not found" }` | No matching non system run is visible in the project. |
 
 The span order is part of the response contract, so clients can render a stable sequence without sorting the returned array.
 
@@ -215,9 +215,9 @@ curl "https://backend.assistant-api.com/v1/projects/usage/daily?from=2026-09-01&
 |---|---|---|
 | `200` | A `days` array. | The usage range was read. |
 | `400` | A schema validation error object. | A query value failed validation. |
-| `400` | Plain text: `Usage day range must span at most 366 days` | The range is negative, greater than 366 days or contains a date that is not a real UTC day. |
+| `400` | `{ "error": "Usage day range must span at most 366 days" }` | The range is negative, greater than 366 days or contains a date that is not a real UTC day. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The request does not use an API key. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
 
 ## Get the current usage period
 
@@ -270,8 +270,8 @@ curl https://backend.assistant-api.com/v1/projects/usage/period \
 |---|---|---|
 | `200` | The full usage period object. | The project exists and the period was read. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `This endpoint requires an API key` | The request does not use an API key. |
-| `404` | Plain text: `Project not found` | The project row does not exist. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `404` | `{ "error": "Project not found" }` | The project row does not exist. |
 
 The response reports the current UTC period and does not reserve or consume allowance.
 
@@ -346,7 +346,7 @@ Threads use the thread list ordering and `after` cursor rules. A successful resp
 | `200` | A `threads` array. | The project wide read completed. |
 | `400` | A schema validation error object. | A query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide thread listing requires API key authentication` | The credential is not an API key, or API key access failed. |
+| `403` | `{ "error": "Project-wide thread listing requires API key authentication" }` | The credential is not an API key, or API key access failed. |
 
 ## List messages in a project thread
 
@@ -400,7 +400,7 @@ The response contains raw message rows with the requested `format` and converted
 | `200` | A `messages` array. | The project wide message read completed. |
 | `400` | A schema validation error object. | A parameter or query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide message listing requires API key authentication` | The request does not use an API key, or API key access failed. |
+| `403` | `{ "error": "Project-wide message listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |
 
 Format conversion and attachment signing affect the returned representation only; they do not rewrite stored messages.
 
@@ -461,7 +461,7 @@ Each score contains `id`, `thread_id`, `message_id`, `run_id`, `name`, `data_typ
 | `200` | A `scores` array. | The score read completed. There is no `next_cursor` field. |
 | `400` | A schema validation error object. | A query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide score listing requires API key authentication` | The request does not use an API key, or API key access failed. |
+| `403` | `{ "error": "Project-wide score listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |
 
 ## List project skills
 
@@ -576,4 +576,4 @@ const loadSkill = {
 |---|---|---|
 | `200` | `{ "skills": [...] }` | The skills were read in name order. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project skills require API key authentication` | A JWT caller uses this API key only route. |
+| `403` | `{ "error": "Project skills require API key authentication" }` | A JWT caller uses this API key only route. |

@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
   controllers: [] as Array<{
     client: unknown;
     connect: ReturnType<typeof vi.fn>;
+    load: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
   }>,
@@ -176,6 +177,7 @@ itBrokenOnReact18(
     const controller = mocks.controllers[0]!;
     const adapter = mocks.adapters[0];
     expect(controller.connect).toHaveBeenCalledOnce();
+    expect(controller.load).toHaveBeenCalledOnce();
 
     await refresh(Before, After);
 
@@ -183,6 +185,7 @@ itBrokenOnReact18(
     expect(mocks.adapters.at(-1)).toBe(adapter);
     expect(mocks.reloads).toBe(1);
     expect(controller.connect).toHaveBeenCalledOnce();
+    expect(controller.load).toHaveBeenCalledOnce();
     expect(controller.disconnect).not.toHaveBeenCalled();
     expect(controller.dispose).not.toHaveBeenCalled();
 
@@ -253,6 +256,7 @@ itBrokenOnReact18(
     );
     await act(async () => {});
     expect(mocks.controllers[1]!.client).toBe(clientB);
+    expect(mocks.controllers[1]!.load).toHaveBeenCalledOnce();
     expect(controller.dispose).toHaveBeenCalledOnce();
     expect(controller.disconnect).toHaveBeenCalledOnce();
     await list();

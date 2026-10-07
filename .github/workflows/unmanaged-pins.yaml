@@ -11,8 +11,7 @@ on:
       - "pnpm-workspace.yaml"
       - "scripts/check-unmanaged-pins.mjs"
       - "scripts/check-unmanaged-pins.test.mjs"
-      - "scripts/check-built-declarations.mjs"
-      - "scripts/check-changesets.mjs"
+      - "scripts/lib/main.mjs"
       - "scripts/lib/workspace.mjs"
       - "scripts/lib/script-options.mjs"
   pull_request:
@@ -25,8 +24,7 @@ on:
       - "pnpm-workspace.yaml"
       - "scripts/check-unmanaged-pins.mjs"
       - "scripts/check-unmanaged-pins.test.mjs"
-      - "scripts/check-built-declarations.mjs"
-      - "scripts/check-changesets.mjs"
+      - "scripts/lib/main.mjs"
       - "scripts/lib/workspace.mjs"
       - "scripts/lib/script-options.mjs"
 

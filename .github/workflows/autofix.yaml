@@ -24,11 +24,14 @@ jobs:
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
-        run: pnpm install --ignore-scripts
+        run: node scripts/autofix-install.mjs --base="origin/${{ github.base_ref }}"
+
+      - name: Check resource memoization (React Compiler)
+        run: pnpm check:resource-memo
 
       - name: Lint fix
         run: pnpm lint:fix
@@ -44,6 +47,10 @@ jobs:
           fi
           run="$(git diff --name-only --no-renames -z "$BASE" | node scripts/api-reference-inputs.mjs)"
           echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Install API reference dependencies
+        if: steps.api_ref.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter="@assistant-ui/docs..."
 
       - name: Update API surface snapshots
         env:

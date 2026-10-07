@@ -2,6 +2,7 @@
 
 import {
   ExportedMessageRepository,
+  isMessageNotSentError,
   useAui,
   useAuiState,
   useCloudThreadListAdapter,
@@ -18,7 +19,6 @@ import type {
 import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
-  useEffect,
   useEffectEvent,
   useCallback,
   useMemo,
@@ -253,8 +253,9 @@ const usePiThreadStore = (
     invokePiErrorCallback(onError, error);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
+    // oxlint-disable-next-line react/rules-of-hooks -- useReplaySafeEffect runs this callback inside useEffect
     void controller.load().catch(onLoadError);
   }, [controller]);
 
@@ -293,14 +294,20 @@ const usePiThreadStore = (
         parts: [{ type: "text" as const, text: content }],
       })),
       enqueue: (message) => {
-        void controller
-          .sendMessage(message)
-          .catch((error: unknown) => invokePiErrorCallback(onError, error));
+        void controller.sendMessage(message).catch((error: unknown) => {
+          if (!isMessageNotSentError(error)) {
+            invokePiErrorCallback(onError, error);
+          }
+        });
       },
       steer: (message) => {
         void controller
           .sendMessage(message, { streamingBehavior: "steer" })
-          .catch((error: unknown) => invokePiErrorCallback(onError, error));
+          .catch((error: unknown) => {
+            if (!isMessageNotSentError(error)) {
+              invokePiErrorCallback(onError, error);
+            }
+          });
       },
       // the server-side queue exposes no per-item operations; shared queue
       // UI cannot feature-detect these, so they deliberately no-op rather
@@ -328,7 +335,9 @@ const usePiThreadStore = (
         try {
           await controller.sendMessage(message);
         } catch (error) {
-          invokePiErrorCallback(onError, error);
+          if (!isMessageNotSentError(error)) {
+            invokePiErrorCallback(onError, error);
+          }
           throw error;
         }
       },
@@ -462,7 +471,9 @@ const useNewPiThreadStore = (
           removeOptimisticMessage();
         } catch (error) {
           removeOptimisticMessage();
-          invokePiErrorCallback(onError, error);
+          if (!isMessageNotSentError(error)) {
+            invokePiErrorCallback(onError, error);
+          }
           throw error;
         }
       },
