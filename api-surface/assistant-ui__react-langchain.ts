@@ -1113,6 +1113,7 @@ type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & 
 type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;
@@ -1774,6 +1775,7 @@ type ThreadComposerState = BaseComposerState & {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;

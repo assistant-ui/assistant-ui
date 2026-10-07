@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ReadonlyThreadRuntimeCore } from "../runtimes/readonly/ReadonlyThreadRuntimeCore";
 import {
   createCore,
   deferred,
@@ -6,6 +7,61 @@ import {
 } from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
+  it("retains an automatic title when the runtime detaches before generation claims it", async () => {
+    const adapter = makeAdapter();
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const threadId = core.mainThreadId!;
+    let mounted: ReadonlyThreadRuntimeCore | undefined =
+      new ReadonlyThreadRuntimeCore();
+    const manager = (
+      core as unknown as {
+        _hookManager: {
+          getThreadRuntimeCore: () => ReadonlyThreadRuntimeCore | undefined;
+          _notifySubscribers: () => void;
+        };
+      }
+    )._hookManager;
+    manager.getThreadRuntimeCore = () => mounted;
+    await core.initialize(threadId);
+
+    mounted.setMessages([
+      {
+        id: "first-message",
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        createdAt: new Date(0),
+        metadata: { custom: {} },
+      },
+    ]);
+    mounted = undefined;
+    manager._notifySubscribers();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+    mounted = new ReadonlyThreadRuntimeCore();
+    mounted.isLoading = true;
+    manager._notifySubscribers();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+    mounted.isLoading = false;
+    mounted.setMessages([]);
+    await vi.waitFor(() =>
+      expect(adapter.generateTitle).toHaveBeenCalledOnce(),
+    );
+    expect(adapter.generateTitle).toHaveBeenCalledWith(threadId, [
+      expect.objectContaining({
+        id: "first-message",
+        content: [{ type: "text", text: "hello" }],
+      }),
+    ]);
+    core.__internal_dispose();
+  });
+
   it("preserves an existing title when generation returns no title", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

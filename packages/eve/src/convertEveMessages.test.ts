@@ -1927,6 +1927,26 @@ describe("getEveMessageContent", () => {
     ]);
   });
 
+  it("rebuilds a media-less audio data URL from the typed format", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "data:;base64,QUJD", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
   it("forwards an http audio source instead of wrapping it in a data URL", () => {
     const message = {
       ...baseAppendMessage,

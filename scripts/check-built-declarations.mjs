@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { availableParallelism } from "node:os";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import {
@@ -21,9 +22,24 @@ const TSC_ERROR = /^(.+)\(\d+,\d+\): error TS\d+:/;
 
 function spawnTsc(repoRoot, args) {
   const local = path.join(repoRoot, "node_modules", ".bin", "tsc");
-  return spawnSync(existsSync(local) ? local : "tsc", args, {
-    cwd: repoRoot,
-    encoding: "utf8",
+  return new Promise((resolve) => {
+    execFile(
+      existsSync(local) ? local : "tsc",
+      args,
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+      },
+      (error, stdout, stderr) => {
+        const exited = !error || typeof error.code === "number";
+        resolve({
+          status: exited ? (error?.code ?? 0) : null,
+          error: exited ? undefined : error,
+          stdout,
+          stderr,
+        });
+      },
+    );
   });
 }
 
@@ -183,41 +199,44 @@ export function declarationGateResult({
   return "pass";
 }
 
-function checkPackage(repoRoot, packageDir, pkg) {
+export async function checkPackage(repoRoot, packageDir, pkg, reportStart) {
+  const result = { status: 0, stdout: "", stderr: "" };
   let probe;
   try {
     probe = createDeclarationProbe(packageDir, pkg);
   } catch (error) {
-    console.error(`${pkg.name}: ${error.message}`);
-    return 1;
+    result.stderr = `${pkg.name}: ${error.message}\n`;
+    result.status = 1;
+    return result;
   }
-  if (!probe) return 0;
+  if (!probe) return result;
 
   try {
-    console.log(
-      `Checking ${pkg.name} (${probe.entries.length} declaration entries)`,
-    );
-    const result = spawnTsc(repoRoot, [
+    const progress = `Checking ${pkg.name} (${probe.entries.length} declaration entries)\n`;
+    if (reportStart) reportStart(progress);
+    else result.stdout = progress;
+    const compiler = await spawnTsc(repoRoot, [
       "--project",
       probe.configPath,
       "--pretty",
       "false",
     ]);
-    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+    const output = `${compiler.stdout ?? ""}${compiler.stderr ?? ""}`;
     const parsedFiles = parseTscErrorFiles(output);
     const unanchoredLines = parseUnanchoredTscErrors(output);
     const own = ownDeclarationDiagnostics(packageDir, output, repoRoot);
     const gate = declarationGateResult({
-      spawnError: result.error,
-      status: result.status,
+      spawnError: compiler.error,
+      status: compiler.status,
       ownFiles: own,
       parsedFiles,
       unanchoredLines,
     });
-    if (gate === "pass") return 0;
+    if (gate === "pass") return result;
+    result.status = 1;
     if (gate === "spawn-failed") {
-      process.stdout.write(`${result.error ?? gate}\n`);
-      return 1;
+      result.stdout += `${pkg.name}: ${compiler.error ?? gate}\n`;
+      return result;
     }
     if (gate === "own-errors") {
       const ownFiles = new Set(own);
@@ -225,18 +244,54 @@ function checkPackage(repoRoot, packageDir, pkg) {
         const match = TSC_ERROR.exec(line);
         return match !== null && ownFiles.has(match[1]);
       });
-      process.stdout.write(`${lines.join("\n")}\n`);
-      return 1;
+      result.stdout += `${lines.join("\n")}\n`;
+      return result;
     }
-    process.stdout.write(output || `${gate}\n`);
-    return 1;
+    result.stdout += `${pkg.name}:\n${output || `${gate}\n`}`;
+    return result;
   } finally {
     probe.remove();
   }
 }
 
-function main() {
+export function declarationConcurrency(value) {
+  if (value === undefined) return Math.min(2, availableParallelism());
+  if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) {
+    throw new Error("--concurrency must be a positive integer.");
+  }
+  return Number(value);
+}
+
+export async function checkPackages(
+  repoRoot,
+  packages,
+  concurrency,
+  check = checkPackage,
+  report = () => {},
+) {
+  const results = new Array(packages.length);
+  let next = 0;
+  let printed = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, packages.length) }, async () => {
+      while (next < packages.length) {
+        const index = next++;
+        const { packageDir, pkg } = packages[index];
+        results[index] = await check(repoRoot, packageDir, pkg);
+        while (printed < results.length && results[printed] !== undefined) {
+          report(results[printed++]);
+        }
+      }
+    }),
+  );
+  return results;
+}
+
+async function main() {
   const repoRoot = process.cwd();
+  const concurrency = declarationConcurrency(
+    optionValues(process.argv.slice(2), "--concurrency").at(-1),
+  );
   const filters = optionValues(process.argv.slice(2), "--filter");
   const filteredPackageNames = collectTurboFilteredPackageNames(
     repoRoot,
@@ -255,12 +310,23 @@ function main() {
   }
 
   let failed = false;
-  for (const { packageDir, pkg } of packages) {
-    if (checkPackage(repoRoot, packageDir, pkg) !== 0) failed = true;
-  }
+  await checkPackages(
+    repoRoot,
+    packages,
+    concurrency,
+    (root, dir, pkg) =>
+      checkPackage(root, dir, pkg, (progress) =>
+        process.stdout.write(progress),
+      ),
+    (result) => {
+      process.stdout.write(result.stdout);
+      process.stderr.write(result.stderr);
+      if (result.status !== 0) failed = true;
+    },
+  );
   if (failed) process.exitCode = 1;
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
-  main();
+  await main();
 }
