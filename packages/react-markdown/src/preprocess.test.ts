@@ -901,11 +901,38 @@ describe("escapeCurrencyDollars", () => {
     expect(escapeCurrencyDollars(markdown)).toBe(markdown);
   });
 
-  it("keeps a root indented-code run alive across indented quote markers", () => {
-    // A `>` indented four spaces is literal text, so the whole run is one
-    // indented code block; the continuation lines must not leak currency.
-    const markdown = "    > first $5\n    > second $10";
+  it.each([
+    "    > first $5\n    > second $10",
+    "    > first $5\n    second $10",
+    "    first $5\n    > second $10",
+    "    > first $5\n    >> second $10",
+    "    >     first $5\n    second $10",
+    "\tfirst $5\n\t> second $10",
+    ">     first $5\n>     > second $10",
+    ">     > first $5\n>     second $10",
+    ">     > first $5\n>     >> second $10",
+    "- item\n\n  >     > first $5\n  >     second $10",
+    "> - item\n>\n>       > first $5\n>       second $10",
+  ])("preserves literal quote markers in indented code: %j", (markdown) => {
     expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("resumes escaping when literal quote markers leave indented code", () => {
+    expect(escapeCurrencyDollars("    > first $5\n> second $10")).toBe(
+      "    > first $5\n> second \\$10",
+    );
+  });
+
+  it("retains the list content column after literal quote markers", () => {
+    expect(
+      escapeCurrencyDollars("- item\n\n      > code $5\n    prose $10"),
+    ).toBe("- item\n\n      > code $5\n    prose \\$10");
+  });
+
+  it("escapes quoted prose at the content column of a wide list marker", () => {
+    expect(escapeCurrencyDollars("100. item\n\n     > prose $5")).toBe(
+      "100. item\n\n     > prose \\$5",
+    );
   });
 
   it("still escapes footnote prose", () => {

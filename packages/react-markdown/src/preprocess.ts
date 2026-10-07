@@ -284,7 +284,6 @@ function htmlBlockRanges(text: string): number[] {
   let codeStart = -1;
   let codeIndent = 0;
   let codeQuoteDepth = 0;
-  let codeAbsoluteIndent = false;
   let previousBlank = true;
   let previousHeading = false;
   let previousFenceClose = false;
@@ -329,11 +328,22 @@ function htmlBlockRanges(text: string): number[] {
     let blockContentStart = lineStart;
     let contentStart = lineStart;
     let indentedMarker = false;
+    let literalQuoteDepth = -1;
     const quoteIndents: number[] = [];
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
         const quoteIndent = columns(text, contentStart, i);
+        const item = listItems.findLast((item) => item.depth === depth);
+        const itemIndent =
+          item && quoteIndent >= item.content ? item.content : 0;
+        if (
+          literalQuoteDepth === -1 &&
+          !item?.footnote &&
+          quoteIndent >= itemIndent + 4
+        ) {
+          literalQuoteDepth = depth;
+        }
         quoteIndents.push(quoteIndent);
         if (quoteIndent > 3) indentedMarker = true;
         if (depth === blockQuoteDepth) quoteStart = i;
@@ -347,6 +357,8 @@ function htmlBlockRanges(text: string): number[] {
     }
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     const indent = columns(text, contentStart, i);
+    const codeDepth = literalQuoteDepth === -1 ? depth : literalQuoteDepth;
+    const codeLineIndent = quoteIndents[codeDepth] ?? indent;
     if (
       htmlKind !== 0 &&
       (depth < htmlQuoteDepth ||
@@ -422,16 +434,10 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     if (codeStart !== -1) {
-      // A range opened through the absolute-indent branch (an indented `>`
-      // marker, which CommonMark reads as literal text) measures indentation
-      // from the first marker's column, not from past the markers — so the
-      // continuation check must use the same metric, or the range closes on
-      // the very next line.
-      const continuationIndent =
-        codeAbsoluteIndent && depth > 0 ? quoteIndents[0]! : indent;
+      const continuationIndent = quoteIndents[codeQuoteDepth] ?? indent;
       if (
         first === -1 ||
-        (depth === codeQuoteDepth && continuationIndent >= codeIndent)
+        (depth >= codeQuoteDepth && continuationIndent >= codeIndent)
       ) {
         previousBlank = first === -1;
         lineStart = nextLine;
@@ -439,17 +445,16 @@ function htmlBlockRanges(text: string): number[] {
       }
       ranges.push(codeStart, lineStart);
       codeStart = -1;
-      codeAbsoluteIndent = false;
     }
     while (
       listItems.length > 0 &&
-      depth < listItems[listItems.length - 1]!.depth
+      codeDepth < listItems[listItems.length - 1]!.depth
     )
       listItems.pop();
     if (previousBlank && first !== -1) {
       while (listItems.length > 0) {
         const item = listItems[listItems.length - 1]!;
-        if (depth !== item.depth || indent >= item.content) break;
+        if (codeDepth !== item.depth || codeLineIndent >= item.content) break;
         listItems.pop();
       }
     }
@@ -457,29 +462,21 @@ function htmlBlockRanges(text: string): number[] {
     const codeColumn = listItem?.footnote
       ? Number.POSITIVE_INFINITY
       : (listItem?.content ?? 0) + 4;
-    // Inside a blockquote the four-space rule counts past its markers: a quote
-    // nested in a list item needs only four spaces past `>` for indented code,
-    // while a list item at the quote's own depth still needs its content
-    // column. A `>` indented four or more spaces is literal text instead, so
-    // the absolute column of the first marker decides then.
     const nestedQuote =
-      depth > 0 &&
-      !indentedMarker &&
+      codeDepth > 0 &&
       !listItem?.footnote &&
-      (listItem == null || listItem.depth < depth);
+      (listItem == null || listItem.depth < codeDepth);
     const requiredCodeIndent = nestedQuote ? 4 : codeColumn;
-    const absoluteIndent = depth > 0 ? quoteIndents[0]! : indent;
     if (
       first !== -1 &&
-      (indent >= requiredCodeIndent || absoluteIndent >= codeColumn) &&
+      codeLineIndent >= requiredCodeIndent &&
       (previousBlank || previousHeading || previousFenceClose) &&
       !(first === TILDE && opensTildeFence(text, i)) &&
       !(first === BACKTICK && opensBacktickFence(text, i))
     ) {
       codeStart = lineStart;
-      codeIndent = indent >= requiredCodeIndent ? requiredCodeIndent : 4;
-      codeAbsoluteIndent = indent < requiredCodeIndent;
-      codeQuoteDepth = depth;
+      codeIndent = requiredCodeIndent;
+      codeQuoteDepth = codeDepth;
       previousBlank = false;
       previousHeading = false;
       previousFenceClose = false;
