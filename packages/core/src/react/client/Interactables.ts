@@ -235,6 +235,7 @@ const useInteractablesResource = ({
     discardPending,
     flushIfPending,
     getDirtyIds,
+    isSaving,
     schedulePersistence,
     flush: flushPersistence,
   } = useInteractablePersistenceQueue({
@@ -280,9 +281,15 @@ const useInteractablesResource = ({
   );
 
   // Applies adapter.load() output: a local edit made while the load was in
-  // flight wins, and thread-scoped items never restore from the adapter.
+  // flight wins, the load replaces the detached copy of an id nobody edited,
+  // and thread-scoped items never restore from the adapter.
   const applyLoadedState = useCallback(
     (saved: Unstable_InteractablePersistedState) => {
+      for (const id of Object.keys(saved)) {
+        if (!touchedIdsRef.current.has(id)) {
+          detachedAppStateRef.current.delete(id);
+        }
+      }
       restorePersistedState(saved, {
         stash: loadedStateRef.current,
         shouldStash: (id) => !touchedIdsRef.current.has(id),
@@ -749,6 +756,12 @@ const useInteractablesResource = ({
               def.initialState,
           },
         }),
+        persistence:
+          prev.persistence[def.id] === undefined && isSaving(def.id)
+            ? nullProtoRecord(prev.persistence, {
+                [def.id]: { isPending: true, error: undefined },
+              })
+            : prev.persistence,
       }));
 
       return () => {
@@ -798,6 +811,7 @@ const useInteractablesResource = ({
       clientRef,
       getCurrentThreadId,
       installUpdateToolUI,
+      isSaving,
       setStateAndRef,
     ],
   );

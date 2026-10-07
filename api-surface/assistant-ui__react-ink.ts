@@ -4800,6 +4800,7 @@ type ToolApprovalResponse = {
 
 type ToolArgsStatus<TArgs extends Record<string, unknown> = Record<string, unknown>> = {
   status: "complete" | "incomplete" | "requires-action" | "running";
+  argsStatus: PropFieldStatus;
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
