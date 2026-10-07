@@ -2,19 +2,38 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Text } from "react-native";
+import type { ThreadListItemPrimitive } from "../../index";
 import { Title as ThreadListItemTitle } from "../threadListItem";
 
-const h = vi.hoisted(() => ({
-  state: { threadListItem: { title: undefined as string | undefined } },
-  textChildren: [] as unknown[],
-  textProps: null as Record<string, unknown> | null,
-}));
+const fallbackProps: ThreadListItemPrimitive.Title.Props = {
+  fallback: "New chat",
+};
+
+const h = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  let state = { threadListItem: { title: undefined as string | undefined } };
+  return {
+    getState: () => state,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    setTitle: (title: string | undefined) => {
+      state = { threadListItem: { title } };
+      listeners.forEach((listener) => listener());
+    },
+    textChildren: [] as unknown[],
+    textProps: null as Record<string, unknown> | null,
+  };
+});
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  const { useSyncExternalStore } = await import("react");
   return {
     ...actual,
-    useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
+    useAuiState: <T,>(selector: (s: ReturnType<typeof h.getState>) => T) =>
+      selector(useSyncExternalStore(h.subscribe, h.getState)),
   };
 });
 
@@ -39,7 +58,7 @@ describe("ThreadListItemTitle", () => {
   let root: Root;
 
   beforeEach(() => {
-    h.state.threadListItem.title = undefined;
+    h.setTitle(undefined);
     h.textChildren = [];
     h.textProps = null;
     container = document.createElement("div");
@@ -55,7 +74,7 @@ describe("ThreadListItemTitle", () => {
   });
 
   it("renders the title through react-native Text", async () => {
-    h.state.threadListItem.title = "My thread";
+    h.setTitle("My thread");
 
     await act(async () => {
       root.render(<ThreadListItemTitle />);
@@ -66,7 +85,7 @@ describe("ThreadListItemTitle", () => {
   });
 
   it("forwards host Text props the public type exposes", async () => {
-    h.state.threadListItem.title = "My thread";
+    h.setTitle("My thread");
 
     await act(async () => {
       root.render(<ThreadListItemTitle numberOfLines={1} testID="title" />);
@@ -87,10 +106,37 @@ describe("ThreadListItemTitle", () => {
 
   it("renders the fallback through Text when there is no title", async () => {
     await act(async () => {
-      root.render(<ThreadListItemTitle fallback="New chat" />);
+      root.render(<ThreadListItemTitle {...fallbackProps} />);
     });
 
     expect(h.textChildren).toEqual(["New chat"]);
     expect(container.textContent).toBe("New chat");
+  });
+
+  it("renders an empty title with the fallback", async () => {
+    h.setTitle("");
+
+    await act(async () => {
+      root.render(<ThreadListItemTitle {...fallbackProps} />);
+    });
+
+    expect(container.textContent).toBe("New chat");
+  });
+
+  it("updates the title while mounted", async () => {
+    await act(async () => {
+      root.render(<ThreadListItemTitle {...fallbackProps} />);
+    });
+    expect(container.textContent).toBe("New chat");
+
+    await act(async () => {
+      h.setTitle("First title");
+    });
+    expect(container.textContent).toBe("First title");
+
+    await act(async () => {
+      h.setTitle("Updated title");
+    });
+    expect(container.textContent).toBe("Updated title");
   });
 });

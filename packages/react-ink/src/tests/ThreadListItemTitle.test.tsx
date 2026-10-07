@@ -1,19 +1,36 @@
-import { Box } from "ink";
+import { Box, Text } from "ink";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup } from "ink-testing-library";
+import { cleanup, render } from "ink-testing-library";
+import type { ThreadListItemPrimitive } from "../index";
 import { Title as ThreadListItemTitle } from "../primitives/threadListItem";
 import { renderFrame, type UseAuiStateSelector } from "./helpers";
 
-const { mockUseAuiState, captured } = vi.hoisted(() => ({
-  mockUseAuiState: vi.fn(),
-  captured: { textProps: null as Record<string, unknown> | null },
-}));
+const fallbackProps: ThreadListItemPrimitive.Title.Props = {
+  fallback: "New chat",
+};
+
+const h = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  let state = { threadListItem: { title: undefined as string | undefined } };
+  return {
+    captured: { textProps: null as Record<string, unknown> | null },
+    getState: () => state,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    setTitle: (title: string | undefined) => {
+      state = { threadListItem: { title } };
+      listeners.forEach((listener) => listener());
+    },
+  };
+});
 
 vi.mock("ink", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ink")>();
   const React = await import("react");
   const TextMock = (props: Record<string, unknown>) => {
-    captured.textProps = props;
+    h.captured.textProps = props;
     return React.createElement(
       actual.Text as unknown as React.ElementType,
       props,
@@ -24,25 +41,23 @@ vi.mock("ink", async (importOriginal) => {
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  const { useSyncExternalStore } = await import("react");
   return {
     ...actual,
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
+    useAuiState: (selector: UseAuiStateSelector) =>
+      selector(useSyncExternalStore(h.subscribe, h.getState) as never),
   };
 });
 
-const mockTitle = (title: string | undefined) => {
-  mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
-    selector({ threadListItem: { title } } as never),
-  );
-};
-
 afterEach(() => {
   cleanup();
+  h.setTitle(undefined);
+  h.captured.textProps = null;
 });
 
 describe("ThreadListItemTitle", () => {
   it("renders the title inside a Box parent", async () => {
-    mockTitle("My thread");
+    h.setTitle("My thread");
 
     const frame = await renderFrame(
       <Box>
@@ -54,7 +69,7 @@ describe("ThreadListItemTitle", () => {
   });
 
   it("forwards host Text props the public type exposes", async () => {
-    mockTitle("My thread");
+    h.setTitle("My thread");
 
     const frame = await renderFrame(
       <Box>
@@ -62,7 +77,7 @@ describe("ThreadListItemTitle", () => {
       </Box>,
     );
 
-    expect(captured.textProps).toMatchObject({
+    expect(h.captured.textProps).toMatchObject({
       dimColor: true,
       wrap: "truncate",
     });
@@ -70,14 +85,58 @@ describe("ThreadListItemTitle", () => {
   });
 
   it("renders the fallback when the thread has no title", async () => {
-    mockTitle(undefined);
-
     const frame = await renderFrame(
       <Box>
-        <ThreadListItemTitle fallback="New chat" />
+        <ThreadListItemTitle {...fallbackProps} />
       </Box>,
     );
 
     expect(frame).toContain("New chat");
+  });
+
+  it("renders an empty title with the fallback", async () => {
+    h.setTitle("");
+
+    const frame = await renderFrame(
+      <Box>
+        <ThreadListItemTitle {...fallbackProps} />
+      </Box>,
+    );
+
+    expect(frame).toContain("New chat");
+  });
+
+  it("renders an element fallback outside Text", async () => {
+    const frame = await renderFrame(
+      <Box>
+        <ThreadListItemTitle
+          fallback={
+            <Box>
+              <Text>Untitled</Text>
+            </Box>
+          }
+        />
+      </Box>,
+    );
+
+    expect(frame).toContain("Untitled");
+  });
+
+  it("updates the title while mounted", async () => {
+    const instance = render(
+      <Box>
+        <ThreadListItemTitle {...fallbackProps} />
+      </Box>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("New chat");
+
+    h.setTitle("First title");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("First title");
+
+    h.setTitle("Updated title");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("Updated title");
   });
 });
