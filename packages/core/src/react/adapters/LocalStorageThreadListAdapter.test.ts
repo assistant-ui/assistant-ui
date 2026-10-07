@@ -1141,6 +1141,90 @@ describe("createLocalStorageAdapter", () => {
     ).toEqual(["new-message"]);
   });
 
+  it("drains pending deletion keys after recreating the storage wrapper", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const formattedKey =
+      '@assistant-ui:formatted-messages:["thread-1","test/v1"]';
+    const pendingDeletionsKey = "@assistant-ui:pending-thread-deletions";
+    const values = new Map([
+      [
+        threadsKey,
+        JSON.stringify([
+          { remoteId: "thread-1", status: "regular", formats: ["test/v1"] },
+        ]),
+      ],
+      [messagesKey, JSON.stringify({ messages: [] })],
+      [formattedKey, JSON.stringify({ messages: [] })],
+    ]);
+    const createStorage = (
+      failFormattedRemoval: boolean,
+    ): AsyncStorageLike & {
+      get(key: string): string | undefined;
+    } => ({
+      get: (key) => values.get(key),
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: async (key) => {
+        if (key === formattedKey && failFormattedRemoval) {
+          throw new Error("Storage unavailable");
+        }
+        values.delete(key);
+      },
+    });
+    const adapter = createLocalStorageAdapter({
+      storage: createStorage(true),
+    });
+
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+    expect(values.has(messagesKey)).toBe(false);
+    expect(JSON.parse(values.get(pendingDeletionsKey) ?? "null")).toEqual([
+      { remoteId: "thread-1", keys: [formattedKey] },
+    ]);
+
+    const reloadedAdapter = createLocalStorageAdapter({
+      storage: createStorage(false),
+    });
+    await expect(reloadedAdapter.list()).resolves.toEqual({ threads: [] });
+
+    expect(values.has(formattedKey)).toBe(false);
+    expect(values.has(pendingDeletionsKey)).toBe(false);
+  });
+
+  it("keeps thread metadata when a deletion tombstone cannot be written", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const pendingDeletionsKey = "@assistant-ui:pending-thread-deletions";
+    const originalThreads = [{ remoteId: "thread-1", status: "regular" }];
+    const baseStorage = createStorage({
+      [threadsKey]: JSON.stringify(originalThreads),
+      "@assistant-ui:messages:thread-1": JSON.stringify({ messages: [] }),
+    });
+    const storage: AsyncStorageLike & {
+      get(key: string): string | undefined;
+    } = {
+      ...baseStorage,
+      setItem: async (key, value) => {
+        if (key === pendingDeletionsKey) {
+          throw new Error("Storage unavailable");
+        }
+        await baseStorage.setItem(key, value);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+
+    expect(JSON.parse(storage.get(threadsKey) ?? "null")).toEqual(
+      originalThreads,
+    );
+  });
+
   it("lists no threads when the stored thread list is invalid JSON", async () => {
     const storage = createStorage({ "@assistant-ui:threads": "{not-json" });
     const adapter = createLocalStorageAdapter({ storage });

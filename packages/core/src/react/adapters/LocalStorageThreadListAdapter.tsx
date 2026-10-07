@@ -100,6 +100,12 @@ type StoredThreadMetadata = {
   status: "regular" | "archived";
   title?: string;
   custom?: Record<string, unknown> | undefined;
+  formats?: string[];
+};
+
+type PendingThreadDeletion = {
+  remoteId: string;
+  keys: string[];
 };
 
 type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
@@ -129,8 +135,43 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
       : undefined),
     ...(typeof value.title === "string" ? { title: value.title } : undefined),
     ...(isRecord(value.custom) ? { custom: value.custom } : undefined),
+    ...(Array.isArray(value.formats) &&
+    value.formats.every((format) => typeof format === "string")
+      ? { formats: value.formats }
+      : undefined),
   };
 };
+
+const parsePendingThreadDeletions = (
+  raw: string | null,
+): PendingThreadDeletion[] => {
+  if (raw === null) return [];
+
+  const parsed = parseJSON(raw);
+  if (!Array.isArray(parsed)) {
+    throw new Error("Stored thread deletion cleanup is invalid.");
+  }
+
+  return parsed.map((item) => {
+    if (
+      !isRecord(item) ||
+      typeof item.remoteId !== "string" ||
+      !Array.isArray(item.keys) ||
+      item.keys.length === 0 ||
+      !item.keys.every((key) => typeof key === "string")
+    ) {
+      throw new Error("Stored thread deletion cleanup is invalid.");
+    }
+
+    return { remoteId: item.remoteId, keys: item.keys };
+  });
+};
+
+const formattedMessagesKey = (
+  prefix: string,
+  remoteId: string,
+  format: string,
+) => `${prefix}formatted-messages:${JSON.stringify([remoteId, format])}`;
 
 const messageModalities = {
   voice: true,
@@ -494,6 +535,7 @@ export const createLocalStorageAdapter = (
 
   const threadsKey = `${prefix}threads`;
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
+  const pendingDeletionsKey = `${prefix}pending-thread-deletions`;
   const mutationQueue = getMutationQueue(storage);
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
@@ -505,6 +547,108 @@ export const createLocalStorageAdapter = (
     threads: StoredThreadMetadata[],
   ): Promise<void> => {
     await storage.setItem(threadsKey, JSON.stringify(threads));
+  };
+
+  const loadPendingDeletions = async (): Promise<PendingThreadDeletion[]> =>
+    parsePendingThreadDeletions(await storage.getItem(pendingDeletionsKey));
+
+  const savePendingDeletions = async (
+    deletions: PendingThreadDeletion[],
+  ): Promise<void> => {
+    if (deletions.length === 0) {
+      await storage.removeItem(pendingDeletionsKey);
+    } else {
+      await storage.setItem(pendingDeletionsKey, JSON.stringify(deletions));
+    }
+  };
+
+  const addPendingDeletion = async (
+    remoteId: string,
+    keys: string[],
+  ): Promise<PendingThreadDeletion> =>
+    mutationQueue.run(pendingDeletionsKey, async () => {
+      const deletions = await loadPendingDeletions();
+      const existing = deletions.find(
+        (deletion) => deletion.remoteId === remoteId,
+      );
+      const deletion = {
+        remoteId,
+        keys: [...new Set([...(existing?.keys ?? []), ...keys])],
+      };
+      const next = existing
+        ? deletions.map((item) => (item === existing ? deletion : item))
+        : [...deletions, deletion];
+      await savePendingDeletions(next);
+      return deletion;
+    });
+
+  const removePendingDeletionKey = async (
+    remoteId: string,
+    key: string,
+  ): Promise<void> =>
+    mutationQueue.run(pendingDeletionsKey, async () => {
+      const deletions = await loadPendingDeletions();
+      const existing = deletions.find(
+        (deletion) => deletion.remoteId === remoteId,
+      );
+      if (!existing) return;
+
+      const keys = existing.keys.filter((item) => item !== key);
+      const next =
+        keys.length === 0
+          ? deletions.filter((item) => item !== existing)
+          : deletions.map((item) =>
+              item === existing ? { remoteId, keys } : item,
+            );
+      await savePendingDeletions(next);
+    });
+
+  const removeThreadMetadata = async (remoteId: string): Promise<void> => {
+    await mutationQueue.run(threadsKey, async () => {
+      const threads = await loadThreadMetadata();
+      const filtered = threads.filter((thread) => thread.remoteId !== remoteId);
+      if (filtered.length !== threads.length) {
+        await saveThreadMetadata(filtered);
+      }
+    });
+  };
+
+  const drainPendingDeletion = async (
+    deletion: PendingThreadDeletion,
+  ): Promise<void> => {
+    await removeThreadMetadata(deletion.remoteId);
+
+    for (const key of deletion.keys) {
+      mutationQueue.markStale(key);
+      await mutationQueue.removeStale(key, storage);
+      await removePendingDeletionKey(deletion.remoteId, key);
+    }
+  };
+
+  const drainPendingDeletions = async (
+    remoteId?: string,
+    messageLockHeldFor?: string,
+  ): Promise<void> => {
+    while (true) {
+      const deletions = await mutationQueue.run(
+        pendingDeletionsKey,
+        loadPendingDeletions,
+      );
+      const pending = deletions.filter(
+        (deletion) => remoteId === undefined || deletion.remoteId === remoteId,
+      );
+      if (pending.length === 0) return;
+
+      for (const deletion of pending) {
+        if (deletion.remoteId === messageLockHeldFor) {
+          await drainPendingDeletion(deletion);
+        } else {
+          await mutationQueue.run(messagesKey(deletion.remoteId), () =>
+            drainPendingDeletion(deletion),
+          );
+        }
+      }
+    }
   };
 
   const updateThreadMetadata = async (
@@ -528,7 +672,15 @@ export const createLocalStorageAdapter = (
     },
 
     async list(): Promise<RemoteThreadListResponse> {
-      const threads = await loadThreadMetadata();
+      let threads: StoredThreadMetadata[] | null;
+      do {
+        await drainPendingDeletions();
+        threads = await mutationQueue.run(pendingDeletionsKey, async () => {
+          if ((await loadPendingDeletions()).length > 0) return null;
+          return mutationQueue.run(threadsKey, loadThreadMetadata);
+        });
+      } while (threads === null);
+
       return {
         threads: threads.map((t) => ({
           remoteId: t.remoteId,
@@ -546,7 +698,7 @@ export const createLocalStorageAdapter = (
       const remoteId = threadId;
       const key = messagesKey(remoteId);
       return mutationQueue.run(key, async () => {
-        await mutationQueue.removeStale(key, storage);
+        await drainPendingDeletions(remoteId, remoteId);
 
         return mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
@@ -595,13 +747,16 @@ export const createLocalStorageAdapter = (
     async delete(remoteId: string): Promise<void> {
       const key = messagesKey(remoteId);
       await mutationQueue.run(key, async () => {
-        await mutationQueue.run(threadsKey, async () => {
-          const threads = await loadThreadMetadata();
-          const filtered = threads.filter((t) => t.remoteId !== remoteId);
-          await saveThreadMetadata(filtered);
-        });
-        mutationQueue.markStale(key);
-        await mutationQueue.removeStale(key, storage);
+        const threads = await mutationQueue.run(threadsKey, loadThreadMetadata);
+        const thread = threads.find((item) => item.remoteId === remoteId);
+        const keys = [
+          key,
+          ...(thread?.formats ?? []).map((format) =>
+            formattedMessagesKey(prefix, remoteId, format),
+          ),
+        ];
+        const deletion = await addPendingDeletion(remoteId, keys);
+        await drainPendingDeletion(deletion);
       });
     },
 
