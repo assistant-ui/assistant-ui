@@ -1089,23 +1089,17 @@ describe("DataStreamEncoder error metadata", () => {
     ]);
   });
 
-  it("distinguishes critical from info after round trip", async () => {
-    const lines = await encodeChunks([
-      {
-        type: "error",
+  it.each(["critical", "warning", "info"] as const)(
+    "round-trips severity %s",
+    async (severity) => {
+      const chunk = {
+        type: "error" as const,
         path: [],
         error: "fatal",
         code: "boom",
-        severity: "critical",
-      },
-    ]);
-    const chunks = await decodeLines(lines);
-    const err = chunks.find(
-      (c): c is Extract<typeof c, { type: "error" }> => c.type === "error",
-    );
-    expect(err).toBeDefined();
-    if (!err) throw new Error("expected an error chunk");
-    expect(err.severity).toBe("critical");
-    expect(err.code).toBe("boom");
-  });
+        severity,
+      };
+      expect(await decodeLines(await encodeChunks([chunk]))).toEqual([chunk]);
+    },
+  );
 });

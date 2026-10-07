@@ -580,14 +580,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               // closes its open args streams with a final args frame ahead of
               // the error, and the step, message and stream ends close
               // whatever is left.
-              const { error, code, severity } = readErrorValue(value);
-              controller.enqueue({
-                type: "error",
-                path: [],
-                error,
-                ...(code !== undefined ? { code } : {}),
-                ...(severity !== undefined ? { severity } : {}),
-              });
+              controller.enqueue(readErrorValue(value));
               break;
             }
 
