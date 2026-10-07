@@ -280,6 +280,13 @@ function htmlBlockEnds(
 
 function htmlBlockRanges(text: string): number[] {
   const ranges: number[] = [];
+  const listItems: { content: number; depth: number; footnote: boolean }[] = [];
+  let codeStart = -1;
+  let codeIndent = 0;
+  let codeQuoteDepth = 0;
+  let previousBlank = true;
+  let previousHeading = false;
+  let previousFenceClose = false;
   let htmlKind = 0;
   let htmlStart = 0;
   let htmlQuoteDepth = 0;
@@ -365,6 +372,9 @@ function htmlBlockRanges(text: string): number[] {
           ranges.push(htmlStart, lineEnd);
           htmlKind = 0;
         }
+        previousBlank = false;
+        previousHeading = false;
+        previousFenceClose = false;
         lineStart = nextLine;
         continue;
       }
@@ -378,13 +388,15 @@ function htmlBlockRanges(text: string): number[] {
     if (fenceChar !== 0) {
       let end = i;
       while (end < lineEnd && text.charCodeAt(end) === fenceChar) end += 1;
-      if (
+      const closesFence =
         depth === fenceQuoteDepth &&
         (fenceChar === DOLLAR ? indent : i - contentStart) <= fenceIndent + 3 &&
         end - i >= fenceRun &&
-        onlyWhitespace(text, end, lineEnd)
-      )
-        fenceChar = 0;
+        onlyWhitespace(text, end, lineEnd);
+      if (closesFence) fenceChar = 0;
+      previousBlank = false;
+      previousHeading = false;
+      previousFenceClose = closesFence;
       lineStart = nextLine;
       continue;
     }
@@ -401,13 +413,58 @@ function htmlBlockRanges(text: string): number[] {
       ) {
         mathEnd = 0;
       } else {
+        previousBlank = false;
+        previousHeading = false;
+        previousFenceClose = false;
         lineStart = nextLine;
         continue;
       }
     }
+    if (codeStart !== -1) {
+      if (first === -1 || (depth === codeQuoteDepth && indent >= codeIndent)) {
+        lineStart = nextLine;
+        continue;
+      }
+      ranges.push(codeStart, lineStart);
+      codeStart = -1;
+    }
+    while (
+      listItems.length > 0 &&
+      depth < listItems[listItems.length - 1]!.depth
+    )
+      listItems.pop();
+    if (previousBlank && first !== -1) {
+      while (listItems.length > 0) {
+        const item = listItems[listItems.length - 1]!;
+        if (depth !== item.depth || indent >= item.content) break;
+        listItems.pop();
+      }
+    }
+    const listItem = listItems[listItems.length - 1];
+    const requiredCodeIndent = listItem?.footnote
+      ? Number.POSITIVE_INFINITY
+      : (listItem?.content ?? 0) + 4;
+    if (
+      first !== -1 &&
+      indent >= requiredCodeIndent &&
+      (previousBlank || previousHeading || previousFenceClose) &&
+      !(first === TILDE && opensTildeFence(text, i)) &&
+      !(first === BACKTICK && opensBacktickFence(text, i))
+    ) {
+      codeStart = lineStart;
+      codeIndent = requiredCodeIndent;
+      codeQuoteDepth = depth;
+      previousBlank = false;
+      previousHeading = false;
+      previousFenceClose = false;
+      lineStart = nextLine;
+      continue;
+    }
     let blockStart = skipListMarkers(text, i, lineEnd);
     let blockItemIndent =
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
+    const outerListIndent = blockItemIndent;
+    const outerListDepth = depth;
     const shallow = !indentedMarker && indent < 4;
     const markersInProse: boolean =
       blockStart !== i &&
@@ -434,6 +491,45 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
+
+    if (first !== -1 && !markersInProse) {
+      if (outerListIndent !== 0 && depth > outerListDepth) {
+        while (
+          listItems.length > 0 &&
+          outerListDepth === listItems[listItems.length - 1]!.depth &&
+          indent < listItems[listItems.length - 1]!.content
+        )
+          listItems.pop();
+        listItems.push({
+          content: outerListIndent,
+          depth: outerListDepth,
+          footnote: false,
+        });
+      }
+      const footnote = isFootnoteDef(text, i, lineEnd);
+      if (
+        blockItemIndent !== 0 ||
+        (outerListIndent !== 0 && depth === outerListDepth) ||
+        isBareMarker(text, i, lineEnd) ||
+        footnote
+      ) {
+        while (
+          listItems.length > 0 &&
+          depth === listItems[listItems.length - 1]!.depth &&
+          indent < listItems[listItems.length - 1]!.content
+        )
+          listItems.pop();
+        listItems.push({
+          content: footnote
+            ? 4
+            : blockStart !== i
+              ? blockItemIndent || outerListIndent
+              : indent + 2,
+          depth,
+          footnote,
+        });
+      }
+    }
 
     const itemIndent =
       blockItemIndent ||
@@ -540,13 +636,18 @@ function htmlBlockRanges(text: string): number[] {
       paragraphItemIndent = 0;
     }
     lastQuoteDepth = depth;
+    previousBlank = first === -1;
+    previousHeading =
+      shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd);
+    previousFenceClose = false;
     lineStart = nextLine;
   }
   if (htmlKind !== 0) ranges.push(htmlStart, text.length);
+  if (codeStart !== -1) ranges.push(codeStart, text.length);
   return ranges;
 }
 
-function rewriteOutsideHtml(
+function rewriteOutsideBlocks(
   text: string,
   rewrite: (text: string, offset: number) => string,
   original = text,
@@ -689,7 +790,7 @@ function backtickEnd(text: string, start: number): number {
 }
 
 /**
- * Applies `rewrite` to the stretches of `text` outside HTML blocks, code spans and fences,
+ * Applies `rewrite` to the stretches of `text` outside HTML blocks, indented code, code spans and fences,
  * copying their contents through verbatim, so a delimiter shown as code is never
  * rewritten. `\x` escapes are stepped over when scanning so an escaped
  * backtick does not open a span, and a delimiter pair straddling a code
@@ -715,7 +816,7 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
   ) => string,
 ): string {
-  return rewriteOutsideHtml(text, (text) => {
+  return rewriteOutsideBlocks(text, (text) => {
     let out = "";
     let index = 0;
     let plainStart = 0;
@@ -1022,128 +1123,6 @@ function opensCurrencyAmount(text: string, index: number): boolean {
   return /\d/.test(text[index + 1] ?? "");
 }
 
-/** Offset just past the spaces and tabs starting at `from` (within `[from, to)`). */
-function whitespaceEnd(text: string, from: number, to: number): number {
-  let i = from;
-  while (i < to) {
-    const code = text.charCodeAt(i);
-    if (code !== SPACE && code !== TAB) break;
-    i += 1;
-  }
-  return i;
-}
-
-/**
- * Offset past any blockquote markers opening the line `[from, to)`: each `>`
- * allows up to three leading spaces and one following space or tab.
- */
-function pastBlockquotes(text: string, from: number, to: number): number {
-  let i = from;
-  for (;;) {
-    let j = i;
-    let spaces = 0;
-    while (spaces < 3 && j < to && text.charCodeAt(j) === SPACE) {
-      j += 1;
-      spaces += 1;
-    }
-    if (j >= to || text.charCodeAt(j) !== GT) return i;
-    j += 1;
-    if (j < to) {
-      const code = text.charCodeAt(j);
-      if (code === SPACE || code === TAB) j += 1;
-    }
-    i = j;
-  }
-}
-
-/** Number of `>` markers `pastBlockquotes` strips from `[from, to)`. */
-function blockquoteDepth(text: string, from: number, to: number): number {
-  const stripped = pastBlockquotes(text, from, to);
-  let depth = 0;
-  for (let i = from; i < stripped; i += 1) {
-    if (text.charCodeAt(i) === GT) depth += 1;
-  }
-  return depth;
-}
-
-/** List content column before each line, with earlier markers and closers scanned once. */
-function listContentColumns(text: string): Map<number, number> {
-  const contexts = new Map<number, number>();
-  const contentClosers = new Map<number, number>();
-  const items: { marker: number; content: number; depth: number }[] = [];
-  let rawCloser = -1;
-  let rawCloserDepth = -1;
-  let otherRawCloser = -1;
-  let previousBlank = true;
-
-  for (let start = 0; start < text.length;) {
-    const newline = text.indexOf("\n", start);
-    const end = newline === -1 ? text.length : newline;
-    const content = pastBlockquotes(text, start, end);
-    const depth = blockquoteDepth(text, start, end);
-    const closer = Math.max(
-      depth === rawCloserDepth ? otherRawCloser : rawCloser,
-      contentClosers.get(depth) ?? -1,
-    );
-    while (items.length > 0 && items[items.length - 1]!.marker <= closer) {
-      items.pop();
-    }
-    const listContent = items[items.length - 1]?.content ?? 0;
-
-    const blank = onlyWhitespace(text, content, end);
-    if (!blank) {
-      const first = whitespaceEnd(text, content, end);
-      const indent = columns(text, content, first);
-      const markerEnd = listMarkerEnd(text, first, end);
-      const bare = isBareMarker(text, first, end);
-      const footnote = isFootnoteDef(text, first, end);
-      if (
-        (indent < 4 || (listContent > 0 && indent < listContent + 4)) &&
-        (markerEnd !== first || bare || footnote)
-      ) {
-        contexts.set(start, listContent);
-        while (items.length > 0 && indent < items[items.length - 1]!.content) {
-          items.pop();
-        }
-        items.push({
-          marker: start,
-          depth,
-          content: footnote
-            ? Number.POSITIVE_INFINITY
-            : markerEnd !== first
-              ? columns(text, content, markerEnd)
-              : indent + 2,
-        });
-      } else {
-        if (previousBlank) {
-          if (columns(text, start, whitespaceEnd(text, start, end)) < 2) {
-            if (depth !== rawCloserDepth) {
-              otherRawCloser = rawCloser;
-            }
-            rawCloser = start;
-            rawCloserDepth = depth;
-            if (indent < 2) contentClosers.set(depth, start);
-          }
-          while (
-            items.length > 0 &&
-            depth === items[items.length - 1]!.depth &&
-            items[items.length - 1]!.content !== Number.POSITIVE_INFINITY &&
-            indent < items[items.length - 1]!.content
-          ) {
-            items.pop();
-          }
-        }
-        contexts.set(start, items[items.length - 1]?.content ?? 0);
-      }
-    } else {
-      contexts.set(start, listContent);
-    }
-    previousBlank = blank;
-    start = end + 1;
-  }
-  return contexts;
-}
-
 /**
  * Whether the line `[from, to)` is a bare list marker with nothing after it
  * (`-` or `1.` alone): an empty list item whose content follows on later
@@ -1181,95 +1160,13 @@ function isFootnoteDef(text: string, from: number, to: number): boolean {
   return text.charCodeAt(i + 1) === COLON;
 }
 
-/** Whether the line before the one at `lineStart` is blank (or absent). */
-function prevLineIsBlank(text: string, lineStart: number): boolean {
-  if (lineStart === 0) return true;
-  const prevStart =
-    lineStart < 2 ? 0 : text.lastIndexOf("\n", lineStart - 2) + 1;
-  const prevEnd = text.indexOf("\n", prevStart);
-  const end = prevEnd === -1 ? text.length : prevEnd;
-  return onlyWhitespace(text, pastBlockquotes(text, prevStart, end), end);
-}
-
-function prevLineIsHeading(text: string, lineStart: number): boolean {
-  if (lineStart === 0) return false;
-  const prevStart =
-    lineStart < 2 ? 0 : text.lastIndexOf("\n", lineStart - 2) + 1;
-  const content = pastBlockquotes(text, prevStart, lineStart - 1);
-  const first = whitespaceEnd(text, content, lineStart - 1);
-  return (
-    columns(text, content, first) < 4 &&
-    isAtxHeading(text, first, lineStart - 1)
-  );
-}
-
-/**
- * Whether the line at `index` opens an indented code block: it starts a line,
- * carries non-whitespace past any blockquote markers, sits at four or more
- * columns of indentation past its containing list item's content column and
- * follows a blank line, an ATX heading, or the start of input.
- * List context uses the full input because HTML blocks split rewrite slices.
- */
-function opensIndentedCode(
-  text: string,
-  index: number,
-  contextIndex: number,
-  listContexts: Map<number, number>,
-): boolean {
-  if (index !== 0 && text[index - 1] !== "\n") return false;
-  const lineEnd = text.indexOf("\n", index);
-  const end = lineEnd === -1 ? text.length : lineEnd;
-  const content = pastBlockquotes(text, index, end);
-  if (onlyWhitespace(text, content, end)) return false;
-  if (!prevLineIsBlank(text, index) && !prevLineIsHeading(text, index))
-    return false;
-  const wsEnd = whitespaceEnd(text, content, end);
-  const indent = columns(text, content, wsEnd);
-  if (indent < 4) return false;
-  const listContent = listContexts.get(contextIndex) ?? 0;
-  return listContent === 0 || indent >= listContent + 4;
-}
-
-/**
- * End index (exclusive) of the indented code block opening at `index`, or -1
- * when none opens there. The block runs through blank lines and lines
- * indented four or more columns past any blockquote markers, ending at the
- * first other line.
- */
-function indentedCodeEnd(
-  text: string,
-  index: number,
-  contextIndex: number,
-  listContexts: Map<number, number>,
-): number {
-  if (!opensIndentedCode(text, index, contextIndex, listContexts)) return -1;
-  const requiredIndent = Math.max(4, (listContexts.get(contextIndex) ?? 0) + 4);
-  let lineStart = index;
-  for (;;) {
-    const lineEnd = text.indexOf("\n", lineStart);
-    const end = lineEnd === -1 ? text.length : lineEnd;
-    const content = pastBlockquotes(text, lineStart, end);
-    if (!onlyWhitespace(text, content, end)) {
-      const wsEnd = whitespaceEnd(text, content, end);
-      if (columns(text, content, wsEnd) < requiredIndent) return lineStart;
-    }
-    if (lineEnd === -1) return text.length;
-    lineStart = lineEnd + 1;
-  }
-}
-
 /**
  * End index (exclusive) of the run at `index` that must be copied unchanged: a `\x`
  * escape, a code span or fence, a `$$` display delimiter, an inline math span, or a
  * plain character. Returns `index` itself for a single `$`, which the caller has to
  * decide.
  */
-function endOfVerbatimRun(
-  text: string,
-  index: number,
-  contextIndex: number,
-  listContexts: Map<number, number>,
-): number {
+function endOfVerbatimRun(text: string, index: number): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
@@ -1277,8 +1174,6 @@ function endOfVerbatimRun(
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
-  const indentedEnd = indentedCodeEnd(text, index, contextIndex, listContexts);
-  if (indentedEnd !== -1) return indentedEnd;
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");
@@ -1296,7 +1191,7 @@ function endOfVerbatimRun(
  * Escapes a `$` that opens a currency amount (`$5`, `$19.99`, `$1,299`) so that
  * remark-math with single-dollar math enabled does not consume prices in prose as
  * math delimiters. The `$$` of display math is left intact, an already-escaped `\$`
- * is not escaped twice, and HTML blocks, code spans and fences are never rewritten.
+ * is not escaped twice, and HTML blocks, indented code, code spans and fences are never rewritten.
  *
  * A `$` followed by a digit is only currency when it does not open a plausible math
  * span, so the text up to the next `$` is inspected first: `$0$` and `$5x = 10$`
@@ -1307,20 +1202,14 @@ function endOfVerbatimRun(
  */
 export function escapeCurrencyDollars(text: string): string {
   const normalized = text.replace(/\r(?!\n)/g, "\n");
-  const listContexts = listContentColumns(normalized);
-  return rewriteOutsideHtml(
+  return rewriteOutsideBlocks(
     normalized,
     (slice, offset) => {
       let out = "";
       let index = 0;
 
       while (index < slice.length) {
-        const verbatimEnd = endOfVerbatimRun(
-          slice,
-          index,
-          offset + index,
-          listContexts,
-        );
+        const verbatimEnd = endOfVerbatimRun(slice, index);
         if (verbatimEnd > index) {
           out += text.slice(offset + index, offset + verbatimEnd);
           index = verbatimEnd;

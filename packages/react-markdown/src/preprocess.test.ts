@@ -836,6 +836,16 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("> - a\n>\n>   para1\n>\n>     para2 costs \\$5");
   });
 
+  it("retains the list column across a nested blockquote", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- > item\n  >\n  >     prose $5\n  >\n  >       code $10\n\n    after $15",
+      ),
+    ).toBe(
+      "- > item\n  >\n  >     prose \\$5\n  >\n  >       code $10\n\n    after \\$15",
+    );
+  });
+
   it("still escapes footnote prose", () => {
     expect(
       escapeCurrencyDollars("[^1]: Pricing note\n\n    Plans cost $5 and $10"),
@@ -873,6 +883,27 @@ describe("escapeCurrencyDollars", () => {
 
   it("does not rewrite indented code inside a blockquote", () => {
     expect(escapeCurrencyDollars(">     total = $5")).toBe(">     total = $5");
+  });
+
+  it.each([
+    ["fenced code", "```\n- fake item\n```"],
+    ["HTML block", "<pre>\n- fake item\n</pre>"],
+  ])("ignores a list marker inside %s before root code", (_, block) => {
+    const markdown = `${block}\n\n    total = $5`;
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("preserves alternative math delimiters inside indented code", () => {
+    const markdown =
+      "    \\(x\\) [/math]y[/math] $5\n\nprose \\(z\\) [/math]w[/math]";
+    expect(escapeCurrencyDollars(normalizeMathDelimiters(markdown))).toBe(
+      "    \\(x\\) [/math]y[/math] $5\n\nprose $z$ $$w$$",
+    );
+  });
+
+  it("starts indented code immediately after a fence closes", () => {
+    const markdown = "```\ncode\n```\n    total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
   });
 
   it("still escapes a blockquote paragraph", () => {
