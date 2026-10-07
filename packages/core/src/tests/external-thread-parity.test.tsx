@@ -521,6 +521,78 @@ describe("ExternalThread composer", () => {
     });
   });
 
+  it("keeps the non-text parts of an edited user message as attachments", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [
+            { type: "image", image: "data:image/png;base64,AAAA" },
+            { type: "text", text: "what is this?" },
+          ],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+    composer().setText("what is in this picture?");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    const sent = onEdit.mock.calls[0]![0];
+    expect(sent.content).toEqual([
+      { type: "text", text: "what is in this picture?" },
+    ]);
+    expect(sent.attachments).toHaveLength(1);
+    expect(sent.attachments[0].content).toEqual([
+      { type: "image", image: "data:image/png;base64,AAAA" },
+    ]);
+  });
+
+  it("keeps the non-text parts of an edited assistant message", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "answer" },
+          ],
+          createdAt: new Date(0),
+          status: { type: "complete", reason: "stop" },
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "a1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().setText("better answer");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].content).toEqual([
+      { type: "text", text: "better answer" },
+      { type: "reasoning", text: "thinking" },
+    ]);
+  });
+
   it("throws on edit-composer send before beginEdit", () => {
     const { aui } = renderThread({
       messages: [
