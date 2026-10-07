@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.47",
+  "version": "0.3.48",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -18,6 +18,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
     },
     "./utils": {
       "types": "./dist/utils.d.ts",
@@ -48,6 +52,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "pnpm run test:v6 && pnpm run test:peer-v5 && pnpm run test:types:peer-v5",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:v6": "vitest run",
     "test:peer-v5": "vitest run --config vitest.peer-v5.config.ts",

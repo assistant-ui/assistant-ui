@@ -45,15 +45,27 @@ const isIncompleteDiagram = (code: string, svg: string) => {
 const CSS_IMPORT =
   /@import\s*(?:url\(\s*(?:"[^"]*"|'[^']*'|[^)]*)\s*\)|"[^"]*"|'[^']*')[^;]*(?:;|$)/g;
 
+const SVG_STYLE = /<style\b[^>]*>([\s\S]*?)<\/style>/g;
+
 const splitSvgStyles = (svg: string) => {
   let css = "";
-  const markup = svg
-    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/g, (_, rules: string) => {
+  let markup = svg;
+  let previous: string;
+  // Removing one <style> can splice the text around it into another.
+  do {
+    previous = markup;
+    markup = markup.replace(SVG_STYLE, (_, rules: string) => {
       css += rules;
       return "";
-    })
-    .replace(/(<[^>]*?)\sstyle="([^"]*)"/g, '$1 data-aui-style="$2"');
-  return { markup, css: css.replace(CSS_IMPORT, "").trim() };
+    });
+  } while (markup !== previous);
+  return {
+    markup: markup.replace(
+      /(<[^>]*?)\sstyle="([^"]*)"/g,
+      '$1 data-aui-style="$2"',
+    ),
+    css: css.replace(CSS_IMPORT, "").trim(),
+  };
 };
 
 type StyleRoot = Document | ShadowRoot;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useId, type ComponentProps } from "react";
 import { PinIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -13,24 +13,44 @@ export interface SearchableThread {
   pinned?: boolean;
 }
 
-export function ThreadSearch({
-  threads,
-  query,
-  activeId,
-  onQueryChange,
-  onSelect,
-  className,
-  ...props
-}: Omit<
+type ThreadSearchInteractionProps =
+  | {
+      onActiveChange: (id: string) => void;
+      onSelect: (id: string) => void;
+    }
+  | {
+      onActiveChange?: (id: string) => void;
+      onSelect?: undefined;
+    };
+
+type ThreadSearchProps = Omit<
   ComponentProps<"div">,
-  "children" | "threads" | "query" | "activeId" | "onQueryChange" | "onSelect"
+  | "children"
+  | "threads"
+  | "query"
+  | "activeId"
+  | "onQueryChange"
+  | "onActiveChange"
+  | "onSelect"
 > & {
   threads: readonly SearchableThread[];
   query: string;
   activeId: string;
   onQueryChange?: (query: string) => void;
-  onSelect?: (id: string) => void;
-}) {
+} & ThreadSearchInteractionProps;
+
+export function ThreadSearch({
+  threads,
+  query,
+  activeId,
+  onQueryChange,
+  onActiveChange,
+  onSelect,
+  className,
+  ...props
+}: ThreadSearchProps) {
+  const listId = useId();
+  const optionId = (id: string) => `${listId}-${id}`;
   const matches = threads.filter((thread) =>
     `${thread.title} ${thread.preview}`
       .toLowerCase()
@@ -49,22 +69,31 @@ export function ThreadSearch({
   ];
 
   const move = (delta: number) => {
-    if (ordered.length === 0) return;
+    if (ordered.length === 0 || !onActiveChange) return false;
     const at = ordered.findIndex((thread) => thread.id === activeId);
     // activeId can be filtered out by the query; start from the edge the key implies
     const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
     const next = ordered[(from + delta + ordered.length) % ordered.length];
-    if (next && onSelect) onSelect(next.id);
+    if (!next) return false;
+    onActiveChange(next.id);
+    document
+      .getElementById(optionId(next.id))
+      ?.scrollIntoView({ block: "nearest" });
+    return true;
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
     if (event.key === "ArrowDown") {
-      event.preventDefault();
-      move(1);
+      if (move(1)) event.preventDefault();
     } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      move(-1);
+      if (move(-1)) event.preventDefault();
+    } else if (event.key === "Enter") {
+      const active = ordered.find((thread) => thread.id === activeId);
+      if (active && onSelect) {
+        event.preventDefault();
+        onSelect(active.id);
+      }
     }
   };
 
@@ -96,14 +125,28 @@ export function ThreadSearch({
     return onSelect ? (
       <button
         key={thread.id}
+        id={optionId(thread.id)}
         type="button"
-        onClick={() => onSelect(thread.id)}
+        role="option"
+        tabIndex={-1}
+        aria-selected={thread.id === activeId}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => {
+          onActiveChange?.(thread.id);
+          onSelect(thread.id);
+        }}
         className={className}
       >
         {content}
       </button>
     ) : (
-      <div key={thread.id} className={className}>
+      <div
+        key={thread.id}
+        id={optionId(thread.id)}
+        role="option"
+        aria-selected={thread.id === activeId}
+        className={className}
+      >
         {content}
       </div>
     );
@@ -133,32 +176,62 @@ export function ThreadSearch({
           onKeyDown={onKeyDown}
           placeholder="Search threads"
           aria-label="Search threads"
+          role="combobox"
+          aria-expanded={true}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            ordered.some((thread) => thread.id === activeId)
+              ? optionId(activeId)
+              : undefined
+          }
           className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[13px] outline-none"
         />
       </div>
 
-      {pinned.length > 0 && (
-        <div className="flex flex-col">
-          <span className={cn(mono, "text-muted-foreground px-2 pb-1")}>
-            pinned
-          </span>
-          {pinned.map(row)}
-        </div>
-      )}
+      <div
+        id={listId}
+        role="listbox"
+        aria-label="Threads"
+        className="flex flex-col gap-1.5"
+      >
+        {pinned.length > 0 && (
+          <div role="group" aria-label="Pinned" className="flex flex-col">
+            <span
+              aria-hidden
+              className={cn(mono, "text-muted-foreground px-2 pb-1")}
+            >
+              pinned
+            </span>
+            {pinned.map(row)}
+          </div>
+        )}
 
-      {groups.map((group) => (
-        <div key={group} className="flex flex-col">
-          <span className={cn(mono, "text-muted-foreground px-2 pb-1")}>
-            {group}
-          </span>
-          {matches
-            .filter((thread) => !thread.pinned && thread.group === group)
-            .map(row)}
-        </div>
-      ))}
+        {groups.map((group) => (
+          <div
+            key={group}
+            role="group"
+            aria-label={group}
+            className="flex flex-col"
+          >
+            <span
+              aria-hidden
+              className={cn(mono, "text-muted-foreground px-2 pb-1")}
+            >
+              {group}
+            </span>
+            {matches
+              .filter((thread) => !thread.pinned && thread.group === group)
+              .map(row)}
+          </div>
+        ))}
+      </div>
 
       {matches.length === 0 && (
-        <span className="text-muted-foreground px-2 py-4 text-center text-xs">
+        <span
+          role="status"
+          className="text-muted-foreground px-2 py-4 text-center text-xs"
+        >
           No thread matches “{query}”
         </span>
       )}

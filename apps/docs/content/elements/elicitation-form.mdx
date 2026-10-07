@@ -131,20 +131,26 @@ import {
   type ElicitationState,
 } from "@/components/assistant-ui/elements/elicitation-form";
 
-const FIELDS: readonly ElicitationField[] = [
+const INITIAL_FIELDS: readonly ElicitationField[] = [
   { name: "repo", label: "Repository", value: "assistant-ui/assistant-ui", kind: "text", required: true },
   { name: "notify", label: "Notify watchers", value: "true", kind: "toggle" },
 ];
 
 export function PublishRequest() {
   const [state, setState] = useState<ElicitationState>("request");
+  const [fields, setFields] = useState(INITIAL_FIELDS);
 
   return (
     <ElicitationForm
       server="github-mcp"
       message="Confirm where the release notes should be published."
-      fields={FIELDS}
+      fields={fields}
       state={state}
+      onFieldChange={(name, value) =>
+        setFields((current) =>
+          current.map((item) => (item.name === name ? { ...item, value } : item)),
+        )
+      }
       onAccept={() => setState("accepted")}
       onDecline={() => setState("declined")}
     />
@@ -182,12 +188,12 @@ function toElicitationField(
 <div data-slot="elicitation-form">
   <div>{/* plug icon, server name, "needs input" tag */}</div>
   <p>{/* message */}</p>
-  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, or a static value chip depending on kind */}</div>
+  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, a text input, or a static value chip depending on kind and state */}</div>
   <div>{/* Decline / Send while state is "request"; a settled "Sent to {server}" or "Declined" row otherwise */}</div>
 </div>
 ```
 
-Once `state` leaves `"request"`, a settled row replaces the Decline and Send controls; they are removed, not disabled. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
+Once `state` leaves `"request"`, a settled row replaces the Decline and Send controls; they are removed, not disabled. While state is `"request"`, supplying `onFieldChange` makes text, choice, and toggle fields editable; keep `fields` in controlled state and write each reported value back by name. Without the callback, or after the request settles, fields remain display-only. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
 
 ## Examples
 
@@ -219,6 +225,8 @@ const required = new Set(
 ```tsx
 { name: "repo", label: "Repository", value: "", kind: "text", required: true }
 ```
+
+While the request is editable, Send is disabled while any required text or choice field is blank. In read-only mode, Send stays enabled even when a required field is blank.
 
 </StandaloneMode>
 
@@ -284,6 +292,7 @@ Requires `@assistant-ui/react-mcp` and a connected server whose `elicitation` ca
 | `message` | `string` | required | The request text. |
 | `fields` | `readonly ElicitationField[]` | required | The requested fields, in order. |
 | `state` | `ElicitationState` | required | `"request"` shows the form; `"accepted"` or `"declined"` replace the footer with a settled message. |
+| `onFieldChange` | `(name: string, value: string) => void` | | Makes request-state fields editable and reports each controlled value change. |
 | `onAccept` | `() => void` | | Called when Send is pressed. |
 | `onDecline` | `() => void` | | Called when Decline is pressed. |
 | `className` | `string` | | Merged onto the root. |

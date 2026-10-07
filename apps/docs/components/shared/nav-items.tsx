@@ -50,12 +50,13 @@ function DropdownLink({ link }: { link: DropdownItem }) {
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
+            data-nav-glyph-motion
             className={className}
           >
             {body}
           </a>
         ) : (
-          <Link href={link.href} className={className}>
+          <Link href={link.href} data-nav-glyph-motion className={className}>
             {body}
           </Link>
         )
@@ -81,6 +82,7 @@ function FeaturedCard({
         render={
           <Link
             href={link.href}
+            data-nav-glyph-motion
             className="group/navlink flex flex-1 flex-col gap-2"
           >
             {link.glyph ? <NavGlyph kind={link.glyph} size="lg" /> : null}

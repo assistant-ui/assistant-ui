@@ -187,7 +187,7 @@ type GenerativeUISpec = {
 
 type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 type GenericFilePart = {

@@ -2,7 +2,10 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
-import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  useAssistantClientDestroySignal,
+  useOptionalAssistantClientRef,
+} from "@assistant-ui/store/internal";
 import {
   useClientLookup,
   attachTransformScopes,
@@ -22,6 +25,7 @@ import type {
   Attachment,
   CompleteAttachment,
   CreateAttachment,
+  PendingAttachment,
 } from "../../types/attachment";
 import {
   isAttachmentComplete,
@@ -36,6 +40,7 @@ import type {
   Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { Unstable_ToolInteractionInput } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
 import type {
   ExternalThreadQueueAdapter,
   QueuePlacement,
@@ -49,7 +54,7 @@ import { ToolResponse } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { QueueItemState } from "../scopes/queue-item";
 import type { ComposerSendOptions } from "../scopes/composer";
-import { fileMatchesAccept } from "../../adapters/attachment";
+import { fileMatchesAccept, liftNonTextParts } from "../../adapters/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
 import { createToolInteraction } from "../../runtime/utils/tool-interactions";
@@ -622,6 +627,9 @@ const useComposerClientResource = ({
     [],
   );
   const attachmentSends = useMemo(() => new AttachmentSendOperations(), []);
+  const nonTextPassthrough = useRef<
+    readonly ExternalThreadMessage["content"][number][]
+  >([]);
   const destroySignal = useAssistantClientDestroySignal();
   const [submission, setSubmission, submissionRef] = useLiveState<
     ComposerSubmission | undefined
@@ -689,16 +697,26 @@ const useComposerClientResource = ({
       .join("\n\n");
     setText(messageText);
     setRole(message.role);
+    setQuote(message.metadata.custom.quote as QuoteInfo | undefined);
     // Re-seeding from the message abandons any removal begun in a previous
     // edit session, so the restored objects must shed their removal marks.
     const restored = message.attachments ?? [];
     for (const attachment of restored)
       attachmentSends.unmarkRemoved(attachment);
-    setAttachments(restored);
+    if (message.role === "user") {
+      setAttachments([...restored, ...liftNonTextParts(message.content)]);
+      nonTextPassthrough.current = [];
+    } else {
+      setAttachments(restored);
+      nonTextPassthrough.current = message.content.filter(
+        (part) => part.type !== "text",
+      );
+    }
   };
 
   const handleRemoveAttachment = useCallback(
     async (attachment: Attachment) => {
+      if (attachmentSends.isRemoved(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
@@ -733,15 +751,22 @@ const useComposerClientResource = ({
   // and can still be taken out of the message that is being sent.
   const handleRemoveSubmittedAttachment = useCallback(
     async (attachment: Attachment) => {
+      if (attachmentSends.isRemovalPending(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
         // An attachment whose removal failed stays out of the message it was
-        // taken from and shows why, so the removal can be tried again.
+        // taken from and shows why, so the removal can be tried again. Once
+        // that message is back in the draft, it is a draft attachment again.
         await removeAttachmentThroughAdapter(
           attachment,
           attachmentAdapter,
-          (message) =>
+          (message) => {
+            const fail = (candidate: PendingAttachment) =>
+              attachmentSends.transfer(candidate, {
+                ...candidate,
+                status: { type: "incomplete", reason: "error", message },
+              });
             setSubmission((prev) =>
               prev
                 ? {
@@ -752,20 +777,21 @@ const useComposerClientResource = ({
                         isAttachmentComplete(candidate)
                       )
                         return candidate;
-                      const failed = attachmentSends.transfer(candidate, {
-                        ...candidate,
-                        status: {
-                          type: "incomplete",
-                          reason: "error",
-                          message,
-                        },
-                      });
-                      attachmentSends.markRemoved(failed);
+                      const failed = fail(candidate);
+                      attachmentSends.holdOut(failed);
                       return failed;
                     }),
                   }
                 : prev,
-            ),
+            );
+            setAttachments((prev) =>
+              prev.includes(attachment)
+                ? prev.map((candidate) =>
+                    candidate === attachment ? fail(attachment) : candidate,
+                  )
+                : prev,
+            );
+          },
         );
       }
       setSubmission((prev) =>
@@ -778,11 +804,15 @@ const useComposerClientResource = ({
             }
           : prev,
       );
+      setAttachments((prev) =>
+        prev.includes(attachment) ? prev.filter((a) => a !== attachment) : prev,
+      );
     },
     [
       attachmentAddOperations,
       attachmentAdapter,
       attachmentSends,
+      setAttachments,
       setSubmission,
     ],
   );
@@ -821,6 +851,9 @@ const useComposerClientResource = ({
         .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
+
+  const draftUploadsToRemove = (draft: readonly Attachment[]) =>
+    draft.filter((attachment) => !attachmentSends.isRemoved(attachment));
 
   const upsertAttachment = (attachment: Attachment) => {
     const current = submissionRef.current;
@@ -912,21 +945,28 @@ const useComposerClientResource = ({
 
   // Takes a send's content back into the draft, ahead of anything written
   // since. An edit composer kept its draft, so it only takes back the state
-  // the attachments came back in, such as the reason one failed.
+  // the attachments came back in, such as the reason one failed, and leaves
+  // an attachment being removed to its removal.
   const returnToDraft = (content: ComposerSubmission) => {
     if (type !== "thread") {
       const returned = new Map(
-        content.attachments.map((attachment) => [attachment.id, attachment]),
+        content.attachments
+          .filter((attachment) => !attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
       setAttachments((prev) =>
-        prev.map((attachment) => returned.get(attachment.id) ?? attachment),
+        prev.map((attachment) =>
+          attachmentSends.isRemoved(attachment)
+            ? attachment
+            : (returned.get(attachment.id) ?? attachment),
+        ),
       );
       return;
     }
-    const kept = content.attachments.filter(
-      (attachment) => !attachmentSends.isRemoved(attachment),
+    const returned = content.attachments.map((attachment) =>
+      attachmentSends.restore(attachment),
     );
-    setAttachments((prev) => [...kept, ...prev]);
+    setAttachments((prev) => [...returned, ...prev]);
     setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
     setQuote((prev) => prev ?? content.quote);
   };
@@ -947,7 +987,11 @@ const useComposerClientResource = ({
     // An attachment the draft still holds is removed along with the draft.
     const drafted = new Set(attachmentsRef.current.map((a) => a.id));
     await removePendingAttachments(
-      current.attachments.filter((attachment) => !drafted.has(attachment.id)),
+      current.attachments.filter(
+        (attachment) =>
+          !drafted.has(attachment.id) &&
+          !attachmentSends.isRemovalPending(attachment),
+      ),
     );
   };
 
@@ -964,9 +1008,14 @@ const useComposerClientResource = ({
         failures.set(sent[index]!.id, result.reason);
     });
     // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try.
+    // the draft it returns to shows which file needs another try. One removed
+    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = current.attachments.map((attachment) => {
-      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+      if (
+        !failures.has(attachment.id) ||
+        isAttachmentComplete(attachment) ||
+        attachmentSends.isRemoved(attachment)
+      )
         return attachment;
       const failure = failures.get(attachment.id);
       return attachmentSends.transfer(attachment, {
@@ -994,9 +1043,12 @@ const useComposerClientResource = ({
   ) => {
     const composedMessage: AppendMessage = {
       role: current.role,
-      content: current.text
-        ? [{ type: "text" as const, text: current.text }]
-        : [],
+      content: [
+        ...(current.text
+          ? [{ type: "text" as const, text: current.text }]
+          : []),
+        ...nonTextPassthrough.current,
+      ] as AppendMessage["content"],
       attachments,
       createdAt: new Date(),
       parentId: null,
@@ -1100,12 +1152,13 @@ const useComposerClientResource = ({
         ? []
         : [result.value],
     );
-    dispatchMessage(
-      submissionRef.current ?? current,
-      finalAttachments,
-      context,
-      true,
-    );
+    const submitted = submissionRef.current ?? current;
+    if (!submitted.text.trim() && finalAttachments.length === 0) {
+      endSubmission();
+      returnToDraft({ ...submitted, attachments: [] });
+      return;
+    }
+    dispatchMessage(submitted, finalAttachments, context, true);
   };
 
   return {
@@ -1167,14 +1220,26 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
-      attachmentAddOperations.cancelAll();
+      // A send that detached the draft holds the submission's attachments, so
+      // their uploads keep going for it.
+      attachmentAddOperations.cancelAll(
+        type === "thread"
+          ? new Set(
+              submissionRef.current?.attachments.map(
+                (attachment) => attachment.id,
+              ),
+            )
+          : undefined,
+      );
       const removed = attachmentsRef.current;
+      // Taken before the marks below, which would read as pending removals.
+      const pending = draftUploadsToRemove(removed);
       if (submissionRef.current) {
         for (const attachment of removed)
           attachmentSends.markRemoved(attachment);
       }
       setAttachments([]);
-      await removePendingAttachments(removed);
+      await removePendingAttachments(pending);
     },
     attachment: (selector) => {
       if ("id" in selector) {
@@ -1200,7 +1265,11 @@ const useComposerClientResource = ({
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
-      await Promise.all([removePendingAttachments(removed), discarded]);
+      nonTextPassthrough.current = [];
+      await Promise.all([
+        removePendingAttachments(draftUploadsToRemove(removed)),
+        discarded,
+      ]);
     },
     send: (opts?: ComposerSendOptions) => {
       // An attachment whose removal is still awaiting the adapter is excluded
@@ -1263,9 +1332,11 @@ const useComposerClientResource = ({
         void discardSubmission();
         const removed = attachmentsRef.current;
         setAttachments([]);
-        removePendingAttachments(removed).catch((error) => {
-          console.error("Failed to remove cancelled edit attachments", error);
-        });
+        removePendingAttachments(draftUploadsToRemove(removed)).catch(
+          (error) => {
+            console.error("Failed to remove cancelled edit attachments", error);
+          },
+        );
       }
       onCancel?.();
       if (type === "edit") setIsEditing(false);
@@ -1395,6 +1466,7 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const clientRef = useOptionalAssistantClientRef();
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
@@ -1770,7 +1842,12 @@ const useExternalThread = ({
         );
       onLoadExternalState(state);
     },
-    getModelContext: () => ({ tools: {}, config: {} }),
+    getModelContext: () => {
+      const modelContext = clientRef?.current?.modelContext;
+      return modelContext?.source != null
+        ? modelContext().getModelContext()
+        : { tools: {}, config: {} };
+    },
     export: () => ({ messages: [] }),
     import: () => {},
     reset: () => {},

@@ -46,6 +46,7 @@ import {
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
+  supersedeThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
@@ -199,16 +200,19 @@ export class LocalThreadRuntimeCore
     messageIds: readonly string[],
     write: () => Promise<void>,
   ): Promise<void> {
+    const generation = this._loadGeneration;
     try {
       await write();
     } catch (error) {
       console.error("[assistant-ui] local thread history write failed:", error);
-      this._notifyEventSubscribers("historyWriteError", {
-        operation,
-        messageIds,
-        message: error instanceof Error ? error.message : String(error),
-        error,
-      });
+      if (generation === this._loadGeneration) {
+        this._notifyEventSubscribers("historyWriteError", {
+          operation,
+          messageIds,
+          message: error instanceof Error ? error.message : String(error),
+          error,
+        });
+      }
       throw error;
     }
   }
@@ -229,19 +233,22 @@ export class LocalThreadRuntimeCore
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
+    const generation = this._loadGeneration;
+    const writeCurrent = () =>
+      generation === this._loadGeneration ? write() : Promise.resolve();
     const tombstone = this._deletedMessages.get(id);
     if (tombstone) {
-      tombstone.suppressed?.push(write);
+      tombstone.suppressed?.push(writeCurrent);
       return Promise.resolve();
     }
 
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
     const pending = this._historyWrites.get(id);
     let next: Promise<void>;
-    if (pending) next = pending.then(write, write);
+    if (pending) next = pending.then(writeCurrent, writeCurrent);
     else {
       try {
-        next = Promise.resolve(write());
+        next = Promise.resolve(writeCurrent());
       } catch (error) {
         next = Promise.reject(error);
       }
@@ -396,6 +403,8 @@ export class LocalThreadRuntimeCore
   }
 
   private _options!: LocalRuntimeOptionsBase;
+  private _historyScopeInitialized = false;
+  private _historyScopeId: string | undefined;
 
   private _lastRunConfig: RunConfig = {};
 
@@ -421,6 +430,47 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    const previousSuggestion = this._options?.adapters.suggestion;
+    const currentHistory = options.adapters.history;
+    const historyScopeChanged =
+      currentHistory !== undefined &&
+      this._historyScopeInitialized &&
+      this._historyScopeId !== currentHistory.scopeId;
+    if (currentHistory) {
+      this._historyScopeInitialized = true;
+      this._historyScopeId = currentHistory.scopeId;
+    }
+    const resetHistoryScope = this._loadRequested && historyScopeChanged;
+
+    if (resetHistoryScope) {
+      this._loadGeneration++;
+      this._historyWrites.clear();
+      this._deletedMessages.clear();
+      this._roundtripsInFlight.clear();
+      this._followedDuringRun.clear();
+      this._unwrittenMessages.clear();
+      this._queue?.clear();
+      this.cancelRun();
+      supersedeThreadRuntime(this);
+      this._queue = null;
+      this._queueRunInFlight = null;
+      this._activeRun = null;
+      // The draft was written under the previous scope, so sending it after
+      // the switch would append one account's content through another's
+      // adapter. Reset also invalidates a send still uploading attachments.
+      void this.composer.reset().catch((error) => {
+        console.error(
+          "[assistant-ui] Composer reset threw after the history scope changed",
+          error,
+        );
+      });
+      this._suggestions = [];
+      this._lastRunConfig = {};
+      this.repository.clear();
+      this._loadPromise = undefined;
+      this._isLoading = false;
+    }
+
     this._options = options;
     if (!options.adapters.voice && this.voice) {
       try {
@@ -433,15 +483,27 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    let hasUpdates = false;
+    let hasUpdates = resetHistoryScope;
 
-    if (!options.adapters.suggestion) {
+    const suggestion = options.adapters.suggestion;
+    if (!suggestion) {
       this._suggestionsController?.abort();
       this._suggestionsController = null;
       if (this._suggestions.length > 0) {
         this._suggestions = [];
         hasUpdates = true;
       }
+    } else if (
+      !previousSuggestion ||
+      previousSuggestion.key !== suggestion.key
+    ) {
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+      if (this._suggestions.length > 0) {
+        this._suggestions = [];
+        hasUpdates = true;
+      }
+      this._generateSuggestions();
     }
 
     const canSpeak = options.adapters?.speech !== undefined;
@@ -523,9 +585,8 @@ export class LocalThreadRuntimeCore
     if (
       this._loadRequested &&
       !this._loadPromise &&
-      !previousHistory &&
-      options.adapters.history &&
-      this.messages.length === 0
+      currentHistory &&
+      (historyScopeChanged || (!previousHistory && this.messages.length === 0))
     ) {
       void this.__internal_load().catch((error: unknown) => {
         console.error(
@@ -537,65 +598,93 @@ export class LocalThreadRuntimeCore
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadGeneration = 0;
   private _loadRequested = false;
   public __internal_load() {
     this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
     if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history.load();
-
     this._isLoading = true;
 
-    this._loadPromise = promise
-      .then((repo) => {
-        if (!repo) return;
-        const { repository, droppedIds } = withoutOrphanedMessages(repo);
-        if (droppedIds.length > 0) {
-          console.warn(
-            "[assistant-ui] Skipped history messages with missing parents:",
-            droppedIds,
-          );
-        }
-        if (
-          repo.headId != null &&
-          !repo.messages.some((item) => item.message.id === repo.headId)
-        ) {
-          console.warn(
-            "[assistant-ui] History head is not among the loaded messages:",
-            repo.headId,
-          );
-        }
-        this.repository.import(withLocalPauseReasons(repository));
-        if (repository.messages.length > 0) {
-          this.ensureInitialized();
-        }
-        this._notifySubscribers();
+    const history = this.adapters.history;
+    const scopeId = history.scopeId;
+    const generation = this._loadGeneration;
+    let loadFailed = false;
 
-        const resume = this.adapters.history?.resume?.bind(
-          this.adapters.history,
+    const loadCurrentHistory = async () => {
+      let repo: Awaited<ReturnType<typeof history.load>>;
+      try {
+        repo = await history.load();
+      } catch (error) {
+        if (generation !== this._loadGeneration) return;
+        const currentHistory = this.adapters.history;
+        if (currentHistory && currentHistory.scopeId !== scopeId) return;
+        loadFailed = true;
+        throw error;
+      }
+
+      if (generation !== this._loadGeneration) return;
+      const currentHistory = this.adapters.history;
+      if (currentHistory && currentHistory.scopeId !== scopeId) return;
+      if (!repo) return;
+      const { repository, droppedIds } = withoutOrphanedMessages(repo);
+      if (droppedIds.length > 0) {
+        console.warn(
+          "[assistant-ui] Skipped history messages with missing parents:",
+          droppedIds,
         );
-        if (repo.unstable_resume && resume) {
-          this.startRun(
-            {
-              parentId: this.repository.headId,
-              sourceId: this.repository.headId,
-              runConfig: this._lastRunConfig,
-            },
-            resume,
-          ).catch(() => {});
-        }
-      })
-      .finally(() => {
-        this._isLoading = false;
-        this._notifySubscribers();
-      });
+      }
+      if (
+        repo.headId != null &&
+        !repo.messages.some((item) => item.message.id === repo.headId)
+      ) {
+        console.warn(
+          "[assistant-ui] History head is not among the loaded messages:",
+          repo.headId,
+        );
+      }
+      this.repository.import(withLocalPauseReasons(repository));
+      if (repository.messages.length > 0) {
+        this.ensureInitialized();
+      }
+      this._notifySubscribers();
+
+      if (generation !== this._loadGeneration) return;
+      const resumeHistory = this.adapters.history;
+      if (!resumeHistory || resumeHistory.scopeId !== scopeId) return;
+      const resume = resumeHistory.resume?.bind(resumeHistory);
+      if (repo.unstable_resume && resume) {
+        this.startRun(
+          {
+            parentId: this.repository.headId,
+            sourceId: this.repository.headId,
+            runConfig: this._lastRunConfig,
+          },
+          resume,
+        ).catch(() => {});
+      }
+    };
+
+    const loadPromise = loadCurrentHistory().finally(() => {
+      if (
+        generation !== this._loadGeneration ||
+        this._loadPromise !== loadPromise
+      )
+        return;
+      this._isLoading = false;
+      if (loadFailed && !this.adapters.history) {
+        this._loadPromise = undefined;
+      }
+      this._notifySubscribers();
+    });
+    this._loadPromise = loadPromise;
 
     // Notified after the promise is stored so a subscriber that appends
     // re-entrantly finds the barrier it has to wait on.
     this._notifySubscribers();
 
-    return this._loadPromise;
+    return loadPromise;
   }
 
   // The import that ends a load replaces the repository contents and resets
@@ -603,9 +692,23 @@ export class LocalThreadRuntimeCore
   // discarded branch. Awaiting the load promise keeps the wait bounded by the
   // adapter call, unlike polling `isLoading` for a notification that a
   // superseded runtime never sends.
-  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+  private _getHistoryLoadBarrier(
+    generation: AbortSignal,
+  ): Promise<void> | undefined {
     if (!this._isLoading || !this._loadPromise) return undefined;
-    return this._loadPromise.catch(() => {});
+    const loadPromise = this._loadPromise;
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        generation.removeEventListener("abort", finish);
+        resolve();
+      };
+      if (generation.aborted) {
+        finish();
+        return;
+      }
+      generation.addEventListener("abort", finish, { once: true });
+      void loadPromise.then(finish, finish);
+    });
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -694,9 +797,10 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
-  private _rollbackAppend(messageId: string) {
+  private _rollbackAppend(message: ThreadMessage) {
     try {
-      this.repository.deleteMessage(messageId);
+      if (this.repository.getMessage(message.id).message !== message) return;
+      this.repository.deleteMessage(message.id);
     } catch {
       return;
     }
@@ -723,7 +827,7 @@ export class LocalThreadRuntimeCore
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
 
-    const loadBarrier = this._getHistoryLoadBarrier();
+    const loadBarrier = this._getHistoryLoadBarrier(generation);
     if (loadBarrier) {
       const wasAtTail =
         rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
@@ -759,7 +863,7 @@ export class LocalThreadRuntimeCore
         await initPromise;
       }
     } catch (error) {
-      this._rollbackAppend(newMessage.id);
+      this._rollbackAppend(newMessage);
       if (generation.aborted) return;
       if (message.parentId !== null) this._resumeIfReady(message.parentId);
       const notSent = new MessageNotSentError();
@@ -767,7 +871,7 @@ export class LocalThreadRuntimeCore
       throw notSent;
     }
     if (generation.aborted) {
-      this._rollbackAppend(newMessage.id);
+      this._rollbackAppend(newMessage);
       return;
     }
     const settledWrite = this._cancelPause(message.parentId);
@@ -810,6 +914,7 @@ export class LocalThreadRuntimeCore
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
+    const generation = this._loadGeneration;
     const adapter = this._options.adapters.history;
     if (!adapter?.delete)
       throw new Error("Runtime does not support deleting messages.");
@@ -853,6 +958,7 @@ export class LocalThreadRuntimeCore
         throw error;
       }
       tombstone.suppressed = null;
+      if (generation !== this._loadGeneration) return;
       void pending
         ?.then(() =>
           this._deletedMessages.get(messageId) === tombstone
@@ -939,6 +1045,8 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    const scopeGeneration = this._loadGeneration;
+    const generation = captureThreadRuntimeGeneration(this);
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
@@ -980,41 +1088,65 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
-      this._notifyEventSubscribers("runEnd", {});
+      if (scopeGeneration === this._loadGeneration)
+        this._notifyEventSubscribers("runEnd", {});
       // the settle belongs to this run only while it is still the active run
       // or was cancelled (the engine expects a cancelled run's settle); a run
       // superseded by a newer one stays silent
-      active = this._activeRun === run;
+      active =
+        scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
-      if (active || run.cancelled) {
-        queueMicrotask(() => this._queue?.notifyIdle());
+      if (
+        scopeGeneration === this._loadGeneration &&
+        (active || run.cancelled)
+      ) {
+        queueMicrotask(() => {
+          if (scopeGeneration === this._loadGeneration)
+            this._queue?.notifyIdle();
+        });
       }
     }
 
     if (
       active &&
-      this.adapters.suggestion &&
+      !generation.aborted &&
       message.status?.type !== "requires-action"
     ) {
-      this._suggestionsController = new AbortController();
-      const signal = this._suggestionsController.signal;
-      const adapter = this.adapters.suggestion;
-      void (async () => {
-        try {
-          const promiseOrGenerator = adapter.generate({
-            messages: this.messages,
-            signal,
-          });
-          await consumeSuggestionResult(promiseOrGenerator, {
-            signal,
-            onUpdate: (r) => {
-              this._suggestions = r;
-              this._notifySubscribers();
-            },
-          });
-        } catch {}
-      })();
+      this._generateSuggestions();
     }
+  }
+
+  private _generateSuggestions() {
+    const adapter = this.adapters.suggestion;
+    const last = this.messages.at(-1);
+    if (
+      !adapter ||
+      this._activeRun ||
+      last?.role !== "assistant" ||
+      (last.status.type !== "complete" && last.status.type !== "incomplete")
+    )
+      return;
+
+    this._suggestionsController?.abort();
+    const controller = new AbortController();
+    this._suggestionsController = controller;
+    const { signal } = controller;
+    void (async () => {
+      try {
+        const promiseOrGenerator = adapter.generate({
+          messages: this.messages,
+          signal,
+        });
+        await consumeSuggestionResult(promiseOrGenerator, {
+          signal,
+          onUpdate: (suggestions) => {
+            if (this._suggestionsController !== controller) return;
+            this._suggestions = suggestions;
+            this._notifySubscribers();
+          },
+        });
+      } catch {}
+    })();
   }
 
   private async performRoundtrip(
@@ -1024,6 +1156,7 @@ export class LocalThreadRuntimeCore
     run: { cancelled: boolean; resumedFromPause: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
+    const scopeGeneration = this._loadGeneration;
     const messages = parentId ? this.repository.getMessages(parentId) : [];
     // A message here that is running or whose roundtrip is still in flight
     // belongs to the run this roundtrip aborts.
@@ -1054,6 +1187,7 @@ export class LocalThreadRuntimeCore
       hasStoredMessage = false;
     }
     const syncOwnedMessage = () => {
+      if (scopeGeneration !== this._loadGeneration) return false;
       if (!hasStoredMessage) return this._activeRun === run;
       try {
         let ownedMessage = message;
@@ -1216,6 +1350,7 @@ export class LocalThreadRuntimeCore
         return message;
       }
 
+      const isNewMessage = !hasStoredMessage;
       updateMessage({
         status: {
           type: "running",
@@ -1223,8 +1358,10 @@ export class LocalThreadRuntimeCore
       });
 
       // Switch to the new message branch right after adding it for the first time
-      this.repository.switchToBranch(message.id);
-      this._notifySubscribers();
+      if (isNewMessage) {
+        this.repository.switchToBranch(message.id);
+        this._notifySubscribers();
+      }
 
       this._lastRunConfig = runConfig ?? {};
       // unstable_composerMetadata is composer-only (stamped onto the outgoing

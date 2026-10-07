@@ -1,6 +1,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { renderMermaidSVG } from "beautiful-mermaid";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MermaidDiagram } from "./mermaid-diagram";
+
+vi.mock("beautiful-mermaid", { spy: true });
 
 const FLOW = `graph TD
   W[Webview] -->|postMessage| H[Extension host]
@@ -37,6 +40,17 @@ describe("MermaidDiagram", () => {
     expect(svg?.style.getPropertyValue("--fg")).toBe("var(--foreground)");
     expect(adoptedCss()).toContain("--_node-fill");
     expect(adoptedCss()).not.toContain("@import");
+  });
+
+  it("removes a style element that only forms once another is removed", () => {
+    vi.mocked(renderMermaidSVG).mockReturnValueOnce(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><sty<style>.a{color:red}</style>le>.b{color:blue}</style><g/></svg>',
+    );
+    const { container } = render(<MermaidDiagram code={FLOW} />);
+
+    expect(container.querySelector("style")).toBeNull();
+    expect(adoptedCss()).toContain(".a");
+    expect(adoptedCss()).toContain(".b");
   });
 
   it("keeps the label font rule that follows the font @import", () => {

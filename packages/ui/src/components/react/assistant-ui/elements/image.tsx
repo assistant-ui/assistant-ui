@@ -103,6 +103,19 @@ const defaultFilenameFromImage = (image: string): string => {
   return "image.png";
 };
 
+const safeImageDownloadHref = (image: string): string | null => {
+  try {
+    const url = new URL(image, document.baseURI);
+    return url.protocol === "http:" ||
+      url.protocol === "https:" ||
+      url.protocol === "blob:"
+      ? image
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const downloadImagePart = (
   part: Pick<ImageMessagePart, "image" | "filename">,
 ): void => {
@@ -112,7 +125,8 @@ const downloadImagePart = (
   const blob = isDataUri ? dataUriToBlob(part.image) : null;
   if (isDataUri && !blob) return;
   const objectUrl = blob ? URL.createObjectURL(blob) : null;
-  const href = objectUrl ?? part.image;
+  const href = objectUrl ?? safeImageDownloadHref(part.image);
+  if (!href) return;
   const a = document.createElement("a");
   a.href = href;
   a.download = filename;

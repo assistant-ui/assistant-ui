@@ -42,7 +42,7 @@ function ThreadSearchExample({ initialQuery = "" }: { initialQuery?: string }) {
       query={query}
       activeId={activeId}
       onQueryChange={setQuery}
-      onSelect={setActiveId}
+      onActiveChange={setActiveId}
     />
   );
 }

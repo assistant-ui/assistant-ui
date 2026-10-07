@@ -705,7 +705,7 @@ describe("convertEveMessages", () => {
     ]);
   });
 
-  it("defaults a file part with a missing mediaType to unknown/unknown", () => {
+  it("defaults a file part with a missing mediaType to application/octet-stream", () => {
     const data = {
       messages: [
         {
@@ -722,7 +722,7 @@ describe("convertEveMessages", () => {
       {
         type: "file",
         data: "https://example.com/blob",
-        mimeType: "unknown/unknown",
+        mimeType: "application/octet-stream",
         sourceType: "url",
       },
     ]);
@@ -735,14 +735,64 @@ describe("convertEveMessages", () => {
           {
             type: "file",
             data: "https://example.com/blob",
-            mimeType: "unknown/unknown",
+            mimeType: "application/octet-stream",
             sourceType: "url",
           },
         ],
-        contentType: "unknown/unknown",
+        contentType: "application/octet-stream",
         status: { type: "complete" },
       },
     ]);
+  });
+
+  it("reads the media type from a data URL when eve omits mediaType", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "file", url: "data:image/png;base64,iVBORw0KGgo=" }],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "data:image/png;base64,iVBORw0KGgo=",
+        mimeType: "image/png",
+      },
+    ]);
+    expect(message?.attachments?.map((a) => [a.type, a.contentType])).toEqual([
+      ["image", "image/png"],
+    ]);
+  });
+
+  it("prefers an explicit mediaType over the data URL declaration", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "data:application/octet-stream;base64,JVBERi0=",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "application/pdf",
+    });
   });
 
   it("converts an assistant file part into a file content part", () => {
@@ -1877,6 +1927,174 @@ describe("getEveMessageContent", () => {
     expect(getEveMessageContent(message)).toBe("Hello");
   });
 
+  it("declares the data URL subtype of an image part", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [{ type: "image", image: "data:image/jpeg;base64,/9j/4AAQ" }],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:image/jpeg;base64,/9j/4AAQ",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
+  it("sniffs an image part behind a generic envelope and rebuilds it", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "image",
+          image:
+            "data:application/octet-stream;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
+        mediaType: "image/png",
+      },
+    ]);
+  });
+
+  it("floors an http image part to image/png instead of a wildcard", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "image",
+          image: "https://example.com/photo",
+          filename: "photo",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo",
+        mediaType: "image/png",
+        filename: "photo",
+      },
+    ]);
+  });
+
+  it("declares an image attachment's content type for a url payload", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "1",
+          type: "image",
+          name: "photo.jpg",
+          contentType: "image/jpeg",
+          content: [{ type: "image", image: "https://example.com/photo.jpg" }],
+          status: { type: "complete" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo.jpg",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      name: "an untyped URL",
+      data: "https://example.com/file",
+      mimeType: "",
+      mediaType: "application/octet-stream",
+      wireData: "https://example.com/file",
+    },
+    {
+      name: "a data URL without an explicit type",
+      data: "data:application/pdf;base64,JVBERi0=",
+      mimeType: "",
+      mediaType: "application/pdf",
+      wireData: "data:application/pdf;base64,JVBERi0=",
+    },
+    {
+      name: "a data URL with a conflicting envelope",
+      data: "data:application/octet-stream;base64,JVBERi0=",
+      mimeType: "application/pdf",
+      mediaType: "application/pdf",
+      wireData: "data:application/pdf;base64,JVBERi0=",
+    },
+  ])(
+    "resolves file media types for $name",
+    ({ data, mimeType, mediaType, wireData }) => {
+      const message = {
+        ...baseAppendMessage,
+        content: [{ type: "file", data, mimeType, filename: "report.pdf" }],
+      } satisfies AppendMessage;
+
+      expect(getEveMessageContent(message)).toEqual([
+        { type: "file", data: wireData, mediaType, filename: "report.pdf" },
+      ]);
+    },
+  );
+
+  it("uses a file attachment's content type when its part has none", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "file-1",
+          type: "file",
+          name: "report.pdf",
+          contentType: "application/pdf",
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/report.pdf",
+              mimeType: "",
+            },
+          ],
+          status: { type: "complete" },
+        },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mediaType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("preserves opaque file references", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "file",
+          data: "file_abc123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+        },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      { type: "file", data: "file_abc123", mediaType: "application/pdf" },
+    ]);
+  });
+
   it("converts an audio part into a file part with the format-derived media type", () => {
     const message = {
       ...baseAppendMessage,
@@ -1914,6 +2132,26 @@ describe("getEveMessageContent", () => {
         {
           type: "audio",
           audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("rebuilds a media-less audio data URL from the typed format", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "data:;base64,QUJD", format: "mp3" },
         },
       ],
     } as unknown as AppendMessage;
