@@ -1,14 +1,13 @@
 {
   "name": "@assistant-ui/vue",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
   "description": "Vue bindings for assistant-ui",
   "keywords": [
+    "assistant",
+    "ai",
+    "chat",
     "vue",
-    "assistant-ui",
-    "store",
-    "tap",
-    "state-management"
+    "nuxt"
   ],
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
@@ -30,15 +29,17 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.22",
-    "@assistant-ui/store": "^0.3.16",
-    "@assistant-ui/tap": "^0.9.20"
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/store": "^0.3.17",
+    "@assistant-ui/tap": "^0.9.21"
   },
   "peerDependencies": {
+    "@types/react": "*",
     "vue": "^3.5.0"
   },
   "devDependencies": {
@@ -49,6 +50,10 @@
     "jsdom": "^30.0.1",
     "vitest": "^5.0.3",
     "vue": "^3.5.43"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

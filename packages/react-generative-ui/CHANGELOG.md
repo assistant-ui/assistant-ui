@@ -1,5 +1,27 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.24
+
+### Patch Changes
+
+- [#8748](https://github.com/assistant-ui/assistant-ui/pull/8748) [`70c9a6e`](https://github.com/assistant-ui/assistant-ui/commit/70c9a6e3cd7ab73071f0b4edf1040a035773ffe7) - a DatePicker with its own action dispatches it once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form, instead of dispatching every intermediate value while typing ([@okisdev](https://github.com/okisdev))
+
+- [#8756](https://github.com/assistant-ui/assistant-ui/pull/8756) [`48601e4`](https://github.com/assistant-ui/assistant-ui/commit/48601e40fed32f8ec469fd1f17a64ad24a3e7484) - keep a datetime DatePicker's value stable while a year is typed in a time zone whose historical offset has seconds, by submitting second precision when the offset needs it ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e)]:
+  - assistant-stream@0.3.48
+
+## 0.0.23
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8686](https://github.com/assistant-ui/assistant-ui/pull/8686) [`c0fc010`](https://github.com/assistant-ui/assistant-ui/commit/c0fc01067497e71e74b5b24bb5f1221b0c2319be) - give DatePicker time and datetime modes on the web, Slack and Teams, and map a2ui DateTimeInput onto them; a datetime with an offset is an instant that shows in the viewer's zone where the client knows it and submits with its original offset ([@okisdev](https://github.com/okisdev))
+
+- [#8701](https://github.com/assistant-ui/assistant-ui/pull/8701) [`a1ce9e0`](https://github.com/assistant-ui/assistant-ui/commit/a1ce9e0ff564d63232954aaa1c6a944324af961e) - submit edited DatePicker times in the browser's normalized form, so .500 goes out as .5 whichever spelling the browser reports ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - assistant-stream@0.3.47
+
 ## 0.0.22
 
 ### Patch Changes

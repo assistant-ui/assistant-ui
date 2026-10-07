@@ -3,7 +3,7 @@ title: Local runtime
 description: Give any backend Assistant Cloud threads, persistence, titles and run reports through useLocalRuntime, or compose the cloud thread list around a runtime of your own.
 ---
 
-`useLocalRuntime` runs your own chat model adapter, whatever protocol your backend speaks. Given a `cloud`, it gains the full Assistant Cloud integration: a remote thread list, persisted messages, automatic titles, run reports, engagement events, feedback and attachments. `useDataStreamRuntime` forwards the same local-runtime options, including `cloud`, so it uses the same thread list and adapters.
+`useLocalRuntime` runs your own chat model adapter, whatever protocol your backend speaks. Given a `cloud`, it gains the full Assistant Cloud integration: a remote thread list, persisted messages, automatic titles, run reports, engagement events, feedback and attachments. `useDataStreamRuntime` forwards the same local-runtime options, including `cloud` and `scopeId`, so it uses the same thread list and adapters.
 
 ## Setup
 
@@ -66,7 +66,7 @@ export default function ChatPage() {
 }
 ```
 
-On Next.js, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, like the AI SDK runtime. On Vite, React Router and TanStack Start construct the client from `import.meta.env.VITE_ASSISTANT_BASE_URL` and pass it; on React Native and Ink construct the client from `assistant-cloud` and pass it.
+On Next.js, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, like the AI SDK runtime. On Vite, React Router and TanStack Start construct the client from `import.meta.env.VITE_ASSISTANT_BASE_URL` and pass it; on React Native and Ink construct the client from `assistant-cloud` and pass it. If the mounted runtime can switch accounts or workspaces, pass their stable identity as `scopeId` from the first render; defer mounting the runtime until that identity is available.
 
 ## What the cloud adds
 
@@ -142,6 +142,7 @@ import { useCloudThreadListRuntime } from "@assistant-ui/react";
 
 const runtime = useCloudThreadListRuntime({
   cloud,
+  scopeId: workspace.id,
   runtimeHook: useMyThreadRuntime,
   create: async () => ({ externalId: await backend.createThread() }),
   delete: async (cloudThreadId) => {
@@ -154,6 +155,7 @@ const runtime = useCloudThreadListRuntime({
 | Option | Default | Meaning |
 |---|---|---|
 | `cloud` | Required | The client backing the remote list. |
+| `scopeId` | `undefined` | Stable account or workspace identity for cached attachments and message mappings. Changing it resets and reloads the thread list. |
 | `runtimeHook` | Required | The hook returning a runtime for each mounted thread. |
 | `create` | `undefined` | Runs before the cloud thread is created and receives the thread list item's `id`. Its `externalId` becomes the cloud thread's `external_id`. |
 | `delete` | `undefined` | Runs with the remote thread id before the cloud thread is deleted. |

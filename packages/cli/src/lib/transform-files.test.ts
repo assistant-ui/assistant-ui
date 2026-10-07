@@ -2,7 +2,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
-import { getRelevantFiles, countFilesToProcess } from "./transform";
+import { getRelevantFiles } from "./transform";
 
 const fixture = () => {
   const directory = mkdtempSync(join(tmpdir(), "aui-transform-files-"));
@@ -26,7 +26,6 @@ describe("codemod file discovery", () => {
       const { write } = fixture();
       const file = write(`my app.${extension}`);
       expect(getRelevantFiles(file)).toEqual([file]);
-      expect(countFilesToProcess(file)).toBe(1);
       expect(getRelevantFiles(relative(process.cwd(), file))).toEqual([file]);
     },
   );
@@ -54,7 +53,6 @@ describe("codemod file discovery", () => {
     const { write } = fixture();
     const file = write("app.tsx", source);
     expect(getRelevantFiles(file)).toEqual([file]);
-    expect(countFilesToProcess(file)).toBe(1);
   });
 
   it("skips unsupported explicit files", () => {

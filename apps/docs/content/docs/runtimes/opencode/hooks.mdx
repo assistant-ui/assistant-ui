@@ -49,7 +49,11 @@ Reply values:
 
 ## Questions
 
-OpenCode can ask interactive questions during a run. `useOpenCodeQuestions` returns the pending questions as an array:
+OpenCode can ask interactive questions during a run.
+
+The default tool fallback renders a question as an approval questionnaire on its tool call and answers it through `replyToQuestion` or `rejectQuestion`. Use `useOpenCodeQuestions` for a custom question UI.
+
+`useOpenCodeQuestions` returns the pending questions as an array:
 
 ```tsx
 import {

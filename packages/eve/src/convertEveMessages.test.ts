@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { EveMessageData, EveMessageInputRequest } from "eve/react";
-import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
 import {
+  defaultMessageReducer,
+  type EveAgentReducerEvent,
+  type MessageStreamEvent,
+} from "eve/client";
+import {
+  collectInterruptedTurnEvents,
   convertEveMessages,
+  type InterruptedTurnEventCache,
   findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
@@ -1742,26 +1748,47 @@ describe("convertEveMessages", () => {
         });
       });
 
-      it("a failed turn converts to cancelled because the store surfaces no error for turn.failed", () => {
-        const state = replay([
-          ...midStreamEvents,
-          {
-            type: "turn.failed",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              sequence: 3,
-              code: "internal",
-              message: "boom",
-            },
+      it("a failed turn stays incomplete after Eve settles its message", () => {
+        const failureEvent = {
+          type: "turn.failed",
+          meta: eventMeta(3),
+          data: {
+            turnId: "turn_1",
+            sequence: 3,
+            code: "internal",
+            message: "boom",
           },
-        ]);
+        } as const satisfies MessageStreamEvent;
+        const state = replay([...midStreamEvents, failureEvent]);
 
-        const converted = convertEveMessages(state, { isRunning: false });
+        const converted = convertEveMessages(state, {
+          isRunning: false,
+          events: [failureEvent],
+        });
         expect(converted.at(-1)?.status).toEqual({
           type: "incomplete",
-          reason: "cancelled",
+          reason: "error",
+          error: { code: "internal", message: "boom" },
         });
+      });
+
+      it("a cancelled turn stays cancelled after Eve settles its message", () => {
+        const cancelEvent = {
+          type: "turn.cancelled",
+          meta: eventMeta(3),
+          data: { turnId: "turn_1", sequence: 3 },
+        } as const satisfies MessageStreamEvent;
+        const state = replay([...midStreamEvents, cancelEvent]);
+
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "complete", reason: "stop" });
+        expect(
+          convertEveMessages(state, {
+            isRunning: false,
+            events: [cancelEvent],
+          }).at(-1)?.status,
+        ).toEqual({ type: "incomplete", reason: "cancelled" });
       });
 
       it("a completed turn terminalizes the streaming marker and converts to complete", () => {
@@ -1887,6 +1914,26 @@ describe("getEveMessageContent", () => {
         {
           type: "audio",
           audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("rebuilds a media-less audio data URL from the typed format", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "data:;base64,QUJD", format: "mp3" },
         },
       ],
     } as unknown as AppendMessage;
@@ -2293,5 +2340,51 @@ describe("findEveInputRequest", () => {
     expect(
       findEveInputRequest(bare as EveMessageData, "req_1"),
     ).toBeUndefined();
+  });
+});
+
+describe("collectInterruptedTurnEvents", () => {
+  const started = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.started",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence },
+    }) as const satisfies MessageStreamEvent;
+  const failed = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.failed",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence, code: "internal", message: "boom" },
+    }) as const satisfies MessageStreamEvent;
+  const cancelled = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.cancelled",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence },
+    }) as const satisfies MessageStreamEvent;
+
+  it("scans only appended events and keeps the array until an interruption arrives", () => {
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
+    const first = [started("t1", 0), failed("t1", 1)];
+    const interruptions = collectInterruptedTurnEvents(first, cache);
+    expect(interruptions).toEqual([first[1]]);
+    const quiet = [...cache.lastEvents, started("t2", 2)];
+    expect(collectInterruptedTurnEvents(quiet, cache)).toBe(interruptions);
+    const appended = [...cache.lastEvents, cancelled("t2", 3)];
+    const next = collectInterruptedTurnEvents(appended, cache);
+    expect(next).toEqual([first[1], appended[3]]);
+    expect(next[0]).toBe(interruptions[0]);
+  });
+
+  it("rescans a log that does not extend the scanned one", () => {
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
+    collectInterruptedTurnEvents([started("t1", 0), failed("t1", 1)], cache);
+    expect(collectInterruptedTurnEvents([started("t2", 0)], cache)).toEqual([]);
   });
 });

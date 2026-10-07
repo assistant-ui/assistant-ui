@@ -87,7 +87,7 @@ export type ReasoningTriggerProps = Omit<
   "children"
 > & {
   active?: boolean;
-  duration?: number;
+  duration?: number | undefined;
 };
 
 export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({

@@ -1,5 +1,23 @@
 # assistant-stream
 
+## 0.3.48
+
+### Patch Changes
+
+- [#7340](https://github.com/assistant-ui/assistant-ui/pull/7340) [`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7) - fix: preserve assistant-generated files in subsequent model history ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8080](https://github.com/assistant-ui/assistant-ui/pull/8080) [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b) - fix: use attachment media types when converting images for models ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8794](https://github.com/assistant-ui/assistant-ui/pull/8794) [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e) - reasoning parts carry an optional `timing` with their start and end times, typed as the new `MessagePartTiming` that `ToolCallTiming` now aliases, so a host can show how long its agent thought; the assistant-stream accumulator stamps it while reasoning streams, joined reasoning parts and the cloud format keep it, and a `MessagePrimitive.GroupedParts` group reports the span of its timed parts as `timing` ([@okisdev](https://github.com/okisdev))
+
+## 0.3.47
+
+### Patch Changes
+
+- [#8140](https://github.com/assistant-ui/assistant-ui/pull/8140) [`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd) - fix: `toGenericMessages` no longer throws on a message without `content`, an attachment without `content`, or a null part or attachment; it skips what is missing and converts the rest of the conversation. ([@samdickson22](https://github.com/samdickson22))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.46
 
 ### Patch Changes

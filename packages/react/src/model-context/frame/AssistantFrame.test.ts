@@ -237,6 +237,51 @@ describe("AssistantFrame Integration", () => {
     unsubscribe();
   });
 
+  it("rejects a tool call the frame drops while it is disposed", async () => {
+    vi.mocked(iframeWindow.postMessage).mockImplementation((data: any) => {
+      Promise.resolve().then(() => {
+        messageHandlers.get("iframe")?.({
+          data,
+          source: parentWindow,
+          origin: window.location.origin,
+        } as MessageEvent);
+      });
+    });
+    vi.mocked(window.removeEventListener).mockImplementation(
+      (event: string, handler: any) => {
+        if (event === "message" && messageHandlers.get("iframe") === handler) {
+          messageHandlers.delete("iframe");
+        }
+      },
+    );
+    const registry = new ModelContextRegistry();
+    const toolExecute = vi.fn().mockResolvedValue("result");
+    registry.addTool({
+      toolName: "search",
+      parameters: z.object({}),
+      execute: toolExecute,
+    });
+    AssistantFrameProvider.addModelContextProvider(registry);
+    const host = new AssistantFrameHost(iframeWindow);
+    await vi.waitFor(() => {
+      expect(host.getModelContext().tools?.search).toBeDefined();
+    });
+
+    const result = host.getModelContext().tools!.search!.execute!(
+      {},
+      {} as any,
+    );
+    AssistantFrameProvider.dispose();
+
+    await expect(result).rejects.toThrow(
+      "AssistantFrameProvider has been disposed",
+    );
+    expect(toolExecute).not.toHaveBeenCalled();
+    expect(host.getModelContext().tools).toBeUndefined();
+
+    host.dispose();
+  });
+
   it("should handle multiple providers", async () => {
     // Setup multiple providers
     const registry1 = new ModelContextRegistry();
