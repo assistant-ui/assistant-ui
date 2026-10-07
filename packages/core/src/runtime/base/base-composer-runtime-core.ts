@@ -293,7 +293,15 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async clearAttachments() {
-    this._cancelAllAttachmentAdds();
+    // A send that detached the draft holds the submission's attachments, so
+    // their uploads keep going for it.
+    this._attachmentAddOperations.cancelAll(
+      this.detachesDraftOnSend
+        ? new Set(
+            this._submission?.attachments.map((attachment) => attachment.id),
+          )
+        : undefined,
+    );
     // Taken before the marks below, which would read as pending removals.
     const pending = this._draftUploadsToRemove();
     if (this.isSubmitting) {
