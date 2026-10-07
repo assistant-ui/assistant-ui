@@ -1220,7 +1220,17 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
-      attachmentAddOperations.cancelAll();
+      // A send that detached the draft holds the submission's attachments, so
+      // their uploads keep going for it.
+      attachmentAddOperations.cancelAll(
+        type === "thread"
+          ? new Set(
+              submissionRef.current?.attachments.map(
+                (attachment) => attachment.id,
+              ),
+            )
+          : undefined,
+      );
       const removed = attachmentsRef.current;
       // Taken before the marks below, which would read as pending removals.
       const pending = draftUploadsToRemove(removed);
