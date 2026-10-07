@@ -727,8 +727,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         ) {
           this.dispatch({ type: "permission.asked", request });
           this.handleServerEvent(reply);
-        } else {
-          pending[request.id] = request;
         }
         continue;
       }
@@ -782,8 +780,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         ) {
           this.dispatch({ type: "question.asked", request });
           this.handleServerEvent(reply);
-        } else {
-          pending[request.id] = request;
         }
         continue;
       }
@@ -848,14 +844,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           interactionRecoveryTargets.values(),
         );
         try {
-          if (!response) return;
-          if (!Array.isArray(response.data)) return;
-          const requests = toPermissionRequests(response.data);
-          if (!requests) return;
+          const requests =
+            response && Array.isArray(response.data)
+              ? toPermissionRequests(response.data)
+              : null;
           await this.visitInteractionRecoveryTree(
             (controller) => {
               recoveryControllers.add(controller);
-              controller.reconcilePermissions(requests);
+              if (requests) controller.reconcilePermissions(requests);
             },
             () => token === this.reconnectSyncToken,
           );
@@ -878,14 +874,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           interactionRecoveryTargets.values(),
         );
         try {
-          if (!response) return;
-          if (!Array.isArray(response.data)) return;
-          const requests = toQuestionRequests(response.data);
-          if (!requests) return;
+          const requests =
+            response && Array.isArray(response.data)
+              ? toQuestionRequests(response.data)
+              : null;
           await this.visitInteractionRecoveryTree(
             (controller) => {
               recoveryControllers.add(controller);
-              controller.reconcileQuestions(requests);
+              if (requests) controller.reconcileQuestions(requests);
             },
             () => token === this.reconnectSyncToken,
           );
