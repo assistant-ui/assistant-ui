@@ -16,10 +16,14 @@ async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
 }
 
 function decodeDataStream(lines: string[]) {
+  return decodeDataStreamChunks(lines.map((line) => line + "\n"));
+}
+
+function decodeDataStreamChunks(chunks: string[]) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const line of lines) controller.enqueue(encoder.encode(line + "\n"));
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
@@ -123,5 +127,22 @@ describe("registry-backed decoders", () => {
           chunk.type === "part-finish",
       ),
     ).toHaveLength(2);
+  });
+
+  it("preserves tool-call finish order across network chunking", async () => {
+    const first = '9:{"toolCallId":"t0","toolName":"search","args":{}}\n';
+    const second = '9:{"toolCallId":"t1","toolName":"search","args":{}}\n';
+    const layouts = await Promise.all([
+      decodeDataStreamChunks([first + second]),
+      decodeDataStreamChunks([first, second]),
+    ]);
+
+    for (const chunks of layouts) {
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === "part-finish")
+          .map((chunk) => chunk.path),
+      ).toEqual([[0], [1]]);
+    }
   });
 });

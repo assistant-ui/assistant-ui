@@ -48,6 +48,7 @@ import {
 import { generateId } from "../../utils/id";
 import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
+  NO_TOOL_EXECUTIONS,
   ToolInvocationTracker,
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
@@ -95,6 +96,7 @@ export class ExternalStoreThreadRuntimeCore
     attachments: false,
     feedback: false,
     queue: false,
+    answerToolCall: false,
   };
 
   public get capabilities() {
@@ -106,6 +108,35 @@ export class ExternalStoreThreadRuntimeCore
   public isSendDisabled!: boolean;
   public get isLoading() {
     return this._store.isLoading ?? false;
+  }
+  public get hasEarlier() {
+    return (
+      this._store.hasEarlier === true && this._store.onLoadEarlier !== undefined
+    );
+  }
+  private _loadingEarlier: Promise<void> | undefined;
+  public get isLoadingEarlier() {
+    return this._loadingEarlier !== undefined;
+  }
+  public loadEarlier(): Promise<void> {
+    if (this._loadingEarlier) return this._loadingEarlier;
+    const onLoadEarlier = this._store.onLoadEarlier;
+    if (!this.hasEarlier || !onLoadEarlier) return Promise.resolve();
+    const loading = Promise.resolve()
+      .then(() => onLoadEarlier())
+      .catch((error: unknown) => {
+        console.error(
+          "[ExternalStoreThreadRuntimeCore] onLoadEarlier callback rejected",
+          error,
+        );
+      })
+      .finally(() => {
+        this._loadingEarlier = undefined;
+        this._notifySubscribers();
+      });
+    this._loadingEarlier = loading;
+    this._notifySubscribers();
+    return loading;
   }
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
@@ -257,6 +288,13 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      // Keep the live placeholder so resetHead cannot evict an id still used
+      // by clients rendering the previous snapshot.
+      const head = this.repository.getMessages();
+      const tail = head.at(-1);
+      this._optimistic = tail?.metadata.isOptimistic
+        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        : null;
     }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
@@ -297,6 +335,11 @@ export class ExternalStoreThreadRuntimeCore
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
       queue: this._store.queue !== undefined,
+      answerToolCall:
+        this._store.onAddToolResult !== undefined ||
+        this._store.onResumeToolCall !== undefined ||
+        this._store.onRespondToToolApproval !== undefined ||
+        this._store.unstable_enableToolInvocations === true,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;
@@ -418,9 +461,12 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
 
-      // A running refresh re-reads the host's last array, which can predate
-      // the host's answer to a pending onDelete, so only a new snapshot drains.
-      if (fromHostSnapshot && this._pendingDeleteEvictions.size > 0) {
+      // A pass over the host's previous array, such as a client tool's
+      // running refresh, can predate the host's answer to onDelete.
+      if (
+        this._pendingDeleteEvictions.size > 0 &&
+        oldStore?.messages !== store.messages
+      ) {
         const incomingIds = new Set(messages.map((m) => m.id));
         for (const [id, calls] of this._pendingDeleteEvictions) {
           if (incomingIds.has(id)) {
@@ -676,11 +722,11 @@ export class ExternalStoreThreadRuntimeCore
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
-    message =
+    const stamped =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? message
+        ? undefined
         : this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
@@ -697,13 +743,22 @@ export class ExternalStoreThreadRuntimeCore
         await initPromise;
       }
       if (generation.aborted) return;
+    }
 
+    // Read after the barrier, which the host may have used to replace or
+    // drop its queue.
+    const queue = isEdit ? undefined : this._store.queue;
+
+    if (!queue || queue !== this._transformedQueue)
+      message = stamped ?? this.enrichAppendMetadata(message);
+
+    if (queue) {
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.
       if (message.steer ?? this._getEffectiveIsRunning(this._store))
-        this._store.queue.steer(message);
-      else this._store.queue.enqueue(message);
+        queue.steer(message);
+      else queue.enqueue(message);
       return;
     }
 
@@ -721,7 +776,11 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      await this._toolInvocations?.abort({ discardPending: true });
+      const toolsSettled = this._toolInvocations?.abort({
+        discardPending: true,
+      });
+      if (toolsSettled && toolsSettled !== NO_TOOL_EXECUTIONS)
+        await toolsSettled;
     }
     if (generation.aborted) return;
 
