@@ -796,24 +796,47 @@ describe("file parts on the data stream", () => {
   });
 });
 
-describe("DataStream tool result modelContent", () => {
-  const modelContent = [
-    { type: "text" as const, text: "The report is ready." },
-    {
-      type: "file" as const,
-      data: "AAAA",
-      mediaType: "application/pdf",
-      filename: "report.pdf",
-    },
-  ];
+type ResultChunk = Extract<AssistantStreamChunk, { type: "result" }>;
 
-  const streamWithResult = (
-    result: Extract<AssistantStreamChunk, { type: "result" }>,
-  ): AssistantStreamChunk[] => [
+describe.each([
+  {
+    field: "modelContent",
+    toolName: "report",
+    value: [
+      { type: "text", text: "The report is ready." },
+      {
+        type: "file",
+        data: "AAAA",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ],
+    encoded:
+      '[{"type":"text","text":"The report is ready."},' +
+      '{"type":"file","data":"AAAA","mediaType":"application/pdf","filename":"report.pdf"}]',
+  },
+  {
+    field: "messages",
+    toolName: "agent",
+    value: [
+      {
+        id: "n1",
+        role: "assistant",
+        content: [{ type: "text", text: "nested reply" }],
+      },
+    ],
+    encoded:
+      '[{"id":"n1","role":"assistant","content":[{"type":"text","text":"nested reply"}]}]',
+  },
+])("DataStream tool result $field", ({ field, toolName, value, encoded }) => {
+  const withField = (result: ResultChunk) =>
+    ({ ...result, [field]: value }) as ResultChunk;
+
+  const streamWithResult = (result: ResultChunk): AssistantStreamChunk[] => [
     {
       type: "part-start",
       path: [],
-      part: { type: "tool-call", toolCallId: "t1", toolName: "report" },
+      part: { type: "tool-call", toolCallId: "t1", toolName },
     },
     { type: "text-delta", path: [0], textDelta: "{}" },
     { type: "tool-call-args-text-finish", path: [0] },
@@ -822,170 +845,78 @@ describe("DataStream tool result modelContent", () => {
   ];
 
   const accumulate = (chunks: AssistantStreamChunk[]) =>
-    roundTripFirstPart<{
-      result: unknown;
-      artifact?: unknown;
-      modelContent?: unknown;
-    }>(chunks);
+    roundTripFirstPart<Record<string, unknown>>(chunks);
 
-  it("carries modelContent on the result frame", async () => {
+  it(`carries ${field} on the result frame`, async () => {
     const lines = await encodeChunks(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: { blob: "x".repeat(16) },
-        artifact: { reportId: "r1" },
-        isError: false,
-        modelContent,
-      }),
+      streamWithResult(
+        withField({
+          type: "result",
+          path: [0],
+          result: { blob: "x".repeat(16) },
+          artifact: { reportId: "r1" },
+          isError: false,
+        }),
+      ),
     );
 
     expect(lines.at(-1)).toBe(
       'a:{"toolCallId":"t1","result":{"blob":"xxxxxxxxxxxxxxxx"},' +
-        '"artifact":{"reportId":"r1"},"modelContent":[' +
-        '{"type":"text","text":"The report is ready."},' +
-        '{"type":"file","data":"AAAA","mediaType":"application/pdf","filename":"report.pdf"}]}',
-    );
-  });
-
-  it("keeps modelContent distinct from the result through encode, decode and accumulate", async () => {
-    const part = await accumulate(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: { blob: "x".repeat(16) },
-        isError: false,
-        modelContent,
-      }),
-    );
-
-    expect(part.result).toEqual({ blob: "x".repeat(16) });
-    expect(part.modelContent).toEqual(modelContent);
-  });
-
-  it("carries modelContent on a preliminary result", async () => {
-    const part = await accumulate(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: "partial",
-        isError: false,
-        isPreliminary: true,
-        modelContent: [{ type: "text", text: "still working" }],
-      }),
-    );
-
-    expect(part.modelContent).toEqual([
-      { type: "text", text: "still working" },
-    ]);
-  });
-
-  it("omits modelContent when the result does not carry it", async () => {
-    const chunks = streamWithResult({
-      type: "result",
-      path: [0],
-      result: "plain",
-      isError: false,
-    });
-
-    expect(await encodeChunks(chunks)).toContain(
-      'a:{"toolCallId":"t1","result":"plain"}',
-    );
-    expect(await accumulate(chunks)).not.toHaveProperty("modelContent");
-  });
-});
-
-describe("DataStream tool result messages", () => {
-  const messages = [
-    {
-      id: "n1",
-      role: "assistant",
-      content: [{ type: "text", text: "nested reply" }],
-    },
-  ];
-  const encodedMessages =
-    '[{"id":"n1","role":"assistant","content":[{"type":"text","text":"nested reply"}]}]';
-
-  const streamWithResult = (
-    result: Extract<AssistantStreamChunk, { type: "result" }>,
-  ): AssistantStreamChunk[] => [
-    {
-      type: "part-start",
-      path: [],
-      part: { type: "tool-call", toolCallId: "t1", toolName: "agent" },
-    },
-    { type: "text-delta", path: [0], textDelta: "{}" },
-    { type: "tool-call-args-text-finish", path: [0] },
-    result,
-    { type: "part-finish", path: [0] },
-  ];
-
-  const accumulate = (chunks: AssistantStreamChunk[]) =>
-    roundTripFirstPart<{ result: unknown; messages?: unknown }>(chunks);
-
-  it("carries messages on the result frame", async () => {
-    const lines = await encodeChunks(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: "done",
-        isError: false,
-        messages,
-      }),
-    );
-
-    expect(lines.at(-1)).toBe(
-      `a:{"toolCallId":"t1","result":"done","messages":${encodedMessages}}`,
+        `"artifact":{"reportId":"r1"},"${field}":${encoded}}`,
     );
   });
 
   it.each([true, false])(
-    "decodes messages off the result frame with strict: %s",
+    `decodes ${field} off the result frame with strict: %s`,
     async (strict) => {
       const chunks = await decodeLines(
         [
-          'b:{"toolCallId":"t1","toolName":"agent"}',
-          `a:{"toolCallId":"t1","result":"done","messages":${encodedMessages}}`,
+          `b:{"toolCallId":"t1","toolName":"${toolName}"}`,
+          `a:{"toolCallId":"t1","result":"done","${field}":${encoded}}`,
         ],
         { strict },
       );
 
-      const result = chunks.find((c) => c.type === "result");
-      expect(result).toMatchObject({ result: "done", messages });
+      expect(chunks.find((c) => c.type === "result")).toMatchObject({
+        result: "done",
+        [field]: value,
+      });
     },
   );
 
-  it("keeps messages distinct from the result through encode, decode and accumulate", async () => {
+  it(`keeps ${field} distinct from the result through encode, decode and accumulate`, async () => {
     const part = await accumulate(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: "done",
-        isError: false,
-        messages,
-      }),
+      streamWithResult(
+        withField({
+          type: "result",
+          path: [0],
+          result: { blob: "x".repeat(16) },
+          isError: false,
+        }),
+      ),
     );
 
-    expect(part.result).toBe("done");
-    expect(part.messages).toEqual(messages);
+    expect(part["result"]).toEqual({ blob: "x".repeat(16) });
+    expect(part[field]).toEqual(value);
   });
 
-  it("carries messages on a preliminary result", async () => {
+  it(`carries ${field} on a preliminary result`, async () => {
     const part = await accumulate(
-      streamWithResult({
-        type: "result",
-        path: [0],
-        result: "partial",
-        isError: false,
-        isPreliminary: true,
-        messages,
-      }),
+      streamWithResult(
+        withField({
+          type: "result",
+          path: [0],
+          result: "partial",
+          isError: false,
+          isPreliminary: true,
+        }),
+      ),
     );
 
-    expect(part.messages).toEqual(messages);
+    expect(part[field]).toEqual(value);
   });
 
-  it("omits messages when the result does not carry it", async () => {
+  it(`omits ${field} when the result does not carry it`, async () => {
     const chunks = streamWithResult({
       type: "result",
       path: [0],
@@ -997,13 +928,11 @@ describe("DataStream tool result messages", () => {
       'a:{"toolCallId":"t1","result":"plain"}',
     );
     const decoded = await decodeLines([
-      'b:{"toolCallId":"t1","toolName":"agent"}',
+      `b:{"toolCallId":"t1","toolName":"${toolName}"}`,
       'a:{"toolCallId":"t1","result":"plain"}',
     ]);
-    expect(decoded.find((c) => c.type === "result")).not.toHaveProperty(
-      "messages",
-    );
-    expect(await accumulate(chunks)).not.toHaveProperty("messages");
+    expect(decoded.find((c) => c.type === "result")).not.toHaveProperty(field);
+    expect(await accumulate(chunks)).not.toHaveProperty(field);
   });
 });
 
