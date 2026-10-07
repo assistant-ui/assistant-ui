@@ -104,6 +104,15 @@ describe("ThreadListItemTitle", () => {
     expect(container.textContent).toBe("Untitled chat");
   });
 
+  it("renders nothing without a title or fallback", async () => {
+    await act(async () => {
+      root.render(<ThreadListItemTitle numberOfLines={1} />);
+    });
+
+    expect(h.textChildren).toEqual([]);
+    expect(container.innerHTML).toBe("");
+  });
+
   it("renders an element fallback outside Text", async () => {
     await act(async () => {
       root.render(

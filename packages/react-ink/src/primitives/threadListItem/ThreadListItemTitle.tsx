@@ -15,11 +15,7 @@ export function ThreadListItemTitle({
 }: ThreadListItemTitleProps) {
   const title = useAuiState((s) => s.threadListItem.title);
   const content = title || fallback;
-  if (
-    typeof content === "string" ||
-    typeof content === "number" ||
-    content == null
-  ) {
+  if (typeof content === "string" || typeof content === "number") {
     return <Text {...props}>{content}</Text>;
   }
   return <>{content}</>;
