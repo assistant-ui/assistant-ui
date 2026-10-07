@@ -14,6 +14,7 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
   const element = document.createElement("div");
   let top = 0;
   let height = scrollHeight;
+  let viewportHeight = clientHeight;
   Object.defineProperties(element, {
     scrollTop: {
       get: () => top,
@@ -23,10 +24,10 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
       configurable: true,
     },
     scrollHeight: { get: () => height, configurable: true },
-    clientHeight: { get: () => clientHeight, configurable: true },
+    clientHeight: { get: () => viewportHeight, configurable: true },
   });
   const scrollTo = vi.fn(({ top: target }: ScrollToOptions) => {
-    top = Math.max(0, Math.min(target ?? 0, height - clientHeight));
+    top = Math.max(0, Math.min(target ?? 0, height - viewportHeight));
     element.dispatchEvent(new Event("scroll"));
   });
   Object.defineProperty(element, "scrollTo", { value: scrollTo });
@@ -39,6 +40,9 @@ const geometry = (scrollHeight = 500, clientHeight = 500) => {
     },
     grow: (value: number) => {
       height = value;
+    },
+    resize: (value: number) => {
+      viewportHeight = value;
     },
   };
 };
@@ -150,6 +154,305 @@ describe("createThreadViewportAutoScroll", () => {
     expect(onAtBottomChange).toHaveBeenLastCalledWith(true);
     controller.dispose();
   });
+
+  it("pauses bottom follow after opening a collapsed disclosure in a message", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const disclosure = document.createElement("button");
+    disclosure.setAttribute("aria-expanded", "false");
+    message.append(disclosure);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    disclosure.click();
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(400);
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("pauses when opening a closed details summary", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    details.append(summary);
+    message.append(details);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    summary.click();
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("keeps following when closing an open details summary", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const details = document.createElement("details");
+    details.setAttribute("open", "");
+    const summary = document.createElement("summary");
+    details.append(summary);
+    message.append(details);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    summary.click();
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    controller.dispose();
+  });
+
+  it.each([
+    { label: "an expanded control", attrs: { "aria-expanded": "true" } },
+    {
+      label: "a dialog trigger",
+      attrs: { "aria-expanded": "false", "aria-haspopup": "dialog" },
+    },
+    {
+      label: "a menu trigger",
+      attrs: { "aria-expanded": "false", "aria-haspopup": "menu" },
+    },
+    {
+      label: "a combobox",
+      attrs: { "aria-expanded": "false", role: "combobox" },
+    },
+    { label: "a plain control", attrs: {} },
+  ])("keeps following after clicking $label", ({ attrs }) => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const control = document.createElement("button");
+    for (const [name, value] of Object.entries(attrs))
+      control.setAttribute(name, value);
+    message.append(control);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    control.click();
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    controller.dispose();
+  });
+
+  it("keeps following after clicking a collapsed disclosure outside a message", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const disclosure = document.createElement("button");
+    disclosure.setAttribute("aria-expanded", "false");
+    view.element.append(disclosure);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    disclosure.click();
+    view.grow(600);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    controller.dispose();
+  });
+
+  it("keeps a disclosure pause through a fitting resize and later growth", () => {
+    const view = geometry(100, 100);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const disclosure = document.createElement("button");
+    disclosure.setAttribute("aria-expanded", "false");
+    message.append(disclosure);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    disclosure.click();
+    view.resize(110);
+    observers[0]!.trigger();
+    view.grow(200);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("resumes after a scroll gesture reaches the overflowing bottom", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const disclosure = document.createElement("button");
+    disclosure.setAttribute("aria-expanded", "false");
+    message.append(disclosure);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    disclosure.click();
+    view.grow(600);
+    observers[0]!.trigger();
+    expect(view.scrollTo).not.toHaveBeenCalled();
+
+    view.element.dispatchEvent(new WheelEvent("wheel"));
+    view.setTop(500);
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 700,
+      behavior: "instant",
+    });
+    controller.dispose();
+  });
+
+  it("resumes when the reader explicitly scrolls to the bottom", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const message = document.createElement("div");
+    message.setAttribute("data-message-id", "m1");
+    const disclosure = document.createElement("button");
+    disclosure.setAttribute("aria-expanded", "false");
+    message.append(disclosure);
+    view.element.append(message);
+
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    disclosure.click();
+    view.grow(600);
+    observers[0]!.trigger();
+    expect(view.scrollTo).not.toHaveBeenCalled();
+
+    controller.scrollToBottom("instant");
+    view.scrollTo.mockClear();
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 700,
+      behavior: "instant",
+    });
+    controller.dispose();
+  });
+
+  it.each([
+    ["a run start", "runStarted"],
+    ["a thread switch", "threadSwitched"],
+  ] as const)(
+    "clears the pause on %s when its scroll is disabled",
+    (_, reset) => {
+      const view = geometry(500, 100);
+      view.setTop(400);
+      const message = document.createElement("div");
+      message.setAttribute("data-message-id", "m1");
+      const disclosure = document.createElement("button");
+      disclosure.setAttribute("aria-expanded", "false");
+      message.append(disclosure);
+      view.element.append(message);
+
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({
+          ...options(),
+          scrollToBottomOnInitialize: false,
+          scrollToBottomOnRunStart: false,
+          scrollToBottomOnThreadSwitch: false,
+        }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      observers[0]!.trigger();
+      view.scrollTo.mockClear();
+
+      disclosure.click();
+      view.grow(600);
+      observers[0]!.trigger();
+      expect(view.scrollTo).not.toHaveBeenCalled();
+
+      controller[reset]();
+      view.grow(700);
+      observers[0]!.trigger();
+
+      expect(view.scrollTo).toHaveBeenCalledWith({
+        top: 700,
+        behavior: "instant",
+      });
+      controller.dispose();
+    },
+  );
 
   it("restarts element bookkeeping and initialization on each attachment", () => {
     const first = geometry();

@@ -65,6 +65,8 @@ Render this under an `AuiProvider` with a runtime, as in the [quickstart](/docs/
 
 `ThreadPrimitiveViewport` follows changes to its content while pinned at the bottom. A user scroll upward unpins it; returning to the bottom pins it again. A pointer gesture also cancels a pending scroll. Without a footer inset, positions within one pixel of the native bottom count as at bottom, as does content that does not overflow. With an inset, positions within that inset plus one pixel count as at bottom.
 
+Expanding a closed disclosure inside a message pauses bottom-follow through later content growth. This includes a control with `aria-expanded="false"` that opens no popup and the summary of a closed `<details>`. Other clicks and text selection keep following. The pause ends when a scroll gesture reaches the bottom, a run starts, the selected thread changes, or `ThreadPrimitiveScrollToBottom` is used.
+
 `autoScroll` gates following content changes while pinned. The other three props gate one scroll each: when the first messages appear after an empty list, when a run starts (`thread.runStart`), and when the selected thread changes (`threads.selectionChanged`). Those three still scroll when `autoScroll` is false. A content resize follows while pinned when either scroll height or viewport height changes, including a shrink. Growing a footer inset follows while pinned; shrinking the inset does not scroll.
 
 ## Render each message
