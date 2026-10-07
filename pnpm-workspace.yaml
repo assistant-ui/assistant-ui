@@ -12,11 +12,16 @@ publicHoistPattern:
 
 strictDepBuilds: true
 
+overrides:
+  '@google/adk>adm-zip': ^0.6.1
+
 verifyDepsBeforeRun: install
 
 # Metro, Expo and React Native run Babel 7. A Babel 8 copy of these packages lands where react-native-worklets 0.10 requires them undeclared and breaks native bundles, and babel-plugin-react-compiler 1.0 fails under @babel/core 8. taze reads this list too.
+# @ag-ui/client 1.0 is an upstream protocol major that react-ag-ui hasn't migrated to; bumping it breaks the adapter's converters against the older fixtures. Drop it once its migration lands.
 update:
   ignoreDeps:
+    - '@ag-ui/client'
     - '@babel/core'
     - '@babel/generator'
     - '@babel/parser'
@@ -49,10 +54,11 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
+  cpu-features: false
   esbuild@0.27.0: true
-  esbuild@0.28.1: true
   esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false
+  ssh2: false
   vue-demi: false

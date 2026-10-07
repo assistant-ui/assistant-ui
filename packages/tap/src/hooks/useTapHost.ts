@@ -1,10 +1,12 @@
 import {
-  unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
-import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import {
+  useHostLifecycle,
+  useResourceFiberHost,
+} from "./utils/useResourceFiberHostUtils";
+import { useEffect, useState } from "react";
 
 export namespace useTapHost {
   export interface Result<R> {
@@ -28,18 +30,11 @@ const useHostRender = <R>(render: () => R): R => render();
 
 export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
   const { createFiber } = useResourceFiberHost();
-  const fiber = useMemo(
-    () => createFiber(useHostRender<R>, undefined),
-    [createFiber],
-  );
+  const [fiber] = useState(() => createFiber(useHostRender<R>, undefined));
 
   const render = renderResourceFiber(fiber, [callback]);
 
-  useEffect(() => {
-    return () => {
-      unmountResourceFiber(fiber);
-    };
-  }, [fiber]);
+  useHostLifecycle(fiber);
 
   let renderCommitted = false;
   const effects = () => {

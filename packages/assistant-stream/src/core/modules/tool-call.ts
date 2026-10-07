@@ -23,6 +23,7 @@ export type ToolCallStreamController = {
 
 type ToolCallStreamOptions = {
   strict?: boolean | undefined;
+  onClose?: (() => void) | undefined;
 };
 
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
@@ -32,12 +33,14 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   private _argsTextController: TextStreamController;
+  private _options: ToolCallStreamOptions;
 
   constructor(
     _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
     options: ToolCallStreamOptions = {},
   ) {
     this._controller = _controller;
+    this._options = options;
     this._argsTextController = new TextStreamControllerImpl(
       {
         enqueue: (chunk) => {
@@ -59,7 +62,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         },
         close: () => {},
       },
-      options,
+      { strict: this._options.strict },
     );
   }
 
@@ -120,6 +123,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     if (this._isClosed) return;
 
     this._isClosed = true;
+    this._options.onClose?.();
     this._argsTextController.close();
     this._finishArgsText();
 

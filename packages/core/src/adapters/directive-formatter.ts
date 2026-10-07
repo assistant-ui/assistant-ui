@@ -1,8 +1,5 @@
-import type {
-  Unstable_DirectiveFormatter,
-  Unstable_DirectiveSegment,
-} from "../types/directive";
-import type { Unstable_TriggerItem } from "../types/trigger";
+import type { DirectiveFormatter, DirectiveSegment } from "../types/directive";
+import type { TriggerItem } from "../types/trigger";
 
 const DIRECTIVE_RE =
   /:([\w-]{1,64})\[([^\]\n]{1,1024})\](?:\{name=([^}\n]{1,1024})\})?/gu;
@@ -12,14 +9,14 @@ const DIRECTIVE_RE =
  *
  * When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
  */
-export const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter = {
-  serialize(item: Unstable_TriggerItem): string {
+export const defaultDirectiveFormatter: DirectiveFormatter = {
+  serialize(item: TriggerItem): string {
     const attrs = item.id !== item.label ? `{name=${item.id}}` : "";
     return `:${item.type}[${item.label}]${attrs}`;
   },
 
-  parse(text: string): Unstable_DirectiveSegment[] {
-    const segments: Unstable_DirectiveSegment[] = [];
+  parse(text: string): DirectiveSegment[] {
+    const segments: DirectiveSegment[] = [];
     let lastIndex = 0;
 
     for (const match of text.matchAll(DIRECTIVE_RE)) {
@@ -46,3 +43,6 @@ export const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter = {
     return segments;
   },
 };
+
+/** @deprecated Use `defaultDirectiveFormatter` instead. */
+export const unstable_defaultDirectiveFormatter = defaultDirectiveFormatter;

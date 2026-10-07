@@ -7,17 +7,17 @@ description: Live demo of the present tool, where the model composes a dashboard
 
 The main route of `examples/with-generative-ui` demonstrates **generative UI**: the model composes an interface at runtime by calling the `present` tool, choosing components from a vocabulary the app ships. Nothing in the app binds a component to a specific tool call.
 
-- **Default vocabulary** — cards, facts, rows, tables, and charts come from `defaultGenerativeUILibrary`, so the app registers one tool and writes no renderers
-- **A custom component** — `DashboardHeader` is added through `defineGenerativeComponents`, showing how to extend the vocabulary with your own React component, and `Markdown` is swapped for the registry item's real renderer
-- **Styled output** — the vocabulary stylesheet is mounted from `@assistant-ui/ui` through the monorepo's tsconfig alias, the way every in-repo example consumes that package; in your own app the same CSS arrives through `shadcn add generative-ui`
-- **Dashboard prompts** — the suggestions describe data, not layout, and let the model decide the composition
+- **Default vocabulary**: cards, facts, rows, tables, and charts come from `defaultGenerativeUILibrary`, so the app registers one tool and writes no renderers
+- **A custom component**: `DashboardHeader` is added through `defineGenerativeComponents`, showing how to extend the vocabulary with your own React component, and `Markdown` is swapped for the registry item's real renderer
+- **Styled output**: the vocabulary stylesheet is mounted from `@assistant-ui/ui` through the monorepo's tsconfig alias, the way every in-repo example consumes that package; in your own app the same CSS arrives through `shadcn add generative-ui`
+- **Dashboard prompts**: the suggestions describe data, not layout, and let the model decide the composition
 
 ### Routes in the same example app
 
 | Route | What it demonstrates |
 |-------|---------------------|
-| `/` | The `present` tool (`JSONGenerativeUI`) — the model composes UI from a vocabulary |
-| `/tool-ui` | Tool UI (`Tools({ toolkit })`) — a renderer bound to each known tool |
+| `/` | The `present` tool (`JSONGenerativeUI`): the model composes UI from a vocabulary |
+| `/tool-ui` | Tool UI (`Tools({ toolkit })`): a renderer bound to each known tool |
 | `/primitive` | Static `GenerativeUIRender` with a hand-written spec (legacy) |
 | `/gui-chat` | Chat with a `render_gui` tool bridged to `MessagePrimitive.GenerativeUI` (legacy) |
 
@@ -77,7 +77,7 @@ const runtime = useChatRuntime({
 
 ### Backend-Rendered Tools (Chart, Location)
 
-On `/tool-ui`, these tools have backend `execute` functions and frontend toolkit renderers. The AI generates the data, the backend confirms, and the frontend renders rich UI from `args`:
+On `/tool-ui`, these tools have backend `execute` functions and frontend toolkit renderers. The AI generates the data, the backend confirms, and the frontend renders UI from `args`:
 
 ```tsx
 const toolkit = defineToolkit({
@@ -94,7 +94,7 @@ const toolkit = defineToolkit({
 
 ### Frontend-Only Tools (Date Picker, Contact Form)
 
-These tools have no backend `execute` — the AI triggers the tool call, and the user completes it through interactive UI. The `addResult` callback sends the user's input back to the AI:
+These tools have no backend `execute`. The AI triggers the tool call, and the user completes it through interactive UI. The `addResult` callback sends the user's input back to the AI:
 
 ```tsx
 const toolkit = defineToolkit({

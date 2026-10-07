@@ -22,7 +22,7 @@ const mock = vi.hoisted(() => ({
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
-  usePathname: () => "/shop/setup",
+  usePathname: () => "/components/setup",
 }));
 
 vi.mock("statewire", async (importOriginal) => ({
@@ -31,7 +31,6 @@ vi.mock("statewire", async (importOriginal) => ({
 }));
 
 import {
-  acceptSetupLicense,
   acknowledgeSetupIntro,
   startCheckout,
 } from "../../lib/checkout/session-store";
@@ -47,7 +46,6 @@ describe("checkout connect sequence", () => {
     mock.transport = createMockTransport<Checkout.State | undefined>(undefined);
     const session = startCheckout(["assistant-ui"])!;
     acknowledgeSetupIntro();
-    acceptSetupLicense();
     let commits = 0;
     render(
       <Profiler id="setup" onRender={() => void commits++}>

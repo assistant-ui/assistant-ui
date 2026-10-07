@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import {
   createAssistantStream,
   createAssistantStreamController,
-  createAssistantStreamResponse,
 } from "./assistant-stream";
+import { createAssistantStreamResponse } from "./assistant-stream-response";
 import { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { DataStreamDecoder } from "../serialization/data-stream/DataStream";
@@ -505,6 +505,65 @@ describe("addToolCallPart with an immediate response", () => {
     expect(chunks.filter((c) => c.type === "result")).toHaveLength(1);
     expect(chunks.filter((c) => c.type === "part-finish")).toHaveLength(1);
     expect(chunks.at(-1)?.type).toBe("part-finish");
+  });
+});
+
+describe("tool-call finish ordering", () => {
+  it("keeps close order across uneven argument backlogs", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        const first = controller.addToolCallPart("first");
+        const second = controller.addToolCallPart("second");
+
+        first.argsText.append('{"value":"');
+        for (let index = 0; index < 20; index++) {
+          first.argsText.append(String(index % 10));
+        }
+        first.argsText.append('"}');
+        first.close();
+        second.close();
+      }),
+    );
+
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
+  });
+
+  it("delivers finishes in tool close order", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        const first = controller.addToolCallPart("first");
+        const second = controller.addToolCallPart("second");
+        second.close();
+        first.close();
+      }),
+    );
+
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[1], [0]]);
+  });
+
+  it("does not block a closed tool behind an earlier open tool", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    controller.addToolCallPart("first");
+    controller.addToolCallPart("second").close();
+    const reader = stream.getReader();
+    let finish: AssistantStreamChunk | undefined;
+
+    while (finish?.type !== "part-finish") {
+      const next = await reader.read();
+      if (next.done) break;
+      finish = next.value;
+    }
+
+    expect(finish).toEqual({ type: "part-finish", path: [1] });
+    await reader.cancel();
   });
 });
 

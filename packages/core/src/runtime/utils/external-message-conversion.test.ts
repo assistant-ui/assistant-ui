@@ -1,16 +1,71 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ThreadMessage } from "../../types/message";
+import type { MessageStatus, ThreadMessage } from "../../types/message";
+import { getExternalStoreMessages } from "./external-store-message";
 import { fromThreadMessageLike } from "./thread-message-like";
 import {
   chunkExternalMessages,
   completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  convertExternalMessages,
+  createExternalMessageConversionCache,
   joinExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
   type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("joined assistant status", () => {
+  it.each([
+    { status: { type: "running" }, isRunning: true },
+    { status: { type: "complete", reason: "stop" }, isRunning: false },
+    {
+      status: { type: "incomplete", reason: "error", error: "failed" },
+      isRunning: false,
+    },
+    { status: undefined, isRunning: true },
+  ] satisfies { status: MessageStatus | undefined; isRunning: boolean }[])(
+    "uses the tail status $status with isRunning=$isRunning",
+    ({ status, isRunning }) => {
+      const result = convertExternalMessageChunk(
+        {
+          inputs: [],
+          outputs: [
+            {
+              id: "first",
+              role: "assistant",
+              content: "First step",
+              status: { type: "complete", reason: "unknown" },
+            },
+            { id: "second", role: "assistant", content: "Next step", status },
+          ],
+        },
+        0,
+        1,
+        isRunning,
+        undefined,
+      );
+      expect(result.status).toMatchObject(status ?? { type: "running" });
+      expect(result.id).toBe("first");
+      expect(result.content).toMatchObject([
+        { type: "text", text: "First step" },
+        { type: "text", text: "Next step" },
+      ]);
+    },
+  );
+
+  it("takes a running status from a tail whose content has not arrived yet", () => {
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: "First step",
+        status: { type: "complete", reason: "stop" },
+      },
+      { role: "assistant", content: [], status: { type: "running" } },
+    ]);
+    expect(result.status).toEqual({ type: "running" });
+  });
+});
 
 describe("completeExternalMessageConversion", () => {
   it.each([false, 0, ""])(
@@ -97,6 +152,55 @@ describe("joinExternalMessages", () => {
       expect(transcript).toEqual([nested]);
     },
   );
+
+  it.each([
+    {
+      name: "spans every settled member",
+      first: { startedAt: 1_000, completedAt: 2_000 },
+      second: { startedAt: 3_000, completedAt: 5_000 },
+      expected: { startedAt: 1_000, completedAt: 5_000 },
+    },
+    {
+      name: "drops the finish while a member runs",
+      first: { startedAt: 1_000, completedAt: 2_000 },
+      second: { startedAt: 3_000 },
+      expected: { startedAt: 1_000 },
+    },
+    {
+      name: "keeps the only recorded timing",
+      first: { startedAt: 1_000, completedAt: 2_000 },
+      second: undefined,
+      expected: { startedAt: 1_000, completedAt: 2_000 },
+    },
+  ])("merges reasoning timing that $name", ({ first, second, expected }) => {
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "a", parentId: "r", timing: first },
+        ],
+      },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            text: "b",
+            parentId: "r",
+            ...(second && { timing: second }),
+          },
+        ],
+      },
+    ]);
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "a\n\nb",
+    });
+    expect((result.content[0] as { timing?: unknown }).timing).toEqual(
+      expected,
+    );
+  });
 
   it("preserves strict equality for malformed numeric tool-call IDs", () => {
     const messages = [
@@ -544,4 +648,35 @@ describe("convertExternalMessageChunk", () => {
       reason: "unknown",
     });
   });
+});
+
+describe("external message source identity", () => {
+  it.each(["user", "assistant"] as const)(
+    "refreshes %s sources when a converter reuses its output",
+    (role) => {
+      const output = { id: "message", role, content: "unchanged" };
+      const callback = vi.fn(() => output);
+      const metadata = {};
+      const cache = createExternalMessageConversionCache<{ version: number }>();
+      const firstSource = { version: 1 };
+      const secondSource = { version: 2 };
+      const convert = (source: { version: number }) =>
+        convertExternalMessages(
+          [source],
+          callback,
+          false,
+          metadata,
+          undefined,
+          cache,
+        )[0]!;
+      const first = convert(firstSource);
+      expect(convert(firstSource)).toBe(first);
+      expect(callback).toHaveBeenCalledTimes(1);
+      const second = convert(secondSource);
+      expect(getExternalStoreMessages(second)).toEqual([secondSource]);
+      expect(getExternalStoreMessages(first)).toEqual([firstSource]);
+      expect(convert(secondSource)).toBe(second);
+      expect(callback).toHaveBeenCalledTimes(2);
+    },
+  );
 });
