@@ -1,7 +1,7 @@
 export const SWITCHBOARD = {
   runtime: {
-    values: ["ai-sdk", "data-stream", "assistant-transport", "local"],
-    implemented: ["ai-sdk", "local"],
+    values: ["ai-sdk", "data-stream", "assistant-transport"],
+    implemented: ["ai-sdk"],
   },
   backend: {
     values: ["fixture", "anthropic", "vscode-lm"],

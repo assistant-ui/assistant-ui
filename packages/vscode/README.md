@@ -41,16 +41,6 @@ const runtime = useChatRuntime({
 });
 ```
 
-Or use `useLocalRuntime` with `createVSCodeModelAdapter()`. It posts the thread (`messages`, `system`, and the JSON schemas of `tools`) to `/api/model`, and the route answers with `createAssistantStreamResponse` from `assistant-stream` or an AI SDK UI message stream response:
-
-```tsx
-import { useLocalRuntime } from "@assistant-ui/react";
-import { createVSCodeModelAdapter } from "@assistant-ui/vscode/webview";
-
-const adapter = createVSCodeModelAdapter();
-const runtime = useLocalRuntime(adapter);
-```
-
 ## Host services
 
 `serveWebviewHost` serves the same `routes` as `serveWebviewRoutes` and also answers the webview's calls into the host. Use it in place of `serveWebviewRoutes`:
@@ -82,16 +72,17 @@ installLinkInterceptor();
 
 ```tsx
 import { createLocalStorageAdapter } from "@assistant-ui/core/react";
-import { useLocalRuntime, useRemoteThreadListRuntime } from "@assistant-ui/react";
-import { createVSCodeModelAdapter, createVSCodeStorage } from "@assistant-ui/vscode/webview";
+import { useRemoteThreadListRuntime } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { createVSCodeStorage, vscodeFetch } from "@assistant-ui/vscode/webview";
 
 const threads = createLocalStorageAdapter({ storage: createVSCodeStorage() });
-const model = createVSCodeModelAdapter();
+const transport = new AssistantChatTransport({ api: "/api/chat", fetch: vscodeFetch });
 
 const runtime = useRemoteThreadListRuntime({
   adapter: threads,
   runtimeHook: function useThreadRuntime() {
-    return useLocalRuntime(model);
+    return useChatRuntime({ transport });
   },
 });
 ```

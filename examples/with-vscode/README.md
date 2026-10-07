@@ -24,7 +24,6 @@ The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFe
 | Route | Handler | Used by |
 | --- | --- | --- |
 | `POST /api/chat` | `src/fixtures/route.ts`, an AI SDK UI message stream | `auiTest.runtime=ai-sdk`: `useChatRuntime` with `AssistantChatTransport({ fetch: vscodeFetch })` |
-| `POST /api/model` | `src/fixtures/model-route.ts`, an assistant-stream data stream | `auiTest.runtime=local`: `useLocalRuntime(createVSCodeModelAdapter())` |
 | `GET /testbed/served-requests` | the request log in `src/routes.ts` | probes that check what the host served and whether `req.signal` fired |
 | `GET`, `PUT /testbed/color-theme` | `src/routes.ts`, reads and sets the user `workbench.colorTheme` | `theme-follows` |
 | `GET`, `PUT /testbed/open-external` | `src/open-external.ts`, the host's `openExternal` log and its stub switch | `external-link` |
@@ -33,7 +32,7 @@ The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFe
 
 `serveWebviewHost` also serves the webview's host calls. `installLinkInterceptor()` in `webview/main.tsx` sends link clicks to its `openExternal`, which records each URL in `src/open-external.ts` and opens it with `vscode.env.openExternal`. While stubbed, it records the URL and does not open it. `pnpm test` sets `AUI_TESTBED_STUB_OPEN_EXTERNAL=1`, and `external-link` turns the stub on for its own run.
 
-Both runtimes run inside `useRemoteThreadListRuntime` with `createLocalStorageAdapter({ storage: createVSCodeStorage() })`, which stores threads in the extension's `globalState` under a prefix per runtime. The thread list sits above the thread. `useChatRuntime` needs a history adapter with `withFormat`, which `createLocalStorageAdapter` does not provide, so under `ai-sdk` only the thread list persists and `threads-persist` fails.
+The runtime runs inside `useRemoteThreadListRuntime` with `createLocalStorageAdapter({ storage: createVSCodeStorage() })`, which stores threads and their messages in the extension's `globalState` under a prefix per runtime. The thread list sits above the thread.
 
 `threads-persist` seeds a thread, runs **Reload Assistant Webview**, then switches `auiTest.location` so that a new webview is created, and checks each time that the thread is listed with its messages. Reload Window would end the test run, so these two steps stand in for it.
 
@@ -113,7 +112,7 @@ After the probes, `pnpm screenshots` lays the window out at 1600x2000 and captur
 
 | Setting | Values |
 | --- | --- |
-| `auiTest.runtime` | `ai-sdk`, `data-stream`, `assistant-transport`, `local` |
+| `auiTest.runtime` | `ai-sdk`, `data-stream`, `assistant-transport` |
 | `auiTest.backend` | `fixture`, `anthropic`, `vscode-lm` |
 | `auiTest.style` | `shadcn`, `vscode` |
 | `auiTest.csp` | `strict`, `relaxed` |
@@ -141,9 +140,9 @@ The Readiness view lists every probe with its state: pass, fail or not implement
 
 Three workflows in `.github/workflows/` run the test bed on `ubuntu-latest` under `xvfb-run`, with VS Code pinned by `AUI_TESTBED_VSCODE_VERSION` and its download cached per OS, architecture and version:
 
-- **VS Code Test Bed** (`vscode-test-bed.yaml`) runs `pnpm test` at `AUI_TESTBED_PHASE=1`, one job per runtime (`ai-sdk`, `local`), and uploads `test-results/` as `vscode-test-bed-probes-<runtime>` (kept 14 days), pass or fail.
+- **VS Code Test Bed** (`vscode-test-bed.yaml`) runs `pnpm test` at `AUI_TESTBED_PHASE=1`, one job per runtime (`ai-sdk`), and uploads `test-results/` as `vscode-test-bed-probes-<runtime>` (kept 14 days), pass or fail.
 - **VS Code Test Bed Screenshots** (`vscode-test-bed-screenshots.yaml`) runs `pnpm screenshots` when a change touches `packages/ui`, `packages/vscode`, `examples/with-vscode` or `templates/vscode`, or on demand, and uploads `screenshots/` as `vscode-test-bed-screenshots` (kept 14 days, 30 on `main`). Download it from the run's summary and open `gallery/index.html`.
-- **VS Code Test Bed (combined branches)** (`vscode-test-bed-combined.yaml`) is started by hand: it checks out `base`, applies the commits each branch in `branches` has that neither `origin/main` nor `base` contains (`git cherry-pick --no-commit`), and runs both probe jobs and the screenshots on the combined tree. It fails on the first branch that conflicts and names it. `base` defaults to `main`; pass the branch that carries the test bed when it has not reached `main` yet.
+- **VS Code Test Bed (combined branches)** (`vscode-test-bed-combined.yaml`) is started by hand: it checks out `base`, applies the commits each branch in `branches` has that neither `origin/main` nor `base` contains (`git cherry-pick --no-commit`), and runs the probe job and the screenshots on the combined tree. It fails on the first branch that conflicts and names it. `base` defaults to `main`; pass the branch that carries the test bed when it has not reached `main` yet.
 
 To bump VS Code, set `AUI_TESTBED_VSCODE_VERSION` to the new release in all three workflows, run `AUI_TESTBED_VSCODE_VERSION=<version> AUI_TESTBED_PHASE=1 pnpm test` locally, and fix what it turns up in the same PR. The new version gets a new cache key, so the first run downloads it.
 

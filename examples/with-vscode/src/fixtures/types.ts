@@ -1,8 +1,8 @@
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 /**
- * One step of a scripted reply. Both fixture routes play the same steps: the
- * AI SDK route as UI message chunks, the model route as assistant-stream parts.
+ * One step of a scripted reply, which the fixture route plays as AI SDK UI
+ * message chunks.
  */
 export type FixtureStep =
   /** Streams word by word into a text part. */

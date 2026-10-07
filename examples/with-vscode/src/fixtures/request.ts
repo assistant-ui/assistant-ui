@@ -44,8 +44,8 @@ const toolResultsOf = (messages: readonly LooseMessage[]) => {
 };
 
 /**
- * Reads the prompt and tool results from an AI SDK chat request or a
- * `createVSCodeModelAdapter` request; both carry a `messages` array.
+ * Reads the prompt and tool results from an AI SDK chat request's `messages`
+ * array.
  */
 export const readFixtureRequest = (body: unknown): FixtureRequest => {
   const messages =

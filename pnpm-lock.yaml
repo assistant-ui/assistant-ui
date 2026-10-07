@@ -5951,9 +5951,6 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.21
         version: link:../core
-      assistant-stream:
-        specifier: ^0.3.45
-        version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/store':
         specifier: workspace:*

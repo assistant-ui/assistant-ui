@@ -112,7 +112,6 @@ export const isTestbedMessage = (
   (data as { channel?: unknown }).channel === TESTBED_CHANNEL;
 
 export const CHAT_ROUTE = "/api/chat";
-export const MODEL_ROUTE = "/api/model";
 export const SERVED_REQUESTS_ROUTE = "/testbed/served-requests";
 export const COLOR_THEME_ROUTE = "/testbed/color-theme";
 export const OPEN_EXTERNAL_ROUTE = "/testbed/open-external";

@@ -55,8 +55,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.21",
-    "assistant-stream": "^0.3.45"
+    "@assistant-ui/core": "^0.3.21"
   },
   "peerDependencies": {
     "@types/react": "*",

@@ -28,7 +28,7 @@ ${CODE}
 And the matching config:
 
 \`\`\`json
-{ "auiTest.csp": "strict", "auiTest.runtime": "local" }
+{ "auiTest.csp": "strict", "auiTest.runtime": "ai-sdk" }
 \`\`\``;
 
 const ShikiMarkdownText = (props: TextMessagePartProps) => (

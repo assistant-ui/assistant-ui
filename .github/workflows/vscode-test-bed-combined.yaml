@@ -39,11 +39,6 @@ jobs:
             runtime: ai-sdk
             phase: 1
             script: test
-          - name: Phase 1 probes (local)
-            artifact: probes-local
-            runtime: local
-            phase: 1
-            script: test
           - name: Screenshots
             artifact: screenshots
             runtime: ""

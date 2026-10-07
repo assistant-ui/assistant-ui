@@ -9,15 +9,12 @@ import {
   Suggestions,
   Tools,
   useAui,
-  useLocalRuntime,
   useRemoteThreadListRuntime,
   type AssistantClient,
   type AssistantRuntime,
-  type RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
-  createVSCodeModelAdapter,
   installLinkInterceptor,
   vscodeFetch,
 } from "@assistant-ui/vscode/webview";
@@ -28,7 +25,6 @@ import { FIXTURES } from "../src/fixtures/fixtures";
 import {
   BOOT_ATTRIBUTE,
   CHAT_ROUTE,
-  MODEL_ROUTE,
   type WebviewBootConfig,
 } from "../src/protocol";
 import type { SWITCHBOARD, Switchboard } from "../src/switchboard";
@@ -45,21 +41,10 @@ installLinkInterceptor();
 let client: AssistantClient | undefined;
 startProbeListener(() => ({ boot, aui: client }));
 
-const localStorageAdapter = createLocalStorageAdapter({
+const threadListAdapter = createLocalStorageAdapter({
   storage: threadStorage,
   prefix: threadStoragePrefix(boot.switchboard.runtime),
 });
-
-// useChatRuntime needs a history adapter with withFormat, which
-// createLocalStorageAdapter's lacks, so ai-sdk persists the thread list only.
-const threadListAdapter: RemoteThreadListAdapter =
-  boot.switchboard.runtime === "ai-sdk"
-    ? {
-        ...localStorageAdapter,
-        unstable_Provider: undefined,
-        unstable_useAdapters: undefined,
-      }
-    : localStorageAdapter;
 
 const config = AuiConfig({
   tools: Tools({ toolkit: { ...FIXTURE_TOOLKIT, ...toolkit } }),
@@ -83,14 +68,6 @@ function CaptureClient() {
   return null;
 }
 
-function useLocalThreadRuntime() {
-  const adapter = useMemo(
-    () => createVSCodeModelAdapter({ api: MODEL_ROUTE }),
-    [],
-  );
-  return useLocalRuntime(adapter);
-}
-
 function useAiSdkThreadRuntime() {
   const transport = useMemo(
     () => new AssistantChatTransport({ api: CHAT_ROUTE, fetch: vscodeFetch }),
@@ -107,7 +84,6 @@ const RUNTIME_HOOKS: Record<
   () => AssistantRuntime
 > = {
   "ai-sdk": useAiSdkThreadRuntime,
-  local: useLocalThreadRuntime,
 };
 
 function FixtureThreads({

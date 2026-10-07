@@ -11,7 +11,6 @@ import {
   COLOR_THEME_ROUTE,
   isTestbedMessage,
   OPEN_EXTERNAL_ROUTE,
-  MODEL_ROUTE,
   SERVED_REQUESTS_ROUTE,
   TESTBED_CHANNEL,
   type ColorThemeState,
@@ -34,7 +33,7 @@ import {
   type FixtureStep,
 } from "../src/fixtures/fixtures";
 import { fixtureUIConflicts } from "./fixture-uis";
-import { threadStorage, threadStoragePrefix } from "./thread-storage";
+import { storedThreadValues } from "./thread-storage";
 import { getVSCodeApi } from "./vscode-api";
 
 type CspViolation = { directive: string; blocked: string; sample: string };
@@ -137,7 +136,6 @@ const ROUTES: Partial<
   Record<WebviewBootConfig["switchboard"]["runtime"], string>
 > = {
   "ai-sdk": CHAT_ROUTE,
-  local: MODEL_ROUTE,
 };
 
 const routeOf = (ctx: WebviewProbeContext) => {
@@ -773,14 +771,10 @@ const waitForClient = async (getContext: () => { aui?: AssistantClient }) => {
 export const WEBVIEW_TASKS: Partial<
   Record<
     WebviewTaskId,
-    (
-      aui: AssistantClient,
-      arg: unknown,
-      boot: WebviewBootConfig,
-    ) => Promise<unknown>
+    (aui: AssistantClient, arg: unknown) => Promise<unknown>
   >
 > = {
-  "seed-thread": async (aui, _arg, boot) => {
+  "seed-thread": async (aui) => {
     await waitForThreadList(aui);
     aui.threads().switchToNewThread();
     await waitFor(
@@ -797,14 +791,14 @@ export const WEBVIEW_TASKS: Partial<
       () => "the new thread to get a remote id",
     );
     const remoteId = main().remoteId ?? "";
-    const key = `${threadStoragePrefix(boot.switchboard.runtime)}messages:${remoteId}`;
-    const deadline = Date.now() + 5_000;
-    while (!(await threadStorage.getItem(key))?.includes(prompt)) {
-      if (Date.now() > deadline) {
-        throw new Error(`${key} never reached the host's globalState`);
-      }
-      await sleep(50);
-    }
+    await waitFor(
+      () =>
+        [...storedThreadValues].some(
+          ([key, value]) => key.includes(remoteId) && value.includes(prompt),
+        ),
+      5_000,
+      () => `the messages of ${remoteId} to reach the host's globalState`,
+    );
     const seeded: SeededThread = { remoteId, prompt };
     return seeded;
   },
@@ -857,7 +851,7 @@ export const startProbeListener = (
         const task = WEBVIEW_TASKS[message.task];
         if (!task) throw new Error(`The Assistant view has no ${message.task}`);
         const aui = await waitForClient(getContext);
-        const value = await task(aui, message.arg, getContext().boot);
+        const value = await task(aui, message.arg);
         result = { ok: true, value };
       } catch (error) {
         result = {

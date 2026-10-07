@@ -137,16 +137,14 @@
           "enum": [
             "ai-sdk",
             "data-stream",
-            "assistant-transport",
-            "local"
+            "assistant-transport"
           ],
           "enumDescriptions": [
             "useChatRuntime with AssistantChatTransport",
             "useDataStreamRuntime",
-            "useAssistantTransportRuntime",
-            "useLocalRuntime with a ChatModelAdapter"
+            "useAssistantTransportRuntime"
           ],
-          "default": "local",
+          "default": "ai-sdk",
           "description": "Runtime the webview mounts."
         },
         "auiTest.backend": {

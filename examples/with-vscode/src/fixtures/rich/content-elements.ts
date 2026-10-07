@@ -58,7 +58,7 @@ export async function ask(prompt: string): Promise<string> {
 \`\`\`
 
 \`\`\`json
-{ "auiTest.csp": "strict", "auiTest.runtime": "local" }
+{ "auiTest.csp": "strict", "auiTest.runtime": "ai-sdk" }
 \`\`\`
 
 \`\`\`mermaid

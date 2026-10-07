@@ -22,7 +22,6 @@ export async function POST(req: Request): Promise<Response> {
 | Route | Method | Runtime |
 | --- | --- | --- |
 | /api/chat | POST | useChatRuntime with AssistantChatTransport |
-| /api/model | POST | useLocalRuntime with createVSCodeModelAdapter |
 
 > Inline math such as $e^{i\\pi} + 1 = 0$ stays literal: MarkdownText ships remark-gfm only.
 
