@@ -1071,4 +1071,136 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     });
     expect(first.content[1]).toMatchObject({ type: "text", text: "Hello." });
   });
+
+  it("MESSAGES_SNAPSHOT without activity keeps streamed activity after its text", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+          subscriber.onActivitySnapshotEvent?.({
+            event: {
+              type: "ACTIVITY_SNAPSHOT",
+              messageId: "activity-1",
+              activityType: "progress",
+              content: { step: 1 },
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(
+      (core.getMessages()[1] as ThreadAssistantMessage).content,
+    ).toMatchObject([
+      { type: "text", text: "Hello." },
+      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+    ]);
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core
+      .getMessages()
+      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(first.content).toMatchObject([
+      { type: "text", text: "Hello." },
+      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+    ]);
+  });
+
+  it("MESSAGES_SNAPSHOT without reasoning keeps reasoning around a tool call", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitReasoning(subscriber, "reasoning-a", "A");
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tool-x",
+              toolCallName: "lookup",
+              parentMessageId: "assistant-1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "tool-x" },
+          });
+          emitReasoning(subscriber, "reasoning-b", "B");
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "tool-x",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "tool-x",
+                      type: "function",
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(
+      (core.getMessages()[1] as ThreadAssistantMessage).content,
+    ).toMatchObject([
+      { type: "reasoning", text: "A" },
+      { type: "tool-call", toolCallId: "tool-x" },
+      { type: "reasoning", text: "B" },
+      { type: "text", text: "Hello." },
+    ]);
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core
+      .getMessages()
+      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(first.content).toMatchObject([
+      { type: "reasoning", text: "A" },
+      { type: "tool-call", toolCallId: "tool-x" },
+      { type: "reasoning", text: "B" },
+      { type: "text", text: "Hello." },
+    ]);
+  });
 });

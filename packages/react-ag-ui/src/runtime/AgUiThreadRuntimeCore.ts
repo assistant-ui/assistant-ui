@@ -1764,22 +1764,63 @@ export class AgUiThreadRuntimeCore {
 
   // A snapshot built from user, assistant, and tool records alone carries no
   // reasoning or activity of its own, so the parts streamed locally would be
-  // lost on every refresh; keep the local ones when the snapshot has none of
-  // that kind, matching the merge rule of @ag-ui/client. Reasoning precedes
-  // the answer it belongs to, so kept parts go first.
+  // lost on every refresh; keep the local ones where they streamed when the
+  // snapshot has none of that kind, matching the merge rule of @ag-ui/client.
   private mergeSnapshotAssistantContent(
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
     snapshotHasReasoning: boolean,
     snapshotHasActivity: boolean,
   ): ThreadAssistantMessage["content"] {
-    const kept = previous.filter((part) =>
+    const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
       part.type === "reasoning"
         ? !snapshotHasReasoning
-        : isActivityPart(part) && !snapshotHasActivity,
-    );
+        : isActivityPart(part) && !snapshotHasActivity;
+    const kept = previous.filter(shouldKeep);
     const merged = this.preserveToolInteractions(previous, next);
-    return kept.length === 0 ? merged : [...kept, ...merged];
+    if (kept.length === 0) return merged;
+
+    const mergedByType = new Map<string, number[]>();
+    const mergedTools = new Map<string, number>();
+    for (const [index, part] of merged.entries()) {
+      if (part.type === "tool-call") {
+        mergedTools.set(part.toolCallId, index);
+      } else {
+        const indexes = mergedByType.get(part.type) ?? [];
+        indexes.push(index);
+        mergedByType.set(part.type, indexes);
+      }
+    }
+
+    const previousOrdinals = new Map<string, number>();
+    const insertions: (typeof kept)[] = Array.from(
+      { length: merged.length + 1 },
+      () => [],
+    );
+    let predecessorIndex = -1;
+    for (const part of previous) {
+      if (shouldKeep(part)) {
+        insertions[predecessorIndex + 1]!.push(part);
+        continue;
+      }
+
+      let matchedIndex: number | undefined;
+      if (part.type === "tool-call") {
+        matchedIndex = mergedTools.get(part.toolCallId);
+      } else {
+        const ordinal = previousOrdinals.get(part.type) ?? 0;
+        matchedIndex = mergedByType.get(part.type)?.[ordinal];
+        previousOrdinals.set(part.type, ordinal + 1);
+      }
+      if (matchedIndex !== undefined) predecessorIndex = matchedIndex;
+    }
+
+    const result: ThreadAssistantMessage["content"][number][] = [];
+    for (const [index, part] of merged.entries()) {
+      result.push(...insertions[index]!, part);
+    }
+    result.push(...insertions[merged.length]!);
+    return result;
   }
 
   private mergeAssistantMetadata(
