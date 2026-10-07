@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/eve",
-  "version": "0.0.19",
+  "version": "0.0.22",
   "description": "Eve runtime adapter for assistant-ui",
   "keywords": [
     "eve",
@@ -30,12 +30,15 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
-    "test:watch": "vitest"
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:watch": "vitest",
+    "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.21",
-    "@assistant-ui/store": "^0.3.15",
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/store": "^0.3.17",
     "assistant-cloud": "*"
   },
   "peerDependencies": {
@@ -50,14 +53,15 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
-    "eve": "^0.56.0",
+    "eve": "^0.70.1",
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

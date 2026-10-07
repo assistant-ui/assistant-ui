@@ -17,10 +17,10 @@ import {
 
 `@assistant-ui/react-o11y` provides headless, Radix-style primitives for rendering observability spans as collapsible, indented hierarchical UIs. Use it to build trace inspectors, waterfall debug panels, or LLM call timelines on top of your own span data source.
 
-- **Headless** — Zero styling opinions, bring your own CSS / Tailwind.
-- **Composable** — Radix-style primitive parts you fully control.
-- **Tree-aware** — Automatic depth, parent / child collapse, time range computation.
-- **Reactive** — Built on the same reactive core as the runtimes, so spans stream into your UI as they change.
+- **Headless**: ships no styles, so you bring your own CSS or Tailwind.
+- **Composable**: Radix-style primitive parts that you arrange yourself.
+- **Tree-aware**: computes depth, parent and child collapse, and the time range.
+- **Reactive**: built on the same reactive core as the runtimes, so spans stream into your UI as they change.
 
 <div className="not-prose my-6">
   <WaterfallSample />
@@ -74,7 +74,7 @@ export function TraceView({ spans }: { spans: SpanData[] }) {
 
 ### Status states
 
-`data-span-status` exposes each span's lifecycle, so running, completed, failed, and skipped are styled with pure CSS.
+`data-span-status` exposes each span's lifecycle, so running, completed, failed, and skipped spans can be styled with CSS alone.
 
 <div className="not-prose my-6">
   <StatusSample />
@@ -82,7 +82,7 @@ export function TraceView({ spans }: { spans: SpanData[] }) {
 
 ### Collapsible subtrees
 
-`SpanPrimitive.CollapseToggle` removes a span's descendants from the visible flat list, not just hides them. Click a chevron to collapse a subtree.
+Collapsing a span with `SpanPrimitive.CollapseToggle` removes its descendants from the visible flat list, so they are not rendered. Click a chevron to collapse a subtree.
 
 <div className="not-prose my-6">
   <CollapseSample />
@@ -104,6 +104,7 @@ import {
   SpanResource,
   SpanByIndexProvider,
 } from "@assistant-ui/react-o11y";
+import { AuiConfig, AuiProvider } from "@assistant-ui/store";
 
 // Top-level: mount SpanResource via AuiProvider
 const config = AuiConfig({ span: SpanResource({ spans }) });
@@ -329,7 +330,7 @@ Exposes `data-span-status`, `data-span-type`, `data-span-running`, and these CSS
 
 ## Styling
 
-All primitives forward refs and accept standard DOM props (`className`, `style`, etc.). Use the data attributes for state-based styling:
+Every primitive that renders an element forwards its ref and accepts standard DOM props (`className`, `style`, etc.). Use the data attributes for state-based styling:
 
 ```css
 [data-span-status="running"] {

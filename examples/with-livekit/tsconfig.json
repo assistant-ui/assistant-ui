@@ -28,6 +28,7 @@
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "@assistant-ui/store/client": ["../../packages/store/src/client"],
+      "@assistant-ui/store/internal": ["../../packages/store/src/internal"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],

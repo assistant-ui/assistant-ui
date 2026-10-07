@@ -75,7 +75,7 @@ const untilNextEnabled = () =>
   );
 
 describe("ModelInputCard", () => {
-  it("offers OpenAI, Anthropic and Other before asking for anything else", async () => {
+  it("offers every provider before asking for anything else", async () => {
     render(
       <WizardHost>
         <ModelInputCard
@@ -96,13 +96,9 @@ describe("ModelInputCard", () => {
       screen
         .getAllByRole("radio")
         .map((radio) => radio.parentElement!.textContent),
-    ).toEqual(["OpenAI", "Anthropic", "Other"]);
+    ).toEqual(["OpenAI", "Anthropic", "Google", "Groq"]);
     expect(screen.queryByLabelText("API key")).toBeNull();
     expect(screen.queryByLabelText("Model")).toBeNull();
-    fireEvent.click(screen.getByRole("radio", { name: "Other" }));
-    expect(
-      screen.getByRole("combobox", { name: "Other provider" }).textContent,
-    ).toContain("Google");
   });
 
   it("suggests the first model the key can use when the default is not on it", async () => {
@@ -276,7 +272,7 @@ describe("ModelInputCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Test key" }));
     await screen.findByText("The provider rejected this key.");
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Other" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Google" }));
     toKeyStep();
     expect(screen.getByLabelText<HTMLInputElement>("API key").value).toBe("");
     expect(screen.queryByText("The provider rejected this key.")).toBeNull();

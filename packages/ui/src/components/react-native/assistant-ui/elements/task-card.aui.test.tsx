@@ -70,7 +70,7 @@ const task = (
     result?: unknown;
     isError?: boolean;
     interrupt?: { type: "human"; payload: unknown };
-    approval?: { id: string; prompt?: string };
+    approval?: { id: string; prompt?: string; [field: string]: unknown };
   },
 ) => ({
   type: "tool-call" as const,
@@ -399,6 +399,61 @@ describe("TaskGroup", () => {
     expect(onRespondToToolApproval).toHaveBeenCalledExactlyOnceWith({
       approvalId: "tag-approval",
       approved: true,
+    });
+  });
+
+  it("answers a waiting task's questionnaire through the runtime", async () => {
+    const onRespondToToolApproval = vi.fn();
+    await render(
+      [
+        { role: "user", content: "Look into it" },
+        {
+          role: "assistant",
+          status: { type: "requires-action", reason: "interrupt" },
+          content: [
+            task("asking", "Plan the release", {
+              messages: settled("asking", "Need a scope"),
+              approval: {
+                id: "scope-approval",
+                display: "questions",
+                questions: [
+                  {
+                    id: "scope",
+                    prompt: "Which parts should ship?",
+                    multiple: true,
+                    options: [
+                      { id: "src", label: "src" },
+                      { id: "docs", label: "docs" },
+                    ],
+                  },
+                ],
+              },
+            }),
+          ],
+        },
+      ],
+      { onRespondToToolApproval },
+    );
+
+    const byLabel = (label: string) =>
+      container.querySelector<HTMLElement>(
+        `[role="button"][aria-label="${label}"]`,
+      )!;
+    expect(byLabel("Allow")).toBeNull();
+    await act(async () => {
+      click(byLabel("src"));
+    });
+    await act(async () => {
+      click(byLabel("docs"));
+    });
+    await act(async () => {
+      click(byLabel("Send"));
+    });
+
+    expect(onRespondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "scope-approval",
+      approved: true,
+      answers: { scope: { optionIds: ["src", "docs"] } },
     });
   });
 

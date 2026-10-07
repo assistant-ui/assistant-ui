@@ -1,5 +1,6 @@
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
+import type { QuoteInfo } from "../../types/quote";
 import { getThreadMessageText } from "../../utils/text";
 import { liftNonTextParts } from "../../adapters/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
@@ -90,6 +91,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       );
     }
     this.setAttachments(attachments);
+    this.setQuote(message.metadata.custom.quote as QuoteInfo | undefined);
 
     this.setRunConfig({ ...runtime.composer.runConfig });
   }

@@ -1209,6 +1209,38 @@ describe("AdkEventAccumulator - special function calls", () => {
       ]);
     },
   );
+
+  it("skips null tool_calls entries when collecting confirmation and credential requests", () => {
+    const acc = new AdkEventAccumulator([
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [
+          null,
+          {
+            id: "tc-1",
+            name: "adk_request_confirmation",
+            args: {
+              originalFunctionCall: { name: "delete_file", args: {} },
+              toolConfirmation: { hint: "Are you sure?" },
+            },
+          },
+          {
+            id: "cred-1",
+            name: "adk_request_credential",
+            args: { auth_config: { type: "oauth2" } },
+          },
+        ],
+      } as unknown as AdkMessage,
+    ]);
+    expect(acc.getToolConfirmations()).toMatchObject([
+      { toolCallId: "tc-1", toolName: "delete_file" },
+    ]);
+    expect(acc.getAuthRequests()).toEqual([
+      { toolCallId: "cred-1", authConfig: { type: "oauth2" } },
+    ]);
+  });
 });
 
 describe.each([

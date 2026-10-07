@@ -7,6 +7,9 @@ export default defineConfig({
     },
   },
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+    },
     environment: "jsdom",
     pool: "threads",
     fsModuleCache: true,
