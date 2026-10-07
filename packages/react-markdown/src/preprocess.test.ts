@@ -760,6 +760,13 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("- Plan A\n\n    Costs \\$5 per month and \\$10 extra.");
   });
 
+  it.each(["Heading\n===\n    total = $5", "Heading\n---\n    total = $5"])(
+    "does not rewrite indented code right after a setext heading: %j",
+    (input) => {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+    },
+  );
+
   it("closes a list item at root prose after a blank-line-terminated code block", () => {
     const input = "- item\n\n      code $1\n\nroot prose\n\n    root code $6";
     expect(escapeCurrencyDollars(input)).toBe(input);

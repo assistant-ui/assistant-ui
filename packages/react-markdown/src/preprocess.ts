@@ -603,6 +603,9 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     const continued: boolean = inParagraph;
+    const ruleLine =
+      shallow &&
+      isRuleLine(text, i, lineEnd, continued && depth === lastQuoteDepth);
     inParagraph =
       first !== -1 &&
       fenceChar === 0 &&
@@ -639,7 +642,8 @@ function htmlBlockRanges(text: string): number[] {
     lastQuoteDepth = depth;
     previousBlank = first === -1;
     previousHeading =
-      shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd);
+      ruleLine ||
+      (shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd));
     previousFenceClose = false;
     lineStart = nextLine;
   }
