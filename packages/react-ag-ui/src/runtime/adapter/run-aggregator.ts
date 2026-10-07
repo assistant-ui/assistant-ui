@@ -866,7 +866,7 @@ export class RunAggregator {
   private takeTrailingReasoning() {
     const parts: {
       key: string;
-      buffer: string;
+      entry: { buffer: string; timing?: MessagePartTiming };
       signature: string | undefined;
       signatureId: string | undefined;
       reasoningId: string | undefined;
@@ -881,7 +881,7 @@ export class RunAggregator {
       this.partOrder.pop();
       parts.unshift({
         key: last.key,
-        buffer: this.reasoningParts.get(last.key) ?? "",
+        entry: this.reasoningParts.get(last.key) ?? { buffer: "" },
         signature: this.reasoningSignatures.get(last.key),
         signatureId: this.reasoningSignatureIds.get(last.key),
         reasoningId: this.reasoningMessageIds.get(last.key),
@@ -924,7 +924,7 @@ export class RunAggregator {
   ): void {
     for (const part of carried.parts) {
       this.partOrder.push({ kind: "reasoning", key: part.key });
-      this.reasoningParts.set(part.key, part.buffer);
+      this.reasoningParts.set(part.key, part.entry);
       if (part.signature !== undefined)
         this.reasoningSignatures.set(part.key, part.signature);
       if (part.signatureId !== undefined)
