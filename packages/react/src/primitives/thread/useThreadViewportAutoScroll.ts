@@ -44,13 +44,28 @@ const MESSAGE_SELECTOR = "[data-message-id]";
 
 const DISCLOSURE_SELECTOR = "[aria-expanded], summary";
 
+// A popup trigger (menu, dialog, listbox) also carries aria-expanded, but what
+// it opens is portaled away from the thread, so only disclosures count.
 const isOpeningDisclosure = (target: Element): boolean => {
   const control = target.closest(DISCLOSURE_SELECTOR);
   if (!control) return false;
   if (control.tagName === "SUMMARY")
     return control.parentElement?.hasAttribute("open") === false;
-  return control.getAttribute("aria-expanded") === "false";
+  return (
+    control.getAttribute("aria-expanded") === "false" &&
+    !control.hasAttribute("aria-haspopup") &&
+    control.getAttribute("role") !== "combobox"
+  );
 };
+
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
 
 type MessageOffset = { readonly id: string; readonly offset: number };
 
@@ -183,6 +198,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
+  // Set by expanding a disclosure: content still fitting the viewport reads as
+  // being at the bottom, so without it the next resize would resume follow.
+  const followPausedRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
 
   useLayoutEffect(() => {
@@ -199,6 +217,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!div) return;
 
     followBottomRef.current = true;
+    followPausedRef.current = false;
     scrollingToBottomBehaviorRef.current = behavior;
     prependAnchorRef.current = null;
     div.scrollTo({ top: div.scrollHeight, behavior });
@@ -269,7 +288,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         if (viewportOverflows(div)) {
           scrollingToBottomBehaviorRef.current = null;
         }
-        if (autoScroll) followBottomRef.current = true;
+        if (autoScroll && !followPausedRef.current)
+          followBottomRef.current = true;
       } else if (userScrolledUp) {
         cancelScheduledFrame();
         scrollingToBottomBehaviorRef.current = null;
@@ -357,15 +377,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     };
     // Expanding a disclosure inside a message, such as a reasoning block or a
     // tool call card, means the reader is inspecting it, so bottom follow
-    // stops the way a scroll-up stops it. Every other interaction, including
-    // copying or selecting text, keeps following.
-    const releaseFollowOnExpand = (event: Event) => {
-      if (
-        event instanceof KeyboardEvent &&
-        event.key !== "Enter" &&
-        event.key !== " "
-      )
-        return;
+    // pauses until the reader scrolls or asks for the bottom again. Every
+    // other interaction, including copying or selecting text, keeps
+    // following. Activation is read from click, which keyboard activation also
+    // dispatches, before the disclosure's own handler flips its state.
+    const pauseFollowOnExpand = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (
         !target?.closest?.(MESSAGE_SELECTOR) ||
@@ -374,11 +390,29 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       )
         return;
       followBottomRef.current = false;
+      followPausedRef.current = true;
+      cancelPendingScrollToBottom();
+    };
+    const resumeOnScrollGesture = (event: Event) => {
+      if (event instanceof KeyboardEvent) {
+        if (!SCROLL_KEYS.has(event.key)) return;
+        if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
+          return;
+      } else if (event.type === "pointerdown" && event.target !== el) {
+        return;
+      }
+      followPausedRef.current = false;
     };
     const releasePrependAnchor = () => {
       prependAnchorRef.current = null;
     };
     const gestures = ["pointerdown", "wheel", "touchstart", "keydown"] as const;
+    const resumeGestures = [
+      "pointerdown",
+      "wheel",
+      "touchmove",
+      "keydown",
+    ] as const;
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
     el.addEventListener("wheel", cancelPendingScrollToBottom, {
@@ -388,8 +422,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       passive: true,
     });
     el.addEventListener("keydown", cancelOnKeyDown);
-    el.addEventListener("pointerdown", releaseFollowOnExpand);
-    el.addEventListener("keydown", releaseFollowOnExpand);
+    el.addEventListener("click", pauseFollowOnExpand);
+    for (const gesture of resumeGestures) {
+      el.addEventListener(gesture, resumeOnScrollGesture, { passive: true });
+    }
     for (const gesture of gestures) {
       el.addEventListener(gesture, releasePrependAnchor, { passive: true });
     }
@@ -399,8 +435,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       el.removeEventListener("wheel", cancelPendingScrollToBottom);
       el.removeEventListener("touchstart", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
-      el.removeEventListener("pointerdown", releaseFollowOnExpand);
-      el.removeEventListener("keydown", releaseFollowOnExpand);
+      el.removeEventListener("click", pauseFollowOnExpand);
+      for (const gesture of resumeGestures) {
+        el.removeEventListener(gesture, resumeOnScrollGesture);
+      }
       for (const gesture of gestures) {
         el.removeEventListener(gesture, releasePrependAnchor);
       }
