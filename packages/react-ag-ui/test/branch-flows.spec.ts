@@ -1071,6 +1071,10 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
         .getMessages()
         .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
       expect(first.content.map((part) => part.type)).toEqual(expected);
+      expect(first.content.at(-1)).toMatchObject({
+        type: "text",
+        text: "Hello.",
+      });
       if (showThinking) {
         expect(first.content[0]).toMatchObject({
           type: "reasoning",
