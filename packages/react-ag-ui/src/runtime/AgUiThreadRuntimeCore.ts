@@ -82,6 +82,29 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
+const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
+  part.type === "data" && part.name.startsWith("agui-activity/");
+
+const hasSnapshotAssistantPart = (
+  messages: readonly ThreadMessage[],
+  matches: (part: ThreadAssistantMessage["content"][number]) => boolean,
+) => {
+  const pending = [...messages];
+  const visited = new Set<ThreadAssistantMessage>();
+  while (pending.length > 0) {
+    const message = pending.pop()!;
+    if (message.role !== "assistant" || visited.has(message)) continue;
+    visited.add(message);
+    for (const part of message.content) {
+      if (matches(part)) return true;
+      if (part.type === "tool-call" && part.messages) {
+        pending.push(...part.messages);
+      }
+    }
+  }
+  return false;
+};
+
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
@@ -1759,6 +1782,130 @@ export class AgUiThreadRuntimeCore {
     return changed ? content : next;
   }
 
+  private reconcileSnapshotNestedContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+    snapshotHasReasoning: boolean,
+    snapshotHasActivity: boolean,
+    retainAssistantParts: boolean,
+  ): ThreadAssistantMessage["content"] {
+    const previousCalls = new Map<string, ToolCallMessagePart[]>();
+    for (const part of previous) {
+      if (part.type !== "tool-call") continue;
+      const calls = previousCalls.get(part.toolCallId) ?? [];
+      calls.push(part);
+      previousCalls.set(part.toolCallId, calls);
+    }
+
+    const callOrdinals = new Map<string, number>();
+    const merged = next.map((part) => {
+      if (part.type !== "tool-call") return part;
+      const ordinal = callOrdinals.get(part.toolCallId) ?? 0;
+      callOrdinals.set(part.toolCallId, ordinal + 1);
+      const prior = previousCalls.get(part.toolCallId)?.[ordinal];
+      if (part.messages === undefined) {
+        return prior?.messages === undefined
+          ? part
+          : { ...part, messages: prior.messages };
+      }
+      return {
+        ...part,
+        messages: this.reconcileSnapshotNestedMessages(
+          prior?.messages ?? [],
+          part.messages,
+          snapshotHasReasoning,
+          snapshotHasActivity,
+        ),
+      };
+    });
+
+    if (!retainAssistantParts) return merged;
+
+    const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
+      part.type === "reasoning"
+        ? this.showThinking && !snapshotHasReasoning
+        : isActivityPart(part) && !snapshotHasActivity;
+    if (!previous.some(shouldKeep)) return merged;
+
+    const mergedByType = new Map<string, number[]>();
+    const mergedTools = new Map<string, number[]>();
+    for (const [index, part] of merged.entries()) {
+      const indexes =
+        part.type === "tool-call"
+          ? (mergedTools.get(part.toolCallId) ?? [])
+          : (mergedByType.get(part.type) ?? []);
+      indexes.push(index);
+      if (part.type === "tool-call") mergedTools.set(part.toolCallId, indexes);
+      else mergedByType.set(part.type, indexes);
+    }
+
+    const previousOrdinals = new Map<string, number>();
+    const previousToolOrdinals = new Map<string, number>();
+    const insertions: ThreadAssistantMessage["content"][number][][] =
+      Array.from({ length: merged.length + 1 }, () => []);
+    let predecessorIndex = -1;
+    for (const part of previous) {
+      if (shouldKeep(part)) {
+        insertions[predecessorIndex + 1]!.push(part);
+        continue;
+      }
+
+      let matchedIndex: number | undefined;
+      if (part.type === "tool-call") {
+        const ordinal = previousToolOrdinals.get(part.toolCallId) ?? 0;
+        matchedIndex = mergedTools.get(part.toolCallId)?.[ordinal];
+        previousToolOrdinals.set(part.toolCallId, ordinal + 1);
+      } else {
+        const ordinal = previousOrdinals.get(part.type) ?? 0;
+        matchedIndex = mergedByType.get(part.type)?.[ordinal];
+        previousOrdinals.set(part.type, ordinal + 1);
+      }
+      if (matchedIndex !== undefined) predecessorIndex = matchedIndex;
+    }
+
+    const result: ThreadAssistantMessage["content"][number][] = [];
+    for (const [index, part] of merged.entries()) {
+      result.push(...insertions[index]!, part);
+    }
+    result.push(...insertions[merged.length]!);
+    return result;
+  }
+
+  private reconcileSnapshotNestedMessages(
+    previous: readonly ThreadMessage[],
+    next: readonly ThreadMessage[],
+    snapshotHasReasoning: boolean,
+    snapshotHasActivity: boolean,
+  ): ThreadMessage[] {
+    const previousByKey = new Map<string, ThreadMessage[]>();
+    for (const message of previous) {
+      const key = `${message.role}:${message.id}`;
+      const messages = previousByKey.get(key) ?? [];
+      messages.push(message);
+      previousByKey.set(key, messages);
+    }
+
+    const ordinals = new Map<string, number>();
+    return next.map((message) => {
+      const key = `${message.role}:${message.id}`;
+      const ordinal = ordinals.get(key) ?? 0;
+      ordinals.set(key, ordinal + 1);
+      const prior = previousByKey.get(key)?.[ordinal];
+      if (message.role !== "assistant" || prior?.role !== "assistant")
+        return message;
+      return {
+        ...message,
+        content: this.reconcileSnapshotNestedContent(
+          prior.content,
+          message.content,
+          snapshotHasReasoning,
+          snapshotHasActivity,
+          true,
+        ),
+      };
+    });
+  }
+
   private mergeAssistantMetadata(
     current: ThreadAssistantMessage["metadata"],
     incoming: NonNullable<ChatModelRunResult["metadata"]>,
@@ -2054,29 +2201,46 @@ export class AgUiThreadRuntimeCore {
             generateId(),
             FALLBACK_USER_STATUS,
           );
-          const existing = this.session.tryGetMessage(
-            convertedMessage.id,
-          )?.message;
-          if (
-            convertedMessage.role === "assistant" &&
-            existing?.role === "assistant"
-          ) {
-            converted.push({
-              ...convertedMessage,
-              content: this.preserveToolInteractions(
-                existing.content,
-                convertedMessage.content,
-              ),
-            });
-          } else {
-            converted.push(convertedMessage);
-          }
+          converted.push(convertedMessage);
         } catch (error) {
           this.logger.error?.(
             "[agui] failed to import message from snapshot",
             error,
           );
         }
+      }
+      const snapshotHasReasoning = hasSnapshotAssistantPart(
+        converted,
+        (part) => part.type === "reasoning",
+      );
+      const snapshotHasActivity = hasSnapshotAssistantPart(
+        converted,
+        isActivityPart,
+      );
+      for (let index = 0; index < converted.length; index++) {
+        const convertedMessage = converted[index]!;
+        const existing = this.session.tryGetMessage(
+          convertedMessage.id,
+        )?.message;
+        if (
+          convertedMessage.role !== "assistant" ||
+          existing?.role !== "assistant"
+        ) {
+          continue;
+        }
+        converted[index] = {
+          ...convertedMessage,
+          content: this.reconcileSnapshotNestedContent(
+            existing.content,
+            this.preserveToolInteractions(
+              existing.content,
+              convertedMessage.content,
+            ),
+            snapshotHasReasoning,
+            snapshotHasActivity,
+            false,
+          ),
+        };
       }
       const snapshotContainsActiveAssistant = converted.some(
         (message) => message.id === activeAssistant?.id,
