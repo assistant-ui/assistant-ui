@@ -1,11 +1,6 @@
-import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
-import {
-  createControllerStream,
-  createControllerStreamPair,
-} from "../utils/stream/createControllerStream";
-import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
+import { createControllerStreamPair } from "../utils/stream/createControllerStream";
 
 export type TextStreamController = {
   append(textDelta: string): void;
@@ -16,16 +11,18 @@ type TextStreamOptions = {
   strict?: boolean | undefined;
 };
 
-class TextStreamControllerImpl implements TextStreamController {
-  private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+type ChunkSink = {
+  enqueue(chunk: AssistantStreamChunk): void;
+  close(): void;
+};
+
+export class TextStreamControllerImpl implements TextStreamController {
+  private _controller: ChunkSink;
   private _strict: boolean;
   private _isClosed = false;
   private _warnedDropped = false;
 
-  constructor(
-    controller: ReadableStreamDefaultController<AssistantStreamChunk>,
-    options: TextStreamOptions = {},
-  ) {
+  constructor(controller: ChunkSink, options: TextStreamOptions = {}) {
     this._controller = controller;
     this._strict = options.strict ?? true;
   }
@@ -63,16 +60,6 @@ class TextStreamControllerImpl implements TextStreamController {
     closeIfOpen(this._controller);
   }
 }
-
-export const createTextStream = (
-  readable: UnderlyingReadable<TextStreamController>,
-  options: TextStreamOptions = {},
-): AssistantStream => {
-  return createControllerStream(
-    readable,
-    (controller) => new TextStreamControllerImpl(controller, options),
-  );
-};
 
 export const createTextStreamController = (options: TextStreamOptions = {}) => {
   return createControllerStreamPair<AssistantStreamChunk, TextStreamController>(

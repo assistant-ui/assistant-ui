@@ -104,7 +104,7 @@ import {
   ASSISTANT_STREAM_CHANNEL,
   type AssistantAI,
   type ChatEvent,
-} from "./shared";
+} from "../shared/assistant-ipc";
 
 const assistantAI: AssistantAI = {
   streamChat(request, onEvent) {
@@ -131,7 +131,7 @@ contextBridge.exposeInMainWorld("assistantAI", assistantAI);
 Declare the context-bridge API for renderer TypeScript:
 
 ```ts title="renderer/electron.d.ts"
-import type { AssistantAI } from "./shared";
+import type { AssistantAI } from "../shared/assistant-ipc";
 
 declare global {
   interface Window {
@@ -160,7 +160,7 @@ import {
   ASSISTANT_STREAM_CHANNEL,
   type ChatEvent,
   type ChatRequest,
-} from "./shared";
+} from "../shared/assistant-ipc";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -252,7 +252,7 @@ import {
   useLocalRuntime,
   type ChatModelAdapter,
 } from "@assistant-ui/react";
-import type { ChatMessage } from "./shared";
+import type { ChatMessage } from "../shared/assistant-ipc";
 
 const ipcChatModel: ChatModelAdapter = {
   async *run({ messages, context, abortSignal }) {

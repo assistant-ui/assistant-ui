@@ -150,6 +150,64 @@ describe("interactiveVocabulary $action dispatch", () => {
     });
   });
 
+  it.each(["text", "password", "number"] as const)(
+    "Input renders its %s inputType",
+    (inputType) => {
+      expect(
+        interactiveVocabulary.Input.properties.parse({ inputType }),
+      ).toEqual({ inputType });
+      const out = renderWithHooks(() =>
+        interactiveVocabulary.Input.render({
+          inputType,
+          defaultValue: "12.5",
+          $status: "done",
+        }),
+      );
+
+      expect(out.type).toBe("input");
+      expect(out.props).toMatchObject({
+        type: inputType,
+        defaultValue: "12.5",
+        step: inputType === "number" ? "any" : undefined,
+      });
+    },
+  );
+
+  it.each(["12.5", ""])(
+    "Input with inputType number submits %j as a string",
+    (value) => {
+      const handler = vi.fn();
+      const registry = createActionRegistry({ submit: handler });
+      const out = renderWithHooks(() =>
+        interactiveVocabulary.Input.render({
+          inputType: "number",
+          $status: "done",
+          $action: { type: "submit" },
+          $dispatch: registry.dispatch,
+        }),
+      ) as ReactElement<{
+        type: string;
+        step: string;
+        onKeyDown: (event: {
+          key: string;
+          nativeEvent: { isComposing: boolean };
+          currentTarget: { value: string };
+        }) => void;
+      }>;
+
+      expect(out.props.type).toBe("number");
+      expect(out.props.step).toBe("any");
+      out.props.onKeyDown({
+        key: "Enter",
+        nativeEvent: { isComposing: false },
+        currentTarget: { value },
+      });
+      expect(handler).toHaveBeenCalledWith({
+        payload: { type: "submit", $input: value },
+      });
+    },
+  );
+
   it("Input onKeyDown (Enter) defers to an ancestor form instead of firing its own $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ submit: handler });
