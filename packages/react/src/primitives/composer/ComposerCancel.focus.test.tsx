@@ -122,7 +122,6 @@ const setup = ({
 };
 
 afterEach(() => {
-  vi.restoreAllMocks();
   cancelOverride.mockReset();
 });
 
