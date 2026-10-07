@@ -40,6 +40,7 @@ import type {
   Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { Unstable_ToolInteractionInput } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
 import type {
   ExternalThreadQueueAdapter,
   QueuePlacement,
@@ -693,6 +694,7 @@ const useComposerClientResource = ({
       .join("\n\n");
     setText(messageText);
     setRole(message.role);
+    setQuote(message.metadata.custom.quote as QuoteInfo | undefined);
     // Re-seeding from the message abandons any removal begun in a previous
     // edit session, so the restored objects must shed their removal marks.
     const restored = message.attachments ?? [];
