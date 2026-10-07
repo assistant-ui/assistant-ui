@@ -7,18 +7,20 @@
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs",
-    "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "ci:version": "changeset version && pnpm install --no-frozen-lockfile --lockfile-only",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build --concurrency=4",
     "api-surface": "node scripts/update-api-surface.mjs",
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*'",
     "api-surface:check": "node scripts/check-api-surface.mjs",
-    "api-surface:test": "node --test scripts/generate-api-surface.test.mjs scripts/update-api-surface.test.mjs scripts/lib/workspace.test.mjs",
+    "api-surface:test": "node --test scripts/autofix-install.test.mjs scripts/generate-api-surface.test.mjs scripts/update-api-surface.test.mjs scripts/lib/changed-files.test.mjs scripts/lib/workspace.test.mjs",
     "api-reference-inputs:test": "node --test scripts/api-reference-inputs.test.mjs",
     "changeset-semver:check": "node scripts/check-changeset-semver.mjs",
     "changeset-semver:test": "node --test scripts/check-changeset-semver.test.mjs",
     "changesets:check": "node scripts/check-changesets.mjs",
     "changesets:test": "node --test scripts/check-changesets.test.mjs",
+    "coverage:summary": "node scripts/coverage-summary.mjs",
+    "coverage:test": "node --test scripts/coverage-summary.test.mjs",
     "declarations:check": "node scripts/check-built-declarations.mjs",
     "declarations:test": "node --test scripts/check-built-declarations.test.mjs",
     "distributions:check": "node scripts/check-distribution-barrels.mjs",
@@ -38,6 +40,7 @@
     "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test && pnpm test:react-compiler && pnpm typecheck",
+    "test:coverage": "turbo test:coverage --concurrency=1",
     "test:react-compiler": "turbo test:react-compiler --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/core --filter=@assistant-ui/store",
     "typecheck": "bash scripts/typecheck.sh",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
@@ -50,6 +53,7 @@
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
     "@changesets/cli": "^3.0.3",
+    "@vitest/coverage-v8": "^5.0.3",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "oxfmt": "^0.71.0",
@@ -57,7 +61,8 @@
     "pkg-pr-new": "^0.0.88",
     "sharp": "^0.35.5",
     "turbo": "^2.11.5",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "packageManager": "pnpm@12.4.2",
   "lint-staged": {

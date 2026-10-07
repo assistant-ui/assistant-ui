@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { downloadTemplate } from "giget";
 import {
   parse as parseJsonc,
   printParseErrorCode,
@@ -9,25 +8,13 @@ import {
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
-import { type PackageManagerName } from "./utils/package-manager";
+import { dlxCommand, type PackageManagerName } from "./utils/package-manager";
+import { resolveGitHubAuthToken, withStagedDownload } from "./utils/download";
 import { readProjectFiles } from "./utils/file-scanner";
 import {
   detectRegistryPlatform,
   resolveRegistryItemUrl,
 } from "./utils/registry";
-
-export function dlxCommand(pm: PackageManagerName): [string, string[]] {
-  switch (pm) {
-    case "pnpm":
-      return ["pnpm", ["dlx"]];
-    case "yarn":
-      return ["yarn", ["dlx"]];
-    case "bun":
-      return ["bunx", []];
-    case "npm":
-      return ["npx", ["--yes"]];
-  }
-}
 
 export interface TransformOptions {
   hasLocalComponents: boolean;
@@ -56,26 +43,6 @@ const LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES = LOCAL_PROJECT_ARTIFACT_DIRS.map(
   (dir) => `**/${dir}/**`,
 );
 
-export function resolvePackageManager(opts: {
-  useNpm?: boolean;
-  usePnpm?: boolean;
-  useYarn?: boolean;
-  useBun?: boolean;
-}): PackageManagerName | undefined {
-  if (opts.useNpm) return "npm";
-  if (opts.usePnpm) return "pnpm";
-  if (opts.useYarn) return "yarn";
-  if (opts.useBun) return "bun";
-  return undefined;
-}
-
-export function resolveGitHubAuthToken(): string | undefined {
-  const token =
-    process.env.GIGET_AUTH ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
-  const trimmed = token?.trim();
-  return trimmed || undefined;
-}
-
 function toBearerAuthHeader(token: string): string {
   return token.toLowerCase().startsWith("bearer ") ? token : `Bearer ${token}`;
 }
@@ -97,7 +64,6 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   }
 }
 
-export const DOWNLOAD_TIMEOUT_MS = 30_000;
 const pendingDownloadCleanups = new Set<() => void>();
 
 export function cleanupPendingProjectDownloads(): void {
@@ -117,16 +83,9 @@ export async function downloadProject(
     ? `gh:assistant-ui/assistant-ui/${repoPath}#${ref}`
     : `gh:assistant-ui/assistant-ui/${repoPath}`;
 
-  // Suppress giget's debug output. The `debug` package (used by the upgrade
-  // command) sets process.env.DEBUG at module-load time, and giget logs to
-  // console.debug whenever that env var is truthy — even for unrelated
-  // namespaces. Temporarily unsetting it targets the root cause.
-  const origDebug = process.env.DEBUG;
-  delete process.env.DEBUG;
   let destinationCreated = false;
   let stagingDir: string | undefined;
-  let downloadPromise: Promise<unknown> | undefined;
-  let downloadFinished = false;
+  let downloadStarted = false;
   let downloadCommitted = false;
   let cleanupRequested = false;
   const removeCleanupListeners = () => {
@@ -183,62 +142,38 @@ export async function downloadProject(
     process.once("exit", cleanupOnExit);
     pendingDownloadCleanups.add(cleanupOnExit);
 
-    const authToken = resolveGitHubAuthToken();
-    downloadPromise = downloadTemplate(source, {
-      dir: stagingDir,
-      force: true,
-      silent: true,
-      ...(authToken ? { auth: authToken } : {}),
-    }).finally(() => {
-      downloadFinished = true;
-    });
-
-    let timer: ReturnType<typeof setTimeout>;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(
-        () =>
-          reject(
-            new Error(
-              "Download timed out. This may be due to GitHub rate limiting or a network issue. Try again in a few minutes.",
-            ),
-          ),
-        DOWNLOAD_TIMEOUT_MS,
-      );
-    });
-
-    try {
-      await Promise.race([downloadPromise, timeoutPromise]);
-      if (cleanupRequested) throw new Error("Download was interrupted.");
-      destinationCreated = !fs.existsSync(destDir);
-      await fs.promises.mkdir(destDir, { recursive: true });
-      for (const entry of await fs.promises.readdir(stagingDir)) {
-        const target = path.join(destDir, entry);
-        const sourceEntry = path.join(stagingDir, entry);
-        await fs.promises.rm(target, { recursive: true, force: true });
-        try {
-          await fs.promises.rename(sourceEntry, target);
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
-          await fs.promises.cp(sourceEntry, target, {
-            recursive: true,
-            force: true,
-          });
-          await fs.promises.rm(sourceEntry, { recursive: true, force: true });
+    const currentStagingDir = stagingDir;
+    downloadStarted = true;
+    await withStagedDownload(
+      source,
+      { dir: currentStagingDir, force: true, silent: true },
+      "Download timed out. This may be due to GitHub rate limiting or a network issue. Try again in a few minutes.",
+      removeStagingDir,
+      async (download) => {
+        await download;
+        if (cleanupRequested) throw new Error("Download was interrupted.");
+        destinationCreated = !fs.existsSync(destDir);
+        await fs.promises.mkdir(destDir, { recursive: true });
+        for (const entry of await fs.promises.readdir(currentStagingDir)) {
+          const target = path.join(destDir, entry);
+          const sourceEntry = path.join(currentStagingDir, entry);
+          await fs.promises.rm(target, { recursive: true, force: true });
+          try {
+            await fs.promises.rename(sourceEntry, target);
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+            await fs.promises.cp(sourceEntry, target, {
+              recursive: true,
+              force: true,
+            });
+            await fs.promises.rm(sourceEntry, { recursive: true, force: true });
+          }
         }
-      }
-      downloadCommitted = true;
-    } finally {
-      clearTimeout(timer!);
-    }
+        downloadCommitted = true;
+      },
+    );
   } finally {
-    if (!downloadPromise || downloadFinished) {
-      await removeStagingDir();
-    } else {
-      void downloadPromise.then(removeStagingDir, removeStagingDir);
-    }
-    if (origDebug !== undefined) {
-      process.env.DEBUG = origDebug;
-    }
+    if (!downloadStarted) await removeStagingDir();
   }
 }
 

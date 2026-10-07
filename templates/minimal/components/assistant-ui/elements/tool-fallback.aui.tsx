@@ -675,7 +675,13 @@ const offersInterruptAction = (
   approval != null ||
   interrupt != null;
 
-function ToolFallbackApproval({
+function ToolFallbackApproval(
+  props: React.ComponentProps<typeof ToolFallbackApprovalImpl>,
+) {
+  return <ToolFallbackApprovalImpl key={props.approval?.id} {...props} />;
+}
+
+function ToolFallbackApprovalImpl({
   className,
   addResult,
   resume,

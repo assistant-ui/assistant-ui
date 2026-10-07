@@ -207,6 +207,10 @@ export abstract class BaseThreadRuntimeCore
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
   }
+
+  public __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore> {
+    return this._editComposers.values();
+  }
   protected _isVoiceMessage(messageId: string | null) {
     return (
       messageId !== null && this._voiceMessages.some((m) => m.id === messageId)
@@ -546,18 +550,32 @@ export abstract class BaseThreadRuntimeCore
         session.onStatusChange((status) => {
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
-            this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
-            this._onVoiceDisconnected();
+            this._voiceVolume = 0;
+            try {
+              notifySubscribers([
+                () => this._finishVoiceAssistantMessage(false),
+                () => this._onVoiceDisconnected(),
+                () =>
+                  notifyEventListeners(
+                    this._voiceVolumeSubscribers,
+                    undefined,
+                    "Voice volume",
+                  ),
+                () => this._notifySubscribers(),
+              ]);
+            } finally {
+              finishDetachedSetup();
+            }
           } else {
             this.voice = this._toVoiceSessionState(
               session,
               status,
               currentMode,
             );
+            this._notifySubscribers();
           }
-          this._notifySubscribers();
         }),
       );
       if (finishDetachedSetup()) return;
