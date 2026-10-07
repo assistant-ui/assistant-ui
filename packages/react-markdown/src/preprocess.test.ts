@@ -855,6 +855,26 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it.each([
+    ["1.\n   foo\n\n      bar costs $5", "1.\n   foo\n\n      bar costs \\$5"],
+    [
+      "10.\n    foo\n\n       bar costs $5",
+      "10.\n    foo\n\n       bar costs \\$5",
+    ],
+  ])(
+    "still escapes prose under a bare ordered marker: %j",
+    (input, expected) => {
+      expect(escapeCurrencyDollars(input)).toBe(expected);
+    },
+  );
+
+  it.each(["1.\n   foo\n\n       code $5", "10.\n    foo\n\n        code $5"])(
+    "does not rewrite code indented past a bare ordered marker's content column: %j",
+    (input) => {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+    },
+  );
+
   it("still escapes list prose inside a blockquote", () => {
     expect(
       escapeCurrencyDollars("> - a\n>\n>   para1\n>\n>     para2 costs $5"),

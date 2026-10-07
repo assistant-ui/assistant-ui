@@ -508,10 +508,11 @@ function htmlBlockRanges(text: string): number[] {
         });
       }
       const footnote = isFootnoteDef(text, i, lineEnd);
+      const bareMarker = bareMarkerWidth(text, i, lineEnd);
       if (
         blockItemIndent !== 0 ||
         (outerListIndent !== 0 && depth === outerListDepth) ||
-        isBareMarker(text, i, lineEnd) ||
+        bareMarker !== 0 ||
         footnote
       ) {
         while (
@@ -525,7 +526,7 @@ function htmlBlockRanges(text: string): number[] {
             ? 4
             : blockStart !== i
               ? blockItemIndent || outerListIndent
-              : indent + 2,
+              : indent + bareMarker + 1,
           depth,
           footnote,
         });
@@ -1123,12 +1124,12 @@ function opensCurrencyAmount(text: string, index: number): boolean {
 }
 
 /**
- * Whether the line `[from, to)` is a bare list marker with nothing after it
- * (`-` or `1.` alone): an empty list item whose content follows on later
- * lines. `listMarkerEnd` requires a trailing space, so this covers the
- * end-of-line case it misses.
+ * The width of the bare list marker on the line `[from, to)` (`-` or `1.`
+ * alone), or 0 when anything else is on it: an empty list item whose content
+ * follows on later lines, one column past the marker. `listMarkerEnd`
+ * requires a trailing space, so this covers the end-of-line case it misses.
  */
-function isBareMarker(text: string, from: number, to: number): boolean {
+function bareMarkerWidth(text: string, from: number, to: number): number {
   let end = to;
   while (end > from) {
     const code = text.charCodeAt(end - 1);
@@ -1136,7 +1137,7 @@ function isBareMarker(text: string, from: number, to: number): boolean {
     end -= 1;
   }
   const rest = text.slice(from, end);
-  return /^([-*+]|\d{1,9}[.)])$/.test(rest);
+  return /^([-*+]|\d{1,9}[.)])$/.test(rest) ? rest.length : 0;
 }
 
 /**
