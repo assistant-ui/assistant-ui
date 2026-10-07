@@ -3,7 +3,7 @@ title: "MCP config dialog"
 description: "A dialog for connectors and custom MCP servers, including authentication and connection state."
 ---
 
-MCP config dialog lists every app-defined connector and user-added custom server in one place, with inline connect, authorize, and remove controls, plus a form for adding a new server. With a runtime it reads and drives live connection state through the MCP manager; there is no standalone form, since connecting, authorizing, and listing a server's tools are all inherently live states that only exist once something is actually trying to connect.
+MCP config dialog lists every app-defined connector and user-added custom server in one place, with inline connect, authorize, and remove controls, plus a form for adding a new server. With a runtime it reads and drives live connection state through the MCP manager. There is no standalone form, because connection, authorization, and tool lists are states of a running manager.
 
 ## Getting started
 
@@ -57,7 +57,7 @@ import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.a
 
 <StandaloneMode>
 
-Standalone, there's no connection to configure. `McpConfigDialog` exists to drive a live `McpManagerResource`: connecting, authorizing, and listing a server's tools are all states that only exist once something is actually trying to connect, not values you'd pass in as static props. For a single server card without the dialog chrome, compose `McpServerPrimitive.Root` directly against a mounted manager instead. See [Server panel](/elements/mcp-server-panel) for a standalone-styled version of the same card.
+Standalone, there's no connection to configure. `McpConfigDialog` drives a live `McpManagerResource`, so it takes no static props for servers or their state. For a single server card without the dialog chrome, compose `McpServerPrimitive.Root` against a mounted manager. For a server list driven by props, see [Server panel](/elements/mcp-server-panel).
 
 </StandaloneMode>
 
@@ -80,7 +80,7 @@ Standalone, there's no connection to configure. `McpConfigDialog` exists to driv
 </Dialog>
 ```
 
-Each server card shows an avatar (the server's `icon`, or a fallback icon), its name, a status badge, action buttons, and, once it has one, an error banner. Which action buttons render depends on `connectionState`: Connect shows for `"disconnected"`, `"error"`, or `"authRequired"`; the OAuth link shows whenever the server exposes an `authorizationUrl`; Disconnect shows for `"connected"`, `"connecting"`, or `"authPending"`. A card in `"error"` state additionally gets a destructive-tinted border.
+Each server card shows an avatar (the server's `icon`, or a fallback icon), its name, a status badge, action buttons, and, once it has one, an error banner. Which action buttons render depends on `connectionState`: Connect shows for `"disconnected"`, `"error"`, or `"authRequired"`; the OAuth link shows whenever the server exposes an `authorizationUrl`; Disconnect shows for `"connected"`, `"connecting"`, or `"authPending"`. A card in `"error"` state additionally gets a destructive-tinted border. Each card also carries a visually hidden `role="status"` region that announces later connection state changes and new connection errors with their message, while the state a card opens with stays silent.
 
 </RuntimeMode>
 
@@ -145,10 +145,10 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `Root` | `div` | Provides `McpManagerState`; sets `data-mcp-hydrated` once storage has loaded. |
+| `Root` | `div` | Sets `data-mcp-hydrated` once storage has loaded. |
 | `Connectors` | list | Render-prop, called once per app-defined connector with `{ server }`. |
 | `CustomServers` | list | Render-prop, called once per user-added server with `{ server }`. |
-| `AddCustomTrigger` | `button` | Opens the add-server form. |
+| `AddCustomTrigger` | `button` | A plain button with no built-in action; show your add-server form from its `onClick`. |
 
 ### McpServerPrimitive
 

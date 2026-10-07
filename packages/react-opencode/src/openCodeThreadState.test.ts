@@ -2,15 +2,71 @@ import { describe, it, expect } from "vitest";
 import {
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
+  reduceOpenCodeThreadStateInternal,
 } from "./openCodeThreadState";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 import type {
+  Message,
   MessageWithParts,
+  OpenCodePermissionRequest,
+  OpenCodeQuestionRequest,
+  OpenCodeThreadState,
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
 
 describe("reduceOpenCodeThreadState", () => {
+  it.each(["permission", "question"] as const)(
+    "ignores an unchanged $kind reconciliation",
+    (kind) => {
+      const initial = createOpenCodeThreadState("ses_1");
+      const state =
+        kind === "permission"
+          ? reduceOpenCodeThreadState(initial, {
+              type: "permission.asked",
+              request: {
+                id: "perm_1",
+                sessionId: "ses_1",
+                permission: "fs.write",
+                patterns: [],
+                metadata: {},
+                always: [],
+                askedAt: 1,
+                raw: {
+                  id: "perm_1",
+                  sessionID: "ses_1",
+                  permission: "fs.write",
+                  patterns: [],
+                  metadata: {},
+                  always: [],
+                },
+              } satisfies OpenCodePermissionRequest,
+            })
+          : reduceOpenCodeThreadState(initial, {
+              type: "question.asked",
+              request: {
+                id: "q_1",
+                sessionID: "ses_1",
+                questions: [],
+                askedAt: 1,
+              } satisfies OpenCodeQuestionRequest,
+            });
+
+      const reconciled =
+        kind === "permission"
+          ? reduceOpenCodeThreadStateInternal(state, {
+              type: "permissions.reconciled",
+              pending: { ...state.interactions.permissions.pending },
+            })
+          : reduceOpenCodeThreadStateInternal(state, {
+              type: "questions.reconciled",
+              pending: { ...state.interactions.questions.pending },
+            });
+
+      expect(reconciled).toBe(state);
+    },
+  );
+
   it("keeps sessionStatus as server truth across run start and send failure", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
@@ -209,6 +265,83 @@ describe("reduceOpenCodeThreadState", () => {
     expect(Object.keys(history.pendingUserMessages)).toHaveLength(0);
     expect(history.messageOrder).toEqual(["msg_1"]);
     expect(history.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
+
+    // A second refresh while the server still has no parts: the pending copy
+    // was already reconciled away, so nothing but the retained shadow keeps
+    // the typed text on screen.
+    const refreshed = reduceOpenCodeThreadState(history, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(refreshed.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
+
+    // Once the server returns the real parts, the shadow is dropped.
+    const settled = reduceOpenCodeThreadState(refreshed, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [{ id: "prt_1", type: "text", text: "hello world" }],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(settled.messagesById.msg_1?.shadowParts).toBeUndefined();
+  });
+
+  it("does not retain shadow parts on assistant messages", () => {
+    const initial: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messagesById: {
+        msg_1: {
+          id: "msg_1",
+          info: {
+            id: "msg_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          } as unknown as Message,
+          parts: [],
+          shadowParts: [{ type: "text", text: "stale" }],
+        },
+      },
+    };
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(history.messagesById.msg_1?.shadowParts).toBeUndefined();
   });
 
   it("reconciles a pending copy whose unsendable parts never reached the wire", () => {
@@ -597,4 +730,108 @@ describe("reduceOpenCodeThreadState", () => {
         ?.callID,
     ).toBe("call_2");
   });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "handles the prototype-named interaction id %s",
+    (id) => {
+      const initial = createOpenCodeThreadState("ses_1");
+      const withPermission = reduceOpenCodeThreadState(initial, {
+        type: "permission.asked",
+        request: {
+          id,
+          sessionId: "ses_1",
+          permission: "bash",
+          patterns: [],
+          metadata: {},
+          always: [],
+          askedAt: 1000,
+          raw: {} as never,
+        },
+      });
+
+      expect(withPermission.interactions.permissions.pending[id]?.id).toBe(id);
+
+      const resolved = reduceOpenCodeThreadState(withPermission, {
+        type: "permission.replied",
+        permissionId: id,
+        reply: "once",
+      });
+
+      expect(Object.hasOwn(resolved.interactions.permissions.pending, id)).toBe(
+        false,
+      );
+      expect(resolved.interactions.permissions.resolved[id]?.request.id).toBe(
+        id,
+      );
+
+      const withQuestion = reduceOpenCodeThreadState(initial, {
+        type: "question.asked",
+        request: {
+          id,
+          sessionID: "ses_1",
+          questions: [],
+          askedAt: 1000,
+        } as never,
+      });
+      const answered = reduceOpenCodeThreadState(withQuestion, {
+        type: "question.replied",
+        questionId: id,
+        answers: [],
+      });
+
+      expect(Object.hasOwn(answered.interactions.questions.pending, id)).toBe(
+        false,
+      );
+      expect(answered.interactions.questions.answered[id]?.request.id).toBe(id);
+
+      const rejected = reduceOpenCodeThreadState(withQuestion, {
+        type: "question.rejected",
+        questionId: id,
+      });
+
+      expect(Object.hasOwn(rejected.interactions.questions.pending, id)).toBe(
+        false,
+      );
+      expect(rejected.interactions.questions.rejected[id]?.request.id).toBe(id);
+    },
+  );
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "ignores a reply for the unknown prototype-named id %s",
+    (id) => {
+      const initial = createOpenCodeThreadState("ses_1");
+      const permission = reduceOpenCodeThreadState(initial, {
+        type: "permission.replied",
+        permissionId: id,
+        reply: "once",
+      });
+      const answered = reduceOpenCodeThreadState(initial, {
+        type: "question.replied",
+        questionId: id,
+        answers: [],
+      });
+      const rejected = reduceOpenCodeThreadState(initial, {
+        type: "question.rejected",
+        questionId: id,
+      });
+
+      expect(permission).toBe(initial);
+      expect(answered).toBe(initial);
+      expect(rejected).toBe(initial);
+      expect(Object.keys(initial.interactions.permissions.resolved)).toEqual(
+        [],
+      );
+      expect(Object.keys(initial.interactions.questions.answered)).toEqual([]);
+      expect(Object.keys(initial.interactions.questions.rejected)).toEqual([]);
+      expect(
+        Object.getPrototypeOf(initial.interactions.permissions.resolved),
+      ).toBe(null);
+      expect(
+        Object.getPrototypeOf(initial.interactions.questions.answered),
+      ).toBe(null);
+      expect(
+        Object.getPrototypeOf(initial.interactions.questions.rejected),
+      ).toBe(null);
+    },
+  );
 });

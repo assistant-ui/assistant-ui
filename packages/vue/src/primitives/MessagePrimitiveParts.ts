@@ -5,6 +5,8 @@ import {
   type SlotsType,
   type VNodeChild,
 } from "vue";
+import { isMcpAppUri } from "@assistant-ui/core";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import {
   resolveToolCallText,
   type PartMethods,
@@ -14,6 +16,7 @@ import type { AssistantState } from "@assistant-ui/store/client";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
+import { useStableKeys } from "./stableKeys";
 
 const warnedTypes = new Set<string>();
 
@@ -38,6 +41,14 @@ export type ToolUIProps = {
   addResult: PartMethods["addToolResult"];
   resume: PartMethods["resumeToolCall"];
   respondToApproval: PartMethods["respondToToolApproval"];
+  unstable_recordInteraction?: PartMethods["unstable_recordInteraction"];
+};
+
+/** The value of the single `data` prop passed to a Vue data renderer. */
+export type DataUIProps<T = unknown> = {
+  part: Omit<Extract<AssistantState["part"], { type: "data" }>, "data"> & {
+    data: T;
+  };
 };
 
 /**
@@ -55,7 +66,8 @@ export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
   slots: Object as SlotsType<Record<string, (() => VNodeChild[]) | undefined>>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.message.parts.length);
+    const parts = useAuiState((s) => s.message.parts);
+    const partKeys = useStableKeys(() => getMessagePartKeys(parts.value));
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
@@ -64,39 +76,67 @@ export const MessagePrimitiveParts = defineComponent({
         const text = useAuiState((s) =>
           s.part.type === "text" ? s.part.text : "",
         );
-        const toolUI = useAuiState((s) =>
-          s.part.type === "tool-call"
-            ? (s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null)
+        const toolUI = useAuiState((s) => {
+          if (s.part.type !== "tool-call") return null;
+          return s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null;
+        });
+        const mcpAppRender = useAuiState((s) =>
+          s.part.type === "tool-call" &&
+          isMcpAppUri(s.part.mcp?.app?.resourceUri)
+            ? (s.optional.tools?.mcpApp?.render ?? null)
             : null,
         );
         const toolPart = useAuiState((s) =>
           s.part.type === "tool-call" ? s.part : null,
         );
+        const dataRenderer = useAuiState((s) => {
+          if (s.part.type !== "data") return null;
+          const named =
+            s.optional.dataRenderers?.renderers[s.part.name]?.[0] ?? null;
+          return named ?? s.optional.dataRenderers?.fallbacks[0] ?? null;
+        });
+        const dataPart = useAuiState((s) =>
+          s.part.type === "data" ? s.part : null,
+        );
         return () => {
           if (type.value === "tool-call") {
             const registration = toolUI.value;
             const part = toolPart.value;
-            if (registration && part) {
-              if (registration.renderText) {
-                const resolved = resolveToolCallText(
-                  registration.renderText,
-                  part,
-                );
-                if (
-                  typeof resolved === "string" ||
-                  typeof resolved === "number"
-                ) {
-                  return resolved;
-                }
-                return null;
+            if (registration?.renderText && part) {
+              const resolved = resolveToolCallText(
+                registration.renderText,
+                part,
+              );
+              if (
+                typeof resolved === "string" ||
+                typeof resolved === "number"
+              ) {
+                return resolved;
               }
-              return h(registration.render as unknown as Component, {
+              return null;
+            }
+            const Render = registration?.render ?? mcpAppRender.value;
+            if (Render && part) {
+              return h(Render as unknown as Component, {
                 tool: {
                   part,
                   addResult: aui.part.addToolResult,
                   resume: aui.part.resumeToolCall,
                   respondToApproval: aui.part.respondToToolApproval,
+                  ...(aui.part.unstable_recordInteraction && {
+                    unstable_recordInteraction:
+                      aui.part.unstable_recordInteraction,
+                  }),
                 } satisfies ToolUIProps,
+              });
+            }
+          }
+          if (type.value === "data") {
+            const Render = dataRenderer.value;
+            const part = dataPart.value;
+            if (Render && part) {
+              return h(Render as unknown as Component, {
+                data: { part } satisfies DataUIProps,
               });
             }
           }
@@ -119,12 +159,8 @@ export const MessagePrimitiveParts = defineComponent({
       },
     });
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
-        h(
-          PartByIndexProvider,
-          { index, key: index },
-          { default: () => h(PartView) },
-        ),
+      partKeys.value.map((key, index) =>
+        h(PartByIndexProvider, { index, key }, { default: () => h(PartView) }),
       );
   },
 });

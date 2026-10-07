@@ -17,7 +17,7 @@ import {
   messageToEvent,
   messagesToEvents,
   useAdkMessages,
-  type UseAdkMessagesOptions,
+  useAdkMessagesInternal,
 } from "./useAdkMessages";
 import { projectAdkToolApprovals } from "./adkToolApproval";
 import { createAdkStream } from "./AdkClient";
@@ -78,6 +78,40 @@ describe("optimistic tool outcomes", () => {
 });
 
 describe("ADK runtime callbacks", () => {
+  it("reports the same agent transfer again in a later run", async () => {
+    const onAgentTransfer = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "transfer",
+        actions: { transferToAgent: "researcher" },
+      };
+      yield {
+        id: "transfer-duplicate",
+        actions: { transferToAgent: "researcher" },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream, eventHandlers: { onAgentTransfer } }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "first" }],
+        {},
+      );
+      expect(onAgentTransfer).toHaveBeenCalledTimes(1);
+
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "second" }],
+        {},
+      );
+    });
+
+    expect(onAgentTransfer).toHaveBeenCalledTimes(2);
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(1, "researcher");
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(2, "researcher");
+  });
+
   it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
     "continues streaming when %s throws",
     async (callbackName) => {
@@ -113,7 +147,7 @@ describe("ADK runtime callbacks", () => {
       };
       const eventHandlers = {
         [callbackName]: callback,
-      } as UseAdkMessagesOptions["eventHandlers"];
+      };
       const { result } = renderHook(() =>
         useAdkMessages({ stream, eventHandlers }),
       );
@@ -179,6 +213,47 @@ describe("ADK runtime callbacks", () => {
 });
 
 describe("ADK stream lifecycle", () => {
+  it("reports streamed tool calls with the run config that produced them", async () => {
+    const runConfig = { custom: { model: "model-a" } };
+    const onMessages = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "event-1",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { functionCall: { id: "tool-1", name: "lookup", args: {} } },
+            { functionCall: { id: "tool-2", name: "search", args: {} } },
+          ],
+        },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessagesInternal({ stream, onMessages }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "look it up" }],
+        { runConfig },
+      );
+    });
+
+    expect(onMessages).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ai",
+          tool_calls: [
+            expect.objectContaining({ id: "tool-1" }),
+            expect.objectContaining({ id: "tool-2" }),
+          ],
+        }),
+      ]),
+      runConfig,
+    );
+  });
+
   it("settles a superseded send while its stream is still opening", async () => {
     const signals: AbortSignal[] = [];
     const parked = new Promise<AsyncGenerator<AdkEvent>>(() => {});
@@ -306,6 +381,7 @@ describe("ADK stream lifecycle", () => {
     await started;
 
     unmount();
+    await act(async () => {});
 
     expect(runSignal?.aborted).toBe(true);
     await expect(sendPromise).resolves.toBeUndefined();
@@ -466,6 +542,10 @@ describe("optimistic confirmation replies", () => {
         projectAdkToolApprovals(result.current.messages).approvals.values(),
       ),
     ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
+    expect(result.current.toolConfirmations.map((c) => c.toolCallId)).toEqual([
+      "conf-a",
+      "conf-b",
+    ]);
   });
 
   it("keeps both gates pending when an ai message sits between the replies", async () => {
@@ -522,6 +602,102 @@ describe("optimistic confirmation replies", () => {
         projectAdkToolApprovals(result.current.messages).approvals.values(),
       ),
     ]).toEqual([{ id: "conf-a", approved: true }, { id: "conf-b" }]);
+    expect(result.current.toolConfirmations.map((c) => c.toolCallId)).toEqual([
+      "conf-b",
+    ]);
+  });
+});
+
+describe("pending requests across sends", () => {
+  it("keeps an unanswered request listed across sends until its reply is sent", async () => {
+    let run = 0;
+    const stream: AdkStreamCallback = async function* () {
+      run += 1;
+      if (run === 1) {
+        yield {
+          id: "requests",
+          author: "agent",
+          longRunningToolIds: ["conf-1", "cred-1"],
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  id: "conf-1",
+                  name: "adk_request_confirmation",
+                  args: {
+                    originalFunctionCall: { id: "gated-1", name: "transfer" },
+                    toolConfirmation: { hint: "Transfer?" },
+                  },
+                },
+              },
+              {
+                functionCall: {
+                  id: "cred-1",
+                  name: "adk_request_credential",
+                  args: {
+                    function_call_id: "gated-2",
+                    auth_config: { credentialKey: "k" },
+                  },
+                },
+              },
+            ],
+          },
+        } satisfies AdkEvent;
+      } else if (run === 2) {
+        yield {
+          id: "answer",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "still waiting" }] },
+        } satisfies AdkEvent;
+      }
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const pending = () => ({
+      confirmations: result.current.toolConfirmations.map((c) => c.toolCallId),
+      authRequests: result.current.authRequests.map((r) => r.toolCallId),
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "start" }],
+        {},
+      );
+    });
+    expect(pending()).toEqual({
+      confirmations: ["conf-1"],
+      authRequests: ["cred-1"],
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "any news?" }],
+        {},
+      );
+    });
+    expect(pending()).toEqual({
+      confirmations: ["conf-1"],
+      authRequests: ["cred-1"],
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [
+          {
+            id: "reply",
+            type: "tool",
+            tool_call_id: "cred-1",
+            name: "adk_request_credential",
+            content: JSON.stringify({
+              exchangedAuthCredential: { authType: "apiKey" },
+            }),
+            status: "success",
+          },
+        ],
+        {},
+      );
+    });
+    expect(pending()).toEqual({ confirmations: ["conf-1"], authRequests: [] });
   });
 });
 
@@ -666,6 +842,19 @@ describe("optimistic multi-message sends", () => {
 });
 
 describe("messageToEvent (contentToParts)", () => {
+  it("skips a null tool_calls entry", () => {
+    const event = messageToEvent({
+      id: "ai-1",
+      type: "ai",
+      content: [],
+      tool_calls: [null, { id: "tc-1", name: "search", args: { q: "x" } }],
+    } as unknown as AdkMessage);
+
+    expect(event.content?.parts).toEqual([
+      { functionCall: { name: "search", id: "tc-1", args: { q: "x" } } },
+    ]);
+  });
+
   it.each([
     ["scalar", "false", { result: false }],
     ["array", "[1,2]", { results: [1, 2] }],
@@ -680,7 +869,7 @@ describe("messageToEvent (contentToParts)", () => {
         name: "search",
       });
 
-      expect(event.content?.parts[0]?.functionResponse?.response).toEqual(
+      expect(event.content?.parts?.[0]?.functionResponse?.response).toEqual(
         response,
       );
     },

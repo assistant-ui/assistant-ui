@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "react": [
+        "../../../node_modules/@assistant-ui/x-react18/node_modules/@types/react-v18"
+      ],
+      "react/*": [
+        "../../../node_modules/@assistant-ui/x-react18/node_modules/@types/react-v18/*"
+      ],
+      "react-dom": [
+        "../../../node_modules/@assistant-ui/x-react18/node_modules/@types/react-dom-v18"
+      ],
+      "react-dom/*": [
+        "../../../node_modules/@assistant-ui/x-react18/node_modules/@types/react-dom-v18/*"
+      ],
+      "@/components/assistant-ui/*": ["./assistant-ui/*"],
+      "@/components/ui/*": ["./ui/*"],
+      "@/lib/utils": ["../../lib/utils"]
+    },
+    "skipLibCheck": false
+  }
+}

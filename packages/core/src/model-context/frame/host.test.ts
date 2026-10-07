@@ -29,7 +29,7 @@ const createHost = (targetOrigin?: string) => {
   const host = new AssistantFrameHost(iframeWindow, targetOrigin);
 
   const dispatchMessage = (
-    message: FrameMessage,
+    message: unknown,
     origin = targetOrigin ?? DEFAULT_ORIGIN,
   ) =>
     handleMessage?.({
@@ -119,6 +119,56 @@ describe("AssistantFrameHost", () => {
     );
 
     expect(host.getModelContext().system).toBeUndefined();
+    host.dispose();
+  });
+
+  it.each([
+    null,
+    { type: "model-context-update" },
+    { type: "model-context-update", context: null },
+    {
+      type: "model-context-update",
+      context: { tools: { search: null } },
+    },
+    {
+      type: "model-context-update",
+      context: { tools: { search: {} } },
+    },
+  ])("ignores malformed frame messages", (message) => {
+    const { dispatchMessage, host } = createHost();
+    const context = host.getModelContext();
+
+    expect(() => dispatchMessage(message)).not.toThrow();
+
+    expect(host.getModelContext()).toBe(context);
+    host.dispose();
+  });
+
+  it("resolves tool results without a value", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const id = getToolCallId();
+
+    dispatchMessage({ type: "tool-result", id });
+
+    await expect(result).resolves.toBeUndefined();
+    host.dispose();
+  });
+
+  it("ignores tool results with an invalid error", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const settled = vi.fn();
+    void result.then(settled, settled);
+    const id = getToolCallId();
+
+    dispatchMessage({ type: "tool-result", id, error: 42 });
+    await Promise.resolve();
+
+    expect(settled).not.toHaveBeenCalled();
+
+    dispatchMessage({ type: "tool-result", id, result: "complete" });
+    await expect(result).resolves.toBe("complete");
     host.dispose();
   });
 
@@ -422,6 +472,66 @@ describe("AssistantFrameHost", () => {
       "AssistantFrameHost has been disposed",
     );
     expect(postMessage).toHaveBeenCalledOnce();
+  });
+
+  it("rejects pending tool calls when the frame provider is disposed", async () => {
+    const { dispatchMessage, execute, getToolCallId, host, postMessage } =
+      createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const toolCallId = getToolCallId();
+
+    dispatchMessage({ type: "provider-disposed" });
+
+    await expect(result).rejects.toThrow(
+      "AssistantFrameProvider has been disposed",
+    );
+    expect(postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "tool-cancel", id: toolCallId },
+      },
+      DEFAULT_ORIGIN,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
+  it("rejects tool calls to a disposed frame provider until it sends context again", async () => {
+    const { dispatchMessage, execute, host, postMessage } = createHost();
+    dispatchMessage({ type: "provider-disposed" });
+    postMessage.mockClear();
+
+    await expect(execute({}, executionContext)).rejects.toThrow(
+      "AssistantFrameProvider has been disposed",
+    );
+    expect(postMessage).not.toHaveBeenCalled();
+
+    dispatchMessage({ type: "model-context-update", context: {} });
+    void execute({}, executionContext).catch(() => undefined);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: expect.objectContaining({ type: "tool-call" }),
+      },
+      DEFAULT_ORIGIN,
+    );
+    host.dispose();
+  });
+
+  it("keeps a pending tool call when the frame withdraws its tool", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+
+    dispatchMessage({ type: "model-context-update", context: {} });
+    dispatchMessage({
+      type: "tool-result",
+      id: getToolCallId(),
+      result: "sunny",
+    });
+
+    await expect(result).resolves.toBe("sunny");
+    host.dispose();
   });
 
   it("isolates subscriber errors while applying context updates", () => {

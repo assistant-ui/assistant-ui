@@ -12,13 +12,17 @@ import type {
   UIMessage,
   UseLangGraphRuntimeOptions,
 } from "./types";
-import { groupUIMessagesByParent } from "@assistant-ui/react-langchain/converter";
+import {
+  getMessageModality,
+  groupUIMessagesByParent,
+} from "@assistant-ui/react-langchain/converter";
 import {
   pickExternalStoreSharedOptions,
   createMessageQueue,
   type MessageQueueController,
   type AppendMessage,
   type CompleteAttachment,
+  type ThreadMessage,
   generateId,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
@@ -27,6 +31,7 @@ import {
   createAbortableThreadLoad,
   createCloudThreadListAdapterCreateFallback,
   createToolCallCancellationStub,
+  getThreadMessageText,
 } from "@assistant-ui/core/internal";
 import {
   type DataMessagePartComponent,
@@ -36,8 +41,10 @@ import {
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
   convertLangChainMessages,
+  createLangGraphMetadataKey,
   getMessageContent,
 } from "./convertLangChainMessages";
 import {
@@ -66,6 +73,19 @@ import { LANGGRAPH_SDK } from "./sdkIdentity";
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
 
+const STOPPED = Symbol("stopped");
+
+const appendMissing = <T extends { id?: string | undefined }>(
+  current: readonly T[],
+  removed: readonly T[],
+): T[] => {
+  const present = new Set(current.map((item) => item.id ?? item));
+  return [
+    ...current,
+    ...removed.filter((item) => !present.has(item.id ?? item)),
+  ];
+};
+
 const toLangGraphUserMessage = (
   msg: AppendMessage,
   id = generateId(),
@@ -75,7 +95,27 @@ const toLangGraphUserMessage = (
   content: getMessageContent(msg),
 });
 
-const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
+const toLangGraphTranscriptMessage = (message: ThreadMessage) => {
+  const fields = {
+    id: message.id,
+    content: getThreadMessageText(message),
+    ...(message.metadata.modality && {
+      additional_kwargs: { modality: message.metadata.modality },
+    }),
+  };
+  return message.role === "assistant"
+    ? { ...fields, type: "ai" as const }
+    : { ...fields, type: "human" as const };
+};
+
+const isSpokenMessage = (message: LangChainMessage) =>
+  (message.type === "human" || message.type === "ai") &&
+  getMessageModality(message.additional_kwargs) !== undefined;
+
+const useLangGraphRuntimeImpl = (
+  options: UseLangGraphRuntimeOptions,
+  loadRef: { current: UseLangGraphRuntimeOptions["load"] },
+) => {
   const {
     autoCancelPendingToolCalls,
     adapters: { attachments, dictation, feedback, speech, voice } = {},
@@ -217,6 +257,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             runIdByMessageIdRef.current.set(message.id, runId);
         }
         for (const toolCall of message.tool_calls ?? []) {
+          if (typeof toolCall !== "object" || toolCall === null) continue;
           const isNewTool = !toolOwnership.has(toolCall.id);
           if (isNewTool) toolOwnership.set(toolCall.id, owner);
           if (runId && isNewTool)
@@ -239,20 +280,25 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         owner = messageOwnership.get(message.id);
       }
       for (const toolCall of message.tool_calls ?? []) {
+        if (typeof toolCall !== "object" || toolCall === null) continue;
         if (!toolOwnership.has(toolCall.id))
           toolOwnership.set(toolCall.id, owner);
       }
     }
   }, []);
 
-  const pruneMessageOwnership = useCallback((history: LangChainMessage[]) => {
+  const pruneMessageCaches = useCallback((history: LangChainMessage[]) => {
+    const survivingMessageIds = new Set<string>();
     const messageIds = new Set<string>();
     const toolCallIds = new Set<string>();
     for (const message of history) {
+      if (message.id) survivingMessageIds.add(message.id);
       if (message.type !== "ai") continue;
       if (message.id) messageIds.add(message.id);
-      for (const toolCall of message.tool_calls ?? [])
+      for (const toolCall of message.tool_calls ?? []) {
+        if (typeof toolCall !== "object" || toolCall === null) continue;
         toolCallIds.add(toolCall.id);
+      }
     }
     for (const id of runConfigByMessageIdRef.current.keys()) {
       if (!messageIds.has(id)) runConfigByMessageIdRef.current.delete(id);
@@ -265,6 +311,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     }
     for (const id of runIdByToolCallIdRef.current.keys()) {
       if (!toolCallIds.has(id)) runIdByToolCallIdRef.current.delete(id);
+    }
+    for (const id of attachmentsByMessageIdRef.current.keys()) {
+      if (!survivingMessageIds.has(id))
+        attachmentsByMessageIdRef.current.delete(id);
     }
   }, []);
 
@@ -285,7 +335,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       if (toolOwnership.has(toolCallId)) return toolOwnership.get(toolCallId);
       for (const message of history) {
         if (message.type !== "ai") continue;
-        if (message.tool_calls?.some((toolCall) => toolCall.id === toolCallId))
+        if (message.tool_calls?.some((toolCall) => toolCall?.id === toolCallId))
           return runConfigByMessageIdRef.current.get(message.id ?? "");
       }
       return undefined;
@@ -334,6 +384,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const [getConverterMetadataKey] = useState(createLangGraphMetadataKey);
   // Buffers client tool results within a turn so parallel tool calls resume the
   // graph in one run once every pending call has a result. See bufferToolResult.
   const toolResultBufferRef = useRef<
@@ -348,7 +399,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
-  const loadController = useMemo(createAbortableThreadLoad, []);
+  const [loadController] = useState(createAbortableThreadLoad);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -364,7 +415,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     [uiMessages],
   );
 
-  // fresh metadata identity invalidates the converter cache; each UI event re-converts all messages
   const converterMetadata = useMemo(
     () =>
       ({
@@ -384,38 +434,95 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // Runs on a thread never overlap: a send arriving while a run is still
   // draining (e.g. a frontend tool result resuming the graph) waits for it to
   // settle. isRunning flips atomically with the final reconcile via onComplete.
+  const unsentTranscriptIdsRef = useRef(new Set<string>());
   const runQueueRef = useRef<SerialRunQueue<{
     messages: LangChainMessage[];
     config: LangGraphSendMessageConfig;
+    lookupCheckpoint?: (() => Promise<string | null>) | undefined;
+    onLookupEnd?: ((sent: boolean) => void) | undefined;
   }> | null>(null);
+  const checkpointLookupRef = useRef<AbortController | null>(null);
+  const truncationRef = useRef(0);
   runQueueRef.current ??= createSerialRunQueue({
-    run: ({ messages, config }, onComplete) => {
-      currentRunIdRef.current = String(++nextRunIdRef.current);
+    run: ({ messages, config, lookupCheckpoint, onLookupEnd }, onComplete) => {
+      const runId = String(++nextRunIdRef.current);
+      currentRunIdRef.current = runId;
       for (const [groupKey, batch] of pendingResumeRef.current) {
         if (batch === messages) {
           pendingResumeRef.current.delete(groupKey);
           break;
         }
       }
-      runErrorBalanceRef.current = 0;
-      return sendMessageRef.current(messages, config, () => {
-        if (runErrorBalanceRef.current > 0) {
-          pendingResumeRef.current.clear();
-          runQueueRef.current!.drop();
+      const carriedTranscriptIds = messages.flatMap((message) =>
+        message.id !== undefined &&
+        unsentTranscriptIdsRef.current.delete(message.id)
+          ? [message.id]
+          : [],
+      );
+      const restoreTranscripts = () => {
+        for (const id of carriedTranscriptIds) {
+          unsentTranscriptIdsRef.current.add(id);
         }
-        onComplete();
+      };
+      runErrorBalanceRef.current = 0;
+      const send = (resolved: LangGraphSendMessageConfig) =>
+        sendMessageRef.current(messages, resolved, () => {
+          if (runErrorBalanceRef.current > 0) {
+            pendingResumeRef.current.clear();
+            runQueueRef.current!.drop();
+          }
+          onComplete();
+        });
+      let task: Promise<void>;
+      if (lookupCheckpoint) {
+        const lookup = new AbortController();
+        checkpointLookupRef.current = lookup;
+        task = new Promise<string | null>((resolve, reject) => {
+          lookup.signal.addEventListener("abort", () => resolve(null), {
+            once: true,
+          });
+          lookupCheckpoint().then(resolve, reject);
+        }).then((checkpointId) => {
+          if (checkpointLookupRef.current === lookup)
+            checkpointLookupRef.current = null;
+          if (lookup.signal.aborted) {
+            restoreTranscripts();
+            if (
+              lookup.signal.reason === STOPPED &&
+              currentRunIdRef.current === runId
+            )
+              onLookupEnd?.(false);
+            return;
+          }
+          onLookupEnd?.(true);
+          return send(checkpointId ? { ...config, checkpointId } : config);
+        });
+      } else {
+        task = send(config);
+      }
+      return task.catch((error: unknown) => {
+        restoreTranscripts();
+        throw error;
       });
     },
     onRunningChange: setIsRunning,
   });
   const runQueue = runQueueRef.current;
 
-  const cancelActiveRun = useCallback(() => {
-    pendingResumeRef.current.clear();
-    runQueue.drop();
-    queueRef.current?.clear();
-    cancel();
-  }, [runQueue, cancel]);
+  const cancelActiveRun = useCallback(
+    (reason?: typeof STOPPED) => {
+      pendingResumeRef.current.clear();
+      runQueue.drop();
+      queueRef.current?.clear();
+      checkpointLookupRef.current?.abort(reason);
+      cancel();
+    },
+    [runQueue, cancel],
+  );
+  const cancelActiveRunRef = useRef(cancelActiveRun);
+  useInsertionEffect(() => {
+    cancelActiveRunRef.current = cancelActiveRun;
+  }, [cancelActiveRun]);
 
   const langGraphMessagesRef = useRef(messages);
   useInsertionEffect(() => {
@@ -425,6 +532,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const handleSendMessage = (
     outgoing: LangChainMessage[],
     config: LangGraphSendMessageConfig,
+    lookupCheckpoint?: () => Promise<string | null>,
+    onLookupEnd?: (sent: boolean) => void,
   ) => {
     // Only a refetch: its landing snapshot would erase the message just sent.
     loadController.abort("reload");
@@ -442,6 +551,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     return runQueue.enqueue({
       messages: outgoing,
       config: state ? { ...resolvedConfig, state } : resolvedConfig,
+      lookupCheckpoint,
+      onLookupEnd,
     });
   };
 
@@ -468,6 +579,40 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setOptimisticState(resolved);
   };
 
+  const appendVoiceTranscript = (message: ThreadMessage) => {
+    const transcript = toLangGraphTranscriptMessage(message);
+    unsentTranscriptIdsRef.current.add(transcript.id);
+    const nextMessages = [...langGraphMessagesRef.current, transcript];
+    langGraphMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
+  };
+
+  const getUnsentTranscripts = () => {
+    const unsent = unsentTranscriptIdsRef.current;
+    if (unsent.size === 0) return [];
+    return langGraphMessagesRef.current.filter(
+      (message) => message.id !== undefined && unsent.has(message.id),
+    );
+  };
+
+  // A transcript reaches the graph in the same input as the message after it, so
+  // no checkpoint ends at one; a fork starts before the trailing transcripts.
+  const splitTranscriptTail = (history: readonly LangChainMessage[]) => {
+    const unsent = unsentTranscriptIdsRef.current;
+    let start = history.length;
+    while (start > 0) {
+      const message = history[start - 1]!;
+      const isUnsent = message.id !== undefined && unsent.has(message.id);
+      if (!isUnsent && !isSpokenMessage(message)) break;
+      start--;
+    }
+    const kept = new Set(history.map((message) => message.id));
+    for (const id of unsent) {
+      if (!kept.has(id)) unsent.delete(id);
+    }
+    return { base: history.slice(0, start), transcripts: history.slice(start) };
+  };
+
   const runUserMessage = async (msg: AppendMessage) => {
     // A new turn abandons any half-collected parallel tool batch and any
     // queued resume; the cancellations below answer the dangling tool calls.
@@ -477,19 +622,22 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     runQueue.drop();
     const cancellations =
       autoCancelPendingToolCalls !== false
-        ? getPendingToolCalls(messages).map(
-            (t) =>
-              createToolCallCancellationStub(t) satisfies LangChainMessage & {
-                type: "tool";
-              },
-          )
+        ? getPendingToolCalls(messages)
+            .filter((t) => t.id)
+            .map(
+              (t) =>
+                createToolCallCancellationStub(t) satisfies LangChainMessage & {
+                  type: "tool";
+                },
+            )
         : [];
 
     const humanMessage = toLangGraphUserMessage(msg);
     stageAttachments(humanMessage.id, msg.attachments);
-    return handleSendMessage([...cancellations, humanMessage], {
-      runConfig: msg.runConfig,
-    });
+    return handleSendMessage(
+      [...cancellations, ...getUnsentTranscripts(), humanMessage],
+      { runConfig: msg.runConfig },
+    );
   };
 
   const stagedMessagesRef = useRef(
@@ -511,6 +659,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     for (const message of langGraphMessagesRef.current) {
       if (message.id && stagedMessagesRef.current.has(message.id)) {
         staged.push(stagedMessagesRef.current.get(message.id)!.message);
+      } else if (message.id && unsentTranscriptIdsRef.current.has(message.id)) {
+        staged.push(message);
       }
       if (message.id === parentId) break;
     }
@@ -583,6 +733,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages,
     isRunning: effectiveIsRunning,
     metadata: converterMetadata,
+    getMetadataKey: getConverterMetadataKey,
   });
 
   const threadMessagesRef = useRef(threadMessages);
@@ -594,11 +745,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   useInsertionEffect(() => {
     uiMessagesRef.current = uiMessages;
   }, [uiMessages]);
-
-  const loadRef = useRef(load);
-  useEffect(() => {
-    loadRef.current = load;
-  });
 
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
@@ -661,6 +807,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     },
     [
       threadListItem,
+      loadRef,
       loadController,
       setValues,
       reconcileMessages,
@@ -670,7 +817,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     ],
   );
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -678,9 +825,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [loadController, runLoad]);
+  }, [threadListItem]);
 
-  useEffect(() => cancelActiveRun, [cancelActiveRun]);
+  useReplaySafeEffect(() => () => cancelActiveRunRef.current(), []);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -711,6 +858,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       }
       await runUserMessage(msg);
     },
+    onVoiceTranscript: appendVoiceTranscript,
     ...(queueController && { queue: queueController.adapter }),
     onAddToolResult: async ({
       toolCallId,
@@ -730,6 +878,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (runId) return `run:${runId}`;
         }
         for (const toolCall of message.tool_calls ?? []) {
+          if (typeof toolCall !== "object" || toolCall === null) continue;
           const runId = runIdByToolCallIdRef.current.get(toolCall.id);
           if (runId) return `run:${runId}`;
         }
@@ -780,21 +929,34 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     onEdit: getCheckpointId
       ? async (msg) => {
           toolResultBufferRef.current.clear();
-          pendingResumeRef.current.clear();
-          runQueue.drop();
-          queueRef.current?.clear();
+          cancelActiveRun();
+          const truncation = ++truncationRef.current;
+          const previousInterrupt = interruptRef.current;
+          const previousInterruptRunConfig = interruptRunConfigRef.current;
+          const previousUnsentTranscriptIds = [
+            ...unsentTranscriptIdsRef.current,
+          ];
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
           );
-          setMessages(truncated);
-          setUIMessages(
-            filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+          const kept = new Set(truncated);
+          const removed = langGraphMessagesRef.current.filter(
+            (message) => !kept.has(message),
           );
-          pruneMessageOwnership(truncated);
+          const keptUIMessages = filterUIMessagesBySurvivingIds(
+            uiMessagesRef.current,
+            truncated,
+          );
+          const removedUIMessages = uiMessagesRef.current.filter(
+            (message) => !keptUIMessages.includes(message),
+          );
+          setMessages(truncated);
+          setUIMessages(keptUIMessages);
           interruptRunConfigRef.current = undefined;
           setInterrupt(undefined);
           if (!(msg.startRun ?? msg.role === "user")) {
+            pruneMessageCaches(truncated);
             const stagedMessage = toLangGraphUserMessage(msg);
             stageAttachments(stagedMessage.id, msg.attachments);
             stagedMessagesRef.current.set(stagedMessage.id, {
@@ -808,15 +970,45 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             return;
           }
           const externalId = aui.threadListItem.getState().externalId;
-          const checkpointId = externalId
-            ? await getCheckpointId(externalId, truncated)
-            : null;
+          const { base, transcripts } = splitTranscriptTail(truncated);
           const editMessage = toLangGraphUserMessage(msg);
           stageAttachments(editMessage.id, msg.attachments);
-          return handleSendMessage([editMessage], {
-            runConfig: msg.runConfig,
-            ...(checkpointId && { checkpointId }),
-          });
+          const shownMessages = [...truncated, editMessage];
+          langGraphMessagesRef.current = shownMessages;
+          setMessages(shownMessages);
+          if (!externalId) pruneMessageCaches(shownMessages);
+          return handleSendMessage(
+            [...transcripts, editMessage],
+            { runConfig: msg.runConfig },
+            externalId ? () => getCheckpointId(externalId, base) : undefined,
+            externalId
+              ? (sent) => {
+                  if (sent) {
+                    pruneMessageCaches(shownMessages);
+                    return;
+                  }
+                  if (truncationRef.current !== truncation) return;
+                  for (const id of previousUnsentTranscriptIds)
+                    unsentTranscriptIdsRef.current.add(id);
+                  const restored = appendMissing(
+                    langGraphMessagesRef.current.filter(
+                      (message) => message.id !== editMessage.id,
+                    ),
+                    removed,
+                  );
+                  langGraphMessagesRef.current = restored;
+                  setMessages(restored);
+                  setUIMessages(
+                    appendMissing(uiMessagesRef.current, removedUIMessages),
+                  );
+                  pruneMessageCaches(restored);
+                  if (interruptRef.current === undefined) {
+                    interruptRunConfigRef.current = previousInterruptRunConfig;
+                    setInterrupt(previousInterrupt);
+                  }
+                }
+              : undefined,
+          );
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -838,32 +1030,76 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               throw new Error("Runtime does not support reloading messages.");
 
             toolResultBufferRef.current.clear();
-            pendingResumeRef.current.clear();
-            runQueue.drop();
+            cancelActiveRun();
+            const truncation = ++truncationRef.current;
+            const previousInterrupt = interruptRef.current;
+            const previousInterruptRunConfig = interruptRunConfigRef.current;
+            const previousUnsentTranscriptIds = [
+              ...unsentTranscriptIdsRef.current,
+            ];
             const truncated = truncateLangChainMessages(
               threadMessagesRef.current,
               parentId,
             );
-            setMessages(truncated);
-            setUIMessages(
-              filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+            const kept = new Set(truncated);
+            const removed = langGraphMessagesRef.current.filter(
+              (message) => !kept.has(message),
             );
-            pruneMessageOwnership(truncated);
+            const keptUIMessages = filterUIMessagesBySurvivingIds(
+              uiMessagesRef.current,
+              truncated,
+            );
+            const removedUIMessages = uiMessagesRef.current.filter(
+              (message) => !keptUIMessages.includes(message),
+            );
+            setMessages(truncated);
+            setUIMessages(keptUIMessages);
             interruptRunConfigRef.current = undefined;
             setInterrupt(undefined);
             const externalId = aui.threadListItem.getState().externalId;
-            const checkpointId = externalId
-              ? await getCheckpointId(externalId, truncated)
-              : null;
-            return handleSendMessage([], {
-              runConfig: config.runConfig,
-              ...(checkpointId && { checkpointId }),
-            });
+            const { base, transcripts } = splitTranscriptTail(truncated);
+            if (!externalId) {
+              pruneMessageCaches(truncated);
+              return handleSendMessage(transcripts, {
+                runConfig: config.runConfig,
+              });
+            }
+            // A regenerate that Stop abandons during the lookup sent nothing,
+            // so the server thread still holds the previous answer.
+            return handleSendMessage(
+              transcripts,
+              { runConfig: config.runConfig },
+              () => getCheckpointId(externalId, base),
+              (sent) => {
+                if (sent) {
+                  pruneMessageCaches(truncated);
+                  return;
+                }
+                if (truncationRef.current !== truncation) return;
+                // Updates that landed during the lookup, such as the initial
+                // history load, stay; only what the reload removed comes back.
+                for (const id of previousUnsentTranscriptIds)
+                  unsentTranscriptIdsRef.current.add(id);
+                const restored = appendMissing(
+                  langGraphMessagesRef.current,
+                  removed,
+                );
+                langGraphMessagesRef.current = restored;
+                setMessages(restored);
+                setUIMessages(
+                  appendMissing(uiMessagesRef.current, removedUIMessages),
+                );
+                if (interruptRef.current === undefined) {
+                  interruptRunConfigRef.current = previousInterruptRunConfig;
+                  setInterrupt(previousInterrupt);
+                }
+              },
+            );
           },
         }
       : {}),
     onCancel: unstable_allowCancellation
-      ? async () => cancelActiveRun()
+      ? async () => cancelActiveRun(STOPPED)
       : undefined,
     ...(load !== undefined && {
       onRefetchThread: () => runLoad("reload"),
@@ -875,6 +1111,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
 export const useLangGraphRuntime = ({
   cloud,
+  scopeId,
   unstable_threadListAdapter,
   create,
   delete: deleteFn,
@@ -884,9 +1121,14 @@ export const useLangGraphRuntime = ({
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
+  const loadRef = useRef(options.load);
+  useInsertionEffect(() => {
+    loadRef.current = options.load;
+  }, [options.load]);
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: LANGGRAPH_SDK,
     cloud,
+    scopeId,
     create: createCloudThreadListAdapterCreateFallback(
       create,
       aui.threadListItem,
@@ -898,7 +1140,7 @@ export const useLangGraphRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useLangGraphRuntimeImpl(options);
+      return useLangGraphRuntimeImpl(options, loadRef);
     },
     adapter,
     allowNesting: true,

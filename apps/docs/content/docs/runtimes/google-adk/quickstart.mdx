@@ -3,14 +3,14 @@ title: Quickstart
 description: Minimal API route and client setup with createAdkApiRoute.
 ---
 
-Four steps to a working ADK chat. Assumes you have already installed the package and have ADK ready on the server side; if not, start at [overview](/docs/runtimes/google-adk/overview).
+This page sets up a working ADK chat in four steps. It assumes you have already installed the package and have ADK ready on the server side; if not, start at [overview](/docs/runtimes/google-adk/overview).
 
 <Steps>
 <Step>
 
 ### Create a backend API endpoint
 
-Use `createAdkApiRoute` to create an API route in one line:
+Use `createAdkApiRoute` to create an API route.
 For React Native and Ink, host this route in a separate backend project and
 point the client runtime at its absolute URL.
 
@@ -20,7 +20,7 @@ import { InMemoryRunner, LlmAgent } from "@google/adk";
 
 const agent = new LlmAgent({
   name: "my_agent",
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   instruction: "You are a helpful assistant.",
 });
 
@@ -28,20 +28,27 @@ const runner = new InMemoryRunner({ agent, appName: "my-app" });
 
 export const POST = createAdkApiRoute({
   runner,
-  userId: "user_1",
-  sessionId: (req) =>
-    new URL(req.url).searchParams.get("sessionId") ?? "default",
+  userId: "local-user",
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
+  },
 });
 ```
 
-Both `userId` and `sessionId` accept either a static string or `(req: Request) => string` for dynamic resolution from cookies, headers, or query params.
+`createAdkStream` sends the initialized assistant-ui thread ID as
+`clientSessionId`. When the runner exposes `appName` and `sessionService`, the
+route creates the corresponding ADK session before the first run. The static
+user above is suitable only for local, single-user development. Before
+deployment, resolve `userId` from your authentication system: the client-sent ID
+selects a conversation, but does not authorize access to it.
 
 </Step>
 <Step>
 
 ### Set up the client runtime
 
-Use `createAdkStream` to connect to your API route. No manual SSE parsing needed:
+Use `createAdkStream` to connect to your API route. It parses the SSE stream for you:
 
 <PlatformTabs>
 <Tab value="React">
@@ -202,12 +209,12 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 ## Adding adapters
 
-Attachments, speech, feedback, history, and a custom thread list are supported via the standard adapter slots. See [adapters](/docs/runtimes/concepts/adapters):
+Attachment, speech, dictation, voice, and feedback adapters go in the `adapters` option. See [adapters](/docs/runtimes/concepts/adapters):
 
 ```tsx
 const runtime = useAdkRuntime({
   stream: createAdkStream({ api: "/api/chat" }),
-  adapters: { attachments, history, speech, feedback },
+  adapters: { attachments, speech, feedback },
 });
 ```
 

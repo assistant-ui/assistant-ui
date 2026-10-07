@@ -7,6 +7,7 @@ import {
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
@@ -100,7 +101,8 @@ export class AssistantFrameProvider {
     if (event.source !== window.parent) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-request":
@@ -267,8 +269,12 @@ export class AssistantFrameProvider {
     );
   }
 
-  private broadcastUpdate() {
+  private broadcastUpdate(targetOrigin = this._targetOrigin) {
     if (this._disposed) return;
+    this.postModelContext(targetOrigin);
+  }
+
+  private postModelContext(targetOrigin = this._targetOrigin) {
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -277,7 +283,7 @@ export class AssistantFrameProvider {
 
       window.parent.postMessage(
         { channel: FRAME_MESSAGE_CHANNEL, message: updateMessage },
-        this._targetOrigin,
+        targetOrigin,
       );
     }
   }
@@ -339,11 +345,19 @@ export class AssistantFrameProvider {
 
       instance.broadcastUpdate();
     } catch (error) {
+      // The withdrawal goes to the origin that received the tools before any
+      // callback can register a provider under the recomputed policy.
+      const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
         origin,
       );
       // Rollback failures must not replace the registration error.
+      try {
+        instance.broadcastUpdate(trustedOrigin);
+      } catch (broadcastError) {
+        console.error(broadcastError);
+      }
       try {
         if (removedProvider) {
           instance.cancelToolCallsForProvider(removedProvider);
@@ -356,11 +370,6 @@ export class AssistantFrameProvider {
       } catch (unsubscribeError) {
         console.error(unsubscribeError);
       }
-      try {
-        instance.broadcastUpdate();
-      } catch (broadcastError) {
-        console.error(broadcastError);
-      }
       throw error;
     }
 
@@ -368,6 +377,9 @@ export class AssistantFrameProvider {
     return () => {
       if (released) return;
       released = true;
+      // The withdrawal goes to the origin that received the tools before any
+      // callback can register a provider under the recomputed policy.
+      const trustedOrigin = instance._targetOrigin;
       const { unsubscribe, removedProvider } = instance.removeProvider(
         id,
         origin,
@@ -387,11 +399,11 @@ export class AssistantFrameProvider {
         }
       };
 
+      runCleanup(() => instance.broadcastUpdate(trustedOrigin));
       if (removedProvider) {
         runCleanup(() => instance.cancelToolCallsForProvider(removedProvider));
       }
       if (unsubscribe) runCleanup(unsubscribe);
-      runCleanup(() => instance.broadcastUpdate());
 
       if (cleanupFailed) throw cleanupError;
     };
@@ -427,6 +439,7 @@ export class AssistantFrameProvider {
       });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
+      runCleanup(() => instance.postModelContext());
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
         runCleanup(() => {
           abortController.abort();
@@ -438,6 +451,17 @@ export class AssistantFrameProvider {
         });
       });
       instance._activeToolCalls.clear();
+      runCleanup(() => {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            {
+              channel: FRAME_MESSAGE_CHANNEL,
+              message: { type: "provider-disposed" } satisfies FrameMessage,
+            },
+            instance._targetOrigin,
+          );
+        }
+      });
 
       AssistantFrameProvider._instance = null;
       if (cleanupFailed) throw cleanupError;

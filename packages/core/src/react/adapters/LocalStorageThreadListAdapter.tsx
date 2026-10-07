@@ -9,27 +9,44 @@ import {
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
-  CompleteAttachment,
   MessageModality,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
   RemoteThreadMetadata,
-  ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
-  ThreadUserMessagePart,
   RunConfig,
 } from "../../index";
 import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../../internal";
+import type {
+  GenericThreadHistoryAdapter,
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+  MessageStorageEntry,
+} from "../../adapters/thread-history";
 import { isRecord } from "../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessageStatus,
+  isStoredMessagePart,
+  isStoredMessageRole,
+  parseStoredAttachment,
+  parseStoredDate,
+  parseStoredThreadSteps,
+} from "../../runtime/utils/stored-message-parts";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
 } from "../runtimes/RuntimeAdapterProvider";
+import {
+  type KeyedThreadListItem,
+  tryGetKeyedThreadListItem,
+} from "../runtimes/keyedThreadListItem";
 import type { TitleGenerationAdapter } from "./TitleGenerationAdapter";
 
 export type AsyncStorageLike = {
@@ -40,7 +57,31 @@ export type AsyncStorageLike = {
 
 class KeyedMutationQueue {
   private readonly tails = new Map<string, Promise<void>>();
+  private readonly staleKeys = new Set<string>();
 
+  markStale(key: string) {
+    this.staleKeys.add(key);
+  }
+
+  async removeStale(key: string, storage: AsyncStorageLike) {
+    if (!this.staleKeys.has(key)) return;
+    await storage.removeItem(key);
+    this.staleKeys.delete(key);
+  }
+
+  async removeStaleMatching(
+    matches: (key: string) => boolean,
+    storage: AsyncStorageLike,
+  ) {
+    await Promise.all(
+      [...this.staleKeys]
+        .filter(matches)
+        .map((key) => this.removeStale(key, storage)),
+    );
+  }
+
+  // Mutations may acquire another key but must never re-enter the key they
+  // already hold. Thread lifecycle mutations acquire messages before metadata.
   run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
     const previous = this.tails.get(key);
     const result = previous ? previous.then(mutation) : mutation();
@@ -81,7 +122,14 @@ type StoredThreadMetadata = {
   status: "regular" | "archived";
   title?: string;
   custom?: Record<string, unknown> | undefined;
+  formats?: string[];
 };
+
+const formattedMessagesKey = (
+  prefix: string,
+  remoteId: string,
+  format: string,
+) => `${prefix}formatted-messages:${JSON.stringify([remoteId, format])}`;
 
 type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
 type StoredUserMessage = Extract<ThreadMessage, { role: "user" }>;
@@ -110,19 +158,12 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
       : undefined),
     ...(typeof value.title === "string" ? { title: value.title } : undefined),
     ...(isRecord(value.custom) ? { custom: value.custom } : undefined),
+    ...(Array.isArray(value.formats) &&
+    value.formats.every((format) => typeof format === "string")
+      ? { formats: value.formats }
+      : undefined),
   };
 };
-
-const parseDate = (value: unknown): Date | null => {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string" && typeof value !== "number") return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
-  value === "system" || value === "user" || value === "assistant";
 
 const messageModalities = {
   voice: true,
@@ -130,46 +171,6 @@ const messageModalities = {
 
 const isMessageModality = (value: unknown): value is MessageModality =>
   typeof value === "string" && Object.hasOwn(messageModalities, value);
-
-const MAX_STORED_MESSAGE_DEPTH = 100;
-
-const storedPartGuards = {
-  text: (part) => typeof part.text === "string",
-  reasoning: (part) =>
-    typeof part.text === "string" || typeof part.unstable_summary === "string",
-  image: (part) => typeof part.image === "string",
-  file: (part) =>
-    typeof part.data === "string" && typeof part.mimeType === "string",
-  audio: (part) =>
-    isRecord(part.audio) &&
-    typeof part.audio.data === "string" &&
-    typeof part.audio.format === "string",
-  data: (part) => typeof part.name === "string",
-  source: (part) =>
-    typeof part.id === "string" &&
-    (part.sourceType === "url"
-      ? typeof part.url === "string"
-      : part.sourceType === "document" &&
-        typeof part.title === "string" &&
-        typeof part.mediaType === "string"),
-  "generative-ui": (part) => isRecord(part.spec),
-  "tool-call": (part) =>
-    typeof part.toolCallId === "string" &&
-    typeof part.toolName === "string" &&
-    isRecord(part.args) &&
-    typeof part.argsText === "string",
-} satisfies Record<
-  (ThreadUserMessagePart | ThreadAssistantMessagePart)["type"],
-  (part: Record<string, unknown>) => boolean
->;
-
-const isStoredMessagePart = (
-  value: unknown,
-): value is Record<string, unknown> & { type: string } =>
-  isRecord(value) &&
-  typeof value.type === "string" &&
-  (!Object.hasOwn(storedPartGuards, value.type) ||
-    storedPartGuards[value.type as keyof typeof storedPartGuards](value));
 
 const parseStoredMessageParts = (
   content: unknown[],
@@ -192,35 +193,16 @@ const parseStoredMessageParts = (
     ];
   });
 
-const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
-  if (
-    !isRecord(value) ||
-    typeof value.id !== "string" ||
-    typeof value.type !== "string" ||
-    typeof value.name !== "string" ||
-    !isRecord(value.status) ||
-    value.status.type !== "complete" ||
-    !Array.isArray(value.content)
-  ) {
-    return null;
-  }
-
-  return {
-    ...value,
-    content: value.content.filter(isStoredMessagePart),
-  } as CompleteAttachment;
-};
-
 const parseStoredThreadMessage = (
   value: unknown,
   depth: number,
 ): ThreadMessage | null => {
   if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
+  if (!isStoredMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
-  const createdAt = parseDate(value.createdAt);
+  const createdAt = parseStoredDate(value.createdAt);
   if (!createdAt) return null;
 
   const metadata = value.metadata;
@@ -231,13 +213,15 @@ const parseStoredThreadMessage = (
     : undefined;
 
   if (value.role === "assistant") {
-    const status = value.status;
-    if (!isRecord(status) || typeof status.type !== "string") return null;
+    const status = isStoredMessageStatus(value.status)
+      ? value.status
+      : { type: "complete", reason: "unknown" as const };
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
       : undefined;
     const submittedFeedbackType = submittedFeedback?.type;
+    const submittedFeedbackComment = submittedFeedback?.comment;
 
     return {
       id: value.id,
@@ -257,14 +241,16 @@ const parseStoredThreadMessage = (
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
-        steps: Array.isArray(metadata.steps)
-          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
-          : [],
+        steps: parseStoredThreadSteps(metadata.steps),
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
           ? {
               submittedFeedback: {
                 type: submittedFeedbackType,
+                ...(typeof submittedFeedbackComment === "string" &&
+                submittedFeedbackComment !== ""
+                  ? { comment: submittedFeedbackComment }
+                  : undefined),
               },
             }
           : undefined),
@@ -294,7 +280,7 @@ const parseStoredThreadMessage = (
       ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
         ? value.attachments.flatMap((item) => {
-            const attachment = parseStoredAttachment(item);
+            const attachment = parseStoredAttachment(item, isStoredMessagePart);
             return attachment ? [attachment] : [];
           })
         : [],
@@ -393,6 +379,33 @@ export const parseStoredMessageRepository = (
   };
 };
 
+type StoredFormatEntry = MessageStorageEntry<Record<string, unknown>>;
+
+const parseStoredFormatEntries = (
+  raw: string | null,
+  format: string,
+): StoredFormatEntry[] => {
+  const parsed = parseJSON(raw);
+  if (!isRecord(parsed) || !Array.isArray(parsed.messages)) return [];
+
+  return parsed.messages.flatMap((entry) =>
+    isRecord(entry) &&
+    typeof entry.id === "string" &&
+    (entry.parent_id === null || typeof entry.parent_id === "string") &&
+    entry.format === format &&
+    isRecord(entry.content)
+      ? [
+          {
+            id: entry.id,
+            parent_id: entry.parent_id,
+            format,
+            content: entry.content,
+          },
+        ]
+      : [],
+  );
+};
+
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   private storage: AsyncStorageLike;
   private getAui: () => ReturnType<typeof useAui>;
@@ -419,6 +432,10 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return `${this.prefix}messages:${remoteId}`;
   }
 
+  private _threadsKey() {
+    return `${this.prefix}threads`;
+  }
+
   async load(): Promise<ExportedMessageRepository> {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
@@ -427,28 +444,186 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return parseStoredMessageRepository(raw);
   }
 
-  async append(item: ExportedMessageRepositoryItem): Promise<void> {
-    const { remoteId } = await this.aui.threadListItem.initialize();
+  private async _write(
+    remoteId: string,
+    key: string,
+    format: string | undefined,
+    write: (raw: string | null) => string,
+  ): Promise<void> {
+    await this.mutationQueue.run(this._messagesKey(remoteId), async () => {
+      // A missing or unreadable metadata blob is not evidence of deletion, so
+      // only a readable list that omits the thread skips the write.
+      const deleted = await this.mutationQueue.run(
+        this._threadsKey(),
+        async () => {
+          const raw = await this.storage.getItem(this._threadsKey());
+          const parsed = parseJSON(raw);
+          if (!Array.isArray(parsed)) return false;
 
-    const key = this._messagesKey(remoteId);
-    await this.mutationQueue.run(key, async () => {
-      const raw = await this.storage.getItem(key);
-      const repo = parseStoredMessageRepository(raw);
+          const threads = parseStoredThreadMetadata(raw);
+          const thread = threads.find((item) => item.remoteId === remoteId);
+          if (!thread) return true;
 
-      const idx = repo.messages.findIndex(
-        (m) => m.message.id === item.message.id,
+          // Thread deletion removes the formatted keys recorded here.
+          if (format !== undefined && !thread.formats?.includes(format)) {
+            thread.formats = [...(thread.formats ?? []), format];
+            await this.storage.setItem(
+              this._threadsKey(),
+              JSON.stringify(threads),
+            );
+          }
+          return false;
+        },
       );
-      if (idx >= 0) {
-        repo.messages[idx] = item;
-      } else {
-        repo.messages.push(item);
-      }
-      repo.headId = item.message.id;
+      if (deleted) return;
 
-      await this.storage.setItem(key, JSON.stringify(repo));
+      await this.mutationQueue.removeStale(key, this.storage);
+      const raw = await this.storage.getItem(key);
+      await this.storage.setItem(key, write(raw));
     });
   }
+
+  private async _upsert(
+    item: ExportedMessageRepositoryItem,
+    moveHead: boolean,
+  ): Promise<void> {
+    // Initialization acquires the same message key, so it must settle before
+    // the upsert takes that lock.
+    const { remoteId } = await this.aui.threadListItem.initialize();
+
+    await this._write(
+      remoteId,
+      this._messagesKey(remoteId),
+      undefined,
+      (raw) => {
+        const repo = parseStoredMessageRepository(raw);
+
+        const idx = repo.messages.findIndex(
+          (m) => m.message.id === item.message.id,
+        );
+        if (idx >= 0) {
+          repo.messages[idx] = item;
+        } else {
+          repo.messages.push(item);
+        }
+        if (moveHead) repo.headId = item.message.id;
+
+        return JSON.stringify(repo);
+      },
+    );
+  }
+
+  async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    await this._upsert(item, true);
+  }
+
+  async update(item: ExportedMessageRepositoryItem): Promise<void> {
+    await this._upsert(item, false);
+  }
+
+  withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
+    formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+  ): GenericThreadHistoryAdapter<TMessage> {
+    const { format } = formatAdapter;
+    let pinned: KeyedThreadListItem | undefined;
+    const pinCurrent = () => {
+      pinned = tryGetKeyedThreadListItem(this.aui) ?? pinned;
+      return pinned ?? this.aui.threadListItem;
+    };
+    const writeEntries = async (
+      update: (entries: StoredFormatEntry[]) => StoredFormatEntry[],
+    ) => {
+      // Initialization acquires the same message key, so it must settle
+      // before the write takes that lock.
+      const { remoteId } = await (pinned ?? pinCurrent()).initialize();
+      await this._write(
+        remoteId,
+        formattedMessagesKey(this.prefix, remoteId, format),
+        format,
+        (raw) =>
+          JSON.stringify({
+            messages: update(parseStoredFormatEntries(raw, format)),
+          }),
+      );
+    };
+    const upsert = async (item: MessageFormatItem<TMessage>) => {
+      const entry: StoredFormatEntry = {
+        id: formatAdapter.getId(item.message),
+        parent_id: item.parentId,
+        format,
+        content: formatAdapter.encode(item),
+      };
+      await writeEntries((entries) => {
+        const idx = entries.findIndex((e) => e.id === entry.id);
+        if (idx >= 0) {
+          entries[idx] = entry;
+        } else {
+          entries.push(entry);
+        }
+        return entries;
+      });
+    };
+
+    return {
+      pin() {
+        pinCurrent();
+      },
+      load: async (): Promise<MessageFormatRepository<TMessage>> => {
+        const remoteId = pinCurrent().getState().remoteId;
+        if (!remoteId) return { messages: [] };
+
+        const key = formattedMessagesKey(this.prefix, remoteId, format);
+        const raw = await this.mutationQueue.run(
+          this._messagesKey(remoteId),
+          async () => {
+            await this.mutationQueue.removeStale(key, this.storage);
+            return this.storage.getItem(key);
+          },
+        );
+        return {
+          messages: parseStoredFormatEntries(raw, format).map((entry) =>
+            formatAdapter.decode(entry as MessageStorageEntry<TStorageFormat>),
+          ),
+        };
+      },
+      append: upsert,
+      update: upsert,
+      delete: async (items) => {
+        if (!(pinned ?? pinCurrent()).getState().remoteId) return;
+        const ids = new Set(
+          items.map((item) => formatAdapter.getId(item.message)),
+        );
+        await writeEntries((entries) => {
+          const parents = new Map(
+            entries.map((entry) => [entry.id, entry.parent_id]),
+          );
+          return entries.flatMap((entry) => {
+            if (ids.has(entry.id)) return [];
+            let parentId = entry.parent_id;
+            const visited = new Set<string>();
+            while (parentId !== null && ids.has(parentId)) {
+              if (visited.has(parentId)) {
+                parentId = null;
+                break;
+              }
+              visited.add(parentId);
+              parentId = parents.get(parentId) ?? null;
+            }
+            return [{ ...entry, parent_id: parentId }];
+          });
+        });
+      },
+    };
+  }
 }
+
+export const createLocalStorageHistoryAdapter = (
+  storage: AsyncStorageLike,
+  getAui: () => ReturnType<typeof useAui>,
+  prefix: string,
+  mutationQueue = getMutationQueue(storage),
+): ThreadHistoryAdapter =>
+  new AsyncStorageHistoryAdapter(storage, getAui, prefix, mutationQueue);
 
 const useLocalStorageThreadAdapters = (
   storage: AsyncStorageLike,
@@ -461,14 +636,13 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(
-    () =>
-      new AsyncStorageHistoryAdapter(
-        storage,
-        () => auiRef.current,
-        prefix,
-        mutationQueue,
-      ),
+  const [history] = useState(() =>
+    createLocalStorageHistoryAdapter(
+      storage,
+      () => auiRef.current,
+      prefix,
+      mutationQueue,
+    ),
   );
   return useMemo(() => ({ history }), [history]);
 };
@@ -550,19 +724,24 @@ export const createLocalStorageAdapter = (
       threadId: string,
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
-      return mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
+      const key = messagesKey(remoteId);
+      return mutationQueue.run(key, async () => {
+        await mutationQueue.removeStale(key, storage);
 
-        // Only add if not already present
-        if (!threads.some((t) => t.remoteId === remoteId)) {
-          threads.unshift({
-            remoteId,
-            status: "regular",
-          });
-          await saveThreadMetadata(threads);
-        }
+        return mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
 
-        return { remoteId, externalId: undefined };
+          // Only add if not already present
+          if (!threads.some((t) => t.remoteId === remoteId)) {
+            threads.unshift({
+              remoteId,
+              status: "regular",
+            });
+            await saveThreadMetadata(threads);
+          }
+
+          return { remoteId, externalId: undefined };
+        });
       });
     },
 
@@ -594,13 +773,28 @@ export const createLocalStorageAdapter = (
     },
 
     async delete(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const filtered = threads.filter((t) => t.remoteId !== remoteId);
-        await saveThreadMetadata(filtered);
-      });
       const key = messagesKey(remoteId);
-      await mutationQueue.run(key, () => storage.removeItem(key));
+      await mutationQueue.run(key, async () => {
+        const formats = await mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
+          const filtered = threads.filter((t) => t.remoteId !== remoteId);
+          await saveThreadMetadata(filtered);
+          return threads.find((t) => t.remoteId === remoteId)?.formats ?? [];
+        });
+        const keys = [
+          key,
+          ...formats.map((format) =>
+            formattedMessagesKey(prefix, remoteId, format),
+          ),
+        ];
+        for (const staleKey of keys) mutationQueue.markStale(staleKey);
+        const formattedPrefix = `${prefix}formatted-messages:[${JSON.stringify(remoteId)},`;
+        await mutationQueue.removeStaleMatching(
+          (staleKey) =>
+            staleKey === key || staleKey.startsWith(formattedPrefix),
+          storage,
+        );
+      });
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

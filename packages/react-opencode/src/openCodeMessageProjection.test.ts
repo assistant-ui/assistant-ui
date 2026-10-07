@@ -124,7 +124,39 @@ describe("projectOpenCodeThreadMessages", () => {
                 status: "completed",
                 input: { path: "README.md" },
                 output: { ok: true },
+                time: { start: 1_700_000_000_000, end: 1_700_000_002_000 },
               },
+            } as never,
+            {
+              id: "tool-2",
+              callID: "call-2",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "running",
+                input: {},
+                time: { start: 1_700_000_003_000, end: 1_700_000_004_000 },
+              },
+            } as never,
+            {
+              id: "tool-3",
+              callID: "call-3",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: { status: "pending", input: {} },
+            } as never,
+            {
+              id: "tool-4",
+              callID: "call-4",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: { status: "running", input: {}, time: { start: "bad" } },
             } as never,
           ],
           shadowParts: undefined,
@@ -133,14 +165,19 @@ describe("projectOpenCodeThreadMessages", () => {
     };
 
     const messages = projectOpenCodeThreadMessages(state);
-    expect(messages[0]?.content).toMatchObject([
-      {
-        type: "tool-call",
-        toolCallId: "call-1",
-        toolName: "read",
-        result: { ok: true },
-      },
-    ]);
+    expect(messages[0]?.content).toHaveLength(4);
+    expect(messages[0]?.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "read",
+      result: { ok: true },
+      timing: { startedAt: 1_700_000_000_000, completedAt: 1_700_000_002_000 },
+    });
+    expect(messages[0]?.content[1]).toHaveProperty("timing", {
+      startedAt: 1_700_000_003_000,
+    });
+    expect(messages[0]?.content[2]).not.toHaveProperty("timing");
+    expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
   it("projects Task child sessions into nested tool-call messages", () => {
@@ -610,7 +647,13 @@ describe("projectOpenCodeThreadMessages", () => {
             question_1: {
               id: "question_1",
               sessionID: "ses_1",
-              questions: [],
+              questions: [
+                {
+                  question: "Continue?",
+                  header: "Confirm",
+                  options: [{ label: "Yes", description: "Proceed" }],
+                },
+              ],
               askedAt: 1000,
               tool: {
                 messageID: "assistant-1",
@@ -670,6 +713,98 @@ describe("projectOpenCodeThreadMessages", () => {
       type: "requires-action",
       reason: "tool-calls",
     });
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        approval: {
+          id: "question_1",
+          display: "questions",
+          questions: [
+            {
+              id: "0",
+              prompt: "Continue?",
+              header: "Confirm",
+              options: [{ id: "Yes", label: "Yes", description: "Proceed" }],
+              allowFreeform: true,
+            },
+          ],
+        },
+      },
+    ]);
+
+    const answeredState: OpenCodeThreadState = {
+      ...state,
+      interactions: {
+        ...state.interactions,
+        questions: {
+          pending: {},
+          answered: {
+            question_1: {
+              request: state.interactions.questions.pending.question_1!,
+              answers: [["Yes"]],
+              respondedAt: 2000,
+            },
+          },
+          rejected: {},
+        },
+      },
+    };
+    expect(
+      projectOpenCodeThreadMessages(answeredState)[0]?.content,
+    ).toMatchObject([
+      {
+        type: "tool-call",
+        approval: {
+          id: "question_1",
+          display: "questions",
+          approved: true,
+          answers: { "0": { optionIds: ["Yes"] } },
+        },
+      },
+    ]);
+
+    const rejectedState: OpenCodeThreadState = {
+      ...state,
+      interactions: {
+        ...state.interactions,
+        questions: {
+          pending: {},
+          answered: {},
+          rejected: {
+            question_1: {
+              request: state.interactions.questions.pending.question_1!,
+              rejectedAt: 2000,
+            },
+          },
+        },
+      },
+    };
+    expect(
+      projectOpenCodeThreadMessages(rejectedState)[0]?.content,
+    ).toMatchObject([{ type: "tool-call", approval: { approved: false } }]);
+
+    const malformedState: OpenCodeThreadState = {
+      ...state,
+      interactions: {
+        ...state.interactions,
+        questions: {
+          pending: {
+            question_1: {
+              ...state.interactions.questions.pending.question_1!,
+              questions: undefined as never,
+            },
+          },
+          answered: {},
+          rejected: {},
+        },
+      },
+    };
+    const [malformedMessage] = projectOpenCodeThreadMessages(malformedState);
+    const [malformedPart] = malformedMessage?.content ?? [];
+    expect(malformedPart).toMatchObject({ type: "tool-call" });
+    expect(malformedPart).not.toHaveProperty("approval");
+    expect(malformedMessage?.status?.type).not.toBe("requires-action");
   });
 
   it("normalizes escaped newlines in reasoning parts", () => {
@@ -705,6 +840,30 @@ describe("projectOpenCodeThreadMessages", () => {
               messageID: "assistant-1",
               type: "reasoning",
               text: "Confirming\\n\\nI checked the file.",
+              time: { start: 1_700_000_000_000, end: 1_700_000_002_000 },
+            } as never,
+            {
+              id: "reasoning-2",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "Still thinking",
+              time: { start: 1_700_000_003_000 },
+            } as never,
+            {
+              id: "reasoning-3",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "No time",
+            } as never,
+            {
+              id: "reasoning-4",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "Bad time",
+              time: { end: 1_700_000_005_000 },
             } as never,
           ],
           shadowParts: undefined,
@@ -713,12 +872,17 @@ describe("projectOpenCodeThreadMessages", () => {
     };
 
     const messages = projectOpenCodeThreadMessages(state);
-    expect(messages[0]?.content).toMatchObject([
-      {
-        type: "reasoning",
-        text: "Confirming\n\nI checked the file.",
-      },
-    ]);
+    expect(messages[0]?.content).toHaveLength(4);
+    expect(messages[0]?.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "Confirming\n\nI checked the file.",
+      timing: { startedAt: 1_700_000_000_000, completedAt: 1_700_000_002_000 },
+    });
+    expect(messages[0]?.content[1]).toHaveProperty("timing", {
+      startedAt: 1_700_000_003_000,
+    });
+    expect(messages[0]?.content[2]).not.toHaveProperty("timing");
+    expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
   it("projects unsupported OpenCode parts into visible data fallbacks", () => {
@@ -900,7 +1064,9 @@ describe("projectOpenCodeThreadMessages", () => {
     const readNested = (
       projected: ReturnType<typeof projectOpenCodeThreadMessages>,
     ) => {
-      const part = projected[0]?.content.find((p) => p.type === "tool-call");
+      const message = projected[0];
+      if (!message || typeof message.content === "string") return undefined;
+      const part = message.content.find((part) => part.type === "tool-call");
       return part?.type === "tool-call" ? part.messages : undefined;
     };
 
@@ -965,10 +1131,11 @@ describe("projectOpenCodeThreadMessages", () => {
         },
       }) satisfies OpenCodeThreadState;
 
-    const toolPart = (loadState: OpenCodeThreadState["loadState"]) =>
-      projectOpenCodeThreadMessages(state(loadState))[0]?.content.find(
-        (p) => p.type === "tool-call",
-      );
+    const toolPart = (loadState: OpenCodeThreadState["loadState"]) => {
+      const message = projectOpenCodeThreadMessages(state(loadState))[0];
+      if (!message || typeof message.content === "string") return undefined;
+      return message.content.find((part) => part.type === "tool-call");
+    };
 
     expect(toolPart({ type: "loading" })).toBeDefined();
     expect(toolPart({ type: "loading" })).not.toHaveProperty("messages");
@@ -1161,6 +1328,52 @@ describe("user message projection", () => {
             data: "data:application/pdf;base64,AA==",
             mimeType: "application/pdf",
             filename: "report.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("resolves a media-less base64 file URL to the binary media type", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      pendingUserMessages: {
+        client_1: {
+          clientId: "client_1",
+          sessionId: "ses_1",
+          createdAt: 1,
+          parentId: null,
+          sourceId: null,
+          runConfig: undefined,
+          contentText: "",
+          parts: [
+            {
+              type: "file",
+              data: "data:;base64,AA==",
+              mimeType: "",
+              filename: "file.bin",
+            },
+          ],
+          status: "pending",
+        },
+      },
+    };
+
+    const [message] = projectOpenCodeThreadMessages(state);
+
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "file.bin",
+        contentType: "application/octet-stream",
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            data: "data:;base64,AA==",
+            mimeType: "",
+            filename: "file.bin",
           },
         ],
       },

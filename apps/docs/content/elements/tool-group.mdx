@@ -106,7 +106,7 @@ The trigger's label always reads the plural "tool calls" except for a group of e
 
 ### Variants
 
-`variant` changes the group's chrome: `"outline"` (the default) draws a bordered card with padding; `"ghost"` (what `Thread` actually uses) has no border or background at all; `"muted"` draws a bordered card with a muted background.
+`variant` changes the group's chrome: `"outline"` (the default) draws a bordered card with padding; `"ghost"` (what `Thread` uses) has no border or background; `"muted"` draws a bordered card with a muted background.
 
 ```tsx
 <ToolGroupRoot variant="outline">{/* ... */}</ToolGroupRoot>
@@ -144,7 +144,7 @@ The trigger's label always reads the plural "tool calls" except for a group of e
 |------|------|---------|-------------|
 | `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Visual chrome. |
 | `open` | `boolean` | | Controlled open state. |
-| `onOpenChange` | `(open: boolean) => void` | | Called on toggle. |
+| `onOpenChange` | `(open: boolean) => void` | | Called on toggle. Without it, an uncontrolled group still toggles using its own `defaultOpen`-seeded state. A controlled `open` value without this handler cannot be changed by the trigger. |
 | `defaultOpen` | `boolean` | `false` | Initial state when uncontrolled. |
 
 ### ToolGroupTrigger props
@@ -175,7 +175,7 @@ npx shadcn@latest add "@assistant-ui/elements-tool-group"
 
 <RuntimeMode>
 
-Wire it by mapping a message's `tool-call` parts into `GroupedTool` records. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving `tools` still needs `useMemo`, since mapping to a fresh array on every call would re-render the group on every store update.
+Wire it by mapping a message's `tool-call` parts into `GroupedTool` records. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving `tools` still needs `useMemo`, since mapping to a fresh array inside the selector would re-render the group on every store update.
 
 ```tsx title="components/assistant-ui/elements/tool-group-live.tsx"
 "use client";
@@ -270,8 +270,10 @@ The trigger's trailing text and icon come from `tools`, not from a prop: while a
 | `label` | `string` | required | Text shown next to the chevron. |
 | `tools` | `readonly GroupedTool[]` | required | The calls in this group, in order. |
 | `open` | `boolean` | required | Whether the list is expanded. |
-| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is clicked. |
+| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is clicked. Without it, the trigger renders as a non-interactive header. |
 | `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
 
 ### GroupedTool
 
@@ -282,5 +284,3 @@ The trigger's trailing text and icon come from `tools`, not from a prop: while a
 | `target` | `string` | What the call acted on. |
 | `state` | `"running" \| "done" \| "failed"` | Drives the row's icon and the trigger's summary. |
 | `durationMs` | `number` | Optional; shown at the end of the row when present. |
-
-All other `div` props are forwarded to the root.

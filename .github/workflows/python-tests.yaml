@@ -6,11 +6,13 @@ on:
     paths:
       - "python/**"
       - ".github/workflows/python-tests.yaml"
+      - "scripts/python-test-selection.test.mjs"
   pull_request:
     branches: [main]
     paths:
       - "python/**"
       - ".github/workflows/python-tests.yaml"
+      - "scripts/python-test-selection.test.mjs"
 
 permissions:
   contents: read
@@ -30,7 +32,7 @@ jobs:
         package:
           - assistant-stream
           - assistant-ui-sync-server-api
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.12", "3.14"]
     defaults:
       run:
         working-directory: python/${{ matrix.package }}
@@ -38,14 +40,47 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 
+        with:
+          fetch-depth: 2
+
+      - name: Test Python suite selection
+        if: strategy.job-index == 0
+        working-directory: .
+        run: node --test scripts/python-test-selection.test.mjs
+
+      - name: Select Python suite
+        id: selection
+        working-directory: .
+        env:
+          PACKAGE: ${{ matrix.package }}
+          BASE_REF: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
+        run: |
+          set -euo pipefail
+          case "$PACKAGE" in
+            assistant-stream) other=assistant-ui-sync-server-api ;;
+            assistant-ui-sync-server-api) other=assistant-stream ;;
+            *) exit 1 ;;
+          esac
+          run=true
+          if git rev-parse --verify --quiet "${BASE_REF}^{commit}" > /dev/null &&
+            git diff --quiet --no-renames "$BASE_REF" HEAD -- \
+              python .github/workflows/python-tests.yaml \
+              scripts/python-test-selection.test.mjs ":(exclude)python/$other"; then
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
+        if: steps.selection.outputs.run == 'true'
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
       - name: Install dependencies
+        if: steps.selection.outputs.run == 'true'
         run: uv sync --all-extras
 
       - name: Run tests
+        if: steps.selection.outputs.run == 'true'
         run: uv run pytest

@@ -6,7 +6,9 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { SuggestionState } from "../../../store/scopes/suggestion";
+import { getSuggestionKeys } from "../../../utils/getSuggestionKeys";
 import { SuggestionByIndexProvider } from "../../providers/SuggestionByIndexProvider";
 
 type SuggestionsComponentConfig = {
@@ -67,14 +69,14 @@ ThreadPrimitiveSuggestionByIndex.displayName =
 const ThreadPrimitiveSuggestionsInner: FC<{
   children: (value: { suggestion: SuggestionState }) => ReactNode;
 }> = ({ children }) => {
-  const suggestionsLength = useAuiState(
-    (s) => s.suggestions.suggestions.length,
+  const suggestionKeys = useAuiState(
+    useShallowSelector((s) => getSuggestionKeys(s.suggestions.suggestions)),
   );
 
   return useMemo(() => {
-    if (suggestionsLength === 0) return null;
-    return Array.from({ length: suggestionsLength }, (_, index) => (
-      <SuggestionByIndexProvider key={index} index={index}>
+    if (suggestionKeys.length === 0) return null;
+    return suggestionKeys.map((suggestionKey, index) => (
+      <SuggestionByIndexProvider key={suggestionKey} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>
             aui.suggestions.suggestion({ index }).getState()
@@ -90,7 +92,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
         </RenderChildrenWithAccessor>
       </SuggestionByIndexProvider>
     ));
-  }, [suggestionsLength, children]);
+  }, [suggestionKeys, children]);
 };
 
 /**

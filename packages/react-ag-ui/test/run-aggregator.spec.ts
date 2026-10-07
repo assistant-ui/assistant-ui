@@ -2,14 +2,36 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { ChatModelRunResult } from "@assistant-ui/core";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
 import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
+import { parseAgUiEvent } from "../src/runtime/event-parser";
 import type { AgUiEvent } from "../src/runtime/types";
 
 const makeLogger = () => ({
   debug: () => {},
   error: () => {},
 });
+
+type RunResultWithContent = ChatModelRunResult & {
+  readonly content: NonNullable<ChatModelRunResult["content"]>;
+};
+
+const getLastResult = (
+  results: readonly ChatModelRunResult[],
+): RunResultWithContent => {
+  const result = results.at(-1);
+  expect(result).toBeDefined();
+  if (result === undefined) throw new Error("Expected a run result");
+  expect(result.content).toBeDefined();
+  if (result.content === undefined) {
+    throw new Error("Expected a run result with content");
+  }
+  return { ...result, content: result.content };
+};
 
 describe("RunAggregator", () => {
   let results: ChatModelRunResult[];
@@ -635,6 +657,81 @@ describe("RunAggregator", () => {
     const reasoningPart = results.at(-1)?.content?.[0];
     expect(reasoningPart?.type).toBe("reasoning");
     expect((reasoningPart as any).text).toBe("Reasoning...");
+  });
+
+  it("projects reasoning event timestamps when the start supplies one", () => {
+    const aggregator = createAggregator(true);
+    const handle = (raw: unknown) => {
+      const event = parseAgUiEvent(raw);
+      expect(event).not.toBeNull();
+      if (event) aggregator.handle(event);
+    };
+
+    handle({ type: "RUN_STARTED", runId: "r1" });
+    handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "settled",
+      timestamp: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "settled",
+      delta: "Done",
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "settled",
+      timestamp: 1_700_000_002_000,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+      completedAt: 1_700_000_002_000,
+    });
+
+    handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "settled",
+      timestamp: 1_700_000_002_500,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "settled",
+      timestamp: 1_700_000_002_800,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+      completedAt: 1_700_000_002_800,
+    });
+
+    handle({
+      type: "THINKING_TEXT_MESSAGE_START",
+      timestamp: 1_700_000_003_000,
+    });
+    handle({
+      type: "THINKING_TEXT_MESSAGE_CONTENT",
+      delta: "Running",
+    });
+    expect(getLastResult(results).content[1]).toHaveProperty("timing", {
+      startedAt: 1_700_000_003_000,
+    });
+
+    handle({ type: "THINKING_TEXT_MESSAGE_END" });
+    handle({ type: "REASONING_START" });
+    handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      delta: "Untimed",
+    });
+    handle({
+      type: "REASONING_END",
+      timestamp: 1_700_000_005_000,
+    });
+    expect(getLastResult(results).content[2]).not.toHaveProperty("timing");
   });
 
   it("ignores reasoning events when disabled", () => {
@@ -2667,6 +2764,12 @@ describe("RunAggregator", () => {
       },
     });
     expect(toolPart.result).toBeDefined();
+    const { state } = applyA2uiOperations(new Map(), toolPart.artifact.a2ui);
+    const replayedSurface = state.get("surface-1");
+    expect(replayedSurface).toBeDefined();
+    expect(convertSurfaceToUISpec(replayedSurface!).spec).toEqual(
+      toolPart.args,
+    );
   });
 
   it("replaces an a2ui surface snapshot without duplicating its tool call", () => {
@@ -2715,6 +2818,13 @@ describe("RunAggregator", () => {
       argsText: '{"$type":"Markdown","value":"Replacement"}',
     });
     expect(toolParts[0].args.children).toBeUndefined();
+    const { state } = applyA2uiOperations(
+      new Map(),
+      toolParts[0].artifact.a2ui,
+    );
+    expect(convertSurfaceToUISpec(state.get("surface-1")!).spec).toEqual(
+      toolParts[0].args,
+    );
   });
 
   it("ignores replace-false a2ui snapshots for an existing message bucket", () => {
@@ -2783,6 +2893,156 @@ describe("RunAggregator", () => {
         { $type: "Markdown", value: "Welcome body" },
       ],
     });
+  });
+
+  it("keeps unknown activity snapshots as data at their first position", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "before",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      content: { query: "first" },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "after",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      content: { query: "second" },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "later",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      replace: false,
+      content: { query: "ignored" },
+    } as AgUiEvent);
+
+    expect(getLastResult(results).content).toEqual([
+      { type: "text", text: "before" },
+      {
+        type: "data",
+        name: "agui-activity/search",
+        data: { query: "second" },
+      },
+      { type: "text", text: "afterlater" },
+    ]);
+  });
+
+  it("keys unknown activity snapshots by activity type without a message id", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "progress",
+      content: { step: 1 },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "progress",
+      content: { step: 2 },
+    } as AgUiEvent);
+
+    expect(getLastResult(results).content).toEqual([
+      {
+        type: "data",
+        name: "agui-activity/progress",
+        data: { step: 2 },
+      },
+    ]);
+  });
+
+  it("keeps activity data scoped to its subagent", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-spawn",
+    } as AgUiEvent);
+    aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root before",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      content: { scope: "root" },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root after",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "subagent before",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      content: { scope: "subagent" },
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: " root after",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = getLastResult(results);
+    expect(last.content).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "t-spawn",
+        toolName: "task",
+        args: {},
+        argsText: "",
+        messages: [
+          expect.objectContaining({
+            content: [
+              { type: "text", text: "subagent before" },
+              {
+                type: "data",
+                name: "agui-activity/search",
+                data: { scope: "subagent" },
+              },
+            ],
+          }),
+        ],
+      },
+      { type: "text", text: "root before" },
+      {
+        type: "data",
+        name: "agui-activity/search",
+        data: { scope: "root" },
+      },
+      { type: "text", text: "root after root after" },
+    ]);
   });
 
   it("removes an a2ui tool call when a replacement surface has no root component", () => {
@@ -3047,8 +3307,9 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
+    const last = getLastResult(results);
     const nested = (
-      results.at(-1)!.content.find((p: any) => p.type === "tool-call") as any
+      last.content.find((p: any) => p.type === "tool-call") as any
     ).messages[0];
     expect(nested.content.map((p: any) => p.type)).toEqual([
       "text",
@@ -3087,7 +3348,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results.at(-1)!;
+    const last = getLastResult(results);
     const rootText = last.content.filter((p: any) => p.type === "text");
     expect(rootText).toEqual([{ type: "text", text: "root text" }]);
     const toolPart = last.content.find(
@@ -3121,7 +3382,7 @@ describe("RunAggregator", () => {
     // No SUBAGENT_FINISHED: a subagent only ever reports its own terminal.
     aggregator.handle({ type: "RUN_CANCELLED", runId: "r1" } as AgUiEvent);
 
-    const last = results.at(-1)!;
+    const last = getLastResult(results);
     expect(last.status).toMatchObject({
       type: "incomplete",
       reason: "cancelled",
@@ -3153,7 +3414,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results.at(-1)!;
+    const last = getLastResult(results);
     const toolPart = last.content[0] as any;
     expect(toolPart.messages[0].content).toEqual([
       { type: "text", text: "chunked subagent text" },
@@ -3204,7 +3465,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results.at(-1)!;
+    const last = getLastResult(results);
     const rootTool = last.content[0] as any;
     expect(rootTool.toolCallId).toBe("t-root");
     expect(rootTool.mcp).toEqual({
@@ -3236,7 +3497,8 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const nested = (results.at(-1)!.content[0] as any).messages[0];
+    const last = getLastResult(results);
+    const nested = (last.content[0] as any).messages[0];
     expect(nested.metadata.custom.agui).toMatchObject({
       name: "worker",
       result: { summary: "found 3 files" },
@@ -3276,7 +3538,7 @@ describe("RunAggregator", () => {
       delta: "-root-b",
     } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const rootText = last.content.find((p) => p.type === "text");
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
   });
@@ -3312,7 +3574,7 @@ describe("RunAggregator", () => {
       delta: "-root-b",
     } as AgUiEvent); // still anonymous, root scope — must still append to "root-a"
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const rootText = last.content.find((p) => p.type === "text");
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
 
@@ -3353,7 +3615,7 @@ describe("RunAggregator", () => {
       delta: "-root-b",
     } as AgUiEvent); // still anonymous, root scope — must still append to "root-a"
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const rootText = last.content.find((p) => p.type === "text");
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
   });
@@ -3411,7 +3673,7 @@ describe("RunAggregator", () => {
       content: "done",
     } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const rootReasoning = last.content.find(
       (p) => p.type === "reasoning",
     ) as any;
@@ -3500,7 +3762,7 @@ describe("RunAggregator", () => {
       content: '{"summary":"p99 elevated"}',
     } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     expect(last.content).toHaveLength(1);
     const parentToolPart = last.content[0] as any;
     expect(parentToolPart.type).toBe("tool-call");
@@ -3615,7 +3877,7 @@ describe("RunAggregator", () => {
       },
     });
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const parentToolPart = last.content[0] as any;
     expect(parentToolPart.type).toBe("tool-call");
     expect(parentToolPart.toolCallId).toBe("t-investigate");
@@ -3693,7 +3955,7 @@ describe("RunAggregator", () => {
       content: "done",
     } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const outerToolPart = last.content[0] as any;
     const outerNested = outerToolPart.messages[0];
     expect(outerNested.id).toBe("sub-outer");
@@ -3747,7 +4009,7 @@ describe("RunAggregator", () => {
       content: "failed",
     } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const toolPart = last.content[0] as any;
     expect(toolPart.messages).toHaveLength(1);
     expect(toolPart.messages[0].status).toEqual({
@@ -3811,7 +4073,7 @@ describe("RunAggregator", () => {
       content: "done",
     } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const toolPart = last.content[0] as any;
     expect(toolPart.messages).toHaveLength(2);
     expect(toolPart.messages.map((m: any) => m.id)).toEqual(["sub-a", "sub-b"]);
@@ -3851,7 +4113,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     expect(last.content).toEqual([{ type: "text", text: "orphaned progress" }]);
   });
 
@@ -3876,7 +4138,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     expect(last.content).toEqual([
       { type: "text", text: "unattributed progress" },
     ]);
@@ -3928,7 +4190,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     expect(last.content.map((p: any) => p.type)).toEqual([
       "tool-call",
       "tool-call",
@@ -3992,7 +4254,7 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
-    const last = results[results.length - 1]!;
+    const last = getLastResult(results);
     const rootTool = last.content[0] as any;
     expect(rootTool.messages.map((m: any) => m.id)).toEqual(["sub-a"]);
     const subATool = rootTool.messages[0].content[0];

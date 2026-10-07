@@ -124,6 +124,24 @@ describe.each(["direct", "proxy", "proxy batch"] as const)(
 // ── Proxy mode ──
 
 describe("createAdkStream - proxy mode", () => {
+  it("aborts while dynamic headers are pending", async () => {
+    const controller = new AbortController();
+    const stream = createAdkStream({
+      api: "/api/adk",
+      headers: () => new Promise<Record<string, string>>(() => {}),
+    });
+    const events = await stream(
+      [{ id: "m1", type: "human", content: "Hello" }],
+      makeConfig({ abortSignal: controller.signal }),
+    );
+
+    const next = events.next();
+    controller.abort();
+
+    await expect(next).rejects.toBe(controller.signal.reason);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("accumulates snake_case image and file parts from SSE", async () => {
     const event = {
       id: "media",
@@ -171,7 +189,8 @@ describe("createAdkStream - proxy mode", () => {
     const messages: AdkMessage[] = [
       { id: "m1", type: "human", content: "Hello" },
     ];
-    const gen = await stream(messages, makeConfig());
+    const config = makeConfig();
+    const gen = await stream(messages, config);
     // drain
     for await (const _ of gen) {
       /* noop */
@@ -182,7 +201,27 @@ describe("createAdkStream - proxy mode", () => {
     expect(url).toBe("/api/adk");
     expect(init?.method).toBe("POST");
     const body = JSON.parse(init?.body as string);
-    expect(body).toMatchObject({ message: "Hello" });
+    expect(body).toMatchObject({ message: "Hello", sessionId: "session-1" });
+    expect(config.initialize).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to the remote thread ID for proxy sessions", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+    const initialize = vi
+      .fn()
+      .mockResolvedValue({ remoteId: "remote-1", externalId: undefined });
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hello" }],
+      makeConfig({ initialize }),
+    );
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.sessionId).toBe("remote-1");
   });
 
   it("sends runConfig and checkpointId in proxy body", async () => {
@@ -1076,6 +1115,38 @@ describe("createAdkStream - error handling", () => {
     }).rejects.toThrow(
       'Expected ADK stream response Content-Type "text/event-stream", received no Content-Type header',
     );
+  });
+
+  it("rejects event-stream responses without a body", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(null));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow("Expected ADK stream response body, received no body");
+  });
+
+  it("rejects non-standard responses with an undefined body", async () => {
+    const response = sseResponse(null);
+    Object.defineProperty(response, "body", { value: undefined });
+    mockFetch.mockResolvedValueOnce(response);
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow("Expected ADK stream response body, received no body");
   });
 });
 

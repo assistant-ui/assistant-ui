@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   attachSubagentTranscripts,
   createAttachMemo,
+  type SubagentTranscript,
 } from "./attachSubagentTranscripts";
 
 const assistantMessage = (id: string, toolCallId?: string): ThreadMessage =>
@@ -35,7 +36,13 @@ const assistantMessage = (id: string, toolCallId?: string): ThreadMessage =>
     },
   }) as ThreadMessage;
 
-const transcript = (id: string) => [assistantMessage(id)];
+const transcript = (
+  id: string,
+  timing: SubagentTranscript["timing"] = {
+    startedAt: 1_000,
+    completedAt: 3_500,
+  },
+): SubagentTranscript => ({ messages: [assistantMessage(id)], timing });
 
 describe("attachSubagentTranscripts", () => {
   it("returns the input array when no tool call has a transcript", () => {
@@ -68,7 +75,8 @@ describe("attachSubagentTranscripts", () => {
     const part = attached[0]!.content[0]!;
     expect(part.type).toBe("tool-call");
     if (part.type !== "tool-call") throw new Error("expected a tool call");
-    expect(part.messages).toBe(childTranscript);
+    expect(part.messages).toBe(childTranscript.messages);
+    expect(part.timing).toBe(childTranscript.timing);
   });
 
   it("reuses the attached array when transcript identities are unchanged", () => {
@@ -141,10 +149,10 @@ describe("attachSubagentTranscripts", () => {
       memo,
     );
 
-    expect(before?.content[0]).toMatchObject({ messages: nested });
+    expect(before?.content[0]).toMatchObject({ messages: nested.messages });
     expect(after).not.toBe(before);
     expect(after?.content[0]).toBe(first);
-    expect(after?.content[1]).toMatchObject({ messages: nested });
+    expect(after?.content[1]).toMatchObject({ messages: nested.messages });
   });
 
   it("keeps untouched parts of a partially matched message by reference", () => {
@@ -164,7 +172,7 @@ describe("attachSubagentTranscripts", () => {
     );
 
     expect(attached?.content[0]).toBe(text);
-    expect(attached?.content[1]).toMatchObject({ messages: nested });
+    expect(attached?.content[1]).toMatchObject({ messages: nested.messages });
     expect(attached?.content[2]).toBe(unmatched);
   });
 

@@ -566,7 +566,7 @@ describe("convertExternalMessages", () => {
           role: "assistant" as const,
           content: [{ type: "text" as const, text: "first" }],
           metadata: {
-            timing: { streamStartTime: 1 },
+            timing: { streamStartTime: 1, totalChunks: 1, toolCallCount: 0 },
           },
         },
         {
@@ -574,7 +574,7 @@ describe("convertExternalMessages", () => {
           role: "assistant" as const,
           content: [{ type: "text" as const, text: "second" }],
           metadata: {
-            timing: { streamStartTime: 2 },
+            timing: { streamStartTime: 2, totalChunks: 1, toolCallCount: 0 },
           },
         },
       ];
@@ -587,7 +587,11 @@ describe("convertExternalMessages", () => {
 
       expect(result).toHaveLength(1);
       const metadata = result[0]!.metadata as any;
-      expect(metadata.timing).toEqual({ streamStartTime: 2 });
+      expect(metadata.timing).toEqual({
+        streamStartTime: 2,
+        totalChunks: 1,
+        toolCallCount: 0,
+      });
     });
 
     it("merges custom across joined outputs, with later keys overwriting earlier ones", () => {

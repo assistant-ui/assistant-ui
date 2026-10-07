@@ -1,5 +1,23 @@
 # @assistant-ui/react-o11y
 
+## 0.0.46
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9), [`3ea546a`](https://github.com/assistant-ui/assistant-ui/commit/3ea546a3e3d8b04253e095972a007ffc789d895d)]:
+  - @assistant-ui/store@0.3.17
+  - @assistant-ui/tap@0.9.21
+
+## 0.0.45
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025)]:
+  - @assistant-ui/store@0.3.14
+  - @assistant-ui/tap@0.9.18
+
 ## 0.0.44
 
 ### Patch Changes

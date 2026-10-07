@@ -1,4 +1,9 @@
-import type { Preset, BuilderConfig, ThemeColor } from "./types";
+import {
+  DEFAULT_CONFIG,
+  type Preset,
+  type BuilderConfig,
+  type ThemeColor,
+} from "./types";
 
 // Helper to create a ThemeColor
 const color = (light: string, dark: string): ThemeColor => ({ light, dark });
@@ -8,44 +13,7 @@ export const PRESETS: Preset[] = [
     id: "default",
     name: "Default",
     description: "Clean, modern design with all features enabled",
-    config: {
-      components: {
-        attachments: true,
-        branchPicker: true,
-        editMessage: true,
-        actionBar: {
-          copy: true,
-          reload: true,
-          speak: false,
-          feedback: false,
-        },
-        threadWelcome: true,
-        suggestions: true,
-        scrollToBottom: true,
-        markdown: true,
-        codeHighlightTheme: "vitesse",
-        reasoning: false,
-        sources: false,
-        followUpSuggestions: false,
-        avatar: false,
-        typingIndicator: "dot",
-        loadingIndicator: "text",
-        loadingText: "Thinking...",
-      },
-      styles: {
-        theme: "light",
-        colors: {
-          accent: color("#0ea5e9", "#0ea5e9"),
-        },
-        borderRadius: "full",
-        maxWidth: "44rem",
-        fontFamily: "system-ui",
-        fontSize: "14px",
-        messageSpacing: "comfortable",
-        userMessagePosition: "right",
-        animations: true,
-      },
-    },
+    config: DEFAULT_CONFIG,
   },
   {
     id: "chatgpt",

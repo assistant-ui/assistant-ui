@@ -5,7 +5,9 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { SessionState } from "@/lib/session";
 import { useDocsChatRuntime, useDocsCloud } from "./chat-runtime";
 
-const useChatRuntime = vi.hoisted(() => vi.fn(() => ({ runtime: true })));
+const useChatRuntime = vi.hoisted(() =>
+  vi.fn((_options: unknown) => ({ runtime: true })),
+);
 const refreshDemoUsage = vi.hoisted(() => vi.fn());
 const mocks = vi.hoisted(() => ({
   session: { status: "loading" } as SessionState,
@@ -83,7 +85,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("switches cloud ownership only when signed-in history becomes available", async () => {
+it("switches cloud ownership when account history or identity changes", async () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(false);
   const { result, rerender } = renderHook(() => useDocsCloud());
@@ -154,7 +156,9 @@ it("switches cloud ownership only when signed-in history becomes available", asy
     user: { name: "Grace", email: "grace@test", image: null },
   };
   rerender();
-  expect(result.current.cloud).toBe(accountCloud);
+  expect(result.current.cloud).not.toBe(accountCloud);
+  expect(cloudStrategy(result.current.cloud)).toBe("jwt");
+  expect(fetchMock).toHaveBeenCalledOnce();
 });
 
 it("claims a stored anonymous token while switching to account history", async () => {

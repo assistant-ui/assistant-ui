@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import { Chat, useChat, type UIMessage } from "@ai-sdk/react";
 import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
@@ -12,23 +12,28 @@ import {
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import type { ChatInit, ChatTransport } from "ai";
+import type { ChatInit } from "ai";
 import {
   AssistantChatTransport,
   type InitializableThreadListItem,
 } from "../transport/AssistantChatTransport";
-import type {
-  AssistantChatResumableOptions,
-  ResumableClientStorage,
-} from "../transport/resumable";
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
+  useInsertionEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
+import {
+  DynamicChatTransport,
+  getResumedStreamIds,
+} from "./DynamicChatTransport";
+import { getResumableAdapter } from "./getResumableAdapter";
+import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -38,6 +43,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
+      onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
        * Called when an automatic resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
@@ -56,6 +62,12 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   getThreadListItem: () => InitializableThreadListItem | undefined;
   stopOnClientDestroy?: boolean;
   /**
+   * Aborts when the React component hosting the runtime is deleted. A nested
+   * runtime resolves the destroy signal of the provider above it, which
+   * outlives the nested component, so this stops the chat on its own unmount.
+   */
+  hostDestroySignal?: AbortSignal | undefined;
+  /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
    * from the instance.
@@ -69,57 +81,12 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   messageRepositoryInstance?: MessageRepository | undefined;
 };
 
-const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-): ChatTransport<UI_MESSAGE> => {
-  const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  useEffect(() => {
-    transportRef.current = transport;
-  });
-  const dynamicTransport = useMemo(
-    () =>
-      new Proxy(transportRef.current, {
-        get(_, prop) {
-          const res =
-            transportRef.current[prop as keyof ChatTransport<UI_MESSAGE>];
-          return typeof res === "function"
-            ? res.bind(transportRef.current)
-            : res;
-        },
-      }),
-    [],
-  );
-  return dynamicTransport;
-};
-
-const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-): AssistantChatResumableOptions | undefined => {
-  if (transport instanceof AssistantChatTransport) {
-    return transport.getResumableAdapter();
-  }
-  const candidate = (transport as { getResumableAdapter?: () => unknown })
-    .getResumableAdapter;
-  if (typeof candidate !== "function") return undefined;
-  return candidate.call(transport) as AssistantChatResumableOptions | undefined;
+type ChatThreadTransportBinding = {
+  runtime: AssistantRuntime;
+  getThreadListItem: () => InitializableThreadListItem | undefined;
 };
 
 const getNoPendingStreamId = () => null;
-
-const resumedStreamIdsByStorage = new WeakMap<
-  ResumableClientStorage,
-  Set<string>
->();
-
-const getResumedStreamIds = (storage: ResumableClientStorage | undefined) => {
-  if (!storage) return new Set<string>();
-  let resumedStreamIds = resumedStreamIdsByStorage.get(storage);
-  if (!resumedStreamIds) {
-    resumedStreamIds = new Set();
-    resumedStreamIdsByStorage.set(storage, resumedStreamIds);
-  }
-  return resumedStreamIds;
-};
 
 /**
  * Splits the combined options into the assistant-ui side and the `ChatInit`
@@ -140,6 +107,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     suggestions: _suggestions,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -158,12 +126,54 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
     chatInit,
   };
+};
+
+type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
+  ChatInit<UI_MESSAGE>,
+  "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
+>;
+
+const requestsByChat = new WeakMap<object, symbol>();
+
+/**
+ * Constructs a `Chat` whose callbacks read the latest options through
+ * `callbacksRef`, the forwarding `useChat` applies only to a chat it
+ * constructs itself.
+ */
+export const createChat = <UI_MESSAGE extends UIMessage>(
+  init: ChatInit<UI_MESSAGE>,
+  callbacksRef: { readonly current: ChatCallbacks<UI_MESSAGE> | undefined },
+): Chat<UI_MESSAGE> => {
+  const transport = init.transport;
+  const chat = new Chat<UI_MESSAGE>({
+    ...init,
+    ...(transport && {
+      transport: {
+        sendMessages: (options) => {
+          requestsByChat.set(chat, Symbol());
+          return transport.sendMessages(options);
+        },
+        reconnectToStream: (options) => {
+          requestsByChat.set(chat, Symbol());
+          return transport.reconnectToStream(options);
+        },
+      },
+    }),
+    onToolCall: (arg) => callbacksRef.current?.onToolCall?.(arg),
+    onData: (arg) => callbacksRef.current?.onData?.(arg),
+    onFinish: (arg) => callbacksRef.current?.onFinish?.(arg),
+    onError: (arg) => callbacksRef.current?.onError?.(arg),
+    sendAutomaticallyWhen: (arg) =>
+      callbacksRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
+  });
+  return chat;
 };
 
 export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -177,6 +187,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -189,43 +200,139 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     isMainThread,
     getThreadListItem,
     stopOnClientDestroy = true,
+    hostDestroySignal,
     chat: externalChat,
     messageRepositoryInstance,
   } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const sourceTransport = transportOptions ?? defaultTransport;
-  const transport = useDynamicChatTransport(sourceTransport);
+  const configuredTransport = transportOptions ?? defaultTransport;
+  const transport = useDynamicChatTransport(
+    configuredTransport,
+    externalChat === undefined,
+  );
+  const transportContextOwner = useMemo(() => ({}), []);
+  const getThreadListItemRef = useRef(getThreadListItem);
+  useInsertionEffect(() => {
+    getThreadListItemRef.current = getThreadListItem;
+  }, [getThreadListItem]);
+  const getCurrentThreadListItem = useCallback(
+    () => getThreadListItemRef.current(),
+    [],
+  );
+  const resumableStorage = useMemo(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.getCurrentResumableStorage()
+        : getResumableAdapter(transport)?.storage,
+    [transport],
+  );
+
+  const transportBindingRef = useRef<ChatThreadTransportBinding | null>(null);
+  // This is null when useMemo runs, so the proxy pins its mount render's binding. The fallback
+  // serves only pre-commit sends; after insertion effects, transportBindingRef is authoritative.
+  let initialTransportBinding: ChatThreadTransportBinding | null = null;
+  const chatTransport = useMemo(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.createThreadProxy(transportContextOwner, () => {
+            const binding =
+              transportBindingRef.current ?? initialTransportBinding;
+            if (!binding) {
+              throw new Error("Chat transport used before runtime setup");
+            }
+            return binding;
+          })
+        : transport,
+    [initialTransportBinding, transport, transportContextOwner],
+  );
+
+  const latestChatOptionsRef = useRef(chatOptions);
+  useEffect(() => {
+    latestChatOptionsRef.current = chatOptions;
+  });
+  // `useChat` stops a chat it constructs whenever it unmounts, and a
+  // resource's soft unmount runs that cleanup, so the thread owns its chat.
+  const [ownedChat] = useState(
+    () =>
+      externalChat ??
+      createChat(
+        { ...chatOptions, id, transport: chatTransport },
+        latestChatOptionsRef,
+      ),
+  );
 
   const chat = useChat({
-    ...chatOptions,
-    id,
-    transport,
+    chat: externalChat ?? ownedChat,
     ...(throttle !== undefined && { throttle }),
-    ...(externalChat !== undefined && { chat: externalChat }),
   });
 
-  useResourceCleanup(stopOnClientDestroy, () => {
-    void chat.stop().catch(() => {});
-  });
+  useResourceCleanup(
+    stopOnClientDestroy,
+    () => {
+      void chat.stop().catch(() => {});
+    },
+    hostDestroySignal,
+  );
 
   const runtime = useAISDKRuntime(chat, {
-    adapters,
+    adapters: {
+      ...adapters,
+      threadList: { threadId: id, ...adapters?.threadList },
+    },
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
+    ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),
     ...(messageRepository && { messageRepository }),
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
+    // The chat outlives this runtime when a host mounts only the visible
+    // thread, so a host approval answer is kept with it. This is the Chat
+    // instance, not the useChat helpers, which are re-minted every render and
+    // would be a dead WeakMap key by the next one.
+    unstable_hostApprovalOwner: externalChat ?? ownedChat,
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
+  initialTransportBinding = {
+    runtime,
+    getThreadListItem: getCurrentThreadListItem,
+  };
+  useInsertionEffect(() => {
+    transportBindingRef.current = {
+      runtime,
+      getThreadListItem: getCurrentThreadListItem,
+    };
+  }, [runtime, getCurrentThreadListItem]);
 
-  if (sourceTransport instanceof AssistantChatTransport) {
-    sourceTransport.setRuntime(runtime);
-    sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
+  const registerTransportContext = useEffectEvent(
+    (dynamicTransport: DynamicChatTransport<UI_MESSAGE>, chatId: string) => {
+      dynamicTransport.setThreadContext(
+        chatId,
+        transportContextOwner,
+        runtime,
+        getCurrentThreadListItem,
+      );
+      return () =>
+        dynamicTransport.unregisterThread(chatId, transportContextOwner);
+    },
+  );
+  useInsertionEffect(() => {
+    if (!(transport instanceof DynamicChatTransport)) return undefined;
+    return registerTransportContext(transport, id);
+  }, [id, runtime, transport, transportContextOwner]);
+
+  if (
+    !(transport instanceof DynamicChatTransport) &&
+    configuredTransport instanceof AssistantChatTransport
+  ) {
+    configuredTransport.setRuntime(runtime);
+    configuredTransport.__internal_setGetThreadListItem(
+      getCurrentThreadListItem,
+    );
   }
 
   const subscribeToRuntime = useCallback(
@@ -242,10 +349,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getHistoryLoadingSnapshot,
   );
 
-  const resumableStorage = useMemo(
-    () => getResumableAdapter(sourceTransport)?.storage,
-    [sourceTransport],
-  );
   const subscribeToResumableStorage = useCallback(
     (callback: () => void) =>
       isMainThread
@@ -265,7 +368,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const isChatRunning =
     chat.status === "submitted" || chat.status === "streaming";
 
-  const resumedStreamIds = useMemo(
+  const staticResumedStreamIds = useMemo(
     () => getResumedStreamIds(resumableStorage),
     [resumableStorage],
   );
@@ -274,6 +377,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResumeErrorRef.current = onResumeError;
   });
   useEffect(() => {
+    const resumedStreamIds =
+      transport instanceof DynamicChatTransport
+        ? transport.getResumedStreamIds()
+        : staticResumedStreamIds;
     if (!pendingStreamId || resumedStreamIds.has(pendingStreamId)) {
       return;
     }
@@ -283,29 +390,44 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
     if (isLoadingHistory) return;
     resumedStreamIds.add(pendingStreamId);
-    chat.resumeStream().catch((err: unknown) => {
-      console.warn("[assistant-ui] resumable: resume failed", err);
-      try {
-        onResumeErrorRef.current?.(err);
-      } catch (callbackError) {
-        console.error(
-          "[assistant-ui] resumable: onResumeError callback failed",
-          callbackError,
-        );
-      } finally {
-        if (resumableStorage?.getStreamId(id) === pendingStreamId) {
-          resumableStorage.clear(id);
+    const activeChat = externalChat ?? ownedChat;
+    activeChat.clearError();
+    const pending = chat.resumeStream();
+    const request = requestsByChat.get(activeChat);
+    pending
+      .then(() => {
+        // Chat.error is shared with sends and resumes that can start before
+        // this promise settles, including inside the caller's onFinish.
+        if (requestsByChat.get(activeChat) === request && activeChat.error) {
+          throw activeChat.error;
         }
-      }
-    });
+      })
+      .catch((err: unknown) => {
+        console.warn("[assistant-ui] resumable: resume failed", err);
+        try {
+          onResumeErrorRef.current?.(err);
+        } catch (callbackError) {
+          console.error(
+            "[assistant-ui] resumable: onResumeError callback failed",
+            callbackError,
+          );
+        } finally {
+          if (resumableStorage?.getStreamId(id) === pendingStreamId) {
+            resumableStorage.clear(id);
+          }
+        }
+      });
   }, [
     chat,
+    externalChat,
     id,
     isChatRunning,
     isLoadingHistory,
     pendingStreamId,
+    ownedChat,
     resumableStorage,
-    resumedStreamIds,
+    staticResumedStreamIds,
+    transport,
   ]);
 
   return runtime;

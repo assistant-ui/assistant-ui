@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
@@ -9,7 +9,11 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
-import type { LangChainBaseMessage } from "./types";
+import type {
+  LangChainBaseMessage,
+  LangChainToolCall,
+  UIMessage,
+} from "./types";
 import { startTransition, Suspense, type ReactNode } from "react";
 import {
   useLangChainRespond,
@@ -19,11 +23,13 @@ import {
   useLangChainSubmit,
 } from "./hooks";
 
-const { mockUseChannel, mockUseStream, streamController } = vi.hoisted(() => ({
-  mockUseChannel: vi.fn((): unknown[] => []),
-  mockUseStream: vi.fn(),
-  streamController: Symbol("STREAM_CONTROLLER"),
-}));
+const { conversionSpy, mockUseChannel, mockUseStream, streamController } =
+  vi.hoisted(() => ({
+    conversionSpy: vi.fn(),
+    mockUseChannel: vi.fn((): unknown[] => []),
+    mockUseStream: vi.fn(),
+    streamController: Symbol("STREAM_CONTROLLER"),
+  }));
 
 vi.mock("@langchain/react", () => ({
   STREAM_CONTROLLER: streamController,
@@ -31,7 +37,25 @@ vi.mock("@langchain/react", () => ({
   useStream: mockUseStream,
 }));
 
+vi.mock("./convertMessages", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./convertMessages")>();
+  return {
+    ...original,
+    convertLangChainBaseMessage: (
+      ...args: Parameters<typeof original.convertLangChainBaseMessage>
+    ) => {
+      conversionSpy(args[0].id);
+      return original.convertLangChainBaseMessage(...args);
+    },
+  };
+});
+
 import { useStreamRuntime } from "./useStreamRuntime";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
+
+beforeEach(() => {
+  mockUseChannel.mockReturnValue([]);
+});
 
 type MockStream = {
   messages: LangChainBaseMessage[];
@@ -130,6 +154,45 @@ const getText = (aui: ReturnType<typeof useAui>) =>
       .join(""),
   );
 
+describe("useStreamRuntime metadata cache", () => {
+  it("re-converts only the parent when a UI event changes", () => {
+    const messageCount = 1_000;
+    const messages = Array.from({ length: messageCount }, (_, index) =>
+      message(
+        `message-${index}`,
+        index % 2 === 0 ? "human" : "ai",
+        `Message ${index}`,
+      ),
+    );
+    const parentId = `message-${messageCount - 1}`;
+    const parentUI: UIMessage = {
+      type: "ui",
+      id: "ui-1",
+      name: "chart",
+      props: { value: 1 },
+      metadata: { message_id: parentId },
+    };
+    const stream = createMockStream(messages);
+    const { auiResult, rerender } = renderAui(stream);
+
+    expect(conversionSpy).toHaveBeenCalledTimes(messageCount);
+    conversionSpy.mockClear();
+
+    mockUseChannel.mockReturnValue([{ params: { data: parentUI } }] as never);
+    rerender();
+
+    expect(conversionSpy).toHaveBeenCalledOnce();
+    expect(conversionSpy).toHaveBeenCalledWith(parentId);
+    expect(
+      auiResult.current.thread.getState().messages.at(-1)?.content.at(-1),
+    ).toMatchObject({
+      type: "data",
+      name: "chart",
+      data: { value: 1 },
+    });
+  });
+});
+
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
     threads: [
@@ -194,18 +257,18 @@ describe("useStreamRuntime thread options", () => {
 
     const view = render(<TestRuntime />);
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("thread-a");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("thread-a"),
+    );
 
     const threadAOptions = mockUseStream.mock.calls
       .map(([options]) => options as { threadId?: string | null })
       .findLast((options) => options.threadId === "thread-a");
     expect(threadAOptions).toBeDefined();
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("thread-b");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("thread-b"),
+    );
 
     const threadBOptions = mockUseStream.mock.calls
       .map(([options]) => options as { threadId?: string | null })
@@ -917,6 +980,45 @@ describe("useStreamRuntime staged messages", () => {
   });
 });
 
+describe("useStreamRuntime pending tool call cancellation", () => {
+  it("cancels only the pending tool calls that carry an id", async () => {
+    const stream = createMockStream([
+      message("u1", "human", "look it up"),
+      {
+        id: "a1",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [
+          { name: "lookup", args: {} } as LangChainToolCall,
+          { id: "call-1", name: "search", args: {} },
+        ],
+      },
+    ]);
+    const { auiResult } = renderAui(stream);
+
+    await act(async () => {
+      await auiResult.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "never mind" }],
+      });
+    });
+
+    expect(stream.submit).toHaveBeenCalledTimes(1);
+    expect(stream.submit.mock.calls[0]![0]).toEqual({
+      messages: [
+        {
+          type: "tool",
+          name: "search",
+          tool_call_id: "call-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { id: expect.any(String), type: "human", content: "never mind" },
+      ],
+    });
+  });
+});
+
 describe("useStreamRuntime committed refs", () => {
   it("submits through the committed stream after an abandoned render", async () => {
     const streamA = createMockStream();
@@ -1015,6 +1117,8 @@ describe("useStreamRuntime subagent transcripts", () => {
           status: "running",
           parentId: null,
           depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
         },
       ],
     ]);
@@ -1068,5 +1172,215 @@ describe("useStreamRuntime subagent transcripts", () => {
     });
 
     expect(nestedTranscript()).toBe(rendered);
+  });
+
+  it("keeps messages and transcripts across equal copies of the UI state", async () => {
+    const stream = createMockStream([
+      message("human-1", "human", "delegate"),
+      {
+        id: "root-ai",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [{ id: "task-one", name: "task", args: {} }],
+      },
+    ]);
+    const transcript = [message("nested-ai", "ai", "nested answer")];
+    stream.subagents = new Map([
+      [
+        "task-one",
+        {
+          id: "task-one",
+          namespace: ["tools:task-one"],
+          status: "running",
+          parentId: null,
+          depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
+        },
+      ],
+    ]);
+    stream[streamController]!.registry.acquire.mockReturnValue({
+      store: { getSnapshot: () => transcript, subscribe: () => () => {} },
+      release: vi.fn(),
+    });
+    const uiState = (points: number[]) => [
+      {
+        type: "ui",
+        id: "ui-root",
+        name: "chart",
+        props: { points },
+        metadata: { message_id: "root-ai" },
+      },
+      {
+        type: "ui",
+        id: "ui-nested",
+        name: "chart",
+        props: { points },
+        metadata: { message_id: "nested-ai" },
+      },
+    ];
+    stream.values = { ui: uiState([1, 2]) };
+    const { auiResult, rerender } = renderAui(stream);
+    const nestedTranscript = () => {
+      const { messages } = auiResult.current.thread.getState();
+      for (const threadMessage of messages) {
+        for (const part of threadMessage.content) {
+          if (part.type === "tool-call" && part.toolCallId === "task-one")
+            return part.messages;
+        }
+      }
+      return undefined;
+    };
+
+    await waitFor(() =>
+      expect(nestedTranscript()?.[0]?.content).toMatchObject([
+        { type: "text", text: "nested answer" },
+        { type: "data", name: "chart", data: { points: [1, 2] } },
+      ]),
+    );
+    const [human, ai] = auiResult.current.thread.getState().messages;
+    expect(ai?.content).toMatchObject([
+      { type: "tool-call", toolCallId: "task-one" },
+      { type: "data", name: "chart", data: { points: [1, 2] } },
+    ]);
+    const rendered = nestedTranscript();
+
+    for (let i = 0; i < 3; i++) {
+      stream.values = { ui: uiState([1, 2]) };
+      await act(async () => {
+        rerender();
+      });
+    }
+
+    const messages = auiResult.current.thread.getState().messages;
+    expect(messages[0]).toBe(human);
+    expect(messages[1]).toBe(ai);
+    expect(nestedTranscript()).toBe(rendered);
+
+    stream.values = { ui: uiState([1, 2, 3]) };
+    await act(async () => {
+      rerender();
+    });
+
+    expect(
+      auiResult.current.thread.getState().messages[1]?.content,
+    ).toMatchObject([
+      { type: "tool-call", toolCallId: "task-one" },
+      { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+    ]);
+    expect(nestedTranscript()?.[0]?.content).toMatchObject([
+      { type: "text", text: "nested answer" },
+      { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+    ]);
+  });
+
+  it("keeps messages and transcripts when custom events carry no UI update", async () => {
+    const stream = createMockStream([
+      message("human-1", "human", "delegate"),
+      {
+        id: "root-ai",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [{ id: "task-one", name: "task", args: {} }],
+      },
+    ]);
+    const transcript = [message("nested-ai", "ai", "nested answer")];
+    stream.subagents = new Map([
+      [
+        "task-one",
+        {
+          id: "task-one",
+          namespace: ["tools:task-one"],
+          status: "running",
+          parentId: null,
+          depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
+        },
+      ],
+    ]);
+    stream[streamController]!.registry.acquire.mockReturnValue({
+      store: { getSnapshot: () => transcript, subscribe: () => () => {} },
+      release: vi.fn(),
+    });
+    const chartEvent = (
+      props: Record<string, unknown>,
+      metadata: Record<string, unknown> = {},
+    ) => ({
+      method: "custom",
+      params: {
+        namespace: ["tools:task-one"],
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props,
+          metadata: { message_id: "nested-ai", ...metadata },
+        },
+      },
+    });
+    const events = [
+      chartEvent({ points: [1, 2] }),
+      chartEvent({ label: "first" }, { merge: true }),
+    ];
+    mockUseChannel.mockReturnValue(events);
+    const { auiResult, rerender } = renderAui(stream);
+    const nestedTranscript = () => {
+      const { messages } = auiResult.current.thread.getState();
+      for (const threadMessage of messages) {
+        for (const part of threadMessage.content) {
+          if (part.type === "tool-call" && part.toolCallId === "task-one")
+            return part.messages;
+        }
+      }
+      return undefined;
+    };
+
+    await waitFor(() =>
+      expect(nestedTranscript()?.[0]?.content).toMatchObject([
+        { type: "text", text: "nested answer" },
+        {
+          type: "data",
+          name: "chart",
+          data: { points: [1, 2], label: "first" },
+        },
+      ]),
+    );
+    const [human, ai] = auiResult.current.thread.getState().messages;
+    const rendered = nestedTranscript();
+
+    const withProgress = [
+      ...events,
+      {
+        method: "custom",
+        params: { namespace: [], data: { name: "progress", payload: 1 } },
+      },
+    ];
+    mockUseChannel.mockReturnValue(withProgress);
+    await act(async () => {
+      rerender();
+    });
+
+    const messages = auiResult.current.thread.getState().messages;
+    expect(messages[0]).toBe(human);
+    expect(messages[1]).toBe(ai);
+    expect(nestedTranscript()).toBe(rendered);
+
+    mockUseChannel.mockReturnValue([
+      ...withProgress,
+      chartEvent({ label: "second" }, { merge: true }),
+    ]);
+    await act(async () => {
+      rerender();
+    });
+
+    expect(nestedTranscript()?.[0]?.content).toMatchObject([
+      { type: "text", text: "nested answer" },
+      {
+        type: "data",
+        name: "chart",
+        data: { points: [1, 2], label: "second" },
+      },
+    ]);
   });
 });

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     setIsCopied,
     state: {
       message: {
+        id: "message-1",
         role: "assistant",
         status: { type: "complete", reason: "stop" },
         parts: [{ type: "text", text: "Hello" }],
@@ -21,13 +22,13 @@ const mocks = vi.hoisted(() => {
     },
     aui: {
       message: {
-        getCopyText: () => "Hello",
+        getCopyText: (): string => "Hello",
         setIsCopied,
       },
     },
     currentAui: {
       message: {
-        getCopyText: () => "Hello",
+        getCopyText: (): string => "Hello",
         setIsCopied,
       },
     },
@@ -37,8 +38,8 @@ const mocks = vi.hoisted(() => {
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAui: () => mocks.currentAui,
-  useAuiState: ((selector: (state: typeof mocks.state) => unknown) =>
-    selector(mocks.state)) as typeof import("@assistant-ui/store").useAuiState,
+  useAuiState: (selector: (state: typeof mocks.state) => unknown) =>
+    selector(mocks.state),
 }));
 
 import { useActionBarCopy } from "./useActionBarCopy";
@@ -47,6 +48,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   mocks.currentAui = mocks.aui;
+  mocks.state.message.id = "message-1";
 });
 
 describe("useActionBarCopy", () => {
@@ -161,6 +163,27 @@ describe("useActionBarCopy", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("ignores clipboard success after the scope moves to another message", async () => {
+    let resolveCopy: (() => void) | undefined;
+    const copyToClipboard = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCopy = resolve;
+        }),
+    );
+    const { result, rerender } = renderHook(() =>
+      useActionBarCopy({ copyToClipboard }),
+    );
+
+    result.current.copy();
+    mocks.state.message.id = "message-2";
+    rerender();
+    resolveCopy?.();
+    await Promise.resolve();
+
+    expect(mocks.setIsCopied).not.toHaveBeenCalledWith(true);
+  });
+
   it("resets feedback for the previous message scope", async () => {
     vi.useFakeTimers();
     const copyToClipboard = vi.fn();
@@ -175,7 +198,7 @@ describe("useActionBarCopy", () => {
 
     mocks.currentAui = {
       message: {
-        getCopyText: () => "Next message",
+        getCopyText: (): string => "Next message",
         setIsCopied: nextSetIsCopied,
       },
     };

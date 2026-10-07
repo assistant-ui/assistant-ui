@@ -1,7 +1,10 @@
+import type { ChatTransport, UIMessage } from "ai";
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { version } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -16,7 +19,9 @@ const mocks = vi.hoisted(() => {
       getModelContext: () => ({}),
       subscribe: (callback: () => void) => {
         subscribers.add(callback);
-        return () => subscribers.delete(callback);
+        return () => {
+          subscribers.delete(callback);
+        };
       },
     },
     threads: {
@@ -51,8 +56,13 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@ai-sdk/react", () => ({
-  useChat: mocks.useChat,
+vi.mock("@ai-sdk/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ai-sdk/react")>()),
+  useChat: (...args: unknown[]) => {
+    const chat = mocks.useChat(...args);
+    if (chat) chat.stop ??= vi.fn(async () => {});
+    return chat;
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
@@ -76,7 +86,11 @@ import {
   createResumableSessionStorage,
   RESUMABLE_STREAM_ID_HEADER,
 } from "../transport/resumable";
+import { getResumedStreamIds } from "./DynamicChatTransport";
+import { AI_SDK_SDK } from "./sdkIdentity";
 import { useChatRuntime } from "./useChatRuntime";
+
+const onReact18 = version.startsWith("18.");
 
 const sendMessagesOptions = {
   trigger: "submit-message" as const,
@@ -86,13 +100,117 @@ const sendMessagesOptions = {
   abortSignal: undefined,
 };
 
-describe("useChatRuntime", () => {
+// Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+describe.skipIf(onReact18)("useChatRuntime", () => {
   beforeEach(() => {
+    mocks.useAISDKRuntime.mockImplementation(() => mocks.runtime);
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
     mocks.state.mainThreadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
+  });
+
+  it("refreshes AssistantChatTransport wiring when the runtime changes", async () => {
+    const bodies: Array<{ system: string }> = [];
+    const transport = new AssistantChatTransport({
+      fetch: vi.fn(async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(
+          new ReadableStream({ start: (controller) => controller.close() }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      }),
+    });
+    const createRuntime = (system: string) => ({
+      thread: {
+        getState: () => ({ isLoading: false }),
+        getModelContext: () => ({ system }),
+        subscribe: () => () => {},
+      },
+      threads: { mainItem: undefined },
+    });
+    let currentRuntime = createRuntime("system-a");
+    mocks.useAISDKRuntime.mockImplementation(() => currentRuntime);
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+    const { rerender } = renderHook(() => useChatRuntime({ transport }));
+    const dynamicTransport = mocks.useChat.mock.lastCall?.[0].chat
+      .transport as ChatTransport<UIMessage>;
+
+    await dynamicTransport.sendMessages(sendMessagesOptions as never);
+    currentRuntime = createRuntime("system-b");
+    rerender();
+    await dynamicTransport.sendMessages(sendMessagesOptions as never);
+
+    expect(bodies).toEqual([
+      expect.objectContaining({ system: "system-a" }),
+      expect.objectContaining({ system: "system-b" }),
+    ]);
+  });
+
+  it("forwards the Cloud scope to the thread-list adapter", () => {
+    const cloud = {} as AssistantCloud;
+    mocks.useCloudThreadListAdapter.mockClear();
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ cloud, scopeId: "workspace-1" }));
+
+    expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith({
+      cloud,
+      scopeId: "workspace-1",
+      sdk: AI_SDK_SDK,
+    });
+  });
+
+  it("forwards a callback through a ref, so a later render's callback fires instead of the mounted one", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    const onToolCallA = vi.fn();
+    const onToolCallB = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onToolCall }: { onToolCall: typeof onToolCallA }) =>
+        useChatRuntime({ onToolCall }),
+      { initialProps: { onToolCall: onToolCallA } },
+    );
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      onToolCall?: (arg: unknown) => void;
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    chat.onToolCall?.("first");
+    expect(onToolCallA).toHaveBeenCalledExactlyOnceWith("first");
+
+    rerender({ onToolCall: onToolCallB });
+    chat.onToolCall?.("second");
+
+    expect(onToolCallB).toHaveBeenCalledExactlyOnceWith("second");
+    expect(onToolCallA).toHaveBeenCalledOnce();
+  });
+
+  it("coerces an unset sendAutomaticallyWhen to false, matching useChat's own default", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime());
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    expect(chat.sendAutomaticallyWhen?.({})).toBe(false);
   });
 
   it("forwards a defined chat update throttle to useChat", () => {
@@ -109,6 +227,24 @@ describe("useChatRuntime", () => {
       expect.objectContaining({ throttle: 50 }),
     );
     expect(mocks.useChat.mock.calls[1]?.[0]).not.toHaveProperty("throttle");
+  });
+
+  it("forwards a custom approval handler to the runtime only", () => {
+    const onRespondToToolApproval = vi.fn();
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ onRespondToToolApproval }));
+
+    expect(mocks.useAISDKRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ onRespondToToolApproval }),
+    );
+    expect(mocks.useChat.mock.calls[0]?.[0]).not.toHaveProperty(
+      "onRespondToToolApproval",
+    );
   });
 
   it("waits for external history to load before resuming a stream", async () => {
@@ -283,8 +419,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "streaming",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "thread-a" ? threadA : threadB,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "thread-a" ? threadA : threadB,
     );
 
     mocks.state.threadId = "thread-a";
@@ -321,8 +457,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "ready",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "__LOCALID_background" ? backgroundThread : mainThread,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "__LOCALID_background" ? backgroundThread : mainThread,
     );
     const transport = {
       getResumableAdapter: () => ({
@@ -381,6 +517,48 @@ describe("useChatRuntime", () => {
     rerender({ transport: transportB });
 
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not resume an unchanged stream id already handled by replacement storage", () => {
+    mocks.state.isLoadingHistory = true;
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "ready",
+    });
+    const storageA = {
+      getStreamId: (): string | null => "stream-1",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    const storageB = {
+      getStreamId: (): string | null => "stream-1",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    getResumedStreamIds(storageB).add("stream-1");
+    const transportA = {
+      getResumableAdapter: () => ({
+        storage: storageA,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+    const transportB = {
+      getResumableAdapter: () => ({
+        storage: storageB,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport: transport as never }),
+      { initialProps: { transport: transportA } },
+    );
+
+    mocks.state.isLoadingHistory = false;
+    rerender({ transport: transportB });
+
+    expect(resumeStream).not.toHaveBeenCalled();
   });
 
   it("does not clear a newer stream id when an older resume fails", async () => {

@@ -25,6 +25,8 @@ export declare const git: (args: string[], cwd?: string) => string;
 export declare const repoRoot: () => string;
 export declare const envStamp: (root?: string) => EnvStamp;
 export declare const flattenBenchmarks: (raw: unknown) => SuiteRow[];
+export declare const failureLines: (raw: unknown) => string[];
 export declare const runSuite: (
   extraEnv?: Record<string, string>,
+  files?: string[],
 ) => SuiteRow[];

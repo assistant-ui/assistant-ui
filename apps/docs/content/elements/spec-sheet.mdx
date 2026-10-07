@@ -9,7 +9,7 @@ The structured shape for a single labeled object, the answer most tool results r
 
 <RuntimeMode>
 
-This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. Unlike a piece the model authors freely, a spec sheet is usually a genuine lookup, so the rows belong on the tool's `result` rather than on its streamed `args`.
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. Unlike a piece the model authors freely, a spec sheet is usually a lookup, so the rows belong on the tool's `result` rather than on its streamed `args`.
 
 <Steps>
   <Step>
@@ -40,7 +40,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Because the whole sheet lands as one result rather than as streamed steps, `visibleCount` is simply `result.rows.length`; there is no partial state to size it against.
+Because the whole sheet lands as one result rather than as streamed steps, `visibleCount` is `result.rows.length`; there is no partial state to size it against.
 
   </Step>
   <Step>
@@ -96,16 +96,16 @@ import {
 } from "@/components/assistant-ui/elements/spec-sheet";
 
 const rows: readonly SpecRow[] = [
-  { label: "context", value: "500,000 tokens" },
-  { label: "input", value: "$15.00 / M" },
+  { label: "context", value: "1,000,000 tokens" },
+  { label: "input", value: "$4.00 / M" },
   { label: "best for", value: "Long agentic runs", emphasis: true },
 ];
 
 export function ModelCard() {
   return (
     <SpecSheet
-      title="Opus 5"
-      subtitle="claude-opus-5"
+      title="Opus 5.5"
+      subtitle="claude-opus-5-5"
       rows={rows}
       visibleCount={rows.length}
     />
@@ -134,8 +134,8 @@ export function ModelCard() {
 
   return (
     <SpecSheet
-      title="Opus 5"
-      subtitle="claude-opus-5"
+      title="Opus 5.5"
+      subtitle="claude-opus-5-5"
       rows={rows}
       visibleCount={visibleCount}
     />

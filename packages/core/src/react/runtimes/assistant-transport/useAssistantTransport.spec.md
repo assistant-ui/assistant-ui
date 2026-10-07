@@ -16,6 +16,17 @@ Command Scheduling
   - If no run is in progress: start a run immediately and flush commands to the server.
 - A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
 - A resume run sends no commands; commands enqueued while it is pending or active are flushed in a follow-up run after it settles.
+- With no client tool executing, `thread.append` enqueues its message before a command sent later in the same tick. While a client tool executes, appending a message that starts a run first aborts that tool and waits for it to settle, so a command sent meanwhile goes out ahead of the message.
+
+Thread Identity
+
+- A run sends the thread's remote id as `threadId`. A thread without one yet, as on the first run of a new thread, first awaits the thread list item's `initialize()`, which creates the remote thread or joins the initialization already in flight.
+- With `cloud`, each request carries the Assistant Cloud thread id.
+- The parentId is read with the flush, before that await, so a message appended while the thread initializes keeps its own parentId.
+- A resume never initializes the thread, so a thread that was never initialized resumes without a `threadId`.
+- If initialization fails, no request is sent and the flushed commands reach `onError`.
+- Cancelling a run stops its wait for initialization at once, and a run cancelled before it starts never begins one; an initialization already underway continues, and the next run joins it.
+- The default in-memory thread list is created once per runtime, so a re-render of the host keeps its threads.
 
 Resume State
 

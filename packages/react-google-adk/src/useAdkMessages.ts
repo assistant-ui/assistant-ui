@@ -1,12 +1,13 @@
+import { isRecord } from "@assistant-ui/core/internal";
 import {
   useState,
   useCallback,
-  useEffect,
-  useInsertionEffect,
   useRef,
   useMemo,
+  useSyncExternalStore,
 } from "react";
 import { generateId } from "@assistant-ui/core";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,
@@ -14,16 +15,14 @@ import {
   openAbortableIterable,
 } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { AdkThreadController } from "./AdkThreadController";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
   AdkEvent,
   AdkMessage,
-  AdkMessageMetadata,
   AdkSendMessageConfig,
   AdkStreamCallback,
-  AdkToolConfirmation,
-  AdkAuthRequest,
   AdkThreadSnapshot,
   OnAdkErrorCallback,
   OnAdkCustomEventCallback,
@@ -39,6 +38,10 @@ export type UseAdkMessagesOptions = {
   };
 };
 
+type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
+  onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
+};
+
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -49,54 +52,34 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   void invokeUserCallback("react-google-adk", name, callback, ...args);
 };
 
-export const useAdkMessages = ({
+const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-}: UseAdkMessagesOptions) => {
-  const [messages, _setMessages] = useState<AdkMessage[]>([]);
-  const [stateDelta, setStateDelta] = useState<Record<string, unknown>>({});
-  const [agentInfo, setAgentInfo] = useState<{
-    name?: string | undefined;
-    branch?: string | undefined;
-  }>({});
-  const [longRunningToolIds, _setLongRunningToolIds] = useState<string[]>([]);
-  const [artifactDelta, setArtifactDelta] = useState<Record<string, number>>(
-    {},
+  onMessages,
+}: UseAdkMessagesInternalOptions) => {
+  const [controller] = useState(() => new AdkThreadController());
+  const {
+    messages,
+    stateDelta,
+    agentInfo,
+    longRunningToolIds,
+    artifactDelta,
+    toolConfirmations,
+    authRequests,
+    escalated,
+    messageMetadata,
+  } = useSyncExternalStore(
+    controller.subscribe,
+    controller.getState,
+    controller.getState,
   );
-  const [toolConfirmations, setToolConfirmations] = useState<
-    AdkToolConfirmation[]
-  >([]);
-  const [authRequests, setAuthRequests] = useState<AdkAuthRequest[]>([]);
-  const [escalated, setEscalated] = useState(false);
-  const [messageMetadata, setMessageMetadata] = useState<
-    Map<string, AdkMessageMetadata>
-  >(new Map());
-  const lastTransferToAgentRef = useRef<string | undefined>(undefined);
-  // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
-  const messagesRef = useRef(messages);
-  const longRunningToolIdsRef = useRef(longRunningToolIds);
-  const stateDeltaRef = useRef(stateDelta);
-  useInsertionEffect(() => {
-    stateDeltaRef.current = stateDelta;
-  }, [stateDelta]);
-  const artifactDeltaRef = useRef(artifactDelta);
-  useInsertionEffect(() => {
-    artifactDeltaRef.current = artifactDelta;
-  }, [artifactDelta]);
-  const messageMetadataRef = useRef(messageMetadata);
-  useInsertionEffect(() => {
-    messageMetadataRef.current = messageMetadata;
-  }, [messageMetadata]);
 
-  const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
-    messagesRef.current = msgs;
-    _setMessages(msgs);
-  }, []);
-  const setLongRunningToolIds = useCallback((ids: string[]) => {
-    longRunningToolIdsRef.current = ids;
-    _setLongRunningToolIds(ids);
-  }, []);
-
+  const setMessagesImmediate = useCallback(
+    (msgs: AdkMessage[]) => {
+      controller.dispatch({ type: "messages.set", messages: msgs });
+    },
+    [controller],
+  );
   /**
    * Swap the thread over to a loaded snapshot in one commit. Unlike
    * {@link replaceMessages} this never passes through a cleared state, so a
@@ -105,17 +88,9 @@ export const useAdkMessages = ({
    */
   const applySnapshot = useCallback(
     (snapshot: AdkThreadSnapshot) => {
-      setMessagesImmediate(snapshot.messages);
-      setLongRunningToolIds(snapshot.longRunningToolIds ?? []);
-      setToolConfirmations(snapshot.toolConfirmations ?? []);
-      setAuthRequests(snapshot.authRequests ?? []);
-      setEscalated(snapshot.escalated ?? false);
-      setMessageMetadata(snapshot.messageMetadata ?? new Map());
-      setStateDelta(snapshot.stateDelta ?? {});
-      setArtifactDelta(snapshot.artifactDelta ?? {});
-      setAgentInfo(snapshot.agentInfo ?? {});
+      controller.dispatch({ type: "snapshot.applied", snapshot });
     },
-    [setLongRunningToolIds, setMessagesImmediate],
+    [controller],
   );
 
   // Replace the message list AND reset derived per-turn HITL state.
@@ -124,14 +99,9 @@ export const useAdkMessages = ({
   // into the next turn.
   const replaceMessages = useCallback(
     (msgs: AdkMessage[]) => {
-      setMessagesImmediate(msgs);
-      setLongRunningToolIds([]);
-      setToolConfirmations([]);
-      setAuthRequests([]);
-      setEscalated(false);
-      setMessageMetadata(new Map());
+      controller.dispatch({ type: "messages.replaced", messages: msgs });
     },
-    [setLongRunningToolIds, setMessagesImmediate],
+    [controller],
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -159,17 +129,27 @@ export const useAdkMessages = ({
           m.type === "tool" ? [m.tool_call_id] : [],
         ),
       );
+      const currentState = controller.getState();
       const accumulator = new AdkEventAccumulator(
-        messagesRef.current.filter((m) => !resentIds.has(m.id)),
-        longRunningToolIdsRef.current.filter(
+        currentState.messages.filter((m) => !resentIds.has(m.id)),
+        currentState.longRunningToolIds.filter(
           (id) => !answeredToolCallIds.has(id),
         ),
       );
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
-      setMessagesImmediate(accumulator.getMessages());
-      setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      const initialMessages = accumulator.getMessages();
+      const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+      const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
+      controller.dispatch({
+        type: "run.started",
+        messages: initialMessages,
+        longRunningToolIds: initialLongRunningToolIds,
+        toolConfirmations: accumulator.getToolConfirmations(),
+        authRequests: accumulator.getAuthRequests(),
+      });
+      let lastTransferToAgent: string | undefined;
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -200,32 +180,35 @@ export const useAdkMessages = ({
             break;
           }
           const updatedMessages = accumulator.processEvent(event);
-          setMessagesImmediate(updatedMessages);
-          setStateDelta({
-            ...stateDeltaRef.current,
-            ...accumulator.getStateDelta(),
-          });
-          setAgentInfo(accumulator.getAgentInfo());
-          setLongRunningToolIds(accumulator.getLongRunningToolIds());
-          setArtifactDelta({
-            ...artifactDeltaRef.current,
-            ...accumulator.getArtifactDelta(),
-          });
-          setToolConfirmations(accumulator.getToolConfirmations());
-          setAuthRequests(accumulator.getAuthRequests());
-          setEscalated(accumulator.isEscalated());
-          {
-            const newMeta = accumulator.getMessageMetadata();
-            if (newMeta.size > 0) {
-              setMessageMetadata(
-                new Map([...messageMetadataRef.current, ...newMeta]),
-              );
-            }
+          // Each event part can append at most one message, and a function call
+          // stays on the current assistant message until a later part finalizes
+          // it, so every message touched by this event is within this tail.
+          const affectedMessageCount = Math.max(
+            event.content?.parts?.length ?? 0,
+            1,
+          );
+          const affectedMessages = updatedMessages.slice(-affectedMessageCount);
+          if (affectedMessages.length > 0) {
+            onMessages?.(affectedMessages, config.runConfig);
           }
+          controller.dispatch({
+            type: "event.published",
+            state: {
+              messages: updatedMessages,
+              stateDelta: accumulator.getStateDelta(),
+              agentInfo: accumulator.getAgentInfo(),
+              longRunningToolIds: accumulator.getLongRunningToolIds(),
+              artifactDelta: accumulator.getArtifactDelta(),
+              toolConfirmations: accumulator.getToolConfirmations(),
+              authRequests: accumulator.getAuthRequests(),
+              escalated: accumulator.isEscalated(),
+              messageMetadata: accumulator.getMessageMetadata(),
+            },
+          });
 
           const transfer = accumulator.getLastTransferToAgent();
-          if (transfer && transfer !== lastTransferToAgentRef.current) {
-            lastTransferToAgentRef.current = transfer;
+          if (transfer && transfer !== lastTransferToAgent) {
+            lastTransferToAgent = transfer;
             invokeAdkRuntimeCallback(
               "onAgentTransfer",
               onAgentTransfer,
@@ -263,18 +246,47 @@ export const useAdkMessages = ({
         }
       } finally {
         if (abortControllerRef.current === abortController) {
+          if (abortController.signal.aborted) {
+            controller.dispatch({
+              type: "longRunningToolIds.set",
+              ids: accumulator
+                .getLongRunningToolIds()
+                .filter((id) => initialLongRunningToolIds.includes(id)),
+            });
+            const updatedMessages = controller.getState().messages;
+            const lastAssistantMessage = updatedMessages.findLast(
+              (m) => m.type === "ai",
+            );
+            if (
+              lastAssistantMessage &&
+              !initialMessageIds.has(lastAssistantMessage.id) &&
+              !lastAssistantMessage.status
+            ) {
+              setMessagesImmediate(
+                updatedMessages.map((m) =>
+                  m === lastAssistantMessage
+                    ? {
+                        ...lastAssistantMessage,
+                        status: { type: "incomplete", reason: "cancelled" },
+                      }
+                    : m,
+                ),
+              );
+            }
+          }
           abortControllerRef.current = null;
         }
       }
     },
     [
       aui,
+      controller,
       setMessagesImmediate,
-      setLongRunningToolIds,
       stream,
       onError,
       onCustomEvent,
       onAgentTransfer,
+      onMessages,
     ],
   );
 
@@ -284,7 +296,7 @@ export const useAdkMessages = ({
     }
   }, []);
 
-  useEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     messages,
@@ -303,6 +315,17 @@ export const useAdkMessages = ({
     applySnapshot,
   };
 };
+
+export const useAdkMessages = ({
+  stream,
+  eventHandlers,
+}: UseAdkMessagesOptions) =>
+  useAdkMessagesInternal({
+    stream,
+    ...(eventHandlers !== undefined && { eventHandlers }),
+  });
+
+export { useAdkMessagesInternal };
 
 /**
  * Transport sends every human and tool message of one `send` call as a single
@@ -393,9 +416,9 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
     role: "model",
     parts: [
       ...contentToParts(msg.content),
-      ...(msg.tool_calls?.map((tc) => ({
+      ...(msg.tool_calls ?? []).filter(isRecord).map((tc) => ({
         functionCall: { name: tc.name, id: tc.id, args: { ...tc.args } },
-      })) ?? []),
+      })),
     ],
   };
   return result;

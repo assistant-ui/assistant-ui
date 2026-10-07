@@ -35,7 +35,7 @@ export type MessageStateBinding = SubscribableWithState<
   MessageRuntimePath
 >;
 
-export type ThreadListItemState = {
+export type ThreadListItemRuntimeState = {
   readonly isMain: boolean;
   /**
    * Whether this thread has a run in progress, including a run that continues
@@ -50,3 +50,8 @@ export type ThreadListItemState = {
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
 };
+
+/**
+ * @deprecated Use `ThreadListItemRuntimeState`. From `@assistant-ui/react` 0.16, `ThreadListItemState` names the thread list item state read through `useAuiState`.
+ */
+export type ThreadListItemState = ThreadListItemRuntimeState;

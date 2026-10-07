@@ -18,12 +18,13 @@ import {
   forwardRef,
   memo,
   useDeferredValue,
-  useRef,
   useMemo,
 } from "react";
+import { CodeAdapterContext } from "../adapters/code-adapter";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
+import { useStableProps } from "../useStableProps";
 import type {
   AllowedTags,
   RemendConfig,
@@ -48,57 +49,6 @@ const useRepairedText = (
     () => (shouldTailRemend ? tailBoundedRemend(text, remendConfig) : text),
     [shouldTailRemend, text, remendConfig],
   );
-
-const StreamdownBody: FC<StreamdownBodyProps> = ({
-  text,
-  shouldTailRemend,
-  remendConfig,
-  ...props
-}) => {
-  const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
-  return <Streamdown {...props}>{repairedText}</Streamdown>;
-};
-
-const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
-  if (Object.is(a, b)) return true;
-  if (depth <= 0) return false;
-
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (!isShallowEqual(a[i], b[i], depth - 1)) return false;
-    }
-    return true;
-  }
-
-  const plain = (value: unknown): value is Record<string, unknown> =>
-    typeof value === "object" && value !== null && !Array.isArray(value);
-
-  if (plain(a) && plain(b)) {
-    const keys = Object.keys(a);
-    return (
-      keys.length === Object.keys(b).length &&
-      keys.every(
-        (key) =>
-          Object.hasOwn(b, key) && isShallowEqual(a[key], b[key], depth - 1),
-      )
-    );
-  }
-
-  return false;
-};
-
-/**
- * Keeps the identity of props whose contents are unchanged, comparing one array
- * or object level so that an inline `remarkPlugins={[plugin]}` still reaches the
- * memoized body. A value mutated in place keeps the old identity and is not
- * observed.
- */
-function useStableProps<T extends object>(props: T): T {
-  const previous = useRef(props);
-  if (!isShallowEqual(props, previous.current, 2)) previous.current = props;
-  return previous.current;
-}
 
 // Streamdown reparses the whole accumulated text on every render, so the urgent
 // pass of a deferred pair would parse text the previous commit already parsed.
@@ -265,23 +215,23 @@ export const StreamdownTextPrimitive = forwardRef<
   ) => {
     const messagePart = useMessagePartText();
 
-    const processedPart = useMemo(
-      () =>
-        preprocess
-          ? { ...messagePart, text: preprocess(messagePart.text) }
-          : messagePart,
-      [messagePart, preprocess],
+    const { text: revealedText, status } = useSmooth(messagePart, smooth);
+
+    // Smoothing tracks what it has already revealed and restarts from empty when
+    // the text it receives stops extending that prefix. A preprocess rewrite
+    // fires on a closing token and so rewrites already-revealed characters, so it
+    // runs on the revealed text rather than ahead of the reveal.
+    const text = useMemo(
+      () => (preprocess ? preprocess(revealedText) : revealedText),
+      [preprocess, revealedText],
     );
 
-    const { text, status } = useSmooth(processedPart, smooth);
-
+    const repairDisabled =
+      parseIncompleteMarkdown === false || status.type === "complete";
     const shouldTailRemend =
-      mode === "streaming" &&
-      parseIncompleteMarkdown !== false &&
-      !parseMarkdownIntoBlocksFn;
-    const resolvedParseIncomplete = shouldTailRemend
-      ? false
-      : parseIncompleteMarkdown;
+      mode === "streaming" && !repairDisabled && !parseMarkdownIntoBlocksFn;
+    const resolvedParseIncomplete =
+      repairDisabled || shouldTailRemend ? false : parseIncompleteMarkdown;
 
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});
@@ -295,11 +245,10 @@ export const StreamdownTextPrimitive = forwardRef<
     );
 
     // The documented usage of `components` is an inline object literal, so the
-    // map is stabilized here; without it the memoized body sees a new prop
-    // identity every render and never bails out.
-    const mergedComponents = useStableProps(
-      useAdaptedComponents({ components, componentsByLanguage }),
-    );
+    // adapted map is stabilized here; a fresh identity would defeat the
+    // memoized body.
+    const adapted = useAdaptedComponents({ components, componentsByLanguage });
+    const mergedComponents = useStableProps(adapted.components);
 
     const containerClass = useMemo(() => {
       const classes = [containerClassName, containerProps?.className]
@@ -335,7 +284,7 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };
 
-    const Body = defer ? DeferredStreamdownBody : StreamdownBody;
+    const Body = defer ? DeferredStreamdownBody : MemoizedStreamdownBody;
     // An inline option object is a fresh value every render, which would give
     // the memoized body a new prop identity and defeat its bail-out.
     const bodyProps = useStableProps({
@@ -350,15 +299,17 @@ export const StreamdownTextPrimitive = forwardRef<
         {...containerProps}
         className={containerClass}
       >
-        <Body
-          text={text}
-          shouldTailRemend={shouldTailRemend}
-          remendConfig={remend}
-          mode={mode}
-          isAnimating={status.type === "running"}
-          components={mergedComponents}
-          {...bodyProps}
-        />
+        <CodeAdapterContext.Provider value={adapted.codeAdapter}>
+          <Body
+            text={text}
+            shouldTailRemend={shouldTailRemend}
+            remendConfig={bodyProps.remend}
+            mode={mode}
+            isAnimating={status.type === "running"}
+            components={mergedComponents}
+            {...bodyProps}
+          />
+        </CodeAdapterContext.Provider>
       </div>
     );
   },

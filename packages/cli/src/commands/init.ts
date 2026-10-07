@@ -1,10 +1,13 @@
 import { Command, Option } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { dlxCommand, resolvePackageManager } from "../lib/create-project";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
-import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
+import {
+  dlxCommand,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
+} from "../lib/utils/package-manager";
 import {
   getComponentsJsonStyle,
   resolveQuickStartRegistryUrl,
@@ -83,8 +86,7 @@ export const init = new Command()
         logger.break();
       }
 
-      const createArgs: string[] = [];
-      if (projectDirectory) createArgs.push(targetDir);
+      const createArgs = projectDirectory ? [targetDir] : ["--cwd", cwd];
       if (presetUrl) createArgs.push("--preset", presetUrl);
       if (opts.useNpm) createArgs.push("--use-npm");
       if (opts.usePnpm) createArgs.push("--use-pnpm");

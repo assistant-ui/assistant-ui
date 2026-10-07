@@ -1,6 +1,7 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
 import { parseAdkEventValue } from "./parseAdkEvent";
+import { raceWithAbortSignal } from "./raceWithAbortSignal";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
@@ -76,7 +77,7 @@ export function createAdkStream(
   }
 
   return async function* (messages, config) {
-    const headers = await resolveHeaders(options.headers);
+    const headers = await resolveHeaders(options.headers, config.abortSignal);
 
     let url: string;
     let body: unknown;
@@ -96,7 +97,8 @@ export function createAdkStream(
     } else {
       // Proxy mode: POST in parseAdkRequest-compatible format
       url = options.api;
-      body = messagesToProxyBody(messages, config);
+      const { remoteId, externalId } = await config.initialize();
+      body = messagesToProxyBody(messages, config, externalId ?? remoteId);
     }
 
     const response = await fetch(url, {
@@ -149,9 +151,12 @@ async function resolveHeaders(
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>)
     | undefined,
+  signal?: AbortSignal,
 ): Promise<Record<string, string>> {
   if (!headers) return {};
-  if (typeof headers === "function") return await headers();
+  if (typeof headers === "function") {
+    return await raceWithAbortSignal(signal, headers);
+  }
   return headers;
 }
 
@@ -205,8 +210,9 @@ function messagesToProxyBody(
     checkpointId?: string | undefined;
     stateDelta?: Record<string, unknown> | undefined;
   },
+  sessionId: string,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
+  const body: Record<string, unknown> = { sessionId };
 
   if (config.runConfig != null) body.runConfig = config.runConfig;
   if (config.checkpointId != null) body.checkpointId = config.checkpointId;
@@ -252,7 +258,10 @@ function messagesToProxyBody(
 }
 
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
-  const reader = response.body!.getReader();
+  if (!response.body) {
+    throw new Error("Expected ADK stream response body, received no body");
+  }
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 

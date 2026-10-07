@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { optionValues } from "./lib/script-options.mjs";
 import {
+  apiSurfaceFileName,
   collectPackages,
   collectTurboFilteredPackageNames,
   posixPath,
@@ -33,12 +34,8 @@ const requireFromBuildUtils = createRequire(
 const { build } = await import(requireFromBuildUtils.resolve("tsdown"));
 const ts = requireFromBuildUtils("typescript");
 
-function packageFileName(packageName) {
-  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
-}
-
 function packageEntryName(packageName) {
-  return packageFileName(packageName).replace(/\.ts$/, "");
+  return apiSurfaceFileName(packageName).replace(/\.ts$/, "");
 }
 
 function relativeImport(fromDir, toFile) {
@@ -689,7 +686,7 @@ export function normalizeBundledDeclaration(content) {
   return `${printed.trim()}\n`;
 }
 
-async function bundlePackageSurface(packageInfo) {
+async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
   const { packageDir, pkg } = packageInfo;
   const entries = collectDeclarationEntries(packageDir, pkg);
   if (entries.length === 0) return undefined;
@@ -723,11 +720,13 @@ async function bundlePackageSurface(packageInfo) {
     cwd: repoRoot,
     platform: "neutral",
     format: "esm",
-    dts: true,
+    // The synthetic entry only contains namespace re-exports, so isolated declaration generation avoids a workspace-wide TypeScript program.
+    dts: { generator: "oxc" },
     sourcemap: false,
     clean: true,
     logLevel: "silent",
-    deps: { neverBundle: /^node:/, skipNodeModulesBundle: true },
+    // Workspace packages are inlined so a distribution package's surface carries the declarations it re-exports; every other package stays an import.
+    deps: { neverBundle: true, alwaysBundle: workspacePackagePatterns },
   });
 
   const outputFile = path.join(tempOut, `${entryName}.d.mts`);
@@ -858,19 +857,19 @@ function writeOrCheck(file, content, changedFiles) {
 
 // A filtered run cannot judge files for unselected packages, but a file
 // matching no current publishable package (deleted, renamed, privatized) is
-// stale under any filter; only the unfiltered run may treat
-// not-regenerated-this-run as stale.
+// stale under any filter. A selected package may no longer expose declarations.
 export function selectStaleSurfaceFiles({
   files,
   generatedFiles,
   knownFiles,
   filtered,
+  selectedFiles = new Set(),
 }) {
   return files.filter(
     (file) =>
       file.endsWith(".ts") &&
       !generatedFiles.has(file) &&
-      !(filtered && knownFiles.has(file)),
+      !(filtered && knownFiles.has(file) && !selectedFiles.has(file)),
   );
 }
 
@@ -885,6 +884,9 @@ async function main() {
         compareStrings,
       )
     : allPackages;
+  const workspacePackagePatterns = allPackages.map(
+    ({ pkg }) => new RegExp(`^${escapeRegExp(pkg.name)}(?:/|$)`),
+  );
   const generatedFiles = new Set();
   const changedFiles = [];
 
@@ -900,12 +902,18 @@ async function main() {
 
     for (const packageInfo of packages) {
       const { pkg } = packageInfo;
-      const bundledSurface = await bundlePackageSurface(packageInfo);
+      const bundledSurface = await bundlePackageSurface(
+        packageInfo,
+        workspacePackagePatterns,
+      );
       const cliPackageSurface = cliSurface[pkg.name];
       if (!bundledSurface && !cliPackageSurface) continue;
       const content = bundledSurface ?? renderCliSurface(cliPackageSurface);
 
-      const outputFile = path.join(apiSurfaceRoot, packageFileName(pkg.name));
+      const outputFile = path.join(
+        apiSurfaceRoot,
+        apiSurfaceFileName(pkg.name),
+      );
       generatedFiles.add(outputFile);
       writeOrCheck(outputFile, content, changedFiles);
     }
@@ -913,7 +921,7 @@ async function main() {
     if (existsSync(apiSurfaceRoot)) {
       const knownFiles = new Set(
         allPackages.map(({ pkg }) =>
-          path.join(apiSurfaceRoot, packageFileName(pkg.name)),
+          path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
         ),
       );
       const stale = selectStaleSurfaceFiles({
@@ -923,6 +931,11 @@ async function main() {
         generatedFiles,
         knownFiles,
         filtered: turboFilters.length > 0,
+        selectedFiles: new Set(
+          packages.map(({ pkg }) =>
+            path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
+          ),
+        ),
       });
       for (const file of stale) {
         if (checkMode) {

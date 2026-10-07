@@ -3,6 +3,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import { ToolResponse } from "assistant-stream";
+import type { UIMessage } from "@ai-sdk/react";
+import {
+  createSuggestionAdapter,
+  type MessageFormatRepository,
+} from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -15,6 +21,8 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     })),
   };
 });
@@ -80,6 +88,8 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
   });
 
@@ -119,13 +129,13 @@ describe("useAISDKRuntime", () => {
       result.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "hello" }],
-        runConfig: { custom: { model: "gpt-5.6-luna" } },
+        runConfig: { custom: { model: "gpt-6-luna" } },
       });
     });
 
     await waitFor(() => {
       expect(chat.sendMessage).toHaveBeenCalledWith(expect.anything(), {
-        metadata: { custom: { model: "gpt-5.6-luna" } },
+        metadata: { custom: { model: "gpt-6-luna" } },
       });
     });
   });
@@ -374,6 +384,31 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("keeps rendering through a run when the last assistant message has malformed parts", () => {
+    const chat = createChatHelpers([
+      { id: "user-1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          null,
+          { text: "no type" },
+          { type: "text" },
+          { type: "text", text: "yo" },
+        ],
+      },
+    ]);
+    chat.status = "submitted";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    expect(textOf(result.current.thread.getState().messages.at(-1))).toBe("yo");
+  });
+
   it("marks output cancelled while a client tool is still executing", async () => {
     let resolveTool!: (value: string) => void;
     const execute = vi.fn(
@@ -521,6 +556,86 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages[0].parts[1].state).toBe("output-available");
   });
 
+  it("sends past an assistant message with malformed parts", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          null,
+          { text: "no type" },
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "continue" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(chat.messages[0].parts.slice(0, 2)).toEqual([
+      null,
+      { text: "no type" },
+    ]);
+    expect(chat.messages[0].parts[2].state).toBe("output-error");
+  });
+
+  it("answers a tool call in an earlier assistant message with malformed parts", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          null,
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "and?" }] },
+      { id: "a2", role: "assistant", parts: [{ type: "text", text: "ok" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(3);
+    });
+
+    await act(async () => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temp: 72 });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages[0].parts[1].state).toBe("output-available");
+    });
+    expect(chat.messages[0].parts[0]).toBeNull();
+    expect(chat.messages[0].parts[1].output).toEqual({ temp: 72 });
+  });
+
   it("strips stale approval when cancelling a tool pending approval so history stays valid", async () => {
     const chat = createChatHelpers([
       {
@@ -569,7 +684,65 @@ describe("useAISDKRuntime", () => {
     ).resolves.toBeDefined();
   });
 
-  it("forwards a successful tool result through addToolOutput, not the deprecated addToolResult", async () => {
+  it("cancels a pending tool call left behind a staged message", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "mcp_search",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: { q: "hi" },
+            approval: { id: "appr-1" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "context" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages).toHaveLength(2);
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "what" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    const part = chat.messages[0].parts[0];
+    expect(part.state).toBe("output-error");
+    expect(part.approval).toBeUndefined();
+
+    await expect(
+      validateUIMessages({ messages: chat.messages }),
+    ).resolves.toBeDefined();
+  });
+
+  it("attaches a tool artifact to the live part and forwards its result through addToolOutput", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -585,7 +758,7 @@ describe("useAISDKRuntime", () => {
       },
     ]);
 
-    const { result } = renderHook(() => useAISDKRuntime(chat));
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
 
     await waitFor(() => {
       expect(result.current.thread.getState().messages.length).toBeGreaterThan(
@@ -597,12 +770,25 @@ describe("useAISDKRuntime", () => {
       result.current.thread
         .getMessageById("a1")
         .getMessagePartByToolCallId("tc-1")
-        .addToolResult({ temp: 72 });
+        .addToolResult(
+          new ToolResponse({
+            result: { temp: 72 },
+            artifact: { preview: "72°F and sunny" },
+          }),
+        );
     });
 
     await waitFor(() => {
       expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
     });
+
+    const livePart = result.current.thread
+      .getMessageById("a1")
+      .getMessagePartByToolCallId("tc-1")
+      .getState();
+    expect(
+      livePart.type === "tool-call" ? livePart.artifact : undefined,
+    ).toEqual({ preview: "72°F and sunny" });
 
     expect(chat.addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -612,7 +798,90 @@ describe("useAISDKRuntime", () => {
         options: { metadata: undefined },
       }),
     );
+    expect(chat.addToolOutput.mock.calls[0]?.[0]).not.toHaveProperty(
+      "artifact",
+    );
     expect(chat.addToolResult).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.get("tc-1"),
+    ).toEqual({ preview: "72°F and sunny" });
+
+    chat.messages = chat.messages.map((message: UIMessage) => ({
+      ...message,
+    }));
+    rerender();
+
+    await waitFor(() => {
+      const part = result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .getState();
+      expect(part.type === "tool-call" ? part.artifact : undefined).toEqual({
+        preview: "72°F and sunny",
+      });
+    });
+    expect(chat.messages[0]?.metadata).toBeUndefined();
+  });
+
+  it("shows recorded tool interactions without writing them to chat messages", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+    const persistToolInteractions = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions,
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1").unstable_recordInteraction!({
+        type: "action",
+        payload: { refresh: true },
+      });
+    });
+
+    await waitFor(() => {
+      const part = result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .getState();
+      expect(
+        part.type === "tool-call" ? part.unstable_interactions : undefined,
+      ).toEqual({
+        entries: [
+          {
+            type: "action",
+            occurredAt: expect.any(Number),
+            payload: { refresh: true },
+          },
+        ],
+      });
+    });
+    expect(persistToolInteractions).toHaveBeenCalledExactlyOnceWith("a1");
+    expect(chat.messages[0]?.metadata).toBeUndefined();
+    expect(chat.addToolOutput).not.toHaveBeenCalled();
+    expect(chat.sendMessage).not.toHaveBeenCalled();
   });
 
   it("appends a new user message without sending when startRun is false", async () => {
@@ -702,6 +971,8 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage,
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
@@ -734,6 +1005,115 @@ describe("useAISDKRuntime", () => {
       "a1",
       "a2",
     ]);
+  });
+
+  it("removes tool artifacts with their deleted message", async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage,
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult(
+          new ToolResponse({
+            result: { temp: 72 },
+            artifact: { preview: "72°F and sunny" },
+          }),
+        );
+    });
+
+    await waitFor(() => {
+      expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
+    });
+
+    const toolArtifacts = vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5];
+    expect(toolArtifacts?.get("tc-1")).toEqual({
+      preview: "72°F and sunny",
+    });
+    await act(async () => {
+      await result.current.thread.getMessageById("a1").delete();
+    });
+
+    expect(deleteMessage).toHaveBeenCalledWith("a1");
+    expect(toolArtifacts?.has("tc-1")).toBe(false);
+  });
+
+  it("removes tool interactions with their deleted message", async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage,
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { city: "NYC" },
+            output: { temp: 72 },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1").unstable_recordInteraction!({
+        type: "action",
+        payload: { type: "refresh" },
+      });
+    });
+
+    const toolInteractions = vi
+      .mocked(useExternalHistory)
+      .mock.calls.at(-1)?.[7];
+    expect(toolInteractions?.has("tc-1")).toBe(true);
+
+    await act(async () => {
+      await result.current.thread.getMessageById("a1").delete();
+    });
+
+    expect(deleteMessage).toHaveBeenCalledWith("a1");
+    expect(toolInteractions?.has("tc-1")).toBe(false);
   });
 
   it("edit slices history to parentId and sends the edited message", async () => {
@@ -981,7 +1361,7 @@ describe("useAISDKRuntime", () => {
   it("imports a message tree without replacing the chat feed", async () => {
     const chat = createChatHelpers();
     const onBranchChange = vi.fn();
-    const messageRepository = {
+    const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a2",
       messages: [
         {
@@ -1077,7 +1457,7 @@ describe("useAISDKRuntime", () => {
     const chat = createChatHelpers([
       { id: "live", role: "user", parts: [{ type: "text", text: "keep me" }] },
     ]);
-    const messageRepository = {
+    const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a1",
       messages: [
         {
@@ -1115,7 +1495,9 @@ describe("useAISDKRuntime", () => {
 
   it("does not reseed when the repository object identity changes", async () => {
     const chat = createChatHelpers();
-    const makeRepository = (text: string) => ({
+    const makeRepository = (
+      text: string,
+    ): MessageFormatRepository<UIMessage> => ({
       headId: "a1",
       messages: [
         {
@@ -1421,6 +1803,307 @@ describe("useAISDKRuntime", () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
     expect(result.current.thread.getState().suggestions).toEqual([]);
+  });
+
+  it("regenerates suggestions when the same adapter is restored", async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce([{ prompt: "first" }])
+      .mockResolvedValueOnce([{ prompt: "second" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, withAdapter }) => {
+        chat.status = status;
+        return useAISDKRuntime(
+          chat,
+          withAdapter ? { adapters: { suggestion: { generate } } } : {},
+        );
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          withAdapter: true,
+        },
+      },
+    );
+
+    rerender({ status: "ready", withAdapter: true });
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "first" },
+      ]);
+    });
+
+    rerender({ status: "ready", withAdapter: false });
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+
+    rerender({ status: "ready", withAdapter: true });
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "second" },
+      ]);
+    });
+  });
+
+  it("preserves the suggestion adapter receiver", async () => {
+    const adapter = {
+      prompt: "bound",
+      async generate() {
+        return [{ prompt: this.prompt }];
+      },
+    };
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: adapter },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "bound" },
+      ]);
+    });
+  });
+
+  it("keeps a keyless inline suggestion adapter stable across rerenders", async () => {
+    let resolveGenerate!: (value: readonly { prompt: string }[]) => void;
+    const generate = vi.fn(
+      ({ signal: _signal }: { signal?: AbortSignal }) =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveGenerate = resolve;
+        }),
+    );
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: {
+            suggestion: {
+              async generate({ signal }) {
+                return generate({
+                  ...(signal !== undefined && { signal }),
+                });
+              },
+            },
+          },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+    await waitFor(() => expect(generate).toHaveBeenCalledOnce());
+    const signal = generate.mock.calls[0]![0].signal;
+
+    rerender({ status: "ready" });
+    expect(generate).toHaveBeenCalledOnce();
+    expect(signal?.aborted).toBe(false);
+
+    resolveGenerate([{ prompt: "next" }]);
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "next" },
+      ]);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(generate).toHaveBeenCalledOnce();
+  });
+
+  it("does not generate for an inline adapter on mount or parent rerender", async () => {
+    const complete = vi.fn().mockResolvedValue(["unexpected"]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { rerender } = renderHook(() =>
+      useAISDKRuntime(chat, {
+        adapters: {
+          suggestion: createSuggestionAdapter({ complete }),
+        },
+      }),
+    );
+
+    rerender();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("restarts an inline suggestion adapter when its key changes", async () => {
+    const firstComplete = vi.fn().mockResolvedValue(["first"]);
+    const secondComplete = vi.fn().mockResolvedValue(["second"]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, adapterKey, complete }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: {
+            suggestion: createSuggestionAdapter({
+              key: adapterKey,
+              complete,
+            }),
+          },
+        });
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          adapterKey: "first",
+          complete: firstComplete,
+        },
+      },
+    );
+
+    rerender({
+      status: "ready",
+      adapterKey: "first",
+      complete: firstComplete,
+    });
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "first" },
+      ]);
+    });
+
+    rerender({
+      status: "ready",
+      adapterKey: "first",
+      complete: firstComplete,
+    });
+    expect(firstComplete).toHaveBeenCalledOnce();
+
+    rerender({
+      status: "ready",
+      adapterKey: "second",
+      complete: secondComplete,
+    });
+    await waitFor(() => expect(secondComplete).toHaveBeenCalledOnce());
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "second" },
+      ]);
+    });
+  });
+
+  it("restarts suggestion generation across stable adapter replacements", async () => {
+    let resolveFirst!: (value: readonly { prompt: string }[]) => void;
+    const firstGenerate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveFirst = resolve;
+        }),
+    );
+    let resolveSecond!: (value: readonly { prompt: string }[]) => void;
+    const secondGenerate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveSecond = resolve;
+        }),
+    );
+    const thirdGenerate = vi.fn().mockResolvedValue([{ prompt: "third" }]);
+    const firstAdapter = { key: "first", generate: firstGenerate };
+    const secondAdapter = { key: "second", generate: secondGenerate };
+    const thirdAdapter = { key: "third", generate: thirdGenerate };
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, adapter }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: adapter },
+        });
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          adapter: firstAdapter,
+        },
+      },
+    );
+
+    rerender({ status: "ready", adapter: firstAdapter });
+    await waitFor(() => expect(firstGenerate).toHaveBeenCalledOnce());
+    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", adapter: secondAdapter });
+
+    expect(firstSignal.aborted).toBe(true);
+    await waitFor(() => expect(secondGenerate).toHaveBeenCalledOnce());
+    const secondSignal = secondGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", adapter: thirdAdapter });
+
+    expect(secondSignal.aborted).toBe(true);
+    await waitFor(() => expect(thirdGenerate).toHaveBeenCalledOnce());
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "third" },
+      ]);
+    });
+
+    resolveFirst([{ prompt: "stale" }]);
+    resolveSecond([{ prompt: "also stale" }]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(result.current.thread.getState().suggestions).toEqual([
+      { prompt: "third" },
+    ]);
   });
 
   it("merges consecutive assistant messages into one turn by default", async () => {

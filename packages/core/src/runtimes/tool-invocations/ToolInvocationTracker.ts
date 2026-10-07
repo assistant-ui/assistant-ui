@@ -20,6 +20,12 @@ import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
 /**
+ * The promise `ToolInvocationTracker.abort()` returns when no execution is in
+ * flight, so a caller can skip the await instead of yielding a tick.
+ */
+export const NO_TOOL_EXECUTIONS: Promise<void> = Promise.resolve();
+
+/**
  * Streaming execution state for a frontend tool.
  */
 export type ToolExecutionStatus =
@@ -87,6 +93,9 @@ const isEquivalentCompleteArgsText = (previous: string, next: string) => {
   if (previousValue === undefined || nextValue === undefined) return false;
   return isJSONValueEqual(previousValue, nextValue);
 };
+
+const hasFinalResult = (part: ToolCallMessagePart) =>
+  part.result !== undefined && part.isPreliminary !== true;
 
 const getToolExecutionId = (value: object): symbol | undefined =>
   (value as Record<PropertyKey, unknown>)[TOOL_EXECUTION_ID] as
@@ -335,13 +344,14 @@ export class ToolInvocationTracker {
    */
   public abort(options?: { discardPending?: boolean }): Promise<void> {
     try {
-      this._humanInput.forEach(({ reject }) => {
+      this._humanInput.forEach(({ executionId, reject }, toolCallId) => {
         try {
           reject(new Error("Tool execution aborted"));
         } catch {
           // host rejection handler threw — already in the abort path,
           // swallow so we continue cleaning up.
         }
+        this._endHumanRequest(toolCallId, executionId);
       });
       this._humanInput.clear();
 
@@ -357,17 +367,28 @@ export class ToolInvocationTracker {
       this._ac.abort();
       this._ac = new AbortController();
 
-      if (this._executing.size === 0) {
-        return Promise.resolve();
-      }
+      if (this._executing.size === 0) return NO_TOOL_EXECUTIONS;
       const executionIds = new Set(this._executing);
       return new Promise<void>((resolve) => {
         this._settledResolvers.push({ executionIds, resolve });
       });
     } catch (err) {
       console.error("[ToolInvocationTracker] abort failed", err);
-      return Promise.resolve();
+      return NO_TOOL_EXECUTIONS;
     }
+  }
+
+  // A request from streamCall has no execution whose end would clear the
+  // status, so the call is only marked executing while one runs, and a request
+  // left behind by an earlier execution leaves a newer execution's status alone.
+  private _endHumanRequest(toolCallId: string, executionId: symbol) {
+    if (this._executing.has(executionId)) {
+      this._setStatus(toolCallId, { type: "executing" });
+      return;
+    }
+    const owner = this._entries.get(toolCallId)?.executionId;
+    if (owner === undefined || owner === executionId)
+      this._deleteStatus(toolCallId);
   }
 
   /**
@@ -381,7 +402,7 @@ export class ToolInvocationTracker {
       const handlers = this._humanInput.get(toolCallId);
       if (!handlers) return false;
       this._humanInput.delete(toolCallId);
-      this._setStatus(toolCallId, { type: "executing" });
+      this._endHumanRequest(toolCallId, handlers.executionId);
       handlers.resolve(payload);
       return true;
     } catch (err) {
@@ -727,6 +748,7 @@ export class ToolInvocationTracker {
               },
             );
           }
+          entry.argsText = content.argsText;
           shouldWriteArgsText = false;
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
@@ -810,7 +832,7 @@ export class ToolInvocationTracker {
           this._entries.set(content.toolCallId, {
             toolName: content.toolName,
             argsText: content.argsText,
-            hasResult: content.result !== undefined,
+            hasResult: hasFinalResult(content),
           });
         }
         continue;
@@ -821,11 +843,11 @@ export class ToolInvocationTracker {
 
       // A discarded id is remembered only until the call is answered, which
       // bounds the set to the open calls of a discarded turn.
-      if (content.result !== undefined)
+      if (hasFinalResult(content))
         this._discardedToolCallIds.delete(content.toolCallId);
 
       if (entry && !entry.controller) {
-        // A restored entry with a result remains historical.
+        // A restored entry with a final result remains historical.
         if (entry.hasResult) continue;
         const argsChanged =
           content.argsText !== entry.argsText &&
@@ -834,7 +856,7 @@ export class ToolInvocationTracker {
             isArgsTextComplete(content.argsText) &&
             isEquivalentCompleteArgsText(entry.argsText, content.argsText)
           );
-        if (!argsChanged && content.result === undefined) continue;
+        if (!argsChanged && !hasFinalResult(content)) continue;
         this._entries.delete(content.toolCallId);
         entry = undefined;
       }
@@ -855,6 +877,8 @@ export class ToolInvocationTracker {
         );
       }
 
+      if (content.result !== undefined) entry.skipExecute = true;
+
       if (content.approval !== undefined) entry.skipExecute = true;
 
       this._processArgsText(entry, content);
@@ -865,19 +889,22 @@ export class ToolInvocationTracker {
         // controller. Narrow once instead of asserting at every use.
         const { controller: activeController } = entry;
         if (!activeController) continue;
-        entry.hasResult = true;
         entry.argsComplete = true;
         activeController.setResponse(
           new ToolResponse({
             result: content.result as ReadonlyJSONValue,
             artifact: content.artifact as ReadonlyJSONValue | undefined,
             isError: content.isError,
+            isPreliminary: content.isPreliminary,
             ...(content.modelContent !== undefined
               ? { modelContent: content.modelContent }
               : {}),
           }),
         );
-        activeController.close();
+        if (hasFinalResult(content)) {
+          entry.hasResult = true;
+          activeController.close();
+        }
       }
     }
   }

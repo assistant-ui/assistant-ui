@@ -41,8 +41,8 @@ describe("agent skills loader", () => {
       "./agent-skills.generated.json",
     )) as { default: { skills: { description: string; content: string }[] } };
     const targets = snapshot.skills.flatMap(({ description, content }) =>
-      [...`${description}\n${content}`.matchAll(/\]\(([^)\s]+)\)/g)].map(
-        ([, target]) => target,
+      [...`${description}\n${content}`.matchAll(/\]\(([^)\s]+)\)/g)].flatMap(
+        ([, target]) => (target === undefined ? [] : [target]),
       ),
     );
     expect(targets.length).toBeGreaterThan(0);

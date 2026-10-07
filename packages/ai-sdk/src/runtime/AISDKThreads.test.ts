@@ -28,7 +28,60 @@ const threadText = (aui: ReturnType<typeof createAssistantClient>) =>
       m.content.map((part) => (part.type === "text" ? part.text : "")).join(""),
     );
 
+const createLiveHandle = (
+  getOptions: () => Parameters<typeof AISDKThreads>[0],
+) => {
+  const listeners = new Set<() => void>();
+  const handle = createAssistantClient({
+    getConfig: () => AuiConfig({ threads: AISDKThreads(getOptions()) }),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
+  handle.subscribe(() => {});
+  return {
+    handle,
+    rerender: () =>
+      flushTapSync(() => listeners.forEach((listener) => listener())),
+  };
+};
+
+const chatCallbacks = () => ({
+  onToolCall: vi.fn(),
+  onData: vi.fn(),
+  onFinish: vi.fn(),
+  onError: vi.fn(),
+  sendAutomaticallyWhen: vi.fn(() => false),
+});
+
 describe("AISDKThreads", () => {
+  it("emits the selected thread id when its composer sends", async () => {
+    const { transport } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    try {
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const sent = vi.fn();
+      aui.on({ scope: "thread", event: "composer.send" }, sent);
+
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+
+      await vi.waitFor(() => {
+        expect(sent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            threadId: aui.threads.getState().mainThreadId,
+          }),
+        );
+      });
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("runs one chat per thread and keeps histories isolated across switches", async () => {
     const { transport, emit, close } = createControlledTransport();
     const handle = createAssistantClient(
@@ -253,25 +306,19 @@ describe("AISDKThreads", () => {
 
   it("forwards ChatInit callbacks to each thread's chat from the latest render", async () => {
     const { transport, emit, close } = createControlledTransport();
-    const onFinishA = vi.fn();
-    const onFinishB = vi.fn();
-    let onFinish = onFinishA;
-    const listeners = new Set<() => void>();
-    const handle = createAssistantClient({
-      getConfig: () =>
-        AuiConfig({
-          threads: AISDKThreads({ transport: () => transport, onFinish }),
-        }),
-      subscribe: (listener) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-    });
-    handle.subscribe(() => {});
+    const sendMessages = vi.spyOn(transport, "sendMessages");
+    const mounted = chatCallbacks();
+    const latest = chatCallbacks();
+    latest.sendAutomaticallyWhen.mockReturnValueOnce(true);
+    let callbacks = mounted;
+    const { handle, rerender } = createLiveHandle(() => ({
+      transport: () => transport,
+      ...callbacks,
+    }));
     const aui = handle.getClient();
 
-    onFinish = onFinishB;
-    flushTapSync(() => listeners.forEach((listener) => listener()));
+    callbacks = latest;
+    rerender();
 
     flushTapSync(() => aui.composer.setText("hi"));
     flushTapSync(() => aui.composer.send());
@@ -280,10 +327,36 @@ describe("AISDKThreads", () => {
         handle.getClient().thread.getState().messages.length,
       ).toBeGreaterThan(0);
     });
-    emit(...textReply("done"));
+    emit(
+      { type: "start" },
+      {
+        type: "tool-input-available",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        input: {},
+      },
+      { type: "data-note", data: "note" },
+      { type: "finish" },
+    );
     close();
-    await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
-    expect(onFinishA).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+    emit({ type: "start" }, { type: "error", errorText: "boom" });
+    close();
+    await vi.waitFor(() => expect(latest.onFinish).toHaveBeenCalledTimes(2));
+
+    expect(latest.onToolCall).toHaveBeenCalledExactlyOnceWith({
+      toolCall: expect.objectContaining({ toolCallId: "call-1" }),
+    });
+    expect(latest.onData).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "data-note", data: "note" }),
+    );
+    expect(latest.onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: "boom" }),
+    );
+    expect(latest.sendAutomaticallyWhen).toHaveBeenCalledOnce();
+    for (const callback of Object.values(mounted)) {
+      expect(callback).not.toHaveBeenCalled();
+    }
 
     handle.destroy();
   });
@@ -293,18 +366,10 @@ describe("AISDKThreads", () => {
     const onFinishA = vi.fn();
     const onFinishB = vi.fn();
     let onFinish = onFinishA;
-    const listeners = new Set<() => void>();
-    const handle = createAssistantClient({
-      getConfig: () =>
-        AuiConfig({
-          threads: AISDKThreads({ transport: () => transport, onFinish }),
-        }),
-      subscribe: (listener) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-    });
-    handle.subscribe(() => {});
+    const { handle, rerender } = createLiveHandle(() => ({
+      transport: () => transport,
+      onFinish,
+    }));
     const aui = handle.getClient();
 
     flushTapSync(() => aui.composer.setText("stream me"));
@@ -322,7 +387,7 @@ describe("AISDKThreads", () => {
 
     flushTapSync(() => aui.threads.switchToNewThread());
     onFinish = onFinishB;
-    flushTapSync(() => listeners.forEach((listener) => listener()));
+    rerender();
 
     emit({ type: "text-end", id: "t1" }, { type: "finish" });
     close();
@@ -361,18 +426,12 @@ describe("AISDKThreads", () => {
     const onFinishA = vi.fn();
     const onFinishB = vi.fn();
     let onFinish = onFinishA;
-    const listeners = new Set<() => void>();
-    const handle = createAssistantClient({
-      getConfig: () =>
-        AuiConfig({
-          threads: AISDKThreads({ cloud, threadId: "t1", transport, onFinish }),
-        }),
-      subscribe: (listener) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-    });
-    handle.subscribe(() => {});
+    const { handle, rerender } = createLiveHandle(() => ({
+      cloud,
+      threadId: "t1",
+      transport,
+      onFinish,
+    }));
     try {
       await handle.getClient().threads.getLoadThreadsPromise();
       await vi.waitFor(() => {
@@ -383,7 +442,7 @@ describe("AISDKThreads", () => {
       });
 
       onFinish = onFinishB;
-      flushTapSync(() => listeners.forEach((listener) => listener()));
+      rerender();
 
       flushTapSync(() => handle.getClient().composer.setText("hi"));
       flushTapSync(() => handle.getClient().composer.send());
@@ -455,7 +514,9 @@ describe("AISDKThreads", () => {
     const list = vi.fn(async () => ({
       threads: [cloudThread("cloud-1"), cloudThread("cloud-2")],
     }));
-    const create = vi.fn(async () => ({ thread_id: "cloud-created" }));
+    const create = vi.fn<AssistantCloud["threads"]["create"]>(async () => ({
+      thread_id: "cloud-created",
+    }));
     const deleteThread = vi.fn(async () => {});
     const cloud = {
       threads: {
@@ -521,7 +582,9 @@ describe("AISDKThreads", () => {
       external_id: null,
       metadata: null,
     });
-    const create = vi.fn(async () => ({ message_id: "remote-message-1" }));
+    const create = vi.fn<AssistantCloud["threads"]["messages"]["create"]>(
+      async () => ({ message_id: "remote-message-1" }),
+    );
     const cloud = {
       threads: {
         list: vi.fn(async () => ({
@@ -602,9 +665,9 @@ describe("AISDKThreads", () => {
       external_id: null,
       metadata: null,
     });
-    const createMessage = vi.fn(async () => ({
-      message_id: "remote-message-1",
-    }));
+    const createMessage = vi.fn<
+      AssistantCloud["threads"]["messages"]["create"]
+    >(async () => ({ message_id: "remote-message-1" }));
     const cloud = {
       threads: {
         list: vi.fn(async () => ({ threads: [cloudThread("t1")] })),

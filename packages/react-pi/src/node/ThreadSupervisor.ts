@@ -199,14 +199,11 @@ export class PiThreadSupervisor {
     tokens.add(token);
     try {
       const record = await this.ensureOpen(threadId);
-      // A cancel that arrived while the session was still opening leaves no
-      // live record to abort. Reject rather than resolve silently: the caller
-      // has already marked the thread running with an optimistic message, and a
-      // silent success leaves the run spinning forever with no event to settle
-      // it. Rejecting drives the caller's send-rollback (drops the optimistic
-      // message, clears running), and the prompt never launches.
       if (token.cancelled) {
-        throw new Error("Pi run was cancelled before it started");
+        // A cold cancellation has no session event. The flag lets the client
+        // settle without retaining an optimistic message Pi never received.
+        this.emit(record, { type: "agent_end", cancelledBeforeStart: true });
+        return;
       }
       await this.send(record, input);
     } finally {
@@ -329,6 +326,7 @@ export class PiThreadSupervisor {
     pendingOpen?.controller.abort();
     const record = this.records.get(threadId);
     const info = record ? undefined : await this.findSessionInfo(threadId);
+    if (!record && !info) return;
     const sessionFile = record?.session.sessionFile ?? info?.path;
     const workspacePath = record?.workspacePath ?? info?.cwd;
     if (!sessionFile) throw new Error(`Unknown Pi thread: ${threadId}`);
@@ -505,9 +503,19 @@ export class PiThreadSupervisor {
       this.throwOpenCancelled();
     }
 
-    record.unsubscribe = session.subscribe((event) =>
-      this.onSessionEvent(record, event),
-    );
+    try {
+      record.unsubscribe = session.subscribe((event) =>
+        this.onSessionEvent(record, event),
+      );
+    } catch (error) {
+      try {
+        uiBridge.dismissAll();
+      } catch {}
+      try {
+        session.dispose();
+      } catch {}
+      throw error;
+    }
     this.records.set(threadId, record);
     if (session.sessionFile) {
       this.recordsBySessionFile.set(session.sessionFile, record);

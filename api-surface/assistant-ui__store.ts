@@ -215,6 +215,24 @@ type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
 };
 
+type ThreadViewportAutoScroll = {
+  attach(element: HTMLElement): () => void;
+  readonly isAtBottom: boolean;
+  scrollToBottom(behavior?: ScrollBehavior): void;
+  setContentInset(inset: number): void;
+  setHasMessages(hasMessages: boolean): void;
+  runStarted(): void;
+  threadSwitched(): void;
+  dispose(): void;
+};
+
+type ThreadViewportAutoScrollOptions = {
+  readonly autoScroll: boolean;
+  readonly scrollToBottomOnInitialize: boolean;
+  readonly scrollToBottomOnRunStart: boolean;
+  readonly scrollToBottomOnThreadSwitch: boolean;
+};
+
 type TransformScopesFn = (scopes: ScopesConfig, parent: AssistantClient) => void;
 
 type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends ((x: infer I) => void) ? I : never;
@@ -251,7 +269,7 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, shallowEqual, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, useDestroySignalProvider, viewportOverflows };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, ThreadViewportAutoScroll, ThreadViewportAutoScrollOptions, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, createThreadViewportAutoScroll, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, shallowEqual, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, useDestroySignalProvider, viewportOverflows };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
@@ -271,6 +289,11 @@ declare const createStaleReporter: (options: {
   isValid: () => boolean;
 }) => () => void;
 
+declare const createThreadViewportAutoScroll: (input: {
+  getOptions: () => ThreadViewportAutoScrollOptions;
+  onAtBottomChange: (isAtBottom: boolean) => void;
+}) => ThreadViewportAutoScroll;
+
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
 
 declare const getClientId: (client: object) => getClientId.ClientId;
@@ -288,7 +311,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useShallowSelector, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useOptionalAssistantClientRef, useReplaySafeEffect, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -377,6 +400,15 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input, destroySignal?: AbortSignal) => ScopedAuiClient;
 
 declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
+
+declare const useHostDestroySignal: () => AbortSignal;
+
+declare const useOptionalAssistantClientRef: () => {
+  parent: AssistantClient;
+  current: AssistantClient | null;
+} | undefined;
+
+declare const useReplaySafeEffect: (effect: () => (() => void) | void, deps: readonly unknown[]) => void;
 
 declare const useShallowSelector: <TState, TResult extends object>(select: (state: TState) => TResult) => ((state: TState) => TResult);
 

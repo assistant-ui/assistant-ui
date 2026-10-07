@@ -7,7 +7,7 @@ Primitives are thin wrappers around React Native components (`View`, `TextInput`
 
 Primitives are accessed via namespace imports (e.g. `ThreadPrimitive.Root`, `ComposerPrimitive.Input`), matching the pattern used in `@assistant-ui/react`.
 
-Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (View/Pressable/Text vs DOM elements) differs.
+Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react`. Only the UI layer (View/Pressable/Text instead of DOM elements) differs.
 
 ## Thread
 
@@ -54,7 +54,8 @@ You can also provide role-specific components:
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `MessageComponents` | Component map — provide either a `Message` component (used for all roles) or role-specific `UserMessage`, `AssistantMessage`, and optionally `SystemMessage`. Edit composers can be set via `EditComposer` or role-specific variants (`UserEditComposer`, `AssistantEditComposer`, `SystemEditComposer`). |
+| `children` | `({ message }) => ReactNode` | Render function for each message |
+| `components` | `MessageComponents` | Deprecated, use `children`. Component map: provide either a `Message` component (used for all roles) or role-specific `UserMessage`, `AssistantMessage`, and optionally `SystemMessage`. Edit composers can be set via `EditComposer` or role-specific variants (`UserEditComposer`, `AssistantEditComposer`, `SystemEditComposer`). |
 | `...rest` | `ThreadPrimitive.MessagesFlatList` props | Same props as `ThreadPrimitive.MessagesFlatList`, with the auto-scroll options defaulting to `false` on this deprecated wrapper |
 
 ### ThreadPrimitive.MessagesFlatList
@@ -70,15 +71,57 @@ Canonical React Native message viewport backed by `FlatList`. It scopes each row
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `({ message }) => ReactNode` | Render function for each message |
-| `components` | `MessageComponents` | Component map alternative to `children` |
+| `components` | `MessageComponents` | Deprecated component map, use `children` instead |
 | `autoScroll` | `boolean` | Automatically keeps the list at the bottom while it is already near the bottom. Defaults to `true` |
 | `scrollToBottomOnRunStart` | `boolean` | Scrolls to the bottom when a run starts. Defaults to `true` |
 | `scrollToBottomOnInitialize` | `boolean` | Scrolls to the bottom when messages first appear. Defaults to `true` |
 | `scrollToBottomOnThreadSwitch` | `boolean` | Scrolls to the bottom when switching threads. Defaults to `true` |
+| `history` | `{ hasMore: boolean; isLoadingMore: boolean; loadMore: () => void }` | Loads older messages when the list reaches its start. See [Windowed History](/docs/react-native/history) |
 | `maintainVisibleContentPosition` | `FlatListProps["maintainVisibleContentPosition"]` | Keeps the first visible message anchored while content is inserted above it, such as older history loading in. Defaults to `{ minIndexForVisible: 0 }` |
 | `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, and `children` |
 
 The built-in auto-scroll behavior assumes the default, non-inverted `FlatList` direction.
+
+### ThreadPrimitive.RowsFlatList
+
+A `FlatList` over the thread flattened into rows, for long threads where one assistant message holds many parts: a row per user or system message (and per message being edited), per top-level node of an assistant message's part grouping, and per turn end. Each row renders through [`ThreadPrimitive.Row`](/docs/primitives/thread#row), so it mounts only that row's scopes, and rows keep stable keys while tokens stream and earlier pages arrive.
+
+```tsx
+import { groupPartByType, ThreadPrimitive } from "@assistant-ui/react-native";
+
+const groupBy = groupPartByType({ reasoning: ["group-reasoning"] });
+
+<ThreadPrimitive.RowsFlatList inverted groupBy={groupBy}>
+  {(info) => {
+    switch (info.type) {
+      case "message":
+        if (info.message.composer.isEditing) return <MyEditComposer />;
+        return info.message.role === "system" ? (
+          <MySystemMessage />
+        ) : (
+          <MyUserMessage />
+        );
+      case "part":
+        return renderPart(info.part, info.children);
+      case "turn-end":
+        return <TurnFooter row={info.row} />;
+    }
+  }}
+</ThreadPrimitive.RowsFlatList>;
+```
+
+Keep `groupBy` at module scope (or in `useCallback`): a new function on every render rebuilds the row cache and re-renders every row.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(info) => ReactNode` | Render function for each row, with the same contract as `ThreadPrimitive.Row` |
+| `groupBy` | ``(part, context) => readonly `group-${string}`[] \| null`` | Coalesces adjacent assistant parts into one row, like `MessagePrimitive.GroupedParts`; without it every part is its own row. Keep its identity stable |
+| `inverted` | `boolean` | Renders the newest row at offset 0. Earlier pages load through `onEndReached`, and `maintainVisibleContentPosition` defaults to `{ minIndexForVisible: 0, autoscrollToTopThreshold: 4 }`, so the visible row stays put while rows arrive and the list follows new rows while it is at the bottom |
+| `autoScroll`, `scrollToBottomOnRunStart`, `scrollToBottomOnInitialize`, `scrollToBottomOnThreadSwitch` | `boolean` | As on `ThreadPrimitive.MessagesFlatList`; with `inverted`, the bottom is offset 0 |
+| `history` | `{ hasMore: boolean; isLoadingMore: boolean; loadMore: () => void }` | As on `ThreadPrimitive.MessagesFlatList`: defaults to the runtime's `thread.hasEarlier` paging, and loads at the start of the list, or at its end when `inverted` |
+| `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, `keyExtractor`, and `children` |
+
+Without `inverted`, it keeps the first visible row anchored with `{ minIndexForVisible: 0 }`, exactly as `ThreadPrimitive.MessagesFlatList` does for messages.
 
 ### ThreadPrimitive.MessageByIndex
 
@@ -140,7 +183,7 @@ Conditional rendering based on thread state. Deprecated in favor of `AuiIf`.
 
 ### ThreadPrimitive.Suggestion
 
-`Pressable` that inserts or sends a hard-coded suggestion prompt. Unlike `SuggestionPrimitive.Trigger`, this component does not require a suggestion context — the prompt is passed directly as a prop.
+`Pressable` that inserts or sends a hard-coded suggestion prompt. Unlike `SuggestionPrimitive.Trigger`, this component does not require a suggestion context. The prompt is passed directly as a prop.
 
 ```tsx
 <ThreadPrimitive.Suggestion prompt="What can you help me with?" send>
@@ -157,7 +200,7 @@ Conditional rendering based on thread state. Deprecated in favor of `AuiIf`.
 
 ### ThreadPrimitive.Suggestions
 
-Renders all suggestions using the provided component configuration. This component is shared from `@assistant-ui/core/react`.
+Renders all suggestions through a `children` render function. This component is shared from `@assistant-ui/core/react`.
 
 ```tsx
 <ThreadPrimitive.Suggestions>
@@ -167,7 +210,8 @@ Renders all suggestions using the provided component configuration. This compone
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Suggestion: ComponentType }` | Component to render for each suggestion |
+| `children` | `(value: { suggestion: SuggestionState }) => ReactNode` | Render function called for each suggestion |
+| `components` | `{ Suggestion: ComponentType }` | Deprecated, use `children`. Component to render for each suggestion |
 
 ### ThreadPrimitive.SuggestionByIndex
 
@@ -263,7 +307,7 @@ Container `View` for the composer area.
 
 ### ComposerPrimitive.Attachments
 
-Renders composer attachments using the provided component configuration.
+Renders composer attachments through a `children` render function.
 
 ```tsx
 <ComposerPrimitive.Attachments>
@@ -277,7 +321,8 @@ Renders composer attachments using the provided component configuration.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+| `children` | `(value: { attachment: Attachment }) => ReactNode` | Render function called for each attachment |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Deprecated, use `children`. Component renderers by attachment type |
 
 ### ComposerPrimitive.AddAttachment
 
@@ -524,7 +569,7 @@ const AssistantMessage = () => {
 
 ### MessagePrimitive.Parts
 
-Renders message content parts via a `components` prop. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to components provided here. A default `Text` component using React Native's `<Text>` is provided out of the box.
+Renders message content parts through a `children` render function or a `components` map. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to components provided here. A default `Text` component using React Native's `<Text>` is provided out of the box.
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -539,6 +584,7 @@ Renders message content parts via a `components` prop. Tool call and data parts 
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `children` | `(value: { part: EnrichedPartState }) => ReactNode` | Render function called for each part. Cannot be combined with `components` |
 | `components` | `object` | Component map for rendering each part type. See below. |
 
 **`components` fields:**
@@ -551,8 +597,8 @@ Renders message content parts via a `components` prop. Tool call and data parts 
 | `Source` | `SourceMessagePartComponent` | Source part renderer |
 | `File` | `FileMessagePartComponent` | File part renderer |
 | `Unstable_Audio` | `Unstable_AudioMessagePartComponent` | Audio part renderer (deprecated, render `audio/*` from `File`) |
-| `tools` | `{ by_name?, Fallback? }` or `{ Override }` | Tool call rendering config — use `by_name` to map tool names to components, `Fallback` for unregistered tools, or `Override` to handle all tool calls |
-| `data` | `{ by_name?, Fallback? }` | Data part rendering config — use `by_name` to map data event names, `Fallback` for unmatched events |
+| `tools` | `{ by_name?, Fallback? }` or `{ Override }` | Tool call rendering config. Use `by_name` to map tool names to components, `Fallback` for unregistered tools, or `Override` to handle all tool calls |
+| `data` | `{ by_name?, Fallback? }` | Data part rendering config. Use `by_name` to map data event names, `Fallback` for unmatched events |
 | `Empty` | `EmptyMessagePartComponent` | Component shown for empty messages |
 | `Quote` | `QuoteMessagePartComponent` | Component for rendering quoted message references |
 | `ChainOfThought` | `ComponentType` | Groups all reasoning and tool-call parts into a single component (mutually exclusive with `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup`) |
@@ -576,6 +622,20 @@ Renders a single message part at the specified index, providing part context. Us
 | `index` | `number` | Zero-based index of the message part to render |
 | `components` | `object` | Same component map as `MessagePrimitive.Parts` |
 
+### MessagePrimitive.Quote
+
+Renders the quote a message was sent with, read from `s.message.metadata.custom.quote`. Renders nothing when the message carries no quote. Place it above `MessagePrimitive.Parts` in the user message. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text }) => <Text numberOfLines={2}>{text}</Text>}
+</MessagePrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(value: { text: string; messageId: string }) => ReactNode` | Render function called when the message has a quote |
+
 ### Conditional Rendering (Message)
 
 Use `AuiIf` for conditional rendering based on message properties:
@@ -592,7 +652,7 @@ Use `AuiIf` for conditional rendering based on message properties:
 
 ### MessagePrimitive.Attachments
 
-Renders user message attachments using the provided component configuration.
+Renders user message attachments through a `children` render function.
 
 ```tsx
 <MessagePrimitive.Attachments>
@@ -605,7 +665,8 @@ Renders user message attachments using the provided component configuration.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+| `children` | `(value: { attachment: Attachment }) => ReactNode` | Render function called for each attachment |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Deprecated, use `children`. Component renderers by attachment type |
 
 ### MessagePrimitive.AttachmentByIndex
 
@@ -774,7 +835,7 @@ const copyToClipboard = async (text: string) => {
 
 ### ActionBarPrimitive.FeedbackPositive / ActionBarPrimitive.FeedbackNegative
 
-`Pressable` buttons for submitting message feedback.
+`Pressable` buttons for submitting message feedback. The submitted one is marked for assistive technology: `aria-selected` on native, `aria-pressed` on the web.
 
 ```tsx
 <ActionBarPrimitive.FeedbackPositive>
@@ -849,7 +910,7 @@ Container `View` for the thread list.
 
 ### ThreadListPrimitive.New
 
-`Pressable` that creates a new thread.
+`Pressable` that creates a new thread. While the new thread is the current one, it is marked for assistive technology: `accessibilityState.selected` on native, `aria-current` on the web.
 
 ```tsx
 <ThreadListPrimitive.New style={styles.newThreadButton}>
@@ -889,7 +950,7 @@ Renders the thread title text. Falls back to the provided fallback when title is
 
 ### ThreadListItemPrimitive.Trigger
 
-`Pressable` that switches to the thread.
+`Pressable` that switches to the thread. The current thread's trigger is marked for assistive technology: `accessibilityState.selected` on native, `aria-current` on the web.
 
 ```tsx
 <ThreadListItemPrimitive.Trigger>
@@ -927,7 +988,7 @@ Renders the thread title text. Falls back to the provided fallback when title is
 import { SuggestionPrimitive } from "@assistant-ui/react-native";
 ```
 
-Primitives for rendering suggestions. Use inside a `SuggestionByIndexProvider` (from `@assistant-ui/core/react`).
+Primitives for rendering suggestions. Use inside `ThreadPrimitive.Suggestions` or a `SuggestionByIndexProvider`.
 
 ### SuggestionPrimitive.Title
 

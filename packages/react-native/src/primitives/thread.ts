@@ -9,6 +9,11 @@ export {
   type ThreadMessagesProps as MessagesProps,
 } from "./thread/ThreadMessages";
 export { ThreadPrimitiveMessageByIndex as MessageByIndex } from "@assistant-ui/core/react";
+export { ThreadPrimitiveRow as Row } from "@assistant-ui/core/react";
+export {
+  ThreadRowsFlatList as RowsFlatList,
+  type ThreadRowsFlatListProps as RowsFlatListProps,
+} from "./thread/ThreadRowsFlatList";
 export { ThreadPrimitiveUnstable_MessageById as Unstable_MessageById } from "@assistant-ui/core/react";
 export {
   ThreadEmpty as Empty,

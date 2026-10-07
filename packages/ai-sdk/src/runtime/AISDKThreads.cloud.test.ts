@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 
+import { getEventListeners } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { flushTapSync } from "@assistant-ui/tap";
-import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import { flushTapSync, resource, useResource } from "@assistant-ui/tap";
+import {
+  attachTransformScopes,
+  AuiConfig,
+  createAssistantClient,
+} from "@assistant-ui/store/client";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import { inMemoryThreadListTransformScopes } from "@assistant-ui/core/store";
 import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type { ThreadHistoryAdapter } from "@assistant-ui/core";
@@ -72,10 +79,12 @@ import { AI_SDK_SDK } from "./sdkIdentity";
 describe("AISDKThreads cloud", () => {
   it("reloads history when switching a keyed cloud thread", async () => {
     const cloud = {} as AssistantCloud;
+    const scopeId = "workspace-1";
     const handle = createAssistantClient(
       AuiConfig({
         threads: AISDKThreads({
           cloud,
+          scopeId,
           threadId: "t1",
         }),
       }),
@@ -91,6 +100,7 @@ describe("AISDKThreads cloud", () => {
     });
     expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith({
       cloud,
+      scopeId,
       sdk: AI_SDK_SDK,
     });
     const afterFirst = load.mock.calls.length;
@@ -151,5 +161,56 @@ describe("AISDKThreads cloud", () => {
     } finally {
       handle.destroy();
     }
+  });
+
+  it("keeps cloud threads off the client destroy signal and stops them on destroy", async () => {
+    const chat = createCancellableTransport();
+    let destroySignal: AbortSignal | undefined;
+    function useThreads() {
+      destroySignal = useAssistantClientDestroySignal();
+      return useResource(
+        AISDKThreads({
+          cloud: {} as AssistantCloud,
+          threadId: "t1",
+          transport: () => chat.transport,
+        }),
+      );
+    }
+    attachTransformScopes(useThreads, inMemoryThreadListTransformScopes);
+    const handle = createAssistantClient(
+      AuiConfig({ threads: resource(useThreads)() }),
+    );
+    handle.subscribe(() => {});
+    const listeners = () => getEventListeners(destroySignal!, "abort").length;
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+      const withFirstThread = listeners();
+
+      flushTapSync(() => handle.getClient().threads.switchToThread("t2"));
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
+      });
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+      expect(listeners()).toBe(withFirstThread);
+
+      flushTapSync(() => handle.getClient().composer.setText("stream me"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+    } finally {
+      handle.destroy();
+    }
+    await vi.waitFor(() => {
+      expect(chat.getCancelCount()).toBe(1);
+    });
   });
 });

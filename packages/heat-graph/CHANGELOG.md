@@ -1,5 +1,29 @@
 # heat-graph
 
+## 0.0.23
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.22
+
+### Patch Changes
+
+- [#8638](https://github.com/assistant-ui/assistant-ui/pull/8638) [`d424f50`](https://github.com/assistant-ui/assistant-ui/commit/d424f507faf065f0cd29582e9c110be821581547) - fix: render heat-graph's contexts through `.Provider` so `Root` works on React 18 ([@bnb](https://github.com/bnb))
+
+## 0.0.21
+
+### Patch Changes
+
+- [#7927](https://github.com/assistant-ui/assistant-ui/pull/7927) [`e8477bf`](https://github.com/assistant-ui/assistant-ui/commit/e8477bf27101bfc2aca1da6b7c9fce4003c509c2) - fix(heat-graph): keep the last day of the range in a midnight-DST timezone ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.20
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.19
 
 ### Patch Changes

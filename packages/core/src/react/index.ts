@@ -1,5 +1,5 @@
-/// <reference path="../store/scope-registration.ts" />
-/// <reference path="./types/store-augmentation.ts" />
+/// <reference path="../store/scope-registration.ts" preserve="true" />
+/// <reference path="./types/store-augmentation.ts" preserve="true" />
 
 // model-context
 export {
@@ -291,6 +291,12 @@ export {
 } from "./primitives/message/MessageParts";
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
 export { groupPartByType, type GroupByContext } from "./utils/groupParts";
+export {
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
+} from "./utils/threadRows";
+export { ThreadPrimitiveRow } from "./primitives/thread/ThreadRow";
 export {
   MessagePrimitiveGenerativeUI,
   GenerativeUIRender,

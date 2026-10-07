@@ -5,11 +5,11 @@ description: A2AClient, useA2ARuntime options, hooks, task states, artifacts, er
 
 import { A2AIcon } from "@/components/icons/a2a";
 
-Deep dive on the runtime's API surface. Start with [overview](/docs/runtimes/a2a/overview) and [quickstart](/docs/runtimes/a2a/quickstart) if you have not already.
+Reference for the A2A client, the `useA2ARuntime` options, and the hooks. Start with [overview](/docs/runtimes/a2a/overview) and [quickstart](/docs/runtimes/a2a/quickstart) if you have not already.
 
 ## A2AClient
 
-The built-in `A2AClient` handles all communication with the A2A server: JSON serialization, SSE streaming, ProtoJSON enum normalization, and structured error handling.
+`A2AClient` handles communication with the A2A server: JSON serialization, SSE streaming, ProtoJSON enum normalization, and structured errors.
 
 ```ts
 import { A2AClient } from "@assistant-ui/react-a2a";
@@ -23,7 +23,7 @@ const client = new A2AClient({
 });
 ```
 
-Pass a pre-built client to `useA2ARuntime`:
+Pass a pre-built client to `useA2ARuntime`, created once outside the component or in `useState`; the runtime keeps its session per client, so a client built inline on every render never settles:
 
 ```tsx
 const runtime = useA2ARuntime({ client });
@@ -35,7 +35,7 @@ const runtime = useA2ARuntime({ client });
 | --- | --- | --- |
 | `baseUrl` | `string` | Base URL of the A2A server. |
 | `basePath` | `string` | Optional path prefix for API endpoints (e.g. `"/v1"`). Does not affect agent card discovery. |
-| `headers` | `Record<string, string>` or `() => Record<string, string>` | Static or dynamic headers (e.g. for auth tokens). |
+| `headers` | `Record<string, string>`, or a sync or async function returning one | Static or dynamic headers (e.g. for auth tokens). |
 | `tenant` | `string` | Tenant ID for multi-tenant servers (prepended to URL paths). |
 | `extensions` | `string[]` | Extension URIs to negotiate via `A2A-Extensions` header. |
 | `fetchOptions` | `RequestInit` (partial) | Extra fetch options applied to every request (e.g. `{ credentials: "include" }`). `headers`, `body`, `method`, and `signal` are managed internally. |
@@ -54,12 +54,12 @@ const runtime = useA2ARuntime({ client });
 | `getExtendedAgentCard()` | Fetch the extended (authenticated) agent card. |
 | `createTaskPushNotificationConfig(config)` | Create a push notification config. |
 | `getTaskPushNotificationConfig(taskId, configId)` | Get a push notification config. |
-| `listTaskPushNotificationConfigs(taskId)` | List push notification configs. |
+| `listTaskPushNotificationConfigs(taskId, options?)` | List push notification configs. `options` takes `pageSize` and `pageToken`. |
 | `deleteTaskPushNotificationConfig(taskId, configId)` | Delete a push notification config. |
 
 ## useA2ARuntime options
 
-Pass either a pre-built `client` or a `baseUrl` (the runtime creates a client for you). Other options layer on top.
+Pass either a pre-built `client` or a `baseUrl`, from which the runtime creates a client. The hook throws when neither is set.
 
 | Option | Type | Description |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ Pass either a pre-built `client` or a `baseUrl` (the runtime creates a client fo
 | `baseUrl` | `string` | A2A server URL (creates a client automatically). |
 | `basePath` | `string` | Path prefix for API endpoints. Only used with `baseUrl`. |
 | `tenant` | `string` | Tenant ID for multi-tenant servers. Only used with `baseUrl`. |
-| `headers` | `Record<string, string>` or `() => Record<string, string>` | Headers for the auto-created client. |
+| `headers` | `Record<string, string>`, or a sync or async function returning one | Headers for the auto-created client. |
 | `extensions` | `string[]` | Extension URIs to negotiate. Only used with `baseUrl`. |
 | `fetchOptions` | `RequestInit` (partial) | Extra fetch options for the auto-created client (e.g. `{ credentials: "include" }`). `headers`, `body`, `method`, and `signal` are managed internally. Only used with `baseUrl`. |
 | `contextId` | `string` | Initial context ID for the conversation. |
@@ -77,6 +77,8 @@ Pass either a pre-built `client` or a `baseUrl` (the runtime creates a client fo
 | `onArtifactComplete` | `(artifact: A2AArtifact) => void` | Fired when an incremental artifact finishes. |
 | `adapters.attachments` | `AttachmentAdapter` | Custom attachment handling. See [adapters](/docs/runtimes/concepts/adapters#attachment-adapter). |
 | `adapters.speech` | `SpeechSynthesisAdapter` | Text-to-speech. See [adapters](/docs/runtimes/concepts/adapters#speech-adapter). |
+| `adapters.dictation` | `DictationAdapter` | Speech-to-text input. See [adapters](/docs/runtimes/concepts/adapters#dictation-adapter). |
+| `adapters.voice` | `RealtimeVoiceAdapter` | Realtime voice session. See [voice](/docs/guides/voice). |
 | `adapters.feedback` | `FeedbackAdapter` | Feedback collection. See [adapters](/docs/runtimes/concepts/adapters#feedback-adapter). |
 | `adapters.history` | `ThreadHistoryAdapter` | Message persistence. See [adapters](/docs/runtimes/concepts/adapters#history-adapter). |
 | `adapters.threadList` | `UseA2AThreadListAdapter` | Thread switching. See [threads](/docs/runtimes/concepts/threads). |
@@ -148,6 +150,8 @@ function TaskStatus() {
 ### Artifacts list
 
 `useA2AArtifacts` returns the artifacts generated by the current task.
+
+The assistant message also stores the merged artifact list at `metadata.custom.a2a.artifacts`, so a history adapter preserves it with the response rather than only in the current-task hook state. A2UI DataParts become replayable `present` tool-call artifacts on that same assistant message. See [A2UI surfaces and stored conversations](/docs/runtimes/a2a/overview#a2ui-surfaces-and-stored-conversations) for the detection and history behavior.
 
 <PlatformTabs>
 <Tab value="React">
@@ -304,11 +308,11 @@ When a task enters `input_required`, the user can continue the conversation norm
 
 A2A agents can produce artifacts (files, code, data) alongside their responses. Artifacts are accumulated during streaming and accessible via `useA2AArtifacts`.
 
-The runtime supports:
+The runtime handles artifacts as follows:
 
-- **Incremental artifact streaming** via `append` mode.
-- **Artifact completion notification** via the `onArtifactComplete` callback.
-- **Automatic reset** of artifacts on each new run.
+- An artifact update with `append` set adds its parts to the artifact that has the same `artifactId`.
+- An update with `lastChunk` set fires the `onArtifactComplete` callback.
+- Each new run clears the artifact list.
 
 ```tsx
 const runtime = useA2ARuntime({
@@ -321,7 +325,7 @@ const runtime = useA2ARuntime({
 
 ## Streaming vs non-streaming
 
-The runtime automatically selects the communication mode based on the agent's capabilities:
+The runtime selects the communication mode from the agent card:
 
 - If the agent card indicates `capabilities.streaming: true` (or the field is unset), the runtime uses `POST /message:stream` with SSE.
 - If `capabilities.streaming: false`, the runtime falls back to `POST /message:send`.

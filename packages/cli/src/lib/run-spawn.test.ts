@@ -70,7 +70,54 @@ describe("runSpawn", () => {
 
     expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+    expect(hasActiveSpawn()).toBe(true);
+
+    child.emit("close", null, "SIGKILL");
     await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
+    expect(hasActiveSpawn()).toBe(false);
+    expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
+  });
+
+  it("settles after a signaled child exits while captured pipes stay open", async () => {
+    const child = Object.assign(createChild(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+    mocks.spawn.mockReturnValue(child);
+    const sigterm = trackSignal("SIGTERM");
+    const result = runSpawnCapture("jscodeshift", ["--version"]);
+    const signalHandler = sigterm.added();
+
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
+    child.emit("exit", null, "SIGKILL");
+
+    await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
+    expect(child.stdout.destroyed).toBe(true);
+    expect(child.stderr.destroyed).toBe(true);
+    expect(hasActiveSpawn()).toBe(false);
+    expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
+  });
+
+  it("settles on a third signal when the child does not exit", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+    const sigterm = trackSignal("SIGTERM");
+    const result = runSpawn("assistant-ui", ["create"]);
+    const signalHandler = sigterm.added();
+
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
+
+    await expect(result).rejects.toMatchObject({
+      signal: "SIGTERM",
+      forwarded: true,
+    });
+    expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
+    expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+    expect(child.kill).toHaveBeenCalledTimes(2);
+    expect(hasActiveSpawn()).toBe(false);
     expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
   });
 
