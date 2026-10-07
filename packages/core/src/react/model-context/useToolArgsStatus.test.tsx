@@ -3,10 +3,8 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  markPartialJsonObjectComplete,
-  parsePartialJsonObject,
-} from "assistant-stream/utils";
+import { markPartialJsonObjectComplete } from "assistant-stream/internal";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 
 const state = vi.hoisted(() => ({
   part: {
@@ -45,7 +43,7 @@ describe("useToolArgsStatus", () => {
       const { result } = renderHook(() =>
         useToolArgsStatus<{ city: string; unit: string }>(),
       );
-      expect(result.current.allPropsStatus).toBe("streaming");
+      expect(result.current.argsStatus).toBe("streaming");
       expect(result.current.propStatus.unit).toBeUndefined();
       expect(result.current.status).toBe("running");
     },
@@ -56,7 +54,7 @@ describe("useToolArgsStatus", () => {
     (json) => {
       state.part.args = parsePartialJsonObject(json)!;
       const { result } = renderHook(() => useToolArgsStatus());
-      expect(result.current.allPropsStatus).toBe("complete");
+      expect(result.current.argsStatus).toBe("complete");
       expect(result.current.status).toBe("running");
     },
   );
@@ -65,7 +63,7 @@ describe("useToolArgsStatus", () => {
     state.part.args = parsePartialJsonObject('{"city":"Paris",')!;
     const { result } = renderHook(() => useToolArgsStatus());
     expect(result.current.propStatus.city).toBe("complete");
-    expect(result.current.allPropsStatus).toBe("streaming");
+    expect(result.current.argsStatus).toBe("streaming");
   });
 
   it.each(["complete", "incomplete", "requires-action"])(
@@ -73,11 +71,11 @@ describe("useToolArgsStatus", () => {
     (type) => {
       state.part.args = parsePartialJsonObject('{"city":"Par')!;
       const { result, rerender } = renderHook(() => useToolArgsStatus());
-      expect(result.current.allPropsStatus).toBe("streaming");
+      expect(result.current.argsStatus).toBe("streaming");
       expect(result.current.propStatus.city).toBe("streaming");
       state.part = { ...state.part, status: { type } };
       rerender();
-      expect(result.current.allPropsStatus).toBe("complete");
+      expect(result.current.argsStatus).toBe("complete");
       expect(result.current.propStatus.city).toBe("complete");
       expect(result.current.status).toBe(type);
     },
@@ -88,7 +86,7 @@ describe("useToolArgsStatus", () => {
     // ThreadMessageLike and some other adapters synthesize this text from args.
     state.part.argsText = JSON.stringify(state.part.args);
     const { result } = renderHook(() => useToolArgsStatus());
-    expect(result.current.allPropsStatus).toBe("streaming");
+    expect(result.current.argsStatus).toBe("streaming");
     expect(result.current.propStatus.city).toBe("streaming");
   });
 
@@ -100,7 +98,7 @@ describe("useToolArgsStatus", () => {
       args: parsePartialJsonObject('{"city":"Paris","unit":"c"}')!,
     };
     rerender();
-    expect(result.current.allPropsStatus).toBe("complete");
+    expect(result.current.argsStatus).toBe("complete");
     expect(result.current.propStatus.unit).toBe("complete");
     expect(result.current.status).toBe("running");
   });
@@ -124,7 +122,7 @@ describe("useToolArgsStatus", () => {
     const { result } = renderHook(() => useToolArgsStatus());
 
     expect(result.current.status).toBe("running");
-    expect(result.current.allPropsStatus).toBe("complete");
+    expect(result.current.argsStatus).toBe("complete");
     expect(Object.hasOwn(result.current.propStatus, "__proto__")).toBe(true);
     expect(result.current.propStatus.__proto__).toBe("complete");
     expect(Object.prototype).not.toHaveProperty("polluted");

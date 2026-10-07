@@ -2,7 +2,6 @@ export {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
   getPartialJsonObjectMeta,
-  markPartialJsonObjectComplete,
 } from "./utils/json/parse-partial-json-object";
 export { IncrementalJsonObjectParser } from "./utils/json/incremental-json-object-parser";
 export {

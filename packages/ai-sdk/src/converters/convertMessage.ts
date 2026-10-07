@@ -31,8 +31,8 @@ import {
 } from "@assistant-ui/core";
 import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
+import { markPartialJsonObjectComplete } from "assistant-stream/internal";
 import {
-  markPartialJsonObjectComplete,
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";

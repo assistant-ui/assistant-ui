@@ -22,14 +22,14 @@ export type ToolArgsStatus<
    * or the tool-call part is no longer running; it does not imply tool success.
    * Without parser metadata, falls back conservatively to the lifecycle.
    */
-  allPropsStatus: PropFieldStatus;
+  argsStatus: PropFieldStatus;
   /** Per-argument status keyed by argument name. */
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
 /**
  * Reads whether each argument field for the current tool-call message part is
- * still streaming or complete. `allPropsStatus` also accounts for fields that
+ * still streaming or complete. `argsStatus` also accounts for fields that
  * have not arrived yet: an empty `propStatus` does not mean the object is done.
  * Arguments can be complete while `status` is still `"running"` during execution.
  *
@@ -83,7 +83,7 @@ export const useToolArgsStatus = <
 
     return {
       status: statusType,
-      allPropsStatus:
+      argsStatus:
         meta?.state === "complete" || !isStreaming ? "complete" : "streaming",
       propStatus: propStatus as Partial<Record<keyof TArgs, PropFieldStatus>>,
     };
