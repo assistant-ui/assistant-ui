@@ -3945,14 +3945,6 @@ type ThreadListItemGenerateTitleOptions = {
   automatic?: boolean;
 };
 
-declare namespace ThreadListItemPrimitiveTitle {
-  type Props = {
-    fallback?: ReactNode;
-  };
-}
-
-declare const ThreadListItemPrimitiveTitle: FC<ThreadListItemPrimitiveTitle.Props>;
-
 declare const ThreadListItemRoot: (_param63: ThreadListItemRootProps) => import("react").JSX.Element;
 
 type ThreadListItemRootProps = ComponentProps<typeof Box> & {
@@ -4055,7 +4047,17 @@ type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemRuntimeSta
 
 type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
-declare const ThreadListItemTrigger: (_param64: ThreadListItemTriggerProps) => import("react").JSX.Element;
+declare function ThreadListItemTitle(_param64: ThreadListItemTitleProps): import("react").JSX.Element;
+
+declare namespace ThreadListItemTitle {
+  type Props = ThreadListItemTitleProps;
+}
+
+type ThreadListItemTitleProps = Omit<ComponentProps<typeof Text>, "children"> & {
+  fallback?: ReactNode;
+};
+
+declare const ThreadListItemTrigger: (_param65: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
 type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableState & {
@@ -4063,13 +4065,13 @@ type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> &
   }) => ReactNode);
 };
 
-declare const ThreadListItemUnarchive: (_param65: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemUnarchive: (_param66: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
 
 type ThreadListItemUnarchiveProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
-declare const ThreadListItems: (_param66: ThreadListItemsProps) => import("react").JSX.Element;
+declare const ThreadListItems: (_param67: ThreadListItemsProps) => import("react").JSX.Element;
 
 type ThreadListItemsProps = {
   renderItem: (props: {
@@ -4078,7 +4080,7 @@ type ThreadListItemsProps = {
   }) => ReactElement;
 };
 
-declare const ThreadListNew: (_param67: ThreadListNewProps) => import("react").JSX.Element;
+declare const ThreadListNew: (_param68: ThreadListNewProps) => import("react").JSX.Element;
 
 type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableState & {
@@ -4086,7 +4088,7 @@ type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
   }) => ReactNode);
 };
 
-declare const ThreadListRoot: (_param68: ThreadListRootProps) => import("react").JSX.Element;
+declare const ThreadListRoot: (_param69: ThreadListRootProps) => import("react").JSX.Element;
 
 type ThreadListRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -4340,7 +4342,7 @@ declare namespace ThreadPrimitiveUnstable_MessageById {
 
 declare const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props>;
 
-declare const ThreadRoot: (_param69: ThreadRootProps) => import("react").JSX.Element;
+declare const ThreadRoot: (_param70: ThreadRootProps) => import("react").JSX.Element;
 
 type ThreadRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -4669,7 +4671,7 @@ type ThreadStep = {
   } | undefined;
 };
 
-declare const ThreadSuggestion: (_param70: ThreadSuggestionProps) => import("react").JSX.Element;
+declare const ThreadSuggestion: (_param71: ThreadSuggestionProps) => import("react").JSX.Element;
 
 type ThreadSuggestion$1 = {
   title?: string;
@@ -4938,7 +4940,7 @@ type ToolExecutionStatus = {
   };
 };
 
-declare const ToolFallback: (_param71: ToolFallbackProps) => import("react").JSX.Element;
+declare const ToolFallback: (_param72: ToolFallbackProps) => import("react").JSX.Element;
 
 type ToolFallbackBaseProps = Omit<ToolCallMessagePartProps, "addResult" | "respondToApproval" | "resume"> & Partial<Pick<ToolCallMessagePartProps, "addResult" | "respondToApproval" | "resume">>;
 
@@ -5360,7 +5362,7 @@ declare const createExternalMessageConversionCache: () => ExternalMessageConvers
 declare const createFileStorageAdapter: (options: CreateFileStorageAdapterOptions) => RemoteThreadListAdapter;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
-  useThreadMessages: (_param72: {
+  useThreadMessages: (_param73: {
     messages: T[];
     isRunning: boolean;
     joinStrategy?: JoinStrategy | undefined;
@@ -5491,7 +5493,7 @@ declare namespace suggestion_d_exports {
 }
 
 declare namespace threadListItem_d_exports {
-  export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemPrimitiveTitle as Title, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
+  export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemTitle as Title, ThreadListItemTitleProps as TitleProps, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
 }
 
 declare namespace threadList_d_exports {
@@ -5592,7 +5594,7 @@ declare function useAuiToolOverrides(overrides: AuiToolOverrides): void;
 
 declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
 
-declare function useCloudThreadListRuntime(_param73: CloudThreadListAdapter): AssistantRuntime;
+declare function useCloudThreadListRuntime(_param74: CloudThreadListAdapter): AssistantRuntime;
 
 declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
@@ -5601,7 +5603,7 @@ declare namespace useExternalMessageConverter {
   type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param74: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param75: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -5627,7 +5629,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param75?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param76?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useNotification: (config?: NotificationConfig) => void;
 

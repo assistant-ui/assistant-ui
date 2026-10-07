@@ -20,6 +20,12 @@ import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
 /**
+ * The promise `ToolInvocationTracker.abort()` returns when no execution is in
+ * flight, so a caller can skip the await instead of yielding a tick.
+ */
+export const NO_TOOL_EXECUTIONS: Promise<void> = Promise.resolve();
+
+/**
  * Streaming execution state for a frontend tool.
  */
 export type ToolExecutionStatus =
@@ -361,16 +367,14 @@ export class ToolInvocationTracker {
       this._ac.abort();
       this._ac = new AbortController();
 
-      if (this._executing.size === 0) {
-        return Promise.resolve();
-      }
+      if (this._executing.size === 0) return NO_TOOL_EXECUTIONS;
       const executionIds = new Set(this._executing);
       return new Promise<void>((resolve) => {
         this._settledResolvers.push({ executionIds, resolve });
       });
     } catch (err) {
       console.error("[ToolInvocationTracker] abort failed", err);
-      return Promise.resolve();
+      return NO_TOOL_EXECUTIONS;
     }
   }
 
