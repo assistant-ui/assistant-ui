@@ -22,7 +22,7 @@ const invokeCallback = (
 export function useRunManager(config: {
   onRun: (signal: AbortSignal) => Promise<void>;
   onFinish?: (() => void) | undefined;
-  onCancel?: (() => void) | undefined;
+  onCancel?: ((afterError?: boolean) => void) | undefined;
   onError?: ((error: Error) => void | Promise<void>) | undefined;
 }): RunManager {
   const [isRunning, setIsRunning] = useState(false);
@@ -69,7 +69,9 @@ export function useRunManager(config: {
               !disposeAborted() &&
               !stateRef.current.disposed
             ) {
-              void invokeCallback("onCancel", onCancelRef.current);
+              void invokeCallback("onCancel", () =>
+                onCancelRef.current?.(true),
+              );
             }
           }
         }

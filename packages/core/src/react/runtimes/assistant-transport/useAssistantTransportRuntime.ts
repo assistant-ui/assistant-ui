@@ -343,10 +343,11 @@ const useAssistantTransportThreadRuntime = <T>(
       }
     },
     onFinish: options.onFinish,
-    onCancel: () => {
+    onCancel: (afterError) => {
       setIsReplaying(false);
       const cmds = cancelledCommandsRef.current;
       cancelledCommandsRef.current = [];
+      if (afterError && cmds.length === 0) return;
 
       options.onCancel?.({
         commands: cmds,

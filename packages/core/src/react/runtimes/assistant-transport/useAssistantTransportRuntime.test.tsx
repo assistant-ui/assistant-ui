@@ -555,7 +555,39 @@ describe("useAssistantTransportRuntime", () => {
       expect(texts(fetchMock.requests[0]!.body["commands"])).toEqual(["b"]);
     });
 
-    it("reports a command cancelled while onError runs", async () => {
+    it("does not report an empty cancellation after a stop during onError", async () => {
+      installFetch();
+      let releaseOnError!: () => void;
+      const onErrorHeld = new Promise<void>((resolve) => {
+        releaseOnError = resolve;
+      });
+      const onError = vi.fn(() => onErrorHeld);
+      const onCancel = vi.fn();
+      const { aui, sendCommand } = mountRuntime({
+        onError,
+        onCancel,
+        onResponse: () => {
+          throw new Error("boom");
+        },
+      });
+      await ready(aui);
+
+      act(() => sendCommand(createMessageCommand("a")));
+      await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+      act(() => aui().thread.cancelRun());
+      await act(async () => releaseOnError());
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      expect(onCancel.mock.calls[0]![0]).toMatchObject({
+        commands: [],
+        error: expect.objectContaining({ message: "boom" }),
+      });
+    });
+
+    it("reports a command cancelled while onError runs exactly once", async () => {
       const fetchMock = installFetch();
       let releaseOnError!: () => void;
       const onErrorHeld = new Promise<void>((resolve) => {
@@ -593,6 +625,7 @@ describe("useAssistantTransportRuntime", () => {
       await waitFor(() =>
         expect(aui().thread.getState().isRunning).toBe(false),
       );
+      expect(onCancel).toHaveBeenCalledTimes(2);
       expect(
         onCancel.mock.calls.filter(([payload]) => !payload.error),
       ).toHaveLength(1);
