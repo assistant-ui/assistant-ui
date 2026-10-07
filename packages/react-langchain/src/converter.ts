@@ -105,6 +105,8 @@ const resolveMediaSource = (
   if (typeof fileId === "string") return { data: fileId, sourceType: "id" };
   const data = part.data ?? part.base64;
   if (typeof data === "string") return { data };
+  if (part.type === "text-plain" && typeof part.text === "string")
+    return { data: part.text };
   return undefined;
 };
 

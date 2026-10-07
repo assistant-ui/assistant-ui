@@ -210,13 +210,18 @@ describe("convertLangChainContentBlock standard content blocks", () => {
     ).toBeUndefined();
   });
 
-  it("reports a text-plain block carrying only inline text as unknown", () => {
+  it("converts a text-plain block carrying inline text to a file part", () => {
     expect(
       convertLangChainContentBlock({
         type: "text-plain",
         text: "hello",
       }),
-    ).toBeUndefined();
+    ).toEqual({
+      type: "file",
+      filename: "file",
+      data: "hello",
+      mimeType: "text/plain",
+    });
   });
 });
 
