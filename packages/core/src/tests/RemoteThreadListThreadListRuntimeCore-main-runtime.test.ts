@@ -23,7 +23,13 @@ const trackRunningThreads = (core: RemoteThreadListThreadListRuntimeCore) => {
       };
     }
   )._hookManager;
-  hookManager.getThreadRuntimeCore = (id) => (running.has(id) ? {} : undefined);
+  const runtimes = new Map<string, object>();
+  hookManager.getThreadRuntimeCore = (id) => {
+    if (!running.has(id)) return undefined;
+    if (!runtimes.has(id))
+      runtimes.set(id, { subscribe: () => () => {}, messages: [] });
+    return runtimes.get(id);
+  };
   const stop = hookManager.stopThreadRuntime.bind(hookManager);
   hookManager.stopThreadRuntime = (id) => {
     running.delete(id);
