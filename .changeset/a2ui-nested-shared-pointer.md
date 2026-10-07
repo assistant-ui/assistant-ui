@@ -2,4 +2,4 @@
 "@assistant-ui/react-generative-ui": patch
 ---
 
-fix: use the shared pointer decoder when resolving nested A2UI action bindings
+fix: resolve nested A2UI action paths without losing empty property names
