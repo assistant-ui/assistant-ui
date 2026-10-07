@@ -1,11 +1,11 @@
 ---
 title: LangGraph Stockbroker Demo
-description: Human-in-the-loop AI stockbroker built on LangGraph and assistant-ui — interrupt handling, tool approval, and an interactive React chat UI.
+description: Human-in-the-loop AI stockbroker built on LangGraph and assistant-ui. Interrupt handling, tool approval, and an interactive React chat UI.
 ---
 
 ## Overview
 
-A stock trading assistant built with LangGraph that demonstrates human-in-the-loop workflows. The assistant can research stocks, analyze market data, and prepare trades, but requires explicit user approval before executing any transactions. This pattern is essential for applications where AI assists with high-stakes decisions.
+A stock trading assistant built with LangGraph that demonstrates human-in-the-loop workflows. The assistant can research stocks, analyze market data, and prepare trades, but requires explicit user approval before executing any transactions.
 
 ## Features
 
@@ -47,9 +47,10 @@ const langGraphClient = new Client({
 export default function StockbrokerChat() {
   const runtime = useLangGraphRuntime({
     stream: async (messages, { abortSignal, initialize }) => {
-      const { remoteId } = await initialize();
+      const { externalId } = await initialize();
+      if (!externalId) throw new Error("Thread not found");
       return langGraphClient.runs.stream(
-        remoteId,
+        externalId,
         "stockbroker-assistant",
         {
           input: { messages },
@@ -121,7 +122,7 @@ const toolkit = defineToolkit({
         </div>
       );
     }
-    return <p>Trade {status}...</p>;
+    return <p>Trade {status.type}...</p>;
   },
   },
 });

@@ -40,6 +40,8 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
   const direction = Direction.useDirection();
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+      return;
     const forwardKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
     const backKey = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
     const trigger = triggerRef.current;

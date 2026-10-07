@@ -116,6 +116,20 @@ type ExternalStoreAdapterBase<T> = {
    */
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
+  /**
+   * Whether messages exist before the first one in `messages`, for a host
+   * that opens a long thread on its latest page. Only takes effect together
+   * with `onLoadEarlier`.
+   */
+  hasEarlier?: boolean | undefined;
+  /**
+   * Loads the page before the first message; the host prepends it to
+   * `messages` (stable message ids keep rendered rows and scroll position in
+   * place). The runtime runs one call at a time, reports
+   * `thread.isLoadingEarlier` until the returned promise settles, and logs a
+   * rejection instead of passing it to the caller.
+   */
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   /**

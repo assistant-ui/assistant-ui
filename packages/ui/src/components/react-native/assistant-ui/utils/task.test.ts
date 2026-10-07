@@ -1,5 +1,6 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatElapsed,
@@ -124,6 +125,20 @@ describe("useTaskElapsed", () => {
     timing?: TaskTiming;
     running: boolean;
   }) => createElement("output", null, String(useTaskElapsed(timing, running)));
+
+  it("does not read the clock during server render", () => {
+    const now = vi.spyOn(Date, "now");
+    try {
+      expect(
+        renderToString(
+          createElement(Probe, { running: true, timing: { startedAt: 5_000 } }),
+        ),
+      ).toBe("<output>undefined</output>");
+      expect(now).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+    }
+  });
 
   it("returns undefined without timing and the completed duration for settled work", async () => {
     await act(async () => {

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
-import { Activity, StrictMode, Suspense, useState } from "react";
+import { Activity, StrictMode, Suspense, useState, version } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useHostDestroySignal } from "./useHostDestroySignal";
+
+const onReact18 = version.startsWith("18.");
 
 let consoleErrors: ReturnType<typeof vi.spyOn> | undefined;
 
@@ -34,34 +36,38 @@ describe("useHostDestroySignal", () => {
     expect(captured.aborted).toBe(false);
   });
 
-  it("stays armed while an Activity is hidden and aborts when the hidden host unmounts", async () => {
-    const App = ({ mode }: { mode: "visible" | "hidden" }) => (
-      <Activity mode={mode}>
-        <Probe />
-      </Activity>
-    );
-    const view = render(<App mode="visible" />);
-    const captured = signal;
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "stays armed while an Activity is hidden and aborts when the hidden host unmounts",
+    async () => {
+      const App = ({ mode }: { mode: "visible" | "hidden" }) => (
+        <Activity mode={mode}>
+          <Probe />
+        </Activity>
+      );
+      const view = render(<App mode="visible" />);
+      const captured = signal;
 
-    view.rerender(<App mode="hidden" />);
-    await act(nextTask);
-    expect(captured.aborted).toBe(false);
-
-    view.rerender(<App mode="visible" />);
-    expect(signal).toBe(captured);
-    expect(captured.aborted).toBe(false);
-
-    await act(async () => {
       view.rerender(<App mode="hidden" />);
-    });
-    await act(nextTask);
-    expect(captured.aborted).toBe(false);
+      await act(nextTask);
+      expect(captured.aborted).toBe(false);
 
-    view.unmount();
-    expect(captured.aborted).toBe(false);
-    await act(async () => {});
-    expect(captured.aborted).toBe(true);
-  });
+      view.rerender(<App mode="visible" />);
+      expect(signal).toBe(captured);
+      expect(captured.aborted).toBe(false);
+
+      await act(async () => {
+        view.rerender(<App mode="hidden" />);
+      });
+      await act(nextTask);
+      expect(captured.aborted).toBe(false);
+
+      view.unmount();
+      expect(captured.aborted).toBe(false);
+      await act(async () => {});
+      expect(captured.aborted).toBe(true);
+    },
+  );
 
   it("lets an abort listener update a surviving component", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
