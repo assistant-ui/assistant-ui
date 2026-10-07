@@ -2,15 +2,13 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    clearMocks: true,
-    environment: "node",
     coverage: {
-      include: ["src/**/*.{ts,tsx}"],
+      include: ["app/**/*.{ts,tsx}", "proxy.ts"],
       thresholds: {
-        lines: 59,
-        functions: 55,
-        branches: 81,
-        statements: 58,
+        lines: 15,
+        functions: 6,
+        branches: 43,
+        statements: 15,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
