@@ -149,6 +149,7 @@ export class RemoteThreadListThreadListRuntimeCore
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
+      const switchGeneration = this._switchGeneration;
       let replacedList = false;
       let appliedList = false;
       const statusAtRequest = statusSnapshot(this._state.baseValue);
@@ -204,7 +205,7 @@ export class RemoteThreadListThreadListRuntimeCore
         })
         .then(() => {
           if (appliedList || replacedList)
-            this._reapplyControlledThread(replacedList);
+            this._reapplyControlledThread(replacedList, switchGeneration);
         });
     }
 
@@ -257,14 +258,20 @@ export class RemoteThreadListThreadListRuntimeCore
   // A controlled switch can fail before the list knows its thread; once a load
   // brings the thread in, it is applied again unless another switch has
   // started since.
-  private _reapplyControlledThread(replacedList: boolean) {
+  private _reapplyControlledThread(
+    replacedList: boolean,
+    switchGenerationAtLoad = this._switchGeneration,
+  ) {
     const threadId = this._options.threadId;
     if (threadId === undefined) return;
     const data = this.getItemById(threadId);
     if (
-      !replacedList &&
-      (data === undefined ||
-        this._controlledSwitchGeneration !== this._switchGeneration)
+      (replacedList &&
+        switchGenerationAtLoad !== this._switchGeneration &&
+        this._controlledSwitchGeneration !== this._switchGeneration) ||
+      (!replacedList &&
+        (data === undefined ||
+          this._controlledSwitchGeneration !== this._switchGeneration))
     )
       return;
     if (data?.id === this._mainThreadId) return;
