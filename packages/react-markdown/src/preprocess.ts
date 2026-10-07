@@ -444,7 +444,14 @@ function htmlBlockRanges(text: string): number[] {
     const listItem = listItems[listItems.length - 1];
     const codeColumn = listItem?.footnote
       ? Number.POSITIVE_INFINITY
-      : (listItem?.content ?? 0) + 4; const nestedQuote = depth > 0 && !indentedMarker && !listItem?.footnote && (listItem == null || listItem.depth < depth); const requiredCodeIndent = nestedQuote ? 4 : codeColumn; const absoluteIndent = depth > 0 ? quoteIndents[0]! : indent;
+      : (listItem?.content ?? 0) + 4;
+    const nestedQuote =
+      depth > 0 &&
+      !indentedMarker &&
+      !listItem?.footnote &&
+      (listItem == null || listItem.depth < depth);
+    const requiredCodeIndent = nestedQuote ? 4 : codeColumn;
+    const absoluteIndent = depth > 0 ? quoteIndents[0]! : indent;
     if (
       first !== -1 &&
       (indent >= requiredCodeIndent || absoluteIndent >= codeColumn) &&
