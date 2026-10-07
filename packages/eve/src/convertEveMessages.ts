@@ -536,14 +536,14 @@ export type EveMessageContent =
         }
     )[];
 
-/**
- * Converts an assistant-ui append message into the message payload accepted by
- * Eve's `send` API.
- */
 type OutboundPart = AppendMessage["content"][number] & {
   readonly contentType?: string | undefined;
 };
 
+/**
+ * Converts an assistant-ui append message into the message payload accepted by
+ * Eve's `send` API.
+ */
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
