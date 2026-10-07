@@ -194,6 +194,41 @@ const roundTrip = (repository: MessageRepository) => {
 };
 
 describe("MessageRepository export with an optimistic head", () => {
+  it("keeps the persisted ancestor of a selected running branch over a later sibling", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", {
+      ...assistantMessage("placeholder", true),
+      status: { type: "running" },
+    });
+    repository.addOrUpdateMessage("u", assistantMessage("later"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("u");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["u"]);
+  });
+
+  it("keeps the saved answer before a selected optimistic branch over a later sibling", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("answer"));
+    repository.addOrUpdateMessage("u", {
+      ...assistantMessage("placeholder", true),
+      status: { type: "running" },
+    });
+    repository.switchToBranch("placeholder");
+    repository.addOrUpdateMessage("u", assistantMessage("later"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("answer");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "answer"]);
+  });
+
   it("keeps a persisted sibling of the optimistic head through export and import", () => {
     const repository = new MessageRepository();
     repository.addOrUpdateMessage(null, assistantMessage("u"));

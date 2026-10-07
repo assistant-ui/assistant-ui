@@ -559,9 +559,21 @@ export class MessageRepository {
       const descendant = this.exportedChild(selected);
       if (descendant) return descendant;
     }
-    for (let i = parent.children.length - 1; i >= 0; i--) {
-      const child = this.messages.get(parent.children[i]!);
-      if (!child || child === selected) continue;
+    const selectedIndex = selected
+      ? parent.children.indexOf(selected.current.id)
+      : parent.children.length;
+    const siblings = parent.children.slice(0, selectedIndex).reverse();
+    if (
+      selected?.current.role !== "assistant" ||
+      selected.current.status.type !== "running"
+    ) {
+      for (let i = parent.children.length - 1; i > selectedIndex; i--) {
+        siblings.push(parent.children[i]!);
+      }
+    }
+    for (const id of siblings) {
+      const child = this.messages.get(id);
+      if (!child) continue;
       if (!child.current.metadata?.isOptimistic) return child;
       const descendant = this.exportedChild(child);
       if (descendant) return descendant;
