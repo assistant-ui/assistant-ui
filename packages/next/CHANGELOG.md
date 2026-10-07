@@ -1,5 +1,20 @@
 # @assistant-ui/next
 
+## 0.0.24
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/x-generative-compiler@0.0.20
+
+## 0.0.23
+
+### Patch Changes
+
+- Updated dependencies [[`407a0ff`](https://github.com/assistant-ui/assistant-ui/commit/407a0ff8ad7aee137b841a5474e188790c9a7ce4)]:
+  - @assistant-ui/x-generative-compiler@0.0.19
+
 ## 0.0.22
 
 ### Patch Changes

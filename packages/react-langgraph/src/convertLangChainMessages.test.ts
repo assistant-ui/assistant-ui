@@ -1,10 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  CompleteAttachment,
+  MessageTiming,
+} from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
+  createLangGraphMetadataKey,
   getMessageContent,
+  type LangGraphMessageConverterMetadata,
 } from "./convertLangChainMessages";
 import type { LangChainMessage, UIMessage } from "./types";
 
@@ -27,6 +33,133 @@ const convertLangChainMessages = (
       metadata: Record<string, unknown>,
     ) => ConvertResult
   )(message, metadata);
+
+describe("createLangGraphMetadataKey", () => {
+  const assistant = (id: string): LangChainMessage => ({
+    id,
+    type: "ai",
+    content: "",
+  });
+  const ui = (id: string, parentId: string, value: number): UIMessage => ({
+    type: "ui",
+    id,
+    name: "chart",
+    props: { value },
+    metadata: { message_id: parentId },
+  });
+
+  it("changes only the parent key when UI data is added, updated, or removed", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const first = assistant("a1");
+    const second = assistant("a2");
+    const third = assistant("a3");
+    const firstUI = ui("ui-1", "a1", 1);
+    const secondUI = ui("ui-2", "a2", 1);
+    const initial: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [secondUI]],
+      ]),
+    };
+    const firstKey = getMetadataKey(first, initial);
+    const secondKey = getMetadataKey(second, initial);
+    const thirdKey = getMetadataKey(third, initial);
+
+    const updated: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [ui("ui-2", "a2", 2)]],
+      ]),
+    };
+    expect(getMetadataKey(first, updated)).toBe(firstKey);
+    const updatedSecondKey = getMetadataKey(second, updated);
+    expect(updatedSecondKey).not.toBe(secondKey);
+    expect(getMetadataKey(third, updated)).toBe(thirdKey);
+
+    const added: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ...updated.uiMessagesByParent!,
+        ["a3", [ui("ui-3", "a3", 1)]] as const,
+      ]),
+    };
+    expect(getMetadataKey(first, added)).toBe(firstKey);
+    expect(getMetadataKey(third, added)).not.toBe(thirdKey);
+
+    const removed: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([["a1", [firstUI]]]),
+    };
+    expect(getMetadataKey(second, removed)).not.toBe(updatedSecondKey);
+    expect(getMetadataKey(first, removed)).toBe(firstKey);
+  });
+
+  it("tracks timing and attachments only for the roles that consume them", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const aiMessage = assistant("a1");
+    const userMessage: LangChainMessage = {
+      id: "u1",
+      type: "human",
+      content: "hello",
+    };
+    const toolMessage: LangChainMessage = {
+      id: "t1",
+      type: "tool",
+      content: "done",
+      tool_call_id: "call-1",
+      name: "search",
+      status: "success",
+    };
+    const initialTiming: MessageTiming = {
+      streamStartTime: 1,
+      totalChunks: 1,
+      toolCallCount: 0,
+    };
+    const initialAttachments: readonly CompleteAttachment[] = [
+      {
+        id: "attachment-1",
+        type: "file",
+        name: "notes.txt",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "notes" }],
+      },
+    ];
+    const initial: LangGraphMessageConverterMetadata = {
+      messageTiming: { a1: initialTiming },
+      attachmentsByMessageId: new Map([["u1", initialAttachments]]),
+    };
+    const aiKey = getMetadataKey(aiMessage, initial);
+    const userKey = getMetadataKey(userMessage, initial);
+    const toolKey = getMetadataKey(toolMessage, initial);
+
+    const nextTiming: MessageTiming = {
+      ...initialTiming,
+      totalChunks: 2,
+    };
+    const timingUpdated: LangGraphMessageConverterMetadata = {
+      ...initial,
+      messageTiming: { a1: nextTiming },
+    };
+    const nextAiKey = getMetadataKey(aiMessage, timingUpdated);
+    expect(nextAiKey).not.toBe(aiKey);
+    expect(getMetadataKey(userMessage, timingUpdated)).toBe(userKey);
+    expect(getMetadataKey(toolMessage, timingUpdated)).toBe(toolKey);
+
+    const attachmentsUpdated: LangGraphMessageConverterMetadata = {
+      ...timingUpdated,
+      attachmentsByMessageId: new Map([
+        [
+          "u1",
+          [
+            ...initialAttachments,
+            { ...initialAttachments[0]!, id: "attachment-2" },
+          ],
+        ],
+      ]),
+    };
+    expect(getMetadataKey(aiMessage, attachmentsUpdated)).toBe(nextAiKey);
+    expect(getMetadataKey(userMessage, attachmentsUpdated)).not.toBe(userKey);
+    expect(getMetadataKey(toolMessage, attachmentsUpdated)).toBe(toolKey);
+  });
+});
 
 describe("convertLangChainMessages tool result names", () => {
   const assistant: LangChainMessage = {
@@ -77,6 +210,75 @@ describe("convertLangChainMessages tool result names", () => {
         {},
       ),
     ).toThrow(/does not match existing tool call/);
+  });
+
+  it("skips a tool call without a name and leaves its result unattached", () => {
+    const messages = convertExternalMessages(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: "",
+          tool_calls: [
+            { id: "call-1", args: {} },
+            { id: "call-2", name: "search", args: {} },
+          ],
+        } as unknown as LangChainMessage,
+        { ...tool, name: "search" },
+      ],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "call-2", toolName: "search" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps a tool call whose name is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "", args: {} }],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "",
+      }),
+    ]);
+  });
+
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -138,6 +340,27 @@ describe("convertLangChainMessages content-less messages", () => {
       toolCallId: "call-1",
       argsText: "",
     });
+  });
+
+  it("skips a null tool_call_chunks entry", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-null-chunk",
+      tool_calls: [{ id: "call-1", name: "search", args: { q: "x" } }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q": "x"}' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        args: { q: "x" },
+        argsText: '{"q": "x"}',
+      },
+    ]);
   });
 
   it("falls back when object argument serialization throws", () => {
@@ -427,14 +650,14 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        metadata: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        custom: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
   });
@@ -1009,6 +1232,99 @@ describe("convertLangChainMessages file content", () => {
           filename: "file",
           data: "file-abc123",
           mimeType: "application/octet-stream",
+          sourceType: "id",
+        },
+      ],
+    });
+  });
+});
+
+describe("convertLangChainMessages standard content blocks", () => {
+  it("converts a base64 image block to an image part", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-image",
+      content: [{ type: "image", mimeType: "image/png", data: "ZmFrZQ==" }],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "image", image: "data:image/png;base64,ZmFrZQ==" }],
+    });
+  });
+
+  it("reads the camelCase mime type of a base64 file block", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-file",
+      content: [
+        { type: "file", mimeType: "application/pdf", data: "JVBERi0=" },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "file",
+          data: "JVBERi0=",
+          mimeType: "application/pdf",
+        },
+      ],
+    });
+  });
+
+  it("resolves the url of a file block that carries no source_type", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-file-url",
+      content: [
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          url: "https://cdn.example/a.pdf",
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "file",
+          data: "https://cdn.example/a.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+
+  it("converts Python standard media fields", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-python-media",
+      content: [
+        { type: "image", mime_type: "image/png", base64: "ZmFrZQ==" },
+        {
+          type: "file",
+          mime_type: "application/pdf",
+          file_id: "file-python-123",
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        { type: "image", image: "data:image/png;base64,ZmFrZQ==" },
+        {
+          type: "file",
+          filename: "file",
+          data: "file-python-123",
+          mimeType: "application/pdf",
           sourceType: "id",
         },
       ],
@@ -1787,6 +2103,44 @@ describe("convertLangChainMessages tool call id stability", () => {
     expect(result.content.find((part) => part.type === "tool-call")).toEqual(
       expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
     );
+  });
+
+  it("skips null tool_calls entries and keeps the index-based id of the rest", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [null, { id: "", name: "search", args: {} }],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "lc-toolcall-ai-1-1",
+        toolName: "search",
+      }),
+    ]);
+  });
+
+  it("skips null tool_call_chunks entries", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "search", args: {} }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q":"x' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        argsText: '{"q":"x',
+      }),
+    ]);
   });
 });
 

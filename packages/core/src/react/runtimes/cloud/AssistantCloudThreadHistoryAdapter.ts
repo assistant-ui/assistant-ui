@@ -8,9 +8,16 @@ import type {
 } from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 import type { ThreadMessage } from "../../../types";
+import type { Unstable_ToolInteractionLog } from "../../../types/message";
+import {
+  appendToolInteraction,
+  readToolInteractionLog,
+} from "../../../runtime/utils/tool-interactions";
+import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
+  CloudAPIError,
   CloudEngagementReporter,
   CloudMessagePersistence,
   CloudRunReporter,
@@ -32,7 +39,10 @@ import {
 } from "assistant-cloud/ai-sdk";
 import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
-import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import {
+  type KeyedThreadListItem as CloudThreadListItem,
+  tryGetKeyedThreadListItem,
+} from "../keyedThreadListItem";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
 import {
   isStoredMessageStatus,
@@ -40,15 +50,27 @@ import {
 } from "../../../runtime/utils/stored-message-parts";
 import { runCleanups } from "../../../subscribable/subscribable";
 
-type CloudThreadListItem = Pick<
-  ThreadListItemMethods,
-  "getState" | "initialize"
->;
+type ScopedPersistence = {
+  cloudRef: { current: RefObject<AssistantCloud> };
+  persistence: CloudMessagePersistence;
+  scope: unknown;
+};
+
+type CloudScopeSnapshot = {
+  cloud: AssistantCloud;
+  scope: unknown;
+};
+
+type CloudScopeContext = CloudScopeSnapshot & {
+  persistence: CloudMessagePersistence;
+};
 
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
-  CloudMessagePersistence
+  ScopedPersistence
 >();
+
+export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
 
 // Kept per persistence so they share the id mapping's lifetime: ids whose stored aui/v0 entry is settled, and ids whose run a write has reported.
 const runLedgers = new WeakMap<
@@ -69,26 +91,98 @@ const isSettledMessage = (message: ThreadMessage) =>
   message.role === "assistant" &&
   (message.status.type === "complete" || message.status.type === "incomplete");
 
+const mergeInteractionLogs = (
+  stored: Unstable_ToolInteractionLog | undefined,
+  current: Unstable_ToolInteractionLog | undefined,
+): Unstable_ToolInteractionLog | undefined => {
+  const incoming = readToolInteractionLog(current);
+  if (!stored) return incoming;
+  if (!incoming) return stored;
+  const omitted = Math.max(stored.omitted ?? 0, incoming.omitted ?? 0);
+  let merged: Unstable_ToolInteractionLog = {
+    entries: stored.entries,
+    ...(omitted ? { omitted } : undefined),
+  };
+  for (const entry of incoming.entries) {
+    if (
+      merged.entries.some(
+        (existing) =>
+          existing.type === entry.type &&
+          existing.occurredAt === entry.occurredAt &&
+          isJSONValueEqual(existing.payload, entry.payload),
+      )
+    ) {
+      continue;
+    }
+    merged = appendToolInteraction(merged, entry);
+  }
+  return merged;
+};
+
+type CopiedThread = {
+  stored: Set<string>;
+  refused: Set<string>;
+  closed: boolean;
+  interactions: Map<string, Unstable_ToolInteractionLog>;
+};
+
+const RETRIED_COPY_STATUSES = new Set([401, 403, 408, 429]);
+// The thread is gone, or its end user may not write this month.
+const THREAD_REFUSAL_STATUSES = new Set([402, 404]);
+
+const isRefusedCopy = (error: unknown): error is CloudAPIError =>
+  error instanceof CloudAPIError &&
+  error.status >= 400 &&
+  error.status < 500 &&
+  !RETRIED_COPY_STATUSES.has(error.status);
+
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
+  private scopeRef: RefObject<unknown>;
   private getAui: () => AssistantClient;
-  private runReporter: CloudRunReporter;
+  private runReporterContext:
+    | {
+        cloud: AssistantCloud;
+        scope: unknown;
+        reporter: CloudRunReporter;
+      }
+    | undefined;
+  private copiedThreads = new WeakMap<
+    CloudMessagePersistence,
+    Map<string, Promise<CopiedThread>>
+  >();
+  private copyQueues = new WeakMap<
+    CloudMessagePersistence,
+    Map<string, Promise<void>>
+  >();
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
     getAui: () => AssistantClient,
+    scopeRef: RefObject<unknown>,
   ) {
     this.cloudRef = cloudRef;
+    this.scopeRef = scopeRef;
     this.getAui = getAui;
-    this.runReporter = new CloudRunReporter(() => this.cloudRef.current);
   }
 
   private get aui(): AssistantClient {
     return this.getAui();
   }
 
+  private captureScopeSnapshot(): CloudScopeSnapshot {
+    return {
+      cloud: this.cloudRef.current,
+      scope: this.scopeRef.current,
+    };
+  }
+
   public getCloud(): AssistantCloud {
     return this.cloudRef.current;
+  }
+
+  public getScope(): unknown {
+    return this.scopeRef.current;
   }
 
   public ownsThread(threadId: string): boolean {
@@ -98,21 +192,55 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return id === threadId || remoteId === threadId;
   }
 
-  private getPersistence(
-    threadListItem: CloudThreadListItem = this.aui.threadListItem,
-  ): CloudMessagePersistence {
-    const key = getClientId(threadListItem);
-    if (!globalPersistence.has(key)) {
-      globalPersistence.set(
-        key,
-        new CloudMessagePersistence(() => this.cloudRef.current),
-      );
-    }
-    return globalPersistence.get(key)!;
+  private isCurrentScope({ scope }: CloudScopeSnapshot): boolean {
+    return Object.is(this.scopeRef.current, scope);
   }
 
-  private get _persistence(): CloudMessagePersistence {
-    return this.getPersistence();
+  private assertCurrentScope(snapshot: CloudScopeSnapshot): void {
+    if (!this.isCurrentScope(snapshot)) {
+      throw new Error("Cloud scope changed during the persistence operation");
+    }
+  }
+
+  private captureScope(
+    threadListItem: CloudThreadListItem = this.aui.threadListItem,
+  ): CloudScopeContext {
+    const snapshot = this.captureScopeSnapshot();
+    return {
+      ...snapshot,
+      persistence: this.getPersistence(threadListItem, snapshot),
+    };
+  }
+
+  private getPersistence(
+    threadListItem: CloudThreadListItem = this.aui.threadListItem,
+    snapshot = this.captureScopeSnapshot(),
+  ): CloudMessagePersistence {
+    const key = getClientId(threadListItem);
+    let entry = globalPersistence.get(key);
+    if (!entry || !Object.is(entry.scope, snapshot.scope)) {
+      const cloudRef = { current: this.cloudRef };
+      entry = {
+        cloudRef,
+        scope: snapshot.scope,
+        persistence: new CloudMessagePersistence(
+          () => cloudRef.current.current,
+        ),
+      };
+      globalPersistence.set(key, entry);
+    } else {
+      // Thread items can outlive the hook that created their persistence, so a
+      // later adapter must reconnect the retained mapping to its live client ref.
+      entry.cloudRef.current = this.cloudRef;
+    }
+    return entry.persistence;
+  }
+
+  private async resolveExistingRemoteId(
+    threadListItem: CloudThreadListItem,
+  ): Promise<string | undefined> {
+    if (!threadListItem.getState().remoteId) return undefined;
+    return (await threadListItem.initialize()).remoteId;
   }
 
   /**
@@ -129,18 +257,34 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ): Promise<
     Pick<AssistantCloudEvent, "thread_id" | "message_id"> | undefined
   > {
+    return this.resolveEngagementEventIdsForScope(
+      this.captureScopeSnapshot(),
+      threadId,
+      messageId,
+      options,
+    );
+  }
+
+  private async resolveEngagementEventIdsForScope(
+    snapshot: CloudScopeSnapshot,
+    threadId: string,
+    messageId?: string,
+    options?: { awaitThread?: boolean },
+  ): Promise<
+    Pick<AssistantCloudEvent, "thread_id" | "message_id"> | undefined
+  > {
+    this.assertCurrentScope(snapshot);
     const threadListItem = this.getThreadListItem(threadId);
     if (!threadListItem) return undefined;
+    const persistence = this.getPersistence(threadListItem, snapshot);
 
-    let remoteThreadId = threadListItem.getState().remoteId;
-    if (!remoteThreadId && options?.awaitThread) {
-      remoteThreadId = await threadListItem
-        .initialize()
-        .then((result) => result.remoteId)
-        .catch(() => undefined);
+    let remoteThreadId: string | undefined;
+    if (threadListItem.getState().remoteId || options?.awaitThread) {
+      remoteThreadId = (await threadListItem.initialize()).remoteId;
     }
+    this.assertCurrentScope(snapshot);
     const remoteMessageId = messageId
-      ? this.getPersistence(threadListItem).getResolvedRemoteId(messageId)
+      ? persistence.getResolvedRemoteId(messageId)
       : undefined;
     return {
       ...(remoteThreadId ? { thread_id: remoteThreadId } : undefined),
@@ -151,18 +295,22 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   public readonly feedback: FeedbackAdapter = {
     submit: ({ message, type, comment }) => {
       void (async () => {
-        const threadListItem = this.tryGetKeyedThreadListItem();
-        const remoteThreadId = threadListItem?.getState().remoteId;
-        if (!threadListItem || !remoteThreadId) {
+        const threadListItem = tryGetKeyedThreadListItem(this.aui);
+        if (!threadListItem || !threadListItem.getState().remoteId) {
           console.warn(
             `[assistant-ui] Skipping feedback for message ${message.id}: the thread has no remote id.`,
           );
           return;
         }
 
-        const cloudMessageId = await this.getPersistence(
-          threadListItem,
-        ).getRemoteId(message.id);
+        const context = this.captureScope(threadListItem);
+        const remoteThreadId =
+          await this.resolveExistingRemoteId(threadListItem);
+        this.assertCurrentScope(context);
+        if (!remoteThreadId) return;
+        const persistence = context.persistence;
+        const cloudMessageId = await persistence.getRemoteId(message.id);
+        this.assertCurrentScope(context);
         if (!cloudMessageId) {
           console.warn(
             `[assistant-ui] Skipping feedback for message ${message.id}: no cloud message id is mapped.`,
@@ -170,7 +318,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           return;
         }
 
-        await this.cloudRef.current.threads.messages.feedback(
+        await context.cloud.threads.messages.feedback(
           remoteThreadId,
           cloudMessageId,
           { type, ...(comment ? { comment } : undefined) },
@@ -183,19 +331,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       });
     },
   };
-
-  private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
-    const live = this.aui.threadListItem;
-    if (!live.source) return undefined;
-    const id = live.getState().id;
-    if (id === undefined) return undefined;
-    // A body can resolve before the list's committed items include its
-    // thread; the live item is already the per-thread anchor in that window.
-    const listed = this.aui.threads
-      .getState()
-      .threadItems.some((item) => item.id === id || item.remoteId === id);
-    return listed ? this.aui.threads.item({ id }) : live;
-  }
 
   private getThreadListItem(threadId: string): CloudThreadListItem | undefined {
     const current = this.aui.threadListItem;
@@ -220,13 +355,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const adapter = this;
     let threadListItem: CloudThreadListItem | undefined;
     const pinCurrent = () => {
-      const next = adapter.tryGetKeyedThreadListItem();
+      const next = tryGetKeyedThreadListItem(adapter.aui);
       if (next) threadListItem = next;
       return threadListItem;
     };
     const resolvePinned = () => threadListItem ?? pinCurrent();
-    const getTargetFormatted = (item: CloudThreadListItem) =>
-      createFormattedPersistence(adapter.getPersistence(item), formatAdapter);
+    const getTargetFormatted = (context: CloudScopeContext) =>
+      createFormattedPersistence(context.persistence, formatAdapter);
     return {
       pin() {
         pinCurrent();
@@ -238,15 +373,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
             "Cannot persist cloud history without a thread list item.",
           );
         }
-        const remoteId =
-          pinned.getState().remoteId ?? (await pinned.initialize()).remoteId;
-        await getTargetFormatted(pinned).append(remoteId, item);
+        const context = adapter.captureScope(pinned);
+        const { remoteId } = await pinned.initialize();
+        adapter.assertCurrentScope(context);
+        await getTargetFormatted(context).append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
         const pinned = resolvePinned();
-        const remoteId = pinned?.getState().remoteId;
-        if (!remoteId || !pinned) return;
-        await getTargetFormatted(pinned).update?.(
+        if (!pinned || !pinned.getState().remoteId) return;
+        const context = adapter.captureScope(pinned);
+        const remoteId = await adapter.resolveExistingRemoteId(pinned);
+        adapter.assertCurrentScope(context);
+        if (!remoteId) return;
+        await getTargetFormatted(context).update?.(
           remoteId,
           item,
           localMessageId,
@@ -287,51 +426,261 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         // resolve, whichever of the list item or the live graft won the pin.
         const pinned = pinCurrent();
         const live = adapter.aui.threadListItem;
-        const remoteId = live.source ? live.getState().remoteId : undefined;
+        if (!live.source || !live.getState().remoteId) return { messages: [] };
+        const target = pinned ?? live;
+        const context = adapter.captureScope(target);
+        const remoteId = await adapter.resolveExistingRemoteId(target);
+        adapter.assertCurrentScope(context);
         if (!remoteId) return { messages: [] };
-        return getTargetFormatted(pinned ?? live).load(remoteId);
+        const repository = await getTargetFormatted(context).load(remoteId);
+        adapter.assertCurrentScope(context);
+        return repository;
       },
     };
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    const { remoteId } = await this.aui.threadListItem.initialize();
-    const persistence = this._persistence;
-    await this._writeMessage(persistence, remoteId, message, (encoded) =>
-      persistence.append(remoteId, message.id, parentId, "aui/v0", encoded),
+    const threadListItem = this.aui.threadListItem;
+    const context = this.captureScope(threadListItem);
+    const { remoteId } = await threadListItem.initialize();
+    this.assertCurrentScope(context);
+    await this._writeMessage(context, remoteId, message, (encoded) =>
+      context.persistence.append(
+        remoteId,
+        message.id,
+        parentId,
+        "aui/v0",
+        encoded,
+      ),
     );
   }
 
   async update(item: ExportedMessageRepositoryItem) {
-    const persistence = this._persistence;
-    if (!persistence.isPersisted(item.message.id)) {
+    const threadListItem = this.aui.threadListItem;
+    const context = this.captureScope(threadListItem);
+    if (!context.persistence.isPersisted(item.message.id)) {
       return this.append(item);
     }
     const { message } = item;
-    const remoteId = this.aui.threadListItem.getState().remoteId;
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
     if (!remoteId) return;
-    await this._writeMessage(persistence, remoteId, message, (encoded) =>
-      persistence.update(remoteId, message.id, "aui/v0", encoded),
+    await this._writeMessage(context, remoteId, message, (encoded) =>
+      context.persistence.update(remoteId, message.id, "aui/v0", encoded),
     );
+  }
+
+  get unstable_copy() {
+    const telemetry = this.cloudRef.current?.telemetry;
+    return telemetry?.enabled === false || telemetry?.messages === false
+      ? undefined
+      : this.copy;
+  }
+
+  private copy = async (
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void> => {
+    if (messageIds.length === 0) return;
+
+    const threadListItem = tryGetKeyedThreadListItem(this.aui);
+    if (!threadListItem) {
+      throw new Error("Cannot copy cloud history without a thread list item.");
+    }
+    const context = this.captureScope(threadListItem);
+    const remoteId = (await threadListItem.initialize()).remoteId;
+    this.assertCurrentScope(context);
+    let queues = this.copyQueues.get(context.persistence);
+    if (!queues) {
+      queues = new Map();
+      this.copyQueues.set(context.persistence, queues);
+    }
+    const previous = queues.get(remoteId);
+    const task = (previous ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => this.copyBranch(context, remoteId, branch, messageIds));
+    queues.set(remoteId, task);
+    try {
+      await task;
+    } finally {
+      if (queues.get(remoteId) === task) {
+        queues.delete(remoteId);
+      }
+    }
+  };
+
+  private async copyBranch(
+    context: CloudScopeContext,
+    remoteId: string,
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void> {
+    let inventories = this.copiedThreads.get(context.persistence);
+    if (!inventories) {
+      inventories = new Map();
+      this.copiedThreads.set(context.persistence, inventories);
+    }
+    let inventory = inventories.get(remoteId);
+    if (!inventory) {
+      inventory = (async (): Promise<CopiedThread> => {
+        const copied: CopiedThread = {
+          stored: new Set(),
+          refused: new Set(),
+          closed: false,
+          interactions: new Map(),
+        };
+        const seen = new Set<string>();
+        let after: string | undefined;
+        while (true) {
+          this.assertCurrentScope(context);
+          const page = await context.cloud.threads.messages.list(remoteId, {
+            limit: 200,
+            ...(after ? { after } : undefined),
+          });
+          this.assertCurrentScope(context);
+          // A cursor the server cannot resolve drops the keyset filter and replays
+          // an earlier page, so already-seen rows end the walk instead of repeating.
+          const fresh = page.messages.filter((row) => !seen.has(row.id));
+          for (const row of fresh) {
+            seen.add(row.id);
+            if (!row.external_id || row.format !== "aui/v0") continue;
+            copied.stored.add(row.external_id);
+            context.persistence.record(row.external_id, row.id);
+            const decoded = auiV0DecodeSafely(
+              row as typeof row & { format: "aui/v0" },
+            );
+            for (const part of decoded?.message.content ?? []) {
+              if (part.type !== "tool-call") continue;
+              const merged = mergeInteractionLogs(
+                copied.interactions.get(part.toolCallId),
+                part.unstable_interactions,
+              );
+              if (merged) copied.interactions.set(part.toolCallId, merged);
+            }
+          }
+          const last = page.messages.at(-1);
+          if (fresh.length === 0 || page.messages.length < 200 || !last) break;
+          after = last.id;
+        }
+        return copied;
+      })();
+      inventories.set(remoteId, inventory);
+    }
+
+    let copied: CopiedThread;
+    try {
+      copied = await inventory;
+    } catch (error) {
+      if (inventories.get(remoteId) === inventory) {
+        inventories.delete(remoteId);
+      }
+      throw error;
+    }
+    if (copied.closed) return;
+
+    const eligible = branch.filter(
+      (message) => message.id.length > 0 && message.id.length <= 255,
+    );
+    const changed = new Set(messageIds);
+    let next = 0;
+    let parent: string | undefined;
+    for (let index = 0; index < eligible.length; index++) {
+      if (!changed.has(eligible[index]!.id)) continue;
+      for (; next <= index; next++) {
+        const message = eligible[next]!;
+        if (
+          next !== index &&
+          (copied.stored.has(message.id) || copied.refused.has(message.id))
+        ) {
+          if (copied.stored.has(message.id)) parent = message.id;
+          continue;
+        }
+        const encoded = auiV0Encode(message);
+        const content = {
+          ...encoded,
+          content: encoded.content.map((part) => {
+            if (part.type !== "tool-call") return part;
+            const interactions = mergeInteractionLogs(
+              copied.interactions.get(part.toolCallId),
+              part.unstable_interactions,
+            );
+            return {
+              ...part,
+              ...(interactions
+                ? { unstable_interactions: interactions }
+                : undefined),
+            };
+          }),
+        };
+        let message_id: string;
+        try {
+          this.assertCurrentScope(context);
+          ({ message_id } = await context.cloud.threads.messages.create(
+            remoteId,
+            {
+              parent_id: null,
+              format: "aui/v0",
+              content,
+              external_id: message.id,
+              ...(parent ? { parent_external_id: parent } : undefined),
+            },
+          ));
+          this.assertCurrentScope(context);
+        } catch (error) {
+          if (!isRefusedCopy(error)) throw error;
+          // Two refusals before any accepted message mean the cloud takes none of the thread, as a server without external ids does; one alone may be an oversized first message.
+          if (
+            THREAD_REFUSAL_STATUSES.has(error.status) ||
+            (copied.stored.size === 0 && copied.refused.size > 0)
+          ) {
+            copied.closed = true;
+            console.warn(
+              `[assistant-ui] The cloud refused copies to thread ${remoteId}; the dashboard shows the conversation as far as it was copied.`,
+              error,
+            );
+            return;
+          }
+          copied.refused.add(message.id);
+          console.warn(
+            `[assistant-ui] The cloud refused the copy of message ${message.id}; the dashboard shows the conversation without it.`,
+            error,
+          );
+          continue;
+        }
+        copied.stored.add(message.id);
+        copied.refused.delete(message.id);
+        parent = message.id;
+        context.persistence.record(message.id, message_id);
+        for (const part of content.content) {
+          if (part.type === "tool-call" && part.unstable_interactions) {
+            copied.interactions.set(
+              part.toolCallId,
+              part.unstable_interactions,
+            );
+          }
+        }
+      }
+    }
   }
 
   // A run is reported once, by the write that first stores its message as settled; rewriting that entry later, as a late tool result does, is not a new run. Eligibility is read before the write, so a load that reads the write back cannot take the report, and the report is claimed after it, so overlapping writes of one message report once.
   private async _writeMessage(
-    persistence: CloudMessagePersistence,
+    context: CloudScopeContext,
     remoteId: string,
     message: ThreadMessage,
     write: (encoded: ReturnType<typeof auiV0Encode>) => Promise<void>,
   ) {
     const encoded = auiV0Encode(message);
-    const ledger = runLedgerOf(persistence);
+    const ledger = runLedgerOf(context.persistence);
     const firstSettle =
       isSettledMessage(message) && !ledger.settled.has(message.id);
+    this.assertCurrentScope(context);
     await write(encoded);
     if (!firstSettle) return;
     ledger.settled.add(message.id);
     if (ledger.reported.has(message.id)) return;
 
-    if (!this.cloudRef.current.telemetry.enabled) return;
+    if (!context.cloud.telemetry.enabled) return;
     const extracted = extractTelemetry("aui/v0", encoded);
     if (!extracted) return;
     ledger.reported.add(message.id);
@@ -341,7 +690,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       undefined,
       undefined,
       extractRunMessageInfo(message, "aui/v0"),
-      persistence,
+      context,
     );
   }
 
@@ -352,10 +701,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
-    const remoteId = this.aui.threadListItem.getState().remoteId;
+    const threadListItem = this.aui.threadListItem;
+    const context = this.captureScope(threadListItem);
+    const remoteId = await this.resolveExistingRemoteId(threadListItem);
+    this.assertCurrentScope(context);
     if (!remoteId) return { messages: [] };
-    const persistence = this._persistence;
-    const messages = await persistence.load(remoteId, "aui/v0");
+    const messages = await context.persistence.load(remoteId, "aui/v0");
+    this.assertCurrentScope(context);
     // The cloud lists rows newest first, so walking them oldest first puts a
     // parent ahead of its children and a row orphaned by an unreadable parent
     // can be dropped in the same pass; MessageRepository.import throws on a
@@ -368,7 +720,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     const loaded: ExportedMessageRepositoryItem[] = [];
     const loadedIds = new Set<string>();
-    const { settled } = runLedgerOf(persistence);
+    const { settled } = runLedgerOf(context.persistence);
     for (const row of rows) {
       const item = auiV0DecodeSafely(row);
       if (!item) continue;
@@ -392,8 +744,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     messageInfo?: RunMessageInfo,
   ) {
     const item = threadListItem ?? this.aui.threadListItem;
-    const remoteId = item.getState().remoteId;
-    if (!remoteId) return;
+    const context = this.captureScope(item);
+    if (!item.getState().remoteId) return;
 
     const extracted =
       extractRunTelemetry(format, runMessages) ??
@@ -402,14 +754,20 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         : undefined);
     if (!extracted) return;
 
-    this._sendReport(
-      remoteId,
-      extracted,
-      options?.durationMs,
-      options?.stepTimestamps,
-      messageInfo,
-      this.getPersistence(item),
-    );
+    void this.resolveExistingRemoteId(item)
+      .then((remoteId) => {
+        if (!remoteId) return;
+        this.assertCurrentScope(context);
+        this._sendReport(
+          remoteId,
+          extracted,
+          options?.durationMs,
+          options?.stepTimestamps,
+          messageInfo,
+          context,
+        );
+      })
+      .catch(() => {});
   }
 
   private _sendReport(
@@ -418,13 +776,26 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     durationMs?: number,
     stepTimestamps?: StepTimestamp[],
     messageInfo?: RunMessageInfo,
-    persistence = this._persistence,
+    context = this.captureScope(),
   ) {
+    if (!this.isCurrentScope(context)) return;
+    const current = this.runReporterContext;
+    const reporter =
+      current &&
+      current.cloud === context.cloud &&
+      Object.is(current.scope, context.scope)
+        ? current.reporter
+        : new CloudRunReporter(context.cloud);
+    this.runReporterContext = {
+      cloud: context.cloud,
+      scope: context.scope,
+      reporter,
+    };
     const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
     const messageId = messageInfo?.localMessageId
-      ? persistence.getResolvedRemoteId(messageInfo.localMessageId)
+      ? context.persistence.getResolvedRemoteId(messageInfo.localMessageId)
       : undefined;
-    void this.runReporter.report({
+    void reporter.report({
       threadId: remoteId,
       status: messageInfo?.status ?? data.status,
       outcome: messageInfo?.outcomeType,
@@ -792,8 +1163,9 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   };
 }
 
-export function useAssistantCloudThreadHistoryAdapter(
+export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
+  scopeRef: RefObject<unknown>,
 ): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -803,15 +1175,27 @@ export function useAssistantCloudThreadHistoryAdapter(
   });
   const [adapter] = useState(
     () =>
-      new AssistantCloudThreadHistoryAdapter(cloudRef, () => auiRef.current),
+      new AssistantCloudThreadHistoryAdapter(
+        cloudRef,
+        () => auiRef.current,
+        scopeRef,
+      ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);
   return adapter;
 }
 
+export function useAssistantCloudThreadHistoryAdapter(
+  cloudRef: RefObject<AssistantCloud>,
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
+  const scopeRef = useRef<unknown>(DEFAULT_CLOUD_SCOPE);
+  return useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef);
+}
+
 type EngagementTracker = {
   mounted: Map<AssistantCloudThreadHistoryAdapter, AssistantClient>;
   lastMounted: AssistantCloudThreadHistoryAdapter;
+  reporterScope: unknown;
   reporter: CloudEngagementReporter;
   host: AssistantClient | undefined;
   dispose: (() => void) | undefined;
@@ -837,9 +1221,11 @@ const mountedAdapter = (
 const createEngagementTracker = (
   adapter: AssistantCloudThreadHistoryAdapter,
 ): EngagementTracker => {
-  const tracker: EngagementTracker = {
+  let tracker!: EngagementTracker;
+  tracker = {
     mounted: new Map(),
     lastMounted: adapter,
+    reporterScope: adapter.getScope(),
     reporter: new CloudEngagementReporter(
       () => mountedAdapter(tracker).getCloud(),
       (threadId, messageId, options) =>
@@ -855,22 +1241,47 @@ const createEngagementTracker = (
   return tracker;
 };
 
+const getEngagementReporter = (
+  tracker: EngagementTracker,
+  threadId?: string,
+): CloudEngagementReporter => {
+  const adapter = mountedAdapter(tracker, threadId);
+  const scope = adapter.getScope();
+  if (Object.is(tracker.reporterScope, scope)) return tracker.reporter;
+
+  tracker.reporterScope = scope;
+  tracker.reporter = new CloudEngagementReporter(
+    () => mountedAdapter(tracker).getCloud(),
+    (eventThreadId, messageId, options) =>
+      mountedAdapter(tracker, eventThreadId).resolveEngagementEventIds(
+        eventThreadId,
+        messageId,
+        options,
+      ),
+  );
+  return tracker.reporter;
+};
+
 const subscribeEngagementEvents = (
   aui: AssistantClient,
-  reporter: CloudEngagementReporter,
+  getReporter: (threadId?: string) => CloudEngagementReporter,
 ): (() => void) => {
   const reportSuggestions = () => {
     const { mainThreadId } = aui.threads.getState();
     const { isEmpty, suggestions } = aui.thread.getState();
     if (!isEmpty || suggestions.length === 0) return;
-    reporter.suggestionsShown(mainThreadId, suggestions.length);
+    getReporter(mainThreadId).suggestionsShown(
+      mainThreadId,
+      suggestions.length,
+    );
   };
 
   const unsubscribers = [
     aui.on({ scope: "*", event: "threads.selectionChanged" }, (payload) => {
-      reporter.threadSwitched(payload.threadId);
+      getReporter(payload.threadId).threadSwitched(payload.threadId);
     }),
     aui.on({ scope: "*", event: "composer.send" }, (payload) => {
+      const reporter = getReporter(payload.threadId);
       if (payload.messageId) {
         reporter.messageEdited(payload.threadId, {
           messageId: payload.messageId,
@@ -887,42 +1298,52 @@ const subscribeEngagementEvents = (
       }
     }),
     aui.on({ scope: "*", event: "composer.attachmentAdd" }, (payload) => {
-      reporter.attachmentAdded(payload.threadId, {
+      getReporter(payload.threadId).attachmentAdded(payload.threadId, {
         messageId: payload.messageId,
         contentType: payload.contentType,
       });
     }),
     aui.on({ scope: "*", event: "composer.attachmentAddError" }, (payload) => {
-      reporter.attachmentFailed(payload.threadId, {
+      getReporter(payload.threadId).attachmentFailed(payload.threadId, {
         messageId: payload.messageId,
         contentType: payload.contentType,
       });
     }),
     aui.on({ scope: "*", event: "composer.cancel" }, (payload) => {
-      reporter.runStopped(payload.threadId);
+      getReporter(payload.threadId).runStopped(payload.threadId);
     }),
     aui.on({ scope: "*", event: "thread.runStart" }, (payload) => {
-      reporter.runStarted(payload.threadId);
+      getReporter(payload.threadId).runStarted(payload.threadId);
     }),
     aui.on({ scope: "*", event: "thread.runEnd" }, (payload) => {
-      reporter.runEnded(payload.threadId);
+      getReporter(payload.threadId).runEnded(payload.threadId);
     }),
     aui.on({ scope: "*", event: "thread.cancelRun" }, (payload) => {
-      reporter.runStopped(payload.threadId);
+      getReporter(payload.threadId).runStopped(payload.threadId);
     }),
     aui.on({ scope: "*", event: "thread.voiceStarted" }, (payload) => {
-      reporter.voiceStarted(payload.threadId);
+      getReporter(payload.threadId).voiceStarted(payload.threadId);
     }),
     aui.on({ scope: "*", event: "message.reload" }, (payload) => {
-      reporter.messageRegenerated(payload.threadId, payload.messageId);
+      getReporter(payload.threadId).messageRegenerated(
+        payload.threadId,
+        payload.messageId,
+      );
     }),
     aui.on({ scope: "*", event: "message.branchSwitched" }, (payload) => {
-      reporter.branchSwitched(payload.threadId, payload.messageId);
+      getReporter(payload.threadId).branchSwitched(
+        payload.threadId,
+        payload.messageId,
+      );
     }),
     aui.on({ scope: "*", event: "message.copied" }, (payload) => {
-      reporter.messageCopied(payload.threadId, payload.messageId);
+      getReporter(payload.threadId).messageCopied(
+        payload.threadId,
+        payload.messageId,
+      );
     }),
     aui.on({ scope: "*", event: "thread.toolApprovalAnswered" }, (payload) => {
+      const reporter = getReporter(payload.threadId);
       if (payload.approved) {
         reporter.toolApproved(
           payload.threadId,
@@ -940,10 +1361,13 @@ const subscribeEngagementEvents = (
       }
     }),
     aui.on({ scope: "*", event: "message.speak" }, (payload) => {
-      reporter.speechStarted(payload.threadId, payload.messageId);
+      getReporter(payload.threadId).speechStarted(
+        payload.threadId,
+        payload.messageId,
+      );
     }),
     aui.on({ scope: "*", event: "message.error" }, (payload) => {
-      reporter.errorShown(payload.threadId, {
+      getReporter(payload.threadId).errorShown(payload.threadId, {
         messageId: payload.messageId,
         reason: payload.reason,
       });
@@ -960,7 +1384,9 @@ const installEngagementEvents = (
   host: AssistantClient,
 ) => {
   tracker.host = host;
-  tracker.dispose = subscribeEngagementEvents(host, tracker.reporter);
+  tracker.dispose = subscribeEngagementEvents(host, (threadId) =>
+    getEngagementReporter(tracker, threadId),
+  );
 };
 
 const uninstallEngagementEvents = (tracker: EngagementTracker) => {

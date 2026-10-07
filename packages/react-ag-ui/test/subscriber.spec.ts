@@ -55,6 +55,24 @@ describe("createAgUiSubscriber", () => {
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
   });
 
+  it("ignores a run failure after RUN_FINISHED", () => {
+    const events: AgUiEvent[] = [];
+    const onRunFailed = vi.fn();
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+      onRunFailed,
+    });
+
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "run" },
+    });
+    subscriber.onRunFailed?.({ error: new TypeError("network error") });
+
+    expect(onRunFailed).not.toHaveBeenCalled();
+    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+  });
+
   it("keeps streamed RUN_ERROR terminal when RUN_FINISHED follows", () => {
     const events: AgUiEvent[] = [];
     const onRunFailed = vi.fn();

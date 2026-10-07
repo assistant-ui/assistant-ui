@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CATALOG,
+  getCatalogItem,
+  isCartSlug,
   estimateAgentMinutes,
   formatMinutes,
   resolveProducts,
@@ -23,7 +25,53 @@ const importSpecifierPattern =
 const promptModulePattern =
   /(?:^|\/)(?:agent-prompts|build-install-prompt)(?:\.|$)|\.agent(?:\.|$)/;
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.resetModules();
+});
+
 describe("catalog registry", () => {
+  it("keeps only the main installer when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const closed = await import("./index");
+    expect(closed.CATALOG.map((product) => product.slug)).toEqual([
+      "assistant-ui",
+    ]);
+    expect(closed.CATALOG_ITEMS.map((item) => item.slug)).toEqual([
+      "react-app",
+      "assistant-ui",
+    ]);
+    expect(
+      closed
+        .resolveProducts([
+          "cloud",
+          "agent-tools",
+          "guides/mcp",
+          "elements/thread-list",
+          "assistant-ui",
+        ])
+        .map((product) => product.slug),
+    ).toEqual(["assistant-ui"]);
+    expect(closed.isCartSlug("cloud")).toBe(false);
+    expect(closed.isCartSlug("statewire")).toBe(false);
+    expect(closed.isCartSlug("harness-sdk")).toBe(false);
+    expect(closed.getProduct("cloud")).toBeUndefined();
+  });
+
+  it.each([
+    ["statewire", "/statewire"],
+    ["harness-sdk", "/harness-sdk"],
+  ])("resolves hidden %s for setup without public listing", (slug, href) => {
+    expect(CATALOG.some((product) => product.slug === slug)).toBe(false);
+    expect(getCatalogItem(slug)).toMatchObject({ href, hidden: true });
+    expect(isCartSlug(slug)).toBe(true);
+    expect(resolveProducts([slug]).map((product) => product.slug)).toEqual([
+      slug,
+    ]);
+  });
+
   it("has unique slugs that match their route form", () => {
     const slugs = CATALOG.map((product) => product.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
@@ -32,6 +80,7 @@ describe("catalog registry", () => {
 
   it("keeps catalog order and drops unknown slugs when resolving", () => {
     const products = resolveProducts([
+      "agent-tools",
       "cloud",
       "nope",
       "assistant-ui",
@@ -40,6 +89,7 @@ describe("catalog registry", () => {
     expect(products.map((product) => product.slug)).toEqual([
       "assistant-ui",
       "cloud",
+      "agent-tools",
     ]);
   });
 
@@ -47,8 +97,8 @@ describe("catalog registry", () => {
     const both = estimateAgentMinutes(
       resolveProducts(["assistant-ui", "cloud"]),
     );
-    expect(both).toEqual([10, 25]);
-    expect(formatMinutes(both)).toBe("10–25 min");
+    expect(both).toEqual([8, 15]);
+    expect(formatMinutes(both)).toBe("8–15 min");
     expect(formatMinutes([5, 5])).toBe("5 min");
     expect(estimateAgentMinutes([])).toEqual([0, 0]);
   });
