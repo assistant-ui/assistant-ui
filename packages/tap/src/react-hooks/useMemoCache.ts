@@ -21,14 +21,23 @@ const nextFiberMemoCache = (
     memoCache.workInProgress = data;
     addRollback(fiber.root, () => {
       memoCache.workInProgress = null;
+      memoCache.refreshedIndices = null;
     });
   }
 
   const index = memoCache.index++;
   let cache = data[index];
-  if (cache === undefined) {
+  if (memoCache.refreshedIndices?.has(index) && !fiber.isRefreshing) {
+    memoCache.refreshedIndices.delete(index);
+    cache = memoCache.current?.[index]?.slice() ?? createMemoCache(size);
+    data[index] = cache;
+  }
+  if (cache === undefined || fiber.isRefreshing) {
     cache = createMemoCache(size);
     data[index] = cache;
+    if (fiber.isRefreshing) {
+      (memoCache.refreshedIndices ??= new Set()).add(index);
+    }
   } else if (isDevelopment && cache.length !== size) {
     console.error(
       "Expected a constant size argument for each invocation of c(). " +

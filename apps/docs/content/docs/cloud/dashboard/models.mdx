@@ -11,6 +11,8 @@ Models turns run telemetry into a comparison of the models your application used
 
 Each top level row represents one model and provider pair. The dashboard groups reported spellings that resolve to the same catalog id under that pair. Open the row to see its reported ids as subrows, so a provider specific spelling does not split the aggregate from the catalog model it identifies.
 
+The table columns are **Model**, **Provider**, **Runs**, **Over time**, **Share**, **Tokens**, **Cached**, **Cost**, **Per run**, **p95**, **First token** and **Incomplete**.
+
 | Row or state | Reading |
 | --- | --- |
 | Model and provider | The canonical catalog model id and the provider that reported the run. |
@@ -60,7 +62,7 @@ The run counts, outcomes, and latency percentiles read the `runs` table. Time se
 
 ### Sampling calls
 
-A sampling call can report its own model id, input, cached input, output, reasoning tokens, duration, and cost. Its tokens and cost belong to the sampled model. The Models page therefore shows the usage that a tool's sampled model incurred, while the Runs figure remains the number of runs rather than the number of sampling calls.
+A sampling call can report its own model id, input, cached input, output, reasoning tokens, duration, and cost. Its tokens and cost belong to the sampled model.
 
 ## Inspect one model
 
@@ -78,7 +80,7 @@ Select a model row to open its detail page. Its range is the dashboard range, ex
 | Topics | Topics associated with the model's runs. |
 | Tools it calls | Tools recorded by the model's runs. |
 
-The Price rows are the quickest way to see whether a catalog entry or a project price override supplied the calculation. If the page is scoped with `?user=`, that scope applies to the tiles, runs, providers, price, reported ids, topics, and tools together.
+The Price rows show whether a catalog entry or a project price override supplied the calculation.
 
 ## Troubleshooting
 

@@ -9,25 +9,27 @@ import {
   useSyncExternalStore,
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
+import { toast } from "sonner";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { isProductSlug, resolveProducts } from "@/lib/catalog";
-import { cartUrl } from "@/lib/catalog/install-prompt";
-import { notifyCheckout } from "@/lib/checkout/notifications";
+import { getCatalogItem, isProductSlug, resolveProducts } from "@/lib/catalog";
+import { installGuideUrl } from "@/lib/catalog/install-guide";
 import {
   currentPlan,
   isAgentPresent,
+  isClosed,
   openInputs,
   planNeedsReview,
   stepProgress,
   type Checkout,
 } from "@/lib/checkout/protocol";
 import {
-  checkoutUrl,
+  agentLinkUrl,
   type CheckoutSession,
   addCheckoutProducts,
   endCheckout,
 } from "@/lib/checkout/session-store";
 import { parseCheckoutState } from "@/lib/checkout/wire-state";
+import { useWakeReconnect } from "@/components/shared/use-wake-reconnect";
 
 const tickListeners = new Set<() => void>();
 let ticker: ReturnType<typeof setInterval> | null = null;
@@ -72,54 +74,7 @@ const useDegradedAfterGrace = (degraded: boolean) => {
   return degraded && since !== null && remaining <= 0;
 };
 
-/** Notifies once per new question, plan revision and completion, skipping whatever the first snapshot already held. */
-const useCheckoutNotifications = (state: Checkout.State | undefined) => {
-  const seen = useRef<{ inputs: Set<string>; plans: number } | null>(null);
-  useEffect(() => {
-    if (state === undefined) return;
-    if (seen.current === null) {
-      seen.current = {
-        inputs: new Set(state.inputs.map((input) => input.id)),
-        plans: state.plans.length,
-      };
-      return;
-    }
-    for (const input of state.inputs) {
-      if (seen.current.inputs.has(input.id)) continue;
-      seen.current.inputs.add(input.id);
-      if (input.status === "open") {
-        notifyCheckout("Your agent has a question", input.prompt);
-      }
-    }
-    if (state.plans.length > seen.current.plans) {
-      seen.current.plans = state.plans.length;
-      notifyCheckout(
-        "Your agent has a plan",
-        "Review it and approve, or ask for changes.",
-      );
-    }
-  }, [state]);
-
-  const proposedAt = state?.completion?.proposedAt;
-  const loaded = state !== undefined;
-  const previousProposedAt = useRef<{ at: number | undefined }>(undefined);
-  useEffect(() => {
-    if (!loaded) return;
-    if (
-      proposedAt !== undefined &&
-      previousProposedAt.current !== undefined &&
-      previousProposedAt.current.at !== proposedAt
-    ) {
-      notifyCheckout(
-        "Your agent finished",
-        "Close the setup, or send a message to keep going.",
-      );
-    }
-    previousProposedAt.current = { at: proposedAt };
-  }, [loaded, proposedAt]);
-};
-
-/** Holds the connection for one session and reports what it knows. */
+/** Holds the browser's agent link for one session and reports what it knows. The link outlives the session, so the wire may still carry the previous checkout until this session's create lands; only this session's checkout is reported. */
 function CheckoutSessionBridge({
   session,
   onChange,
@@ -127,17 +82,17 @@ function CheckoutSessionBridge({
   session: CheckoutSession;
   onChange: (value: CheckoutContextValue | null) => void;
 }) {
-  const url = checkoutUrl(session.id);
+  const [url] = useState(agentLinkUrl);
   const wire = useStatewire<unknown, Checkout.Commands>({
     transport: StatewireWebsocket({ url }),
   });
   const { connection, commands } = wire;
-  const state = useMemo(() => parseCheckoutState(wire.state), [wire.state]);
+  const linked = useMemo(() => parseCheckoutState(wire.state), [wire.state]);
+  const state = linked?.id === session.id ? linked : undefined;
   const creating = useRef(false);
   const [refocusCount, setRefocusCount] = useState(0);
   const degraded = useDegradedAfterGrace(connection.degraded);
-  useTick();
-  useCheckoutNotifications(state);
+  const tick = useTick();
 
   const products = useMemo(
     () => resolveProducts(session.products),
@@ -154,23 +109,77 @@ function CheckoutSessionBridge({
 
   const connectionStatus = connection.status;
   useEffect(() => {
-    if (state === undefined || state.createdAt !== null || creating.current) {
+    if (linked === undefined || linked.id === session.id || creating.current) {
       return;
     }
     creating.current = true;
     commands["checkout/create"]({
+      id: session.id,
       ...(session.instructions && { instructions: session.instructions }),
       products: products.map((product) => ({
         slug: product.slug,
         name: product.name,
-        guide: `${window.location.origin}${cartUrl([product.slug], { markdown: true })}`,
+        guide: `${window.location.origin}${installGuideUrl([product.slug])}`,
       })),
     }).catch(() => {
       creating.current = false;
     });
-  }, [state, connectionStatus, products, session.instructions, commands]);
+  }, [
+    linked,
+    connectionStatus,
+    products,
+    session.id,
+    session.instructions,
+    commands,
+  ]);
 
-  const open = useMemo(() => (state ? openInputs(state) : []), [state]);
+  const open = useMemo(
+    () =>
+      state
+        ? openInputs(state).filter((input) => input.kind !== "product")
+        : [],
+    [state],
+  );
+  const proposals = useMemo(
+    () =>
+      state && !isClosed(state)
+        ? openInputs(state).filter((input) => input.kind === "product")
+        : [],
+    [state],
+  );
+  const settling = useRef(new Set<string>());
+  const rejected = useRef(new Set<string>());
+  const warned = useRef(new Set<string>());
+  useEffect(() => {
+    for (const input of proposals) {
+      if (settling.current.has(input.id)) continue;
+      settling.current.add(input.id);
+      const product = getCatalogItem(input.product ?? "");
+      // Another tab on the same session may have won the add, so only a proposal still open at the next tick was refused.
+      if (rejected.current.has(input.id) && !warned.current.has(input.id)) {
+        warned.current.add(input.id);
+        toast.error(
+          product
+            ? `Could not add ${product.name} to this setup. Trying again.`
+            : "Could not decline the agent's product proposal. Trying again.",
+        );
+      }
+      const settled = product
+        ? commands["checkout/add-product"]({
+            inputId: input.id,
+            product: {
+              slug: product.slug,
+              name: product.name,
+              guide: `${window.location.origin}${installGuideUrl([product.slug])}`,
+            },
+          })
+        : commands["checkout/dismiss"]({ inputId: input.id });
+      settled.catch(() => {
+        settling.current.delete(input.id);
+        rejected.current.add(input.id);
+      });
+    }
+  }, [proposals, commands, tick]);
   const planPending = state ? planNeedsReview(state) : false;
   const wanted = open.length > 0 || planPending;
 
@@ -184,6 +193,8 @@ function CheckoutSessionBridge({
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [wanted]);
+
+  useWakeReconnect(connection);
 
   const agentPresent = state ? isAgentPresent(state) : false;
   const value = useMemo<CheckoutContextValue>(() => {

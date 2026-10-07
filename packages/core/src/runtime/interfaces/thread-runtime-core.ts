@@ -7,7 +7,7 @@ import type {
   ThreadMessage,
   Unstable_ToolInteraction,
 } from "../../types/message";
-import type { RunConfig } from "../../types/message";
+import type { RunConfig, ToolApprovalAnswer } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
@@ -39,6 +39,8 @@ export type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  /** Whether the thread can answer a waiting tool call by adding its result, resuming it, or responding to its approval. */
+  readonly answerToolCall: boolean;
 };
 
 export type AddToolResultOptions = {
@@ -75,6 +77,8 @@ export type RespondToToolApprovalOptions = {
   optionId?: string;
   /** The free-form answer, when the request asked for one. */
   text?: string;
+  /** The answers to a `display: "questions"` request, keyed by question id. */
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -114,6 +118,15 @@ export type SubmittedFeedback = {
 };
 
 export type ThreadRuntimeEventPayload = {
+  /**
+   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well, and the runtime logs every failed write with console.error.
+   */
+  historyWriteError: {
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
@@ -245,6 +258,15 @@ export type ThreadRuntimeCore = Readonly<{
    */
   isSendDisabled: boolean;
   isLoading: boolean;
+  /** Whether messages exist before the first one; absent on runtimes that load whole threads. */
+  hasEarlier?: boolean;
+  /** Whether a `loadEarlier` call is in flight. */
+  isLoadingEarlier?: boolean;
+  /**
+   * Loads the page before the first message, sharing one in-flight call.
+   * Never rejects: a failed load is logged and ends the load.
+   */
+  loadEarlier?(): Promise<void>;
   /**
    * Optional explicit thread-level running flag. When provided, takes
    * precedence over the last-message-status heuristic. When omitted, falls

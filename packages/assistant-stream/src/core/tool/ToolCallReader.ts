@@ -1,8 +1,6 @@
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
-import {
-  parsePartialJsonObject,
-  getPartialJsonObjectFieldState,
-} from "../../utils/json/parse-partial-json-object";
+import { getPartialJsonObjectFieldState } from "../../utils/json/parse-partial-json-object";
+import { IncrementalJsonObjectParser } from "../../utils/json/incremental-json-object-parser";
 import type {
   ToolCallArgsReader,
   ToolCallReader,
@@ -16,7 +14,6 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils";
-
 // TODO: remove dispose
 
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
@@ -314,7 +311,7 @@ export class ToolCallArgsReaderImpl<
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
   private accumulatedText = "";
-  private parsedTextLength = -1;
+  private parser: IncrementalJsonObjectParser | undefined;
   private args: unknown = undefined;
   private finished = false;
   private failure: { reason: unknown } | undefined = undefined;
@@ -335,7 +332,7 @@ export class ToolCallArgsReaderImpl<
         this.accumulatedText += value;
         if (this.handles.size === 0) continue;
 
-        if (this.parseCurrentArgs()) this.updateHandles();
+        if (this.parseCurrentArgs(value)) this.updateHandles();
       }
     } catch (error) {
       this.failure = { reason: error };
@@ -356,18 +353,32 @@ export class ToolCallArgsReaderImpl<
     }
   }
 
-  private parseCurrentArgs(): boolean {
-    if (this.parsedTextLength === this.accumulatedText.length) return false;
-
-    const parsedArgs = parsePartialJsonObject(this.accumulatedText);
-    this.parsedTextLength = this.accumulatedText.length;
-    if (parsedArgs === undefined) {
-      this.args ??= parsePartialJsonObject("");
+  private parseCurrentArgs(delta?: string): boolean {
+    if (this.parser?.currentTextLength === this.accumulatedText.length) {
       return false;
     }
 
-    this.args = parsedArgs;
-    return true;
+    const previousArgs = this.args;
+    if (!this.parser) {
+      this.parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText,
+        this.args as ReadonlyJSONObject | undefined,
+      );
+    } else if (
+      delta !== undefined &&
+      this.parser.currentTextLength + delta.length ===
+        this.accumulatedText.length
+    ) {
+      this.parser = this.parser.append(delta);
+    } else {
+      this.parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText,
+        this.args as ReadonlyJSONObject | undefined,
+      );
+    }
+
+    this.args = this.parser.currentArgs;
+    return this.args !== previousArgs;
   }
 
   private updateHandles(): void {

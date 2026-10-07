@@ -1,15 +1,12 @@
+import { cacheLife } from "next/cache";
 import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-export const revalidate = false;
-
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ slug?: string[] }> },
-) {
-  const { slug } = await params;
+async function getMarkdown(slug: string[] | undefined) {
+  "use cache";
+  cacheLife("max");
   if (!slug || slug.length === 0) {
     const lines = [
       "# Elements",
@@ -24,13 +21,23 @@ export async function GET(
       }),
     ];
 
-    return createMarkdownResponse(lines.join("\n"));
+    return lines.join("\n");
   }
 
   const page = elementsDocs.getPage(slug);
-  if (!page) notFound();
+  if (!page) return null;
 
-  return createMarkdownResponse(await getLLMText(page));
+  return getLLMText(page);
+}
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ slug?: string[] }> },
+) {
+  const { slug } = await params;
+  const markdown = await getMarkdown(slug);
+  if (markdown === null) notFound();
+  return createMarkdownResponse(markdown);
 }
 
 export function generateStaticParams() {

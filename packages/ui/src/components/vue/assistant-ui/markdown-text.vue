@@ -8,7 +8,9 @@ const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
 import { computed } from "vue";
 import { useAuiState } from "@assistant-ui/vue";
 
-const text = useAuiState((s) => (s.part.type === "text" ? s.part.text : ""));
+const text = useAuiState((s) =>
+  s.part.type === "text" || s.part.type === "reasoning" ? s.part.text : "",
+);
 const html = computed(() => md.render(text.value));
 </script>
 

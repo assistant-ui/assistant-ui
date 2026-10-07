@@ -1,5 +1,15 @@
 import type { FormEvent } from "react";
-import { GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_NAME_ATTR,
+  FIELD_VALUE_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
+import {
+  fromLocalDateTime,
+  normalizeTemporalInputValue,
+  toPickerLocalDateTime,
+} from "../temporal";
 
 /**
  * The subset of `HTMLInputElement`/`HTMLSelectElement`/`HTMLTextAreaElement` that {@link collectFormValues} reads. A structural type rather than the DOM interfaces themselves, so a plain object can stand in for a form control in tests.
@@ -11,11 +21,12 @@ export type FormControlElementLike = {
   readonly checked?: boolean;
   readonly disabled: boolean;
   readonly hasAttribute: (name: string) => boolean;
+  readonly getAttribute?: ((name: string) => string | null) | undefined;
   readonly matches?: ((selector: string) => boolean) | undefined;
 };
 
 /**
- * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. Controls without a `name`, that carry `data-aui-generated-name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
+ * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. A checkbox group resolves to its checked options' values in document order, or an empty array if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. A time or datetime-local control's `data-aui-field-value` preserves the canonical string when its local projection is unchanged; an edited instant retains its original offset and precision. Controls without a `name`, that carry `data-aui-generated-name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
  */
 export function collectFormValues(
   elements: ArrayLike<FormControlElementLike>,
@@ -23,7 +34,8 @@ export function collectFormValues(
   const values: Record<string, unknown> = Object.create(null);
 
   for (const element of Array.from(elements)) {
-    const { name, disabled } = element;
+    const { disabled } = element;
+    const name = element.getAttribute?.(FIELD_NAME_ATTR) ?? element.name;
     if (
       !name ||
       disabled ||
@@ -38,8 +50,45 @@ export function collectFormValues(
       continue;
     }
 
-    const value: string | boolean =
-      element.type === "checkbox" ? (element.checked ?? false) : element.value;
+    if (
+      element.type === "checkbox" &&
+      element.hasAttribute(CHECKBOX_GROUP_ATTR)
+    ) {
+      const existing = values[name];
+      const checked = Array.isArray(existing) ? existing : [];
+      values[name] = element.checked ? [...checked, element.value] : checked;
+      continue;
+    }
+
+    const temporalType =
+      element.type === "datetime-local" || element.type === "time"
+        ? element.type
+        : element.getAttribute?.("type");
+    const inputValue =
+      temporalType === "datetime-local" || temporalType === "time"
+        ? normalizeTemporalInputValue(element.value)
+        : element.value;
+    const fieldValue =
+      temporalType === "datetime-local" || temporalType === "time"
+        ? element.getAttribute?.(FIELD_VALUE_ATTR)
+        : undefined;
+    const value: string | number | boolean =
+      element.type === "checkbox"
+        ? (element.checked ?? false)
+        : element.type === "range"
+          ? Number(element.value)
+          : fieldValue && inputValue !== ""
+            ? normalizeTemporalInputValue(inputValue) ===
+              normalizeTemporalInputValue(
+                temporalType === "time"
+                  ? fieldValue
+                  : toPickerLocalDateTime(fieldValue),
+              )
+              ? fieldValue
+              : temporalType === "datetime-local"
+                ? fromLocalDateTime(inputValue, fieldValue)
+                : inputValue
+            : inputValue;
 
     if (Object.hasOwn(values, name)) {
       const existing = values[name];

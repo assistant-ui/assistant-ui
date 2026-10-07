@@ -3,7 +3,7 @@ title: "Connection state"
 description: "The socket drops, the run keeps going on the server, and the stream is picked back up."
 ---
 
-A connection state banner tells the reader when the transport under a run has hiccuped: the socket dropped, the run is still going server side, or the stream just picked back up. With a runtime this maps to catching a transport failure and resuming the run; standalone you drive the phase directly.
+A connection state banner tells the reader when the transport under a run has hiccuped: the socket dropped, the run is still going server side, or the stream has picked back up. With a runtime this maps to catching a transport failure and resuming the run; standalone you drive the phase directly.
 
 ## Getting started
 
@@ -44,7 +44,7 @@ function ConnectionBanner({ resumeFromId }: { resumeFromId: string | null }) {
 }
 ```
 
-Where `phase` first flips to `"dropped"` is adapter-specific: wherever your transport surfaces a network failure, which `ConnectionState` itself has no opinion on. `resumeRun` returns no promise to await; watch `isRunning` flip back to `true` to know the reconnect actually landed.
+Where `phase` first flips to `"dropped"` is adapter-specific: wherever your transport surfaces a network failure, which `ConnectionState` itself has no opinion on. `resumeRun` returns no promise to await; watch `isRunning` flip back to `true` to know the reconnect landed.
 
   </Step>
   <Step>
@@ -119,7 +119,7 @@ useEffect(() => {
 </div>
 ```
 
-`ConnectionState` renders nothing at all while `phase` is `"online"`, the only phase without a visible banner. The other three phases are mutually exclusive and each show a different icon and message; `attempt` and `resumedTokens` are optional counters shown only when you pass them.
+`ConnectionState` renders nothing while `phase` is `"online"`, the only phase without a visible banner. The other three phases are mutually exclusive and each show a different icon and message; `attempt` and `resumedTokens` are optional counters shown only when you pass them.
 
 ## Examples
 
@@ -133,7 +133,7 @@ useEffect(() => {
 
 ### Silence the online case explicitly
 
-Since `phase="online"` already renders `null`, conditionally mounting the banner at all is optional; leaving it mounted lets it animate in and out on its own fade and slide transition each time the phase changes away from `"online"`.
+Since `phase="online"` already renders `null`, conditionally mounting the banner is optional; leaving it mounted plays its fade and slide entrance each time the phase changes away from `"online"`. There is no exit animation.
 
 ## API reference
 

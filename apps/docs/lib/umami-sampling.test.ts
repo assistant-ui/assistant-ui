@@ -103,6 +103,17 @@ it("loads the tracker when the roll lands under the rate", () => {
   expect(appended[0]!.attrs["data-domains"]).toBe("www.assistant-ui.com");
 });
 
+it("never loads on the conversation renderer", () => {
+  const { appended, store, rollsUsed } = run({
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+    win: { location: { pathname: "/renderer" } },
+  });
+
+  expect(appended).toHaveLength(0);
+  expect(rollsUsed).toBe(0);
+  expect(store.size).toBe(0);
+});
+
 it("stays out of the sample when the roll lands on the rate", () => {
   const { appended } = run({ rolls: [UMAMI_SAMPLE_RATE] });
 

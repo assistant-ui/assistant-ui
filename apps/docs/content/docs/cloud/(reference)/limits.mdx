@@ -35,17 +35,19 @@ A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After`
 | Run `output_text`, tool arguments, tool results, and step input | 50,000 characters each |
 | Token counts | Whole numbers from 0 to 100,000,000 |
 | Event batch | 1 to 50 events |
-| Event `props` | 1,024 serialized bytes. Keys are 1 to 64 characters and string values are at most 256 characters. |
+| Event `props` | At most 1,024 UTF-16 code units in `JSON.stringify(props)` on the endpoint; `cloud.events.track` leaves `props` out when that JSON is over 1,024 bytes of UTF-8. Keys are 1 to 64 characters and string values are at most 256 characters. |
+| Event `value` | Whole number from 0 to 2,147,483,647 |
 | Event IDs | `thread_id`, `message_id`, and `run_id` are each 1 to 48 characters. |
 | Score `name` and `comment` | 1 to 64 and 1 to 2,000 characters. The name uses letters, digits, `.`, `_`, and `-`. |
 | Score targets | `thread_id`, `message_id`, and `run_id` are each 1 to 48 characters. |
 | Score `string_value` | 1 to 255 characters |
 | Attachment upload | Filename is 1 to 255 characters. Declared content length is at most 25 MiB. |
-| Trace export body | At most 4,194,304 bytes, or 4 MB. |
+| Trace export body | At most 4,194,304 bytes, or 4 MB, after gzip or deflate decompression. |
 | Trace span count | At most 500 spans per trace. |
 | Span attributes | 16,384 serialized bytes. Largest entries are dropped first when a trace is assembled. |
 | Allowed origins | 32 entries of 255 characters |
-| `Aui-Sdk` header | At most 8 tokens. Each name is at most 214 characters and each version is at most 64 characters. |
+| Renderer URL | At most 2,048 characters after URL normalization. |
+| `Aui-Sdk` header | The client accepts any printable name and version token. The server reads only the first 8 space separated tokens and records unique lowercase npm style names with strict SemVer versions, discarding duplicates. Each recorded name is at most 214 characters and each version is at most 64 characters. |
 | API key user and workspace headers | Each is 1 to 255 characters and cannot contain whitespace or control characters. `Aui-Workspace-Id` is required for every API key request except trace export. `Aui-User-Id` defaults to `__SYSTEM__`; trace export without a workspace ID uses `__OTLP__`. |
 | Auth rule fields | `name` and `provider` are 1 to 255 characters. `jwks_url`, `audience`, and `issuer` are 1 to 2,047 characters when present. `workspace_id_field` and `name_field` are at most 255 characters when present. |
 | Harness | Name is 1 to 80 characters. An ID matches `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`. A harness has at most 16 backend entries. |

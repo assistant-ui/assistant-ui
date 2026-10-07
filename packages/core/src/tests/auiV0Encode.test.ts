@@ -6,6 +6,102 @@ import {
 } from "../react/runtimes/cloud/auiV0";
 
 describe("auiV0Encode", () => {
+  it("round-trips optional identities on attachment text, image, file, and data parts", () => {
+    const parts = [
+      { type: "text" as const, id: "text-1", text: "hello" },
+      {
+        type: "image" as const,
+        id: "image-1",
+        image: "https://example.com/image.png",
+      },
+      {
+        type: "file" as const,
+        id: "file-1",
+        data: "https://example.com/file.pdf",
+        mimeType: "application/pdf",
+      },
+      { type: "data" as const, id: "data-1", name: "chart", data: { x: 1 } },
+      { type: "text" as const, id: "", text: "empty id" },
+      { type: "text" as const, text: "without id" },
+    ];
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      metadata: { custom: {} },
+      attachments: [
+        {
+          id: "attachment",
+          type: "file",
+          name: "parts.json",
+          status: { type: "complete" },
+          content: parts,
+        },
+      ],
+    });
+    expect(encoded.attachments?.[0]?.content).toEqual(parts);
+    expect(encoded.attachments?.[0]?.content[5]).not.toHaveProperty("id");
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: encoded as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    if (decoded.message.role !== "user") throw new Error("expected user");
+    expect(decoded.message.attachments[0]?.content).toEqual(parts);
+  });
+
+  it("round-trips optional identities on text, reasoning, data, file, and image parts", () => {
+    const parts = [
+      { type: "text" as const, id: "text-1", text: "hello" },
+      { type: "reasoning" as const, id: "reasoning-1", text: "thinking" },
+      { type: "data" as const, id: "data-1", name: "chart", data: { x: 1 } },
+      {
+        type: "file" as const,
+        id: "file-1",
+        data: "https://example.com/file.pdf",
+        mimeType: "application/pdf",
+      },
+      {
+        type: "image" as const,
+        id: "image-1",
+        image: "https://example.com/image.png",
+      },
+      { type: "text" as const, text: "without id" },
+    ];
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: parts,
+    });
+
+    expect(encoded.content).toEqual(parts);
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: encoded as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    expect(decoded.message.content).toEqual(parts);
+  });
+
   it("preserves document source parts in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
@@ -84,6 +180,58 @@ describe("auiV0Encode", () => {
 
     const toolCall = encoded.content.find((p) => p.type === "tool-call");
     expect(toolCall).toMatchObject({ approval: { id: "a1" } });
+  });
+
+  it("round-trips an answered questionnaire approval", () => {
+    const approval = {
+      id: "a1",
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Which files?",
+          options: [{ id: "src", label: "src" }],
+          multiple: true,
+        },
+      ],
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    };
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "ask",
+          args: {},
+          argsText: "{}",
+          result: "ok",
+          approval,
+        },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({ approval });
   });
 
   it("preserves user attachments in the core cloud encoder", () => {
@@ -456,6 +604,47 @@ describe("auiV0Decode", () => {
 
     expect(message.content).toEqual([
       { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+    ]);
+  });
+
+  it("round-trips reasoning timing", () => {
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "reasoning",
+          text: "thinking",
+          timing: { startedAt: 1_000, completedAt: 13_000 },
+        },
+        { type: "reasoning", text: "untimed" },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      {
+        type: "reasoning",
+        text: "thinking",
+        timing: { startedAt: 1_000, completedAt: 13_000 },
+      },
+      { type: "reasoning", text: "untimed" },
     ]);
   });
 
@@ -1243,6 +1432,50 @@ describe("auiV0Decode", () => {
         providerMetadata: { openai: { detail: "high" } },
       },
     ]);
+  });
+
+  it("keeps an empty file filename like the image and attachment arms do", () => {
+    const part = {
+      type: "file" as const,
+      data: "https://example.com/report.pdf",
+      mimeType: "application/pdf",
+      filename: "",
+    };
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [
+        part,
+        { type: "image", image: "https://example.com/a.png", filename: "" },
+      ],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "report.pdf",
+          status: { type: "complete" },
+          content: [part],
+        },
+      ],
+    });
+
+    expect(encoded.content[0]).toEqual(part);
+    expect(encoded.content[1]).toHaveProperty("filename", "");
+    expect(encoded.attachments?.[0]?.content).toEqual([part]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: encoded as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    expect(decoded.message.content[0]).toEqual(part);
+    expect(decoded.message.content[1]).toHaveProperty("filename", "");
   });
 
   it("round-trips text provider metadata", () => {

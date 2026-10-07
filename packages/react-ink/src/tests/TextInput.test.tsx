@@ -189,6 +189,28 @@ describe("TextInput", () => {
     expect(onChange).toHaveBeenLastCalledWith("ax\r\nb");
   });
 
+  it.each([
+    { direction: "upArrow", meta: true, expected: "Hello\nworldX" },
+    { direction: "downArrow", meta: true, expected: "HelloX\nworld" },
+    { direction: "upArrow", meta: false, expected: "HelloX\nworld" },
+    { direction: "downArrow", meta: false, expected: "Hello\nworldX" },
+  ] as const)(
+    "edits at the correct cursor after $direction with meta=$meta",
+    async ({ direction, meta, expected }) => {
+      const onChange = vi.fn();
+      render(
+        <Controlled initial={"Hello\nworld"} multiLine onChange={onChange} />,
+      );
+      await flush();
+
+      if (direction === "downArrow") inputHandler?.("", { upArrow: true });
+      inputHandler?.("", { [direction]: true, meta });
+      inputHandler?.("X", {});
+
+      expect(onChange).toHaveBeenLastCalledWith(expected);
+    },
+  );
+
   it("shows the placeholder only while empty", async () => {
     const onChange = vi.fn();
     const { rerender, lastFrame } = render(

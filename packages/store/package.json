@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.3.15",
+  "version": "0.3.17",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -37,7 +37,10 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types",
     "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
     "test:watch": "vitest"
   },
@@ -57,12 +60,13 @@
   "devDependencies": {
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

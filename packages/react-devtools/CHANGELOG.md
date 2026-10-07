@@ -1,5 +1,19 @@
 # @assistant-ui/react-devtools
 
+## 1.2.23
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 1.2.22
+
+### Patch Changes
+
+- [#8384](https://github.com/assistant-ui/assistant-ui/pull/8384) [`a34b8c3`](https://github.com/assistant-ui/assistant-ui/commit/a34b8c3866e7e7ceda87ea96c2034f49e472a439) - fix: show conversation lists that contain only archived threads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8385](https://github.com/assistant-ui/assistant-ui/pull/8385) [`9bf871d`](https://github.com/assistant-ui/assistant-ui/commit/9bf871d1a15c8666f66a62b3d7c64b0fed673626) - fix: restart copy feedback timing after each successful copy ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 1.2.21
 
 ### Patch Changes
