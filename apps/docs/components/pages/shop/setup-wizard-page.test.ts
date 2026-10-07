@@ -192,4 +192,27 @@ describe("pageTrail", () => {
       "question:q3",
     ]);
   });
+
+  it("leaves no page behind for a product the agent proposed and the browser added", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          ...input("p1"),
+          kind: "product",
+          product: "assistant-ui",
+          status: "answered",
+          answer: "assistant-ui",
+          answeredAt: 2,
+        },
+      ],
+    };
+    expect(ids(pageTrail(state, { id: "working" }))).toEqual([
+      "welcome",
+      "connect",
+      "working",
+    ]);
+  });
 });

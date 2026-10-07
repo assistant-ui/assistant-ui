@@ -145,18 +145,25 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
 
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 
+/** The marks of the coding agents a setup can be handed to. */
+export function AgentMarks({ className }: { className?: string }) {
+  return (
+    <ul className="flex items-center gap-2">
+      {WORKS_WITH.map((kind) => (
+        <li key={kind} className="flex" title={agentKindName(kind)}>
+          <AgentKindIcon kind={kind} className={className} />
+          <span className="sr-only">{agentKindName(kind)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function WorksWith() {
   return (
     <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
       <span>Works with</span>
-      <ul className="flex items-center gap-2">
-        {WORKS_WITH.map((kind) => (
-          <li key={kind} className="flex" title={agentKindName(kind)}>
-            <AgentKindIcon kind={kind} className="size-3.5" />
-            <span className="sr-only">{agentKindName(kind)}</span>
-          </li>
-        ))}
-      </ul>
+      <AgentMarks className="size-3.5" />
     </div>
   );
 }

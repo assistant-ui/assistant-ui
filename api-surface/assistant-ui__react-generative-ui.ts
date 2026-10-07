@@ -57,6 +57,17 @@ interface A2uiOperationResult {
   readonly warnings: string[];
 }
 
+type A2uiPresentToolCall = {
+  toolCallId: string;
+  toolName: "present";
+  args: ReadonlyJSONObject;
+  argsText: string;
+  result: Record<string, never>;
+  artifact: {
+    a2ui: readonly A2uiSurfaceSnapshotOperation[];
+  };
+};
+
 type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
 
 type A2uiSurfaceSnapshotOperation = {
@@ -313,6 +324,7 @@ interface ComponentNode extends Record<string, unknown> {
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -344,6 +356,7 @@ type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${st
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -471,6 +484,7 @@ type IconName = (typeof ICON_NAMES)[number];
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -577,6 +591,11 @@ type MessagePartStreamStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
 type MessageStatus = {
   readonly type: "running";
 } | {
@@ -657,9 +676,11 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -672,7 +693,7 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
-type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
+type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackTimePickerElement | SlackDateTimePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
 
 interface SlackActionsBlock {
   readonly type: "actions";
@@ -761,6 +782,12 @@ interface SlackDatePickerElement {
   readonly initial_date?: string;
 }
 
+interface SlackDateTimePickerElement {
+  readonly type: "datetimepicker";
+  readonly action_id: string;
+  readonly initial_date_time?: number;
+}
+
 interface SlackDividerBlock {
   readonly type: "divider";
 }
@@ -781,6 +808,7 @@ interface SlackInputBlock {
   readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
+  readonly dispatch_action?: boolean;
 }
 
 interface SlackMarkdownBlock {
@@ -806,6 +834,9 @@ interface SlackPlainText {
 interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
+  readonly dispatch_action_config?: {
+    readonly trigger_actions_on?: readonly ("on_character_entered" | "on_enter_pressed")[];
+  };
   readonly multiline?: boolean;
   readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
@@ -834,6 +865,12 @@ interface SlackStaticSelectElement {
 }
 
 type SlackTextObject = SlackPlainText | SlackMrkdwnText;
+
+interface SlackTimePickerElement {
+  readonly type: "timepicker";
+  readonly action_id: string;
+  readonly initial_time?: string;
+}
 
 type SourceMessagePart = {
   readonly type: "source";
@@ -930,7 +967,7 @@ interface TeamsCardAttachment {
   readonly content: TeamsAdaptiveCard;
 }
 
-type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsTable;
+type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsInputTime | TeamsTable;
 
 interface TeamsColumn {
   readonly type: "Column";
@@ -1024,6 +1061,17 @@ interface TeamsInputText {
   readonly spacing?: "large";
 }
 
+interface TeamsInputTime {
+  readonly type: "Input.Time";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
 interface TeamsInputToggle {
   readonly type: "Input.Toggle";
   readonly id: string;
@@ -1088,6 +1136,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -1173,7 +1222,12 @@ interface ToSlackBlocksOptions {
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -1188,6 +1242,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -1204,6 +1273,9 @@ type ToolApprovalResponse = {
   readonly reason?: string;
 } | {
   readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly reason?: string;
 };
 
@@ -1255,6 +1327,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -1310,10 +1384,7 @@ type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = str
   complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDefinition<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = WithRender<Tool<TArgs, TResult>, TArgs, TResult>;
 
@@ -1484,7 +1555,7 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
 };
 
 declare namespace entry_a2ui_exports {
-  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations };
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiPresentToolCall, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations, surfaceToPresentToolCall };
 }
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
@@ -1548,13 +1619,18 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
 declare namespace entry_slack_exports {
-  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
 
+declare function surfaceToPresentToolCall(surfaceId: string, surface: A2uiSurfaceState): {
+  toolCall: A2uiPresentToolCall | undefined;
+  warnings: ReturnType<typeof convertSurfaceToUISpec>["warnings"];
+};
+
 declare namespace entry_teams_exports {
-  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
+  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputTime, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
 }
 
 declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions): AdaptiveCardResult;

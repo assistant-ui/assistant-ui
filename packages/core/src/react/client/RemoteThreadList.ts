@@ -24,17 +24,16 @@ import {
 } from "../../store/clients/thread-selection-events";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
-  classifyThreads,
+  applyInitialThreadPage,
+  appendThreadPage,
   createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
-  normalizeCursor,
   reconcileInitializedThread,
   promoteNewThreadReducer,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
-  preserveMidLoadTransitions,
   seedNewThread,
   statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
@@ -45,6 +44,7 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
+import { useAfterStateCommit } from "../../store/runtime-clients/useAfterStateCommit";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
@@ -535,6 +535,8 @@ const useRemoteThreadList = (
     () => store.value,
     () => store.value,
   );
+  const getListState = useCallback(() => store.value, [store]);
+  const afterStateCommit = useAfterStateCommit(listState, getListState);
 
   const [mainThreadId, setMainThreadId] = useState(initialMainId);
   const [startedIds, setStartedIds] = useState<readonly string[]>([
@@ -597,23 +599,7 @@ const useRemoteThreadList = (
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
-          const fresh = classifyThreads(page.threads, {
-            threadIds: [],
-            archivedThreadIds: [],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-          const merged = {
-            ...state,
-            isLoading: false,
-            loadError: undefined,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: fresh.threadIds,
-            archivedThreadIds: fresh.archivedThreadIds,
-            threadIdMap: fresh.threadIdMap,
-            threadData: fresh.threadData,
-          };
-          return preserveMidLoadTransitions(merged, state, statusAtRequest);
+          return applyInitialThreadPage(state, page, statusAtRequest);
         },
       })
       .catch((error: unknown) => {
@@ -713,21 +699,7 @@ const useRemoteThreadList = (
         },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
-          const appended = classifyThreads(page.threads, {
-            threadIds: [...state.threadIds],
-            archivedThreadIds: [...state.archivedThreadIds],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-          return {
-            ...state,
-            isLoadingMore: false,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: appended.threadIds,
-            archivedThreadIds: appended.archivedThreadIds,
-            threadIdMap: appended.threadIdMap,
-            threadData: appended.threadData,
-          };
+          return appendThreadPage(state, page);
         },
       })
       .catch((error: unknown) => {
@@ -1353,8 +1325,8 @@ const useRemoteThreadList = (
     switchToNewThread: () => {
       handleThreadListAction("create", () => switchToNewThread());
     },
-    getLoadThreadsPromise,
-    reload,
+    getLoadThreadsPromise: () => afterStateCommit(getLoadThreadsPromise()),
+    reload: () => afterStateCommit(reload()),
     reloadMainThread: () => {
       if (getThreadData(store.value, mainThreadId)?.status === "new") {
         return RESOLVED_PROMISE;
@@ -1363,7 +1335,7 @@ const useRemoteThreadList = (
         mainThreadClient.methods.unstable_refetchThread?.() ?? RESOLVED_PROMISE
       );
     },
-    loadMore,
+    loadMore: () => afterStateCommit(loadMore()),
     item: (selector) => {
       if (selector === "main") {
         const index = itemOrder.findIndex((item) =>

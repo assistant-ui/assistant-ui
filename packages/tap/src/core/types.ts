@@ -47,7 +47,19 @@ export type MemoCell<T = any> = {
   currentDeps: readonly unknown[];
   wip: T;
   wipDeps: readonly unknown[];
+  wipIsRefreshing: boolean;
   isDirty: boolean;
+};
+
+export type RefCell<T = any> = {
+  readonly type: "ref";
+  readonly ref: { current: T };
+};
+
+export type RefreshCell = {
+  readonly type: "refresh";
+  token: unknown;
+  isCommitted: boolean;
 };
 
 export type EffectCell = {
@@ -69,7 +81,13 @@ export type HostCell = {
   > | null;
 };
 
-export type Cell = ReducerCell | MemoCell | EffectCell | HostCell;
+export type Cell =
+  | ReducerCell
+  | MemoCell
+  | RefCell
+  | RefreshCell
+  | EffectCell
+  | HostCell;
 
 export type CommitCallback = () => void;
 export type CommitCallbacks = CommitCallback[];
@@ -112,12 +130,14 @@ export interface ResourceFiber<R> {
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
+  isRefreshing: boolean;
   // workInProgress persists across uncommitted renders: a StrictMode double
   // invoke reaches tap as separate renderResourceFiber calls with no attempt
   // boundary, so an entry discard would re-run every compiled memo factory.
   memoCache: {
     current: unknown[][] | null;
     workInProgress: unknown[][] | null;
+    refreshedIndices: Set<number> | null;
     index: number;
   };
 

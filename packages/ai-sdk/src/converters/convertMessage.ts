@@ -3,6 +3,7 @@ import {
   isReasoningFileUIPart,
   isCustomContentUIPart,
   getToolName,
+  type FileUIPart,
   type UIMessage,
 } from "ai";
 import {
@@ -13,6 +14,8 @@ import {
   isMcpAppUri,
   type ReasoningMessagePart,
   type ToolApprovalOption,
+  type ToolApprovalQuestion,
+  type ToolApprovalQuestionOption,
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
@@ -26,6 +29,7 @@ import {
   type RespondToToolApprovalOptions,
   type Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
+import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
   parsePartialJsonObject,
@@ -95,17 +99,45 @@ function extractMcpAppMetadata(
   cache: Map<string, McpAppMetadata> | undefined,
 ): McpAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
+  const toolMetadata = (part as { toolMetadata?: unknown }).toolMetadata;
+  const toolApp =
+    toolMetadata && typeof toolMetadata === "object"
+      ? (toolMetadata as { app?: unknown }).app
+      : undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
   const mcp =
     meta && typeof meta === "object"
       ? (meta as { mcp?: unknown }).mcp
       : undefined;
-  const app =
+  const providerApp =
     mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+
+  const apps: Record<string, unknown>[] = [];
+  for (const candidate of [toolApp, providerApp]) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const candidateApp = candidate as Record<string, unknown>;
+    const resourceUri = candidateApp["resourceUri"];
+    if (typeof resourceUri !== "string" || !isMcpAppUri(resourceUri)) continue;
+    apps.push({
+      resourceUri,
+      ...(typeof candidateApp["mimeType"] === "string" && {
+        mimeType: candidateApp["mimeType"],
+      }),
+      ...(Array.isArray(candidateApp["visibility"]) && {
+        visibility: candidateApp["visibility"],
+      }),
+      ...(candidate === providerApp &&
+        typeof candidateApp["serverId"] === "string" &&
+        candidateApp["serverId"].length > 0 && {
+          serverId: candidateApp["serverId"],
+        }),
+    });
+  }
+
   let a: Record<string, unknown>;
-  if (app && typeof app === "object") {
-    a = app as Record<string, unknown>;
+  if (apps.length > 0) {
+    a = { ...(apps[1] ?? {}), ...apps[0]! };
   } else {
     // MCP-UI tools surface the pointer on result._meta: canonical nested
     // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.
@@ -221,6 +253,51 @@ const normalizeToolApprovalOptions = (
   });
 };
 
+const normalizeToolApprovalQuestions = (
+  questions: unknown,
+): readonly ToolApprovalQuestion[] | undefined => {
+  if (!Array.isArray(questions)) return undefined;
+
+  return questions.flatMap<ToolApprovalQuestion>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const question = value as Record<string, unknown>;
+    if (typeof question.id !== "string" || typeof question.prompt !== "string")
+      return [];
+    const options = Array.isArray(question.options)
+      ? question.options.flatMap<ToolApprovalQuestionOption>((option) => {
+          if (!option || typeof option !== "object" || Array.isArray(option))
+            return [];
+          const { id, label, description } = option as Record<string, unknown>;
+          if (typeof id !== "string" || typeof label !== "string") return [];
+          return [
+            {
+              id,
+              label,
+              ...(typeof description === "string" && { description }),
+            },
+          ];
+        })
+      : undefined;
+
+    return [
+      {
+        id: question.id,
+        prompt: question.prompt,
+        ...(typeof question.header === "string" && {
+          header: question.header,
+        }),
+        ...(options && { options }),
+        ...(typeof question.multiple === "boolean" && {
+          multiple: question.multiple,
+        }),
+        ...(typeof question.allowFreeform === "boolean" && {
+          allowFreeform: question.allowFreeform,
+        }),
+      },
+    ];
+  });
+};
+
 const APPROVAL_DESCRIPTOR_FIELDS = [
   "prompt",
   "display",
@@ -229,6 +306,8 @@ const APPROVAL_DESCRIPTOR_FIELDS = [
   "options",
   "optionId",
   "text",
+  "questions",
+  "answers",
   "resolution",
 ] as const;
 
@@ -302,6 +381,8 @@ function getToolApprovalAndInterrupt(
       options,
       optionId,
       text,
+      questions,
+      answers,
       ...additionalApprovalFields
     } = response
       ? {
@@ -310,10 +391,17 @@ function getToolApprovalAndInterrupt(
           ...(response.reason != null && { reason: response.reason }),
           ...(response.optionId != null && { optionId: response.optionId }),
           ...(response.text != null && { text: response.text }),
+          ...(response.answers != null && { answers: response.answers }),
         }
       : approval;
     const normalizedOptions = supportsRichToolApprovalResponses
       ? normalizeToolApprovalOptions(options)
+      : undefined;
+    const normalizedQuestions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalQuestions(questions)
+      : undefined;
+    const normalizedAnswers = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalAnswers(answers)
       : undefined;
     const requestReason = additionalApprovalFields.requestReason;
     if (typeof id === "string")
@@ -332,12 +420,15 @@ function getToolApprovalAndInterrupt(
           ...(supportsRichToolApprovalResponses && {
             ...((display === "decision" ||
               display === "select" ||
-              display === "text") && { display }),
+              display === "text" ||
+              display === "questions") && { display }),
             ...(typeof allowFreeform === "boolean" && { allowFreeform }),
             ...(typeof dismissible === "boolean" && { dismissible }),
             ...(normalizedOptions && { options: normalizedOptions }),
             ...(typeof optionId === "string" && { optionId }),
             ...(typeof text === "string" && { text }),
+            ...(normalizedQuestions && { questions: normalizedQuestions }),
+            ...(normalizedAnswers && { answers: normalizedAnswers }),
           }),
           ...((resolution === "cancelled" || resolution === "expired") && {
             resolution,
@@ -367,6 +458,25 @@ const uiPartStateToStatus = (
   return undefined;
 };
 
+const toSystemContent = (content: MessageContent): MessageContent => {
+  const text = content.filter((part) => part.type === "text");
+  if (text.length === 1) return text;
+  const providerMetadata = text.reduce<PartProviderMetadata>(
+    (merged, part) =>
+      part.providerMetadata != null
+        ? { ...merged, ...part.providerMetadata }
+        : merged,
+    {},
+  );
+  return [
+    {
+      type: "text",
+      text: text.map((part) => part.text).join(""),
+      ...(Object.keys(providerMetadata).length > 0 && { providerMetadata }),
+    },
+  ];
+};
+
 function convertParts(
   message: UIMessage,
   metadata: AISDKMessageConverterMetadata,
@@ -378,6 +488,7 @@ function convertParts(
   const converted = message.parts
     .filter(
       (p) =>
+        typeof p?.type === "string" &&
         p.type !== "step-start" &&
         (message.role !== "user" || p.type !== "file"),
     )
@@ -386,7 +497,7 @@ function convertParts(
         const status = uiPartStateToStatus(part.state);
         return {
           type: "text",
-          text: part.text,
+          text: part.text ?? "",
           ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null
             ? {
@@ -411,7 +522,7 @@ function convertParts(
       }
 
       if (isToolUIPart(part)) {
-        const toolName = getToolName(part);
+        const toolName = getToolName(part) ?? "";
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
 
@@ -557,10 +668,11 @@ function convertParts(
       }
 
       if (part.type === "file") {
+        if (typeof part.url !== "string") return null;
         return {
           type: "file",
           data: part.url,
-          mimeType: part.mediaType,
+          mimeType: part.mediaType ?? "unknown/unknown",
           ...(part.filename != null && { filename: part.filename }),
         } satisfies FileMessagePart;
       }
@@ -585,16 +697,20 @@ function convertParts(
       if (part.type.startsWith("data-")) {
         return {
           type: "data",
+          ...("id" in part && typeof part.id === "string"
+            ? { id: part.id }
+            : undefined),
           name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;
       }
 
       if (isReasoningFileUIPart(part)) {
+        if (typeof part.url !== "string") return null;
         return {
           type: "file",
           data: part.url,
-          mimeType: part.mediaType,
+          mimeType: part.mediaType ?? "unknown/unknown",
         } satisfies FileMessagePart;
       }
 
@@ -634,7 +750,10 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           createdAt,
           content,
           attachments: message.parts
-            ?.filter((p) => p.type === "file")
+            ?.filter(
+              (p): p is FileUIPart =>
+                p?.type === "file" && typeof p.url === "string",
+            )
             .map((part, idx) => {
               const mediaType = part.mediaType ?? "unknown/unknown";
               const isImage = mediaType.startsWith("image/");
@@ -673,7 +792,8 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: message.role,
           id: message.id,
           createdAt,
-          content,
+          content:
+            message.role === "system" ? toSystemContent(content) : content,
           ...(message.role === "assistant" &&
           metadata.cancelledStatusMessageIds?.has(message.id)
             ? {
