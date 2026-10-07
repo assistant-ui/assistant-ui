@@ -442,18 +442,18 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     const listItem = listItems[listItems.length - 1];
-    const requiredCodeIndent = listItem?.footnote
+    const codeColumn = listItem?.footnote
       ? Number.POSITIVE_INFINITY
-      : (listItem?.content ?? 0) + 4;
+      : (listItem?.content ?? 0) + 4; const nestedQuote = depth > 0 && !indentedMarker && !listItem?.footnote && (listItem == null || listItem.depth < depth); const requiredCodeIndent = nestedQuote ? 4 : codeColumn; const absoluteIndent = depth > 0 ? quoteIndents[0]! : indent;
     if (
       first !== -1 &&
-      indent >= requiredCodeIndent &&
+      (indent >= requiredCodeIndent || absoluteIndent >= codeColumn) &&
       (previousBlank || previousHeading || previousFenceClose) &&
       !(first === TILDE && opensTildeFence(text, i)) &&
       !(first === BACKTICK && opensBacktickFence(text, i))
     ) {
       codeStart = lineStart;
-      codeIndent = requiredCodeIndent;
+      codeIndent = indent >= requiredCodeIndent ? requiredCodeIndent : 4;
       codeQuoteDepth = depth;
       previousBlank = false;
       previousHeading = false;
