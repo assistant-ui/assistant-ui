@@ -198,9 +198,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
-  // Set by expanding a disclosure: content still fitting the viewport reads as
-  // being at the bottom, so without it the next resize would resume follow.
+  // Set by expanding a disclosure and cleared only when a reader's scroll
+  // gesture reaches an overflowing bottom, a run starts, or the thread
+  // changes: content that still fits the viewport reads as being at the
+  // bottom, so without it the next resize would resume follow.
   const followPausedRef = useRef(false);
+  const scrolledSincePauseRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
 
   useLayoutEffect(() => {
@@ -287,6 +290,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         // keep intent alive until content can actually scroll
         if (viewportOverflows(div)) {
           scrollingToBottomBehaviorRef.current = null;
+          if (scrolledSincePauseRef.current) followPausedRef.current = false;
         }
         if (autoScroll && !followPausedRef.current)
           followBottomRef.current = true;
@@ -380,7 +384,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     // pauses until the reader scrolls or asks for the bottom again. Every
     // other interaction, including copying or selecting text, keeps
     // following. Activation is read from click, which keyboard activation also
-    // dispatches, before the disclosure's own handler flips its state.
+    // dispatches, in the capture phase so the state is read before any handler
+    // on the disclosure flips it or stops the event.
     const pauseFollowOnExpand = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (
@@ -391,9 +396,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         return;
       followBottomRef.current = false;
       followPausedRef.current = true;
+      scrolledSincePauseRef.current = false;
       cancelPendingScrollToBottom();
     };
-    const resumeOnScrollGesture = (event: Event) => {
+    const noteScrollGesture = (event: Event) => {
       if (event instanceof KeyboardEvent) {
         if (!SCROLL_KEYS.has(event.key)) return;
         if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
@@ -401,7 +407,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       } else if (event.type === "pointerdown" && event.target !== el) {
         return;
       }
-      followPausedRef.current = false;
+      scrolledSincePauseRef.current = true;
     };
     const releasePrependAnchor = () => {
       prependAnchorRef.current = null;
@@ -422,9 +428,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       passive: true,
     });
     el.addEventListener("keydown", cancelOnKeyDown);
-    el.addEventListener("click", pauseFollowOnExpand);
+    el.addEventListener("click", pauseFollowOnExpand, { capture: true });
     for (const gesture of resumeGestures) {
-      el.addEventListener(gesture, resumeOnScrollGesture, { passive: true });
+      el.addEventListener(gesture, noteScrollGesture, { passive: true });
     }
     for (const gesture of gestures) {
       el.addEventListener(gesture, releasePrependAnchor, { passive: true });
@@ -435,9 +441,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       el.removeEventListener("wheel", cancelPendingScrollToBottom);
       el.removeEventListener("touchstart", cancelPendingScrollToBottom);
       el.removeEventListener("keydown", cancelOnKeyDown);
-      el.removeEventListener("click", pauseFollowOnExpand);
+      el.removeEventListener("click", pauseFollowOnExpand, { capture: true });
       for (const gesture of resumeGestures) {
-        el.removeEventListener(gesture, resumeOnScrollGesture);
+        el.removeEventListener(gesture, noteScrollGesture);
       }
       for (const gesture of gestures) {
         el.removeEventListener(gesture, releasePrependAnchor);
@@ -514,12 +520,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   useAuiEvent("thread.runStart", () => {
     prependAnchorRef.current = null;
+    followPausedRef.current = false;
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
     scheduleScrollToBottom("auto");
   });
 
   useAuiEvent("threads.selectionChanged", () => {
+    followPausedRef.current = false;
     if (!scrollToBottomOnThreadSwitch) return;
     scheduleScrollToBottom("instant");
   });

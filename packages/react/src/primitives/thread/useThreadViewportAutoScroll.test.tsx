@@ -727,6 +727,157 @@ describe("useThreadViewportAutoScroll", () => {
 
       expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
     });
+    it.each([
+      {
+        label: "flips its state natively",
+        listen: (trigger: HTMLElement) =>
+          trigger.addEventListener("click", () =>
+            trigger.setAttribute("aria-expanded", "true"),
+          ),
+      },
+      {
+        label: "stops the event",
+        listen: (trigger: HTMLElement) =>
+          trigger.addEventListener("click", (event) => event.stopPropagation()),
+      },
+    ])("stops following when the trigger $label", async ({ listen }) => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+      const trigger = addTrigger({ "aria-expanded": "false" });
+      listen(trigger);
+
+      click(trigger);
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("keeps the pause when a scroll gesture stops short of the bottom and the thread then fits", async () => {
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+        viewport.scrollTop = getMaxScrollTop(viewport) - 50;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      forceShortViewportMeasurement = true;
+      act(notifyResizeObservers);
+      forceShortViewportMeasurement = false;
+      const scrollTop = viewport.scrollTop;
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("keeps following after a non-activating key on a collapsed trigger", async () => {
+      const viewport = await renderPinned();
+
+      act(() => {
+        addTrigger({ "aria-expanded": "false" }).dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+        );
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("clears the pause when a run starts, even when run start does not scroll", async () => {
+      let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+      const Harness: FC = () => {
+        runtime = useLocalRuntime(adapter, { initialMessages: messages });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ThreadPrimitiveRoot>
+              <ThreadPrimitiveViewport
+                data-testid="viewport"
+                scrollToBottomOnRunStart={false}
+              >
+                <ThreadPrimitiveMessages components={{ Message }} />
+                <AtBottom />
+              </ThreadPrimitiveViewport>
+            </ThreadPrimitiveRoot>
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<Harness />);
+      const viewport = getViewport();
+      await waitFor(() => {
+        expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+      });
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      await act(async () => {
+        runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "next" }],
+        });
+      });
+      act(() => {
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("clears the pause on a thread switch, even when the switch does not scroll", async () => {
+      const SwitchingThread = () => {
+        const [thread, setThread] = useState({ id: "a", messages });
+        const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+          messages: thread.messages,
+          convertMessage: (message) => message,
+          onNew: async () => {},
+          adapters: {
+            threadList: {
+              threadId: thread.id,
+              threads: [
+                { id: "a", status: "regular" },
+                { id: "b", status: "regular" },
+              ],
+            },
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <Thread autoScroll scrollToBottomOnThreadSwitch={false} />
+            <button
+              type="button"
+              data-testid="switch"
+              onClick={() =>
+                setThread({ id: "b", messages: messages.slice(2) })
+              }
+            />
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<SwitchingThread />);
+      const viewport = getViewport();
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        ),
+      );
+      act(() => {
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        fireEvent.scroll(viewport);
+      });
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("switch"));
+      });
+      act(() => {
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        fireEvent.scroll(viewport);
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
   });
 
   it.each([
