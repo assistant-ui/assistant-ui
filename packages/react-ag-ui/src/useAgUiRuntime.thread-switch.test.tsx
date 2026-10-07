@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import type { HttpAgent } from "@ag-ui/client";
+import { HttpAgent } from "@ag-ui/client";
 import type { ThreadHistoryAdapter, ThreadMessage } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
 import type {
@@ -190,6 +190,43 @@ describe("useAgUiRuntime thread switching", () => {
         result.current.thread.getState().messages.map((m) => m.id),
       ).toEqual(destination === "existing" ? ["loaded"] : []);
       expect(runAgent).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["existing", "new"] as const)(
+    "aborts an HttpAgent's in-flight request when switching to the %s thread",
+    async (destination) => {
+      const requestSignals: AbortSignal[] = [];
+      const fetch = vi.fn((_url: string, init: RequestInit) => {
+        const signal = init.signal!;
+        requestSignals.push(signal);
+        return new Promise<Response>((_resolve, reject) =>
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          }),
+        );
+      });
+      const agent = new HttpAgent({ url: "https://agent.test/run", fetch });
+      const { result } = renderRuntime(
+        async () => ({ messages: [message("loaded")] }),
+        async () => {},
+        agent,
+      );
+
+      act(() => {
+        void result.current.thread.append("old prompt");
+      });
+      await waitFor(() => expect(requestSignals).toHaveLength(1));
+
+      await act(async () => {
+        await (destination === "existing"
+          ? result.current.threads.switchToThread("thread-a")
+          : result.current.threads.switchToNewThread());
+      });
+
+      expect(requestSignals[0]?.aborted).toBe(true);
+      expect(result.current.thread.getState().isRunning).toBe(false);
+      expect(fetch).toHaveBeenCalledOnce();
     },
   );
 
