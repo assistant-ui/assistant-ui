@@ -1602,4 +1602,77 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
     expect(storage.get("@assistant-ui:messages:thread-1")).toBeUndefined();
     await expect(adapter.list()).resolves.toEqual({ threads: [] });
   });
+
+  it("clears stale formatted history before reading a reused thread id", async () => {
+    const baseStorage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular", formats: ["test/v1"] },
+      ]),
+      [formattedKey]: JSON.stringify({
+        messages: [
+          {
+            id: "old-message",
+            parent_id: null,
+            format: "test/v1",
+            content: { text: "old" },
+          },
+        ],
+      }),
+    });
+    let failCleanup = true;
+    const storage = {
+      ...baseStorage,
+      removeItem: async (key: string) => {
+        if (key === formattedKey && failCleanup) {
+          failCleanup = false;
+          throw new Error("Storage unavailable");
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+    await adapter.initialize("thread-1");
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const formatted = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+
+    await expect(formatted.load()).resolves.toEqual({ messages: [] });
+    expect(storage.get(formattedKey)).toBeUndefined();
+  });
+
+  it("retries formatted history cleanup after a failed delete", async () => {
+    const baseStorage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular", formats: ["test/v1"] },
+      ]),
+      [formattedKey]: JSON.stringify({ messages: [] }),
+    });
+    let failCleanup = true;
+    const storage = {
+      ...baseStorage,
+      removeItem: async (key: string) => {
+        if (key === formattedKey && failCleanup) {
+          failCleanup = false;
+          throw new Error("Storage unavailable");
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+    expect(storage.get(formattedKey)).toBeDefined();
+
+    await createLocalStorageAdapter({ storage }).delete("thread-1");
+
+    expect(storage.get(formattedKey)).toBeUndefined();
+    await expect(adapter.list()).resolves.toEqual({ threads: [] });
+  });
 });

@@ -69,6 +69,17 @@ class KeyedMutationQueue {
     this.staleKeys.delete(key);
   }
 
+  async removeStaleMatching(
+    matches: (key: string) => boolean,
+    storage: AsyncStorageLike,
+  ) {
+    await Promise.all(
+      [...this.staleKeys]
+        .filter(matches)
+        .map((key) => this.removeStale(key, storage)),
+    );
+  }
+
   // Mutations may acquire another key but must never re-enter the key they
   // already hold. Thread lifecycle mutations acquire messages before metadata.
   run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
@@ -561,9 +572,9 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         const remoteId = pinCurrent().getState().remoteId;
         if (!remoteId) return { messages: [] };
 
-        const raw = await this.storage.getItem(
-          formattedMessagesKey(this.prefix, remoteId, format),
-        );
+        const key = formattedMessagesKey(this.prefix, remoteId, format);
+        await this.mutationQueue.removeStale(key, this.storage);
+        const raw = await this.storage.getItem(key);
         return {
           messages: parseStoredFormatEntries(raw, format).map((entry) =>
             formatAdapter.decode(entry as MessageStorageEntry<TStorageFormat>),
@@ -772,8 +783,11 @@ export const createLocalStorageAdapter = (
           ),
         ];
         for (const staleKey of keys) mutationQueue.markStale(staleKey);
-        await Promise.all(
-          keys.map((staleKey) => mutationQueue.removeStale(staleKey, storage)),
+        const formattedPrefix = `${prefix}formatted-messages:[${JSON.stringify(remoteId)},`;
+        await mutationQueue.removeStaleMatching(
+          (staleKey) =>
+            staleKey === key || staleKey.startsWith(formattedPrefix),
+          storage,
         );
       });
     },

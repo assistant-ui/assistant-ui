@@ -16,10 +16,9 @@ import {
 } from "./__tests__/controlled-transport";
 import { useChatRuntime } from "./useChatRuntime";
 
-const createStorage = (): AsyncStorageLike & { keys(): string[] } => {
+const createStorage = (): AsyncStorageLike => {
   const values = new Map<string, string>();
   return {
-    keys: () => [...values.keys()],
     getItem: async (key) => values.get(key) ?? null,
     setItem: async (key, value) => {
       values.set(key, value);
@@ -98,10 +97,12 @@ describe("useChatRuntime with createLocalStorageAdapter", () => {
 
     const remoteId = harness.client().threadListItem.getState().remoteId;
     expect(remoteId).toBeDefined();
-    await waitFor(() =>
-      expect(storage.keys()).toContain(
-        `@assistant-ui:messages:${remoteId}:ai-sdk/v6`,
-      ),
+    await waitFor(async () =>
+      expect(
+        await storage.getItem(
+          `@assistant-ui:formatted-messages:${JSON.stringify([remoteId, "ai-sdk/v6"])}`,
+        ),
+      ).toContain("stored answer"),
     );
     first.unmount();
 
