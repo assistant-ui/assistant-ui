@@ -294,7 +294,7 @@ const roundTrip = (repository: MessageRepository) => {
 };
 
 describe("MessageRepository export with an optimistic head", () => {
-  it("keeps the persisted ancestor of a selected running branch over a later sibling", () => {
+  it("falls back to a later persisted sibling when a selected running branch has no earlier one", () => {
     const repository = new MessageRepository();
     repository.addOrUpdateMessage(null, assistantMessage("u"));
     repository.addOrUpdateMessage("u", {
@@ -304,12 +304,10 @@ describe("MessageRepository export with an optimistic head", () => {
     repository.addOrUpdateMessage("u", assistantMessage("later"));
     expect(repository.headId).toBe("placeholder");
 
-    expect(repository.export().headId).toBe("u");
-    expect(
-      roundTrip(repository)
-        .getMessages()
-        .map((m) => m.id),
-    ).toEqual(["u"]);
+    expect(repository.export().headId).toBe("later");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "later"]);
+    expect(restored.getBranches("later")).toEqual(["later"]);
   });
 
   it("keeps the saved answer before a selected optimistic branch over a later sibling", () => {

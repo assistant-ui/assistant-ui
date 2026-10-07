@@ -615,15 +615,10 @@ export class MessageRepository {
     const selectedIndex = selected
       ? parent.children.indexOf(selected.current.id)
       : parent.children.length;
-    const siblings = parent.children.slice(0, selectedIndex).reverse();
-    if (
-      selected?.current.role !== "assistant" ||
-      selected.current.status.type !== "running"
-    ) {
-      for (let i = parent.children.length - 1; i > selectedIndex; i--) {
-        siblings.push(parent.children[i]!);
-      }
-    }
+    const siblings = [
+      ...parent.children.slice(0, selectedIndex).reverse(),
+      ...parent.children.slice(selectedIndex + 1).reverse(),
+    ];
     for (const id of siblings) {
       const child = this.messages.get(id);
       if (!child) continue;
