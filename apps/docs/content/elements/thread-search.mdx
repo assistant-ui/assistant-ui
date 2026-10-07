@@ -154,7 +154,7 @@ export function History() {
 </div>
 ```
 
-Matching runs `${title} ${preview}` against the query, case-insensitively, so an empty query matches every thread. Pinned matches always render first as their own block; the rest are split into groups in the order their first match appears, not alphabetically or by recency. Arrow Down and Arrow Up in the search input move the highlight through pinned-then-grouped order, report it through `onActiveChange`, and wrap around at both ends. Enter activates the highlighted result, while clicking a row activates the clicked result through `onSelect`. Focus stays in the search input while `aria-activedescendant` identifies the highlighted option; IME composition is ignored so composing a query never steals the keys. There is no visible "no threads at all" state distinct from "no matches": an empty `threads` array renders the same empty message as a query with zero hits.
+Matching runs `${title} ${preview}` against the query, case-insensitively, so an empty query matches every thread. Pinned matches always render first as their own block; the rest are split into groups in the order their first match appears, not alphabetically or by recency. Arrow Down and Arrow Up in the search input move the highlight through pinned-then-grouped order, report it through `onActiveChange`, and wrap around at both ends. Enter activates the highlighted result, while clicking a row highlights it through `onActiveChange` and then activates it through `onSelect`. Focus stays in the search input while `aria-activedescendant` identifies the highlighted option; IME composition is ignored so composing a query never steals the keys. There is no visible "no threads at all" state distinct from "no matches": an empty `threads` array renders the same empty message as a query with zero hits.
 
 ## Examples
 
@@ -214,13 +214,13 @@ This element has no dedicated primitive: it is fed from `useAuiState` selectors,
 | `query` | `string` | required | The current search text. |
 | `activeId` | `string` | required | Id of the highlighted thread. |
 | `onQueryChange` | `(query: string) => void` | | Called as the user types. |
-| `onActiveChange` | `(id: string) => void` | required with `onSelect` | Called when Arrow Down or Arrow Up moves the highlight. Without it, Arrow Down and Arrow Up do not move the highlight. |
+| `onActiveChange` | `(id: string) => void` | required with `onSelect` | Called when Arrow Down or Arrow Up moves the highlight, and before `onSelect` when a row is clicked. Without it, Arrow Down and Arrow Up do not move the highlight. |
 | `onSelect` | `(id: string) => void` | | Called when Enter activates the highlighted result or a row is clicked. Without it, rows render as non-interactive results and Enter does nothing. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.
 
-When updating an existing copied element that uses `onSelect`, add `onActiveChange` and store the highlighted id separately from the open thread id. Arrow keys now report highlight movement only through `onActiveChange`; Enter and row clicks report activation through `onSelect`.
+When updating an existing copied element that uses `onSelect`, add `onActiveChange` and store the highlighted id separately from the open thread id. Arrow keys now report highlight movement only through `onActiveChange`; Enter and row clicks report activation through `onSelect`, and a row click reports its highlight through `onActiveChange` first.
 
 ### SearchableThread
 
