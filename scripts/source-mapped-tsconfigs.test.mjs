@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { globSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -29,17 +30,33 @@ function resolveThroughPaths(paths, specifier) {
       prefix.length,
       specifier.length - (suffix ?? "").length,
     );
-    best = { prefix, target: target.replace("*", captured) };
+    best = { prefix, target: target.replaceAll("*", captured) };
   }
   return best?.target;
 }
 
-const sourceMappedTsconfigs = globSync(
-  "{apps,examples,templates}/*/tsconfig.json",
-  {
-    cwd: repoRoot,
-  },
-).filter((file) => readJson(file).compilerOptions?.paths?.[SOURCE_WILDCARD]);
+const isSourceEntry = (target) =>
+  [target, path.join(target, "index")].some((base) =>
+    [".ts", ".tsx"].some((extension) => existsSync(`${base}${extension}`)),
+  );
+
+const sourceMappedTsconfigs = spawnSync(
+  "git",
+  [
+    "ls-files",
+    "-z",
+    "--",
+    ...["apps", "examples", "templates"].map(
+      (group) => `:(glob)${group}/**/tsconfig.json`,
+    ),
+  ],
+  { cwd: repoRoot, encoding: "utf8" },
+)
+  .stdout.split("\0")
+  .filter(
+    (file) =>
+      file !== "" && readJson(file).compilerOptions?.paths?.[SOURCE_WILDCARD],
+  );
 
 test("finds the tsconfigs that map workspace packages to source", () => {
   assert.ok(
@@ -58,13 +75,16 @@ for (const file of sourceMappedTsconfigs) {
       for (const entry of Object.keys(pkg.exports)) {
         if (entry === "./package.json") continue;
         const specifier = path.posix.join(pkg.name, entry);
-        const target = resolveThroughPaths(paths, specifier);
+        const mapped = resolveThroughPaths(paths, specifier);
+        const target =
+          mapped && path.resolve(repoRoot, path.dirname(file), mapped);
         assert.ok(
-          target &&
-            path
-              .resolve(repoRoot, path.dirname(file), target)
-              .startsWith(sourceRoot),
-          `${specifier} resolves to ${target ?? "the built dist"}; map it to packages/${dir}/src in ${file}`,
+          target?.startsWith(sourceRoot),
+          `${specifier} resolves to ${mapped ?? "the built dist"}; map it to packages/${dir}/src in ${file}`,
+        );
+        assert.ok(
+          isSourceEntry(target),
+          `${specifier} maps to ${mapped} in ${file}, which is not a source file`,
         );
       }
     }
