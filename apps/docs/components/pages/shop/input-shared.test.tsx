@@ -3,9 +3,24 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { InputHelp, NoteField } from "./input-shared";
+import { ChoiceIcon, InputHelp, NoteField } from "./input-shared";
+import { INPUT_PRESETS } from "../../../lib/checkout/presets";
 
 afterEach(cleanup);
+
+describe("ChoiceIcon", () => {
+  it("has a mark for every preset choice", () => {
+    for (const preset of Object.values(INPUT_PRESETS)) {
+      for (const option of preset.options) {
+        const { container, unmount } = render(
+          <ChoiceIcon icon={option.icon ?? ""} />,
+        );
+        expect(container.firstChild, option.id).not.toBeNull();
+        unmount();
+      }
+    }
+  });
+});
 
 describe("InputHelp", () => {
   it("renders an HTTPS guide link with its destination host", () => {

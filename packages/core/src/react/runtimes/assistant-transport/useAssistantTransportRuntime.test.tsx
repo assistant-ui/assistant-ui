@@ -443,9 +443,12 @@ describe("useAssistantTransportRuntime", () => {
     act(() => fetchMock.servers[1]!.close());
     await waitFor(() => expect(fetchMock.requests).toHaveLength(3));
     expect(fetchMock.requests[2]!.url).toBe("https://example.com/api");
-    expect(fetchMock.requests[2]!.body["commands"]).toEqual([
+    expect(fetchMock.requests[2]!.body["commands"]).toMatchObject([
       createMessageCommand("b"),
     ]);
+    expect(fetchMock.requests[2]!.body["commands"][0].message.id).toEqual(
+      expect.any(String),
+    );
 
     act(() => fetchMock.servers[2]!.close());
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
@@ -487,9 +490,12 @@ describe("useAssistantTransportRuntime", () => {
       act(() => sendCommand(createMessageCommand("b")));
       await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
       expect(fetchMock.requests[1]!.url).toBe("https://example.com/api");
-      expect(fetchMock.requests[1]!.body["commands"]).toEqual([
+      expect(fetchMock.requests[1]!.body["commands"]).toMatchObject([
         createMessageCommand("b"),
       ]);
+      expect(fetchMock.requests[1]!.body["commands"][0].message.id).toEqual(
+        expect.any(String),
+      );
 
       await act(async () => {
         fetchMock.pending[1]!.resolve(new Response("", { status: 200 }));

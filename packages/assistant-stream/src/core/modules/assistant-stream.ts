@@ -1,6 +1,9 @@
 import { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk, PartInit } from "../AssistantStreamChunk";
-import { createMergeStream } from "../utils/stream/merge";
+import {
+  createMergeStream,
+  type MergeStreamFinishOrder,
+} from "../utils/stream/merge";
 import { createTextStreamController, type TextStreamController } from "./text";
 import {
   createToolCallStreamController,
@@ -11,7 +14,6 @@ import {
   PathAppendEncoder,
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
-import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
 import type { DataPart, FilePart, SourcePart } from "../utils/types";
 import { generateId } from "../utils/generateId";
 import type {
@@ -122,6 +124,7 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
+  lastToolCallFinish: Promise<void>;
   closeSubscriber?: () => void;
 };
 
@@ -137,6 +140,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
+      lastToolCallFinish: Promise.resolve(),
     };
   }
 
@@ -166,6 +170,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk,
       AssistantStreamChunk
     >,
+    orderedFinish?: MergeStreamFinishOrder,
   ) {
     if (stream.locked) {
       throw new TypeError(
@@ -179,10 +184,18 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         await transformer.writable.abort(error).catch(() => undefined);
         throw error;
       });
-    this._state.merger.addStream(transformer.readable, pipeTask);
+    this._state.merger.addStream(
+      transformer.readable,
+      pipeTask,
+      orderedFinish ? { orderedFinish } : undefined,
+    );
   }
 
-  private _addPart(part: PartInit, stream: AssistantStream) {
+  private _addPart(
+    part: PartInit,
+    stream: AssistantStream,
+    orderedFinish?: MergeStreamFinishOrder,
+  ) {
     if (this._state.append) {
       this._state.append.controller.close();
       this._state.append = undefined;
@@ -196,6 +209,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
+      orderedFinish,
     );
   }
 
@@ -267,8 +281,14 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolName = opt.toolName;
     const toolCallId = opt.toolCallId ?? generateId();
 
+    const delivered = promiseWithResolvers<void>();
+    let previous = Promise.resolve();
     const [stream, controller] = createToolCallStreamController({
       strict: this._state.strict,
+      onClose: () => {
+        previous = this._state.lastToolCallFinish;
+        this._state.lastToolCallFinish = delivered.promise;
+      },
     });
     this._addPart(
       {
@@ -278,6 +298,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
+      { previous: () => previous, delivered },
     );
 
     if (opt.argsText !== undefined) {
@@ -414,20 +435,4 @@ export function createAssistantStreamController(
     return promise;
   }, options);
   return [stream, controller] as const;
-}
-
-/**
- * Creates a `Response` whose body is an encoded {@link AssistantStream}.
- *
- * This is the HTTP-route convenience form of {@link createAssistantStream}; it
- * uses {@link DataStreamEncoder} so the response can be consumed by matching
- * assistant-ui data stream decoders.
- */
-export function createAssistantStreamResponse(
-  callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
-) {
-  return AssistantStream.toResponse(
-    createAssistantStream(callback),
-    new DataStreamEncoder(),
-  );
 }

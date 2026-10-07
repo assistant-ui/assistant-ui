@@ -156,6 +156,35 @@ describe("a2aPartToContent", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
   });
+
+  it.each(["text", "url", "raw"])("treats a null %s as absent", (field) => {
+    const part = { [field]: null } as unknown as A2APart;
+    expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+
+  it("reads the url of a part whose text is null", () => {
+    const part = {
+      text: null,
+      url: "https://example.com/doc.pdf",
+      mediaType: "application/pdf",
+    } as unknown as A2APart;
+    expect(a2aPartToContent(part)).toEqual({
+      type: "file",
+      data: "https://example.com/doc.pdf",
+      mimeType: "application/pdf",
+      sourceType: "url",
+    });
+  });
+
+  it.each([null, undefined, "text", 1])(
+    "returns an empty text part for the non-object part %s",
+    (part) => {
+      expect(a2aPartToContent(part as unknown as A2APart)).toEqual({
+        type: "text",
+        text: "",
+      });
+    },
+  );
 });
 
 describe("A2UI data parts", () => {
@@ -313,6 +342,11 @@ describe("a2aPartsToContent", () => {
       expect(a2aPartsToContent(parts as unknown as A2APart[])).toEqual([]);
     },
   );
+
+  it("skips null and undefined entries in parts", () => {
+    const parts = [null, { text: "Hello" }, undefined] as unknown as A2APart[];
+    expect(a2aPartsToContent(parts)).toEqual([{ type: "text", text: "Hello" }]);
+  });
 });
 
 describe("a2aMessageToContent", () => {
@@ -441,6 +475,19 @@ describe("isInterruptedTaskState", () => {
 });
 
 describe("contentPartsToA2AParts", () => {
+  it.each(["application/pdf", ""])(
+    "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
+    (mimeType) => {
+      expect(
+        contentPartsToA2AParts([
+          { type: "file", data: "data:;base64,SGVsbG8=", mimeType },
+        ]),
+      ).toEqual([
+        { raw: "SGVsbG8=", mediaType: mimeType || "application/octet-stream" },
+      ]);
+    },
+  );
+
   it("converts text parts", () => {
     const result = contentPartsToA2AParts([{ type: "text", text: "hi" }]);
     expect(result).toEqual([{ text: "hi" }]);
@@ -489,6 +536,14 @@ describe("contentPartsToA2AParts", () => {
       { type: "image", image: "data:image/png;base64,aGVsbG8=" },
     ]);
     expect(result).toEqual([{ raw: "aGVsbG8=", mediaType: "image/png" }]);
+  });
+
+  it("sniffs media-less image data URLs before sending their raw bytes", () => {
+    expect(
+      contentPartsToA2AParts([
+        { type: "image", image: "data:;base64,iVBORw0KGgo=" },
+      ]),
+    ).toEqual([{ raw: "iVBORw0KGgo=", mediaType: "image/png" }]);
   });
 
   it("propagates image filenames", () => {

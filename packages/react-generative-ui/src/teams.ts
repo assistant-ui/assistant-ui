@@ -21,6 +21,7 @@ export type {
   TeamsInputChoiceSet,
   TeamsInputDate,
   TeamsInputText,
+  TeamsInputTime,
   TeamsInputToggle,
   TeamsSubmitAction,
   TeamsSubmitData,
