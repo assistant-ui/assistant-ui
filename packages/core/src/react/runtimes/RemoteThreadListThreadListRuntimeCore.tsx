@@ -772,11 +772,10 @@ export class RemoteThreadListThreadListRuntimeCore
   // it, so selecting a thread starts its runtime if it is not running.
   private _setMainThreadId(threadId: string) {
     this._mainThreadId = threadId;
-    if (this._hookManager.getThreadRuntimeCore(threadId)) return;
-    void this._hookManager.startThreadRuntime(threadId).then(
-      () => this._notifySubscribers(),
-      () => undefined,
-    );
+    if (this._disposed || this._hookManager.getThreadRuntimeCore(threadId))
+      return;
+    const notify = () => this._notifySubscribers();
+    void this._hookManager.startThreadRuntime(threadId).then(notify, notify);
   }
 
   public switchToNewThread(): Promise<void> {

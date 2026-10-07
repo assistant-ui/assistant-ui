@@ -69,6 +69,37 @@ describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
     expect(running.has("thread-b")).toBe(true);
   });
 
+  it("does not start a runtime for a switch that lands after the core is disposed", async () => {
+    const unarchive = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "archived" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+          },
+        ],
+      })),
+      unarchive: vi.fn(() => unarchive.promise),
+    });
+    const core = createCore(adapter);
+    const { starts } = trackRunningThreads(core);
+    await core.getLoadThreadsPromise();
+
+    const switchToB = core.switchToThread("thread-b");
+    await vi.waitFor(() => {
+      expect(adapter.unarchive).toHaveBeenCalledWith("thread-b");
+    });
+    await core.detach("thread-b");
+    core.__internal_dispose();
+    const startsBeforeLanding = starts.length;
+    unarchive.resolve();
+    await switchToB;
+
+    expect(starts).toHaveLength(startsBeforeLanding);
+  });
+
   it("runs the main thread's runtime when initialize moves main onto a detached draft", async () => {
     const initialization = deferred<{ remoteId: string; externalId: string }>();
     const core = createCore(
