@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { InMemoryThreadListAdapter } from "./in-memory";
 
 describe("InMemoryThreadListAdapter", () => {
+  it("preserves no-argument mutations as no-ops", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+    await adapter.initialize("");
+    await adapter.rename("", "Existing");
+    await adapter.updateCustom("", { kept: true });
+    const before = await adapter.list();
+
+    await adapter.rename();
+    await adapter.updateCustom();
+    await adapter.archive();
+    await adapter.unarchive();
+    await adapter.delete();
+
+    await expect(adapter.list()).resolves.toEqual(before);
+  });
+
   it("lists and fetches threads initialized in the adapter instance", async () => {
     const adapter = new InMemoryThreadListAdapter();
     await adapter.initialize("thread-1");
