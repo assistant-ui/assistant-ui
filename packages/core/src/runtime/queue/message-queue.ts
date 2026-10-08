@@ -14,9 +14,9 @@ import type {
 
 export type MessageQueueDriver = {
   /**
-   * A synchronous throw is treated as a run that never started and restores
-   * the message. A driver that already started work must call `notifyBusy`
-   * before throwing.
+   * A throw or rejected promise before `notifyBusy` restores the message and
+   * pauses draining until the next send. A driver that started work must call
+   * `notifyBusy` before failing. Promise fulfillment does not signal idle.
    */
   run: (message: AppendMessage, options: { steer: boolean }) => void;
   /** When omitted, steering degrades to "process next" instead of interrupting. */
@@ -99,6 +99,15 @@ export const createMessageQueue = (
   let cancelSettles = 0;
   let interrupting = false;
   let busyEdges = 0;
+  let generation = 0;
+
+  const observeRun = (pending: unknown, restoreFailure: () => void) => {
+    if (pending === undefined) return;
+    void Promise.resolve(pending).catch((error: unknown) => {
+      restoreFailure();
+      console.error("[MessageQueue] run rejected", error);
+    });
+  };
 
   const notify = () => {
     notifyEventListeners(subscribers, undefined, "Message queue");
@@ -150,13 +159,23 @@ export const createMessageQueue = (
     dispatchPending = false;
     const dispatch = { id: head.id, item: head, message };
     const busyEdgesBeforeRun = busyEdges;
-    try {
-      driver.run(dispatchTransform(message), { steer: false });
-    } catch (error) {
-      if (busyEdges === busyEdgesBeforeRun) {
+    const dispatchGeneration = generation;
+    const restoreFailure = () => {
+      if (
+        generation === dispatchGeneration &&
+        busyEdges === busyEdgesBeforeRun
+      ) {
         running = false;
         restore(lane, dispatch);
       }
+    };
+    try {
+      observeRun(
+        driver.run(dispatchTransform(message), { steer: false }),
+        restoreFailure,
+      );
+    } catch (error) {
+      restoreFailure();
       throw error;
     }
   };
@@ -195,11 +214,18 @@ export const createMessageQueue = (
     }
     running = true;
     const busyEdgesBeforeRun = busyEdges;
+    const dispatchGeneration = generation;
+    const restoreFailure = () => {
+      if (generation !== dispatchGeneration) return;
+      restoreInterrupted(busyEdges !== busyEdgesBeforeRun);
+    };
     try {
-      driver.run(dispatchTransform(dispatch.message), { steer: true });
+      observeRun(
+        driver.run(dispatchTransform(dispatch.message), { steer: true }),
+        restoreFailure,
+      );
     } catch (error) {
-      const replacementStarted = busyEdges !== busyEdgesBeforeRun;
-      restoreInterrupted(replacementStarted);
+      restoreFailure();
       throw error;
     }
   };
@@ -368,6 +394,7 @@ export const createMessageQueue = (
     },
     notifyCancelled,
     clear: () => {
+      generation++;
       messages.clear();
       setLanes({ queue: EMPTY_QUEUE_ITEMS, steer: EMPTY_QUEUE_ITEMS });
     },
