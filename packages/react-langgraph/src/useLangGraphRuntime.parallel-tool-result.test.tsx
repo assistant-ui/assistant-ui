@@ -256,6 +256,48 @@ describe("useLangGraphRuntime parallel tool results", () => {
     ).toEqual(["c1", "c2"]);
   });
 
+  it("releases a finished-run call after a separate send answers its sibling", async () => {
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length === 1) yield aiWith(["c1", "c2"]);
+    });
+    const runtime = mount(stream);
+    const { result: send } = renderHook(() => useLangGraphSend(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      ),
+    });
+
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c2");
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    await act(async () => {
+      await send.current(
+        [
+          {
+            type: "tool",
+            tool_call_id: "c2",
+            name: "ask",
+            content: "done",
+            status: "success",
+          },
+        ],
+        {},
+      );
+    });
+    expect(sent).toHaveLength(2);
+
+    act(() => addResult(runtime, "c1"));
+    await waitFor(() => expect(sent).toHaveLength(3));
+    expect(sent[2]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
+  });
+
   it("releases a buffered client result when its server sibling has a result", async () => {
     let finish!: () => void;
     const gate = new Promise<void>((resolve) => {

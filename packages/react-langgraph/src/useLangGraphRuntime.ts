@@ -1002,7 +1002,7 @@ const useLangGraphRuntimeImpl = (
         ? pendingToolCallIdsByRunRef.current.get(producingRunId)
         : undefined;
       const savedCalls = savedGroup?.includes(toolCallId)
-        ? savedGroup
+        ? savedGroup.filter((id) => !hasToolResult(messages, id))
         : undefined;
       const groupKey =
         savedCalls !== undefined
