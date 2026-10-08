@@ -104,11 +104,16 @@ describe("createVSCodeStorage", () => {
     await waitFor(() =>
       expect(second.runtime().threads.getState().threadIds).toContain(remoteId),
     );
-    await act(() => second.runtime().threads.switchToThread(remoteId!));
+    // React 18 renders the switch only after the act scope ends, so awaiting it inside act never settles.
+    let switched: Promise<void> | undefined;
+    act(() => {
+      switched = second.runtime().threads.switchToThread(remoteId!);
+    });
 
     await waitFor(() =>
       expect(texts(second.runtime())).toEqual(["hello", "echo: hello"]),
     );
+    await switched;
     expect(second.runtime().threads.mainItem.getState().title).toBe("Greeting");
   });
 
