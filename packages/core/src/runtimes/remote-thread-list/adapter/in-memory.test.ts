@@ -7,7 +7,6 @@ describe("InMemoryThreadListAdapter", () => {
     await adapter.initialize("");
     await adapter.rename("", "Existing");
     await adapter.updateCustom("", { kept: true });
-    const before = await adapter.list();
 
     await adapter.rename();
     await adapter.updateCustom();
@@ -15,7 +14,17 @@ describe("InMemoryThreadListAdapter", () => {
     await adapter.unarchive();
     await adapter.delete();
 
-    await expect(adapter.list()).resolves.toEqual(before);
+    await expect(adapter.list()).resolves.toEqual({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "",
+          externalId: undefined,
+          title: "Existing",
+          custom: { kept: true },
+        },
+      ],
+    });
   });
 
   it("lists and fetches threads initialized in the adapter instance", async () => {
