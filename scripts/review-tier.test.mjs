@@ -21,6 +21,14 @@ const enforcePolicy = {
     mode: "enforce",
   },
 };
+const shadowPolicy = {
+  ...policy,
+  reviewTierCheck: {
+    ...policy.reviewTierCheck,
+    integrationId: null,
+    mode: "shadow",
+  },
+};
 const repo = `/repos/${policy.repository}`;
 const now = new Date("2026-10-08T12:00:00Z");
 const marker = "<!-- review-tier -->";
@@ -1200,7 +1208,7 @@ test("shadow mode changes pending and failure to neutral while success remains s
   ]) {
     const evaluation = await evaluationFor(recording);
     const before = structuredClone(evaluation);
-    await publish(recording.client, policy, {
+    await publish(recording.client, shadowPolicy, {
       number: 12,
       headSha: "head",
       evaluation,
@@ -1593,7 +1601,7 @@ test("workflow relay files accept a number and reject shell text before making A
           GITHUB_EVENT_NAME: "workflow_run",
           ...(customPath ? { REVIEW_TIER_RELAY_FILE: customPath } : {}),
         },
-        policy,
+        policy: shadowPolicy,
         readFile: (file, encoding) => {
           assert.equal(file, customPath ?? "review-tier-pr/number");
           assert.equal(encoding, "utf8");
