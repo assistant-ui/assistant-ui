@@ -1,7 +1,7 @@
 "use client";
 
 import { resource, useResource, withKey } from "@assistant-ui/tap";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Chat, UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
@@ -209,6 +209,23 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     scopeId,
     sdk: AI_SDK_SDK,
   });
+  const clientRef = useAssistantClientRef();
+  const previousCloudAdapter = useRef(bindCloud ? cloudAdapter : undefined);
+  useEffect(() => {
+    const previous = previousCloudAdapter.current;
+    previousCloudAdapter.current = bindCloud ? cloudAdapter : undefined;
+    if (!bindCloud || previous === undefined || previous === cloudAdapter)
+      return;
+    // Wait until RemoteThreadList commits the replacement adapter before
+    // requesting its explicit reload.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void clientRef.current!.threads.reload();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bindCloud, clientRef, cloudAdapter]);
   const thread = (id: string) => {
     const element = AISDKChatThread({
       threadId: id,

@@ -2173,6 +2173,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -2634,7 +2635,7 @@ declare const useLangGraphMessages: <TMessage extends {
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
-  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: (() => void) | undefined) => Promise<void>;
+  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: ((finalMessages: TMessage[]) => void) | undefined) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;

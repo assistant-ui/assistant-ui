@@ -78,7 +78,7 @@ export default defineSections([
         <div className={cn(field, codeScroll, "rounded-lg")}>
           <div className={cn(codeSurface, mono, "px-3 py-2 whitespace-pre")}>
             {
-              "$ pnpm --filter with-vscode test --reporter=verbose --grep gallery-overflow"
+              "$ pnpm --filter with-vscode probes --reporter=verbose --grep gallery-overflow"
             }
           </div>
         </div>

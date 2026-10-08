@@ -194,6 +194,8 @@ export class AgUiThreadRuntimeCore {
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
+  private _historyImportPromise: Promise<void> | undefined;
+  private historyMutationGeneration = 0;
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
   private pendingResume: { owner: AbortController; messageId: string } | null =
@@ -271,28 +273,38 @@ export class AgUiThreadRuntimeCore {
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return Promise.resolve();
 
-    const promise = this.history.load();
+    const promise = this.history.load().then((repo) => {
+      if (!repo) return;
+
+      this.session.applyExternalMessageRepository(repo);
+      this.assistantHistoryParents.clear();
+      this.snapshotHistoryIds.clear();
+      this.persistedHistoryIds.clear();
+      for (const { message } of repo.messages) {
+        this.persistedHistoryIds.add(message.id);
+      }
+      this.notifyUpdate();
+
+      if (repo.state !== undefined) {
+        this.loadExternalState(repo.state);
+      }
+
+      return repo;
+    });
 
     this._isLoading = true;
+    this._historyImportPromise = promise.then(
+      () => {
+        this._historyImportPromise = undefined;
+      },
+      () => {
+        this._historyImportPromise = undefined;
+      },
+    );
 
     this._loadPromise = promise
       .then(async (repo) => {
-        if (!repo) return;
-
-        this.session.applyExternalMessageRepository(repo);
-        this.assistantHistoryParents.clear();
-        this.snapshotHistoryIds.clear();
-        this.persistedHistoryIds.clear();
-        for (const { message } of repo.messages) {
-          this.persistedHistoryIds.add(message.id);
-        }
-        this.notifyUpdate();
-
-        if (repo.state !== undefined) {
-          this.loadExternalState(repo.state);
-        }
-
-        if (repo.unstable_resume) {
+        if (repo?.unstable_resume) {
           const parentId = repo.headId ?? this.session.headId;
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
@@ -316,7 +328,53 @@ export class AgUiThreadRuntimeCore {
     return this._loadPromise;
   }
 
+  private waitForHistoryImport(): Promise<boolean> | undefined {
+    const historyImport = this._historyImportPromise;
+    if (!historyImport) return undefined;
+    const generation = this.historyMutationGeneration;
+    return historyImport.then(
+      () =>
+        generation === this.historyMutationGeneration &&
+        !this.isThreadSwitching?.(),
+    );
+  }
+
+  private deferUntilHistoryImported(callback: () => void): boolean {
+    const historyImport = this._historyImportPromise;
+    if (!historyImport) return false;
+    const generation = this.historyMutationGeneration;
+    void historyImport.then(() => {
+      if (
+        generation !== this.historyMutationGeneration ||
+        this.isThreadSwitching?.()
+      ) {
+        return;
+      }
+      try {
+        callback();
+      } catch (error) {
+        this.reportError(error);
+      }
+    });
+    return true;
+  }
+
   async append(message: AppendMessage): Promise<void> {
+    const historyImport = this._historyImportPromise;
+    if (historyImport) {
+      const wasAtTail = message.parentId === this.session.headId;
+      const generation = this.historyMutationGeneration;
+      await historyImport;
+      if (
+        generation !== this.historyMutationGeneration ||
+        this.isThreadSwitching?.()
+      )
+        return;
+      if (wasAtTail) {
+        message = { ...message, parentId: this.session.headId };
+      }
+    }
+
     const startRun = message.startRun ?? message.role === "user";
     let ownsThread = true;
     if (startRun) {
@@ -371,12 +429,15 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     await this.startRun(parentId, config.runConfig);
   }
 
   async cancel(): Promise<void> {
+    this.historyMutationGeneration++;
     this.abortActiveRun();
   }
 
@@ -418,6 +479,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
     await this.startRun(
       config.parentId,
@@ -428,6 +491,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     // Without a resume stream startRun would re-run the agent from scratch.
     const resumeStream = this.history?.resume?.bind(this.history);
     if (!resumeStream) {
@@ -507,6 +572,8 @@ export class AgUiThreadRuntimeCore {
   async submitInterruptResponses(
     responses: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -602,6 +669,8 @@ export class AgUiThreadRuntimeCore {
   async respondToToolApproval(
     options: RespondToToolApprovalOptions,
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -675,6 +744,8 @@ export class AgUiThreadRuntimeCore {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       const pendingTools = this.getPendingToolCalls();
@@ -866,6 +937,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   addToolResult(options: AddToolResultOptions): void {
+    if (this.deferUntilHistoryImported(() => this.addToolResult(options)))
+      return;
     // Core's ToolInvocationTracker resolves a nested call to the nested
     // subagent message's id, which is not a session message; re-anchor on the
     // top-level message that owns the tree so the update can land.
@@ -907,6 +980,8 @@ export class AgUiThreadRuntimeCore {
     toolCallId: string;
     interaction: Unstable_ToolInteraction;
   }): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const sessionMessageId = this.session.tryGetMessage(options.messageId)
       ? options.messageId
       : this.findMessageIdForToolCall(options.toolCallId);
@@ -964,6 +1039,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {
+    if (this.deferUntilHistoryImported(() => this.sendA2uiAction(action)))
+      return;
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     const parentId = this.session.headId;
@@ -1137,6 +1214,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   resetThreadState(): void {
+    this.historyMutationGeneration++;
     const controller = this.abortController;
     const activeRunAgent = this.activeRunAgent;
 
@@ -1781,7 +1859,10 @@ export class AgUiThreadRuntimeCore {
         ? this.showThinking && !snapshotHasReasoning
         : isActivityPart(part) && !snapshotHasActivity;
     const kept = previous.filter(shouldKeep);
-    const merged = this.preserveToolInteractions(previous, next);
+    const merged = this.reconcileSnapshotNestedContent(
+      previous,
+      this.preserveToolInteractions(previous, next),
+    );
     if (kept.length === 0) return merged;
 
     const mergedByType = new Map<string, number[]>();
@@ -1825,6 +1906,64 @@ export class AgUiThreadRuntimeCore {
     }
     result.push(...insertions[merged.length]!);
     return result;
+  }
+
+  private reconcileSnapshotNestedContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const nestedIds = new Set<string>();
+    for (const part of previous) {
+      if (part.type !== "tool-call" || !part.messages) continue;
+      for (const nested of part.messages) {
+        if (nested.role !== "assistant") continue;
+        for (const call of iterateToolCallParts(nested.content)) {
+          nestedIds.add(call.toolCallId);
+        }
+      }
+    }
+
+    const flattened = new Map<string, ToolCallMessagePart>();
+    for (const part of next) {
+      if (part.type === "tool-call" && nestedIds.has(part.toolCallId)) {
+        flattened.set(part.toolCallId, part);
+      }
+    }
+    const carried =
+      flattened.size === 0
+        ? previous
+        : mapToolCallPartsDeep(previous, (part) => {
+            const snapshot = flattened.get(part.toolCallId);
+            if (!snapshot) return part;
+            return {
+              ...part,
+              ...(snapshot.result !== undefined
+                ? { result: snapshot.result }
+                : {}),
+              ...(snapshot.isError !== undefined
+                ? { isError: snapshot.isError }
+                : {}),
+              ...(snapshot.artifact !== undefined
+                ? { artifact: snapshot.artifact }
+                : {}),
+            };
+          }).content;
+    const previousCalls = new Map<string, ToolCallMessagePart>();
+    for (const part of carried) {
+      if (part.type !== "tool-call") continue;
+      previousCalls.set(part.toolCallId, part);
+    }
+
+    return next.flatMap<ThreadAssistantMessage["content"][number]>((part) => {
+      if (part.type === "tool-call" && flattened.has(part.toolCallId)) {
+        return [];
+      }
+      if (part.type !== "tool-call") return [part];
+      const prior = previousCalls.get(part.toolCallId);
+      return prior?.messages === undefined
+        ? [part]
+        : [{ ...part, messages: prior.messages }];
+    });
   }
 
   private mergeAssistantMetadata(

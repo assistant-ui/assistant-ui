@@ -55,12 +55,11 @@ type ResizeStore = {
   subscribers: Set<() => void>;
   notify: () => void;
 };
-const resizeStores = new WeakMap<NodeJS.WriteStream, ResizeStore>();
+type Stdout = ReturnType<typeof useStdout>["stdout"];
 
-const subscribeToStreamResize = (
-  stdout: NodeJS.WriteStream,
-  onChange: () => void,
-) => {
+const resizeStores = new WeakMap<Stdout, ResizeStore>();
+
+const subscribeToStreamResize = (stdout: Stdout, onChange: () => void) => {
   let store = resizeStores.get(stdout);
   if (!store) {
     const subscribers = new Set<() => void>();
@@ -84,6 +83,11 @@ const subscribeToStreamResize = (
   };
 };
 
+const getTerminalWidth = (stdout: Stdout) => {
+  const columns = "columns" in stdout ? stdout.columns : undefined;
+  return typeof columns === "number" ? columns : undefined;
+};
+
 const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
   const { stdout } = useStdout();
   const subscribeToResize = useCallback(
@@ -92,9 +96,10 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
   );
   const usesTerminalWidth =
     options.width === undefined && options.wrap !== false;
-  const terminalWidth = useSyncExternalStore(subscribeToResize, () =>
-    usesTerminalWidth ? stdout.columns : undefined,
-  );
+  const terminalWidth = useSyncExternalStore(subscribeToResize, () => {
+    if (!usesTerminalWidth) return undefined;
+    return getTerminalWidth(stdout);
+  });
 
   const resolvedOptions =
     usesTerminalWidth && terminalWidth !== undefined

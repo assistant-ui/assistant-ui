@@ -250,7 +250,7 @@ export function useAssistantRuntime() {
 
 ```sh
 pnpm turbo build --filter='with-vscode^...'
-pnpm --filter with-vscode test
+pnpm --filter with-vscode probes
 ```
 
 The test launches VS Code through `@vscode/test-electron` and prints a table of probe results per runtime. On Linux, run it under `xvfb-run -a`.

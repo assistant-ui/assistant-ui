@@ -48,7 +48,7 @@ export type SeededThreadItem = {
 };
 
 class SeededThreadListAdapter extends InMemoryThreadListAdapter {
-  constructor(private readonly threads: readonly SeededThreadItem[]) {
+  constructor(private readonly seeded: readonly SeededThreadItem[]) {
     super();
   }
 
@@ -63,12 +63,12 @@ class SeededThreadListAdapter extends InMemoryThreadListAdapter {
 
   override list(): Promise<RemoteThreadListResponse> {
     return Promise.resolve({
-      threads: this.threads.map((t) => this.metadata(t)),
+      threads: this.seeded.map((t) => this.metadata(t)),
     });
   }
 
   override fetch(threadId: string): Promise<RemoteThreadMetadata> {
-    const thread = this.threads.find((t) => t.id === threadId);
+    const thread = this.seeded.find((t) => t.id === threadId);
     return thread
       ? Promise.resolve(this.metadata(thread))
       : super.fetch(threadId);

@@ -11,6 +11,7 @@ import { collapsePanel, ShimmerLabel, SwapLabel } from "./surfaces";
 import { take } from "../utils/range";
 
 export interface TimelineStep {
+  id?: string;
   verb: string;
   chip: string;
   icon: LucideIcon;
@@ -75,7 +76,7 @@ export function ToolTimeline({
 
             return (
               <div
-                key={step.chip}
+                key={step.id ? `id:${step.id}` : index}
                 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground flex items-center gap-2 text-[13.5px] duration-300"
               >
                 <Icon className="text-muted-foreground size-3.5 shrink-0" />

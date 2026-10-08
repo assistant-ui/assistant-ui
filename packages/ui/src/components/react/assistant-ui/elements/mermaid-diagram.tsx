@@ -45,20 +45,23 @@ const isIncompleteDiagram = (code: string, svg: string) => {
 const CSS_IMPORT =
   /@import\s*(?:url\(\s*(?:"[^"]*"|'[^']*'|[^)]*)\s*\)|"[^"]*"|'[^']*')[^;]*(?:;|$)/g;
 
-const SVG_STYLE = /<style\b[^>]*>([\s\S]*?)<\/style>/g;
+const SVG_STYLE = /<style\b[^>]*>([\s\S]*?)<\/style>/;
 
 const splitSvgStyles = (svg: string) => {
   let css = "";
   let markup = svg;
-  let previous: string;
-  // Removing one <style> can splice the text around it into another.
-  do {
-    previous = markup;
-    markup = markup.replace(SVG_STYLE, (_, rules: string) => {
-      css += rules;
-      return "";
-    });
-  } while (markup !== previous);
+  // Removing one <style> can splice the text around it into another, so each
+  // pass takes the first block and rescans.
+  for (
+    let match = SVG_STYLE.exec(markup);
+    match;
+    match = SVG_STYLE.exec(markup)
+  ) {
+    css += match[1];
+    markup =
+      markup.slice(0, match.index) +
+      markup.slice(match.index + match[0].length);
+  }
   return {
     markup: markup.replace(
       /(<[^>]*?)\sstyle="([^"]*)"/g,

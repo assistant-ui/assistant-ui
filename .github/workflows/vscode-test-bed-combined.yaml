@@ -38,7 +38,7 @@ jobs:
             artifact: probes-ai-sdk
             runtime: ai-sdk
             phase: 1
-            script: test
+            script: probes
           - name: Screenshots
             artifact: screenshots
             runtime: ""

@@ -1723,6 +1723,7 @@ const useExternalThread = ({
     return {
       isEmpty: messageStates.length === 0 && !isLoading,
       isDisabled: false,
+      isSendDisabled,
       isLoading,
       hasEarlier,
       isLoadingEarlier,
@@ -1755,6 +1756,7 @@ const useExternalThread = ({
     };
   }, [
     isRunning,
+    isSendDisabled,
     isLoading,
     hasEarlier,
     isLoadingEarlier,

@@ -84,7 +84,7 @@ jobs:
         env:
           AUI_TESTBED_PHASE: 1
           AUI_TESTBED_RUNTIMES: ${{ matrix.runtime }}
-        run: xvfb-run -a pnpm --filter with-vscode test
+        run: xvfb-run -a pnpm --filter with-vscode probes
 
       - name: Upload probe report
         if: always()

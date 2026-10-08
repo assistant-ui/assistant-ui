@@ -30,7 +30,7 @@ The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFe
 
 ## Links and threads
 
-`serveWebviewHost` also serves the webview's host calls. `installLinkInterceptor()` in `webview/main.tsx` sends link clicks to its `openExternal`, which records each URL in `src/open-external.ts` and opens it with `vscode.env.openExternal`. While stubbed, it records the URL and does not open it. `pnpm test` sets `AUI_TESTBED_STUB_OPEN_EXTERNAL=1`, and `external-link` turns the stub on for its own run.
+`serveWebviewHost` also serves the webview's host calls. `installLinkInterceptor()` in `webview/main.tsx` sends link clicks to its `openExternal`, which records each URL in `src/open-external.ts` and opens it with `vscode.env.openExternal`. While stubbed, it records the URL and does not open it. `pnpm probes` sets `AUI_TESTBED_STUB_OPEN_EXTERNAL=1`, and `external-link` turns the stub on for its own run.
 
 The runtime runs inside `useRemoteThreadListRuntime` with `createLocalStorageAdapter({ storage: createVSCodeStorage() })`, which stores threads and their messages in the extension's `globalState` under a prefix per runtime. The thread list sits above the thread.
 
@@ -42,7 +42,7 @@ The runtime runs inside `useRemoteThreadListRuntime` with `createLocalStorageAda
 
 `webview/app.css` imports `@assistant-ui/vscode/theme.css` after Tailwind, so the default shadcn components take the VS Code colour theme (`auiTest.style=shadcn`). `theme-follows` checks the mapped tokens against the `--vscode-*` variables, switches between Default Dark Modern and Default Light Modern, checks that the tokens and `dark:` utilities follow, and restores the theme.
 
-`pnpm screenshots` runs the probes like `pnpm test`, then saves a screenshot of the window with the Assistant view open under Default Dark Modern and Default Light Modern to `screenshots/` (gitignored), captured over the DevTools Protocol. It then captures the component gallery, described below.
+`pnpm screenshots` runs the probes like `pnpm probes`, then saves a screenshot of the window with the Assistant view open under Default Dark Modern and Default Light Modern to `screenshots/` (gitignored), captured over the DevTools Protocol. It then captures the component gallery, described below.
 
 ## Component gallery
 
@@ -132,7 +132,7 @@ The Readiness view lists every probe with its state: pass, fail or not implement
 
 `scaffold-matches` runs `assistant-ui create --template vscode` from this checkout with `--skip-install` (the CLI is a dev dependency, so build it with the other workspace packages and have `node` on `PATH`) and checks the files the template shares with the test bed by design, in `src/readiness/scaffold.ts`: the chat route body (against the default template's `app/api/chat/route.ts`), the esbuild host and webview options, the `serveWebviewHost` and `renderWebviewHtml` wiring, the theme import order, the zod jitless import, the `useChatRuntime` transport, the `package.json` engine and dependency ranges, the F5 launch and problem matcher, and that the CLI stripped the workspace paths.
 
-`pnpm test` runs every probe headless through `@vscode/test-electron`, once per implemented runtime (or the comma-separated `AUI_TESTBED_RUNTIMES`), and prints a table per runtime. It fails when the webview never boots or when, under any runtime, a probe expected green by `AUI_TESTBED_PHASE` (default `0`) is not passing. A probe expected green that fails is run once more in the same VS Code session; it counts as passing only if the second run passes, and the `retry` column names every probe that needed one. The run writes the report as JSON to `test-results/probe-report.json`, copies the VS Code logs to `test-results/logs/`, and appends the tables to `$GITHUB_STEP_SUMMARY` when it is set. On Linux, run it under `xvfb-run -a`.
+`pnpm probes` runs every probe headless through `@vscode/test-electron`, once per implemented runtime (or the comma-separated `AUI_TESTBED_RUNTIMES`), and prints a table per runtime. It fails when the webview never boots or when, under any runtime, a probe expected green by `AUI_TESTBED_PHASE` (default `0`) is not passing. A probe expected green that fails is run once more in the same VS Code session; it counts as passing only if the second run passes, and the `retry` column names every probe that needed one. The run writes the report as JSON to `test-results/probe-report.json`, copies the VS Code logs to `test-results/logs/`, and appends the tables to `$GITHUB_STEP_SUMMARY` when it is set. On Linux, run it under `xvfb-run -a`.
 
 `AUI_TESTBED_VSCODE_VERSION` picks the VS Code build (default `stable`), which `@vscode/test-electron` downloads to `.vscode-test/`.
 
@@ -140,11 +140,11 @@ The Readiness view lists every probe with its state: pass, fail or not implement
 
 Three workflows in `.github/workflows/` run the test bed on `ubuntu-latest` under `xvfb-run`, with VS Code pinned by `AUI_TESTBED_VSCODE_VERSION` and its download cached per OS, architecture and version:
 
-- **VS Code Test Bed** (`vscode-test-bed.yaml`) runs `pnpm test` at `AUI_TESTBED_PHASE=1`, one job per runtime (`ai-sdk`), and uploads `test-results/` as `vscode-test-bed-probes-<runtime>` (kept 14 days), pass or fail.
+- **VS Code Test Bed** (`vscode-test-bed.yaml`) runs `pnpm probes` at `AUI_TESTBED_PHASE=1`, one job per runtime (`ai-sdk`), and uploads `test-results/` as `vscode-test-bed-probes-<runtime>` (kept 14 days), pass or fail.
 - **VS Code Test Bed Screenshots** (`vscode-test-bed-screenshots.yaml`) runs `pnpm screenshots` when a change touches `packages/ui`, `packages/vscode`, `examples/with-vscode` or `templates/vscode`, or on demand, and uploads `screenshots/` as `vscode-test-bed-screenshots` (kept 14 days, 30 on `main`). Download it from the run's summary and open `gallery/index.html`.
 - **VS Code Test Bed (combined branches)** (`vscode-test-bed-combined.yaml`) is started by hand: it checks out `base`, applies the commits each branch in `branches` has that neither `origin/main` nor `base` contains (`git cherry-pick --no-commit`), and runs the probe job and the screenshots on the combined tree. It fails on the first branch that conflicts and names it. `base` defaults to `main`; pass the branch that carries the test bed when it has not reached `main` yet.
 
-To bump VS Code, set `AUI_TESTBED_VSCODE_VERSION` to the new release in all three workflows, run `AUI_TESTBED_VSCODE_VERSION=<version> AUI_TESTBED_PHASE=1 pnpm test` locally, and fix what it turns up in the same PR. The new version gets a new cache key, so the first run downloads it.
+To bump VS Code, set `AUI_TESTBED_VSCODE_VERSION` to the new release in all three workflows, run `AUI_TESTBED_VSCODE_VERSION=<version> AUI_TESTBED_PHASE=1 pnpm probes` locally, and fix what it turns up in the same PR. The new version gets a new cache key, so the first run downloads it.
 
 The workflows install `xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1`, the libraries VS Code needs that a bare Ubuntu 24.04 image lacks.
 

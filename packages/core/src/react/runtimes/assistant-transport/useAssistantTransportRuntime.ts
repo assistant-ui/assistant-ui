@@ -38,6 +38,7 @@ import { createRequestHeaders } from "../../../runtimes/assistant-transport/util
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useAui } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
+import { raceWithAbortSignal } from "../../../utils/abortable-promise";
 import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
 import { generateId } from "../../../utils/id";
 import { createRuntimeExtras } from "../createRuntimeExtras";
@@ -104,17 +105,6 @@ const readResumeState = async <T>(
 
   return { runId: value.runId, state: value.state as T };
 };
-
-// Rejects as soon as the signal aborts; a started operation keeps running.
-const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
-  new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    if (signal.aborted) return onAbort();
-    signal.addEventListener("abort", onAbort, { once: true });
-    void start()
-      .then(resolve, reject)
-      .finally(() => signal.removeEventListener("abort", onAbort));
-  });
 
 type AssistantTransportExtras = {
   sendCommand: (command: AssistantTransportCommand) => void;
@@ -193,10 +183,15 @@ const useAssistantTransportThreadRuntime = <T>(
         aui.threadListItem.getState().remoteId ??
         (isResume
           ? undefined
-          : (await abortable(signal, () => aui.threadListItem.initialize()))
-              .remoteId);
+          : (
+              await raceWithAbortSignal(signal, () =>
+                aui.threadListItem.initialize(),
+              )
+            ).remoteId);
 
-      const headers = await createRequestHeaders(options.headers);
+      const headers = await raceWithAbortSignal(signal, () =>
+        createRequestHeaders(options.headers),
+      );
       let resumeState: { runId: string; state: T } | undefined;
       if (isResume && options.resumeStateApi) {
         const resumeStateResponse = await fetch(options.resumeStateApi, {
@@ -216,10 +211,11 @@ const useAssistantTransportThreadRuntime = <T>(
       }
 
       // `typeof` narrows the `object` member to `Function`, whose call returns `any`; the annotation keeps `sendCommandsBody` checked against its type.
-      const bodyValue: object | undefined =
-        typeof options.body === "function"
-          ? await options.body()
-          : options.body;
+      const bodyValue: object | undefined = await raceWithAbortSignal(
+        signal,
+        () =>
+          typeof options.body === "function" ? options.body() : options.body,
+      );
       const context = runtime.thread.getModelContext();
 
       const sendCommandsBody: SendCommandsRequestBody = {
@@ -242,8 +238,9 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = sendCommandsBody;
       if (options.prepareSendCommandsRequest) {
-        requestBody =
-          await options.prepareSendCommandsRequest(sendCommandsBody);
+        requestBody = await raceWithAbortSignal(signal, () =>
+          options.prepareSendCommandsRequest!(sendCommandsBody),
+        );
       }
 
       if (resumeState !== undefined) {
@@ -265,7 +262,7 @@ const useAssistantTransportThreadRuntime = <T>(
       );
 
       try {
-        await options.onResponse?.(response);
+        await raceWithAbortSignal(signal, () => options.onResponse?.(response));
       } catch (error) {
         void response.body?.cancel().catch(() => {});
         throw error;
@@ -286,7 +283,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       const body = await createReplayBoundaryStream(response, {
         setReplaying: setIsReplaying,
-        waitForRender: () => abortable(signal, waitForReplayRender),
+        waitForRender: () => raceWithAbortSignal(signal, waitForReplayRender),
       });
 
       // Select decoder based on protocol option
@@ -295,8 +292,15 @@ const useAssistantTransportThreadRuntime = <T>(
       const strict = isResume ? false : (options.strict ?? true);
       const decoder =
         protocol === "assistant-transport"
-          ? new AssistantTransportDecoder({ strict })
-          : new DataStreamDecoder({ strict });
+          ? new AssistantTransportDecoder({
+              strict,
+              maxLineLength: options.maxStreamLineLength,
+              maxEventLength: options.maxStreamEventLength,
+            })
+          : new DataStreamDecoder({
+              strict,
+              maxLineLength: options.maxStreamLineLength,
+            });
 
       let err: string | undefined;
       const stream = body.pipeThrough(decoder).pipeThrough(
