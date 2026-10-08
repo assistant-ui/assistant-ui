@@ -62,7 +62,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@radix-ui/react-primitive": "^2.1.10",
+    "@radix-ui/react-primitive": "^2.1.11",
     "@radix-ui/react-use-callback-ref": "^1.1.4",
     "@types/hast": "^3.0.5",
     "classnames": "^2.5.1",
