@@ -73,8 +73,15 @@ body:
 
   - type: textarea
     attributes:
+      label: Reproduction
+      description: A link to a repository or sandbox, or a self-contained snippet a maintainer can run on the versions above. A report we cannot reproduce is closed.
+      placeholder: https://github.com/you/repro, https://stackblitz.com/..., or a complete component and route handler
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
       label: Steps to reproduce
-      description: Minimal steps or a link to a reproduction repo.
       placeholder: |
         1. Set up runtime with `useXxxRuntime(...)`
         2. Send a message with ...
