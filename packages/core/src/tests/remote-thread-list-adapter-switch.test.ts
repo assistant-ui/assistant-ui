@@ -14,6 +14,67 @@ const thread = (remoteId: string) => ({
 });
 
 describe("RemoteThreadList adapter changes", () => {
+  it("keeps a deleted row absent during notification reload and lists the replacement adapter's same id", async () => {
+    const deletion = deferred<void>();
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({ threads: [thread("same"), thread("other")] })),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ ...thread("same"), title: "Replacement" }],
+      })),
+    });
+    const core = createCore(adapterA);
+    await core.getLoadThreadsPromise();
+
+    let deletionReleased = false;
+    let reloadStarted = false;
+    let swapStarted = false;
+    let absentAfterReload = false;
+    let reloadTask: Promise<void> | undefined;
+    let replacementTask: Promise<void> | undefined;
+    const unsubscribe = core.subscribe(() => {
+      if (
+        deletionReleased &&
+        !reloadStarted &&
+        !core.threadIds.includes("same")
+      ) {
+        reloadStarted = true;
+        reloadTask = core.reload();
+      } else if (
+        reloadStarted &&
+        !swapStarted &&
+        vi.mocked(adapterA.list).mock.calls.length === 2 &&
+        !core.isLoading
+      ) {
+        absentAfterReload = !core.threadIds.includes("same");
+        swapStarted = true;
+        core.__internal_setOptions({
+          adapter: adapterB,
+          runtimeHook: () => ({}) as never,
+        });
+        replacementTask = core.getLoadThreadsPromise();
+      }
+    });
+    try {
+      const deleting = core.delete("same");
+      await vi.waitFor(() => expect(adapterA.delete).toHaveBeenCalledOnce());
+      deletionReleased = true;
+      deletion.resolve();
+      await deleting;
+      expect(reloadTask).toBeDefined();
+      await reloadTask;
+      expect(absentAfterReload).toBe(true);
+      expect(replacementTask).toBeDefined();
+      await replacementTask;
+      expect(core.threadIds).toEqual(["same"]);
+      expect(core.getItemById("same")?.title).toBe("Replacement");
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("clears the selected thread and cached data from the previous adapter", async () => {
     const adapterA = makeAdapter({
       list: async () => ({ threads: [thread("thread-a")] }),
