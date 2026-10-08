@@ -274,7 +274,6 @@ test("ruleset updates replace only review floors and required checks", () => {
               required_status_checks: [
                 { context: "autofix", integration_id: 15368 },
                 { context: "Build Changed Packages", integration_id: 15368 },
-                { context: "Test Changed Packages", integration_id: 15368 },
                 {
                   context: "Typecheck Changed Packages",
                   integration_id: 15368,

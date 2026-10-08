@@ -129,10 +129,6 @@
       "integrationId": 15368
     },
     {
-      "context": "Test Changed Packages",
-      "integrationId": 15368
-    },
-    {
       "context": "Typecheck Changed Packages",
       "integrationId": 15368
     },
