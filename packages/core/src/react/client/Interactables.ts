@@ -239,7 +239,7 @@ const useInteractablesResource = ({
     schedulePersistence,
     flush: flushPersistence,
     waitForAdapterSaves,
-    consumeAdapterRecovery,
+    restoreAdapterRecovery,
   } = useInteractablePersistenceQueue({
     adapterRef: saveAdapterRef,
     adapterGenerationRef,
@@ -348,7 +348,7 @@ const useInteractablesResource = ({
         }
       }
       const ids = Object.keys(unsaved);
-      if (ids.length === 0) return false;
+      if (ids.length === 0) return;
       for (const id of ids) {
         touchedIdsRef.current.add(id);
         loadedStateRef.current.delete(id);
@@ -359,7 +359,6 @@ const useInteractablesResource = ({
       });
       for (const id of ids) schedulePersistence(id);
       updateDirtyLoadStatus({ isPending: true, error: undefined });
-      return true;
     },
     [restorePersistedState, schedulePersistence, updateDirtyLoadStatus],
   );
@@ -371,7 +370,7 @@ const useInteractablesResource = ({
       if (adapterRef.current !== adapter) return { status: "stale" } as const;
       const [recovery] = unsaved;
       if (recovery) {
-        consumeAdapterRecovery(adapter, recovery, () =>
+        restoreAdapterRecovery(adapter, recovery, () =>
           restoreUnsavedEdits([recovery]),
         );
       }
@@ -387,7 +386,7 @@ const useInteractablesResource = ({
     },
     [
       applyLoadedState,
-      consumeAdapterRecovery,
+      restoreAdapterRecovery,
       restoreUnsavedEdits,
       waitForAdapterSaves,
     ],

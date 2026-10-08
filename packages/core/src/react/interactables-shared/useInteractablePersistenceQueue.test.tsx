@@ -320,16 +320,16 @@ describe("useInteractablePersistenceQueue", () => {
       await expect(
         queue.result.current.waitForAdapterSaves(adapter),
       ).resolves.toEqual(recovered);
-      expect(
-        queue.result.current.consumeAdapterRecovery(
-          adapter,
-          recovered[0]!,
-          () => true,
-        ),
-      ).toBe(true);
+      const restore = vi.fn();
+      queue.result.current.restoreAdapterRecovery(
+        adapter,
+        recovered[0]!,
+        restore,
+      );
+      expect(restore).toHaveBeenCalledTimes(1);
       await expect(
         queue.result.current.waitForAdapterSaves(adapter),
-      ).resolves.toEqual([]);
+      ).resolves.toEqual(recovered);
     });
 
     it("lets a later successful full snapshot supersede an earlier failed batch", async () => {
@@ -383,8 +383,8 @@ describe("useInteractablePersistenceQueue", () => {
     });
 
     it.each([false, true])(
-      "hands back a rejected retry after prior recovery consumed=%s",
-      async (consumeRecovery) => {
+      "hands back a rejected retry after prior recovery restored=%s",
+      async (restoreRecovery) => {
         const retry = createDeferred();
         const save = vi
           .fn<(state: TestState) => Promise<void>>()
@@ -393,16 +393,16 @@ describe("useInteractablePersistenceQueue", () => {
         const queue = renderQueue(save);
         const adapter = queue.adapterRef.current!;
         await startSave(queue, "a", 1);
-        if (consumeRecovery) {
+        if (restoreRecovery) {
           const [recovery] =
             await queue.result.current.waitForAdapterSaves(adapter);
-          expect(
-            queue.result.current.consumeAdapterRecovery(
-              adapter,
-              recovery!,
-              () => true,
-            ),
-          ).toBe(true);
+          const restore = vi.fn();
+          queue.result.current.restoreAdapterRecovery(
+            adapter,
+            recovery!,
+            restore,
+          );
+          expect(restore).toHaveBeenCalledTimes(1);
         }
         act(() => {
           void queue.result.current.flush();

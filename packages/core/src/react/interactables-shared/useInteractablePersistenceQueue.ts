@@ -460,18 +460,14 @@ export const useInteractablePersistenceQueue = <State>({
     [],
   );
 
-  const consumeAdapterRecovery = useCallback(
+  const restoreAdapterRecovery = useCallback(
     (
       adapter: PersistenceAdapter<State>,
       batch: RecoverableBatch,
-      consume: () => boolean,
+      restore: () => void,
     ) => {
       const recovery = recoveryByAdapterRef.current.get(adapter);
-      if (recovery?.batch !== batch || !consume()) return false;
-      if (recoveryByAdapterRef.current.get(adapter) === recovery) {
-        recoveryByAdapterRef.current.delete(adapter);
-      }
-      return true;
+      if (recovery?.batch === batch) restore();
     },
     [],
   );
@@ -484,6 +480,6 @@ export const useInteractablePersistenceQueue = <State>({
     schedulePersistence,
     flush,
     waitForAdapterSaves,
-    consumeAdapterRecovery,
+    restoreAdapterRecovery,
   };
 };

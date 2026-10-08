@@ -2225,6 +2225,49 @@ describe("Interactables switching back to an adapter during its save", () => {
     return a;
   };
 
+  it.each(["pending", "rejected"])(
+    "keeps recovered edits after switching away from a %s load",
+    async (loadState) => {
+      const a = await startFailedSave();
+      root!.getValue().setPersistenceAdapter(otherAdapter());
+      await flushMicrotasks();
+
+      let resolveLoad!: (state: Unstable_InteractablePersistedState) => void;
+      let rejectLoad!: (error: unknown) => void;
+      a.adapter.load.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            resolveLoad = resolve;
+            rejectLoad = reject;
+          }),
+      );
+      root!.getValue().setPersistenceAdapter(a.adapter);
+      await flushMicrotasks();
+      expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+      if (loadState === "rejected") {
+        rejectLoad(new Error("still offline"));
+        await flushMicrotasks();
+      }
+
+      root!.getValue().setPersistenceAdapter(otherAdapter());
+      await flushMicrotasks();
+      root!.getValue().setPersistenceAdapter(a.adapter);
+      await flushMicrotasks();
+
+      expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+      expect(a.saves).toHaveLength(2);
+      expect(a.saves[1]!.state.prefs).toEqual({
+        name: "note",
+        state: { v: 1 },
+      });
+      a.saves[1]!.resolve();
+      if (loadState === "pending")
+        resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
+      await flushMicrotasks();
+      expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+    },
+  );
+
   it("keeps a failed edit whose in-flight retry rejects after switching back", async () => {
     const a = await startFailedSave();
     void root!.getValue().flush();
