@@ -14,7 +14,7 @@ Closes #
 
 ## Change
 
-<!-- The implementation, why it follows the existing architecture, and any intentional runtime or provider differences. -->
+<!-- The implementation, why it follows the existing architecture, any intentional runtime or provider differences, and what is deliberately left out. -->
 
 ## Verification
 
@@ -26,7 +26,7 @@ Closes #
 
 ## Public surface
 
-<!-- Affected packages, exports, documentation, API-reference output, templates and changesets, or None. -->
+<!-- Affected packages, exports, documentation, API-reference output, templates and changesets, or None. Say so if existing behavior changes for consumers. -->
 
 ## Decision
 
