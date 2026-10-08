@@ -26,13 +26,13 @@ type ToolCallStreamOptions = {
   onClose?: (() => void) | undefined;
 };
 
-class ToolCallStreamControllerImpl implements ToolCallStreamController {
+export class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
   private _hasArgsText = false;
   private _argsTextState: "open" | "finishing" | "finished" = "open";
 
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
-  private _argsTextController: TextStreamController;
+  private _argsTextController: TextStreamControllerImpl;
   private _options: ToolCallStreamOptions;
 
   constructor(
@@ -133,6 +133,15 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     });
     closeIfOpen(this._controller);
   }
+
+  __internal_truncate() {
+    if (this._isClosed) return;
+    this._isClosed = true;
+    this._finishArgsText();
+    this._argsTextController.__internal_truncate();
+    this._argsTextState = "finished";
+    closeIfOpen(this._controller);
+  }
 }
 
 export const createToolCallStream = (
@@ -150,6 +159,6 @@ export const createToolCallStreamController = (
 ) => {
   return createControllerStreamPair<
     AssistantStreamChunk,
-    ToolCallStreamController
+    ToolCallStreamControllerImpl
   >((controller) => new ToolCallStreamControllerImpl(controller, options));
 };
