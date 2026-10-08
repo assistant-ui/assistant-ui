@@ -132,7 +132,10 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
 
     const handleMouseCancel = () => {
       isMouseDragging = false;
-      checkSelection();
+    };
+
+    const handleWindowBlur = () => {
+      if (isMouseDragging) handleMouseUp();
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
@@ -140,7 +143,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
     document.addEventListener("dragend", handleMouseUp, true);
     // A context menu can consume the mouseup of the press that opened it.
     document.addEventListener("contextmenu", handleMouseCancel, true);
-    window.addEventListener("blur", handleMouseCancel);
+    window.addEventListener("blur", handleWindowBlur);
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("scroll", handleScroll, true);
 
@@ -150,7 +153,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       document.removeEventListener("mouseup", handleMouseUp, true);
       document.removeEventListener("dragend", handleMouseUp, true);
       document.removeEventListener("contextmenu", handleMouseCancel, true);
-      window.removeEventListener("blur", handleMouseCancel);
+      window.removeEventListener("blur", handleWindowBlur);
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };

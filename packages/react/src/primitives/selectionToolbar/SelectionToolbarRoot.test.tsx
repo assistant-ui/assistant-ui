@@ -298,6 +298,19 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
     expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
   });
 
+  it("does not reopen a toolbar hidden by scroll on an unrelated window blur", () => {
+    render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
+
+    fireEvent(document, new Event("selectionchange"));
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
+
+    fireEvent.scroll(document);
+    expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+
+    fireEvent.blur(window);
+    expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+  });
+
   it("recovers when a context menu consumes the mouseup of a press", () => {
     const { frames } = deferFrames();
     render(<SelectionToolbarPrimitiveRoot />);
