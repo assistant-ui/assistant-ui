@@ -156,13 +156,13 @@ export const createMessageQueue = (
     if (!message) return;
     running = true;
     messages.delete(head.id);
-    dispatchPending = true;
-    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
-    dispatchPending = false;
     const dispatch = { id: head.id, item: head, message };
     const dispatchId = ++activeDispatch;
     const busyEdgesBeforeRun = busyEdges;
     const dispatchGeneration = generation;
+    dispatchPending = true;
+    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
+    dispatchPending = false;
     const restoreFailure = () => {
       if (dispatchId !== activeDispatch) return;
       if (busyEdges === busyEdgesBeforeRun) {

@@ -21,6 +21,35 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it("does not restore a dispatch cleared from its dequeue notification", async () => {
+    let reject!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, fail) => {
+      reject = fail;
+    });
+    const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+    run.mockImplementationOnce(() => pending);
+    const controller = createMessageQueue({ run });
+    let cleared = false;
+    controller.subscribe(() => {
+      if (cleared || controller.adapter.items.length !== 0) return;
+      cleared = true;
+      controller.clear();
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      controller.adapter.enqueue(msg("discarded"));
+      reject(new Error("late failure"));
+      await pending.catch(() => {});
+      expect(controller.adapter.items).toEqual([]);
+      controller.adapter.enqueue(msg("replacement"));
+      expect(run).toHaveBeenLastCalledWith(msg("replacement"), {
+        steer: false,
+      });
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it.each(["queued", "steered"])(
     "does not restore a rejected %s dispatch after a steer replaces it",
     async (mode) => {
