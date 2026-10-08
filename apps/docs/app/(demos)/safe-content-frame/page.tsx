@@ -190,7 +190,7 @@ export default function SafeContentFramePage() {
       <div className="mt-12 grid gap-10 md:mt-16 lg:grid-cols-2 lg:gap-8">
         <figure className="flex flex-col">
           <div className="border-foreground/10 flex flex-1 flex-col border">
-            <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 font-mono text-[11px] tracking-wide">
+            <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 text-xs">
               <span>input · html</span>
               <span className="flex items-center gap-1">
                 <PresetTab
@@ -214,7 +214,7 @@ export default function SafeContentFramePage() {
               className="h-[26rem] w-full flex-1 resize-none bg-transparent p-4 font-mono text-[12.5px] leading-relaxed outline-none"
               spellCheck={false}
             />
-            <div className="border-foreground/10 flex h-9 items-center gap-5 border-t px-3.5 font-mono text-[11px] tracking-wide">
+            <div className="border-foreground/10 flex h-9 items-center gap-5 border-t px-3.5 text-xs">
               <button
                 type="button"
                 onClick={() => void renderSource(html)}
@@ -238,14 +238,14 @@ export default function SafeContentFramePage() {
               </button>
             </div>
           </div>
-          <figcaption className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
+          <figcaption className="text-muted-foreground/70 mt-2 text-xs">
             fig. 01 · the attempt · edit and render
           </figcaption>
         </figure>
 
         <figure className="flex flex-col">
           <div className="border-foreground/10 flex flex-1 flex-col border">
-            <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between gap-4 border-b px-3.5 font-mono text-[11px] tracking-wide">
+            <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between gap-4 border-b px-3.5 text-xs">
               <span>output · sandbox</span>
               <span className="flex min-w-0 items-center gap-1.5">
                 {status === "live" ? (
@@ -259,7 +259,7 @@ export default function SafeContentFramePage() {
               className="min-h-[26rem] flex-1 overflow-hidden [&_iframe]:size-full [&_iframe]:border-0"
             />
           </div>
-          <figcaption className="text-muted-foreground/70 mt-2 flex min-w-0 items-baseline justify-between gap-4 font-mono text-[11px] tracking-wide">
+          <figcaption className="text-muted-foreground/70 mt-2 flex min-w-0 items-baseline justify-between gap-4 text-xs">
             <span className="shrink-0">fig. 02 · the containment</span>
             {origin ? (
               <span className="truncate" title={origin}>
