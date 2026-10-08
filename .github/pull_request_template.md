@@ -18,6 +18,10 @@ Closes #
 
 <!-- Exact focused tests and checks. A bug fix confirms the reproduction fails without the fix and passes with it; a refactor confirms api-surface/ and existing test assertions are unchanged; a perf change attaches x-performance numbers. -->
 
+## Screenshots
+
+<!-- Visible UI changes only: before and after, or a short recording. -->
+
 ## Public surface
 
 <!-- Affected packages, exports, documentation, API-reference output, templates and changesets, or None. -->
