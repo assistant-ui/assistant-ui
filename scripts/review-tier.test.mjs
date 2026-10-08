@@ -1531,6 +1531,16 @@ test("merge groups ignore updatedAt changes when the pull request head is unchan
     [`${repo}/check-runs`],
   );
   assert.equal(recording.writes[0].body.head_sha, "queue-sha");
+  assert.equal(recording.writes[0].body.started_at, now.toISOString());
+  assert.ok(
+    recording.calls.findIndex(({ query }) =>
+      query?.includes("query ReviewTierPullRequestState("),
+    ) <
+      recording.calls.findIndex(
+        ({ method, resource }) =>
+          method === "POST" && resource === `${repo}/check-runs`,
+      ),
+  );
 });
 
 test("issues events reevaluate only open T3 pull requests and only for the decision label", async () => {
@@ -1736,6 +1746,12 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
     assert.equal(recording.writes[0].body.conclusion, "action_required");
     assert.equal(recording.writes[0].body.started_at, now.toISOString());
     assert.equal(
+      recording.writes.filter(
+        ({ resource }) => resource === `${repo}/check-runs`,
+      ).length,
+      1,
+    );
+    assert.equal(
       recording.calls.filter(({ query }) =>
         query?.includes("query ReviewTierPullRequest("),
       ).length,
@@ -1755,7 +1771,7 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
       /pullRequest\(number: \$number\) \{ updatedAt headRefOid \}/,
     );
     assert.ok(
-      recording.calls.indexOf(rereads[0]) >
+      recording.calls.indexOf(rereads[0]) <
         recording.calls.findIndex(
           ({ kind, method, resource }) =>
             kind === "rest" &&
@@ -1766,7 +1782,7 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
   }
 });
 
-test("an updated pull request is gathered and published again after the first publish", async () => {
+test("an updated pull request publishes only the second gather", async () => {
   const first = tapPullRequest();
   const second = tapPullRequest({
     updatedAt: "2026-10-08T11:31:00Z",
@@ -1798,11 +1814,9 @@ test("an updated pull request is gathered and published again after the first pu
   );
   assert.equal(gathers.length, 2);
   assert.equal(rereads.length, 2);
-  assert.equal(checks.length, 2);
-  assert.ok(
-    Date.parse(checks[1].body.started_at) >
-      Date.parse(checks[0].body.started_at),
-  );
+  assert.equal(checks.length, 1);
+  assert.ok(Date.parse(checks[0].body.started_at) > now.getTime());
+  assert.match(checks[0].body.output.summary, /Counted approvals:\n\nNone\./);
   assert.ok(
     recording.calls.indexOf(rereads[0]) > recording.calls.indexOf(gathers[0]),
   );
@@ -1812,9 +1826,15 @@ test("an updated pull request is gathered and published again after the first pu
   assert.ok(
     recording.calls.indexOf(rereads[1]) > recording.calls.indexOf(gathers[1]),
   );
+  assert.ok(
+    recording.calls.findIndex(
+      ({ method, resource }) =>
+        method === "POST" && resource === `${repo}/check-runs`,
+    ) > recording.calls.indexOf(rereads[1]),
+  );
 });
 
-test("a changed pull request head is published again on the new SHA", async () => {
+test("a changed pull request head publishes only on the new SHA", async () => {
   const next = tapPullRequest({
     headRefOid: "new-head",
     commits: { nodes: [commit("new-head", "samdickson22")] },
@@ -1837,7 +1857,7 @@ test("a changed pull request head is published again on the new SHA", async () =
     recording.writes
       .filter(({ resource }) => resource === `${repo}/check-runs`)
       .map(({ body }) => body.head_sha),
-    ["head", "new-head"],
+    ["new-head"],
   );
   assert.equal(
     recording.calls.filter(({ query }) =>
@@ -1847,7 +1867,7 @@ test("a changed pull request head is published again on the new SHA", async () =
   );
 });
 
-test("a changing pull request stops after three publishes and later pull requests still publish", async () => {
+test("a changing pull request publishes the third gather and later pull requests still publish", async () => {
   const first = tapPullRequest();
   const second = tapPullRequest({
     updatedAt: "2026-10-08T11:31:00Z",
@@ -1895,8 +1915,13 @@ test("a changing pull request stops after three publishes and later pull request
     recording.writes
       .filter(({ resource }) => resource.endsWith("/check-runs"))
       .map(({ body }) => body.head_sha),
-    ["head", "head", "head", "head-14"],
+    ["head", "head-14"],
   );
+  const checks = recording.writes.filter(
+    ({ resource }) => resource === `${repo}/check-runs`,
+  );
+  assert.ok(Date.parse(checks[0].body.started_at) > now.getTime());
+  assert.match(checks[0].body.output.summary, /Yonom/);
   assert.ok(
     recording.writes.some(
       ({ resource }) => resource === `${repo}/issues/14/comments`,

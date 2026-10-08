@@ -757,6 +757,21 @@ export async function main({
           console.log(JSON.stringify(evaluation, null, 2));
           break;
         }
+        if (attempt < 2) {
+          const [owner, name] = policy.repository.split("/");
+          const current = (
+            await client.graphql(pullRequestStateQuery, { owner, name, number })
+          ).repository.pullRequest;
+          if (
+            current?.headRefOid !== gathered.pr.headSha ||
+            (!mergeGroup && current?.updatedAt !== gathered.pr.updatedAt)
+          ) {
+            gatheredAt = new Date(
+              Math.max(Date.now(), Date.parse(gathered.startedAt) + 1),
+            );
+            continue;
+          }
+        }
         await publish(client, policy, {
           number,
           headSha: gathered.pr.headSha,
@@ -765,19 +780,7 @@ export async function main({
           startedAt: gathered.startedAt,
           labelsAndComment: !mergeGroup,
         });
-        if (attempt === 2) break;
-        const [owner, name] = policy.repository.split("/");
-        const current = (
-          await client.graphql(pullRequestStateQuery, { owner, name, number })
-        ).repository.pullRequest;
-        if (
-          current?.headRefOid === gathered.pr.headSha &&
-          (mergeGroup || current?.updatedAt === gathered.pr.updatedAt)
-        )
-          break;
-        gatheredAt = new Date(
-          Math.max(Date.now(), Date.parse(gathered.startedAt) + 1),
-        );
+        break;
       }
     } catch (error) {
       console.error(`Pull request #${number}: ${error.message}`);
