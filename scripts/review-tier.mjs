@@ -745,27 +745,17 @@ export async function main({
   for (const number of new Set(numbers)) {
     try {
       people ??= await gatherPeople(client, policy);
-      const gathered = await gatherPullRequest(client, policy, number, {
-        now: now ?? new Date(),
-        people,
-      });
-      if (gathered.pr.isDraft && !mergeGroup) continue;
-      const evaluation = evaluatePullRequest(gathered, policy);
-      if (hasOption(args, "--dry-run")) {
-        console.log(JSON.stringify(evaluation, null, 2));
-      } else {
-        const [owner, name] = policy.repository.split("/");
-        const current = (
-          await client.graphql(pullRequestStateQuery, { owner, name, number })
-        ).repository.pullRequest;
-        if (
-          current?.updatedAt !== gathered.pr.updatedAt ||
-          current?.headRefOid !== gathered.pr.headSha
-        ) {
-          console.log(
-            `Pull request #${number} changed during evaluation; skipping publish.`,
-          );
-          continue;
+      let gatheredAt = now ?? new Date();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const gathered = await gatherPullRequest(client, policy, number, {
+          now: gatheredAt,
+          people,
+        });
+        if (gathered.pr.isDraft && !mergeGroup) break;
+        const evaluation = evaluatePullRequest(gathered, policy);
+        if (hasOption(args, "--dry-run")) {
+          console.log(JSON.stringify(evaluation, null, 2));
+          break;
         }
         await publish(client, policy, {
           number,
@@ -775,6 +765,19 @@ export async function main({
           startedAt: gathered.startedAt,
           labelsAndComment: !mergeGroup,
         });
+        if (attempt === 2) break;
+        const [owner, name] = policy.repository.split("/");
+        const current = (
+          await client.graphql(pullRequestStateQuery, { owner, name, number })
+        ).repository.pullRequest;
+        if (
+          current?.headRefOid === gathered.pr.headSha &&
+          (mergeGroup || current?.updatedAt === gathered.pr.updatedAt)
+        )
+          break;
+        gatheredAt = new Date(
+          Math.max(Date.now(), Date.parse(gathered.startedAt) + 1),
+        );
       }
     } catch (error) {
       console.error(`Pull request #${number}: ${error.message}`);

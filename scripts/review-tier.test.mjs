@@ -132,7 +132,10 @@ function fakeClient({
   reviewPages,
   commitPages,
   failures = [],
+  prByNumber = {},
   latestPrByNumber = {},
+  prSnapshots,
+  stateSnapshots,
 } = {}) {
   const calls = [];
   const writes = [];
@@ -140,6 +143,8 @@ function fakeClient({
   const currentComments = new Map([[12, structuredClone(comments)]]);
   let nextCommentId = Math.max(90, ...comments.map(({ id }) => id ?? 0)) + 1;
   let currentCheckRuns = structuredClone(checkRuns);
+  let gatherRead = 0;
+  let stateRead = 0;
   const historyPage = (history, after) => {
     const index = history.findIndex(
       (page) => page.pageInfo.endCursor === after,
@@ -152,7 +157,9 @@ function fakeClient({
       calls.push({ kind: "graphql", query, variables });
       if (query.includes("query ReviewTierPullRequest(")) {
         if (failures.includes(variables.number)) throw apiError(500);
-        const pullRequest = structuredClone(pr);
+        const pullRequest = structuredClone(
+          prByNumber[variables.number] ?? prSnapshots?.[gatherRead++] ?? pr,
+        );
         const events = pullRequest.timelineItems.nodes;
         pullRequest.labeledEvents ??= {
           nodes: events
@@ -170,7 +177,11 @@ function fakeClient({
         return { repository: { pullRequest } };
       }
       if (query.includes("query ReviewTierPullRequestState(")) {
-        const latest = latestPrByNumber[variables.number] ?? pr;
+        const latest =
+          stateSnapshots?.[stateRead++] ??
+          latestPrByNumber[variables.number] ??
+          prByNumber[variables.number] ??
+          pr;
         return {
           repository: {
             pullRequest: {
@@ -270,17 +281,27 @@ function fakeClient({
     async rest(method, resource, body) {
       calls.push({ kind: "rest", method, resource, body });
       if (method === "GET") {
+        const checkRunsPath = `/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest`;
         if (
-          resource ===
-            `${repo}/commits/head/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest` ||
-          resource ===
-            `${repo}/commits/queue-sha/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest`
-        )
+          resource.startsWith(`${repo}/commits/`) &&
+          resource.endsWith(checkRunsPath)
+        ) {
+          const sha = resource.slice(
+            `${repo}/commits/`.length,
+            -checkRunsPath.length,
+          );
           return {
-            data: { check_runs: structuredClone(currentCheckRuns) },
+            data: {
+              check_runs: structuredClone(
+                currentCheckRuns.filter(
+                  (run) => run.head_sha === undefined || run.head_sha === sha,
+                ),
+              ),
+            },
             status: 200,
           };
-        if (resource === `${repo}/compare/base-tip...head`)
+        }
+        if (resource.startsWith(`${repo}/compare/base-tip...`))
           return {
             data: { merge_base_commit: { sha: "merge-base" } },
             status: 200,
@@ -1476,6 +1497,42 @@ test("merge groups parse branch refs, evaluate fresh data even for drafts, and p
   }
 });
 
+test("merge groups ignore updatedAt changes when the pull request head is unchanged", async () => {
+  const recording = fakeClient({
+    latestPrByNumber: {
+      12: { updatedAt: "2026-10-08T11:31:00Z", headRefOid: "head" },
+    },
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "merge_group", {
+        merge_group: {
+          head_ref: "refs/heads/gh-readonly-queue/main/pr-12-abcdef1234",
+          head_sha: "queue-sha",
+        },
+      }),
+    ),
+    0,
+  );
+  assert.equal(
+    recording.calls.filter(({ query }) =>
+      query?.includes("query ReviewTierPullRequest("),
+    ).length,
+    1,
+  );
+  assert.equal(
+    recording.calls.filter(({ query }) =>
+      query?.includes("query ReviewTierPullRequestState("),
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    recording.writes.map(({ resource }) => resource),
+    [`${repo}/check-runs`],
+  );
+  assert.equal(recording.writes[0].body.head_sha, "queue-sha");
+});
+
 test("issues events reevaluate only open T3 pull requests and only for the decision label", async () => {
   for (const event of [{}, { label: { name: "bug" } }]) {
     const recording = fakeClient();
@@ -1678,6 +1735,12 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
     );
     assert.equal(recording.writes[0].body.conclusion, "action_required");
     assert.equal(recording.writes[0].body.started_at, now.toISOString());
+    assert.equal(
+      recording.calls.filter(({ query }) =>
+        query?.includes("query ReviewTierPullRequest("),
+      ).length,
+      1,
+    );
     const rereads = recording.calls.filter(({ query }) =>
       query?.includes("query ReviewTierPullRequestState("),
     );
@@ -1691,52 +1754,114 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
       rereads[0].query,
       /pullRequest\(number: \$number\) \{ updatedAt headRefOid \}/,
     );
-  }
-});
-
-test("main skips publishing when a pull request changes during evaluation", async (t) => {
-  const logs = t.mock.method(console, "log", () => {});
-  for (const latest of [
-    { updatedAt: "2026-10-08T11:31:00Z", headRefOid: "head" },
-    { updatedAt: "2026-10-08T11:30:00Z", headRefOid: "new-head" },
-  ]) {
-    const recording = fakeClient({ latestPrByNumber: { 12: latest } });
-    assert.equal(
-      await main({
-        args: ["--pr", "12"],
-        env: {},
-        client: recording.client,
-        policy: enforcePolicy,
-        now,
-      }),
-      0,
-    );
-    assert.deepEqual(recording.writes, []);
-    assert.equal(
-      recording.calls.filter(({ query }) =>
-        query?.includes("query ReviewTierPullRequestState("),
-      ).length,
-      1,
-    );
     assert.ok(
-      !recording.calls.some(
-        ({ resource }) =>
-          resource?.includes("/check-runs") || resource?.includes("/issues/"),
-      ),
-    );
-    assert.equal(
-      logs.mock.calls.at(-1).arguments[0],
-      "Pull request #12 changed during evaluation; skipping publish.",
+      recording.calls.indexOf(rereads[0]) >
+        recording.calls.findIndex(
+          ({ kind, method, resource }) =>
+            kind === "rest" &&
+            method === "POST" &&
+            resource === `${repo}/check-runs`,
+        ),
     );
   }
-  assert.equal(logs.mock.callCount(), 2);
 });
 
-test("a stale pull request does not stop later pull requests from publishing", async (t) => {
-  const logs = t.mock.method(console, "log", () => {});
+test("an updated pull request is gathered and published again after the first publish", async () => {
+  const first = tapPullRequest();
+  const second = tapPullRequest({
+    updatedAt: "2026-10-08T11:31:00Z",
+    reviews: { nodes: [] },
+  });
   const recording = fakeClient({
-    latestPrByNumber: {
-      12: { updatedAt: "2026-10-08T11:31:00Z", headRefOid: "head" },
+    prSnapshots: [first, second],
+    stateSnapshots: [second, second],
+  });
+  assert.equal(
+    await main({
+      args: ["--pr", "12"],
+      env: {},
+      client: recording.client,
+      policy: enforcePolicy,
+      now,
+    }),
+    0,
+  );
+  const gathers = recording.calls.filter(({ query }) =>
+    query?.includes("query ReviewTierPullRequest("),
+  );
+  const rereads = recording.calls.filter(({ query }) =>
+    query?.includes("query ReviewTierPullRequestState("),
+  );
+  const checks = recording.writes.filter(
+    ({ method, resource }) =>
+      method === "POST" && resource === `${repo}/check-runs`,
+  );
+  assert.equal(gathers.length, 2);
+  assert.equal(rereads.length, 2);
+  assert.equal(checks.length, 2);
+  assert.ok(
+    Date.parse(checks[1].body.started_at) >
+      Date.parse(checks[0].body.started_at),
+  );
+  assert.ok(
+    recording.calls.indexOf(rereads[0]) > recording.calls.indexOf(gathers[0]),
+  );
+  assert.ok(
+    recording.calls.indexOf(gathers[1]) > recording.calls.indexOf(rereads[0]),
+  );
+  assert.ok(
+    recording.calls.indexOf(rereads[1]) > recording.calls.indexOf(gathers[1]),
+  );
+});
+
+test("a changed pull request head is published again on the new SHA", async () => {
+  const next = tapPullRequest({
+    headRefOid: "new-head",
+    commits: { nodes: [commit("new-head", "samdickson22")] },
+  });
+  const recording = fakeClient({
+    prSnapshots: [tapPullRequest(), next],
+    stateSnapshots: [next, next],
+  });
+  assert.equal(
+    await main({
+      args: ["--pr", "12"],
+      env: {},
+      client: recording.client,
+      policy: enforcePolicy,
+      now,
+    }),
+    0,
+  );
+  assert.deepEqual(
+    recording.writes
+      .filter(({ resource }) => resource === `${repo}/check-runs`)
+      .map(({ body }) => body.head_sha),
+    ["head", "new-head"],
+  );
+  assert.equal(
+    recording.calls.filter(({ query }) =>
+      query?.includes("query ReviewTierPullRequestState("),
+    ).length,
+    2,
+  );
+});
+
+test("a changing pull request stops after three publishes and later pull requests still publish", async () => {
+  const first = tapPullRequest();
+  const second = tapPullRequest({
+    updatedAt: "2026-10-08T11:31:00Z",
+    reviews: { nodes: [] },
+  });
+  const third = tapPullRequest({
+    updatedAt: "2026-10-08T11:32:00Z",
+    reviews: { nodes: [review("Yonom")] },
+  });
+  const recording = fakeClient({
+    prSnapshots: [first, second, third],
+    stateSnapshots: [second, third],
+    prByNumber: {
+      14: tapPullRequest({ headRefOid: "head-14" }),
     },
     pages: [
       {
@@ -1758,13 +1883,19 @@ test("a stale pull request does not stop later pull requests from publishing", a
         query?.includes("query ReviewTierPullRequestState("),
       )
       .map(({ variables }) => variables.number),
-    [12, 14],
+    [12, 12, 14],
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12, 12, 12, 14],
   );
   assert.deepEqual(
     recording.writes
       .filter(({ resource }) => resource.endsWith("/check-runs"))
       .map(({ body }) => body.head_sha),
-    ["head"],
+    ["head", "head", "head", "head-14"],
   );
   assert.ok(
     recording.writes.some(
@@ -1772,11 +1903,9 @@ test("a stale pull request does not stop later pull requests from publishing", a
     ),
   );
   assert.ok(
-    !recording.writes.some(({ resource }) => resource.includes("/issues/12/")),
-  );
-  assert.equal(
-    logs.mock.calls[0].arguments[0],
-    "Pull request #12 changed during evaluation; skipping publish.",
+    recording.writes.some(
+      ({ resource }) => resource === `${repo}/issues/12/comments`,
+    ),
   );
 });
 
@@ -1938,6 +2067,12 @@ test("--pr takes precedence over events and dry-run prints only the evaluation w
   const evaluation = JSON.parse(logs.mock.calls[0].arguments[0]);
   assert.equal(evaluation.tierResult.tier, 3);
   assert.equal(evaluation.conclusion, "action_required");
+  assert.equal(
+    recording.calls.filter(({ query }) =>
+      query?.includes("query ReviewTierPullRequest("),
+    ).length,
+    1,
+  );
   assert.ok(
     !recording.calls.some(({ query }) =>
       query?.includes("query ReviewTierPullRequestState("),
