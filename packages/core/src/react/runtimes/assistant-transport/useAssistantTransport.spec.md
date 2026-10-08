@@ -90,11 +90,12 @@ setInTransitCommands(commands);
 })`
 
 - `schedule()`: Starts immediately if idle, or schedules at most one follow-up run to start right after the current run.
-- `cancel()`: Aborts the active run via `signal` and clears any scheduled follow-up run. Does not restore commands.
+- `cancel()`: Aborts the active run via `signal` and clears any scheduled follow-up run; returns whether a run was active. Does not restore commands. A command enqueued after `cancel()` schedules a follow-up run as usual, and a run aborted before it starts never calls `onRun`.
 - Unmount aborts the active run via `signal`; no callbacks (`onCancel`, `onError`, `onFinish`) are invoked. StrictMode's setup/cleanup/setup effect cycle re-arms the manager.
 - `isRunning: boolean`: Indicates whether a run is currently active (internal to scheduling).
   UI-facing `isRunning` is controlled by the converter output (see Converter).
-- On cancellation, invoke `callbacks.onCancel?.({ commands, updateState })` where `commands` contains all pending work at the time of cancel: `[...inTransitCommands, ...queuedCommands]`. Note: after the first snapshot arrives, `inTransitCommands` are cleared to `[]`, so cancels after first byte will not include them.
+- On cancellation, invoke `callbacks.onCancel?.({ commands, updateState })` where `commands` contains all pending work at the time of cancel: `[...inTransitCommands, ...queuedCommands]`, taken out of the queue when `cancelRun()` is called, so a command sent afterwards is not included. Note: after the first snapshot arrives, `inTransitCommands` are cleared to `[]`, so cancels after first byte will not include them.
+- A cancel while a failed run awaits `onError` ends the run without waiting for it and invokes `onCancel` for the work queued since the failure. The `onError` promise keeps running, so its `updateState`, and the `onCancel` that reports the commands queued before the failure once it settles, can land after a later run has started.
 - RunConfig is not supported for now; any provided run configuration is ignored.
 
 Converter

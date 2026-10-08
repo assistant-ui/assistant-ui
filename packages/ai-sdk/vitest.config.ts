@@ -11,6 +11,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**", "src/runtime/__tests__/**"],
+      thresholds: {
+        lines: 96,
+        functions: 93,
+        branches: 89,
+        statements: 94,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     fsModuleCache: true,
     projects: [

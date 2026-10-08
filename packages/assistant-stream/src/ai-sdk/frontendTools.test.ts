@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { frontendTools } from "./frontendTools";
-import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import { wrapModelContentEnvelope } from "./modelContentEnvelope";
+
+const expectedFilePart = (
+  data: string,
+  mediaType: string,
+  filename?: string,
+) => ({
+  ...(process.env["AI_PEER_MAJOR"] === "7"
+    ? { type: "file", data: { type: "data", data } }
+    : { type: "file-data", data }),
+  mediaType,
+  ...(filename !== undefined && { filename }),
+});
 
 describe("frontendTools", () => {
   it("forwards description and inputSchema for each tool", () => {
@@ -48,12 +60,7 @@ describe("frontendTools", () => {
       type: "content",
       value: [
         { type: "text", text: "PDF contents:" },
-        {
-          type: "file",
-          mediaType: "application/pdf",
-          data: { type: "data", data: "JVBERi0xLjQK" },
-          filename: "doc.pdf",
-        },
+        expectedFilePart("JVBERi0xLjQK", "application/pdf", "doc.pdf"),
       ],
     });
   });
@@ -84,13 +91,7 @@ describe("frontendTools", () => {
 
     expect(output).toEqual({
       type: "content",
-      value: [
-        {
-          type: "file",
-          data: { type: "data", data: "iVBORw0KGgo=" },
-          mediaType: "image/png",
-        },
-      ],
+      value: [expectedFilePart("iVBORw0KGgo=", "image/png")],
     });
   });
 

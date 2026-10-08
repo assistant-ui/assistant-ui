@@ -31,11 +31,12 @@ import {
 } from "@assistant-ui/core";
 import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
+import { markPartialJsonObjectComplete } from "assistant-stream/internal";
 import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
-import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
+import { unwrapModelContentEnvelope } from "assistant-stream/internal";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 
@@ -67,13 +68,15 @@ export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     /**
-     * Frozen `argsText` keyed weakly by a settled tool call's input object, then
-     * by call, since the text carries the call's streamed key order. A known
-     * call/input pair skips serialization; the entries become collectible once
-     * the input is unreachable. A fresh input object re-serializes in its own
-     * deterministic key order.
+     * Frozen text and completion-marked args keyed weakly by a settled tool
+     * call's input object, then by call, since the text carries its streamed key
+     * order. A known call/input pair skips serialization and parsing; entries
+     * become collectible once the input is unreachable.
      */
-    toolArgsTextCache?: WeakMap<ReadonlyJSONObject, Map<string, string>>;
+    toolArgsTextCache?: WeakMap<
+      ReadonlyJSONObject,
+      Map<string, { argsText: string; args: ReadonlyJSONObject }>
+    >;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
     toolArtifacts?: ReadonlyMap<string, unknown>;
@@ -586,20 +589,31 @@ function convertParts(
           // re-serializing large args while the call keeps that input. Arrival
           // order only matters while args stream, so the key-order entry is
           // released.
+          const inputArgs = args;
           const frozen =
-            metadata.toolArgsTextCache?.get(args) ?? new Map<string, string>();
-          const frozenText = frozen.get(argsKeyOrderCacheKey);
-          if (frozenText !== undefined) {
-            argsText = frozenText;
+            metadata.toolArgsTextCache?.get(inputArgs) ??
+            new Map<string, { argsText: string; args: ReadonlyJSONObject }>();
+          const frozenEntry = frozen.get(argsKeyOrderCacheKey);
+          if (frozenEntry !== undefined) {
+            argsText = frozenEntry.argsText;
+            args = frozenEntry.args;
           } else {
             argsText = stableStringifyToolArgs(
               metadata.toolArgsKeyOrderCache,
               argsKeyOrderCacheKey,
               args,
             );
+            // The input is final even while execution keeps the part running.
+            // Other runtimes can synthesize complete JSON text from an
+            // accumulating snapshot, so only this converter supplies the
+            // completion signal it knows from the AI SDK part state.
+            // A complete root marker settles every field without parsing the
+            // serialized text again. Keep the SDK input's nested identities
+            // and own fields, including prototype-named JSON keys.
+            args = markPartialJsonObjectComplete(args);
             metadata.toolArgsTextCache?.set(
-              args,
-              frozen.set(argsKeyOrderCacheKey, argsText),
+              inputArgs,
+              frozen.set(argsKeyOrderCacheKey, { argsText, args }),
             );
           }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);

@@ -22,6 +22,13 @@ import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../../internal";
+import type {
+  GenericThreadHistoryAdapter,
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+  MessageStorageEntry,
+} from "../../adapters/thread-history";
 import { isRecord } from "../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
@@ -36,6 +43,10 @@ import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
 } from "../runtimes/RuntimeAdapterProvider";
+import {
+  type KeyedThreadListItem,
+  tryGetKeyedThreadListItem,
+} from "../runtimes/keyedThreadListItem";
 import type { TitleGenerationAdapter } from "./TitleGenerationAdapter";
 
 export type AsyncStorageLike = {
@@ -387,6 +398,33 @@ export const parseStoredMessageRepository = (
   };
 };
 
+type StoredFormatEntry = MessageStorageEntry<Record<string, unknown>>;
+
+const parseStoredFormatEntries = (
+  raw: string | null,
+  format: string,
+): StoredFormatEntry[] => {
+  const parsed = parseJSON(raw);
+  if (!isRecord(parsed) || !Array.isArray(parsed.messages)) return [];
+
+  return parsed.messages.flatMap((entry) =>
+    isRecord(entry) &&
+    typeof entry.id === "string" &&
+    (entry.parent_id === null || typeof entry.parent_id === "string") &&
+    entry.format === format &&
+    isRecord(entry.content)
+      ? [
+          {
+            id: entry.id,
+            parent_id: entry.parent_id,
+            format,
+            content: entry.content,
+          },
+        ]
+      : [],
+  );
+};
+
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   private storage: AsyncStorageLike;
   private getAui: () => ReturnType<typeof useAui>;
@@ -425,16 +463,13 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return parseStoredMessageRepository(raw);
   }
 
-  private async _upsert(
-    item: ExportedMessageRepositoryItem,
-    moveHead: boolean,
+  private async _write(
+    remoteId: string,
+    key: string,
+    format: string | undefined,
+    write: (raw: string | null) => string,
   ): Promise<void> {
-    // Initialization acquires the same message key, so it must settle before
-    // the upsert takes that lock.
-    const { remoteId } = await this.aui.threadListItem.initialize();
-    const key = this._messagesKey(remoteId);
-
-    await this.mutationQueue.run(key, async () => {
+    await this.mutationQueue.run(this._messagesKey(remoteId), async () => {
       // A missing or unreadable metadata blob is not evidence of deletion, so
       // only a readable list that omits the thread skips the write.
       const deleted = await this.mutationQueue.run(
@@ -442,31 +477,59 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         async () => {
           const raw = await this.storage.getItem(this._threadsKey());
           const parsed = parseJSON(raw);
-          return (
-            Array.isArray(parsed) &&
-            !parsed.some(
-              (thread) => parseStoredThread(thread)?.remoteId === remoteId,
-            )
-          );
+          if (!Array.isArray(parsed)) return false;
+
+          const threads = parseStoredThreadMetadata(raw);
+          const thread = threads.find((item) => item.remoteId === remoteId);
+          if (!thread) return true;
+
+          // Thread deletion removes the formatted keys recorded here.
+          if (format !== undefined && !thread.formats?.includes(format)) {
+            thread.formats = [...(thread.formats ?? []), format];
+            await this.storage.setItem(
+              this._threadsKey(),
+              JSON.stringify(threads),
+            );
+          }
+          return false;
         },
       );
       if (deleted) return;
 
+      await this.mutationQueue.removeStale(key, this.storage);
       const raw = await this.storage.getItem(key);
-      const repo = parseStoredMessageRepository(raw);
-
-      const idx = repo.messages.findIndex(
-        (m) => m.message.id === item.message.id,
-      );
-      if (idx >= 0) {
-        repo.messages[idx] = item;
-      } else {
-        repo.messages.push(item);
-      }
-      if (moveHead) repo.headId = item.message.id;
-
-      await this.storage.setItem(key, JSON.stringify(repo));
+      await this.storage.setItem(key, write(raw));
     });
+  }
+
+  private async _upsert(
+    item: ExportedMessageRepositoryItem,
+    moveHead: boolean,
+  ): Promise<void> {
+    // Initialization acquires the same message key, so it must settle before
+    // the upsert takes that lock.
+    const { remoteId } = await this.aui.threadListItem.initialize();
+
+    await this._write(
+      remoteId,
+      this._messagesKey(remoteId),
+      undefined,
+      (raw) => {
+        const repo = parseStoredMessageRepository(raw);
+
+        const idx = repo.messages.findIndex(
+          (m) => m.message.id === item.message.id,
+        );
+        if (idx >= 0) {
+          repo.messages[idx] = item;
+        } else {
+          repo.messages.push(item);
+        }
+        if (moveHead) repo.headId = item.message.id;
+
+        return JSON.stringify(repo);
+      },
+    );
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
@@ -475,6 +538,101 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
 
   async update(item: ExportedMessageRepositoryItem): Promise<void> {
     await this._upsert(item, false);
+  }
+
+  withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
+    formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+  ): GenericThreadHistoryAdapter<TMessage> {
+    const { format } = formatAdapter;
+    let pinned: KeyedThreadListItem | undefined;
+    const pinCurrent = () => {
+      pinned = tryGetKeyedThreadListItem(this.aui) ?? pinned;
+      return pinned ?? this.aui.threadListItem;
+    };
+    const writeEntries = async (
+      update: (entries: StoredFormatEntry[]) => StoredFormatEntry[],
+    ) => {
+      // Initialization acquires the same message key, so it must settle
+      // before the write takes that lock.
+      const { remoteId } = await (pinned ?? pinCurrent()).initialize();
+      await this._write(
+        remoteId,
+        formattedMessagesKey(this.prefix, remoteId, format),
+        format,
+        (raw) =>
+          JSON.stringify({
+            messages: update(parseStoredFormatEntries(raw, format)),
+          }),
+      );
+    };
+    const upsert = async (item: MessageFormatItem<TMessage>) => {
+      const entry: StoredFormatEntry = {
+        id: formatAdapter.getId(item.message),
+        parent_id: item.parentId,
+        format,
+        content: formatAdapter.encode(item),
+      };
+      await writeEntries((entries) => {
+        const idx = entries.findIndex((e) => e.id === entry.id);
+        if (idx >= 0) {
+          entries[idx] = entry;
+        } else {
+          entries.push(entry);
+        }
+        return entries;
+      });
+    };
+
+    return {
+      pin() {
+        pinCurrent();
+      },
+      load: async (): Promise<MessageFormatRepository<TMessage>> => {
+        const remoteId = pinCurrent().getState().remoteId;
+        if (!remoteId) return { messages: [] };
+
+        const key = formattedMessagesKey(this.prefix, remoteId, format);
+        const raw = await this.mutationQueue.run(
+          this._messagesKey(remoteId),
+          async () => {
+            await this.mutationQueue.removeStale(key, this.storage);
+            return this.storage.getItem(key);
+          },
+        );
+        return {
+          messages: parseStoredFormatEntries(raw, format).map((entry) =>
+            formatAdapter.decode(entry as MessageStorageEntry<TStorageFormat>),
+          ),
+        };
+      },
+      append: upsert,
+      update: upsert,
+      delete: async (items) => {
+        if (!(pinned ?? pinCurrent()).getState().remoteId) return;
+        const ids = new Set(
+          items.map((item) => formatAdapter.getId(item.message)),
+        );
+        await writeEntries((entries) => {
+          const parents = new Map(
+            entries.map((entry) => [entry.id, entry.parent_id]),
+          );
+          return entries.flatMap((entry) => {
+            if (ids.has(entry.id)) return [];
+            let parentId = entry.parent_id;
+            const visited = new Set<string>();
+            while (parentId !== null && ids.has(parentId)) {
+              if (visited.has(parentId)) {
+                parentId = null;
+                break;
+              }
+              visited.add(parentId);
+              parentId = parents.get(parentId) ?? null;
+            }
+            return [{ ...entry, parent_id: parentId }];
+          });
+        });
+      },
+    };
   }
 }
 
@@ -537,6 +695,7 @@ export const createLocalStorageAdapter = (
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
   const pendingDeletionsKey = `${prefix}pending-thread-deletions`;
   const mutationQueue = getMutationQueue(storage);
+  const attemptedDeletions = new Set<string>();
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
@@ -613,33 +772,54 @@ export const createLocalStorageAdapter = (
     });
   };
 
+  const removePendingKeys = async (
+    deletion: PendingThreadDeletion,
+  ): Promise<void> => {
+    const results = await Promise.allSettled(
+      deletion.keys.map(async (key) => {
+        mutationQueue.markStale(key);
+        await mutationQueue.removeStale(key, storage);
+        await removePendingDeletionKey(deletion.remoteId, key);
+      }),
+    );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
+  };
+
   const drainPendingDeletion = async (
     deletion: PendingThreadDeletion,
   ): Promise<void> => {
-    await removeThreadMetadata(deletion.remoteId);
-
-    for (const key of deletion.keys) {
-      mutationQueue.markStale(key);
-      await mutationQueue.removeStale(key, storage);
-      await removePendingDeletionKey(deletion.remoteId, key);
+    const threadExists = await mutationQueue.run(threadsKey, async () =>
+      (await loadThreadMetadata()).some(
+        (thread) => thread.remoteId === deletion.remoteId,
+      ),
+    );
+    if (threadExists) {
+      await mutationQueue.run(pendingDeletionsKey, async () => {
+        const deletions = await loadPendingDeletions();
+        await savePendingDeletions(
+          deletions.filter((item) => item.remoteId !== deletion.remoteId),
+        );
+      });
+      return;
     }
+    await removePendingKeys(deletion);
   };
 
   const drainPendingDeletions = async (
     remoteId?: string,
     messageLockHeldFor?: string,
   ): Promise<void> => {
-    while (true) {
-      const deletions = await mutationQueue.run(
-        pendingDeletionsKey,
-        loadPendingDeletions,
-      );
-      const pending = deletions.filter(
-        (deletion) => remoteId === undefined || deletion.remoteId === remoteId,
-      );
-      if (pending.length === 0) return;
-
-      for (const deletion of pending) {
+    const deletions = await mutationQueue.run(
+      pendingDeletionsKey,
+      loadPendingDeletions,
+    );
+    let failure: unknown;
+    for (const deletion of deletions) {
+      if (remoteId !== undefined && deletion.remoteId !== remoteId) continue;
+      if (remoteId === undefined && attemptedDeletions.has(deletion.remoteId))
+        continue;
+      try {
         if (deletion.remoteId === messageLockHeldFor) {
           await drainPendingDeletion(deletion);
         } else {
@@ -647,8 +827,11 @@ export const createLocalStorageAdapter = (
             drainPendingDeletion(deletion),
           );
         }
+      } catch (error) {
+        if (failure === undefined) failure = error;
       }
     }
+    if (failure !== undefined) throw failure;
   };
 
   const updateThreadMetadata = async (
@@ -672,14 +855,12 @@ export const createLocalStorageAdapter = (
     },
 
     async list(): Promise<RemoteThreadListResponse> {
-      let threads: StoredThreadMetadata[] | null;
-      do {
+      try {
         await drainPendingDeletions();
-        threads = await mutationQueue.run(pendingDeletionsKey, async () => {
-          if ((await loadPendingDeletions()).length > 0) return null;
-          return mutationQueue.run(threadsKey, loadThreadMetadata);
-        });
-      } while (threads === null);
+      } catch (error) {
+        console.warn("[assistant-ui] Local history cleanup failed:", error);
+      }
+      const threads = await mutationQueue.run(threadsKey, loadThreadMetadata);
 
       return {
         threads: threads.map((t) => ({
@@ -699,6 +880,7 @@ export const createLocalStorageAdapter = (
       const key = messagesKey(remoteId);
       return mutationQueue.run(key, async () => {
         await drainPendingDeletions(remoteId, remoteId);
+        attemptedDeletions.delete(remoteId);
 
         return mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
@@ -756,7 +938,16 @@ export const createLocalStorageAdapter = (
           ),
         ];
         const deletion = await addPendingDeletion(remoteId, keys);
-        await drainPendingDeletion(deletion);
+        await removeThreadMetadata(remoteId);
+        try {
+          await removePendingKeys(deletion);
+        } catch (error) {
+          attemptedDeletions.add(remoteId);
+          console.warn(
+            "[assistant-ui] Thread deletion committed, but local history cleanup failed:",
+            error,
+          );
+        }
       });
     },
 

@@ -43,8 +43,7 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"],
-      "passThroughEnv": ["VITEST_MAX_WORKERS"]
+      "dependsOn": ["^build"]
     },
     "test:coverage": {
       "dependsOn": ["^build"],

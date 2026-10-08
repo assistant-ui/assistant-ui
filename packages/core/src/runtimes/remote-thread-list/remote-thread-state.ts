@@ -134,6 +134,22 @@ export const classifyThreads = (
   return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
+// Merges a fetched thread into a state: a remote id that already resolves to
+// a slot refreshes that slot; an unknown one is appended, since it may live on
+// a page that has not loaded yet.
+export const mergeFetchedThread = (
+  state: RemoteThreadState,
+  thread: RemoteThreadMetadata,
+): RemoteThreadState => ({
+  ...state,
+  ...classifyThreads([thread], {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: state.threadIdMap,
+    threadData: state.threadData,
+  }),
+});
+
 export type RemoteThreadState = {
   readonly isLoading: boolean;
   readonly loadError: unknown;
@@ -528,3 +544,20 @@ export const promoteNewThreadReducer = (
   threadIdOrRemoteId: string,
   initializeTask: Promise<RemoteThreadInitializeResponse>,
 ) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);
+
+/**
+ * Deletes a thread by its slot id and, once known, its remote id. Deleting a
+ * slot drops every id that resolved to it, so a list() response served before
+ * the deletion re-mints the thread under its remote id; replaying the deletion
+ * by slot id alone would no longer find it.
+ */
+export const deleteThreadReducer = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string | undefined,
+) => {
+  const deleted = updateStatusReducer(state, threadId, "deleted");
+  return remoteId === undefined
+    ? deleted
+    : updateStatusReducer(deleted, remoteId, "deleted");
+};

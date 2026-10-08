@@ -56,7 +56,11 @@ export { nullProtoRecord } from "./utils/record";
 
 // Shared attachment data-URL encoder, reused by framework adapters so the
 // FileReader fallback lives in one place.
-export { getFileDataURL, fileMatchesAccept } from "./adapters/attachment";
+export {
+  bytesToBase64,
+  getFileDataURL,
+  fileMatchesAccept,
+} from "./adapters/attachment";
 export { isCreateAttachment } from "./types/attachment";
 
 // Streaming-stable tool-args stringifier, reused by framework adapters so the
@@ -86,6 +90,7 @@ export {
   abortableIterable,
   openAbortableIterable,
 } from "./utils/abortable-iterable";
+export { raceWithAbortSignal } from "./utils/abortable-promise";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,

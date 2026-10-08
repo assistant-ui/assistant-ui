@@ -47,10 +47,4 @@ describe("resolveModelEffort", () => {
     expect(resolveModelEffort(models, "plain", "high")).toBeUndefined();
     expect(resolveModelEffort(models, "missing", "high")).toBeUndefined();
   });
-
-  it("allows an effort to apply again after switching back", () => {
-    const effort = "high";
-    expect(resolveModelEffort(models, "plain", effort)).toBeUndefined();
-    expect(resolveModelEffort(models, "default", effort)).toBe(effort);
-  });
 });

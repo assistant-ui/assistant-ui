@@ -1068,6 +1068,8 @@ type CreateAdkStreamOptions = {
   appName?: string | undefined;
   userId?: string | undefined;
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) | undefined;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 };
 
 type CreateAppendMessage = string | {
@@ -2313,6 +2315,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;

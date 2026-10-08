@@ -294,6 +294,24 @@ describe("createReplayBoundaryStream", () => {
     expect(body.locked).toBe(false);
   });
 
+  it("leaves replay cleanup to the caller when the first render wait rejects", async () => {
+    const setReplaying = vi.fn();
+    const error = new Error("aborted");
+    const body = createBody(["replay"]);
+
+    await expect(
+      createReplayBoundaryStream(
+        new Response(body, {
+          headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "6" },
+        }),
+        { setReplaying, waitForRender: () => Promise.reject(error) },
+      ),
+    ).rejects.toBe(error);
+
+    expect(setReplaying.mock.calls).toEqual([[true]]);
+    expect(body.locked).toBe(false);
+  });
+
   it("clears replaying when the gated stream is cancelled", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
     const setReplaying = vi.fn();
