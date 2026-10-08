@@ -165,12 +165,6 @@ export const useInteractablePersistenceQueue = <State>({
       try {
         await adapter.save(payload);
         resolved.saved = true;
-        for (const previous of unsettledBatchesRef.current) {
-          if (previous.adapter !== adapter || previous.seq >= seq) continue;
-          for (const id of dirtyIds) previous.dirtyIds.delete(id);
-          if (previous.dirtyIds.size === 0)
-            unsettledBatchesRef.current.delete(previous);
-        }
         settleBatch(undefined);
       } catch (e) {
         const isCurrentScope =
@@ -185,7 +179,7 @@ export const useInteractablePersistenceQueue = <State>({
           isCurrentScope ? { isPending: false, error: e } : undefined,
         );
       } finally {
-        if (resolved.saved) unsettledBatchesRef.current.delete(resolved);
+        unsettledBatchesRef.current.delete(resolved);
         resolved.settle();
         inFlightPersistenceRef.current -= 1;
         const next =
@@ -301,13 +295,16 @@ export const useInteractablePersistenceQueue = <State>({
       } finally {
         if (timer !== undefined) clearTimeout(timer);
       }
-      for (const batch of batches) unsettledBatchesRef.current.delete(batch);
+      const latestSavedSeq = batches.reduce(
+        (latest, batch) => (batch.saved ? Math.max(latest, batch.seq) : latest),
+        0,
+      );
       const latestBatchById = new Map<string, PersistenceBatch>();
       for (const batch of batches) {
         for (const id of batch.dirtyIds) latestBatchById.set(id, batch);
       }
       return batches.flatMap((batch) => {
-        if (batch.saved) return [];
+        if (batch.saved || batch.seq <= latestSavedSeq) return [];
         const dirtyIds = new Set(
           [...batch.dirtyIds].filter((id) => latestBatchById.get(id) === batch),
         );

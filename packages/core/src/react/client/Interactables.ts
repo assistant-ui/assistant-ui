@@ -325,8 +325,6 @@ const useInteractablesResource = ({
     [restorePersistedState],
   );
 
-  // A save to this adapter that failed or outlived the wait still holds the
-  // newest value for its ids, so it outranks load() and is saved again.
   const restoreUnsavedEdits = useCallback(
     (
       batches: readonly {
@@ -339,7 +337,13 @@ const useInteractablesResource = ({
       for (const { payload, dirtyIds } of batches) {
         for (const id of dirtyIds) {
           const entry = payload[id];
-          if (entry && !touchedIdsRef.current.has(id)) unsaved[id] = entry;
+          if (
+            entry &&
+            !touchedIdsRef.current.has(id) &&
+            stateRef.current.definitions[id]?.scope !== "thread"
+          ) {
+            unsaved[id] = entry;
+          }
         }
       }
       const ids = Object.keys(unsaved);
