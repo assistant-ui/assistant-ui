@@ -533,7 +533,7 @@ test("HTTP, transport, and invalid JSON failures carry a status", async () => {
   await assert.rejects(invalid.rest("GET", "/items"), { status: 200 });
 });
 
-test("the merged tap fixture is T3 with approvals, owner, decision, and window still needed", async () => {
+test("the merged tap fixture is T3 with owner, decision, and window still needed", async () => {
   const { client, calls } = fakeClient();
   const gathered = await gatherPullRequest(client, policy, 12, { now });
   assert.deepEqual(gathered.pr, {
@@ -574,7 +574,7 @@ test("the merged tap fixture is T3 with approvals, owner, decision, and window s
   assert.equal(evaluation.conclusion, "action_required");
   assert.deepEqual(
     evaluation.requirementResult.unmet.map(({ code }) => code),
-    ["approvals", "owner:reactivity", "decision", "window"],
+    ["owner:reactivity", "decision", "window"],
   );
   assert.deepEqual(evaluation.requirementResult.approvals, {
     counted: ["Kinfe123"],
@@ -1146,6 +1146,33 @@ test("hard policy failures stay failures", async () => {
       ({ code }) => code === "open-pr-cap",
     ),
   );
+  const comment = renderComment(evaluation, policy);
+  assert.ok(comment.includes("❌ Needs a change"), comment);
+  assert.ok(!comment.includes("owner override"), comment);
+  evaluation.tierResult.failures.push({
+    code: "size-cap",
+    detail: "900 source lines exceed the 400 line cap",
+    override: "size",
+  });
+  evaluation.requirementResult.unmet.push({
+    code: "size-cap",
+    detail: "900 source lines exceed the 400 line cap",
+  });
+  const waivable = renderComment(evaluation, policy);
+  assert.ok(
+    waivable.includes(
+      "an owner can waive it with `review-tier/override: size`",
+    ),
+    waivable,
+  );
+  assert.ok(
+    !waivable.includes("open pull requests for this author, has 6; an owner"),
+    waivable,
+  );
+  assert.match(
+    waivable,
+    /\| ⏳ Waiting window \| \d+ hours after ready for review, until .+ UTC; an owner can waive it with `review-tier\/override: window` \|/,
+  );
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
@@ -1171,7 +1198,8 @@ test("dynamic details stay inside their code spans and the comment stays under t
   const bounded = renderComment(large, policy);
   assert.ok(bounded.length <= 60_000, String(bounded.length));
   assert.match(bounded, /signals behind the tier, too long to list here\._/);
-  assert.match(bounded, /\| ⏳ Approvals \|/);
+  assert.match(bounded, /\| Still needed \| Detail \|/);
+  assert.match(bounded, /\| ⏳ Owner: Reactivity core \|/);
 });
 
 test("the comment starts with its marker and strongest reason and bounds the reasons list", async () => {
@@ -1216,11 +1244,14 @@ test("the comment starts with its marker and strongest reason and bounds the rea
     25,
   );
   assert.ok(signals.includes(`_${total - 25} more signals omitted._`));
+  assert.ok(comment.includes("| Signal | Tier | Where |"));
+  assert.ok(comment.includes("| Still needed | Detail |"));
+  assert.ok(comment.includes("Evaluated on `head`"));
+  assert.ok(comment.includes("⏳ Waits on reviewers or time"));
   for (const expected of [
     "| ⏳ Owner: Reactivity core |",
     "| ⏳ Decision |",
     "| ⏳ Waiting window |",
-    "needs 2 maintainer approvals",
     "- **Waived:** Size, by okisdev with `review-tier/override: size`",
     "Kinfe123 counted",
     "previous-reviewer ignored (approved an older head)",

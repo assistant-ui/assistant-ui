@@ -61,9 +61,15 @@ export function computeReviewHealth(
     ...admins,
     ...loginKeys(people.teams[policy.teams.maintainers] ?? []),
   ]);
+  const owners = new Set(
+    policy.areas.flatMap((area) =>
+      loginKeys(people.teams[area.ownerTeam] ?? []),
+    ),
+  );
   const trusted = new Set([
     ...maintainerSet,
     ...loginKeys(people.teams[policy.teams.reviewers] ?? []),
+    ...owners,
   ]);
   const tierCounts = { 0: 0, 1: 0, 2: 0, 3: 0, untiered: 0 };
   const missingApprovals = [];
@@ -90,19 +96,17 @@ export function computeReviewHealth(
         ? maintainerSet.has(author)
           ? 0
           : 1
-        : tier === 1
-          ? trusted.has(author)
-            ? 1
-            : 2
-          : tier === 2 || tier === 3
-            ? 2
-            : null;
+        : tier === 1 || tier === 2 || tier === 3
+          ? 1
+          : null;
     const maintainerApprovals = [...approvers].filter((login) =>
       maintainerSet.has(login),
     ).length;
     const counted =
       tier === 2 || tier === 3
-        ? maintainerApprovals
+        ? [...approvers].filter(
+            (login) => maintainerSet.has(login) || owners.has(login),
+          ).length
         : [...approvers].filter((login) => trusted.has(login)).length;
     const needsMaintainer = tier === 1 && !trusted.has(author);
     if (
@@ -423,6 +427,7 @@ async function fetchPeople(policy, token) {
   for (const slug of new Set([
     policy.teams.maintainers,
     policy.teams.reviewers,
+    ...policy.areas.map((area) => area.ownerTeam),
   ])) {
     try {
       teams[slug] = await fetchMembers(

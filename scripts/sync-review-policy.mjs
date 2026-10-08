@@ -79,12 +79,14 @@ export function buildRulesets(policy, liveRulesets, teamIds) {
   };
   const patterns = (area) => [...area.paths, ...area.contractDocs];
   const contractFloor = [
-    {
-      file_patterns: policy.areas.flatMap(patterns),
-      minimum_approvals: 2,
-      reviewer: maintainers,
-    },
-  ];
+    ...new Set(policy.areas.map((area) => area.ownerTeam)),
+  ].map((slug) => ({
+    file_patterns: policy.areas
+      .filter((area) => area.ownerTeam === slug)
+      .flatMap(patterns),
+    minimum_approvals: 1,
+    reviewer: { id: requiredTeamId(teamIds, slug), type: "Team" },
+  }));
   const generalFloor = enforce
     ? []
     : [{ file_patterns: ["*"], minimum_approvals: 1, reviewer: maintainers }];
@@ -258,7 +260,7 @@ export function runSyncReviewPolicy(
   const teamIds = { [slug]: api(`orgs/${org}/teams/${slug}`).id };
   for (const ownerTeam of new Set(policy.areas.map((area) => area.ownerTeam))) {
     try {
-      api(`orgs/${org}/teams/${ownerTeam}`);
+      teamIds[ownerTeam] = api(`orgs/${org}/teams/${ownerTeam}`).id;
     } catch (error) {
       if (error.message.includes("HTTP 404")) {
         throw new Error(

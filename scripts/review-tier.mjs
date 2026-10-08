@@ -541,17 +541,22 @@ const failureDetails = {
   "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
 };
 
-function requirementDetail(item, tier, context, policy) {
+function requirementDetail(item, tier, context, policy, waivers) {
   const failure = failureDetails[item.code];
-  if (failure) return failure(item.detail, policy);
   const readyAt = Date.parse(context?.readyForReviewAt);
-  if (item.code !== "window" || Number.isNaN(readyAt)) return cell(item.detail);
-  const hours = policy.windowHours[tier];
-  const until = new Date(readyAt + hours * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 16)
-    .replace("T", " ");
-  return `${hours} hours after ready for review, until ${until} UTC`;
+  let detail = failure ? failure(item.detail, policy) : cell(item.detail);
+  if (item.code === "window" && !Number.isNaN(readyAt)) {
+    const hours = policy.windowHours[tier];
+    const until = new Date(readyAt + hours * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 16)
+      .replace("T", " ");
+    detail = `${hours} hours after ready for review, until ${until} UTC`;
+  }
+  const waiver = waivers.get(item.code);
+  return waiver
+    ? `${detail}; an owner can waive it with ${code(`${policy.labels.overridePrefix}${waiver}`)}`
+    : detail;
 }
 
 export function renderComment(
@@ -572,7 +577,7 @@ export function renderComment(
       : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
     "",
     `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
-    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals") ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
+    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
     ...waived.map(
       ({ code, signal, by }) =>
         `- **Waived:** ${requirementLabel(code, policy)}, by ${by} with \`${policy.labels.overridePrefix}${signal}\``,
@@ -582,11 +587,24 @@ export function renderComment(
     out.push(
       "",
       mdTable(
-        ["still needed", "detail"],
+        ["Still needed", "Detail"],
         ["---", "---"],
         unmet.map((item) => [
           `${isWaiting(item.code) ? "⏳" : "❌"} ${requirementLabel(item.code, policy)}`,
-          requirementDetail(item, tier, context, policy),
+          requirementDetail(
+            item,
+            tier,
+            context,
+            policy,
+            new Map([
+              ...tierResult.failures
+                .filter((failure) => failure.override !== null)
+                .map((failure) => [failure.code, failure.override]),
+              ...(policy.labels.overrideSignals.includes("window")
+                ? [["window", "window"]]
+                : []),
+            ]),
+          ),
         ]),
       ),
     );
@@ -600,7 +618,7 @@ export function renderComment(
       `<summary>${plural(reasons.length, "signal")} behind the tier</summary>`,
       "",
       mdTable(
-        ["signal", "tier", "where"],
+        ["Signal", "Tier", "Where"],
         ["---", "---:", "---"],
         shown.map((reason) => [
           signalLabel(reason.code),
@@ -616,13 +634,11 @@ export function renderComment(
     );
   }
   const footer = [
-    context?.headSha ? `evaluated on \`${context.headSha.slice(0, 7)}\`` : null,
+    context?.headSha ? `Evaluated on \`${context.headSha.slice(0, 7)}\`` : null,
     unmet.some((item) => isWaiting(item.code))
-      ? "⏳ waits on reviewers or time"
+      ? "⏳ Waits on reviewers or time"
       : null,
-    unmet.some((item) => !isWaiting(item.code))
-      ? "❌ needs a change or an owner override"
-      : null,
+    unmet.some((item) => !isWaiting(item.code)) ? "❌ Needs a change" : null,
   ].filter(Boolean);
   const render = (section) =>
     [

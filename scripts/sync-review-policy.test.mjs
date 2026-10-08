@@ -182,7 +182,7 @@ const syncGh = ({ remotePolicy = policy, labels = [], teamError } = {}) => {
       return JSON.stringify({ id: 15592476 });
     }
     if (endpoint === "orgs/assistant-ui/teams/owners") {
-      return JSON.stringify({ id: 1 });
+      return JSON.stringify({ id: teamIds.owners });
     }
     assert.fail(`unexpected request ${args.join(" ")}`);
   };
@@ -190,6 +190,7 @@ const syncGh = ({ remotePolicy = policy, labels = [], teamError } = {}) => {
 };
 const teamIds = {
   maintainers: 15592476,
+  owners: 1,
 };
 const bypass_actors = [
   {
@@ -321,8 +322,8 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "scripts/review-health.mjs",
                     "scripts/lib/review-*.mjs",
                   ],
-                  minimum_approvals: 2,
-                  reviewer: { id: 15592476, type: "Team" },
+                  minimum_approvals: 1,
+                  reviewer: { id: teamIds.owners, type: "Team" },
                 },
               ],
             },
@@ -336,6 +337,51 @@ test("ruleset updates replace only review floors and required checks", () => {
       .required_reviewers[0].file_patterns,
     ["*"],
   );
+});
+
+test("contract review floors group each owner team's paths and contract docs", () => {
+  const custom = {
+    ...policy,
+    areas: policy.areas.map((area) =>
+      area.id === "protocol"
+        ? {
+            ...area,
+            ownerTeam: "protocol-owners",
+            contractDocs: ["docs/protocol/**"],
+          }
+        : area,
+    ),
+  };
+  const updates = buildRulesets(custom, liveRulesets, {
+    ...teamIds,
+    "protocol-owners": 2,
+  });
+  assert.deepEqual(updates[1].payload.rules[0].parameters.required_reviewers, [
+    {
+      file_patterns: [
+        "packages/tap/**",
+        "packages/store/**",
+        "apps/docs/content/docs/tap/**",
+        "apps/docs/content/docs/store/**",
+        "api-surface/**",
+        ".github/**",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "scripts/review-tier.mjs",
+        "scripts/diff-api-surface.mjs",
+        "scripts/sync-review-policy.mjs",
+        "scripts/review-health.mjs",
+        "scripts/lib/review-*.mjs",
+      ],
+      minimum_approvals: 1,
+      reviewer: { id: teamIds.owners, type: "Team" },
+    },
+    {
+      file_patterns: ["packages/assistant-stream/**", "docs/protocol/**"],
+      minimum_approvals: 1,
+      reviewer: { id: 2, type: "Team" },
+    },
+  ]);
 });
 
 test("review tier enforcement and the merge queue follow the policy", () => {
@@ -393,6 +439,11 @@ test("missing team ids and an unexpected ruleset layout fail clearly", () => {
   assert.throws(
     () => buildRulesets(policy, liveRulesets, {}),
     /Missing team id for maintainers/,
+  );
+  assert.throws(
+    () =>
+      buildRulesets(policy, liveRulesets, { maintainers: teamIds.maintainers }),
+    /Missing team id for owners/,
   );
   const checksRuleset = liveRulesets.find(({ id }) => id === 821084);
   assert.throws(
@@ -631,7 +682,7 @@ test("apply saves every live ruleset before the first write", () => {
       `orgs/${policy.repository.split("/")[0]}/teams/`.length,
     );
     assert.ok([policy.teams.maintainers, "owners"].includes(team), endpoint);
-    return JSON.stringify({ id: team === "owners" ? 1 : teamIds[team] });
+    return JSON.stringify({ id: teamIds[team] });
   };
   try {
     assert.equal(
