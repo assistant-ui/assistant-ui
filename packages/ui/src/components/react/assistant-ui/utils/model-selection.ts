@@ -107,6 +107,7 @@ type ModelSelectorContextValue = {
   /** Effort resolved against the selected model's supported levels. */
   effort: string | undefined;
   setEffort: (effort: string) => void;
+  open: boolean;
   setOpen: (open: boolean) => void;
 };
 
@@ -141,32 +142,55 @@ export function useModelSelectorEfforts(): {
 // The popover re-evaluates collision flipping whenever the popup resizes, so
 // filtering the list down flips the popup back to the preferred side
 // mid-interaction. Base UI only exposes lazy flipping on the Combobox
-// positioner, so feed the rendered side back as the preferred side, making
-// the popup keep its side until it no longer fits.
-export function useLazyFlipSide<TSide extends string>(): {
+// positioner, so adopt the side the popup first flips to as the preferred side
+// for the rest of the open. Adopting every change can alternate between sides
+// without end: after a preference change the popup can render on the opposite
+// side even when both sides fit.
+//
+// A force-mounted popup keeps its node and position while closed. Pass `open`
+// and the `preferred` side for one, so the side resets on close and a reopen
+// adopts a side the popup already flipped to.
+export function useLazyFlipSide<TSide extends string>(
+  open = true,
+  preferred?: TSide,
+): {
   side: TSide | undefined;
   popupRef: (node: HTMLDivElement | null) => void;
 } {
   const [side, setSide] = useState<TSide | undefined>();
   const observerRef = useRef<MutationObserver | null>(null);
-  const popupRef = useCallback((node: HTMLDivElement | null) => {
-    observerRef.current?.disconnect();
-    observerRef.current = null;
-    if (!node) {
-      setSide(undefined);
-      return;
-    }
-    const sync = () => {
-      const rendered = node.getAttribute("data-side");
-      if (rendered) setSide(rendered as TSide);
-    };
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(node, {
-      attributes: true,
-      attributeFilter: ["data-side"],
-    });
-    observerRef.current = observer;
-  }, []);
+  const preferredRef = useRef(preferred);
+  preferredRef.current = preferred;
+  const popupRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      if (!node || !open) {
+        setSide(undefined);
+        return;
+      }
+      const current = node.getAttribute("data-side");
+      const hasFlipped =
+        preferredRef.current !== undefined &&
+        current !== null &&
+        current !== preferredRef.current;
+      if (hasFlipped) {
+        setSide(current as TSide);
+        return;
+      }
+      const observer = new MutationObserver(() => {
+        const rendered = node.getAttribute("data-side");
+        if (!rendered) return;
+        observer.disconnect();
+        setSide(rendered as TSide);
+      });
+      observer.observe(node, {
+        attributes: true,
+        attributeFilter: ["data-side"],
+      });
+      observerRef.current = observer;
+    },
+    [open],
+  );
   return { side, popupRef };
 }

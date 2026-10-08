@@ -326,6 +326,34 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
+  it("keeps viewport event subscriptions across an unrelated rerender", () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    const addListenerSpy = vi.spyOn(viewport, "addEventListener");
+    const removeListenerSpy = vi.spyOn(viewport, "removeEventListener");
+    try {
+      view.rerender(
+        <SyncRuntimeProvider>
+          <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        </SyncRuntimeProvider>,
+      );
+
+      expect(addListenerSpy).not.toHaveBeenCalled();
+      expect(removeListenerSpy).not.toHaveBeenCalled();
+
+      view.unmount();
+      expect(removeListenerSpy).toHaveBeenCalled();
+    } finally {
+      addListenerSpy.mockRestore();
+      removeListenerSpy.mockRestore();
+    }
+  });
+
   it("preserves smooth scrolling from a control outside the viewport", async () => {
     render(
       <SyncRuntimeProvider>
@@ -420,6 +448,69 @@ describe("useThreadViewportAutoScroll", () => {
       ).toBe(false);
     } finally {
       scrollToSpy.mockRestore();
+    }
+  });
+
+  it("keeps a coalesced user scroll-up after a programmatic bottom scroll", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="instant">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = 0;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Scroll to bottom" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+    });
+
+    const scrollToDescriptor = Object.getOwnPropertyDescriptor(
+      viewport,
+      "scrollTo",
+    );
+    Object.defineProperty(viewport, "scrollTo", {
+      configurable: true,
+      value: ({ top = 0 }: ScrollToOptions) => {
+        viewport.scrollTop = Math.min(Number(top), getMaxScrollTop(viewport));
+      },
+    });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Scroll to bottom" }));
+
+      act(() => {
+        viewport.scrollTop -= 80;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      const scrollTopAfterLeave = viewport.scrollTop;
+      viewportMeasurementOffset += 200;
+      act(notifyResizeObservers);
+
+      expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+      expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+    } finally {
+      if (scrollToDescriptor) {
+        Object.defineProperty(viewport, "scrollTo", scrollToDescriptor);
+      } else {
+        Reflect.deleteProperty(viewport, "scrollTo");
+      }
     }
   });
 
@@ -593,6 +684,351 @@ describe("useThreadViewportAutoScroll", () => {
 
     expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  describe("disclosures in a message", () => {
+    const renderPinned = async () => {
+      render(
+        <SyncRuntimeProvider>
+          <BottomAnchorThread />
+        </SyncRuntimeProvider>,
+      );
+      const viewport = getViewport();
+      await waitFor(() => {
+        expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+      });
+      return viewport;
+    };
+    const growContent = () => {
+      viewportMeasurementOffset += 200;
+      act(notifyResizeObservers);
+    };
+    const lastMessage = () => screen.getAllByTestId("thread-message").at(-1)!;
+    const addTrigger = (
+      attributes: Record<string, string>,
+      parent: Element = lastMessage(),
+    ) => {
+      const trigger = document.createElement("button");
+      for (const [name, value] of Object.entries(attributes))
+        trigger.setAttribute(name, value);
+      parent.append(trigger);
+      return trigger;
+    };
+    const click = (target: Element) => {
+      act(() => {
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+    };
+
+    it("stops following after a click expands a collapsed trigger", async () => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+    });
+
+    it("stops following after opening a closed details summary", async () => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      details.append(summary);
+      lastMessage().append(details);
+
+      click(summary);
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("keeps the pause through a resize while the thread still fits", async () => {
+      forceShortViewportMeasurement = true;
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      act(notifyResizeObservers);
+      forceShortViewportMeasurement = false;
+      growContent();
+
+      expect(viewport.scrollTop).toBe(0);
+      expect(getMaxScrollTop(viewport)).toBeGreaterThan(0);
+    });
+
+    it("follows again after the reader scrolls back to the bottom", async () => {
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it.each([
+      { label: "an expanded trigger", attributes: { "aria-expanded": "true" } },
+      {
+        label: "a dialog trigger",
+        attributes: { "aria-expanded": "false", "aria-haspopup": "dialog" },
+      },
+      {
+        label: "a menu trigger",
+        attributes: { "aria-expanded": "false", "aria-haspopup": "menu" },
+      },
+      {
+        label: "a combobox",
+        attributes: { "aria-expanded": "false", role: "combobox" },
+      },
+      { label: "a plain control", attributes: {} },
+    ])("keeps following after clicking $label", async ({ attributes }) => {
+      const viewport = await renderPinned();
+
+      click(addTrigger(attributes));
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps following after a press on a collapsed trigger that never clicks", async () => {
+      const viewport = await renderPinned();
+
+      act(() => {
+        addTrigger({ "aria-expanded": "false" }).dispatchEvent(
+          new Event("pointerdown", { bubbles: true }),
+        );
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps following after expanding a trigger outside the messages", async () => {
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }, viewport));
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+    it.each([
+      {
+        label: "flips its state natively",
+        listen: (trigger: HTMLElement) =>
+          trigger.addEventListener("click", () =>
+            trigger.setAttribute("aria-expanded", "true"),
+          ),
+      },
+      {
+        label: "stops the event",
+        listen: (trigger: HTMLElement) =>
+          trigger.addEventListener("click", (event) => event.stopPropagation()),
+      },
+    ])("stops following when the trigger $label", async ({ listen }) => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+      const trigger = addTrigger({ "aria-expanded": "false" });
+      listen(trigger);
+
+      click(trigger);
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("keeps the pause when a scroll gesture stops short of the bottom and the thread then fits", async () => {
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+        viewport.scrollTop = getMaxScrollTop(viewport) - 50;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      forceShortViewportMeasurement = true;
+      act(notifyResizeObservers);
+      forceShortViewportMeasurement = false;
+      const scrollTop = viewport.scrollTop;
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("treats aria-haspopup=false as a disclosure", async () => {
+      const viewport = await renderPinned();
+      const scrollTop = viewport.scrollTop;
+
+      click(addTrigger({ "aria-expanded": "false", "aria-haspopup": "false" }));
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("follows again after the reader pages back to the bottom with Space", async () => {
+      const viewport = await renderPinned();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      act(() => {
+        viewport.dispatchEvent(
+          new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+        );
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps following after a non-activating key on a collapsed trigger", async () => {
+      const viewport = await renderPinned();
+
+      act(() => {
+        addTrigger({ "aria-expanded": "false" }).dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+        );
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    const renderWithoutRunStartScroll = async () => {
+      let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+      const Harness: FC = () => {
+        runtime = useLocalRuntime(adapter, { initialMessages: messages });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ThreadPrimitiveRoot>
+              <ThreadPrimitiveViewport
+                data-testid="viewport"
+                scrollToBottomOnRunStart={false}
+              >
+                <ThreadPrimitiveMessages components={{ Message }} />
+                <AtBottom />
+              </ThreadPrimitiveViewport>
+            </ThreadPrimitiveRoot>
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<Harness />);
+      const viewport = getViewport();
+      await waitFor(() => {
+        expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+      });
+      const startRun = () =>
+        act(async () => {
+          runtime!.thread.append({
+            role: "user",
+            content: [{ type: "text", text: "next" }],
+          });
+        });
+      return { viewport, startRun };
+    };
+
+    it("clears the pause when a run starts, even when run start does not scroll", async () => {
+      const { viewport, startRun } = await renderWithoutRunStartScroll();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      await startRun();
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("follows again after a run starts even when the expansion moved the reader off the bottom", async () => {
+      const { viewport, startRun } = await renderWithoutRunStartScroll();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      growContent();
+      expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+      await startRun();
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    it("keeps the reader's place after a run starts when they scrolled up during the pause", async () => {
+      const { viewport, startRun } = await renderWithoutRunStartScroll();
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      act(() => {
+        viewport.dispatchEvent(new WheelEvent("wheel"));
+        viewport.scrollTop = getMaxScrollTop(viewport) - 50;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      const scrollTop = viewport.scrollTop;
+      await startRun();
+      growContent();
+
+      expect(viewport.scrollTop).toBe(scrollTop);
+    });
+
+    it("clears the pause on a thread switch, even when the switch does not scroll", async () => {
+      const SwitchingThread = () => {
+        const [thread, setThread] = useState({ id: "a", messages });
+        const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+          messages: thread.messages,
+          convertMessage: (message) => message,
+          onNew: async () => {},
+          adapters: {
+            threadList: {
+              threadId: thread.id,
+              threads: [
+                { id: "a", status: "regular" },
+                { id: "b", status: "regular" },
+              ],
+            },
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <Thread autoScroll scrollToBottomOnThreadSwitch={false} />
+            <button
+              type="button"
+              data-testid="switch"
+              onClick={() =>
+                setThread({
+                  id: "b",
+                  messages: messages.map((message, index) => ({
+                    ...message,
+                    content: [{ type: "text", text: `Reply ${index + 1}` }],
+                  })),
+                })
+              }
+            />
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<SwitchingThread />);
+      const viewport = getViewport();
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        ),
+      );
+      act(() => {
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        fireEvent.scroll(viewport);
+      });
+
+      click(addTrigger({ "aria-expanded": "false" }));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("switch"));
+      });
+      growContent();
+
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
   });
 
   it.each([

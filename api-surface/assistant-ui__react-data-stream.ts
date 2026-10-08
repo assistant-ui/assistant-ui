@@ -1717,6 +1717,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -2048,6 +2049,8 @@ type UseDataStreamRuntimeOptions = {
   headers?: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 } & LocalRuntimeOptions;
 
 type VoiceSessionState = {

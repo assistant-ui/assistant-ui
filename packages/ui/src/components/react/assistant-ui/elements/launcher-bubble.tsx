@@ -83,7 +83,7 @@ export function LauncherBubble({
         >
           <div className="flex flex-col gap-1">
             <span className="text-[13.5px] font-medium">{greeting}</span>
-            <span className={cn(mono, "text-foreground/30")}>
+            <span className={cn(mono, "text-muted-foreground")}>
               typically replies in a minute
             </span>
           </div>

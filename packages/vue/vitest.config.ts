@@ -17,6 +17,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**"],
+      thresholds: {
+        lines: 95,
+        functions: 95,
+        branches: 85,
+        statements: 93,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "jsdom",
     fsModuleCache: true,

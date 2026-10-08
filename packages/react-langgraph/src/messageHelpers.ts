@@ -27,20 +27,21 @@ export const getPendingToolCallGroups = (
   messages: LangChainMessage[],
   resolveGroupKey: (
     message: Extract<LangChainMessage, { type: "ai" }>,
+    toolCall: LangChainToolCall,
   ) => string | undefined = pendingToolCallGroupKey,
 ): PendingToolCallGroup[] => {
   const pendingToolCalls = scanPendingToolCalls(
     messages,
     (message) => {
       if (message.type === "ai") {
-        const groupKey =
-          resolveGroupKey(message) ?? pendingToolCallGroupKey(message);
         return {
-          toolCalls: groupKey
-            ? (message.tool_calls ?? []).flatMap((toolCall) =>
-                hasToolCallId(toolCall) ? [{ toolCall, groupKey }] : [],
-              )
-            : [],
+          toolCalls: (message.tool_calls ?? []).flatMap((toolCall) => {
+            if (!hasToolCallId(toolCall)) return [];
+            const groupKey =
+              resolveGroupKey(message, toolCall) ??
+              pendingToolCallGroupKey(message);
+            return groupKey ? [{ toolCall, groupKey }] : [];
+          }),
         };
       }
       if (message.type === "tool") {

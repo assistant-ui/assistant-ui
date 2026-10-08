@@ -97,6 +97,7 @@ function ModelSelectorRoot({
       efforts,
       effort: activeEffort,
       setEffort,
+      open: open ?? false,
       setOpen,
     }),
     [
@@ -107,6 +108,7 @@ function ModelSelectorRoot({
       efforts,
       activeEffort,
       setEffort,
+      open,
       setOpen,
     ],
   );
@@ -284,9 +286,11 @@ function ModelSelectorContent({
   children,
   ...props
 }: ModelSelectorContentProps) {
-  const { value } = useModelSelectorContext();
-  const { side: renderedSide, popupRef } =
-    useLazyFlipSide<NonNullable<ModelSelectorContentProps["side"]>>();
+  const { value, open } = useModelSelectorContext();
+  const { side: renderedSide, popupRef } = useLazyFlipSide(
+    open,
+    side ?? "bottom",
+  );
   const unfiltered =
     searchable === false || (!searchable && children === undefined);
 

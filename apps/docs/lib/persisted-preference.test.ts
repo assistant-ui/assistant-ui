@@ -173,14 +173,15 @@ it("refreshes on a storage event for its own key only", () => {
 });
 
 it("re-reads the url on popstate", () => {
-  const { preference, emit, getSearch } = setup();
-  expect(preference.get()).toBe("base");
+  const { preference, emit, setSearch, getNotifications } = setup();
 
-  preference.set("radix");
-  expect(getSearch()).toBe("?view=radix-ui");
+  setSearch("?view=radix-ui");
+  expect(preference.get()).toBe("base");
+  expect(getNotifications()).toBe(0);
 
   emit("popstate", {});
   expect(preference.get()).toBe("radix");
+  expect(getNotifications()).toBe(1);
 });
 
 it("keeps the selection for the session when storage is blocked", () => {

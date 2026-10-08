@@ -3,6 +3,13 @@ import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { ThreadMessage } from "../../types/message";
 import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
+import type {
+  DictationAdapter,
+  SpeechSynthesisAdapter,
+} from "../../adapters/speech";
+import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
+import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
+import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import {
   captureThreadRuntimeGeneration,
   disposeThreadRuntime,
@@ -14,6 +21,9 @@ const createRuntime = (disconnectVoice: () => void = vi.fn()) =>
   ({
     voice: { status: { type: "running" } },
     disconnectVoice,
+    composer: { dictation: undefined },
+    messages: [],
+    speech: undefined,
   }) as unknown as ThreadRuntimeCore;
 
 describe("thread runtime lifecycle", () => {
@@ -177,5 +187,183 @@ describe("thread runtime lifecycle", () => {
       error,
     );
     expect(captureThreadRuntimeGeneration(runtime).aborted).toBe(true);
+  });
+});
+
+const fakeDictation = () => {
+  const session: DictationAdapter.Session = {
+    status: { type: "running" },
+    stop: vi.fn(async () => {}),
+    cancel: vi.fn(),
+    onSpeechStart: () => () => {},
+    onSpeechEnd: () => () => {},
+    onSpeech: () => () => {},
+  };
+  return {
+    adapter: { listen: () => session } satisfies DictationAdapter,
+    session,
+  };
+};
+
+const fakeSpeech = () => {
+  const utterance: SpeechSynthesisAdapter.Utterance = {
+    status: { type: "running" },
+    cancel: vi.fn(),
+    subscribe: () => () => {},
+  };
+  return {
+    adapter: { speak: () => utterance } satisfies SpeechSynthesisAdapter,
+    utterance,
+  };
+};
+
+describe("thread runtime lifecycle media sessions", () => {
+  const localThread = async () => {
+    const dictation = fakeDictation();
+    const speech = fakeSpeech();
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          dictation: dictation.adapter,
+          speech: speech.adapter,
+        },
+      },
+      [{ role: "assistant", content: "hello" }],
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    return { thread, dictation, speech };
+  };
+
+  const addSiblingBranch = (
+    thread: Awaited<ReturnType<typeof localThread>>["thread"],
+  ) => {
+    const original = thread.messages[0]!;
+    const siblingId = "sibling";
+    thread.import({
+      headId: original.id,
+      messages: [
+        ...thread.export().messages,
+        { parentId: null, message: { ...original, id: siblingId } },
+      ],
+    });
+    return siblingId;
+  };
+
+  it("ends a live dictation session when the thread runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    thread.composer.startDictation();
+    expect(thread.composer.dictation).toBeDefined();
+
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
+  });
+
+  it("stops a dictation session once when a superseded runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    thread.composer.startDictation();
+
+    supersedeThreadRuntime(thread);
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends dictation started in an edit composer when the thread runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    thread.beginEdit(messageId);
+    const edit = thread.getEditComposer(messageId)!;
+    edit.startDictation();
+    expect(edit.dictation).toBeDefined();
+
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
+  });
+
+  it("ends dictation in an off-branch edit composer when the thread runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    const siblingId = addSiblingBranch(thread);
+    thread.beginEdit(messageId);
+    const edit = thread.getEditComposer(messageId)!;
+    edit.startDictation();
+
+    thread.switchToBranch(siblingId);
+    expect(thread.messages.map((message) => message.id)).not.toContain(
+      messageId,
+    );
+    expect(thread.getEditComposer(messageId)).toBe(edit);
+    expect(edit.dictation).toBeDefined();
+
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
+  });
+
+  it("stops speech when the thread runtime is disposed", async () => {
+    const { thread, speech } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    thread.speak(messageId);
+    expect(thread.speech?.messageId).toBe(messageId);
+
+    disposeThreadRuntime(thread);
+
+    expect(speech.utterance.cancel).toHaveBeenCalled();
+  });
+
+  it("stops speech for an off-branch message when the thread runtime is disposed", async () => {
+    const { thread, speech } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    const siblingId = addSiblingBranch(thread);
+    thread.speak(messageId);
+
+    thread.switchToBranch(siblingId);
+    expect(thread.messages.map((message) => message.id)).not.toContain(
+      messageId,
+    );
+    expect(thread.speech?.messageId).toBe(messageId);
+
+    disposeThreadRuntime(thread);
+
+    expect(speech.utterance.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends the dictation of an external-store thread the list switches away from", () => {
+    const dictation = fakeDictation();
+    const make = (threadId: string): ExternalStoreAdapter => ({
+      messages: [],
+      onNew: async () => {},
+      adapters: {
+        dictation: dictation.adapter,
+        threadList: {
+          threadId,
+          threads: [
+            { status: "regular", id: "t1", title: "one" },
+            { status: "regular", id: "t2", title: "two" },
+          ],
+        },
+      },
+    });
+    const core = new ExternalStoreRuntimeCore(make("t1"));
+    const first = core.threads.getMainThreadRuntimeCore();
+    first.composer.startDictation();
+
+    core.setAdapter(make("t2"));
+    expect(core.threads.getMainThreadRuntimeCore()).not.toBe(first);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
   });
 });

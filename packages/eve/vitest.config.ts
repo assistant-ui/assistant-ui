@@ -5,6 +5,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/testUtils.ts"],
+      thresholds: {
+        lines: 97,
+        functions: 97,
+        branches: 93,
+        statements: 96,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     fsModuleCache: true,
   },

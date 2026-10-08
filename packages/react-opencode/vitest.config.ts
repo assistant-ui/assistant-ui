@@ -5,6 +5,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/testUtils.ts"],
+      thresholds: {
+        lines: 87,
+        functions: 82,
+        branches: 70,
+        statements: 85,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "node",
     pool: "threads",
