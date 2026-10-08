@@ -1353,6 +1353,8 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
+    // Identity protects a replacement draft that reused this local id.
+    const draftAtDelete = getThreadData(this._state.baseValue, data.id);
 
     let remoteId: string | undefined;
     try {
@@ -1378,12 +1380,21 @@ export class RemoteThreadListThreadListRuntimeCore
       });
     } catch (error) {
       const hideDeletedThread = () => {
-        if (
-          adapterGeneration === this._adapterGeneration ||
-          !this._replaceListOnNextLoad
-        )
-          return;
+        if (adapterGeneration === this._adapterGeneration) return;
         const current = getThreadData(this._state.baseValue, data.id);
+        if (
+          current?.status === "new" &&
+          current === draftAtDelete &&
+          this._mainThreadId !== current.id
+        ) {
+          this._state.update(
+            deleteThreadReducer(this._state.baseValue, data.id, undefined),
+          );
+          this._hookManager.stopThreadRuntime(data.id);
+          clearThreadTitleState(this._titleStates, data.id);
+          return;
+        }
+        if (!this._replaceListOnNextLoad) return;
         if (
           current !== undefined &&
           current.status !== "new" &&

@@ -46,7 +46,15 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
       runtimeHook: () => ({}) as never,
     });
     const loadTask = core.getLoadThreadsPromise();
-    replacementList.resolve({ threads: [] });
+    replacementList.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "anchor",
+          externalId: "anchor",
+        },
+      ],
+    });
     await loadTask;
 
     initializing.resolve({
@@ -59,6 +67,60 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
     expect(core.newThreadId).toBe(localId);
     expect(core.getItemById(localId)?.status).toBe("new");
     expect(core.getItemById(localId)?.remoteId).toBeUndefined();
+  });
+
+  it("keeps a deleted draft hidden when the replacement list resolves before initialization", async () => {
+    const initializing = deferred<InitializeResult>();
+    const replacementList = deferred<ListResult>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "anchor",
+            externalId: "anchor",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const newAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const core = createCore(oldAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+    const deleteTask = core.delete(localId);
+
+    core.__internal_setOptions({
+      adapter: newAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+    replacementList.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "anchor",
+          externalId: "anchor",
+        },
+      ],
+    });
+    await loadTask;
+    expect(core.mainThreadId).not.toBe(localId);
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+    await expect(deleteTask).rejects.toThrow("adapter changed");
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.getItemById(localId)).toBeUndefined();
   });
 
   it("keeps a deleted draft hidden while a replacement adapter loads", async () => {
