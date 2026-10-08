@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -57,17 +58,23 @@ export type ReasoningRootProps = Omit<
     onAnimationStart?: () => void;
   };
 
-function ReasoningRoot({
-  className,
-  variant,
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
-  defaultOpen = false,
-  streaming,
-  onAnimationStart,
-  children,
-  ...props
-}: ReasoningRootProps) {
+const ReasoningRoot = forwardRef<
+  HTMLDivElement,
+  Omit<ReasoningRootProps, "ref">
+>(function ReasoningRoot(
+  {
+    className,
+    variant,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+    defaultOpen = false,
+    streaming,
+    onAnimationStart,
+    children,
+    ...props
+  },
+  ref,
+) {
   const [initialOpen] = useState(defaultOpen);
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
@@ -101,6 +108,7 @@ function ReasoningRoot({
 
   return (
     <Collapsible
+      ref={ref}
       data-slot="reasoning-root"
       data-variant={variant}
       open={isOpen}
@@ -121,7 +129,7 @@ function ReasoningRoot({
       </ReasoningPreviewContext.Provider>
     </Collapsible>
   );
-}
+});
 
 function ReasoningFade({
   side = "bottom",
