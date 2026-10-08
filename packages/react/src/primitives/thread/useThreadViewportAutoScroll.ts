@@ -1,6 +1,6 @@
 "use client";
 
-import { useComposedRefs } from "radix-ui/internal";
+import { useCallbackRef, useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
@@ -198,6 +198,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const scrolledSincePauseRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
 
+  const setIsAtBottom = useCallback(
+    (isAtBottom: boolean) => {
+      if (threadViewportStore.getState().isAtBottom === isAtBottom) return;
+      writableStore(threadViewportStore).setState({ isAtBottom });
+    },
+    [threadViewportStore],
+  );
+
   useLayoutEffect(() => {
     const previousAutoScroll = previousAutoScrollRef.current;
     previousAutoScrollRef.current = autoScroll;
@@ -207,16 +215,20 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     followBottomRef.current = div !== null && isViewportAtBottom(div);
   }, [autoScroll]);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
-    const div = divRef.current;
-    if (!div) return;
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior) => {
+      const div = divRef.current;
+      if (!div) return;
 
-    followBottomRef.current = true;
-    followPausedRef.current = false;
-    scrollingToBottomBehaviorRef.current = behavior;
-    prependAnchorRef.current = null;
-    div.scrollTo({ top: div.scrollHeight, behavior });
-  }, []);
+      followBottomRef.current = true;
+      followPausedRef.current = false;
+      scrollingToBottomBehaviorRef.current = behavior;
+      prependAnchorRef.current = null;
+      setIsAtBottom(true);
+      div.scrollTo({ top: div.scrollHeight, behavior });
+    },
+    [setIsAtBottom],
+  );
 
   const cancelScheduledFrame = useCallback(() => {
     if (scheduledFrameRef.current === null) return;
@@ -294,17 +306,15 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       const shouldUpdate =
         newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
 
-      if (shouldUpdate && newIsAtBottom !== isAtBottom) {
-        writableStore(threadViewportStore).setState({
-          isAtBottom: newIsAtBottom,
-        });
-      }
+      if (shouldUpdate && newIsAtBottom !== isAtBottom)
+        setIsAtBottom(newIsAtBottom);
     }
 
     lastScrollTop.current = div.scrollTop;
     lastScrollHeight.current = div.scrollHeight;
     firstMessageRef.current = measureFirstMessage(div);
   };
+  const handleScrollRef = useCallbackRef(handleScroll);
 
   const resizeRef = useOnResizeContent(() => {
     const div = divRef.current;
@@ -320,127 +330,144 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastObservedScrollHeight.current = scrollHeight;
     lastObservedClientHeight.current = clientHeight;
 
-    const scrollBehavior = scrollingToBottomBehaviorRef.current;
-    if (scrollBehavior && hasActiveTopAnchor()) {
-      // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
-      scrollingToBottomBehaviorRef.current = null;
-    } else if (scrollBehavior) {
-      scrollToBottom(scrollBehavior);
-    } else if (
-      autoScroll &&
-      !(isRunning && hasActiveTopAnchor()) &&
-      followBottomRef.current &&
-      !followPausedRef.current
-    ) {
-      scrollToBottom("instant");
-    } else if (
-      prependAnchorRef.current &&
-      !keepMessageAt(div, prependAnchorRef.current, heldScrollTopRef)
-    ) {
-      prependAnchorRef.current = null;
+    // A scheduled frame owns the pending behavior; resize callbacks must not apply it early.
+    if (scheduledFrameRef.current === null) {
+      const scrollBehavior = scrollingToBottomBehaviorRef.current;
+      if (scrollBehavior && hasActiveTopAnchor()) {
+        // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
+        scrollingToBottomBehaviorRef.current = null;
+      } else if (scrollBehavior) {
+        scrollToBottom(scrollBehavior);
+      } else if (
+        autoScroll &&
+        !(isRunning && hasActiveTopAnchor()) &&
+        followBottomRef.current &&
+        !followPausedRef.current
+      ) {
+        scrollToBottom("instant");
+      } else if (
+        prependAnchorRef.current &&
+        !keepMessageAt(div, prependAnchorRef.current, heldScrollTopRef)
+      ) {
+        prependAnchorRef.current = null;
+      }
     }
 
     handleScroll();
   });
 
-  const scrollRef = useManagedRef<HTMLElement>((el) => {
-    // A user gesture invalidates pending bottom-scroll intent; otherwise an
-    // intent kept alive by a non-overflowing thread (see handleScroll) hijacks
-    // the next content growth, e.g. expanding a collapsible tool call. Keyboard
-    // activation reaches that same content without ever emitting a pointer
-    // event, so it has to cancel the intent too.
-    const cancelPendingScrollToBottom = () => {
-      // With nothing pending, the last scroll event already published isAtBottom.
-      if (
-        scrollingToBottomBehaviorRef.current === null &&
-        scheduledFrameRef.current === null
-      )
-        return;
-      // A scheduled frame re-plants the intent when it runs, so clearing the
-      // ref alone leaves the gesture undone.
-      cancelScheduledFrame();
-      scrollingToBottomBehaviorRef.current = null;
-      handleScroll();
-    };
-    // The composer renders inside the viewport, so its keystrokes bubble here;
-    // cancellation keys only represent a gesture on thread content when they
-    // originate outside text entry.
-    const cancelOnKeyDown = (event: KeyboardEvent) => {
-      if (!INTENT_CANCEL_KEYS.has(event.key)) return;
-      const target = event.target as Element | null;
-      if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
-      cancelPendingScrollToBottom();
-    };
-    // Expanding a disclosure inside a message, such as a reasoning block or a
-    // tool call card, means the reader is inspecting it, so bottom follow
-    // pauses until the reader scrolls or asks for the bottom again. Every
-    // other interaction, including copying or selecting text, keeps
-    // following. Activation is read from click, which keyboard activation also
-    // dispatches, in the capture phase so the state is read before any handler
-    // on the disclosure flips it or stops the event.
-    const pauseFollowOnExpand = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (
-        !target?.closest?.(MESSAGE_SELECTOR) ||
-        target.closest(TEXT_ENTRY_SELECTOR) ||
-        !isOpeningDisclosure(target)
-      )
-        return;
-      followPausedRef.current = true;
-      scrolledSincePauseRef.current = false;
-      cancelPendingScrollToBottom();
-    };
-    const noteScrollGesture = (event: Event) => {
-      if (event instanceof KeyboardEvent) {
-        if (!SCROLL_KEYS.has(event.key)) return;
-        if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
-          return;
-      } else if (event.type === "pointerdown" && event.target !== el) {
-        return;
-      }
-      scrolledSincePauseRef.current = true;
-    };
-    const releasePrependAnchor = () => {
-      prependAnchorRef.current = null;
-    };
-    const gestures = ["pointerdown", "wheel", "touchstart", "keydown"] as const;
-    const resumeGestures = [
-      "pointerdown",
-      "wheel",
-      "touchmove",
-      "keydown",
-    ] as const;
-    el.addEventListener("scroll", handleScroll);
-    el.addEventListener("pointerdown", cancelPendingScrollToBottom);
-    el.addEventListener("wheel", cancelPendingScrollToBottom, {
-      passive: true,
-    });
-    el.addEventListener("touchstart", cancelPendingScrollToBottom, {
-      passive: true,
-    });
-    el.addEventListener("keydown", cancelOnKeyDown);
-    el.addEventListener("click", pauseFollowOnExpand, { capture: true });
-    for (const gesture of resumeGestures) {
-      el.addEventListener(gesture, noteScrollGesture, { passive: true });
-    }
-    for (const gesture of gestures) {
-      el.addEventListener(gesture, releasePrependAnchor, { passive: true });
-    }
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-      el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
-      el.removeEventListener("wheel", cancelPendingScrollToBottom);
-      el.removeEventListener("touchstart", cancelPendingScrollToBottom);
-      el.removeEventListener("keydown", cancelOnKeyDown);
-      el.removeEventListener("click", pauseFollowOnExpand, { capture: true });
-      for (const gesture of resumeGestures) {
-        el.removeEventListener(gesture, noteScrollGesture);
-      }
-      for (const gesture of gestures) {
-        el.removeEventListener(gesture, releasePrependAnchor);
-      }
-    };
-  });
+  const scrollRef = useManagedRef<HTMLElement>(
+    useCallback(
+      (el) => {
+        // A user gesture invalidates pending bottom-scroll intent; otherwise an
+        // intent kept alive by a non-overflowing thread (see handleScroll) hijacks
+        // the next content growth, e.g. expanding a collapsible tool call. Keyboard
+        // activation reaches that same content without ever emitting a pointer
+        // event, so it has to cancel the intent too.
+        const cancelPendingScrollToBottom = () => {
+          // With nothing pending, the last scroll event already published isAtBottom.
+          if (
+            scrollingToBottomBehaviorRef.current === null &&
+            scheduledFrameRef.current === null
+          )
+            return;
+          // A scheduled frame re-plants the intent when it runs, so clearing the
+          // ref alone leaves the gesture undone.
+          cancelScheduledFrame();
+          scrollingToBottomBehaviorRef.current = null;
+          handleScrollRef();
+        };
+        // The composer renders inside the viewport, so its keystrokes bubble here;
+        // cancellation keys only represent a gesture on thread content when they
+        // originate outside text entry.
+        const cancelOnKeyDown = (event: KeyboardEvent) => {
+          if (!INTENT_CANCEL_KEYS.has(event.key)) return;
+          const target = event.target as Element | null;
+          if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
+          cancelPendingScrollToBottom();
+        };
+        // Expanding a disclosure inside a message, such as a reasoning block or a
+        // tool call card, means the reader is inspecting it, so bottom follow
+        // pauses until the reader scrolls or asks for the bottom again. Every
+        // other interaction, including copying or selecting text, keeps
+        // following. Activation is read from click, which keyboard activation also
+        // dispatches, in the capture phase so the state is read before any handler
+        // on the disclosure flips it or stops the event.
+        const pauseFollowOnExpand = (event: MouseEvent) => {
+          const target = event.target as Element | null;
+          if (
+            !target?.closest?.(MESSAGE_SELECTOR) ||
+            target.closest(TEXT_ENTRY_SELECTOR) ||
+            !isOpeningDisclosure(target)
+          )
+            return;
+          followPausedRef.current = true;
+          scrolledSincePauseRef.current = false;
+          cancelPendingScrollToBottom();
+        };
+        const noteScrollGesture = (event: Event) => {
+          if (event instanceof KeyboardEvent) {
+            if (!SCROLL_KEYS.has(event.key)) return;
+            if (
+              (event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR)
+            )
+              return;
+          } else if (event.type === "pointerdown" && event.target !== el) {
+            return;
+          }
+          scrolledSincePauseRef.current = true;
+        };
+        const releasePrependAnchor = () => {
+          prependAnchorRef.current = null;
+        };
+        const gestures = [
+          "pointerdown",
+          "wheel",
+          "touchstart",
+          "keydown",
+        ] as const;
+        const resumeGestures = [
+          "pointerdown",
+          "wheel",
+          "touchmove",
+          "keydown",
+        ] as const;
+        el.addEventListener("scroll", handleScrollRef);
+        el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+        el.addEventListener("wheel", cancelPendingScrollToBottom, {
+          passive: true,
+        });
+        el.addEventListener("touchstart", cancelPendingScrollToBottom, {
+          passive: true,
+        });
+        el.addEventListener("keydown", cancelOnKeyDown);
+        el.addEventListener("click", pauseFollowOnExpand, { capture: true });
+        for (const gesture of resumeGestures) {
+          el.addEventListener(gesture, noteScrollGesture, { passive: true });
+        }
+        for (const gesture of gestures) {
+          el.addEventListener(gesture, releasePrependAnchor, { passive: true });
+        }
+        return () => {
+          el.removeEventListener("scroll", handleScrollRef);
+          el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+          el.removeEventListener("wheel", cancelPendingScrollToBottom);
+          el.removeEventListener("touchstart", cancelPendingScrollToBottom);
+          el.removeEventListener("keydown", cancelOnKeyDown);
+          el.removeEventListener("click", pauseFollowOnExpand, {
+            capture: true,
+          });
+          for (const gesture of resumeGestures) {
+            el.removeEventListener(gesture, noteScrollGesture);
+          }
+          for (const gesture of gestures) {
+            el.removeEventListener(gesture, releasePrependAnchor);
+          }
+        };
+      },
+      [cancelScheduledFrame, handleScrollRef],
+    ),
+  );
 
   // Earlier messages prepended above the reader put the old first message back
   // where the reader saw it, so growth below it in the same commit (a

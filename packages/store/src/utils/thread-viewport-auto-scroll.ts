@@ -55,6 +55,7 @@ export const createThreadViewportAutoScroll = (input: {
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     if (!element) return;
     intent = behavior;
+    setAtBottom(true);
     element.scrollTo?.({ top: element.scrollHeight, behavior });
   };
 
@@ -96,6 +97,7 @@ export const createThreadViewportAutoScroll = (input: {
   };
 
   const followGrowth = () => {
+    if (frame !== null) return;
     if (intent) {
       scrollToBottom(intent);
     } else if (input.getOptions().autoScroll && isAtBottom) {
@@ -119,10 +121,11 @@ export const createThreadViewportAutoScroll = (input: {
     handleScroll();
   };
 
-  // A pointer gesture clears retained intent and a queued frame so neither can hijack the next content growth.
-  const onPointerdown = () => {
+  // Scroll gestures clear retained intent and a queued frame before content growth can hijack it.
+  const cancelScrollIntent = () => {
     intent = null;
     cancelFrame();
+    handleScroll();
   };
 
   const checkInitialize = () => {
@@ -149,14 +152,18 @@ export const createThreadViewportAutoScroll = (input: {
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
       el.addEventListener("scroll", handleScroll);
-      el.addEventListener("pointerdown", onPointerdown);
+      el.addEventListener("pointerdown", cancelScrollIntent);
+      el.addEventListener("wheel", cancelScrollIntent, { passive: true });
+      el.addEventListener("touchstart", cancelScrollIntent, { passive: true });
       checkInitialize();
       if (contentInset > 0) followGrowth();
       const detach = () => {
         if (detachAttached !== detach) return;
         disconnect();
         el.removeEventListener("scroll", handleScroll);
-        el.removeEventListener("pointerdown", onPointerdown);
+        el.removeEventListener("pointerdown", cancelScrollIntent);
+        el.removeEventListener("wheel", cancelScrollIntent);
+        el.removeEventListener("touchstart", cancelScrollIntent);
         cancelFrame();
         if (element === el) element = null;
         detachAttached = null;

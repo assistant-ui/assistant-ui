@@ -326,6 +326,42 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
+  it("keeps content observers attached across an unrelated rerender", () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+    const observe = vi.spyOn(TestResizeObserver.prototype, "observe");
+    const disconnect = vi.spyOn(TestResizeObserver.prototype, "disconnect");
+    const observeMutations = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnectMutations = vi.spyOn(
+      MutationObserver.prototype,
+      "disconnect",
+    );
+    try {
+      view.rerender(
+        <SyncRuntimeProvider>
+          <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        </SyncRuntimeProvider>,
+      );
+
+      expect(observe).not.toHaveBeenCalled();
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(observeMutations).not.toHaveBeenCalled();
+      expect(disconnectMutations).not.toHaveBeenCalled();
+
+      view.unmount();
+      expect(disconnect).toHaveBeenCalled();
+      expect(disconnectMutations).toHaveBeenCalled();
+    } finally {
+      observe.mockRestore();
+      disconnect.mockRestore();
+      observeMutations.mockRestore();
+      disconnectMutations.mockRestore();
+    }
+  });
+
   it("preserves smooth scrolling from a control outside the viewport", async () => {
     render(
       <SyncRuntimeProvider>
