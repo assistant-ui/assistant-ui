@@ -1,3 +1,5 @@
+<!-- Delete the sections that do not apply. docs, test, ci and chore changes usually need only Problem, Change and Verification. -->
+
 Closes #
 
 <!-- Or the issue this follows up, or why there is none. A feat links the issue where a maintainer confirmed the direction. If this is stacked on another pull request, name it. -->
@@ -8,7 +10,7 @@ Closes #
 
 ## Root cause
 
-<!-- The mechanism that produced the behavior. -->
+<!-- Fixes only: the mechanism that produced the behavior. -->
 
 ## Change
 
