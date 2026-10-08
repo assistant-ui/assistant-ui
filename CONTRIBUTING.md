@@ -63,8 +63,8 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 | T2 | A contract area (`packages/tap`, `packages/store`, `packages/assistant-stream`, `api-surface/`, `.github/`, the policy scripts, the tap and store docs), added or changed public exports, a changed `exports` map or manifest contract field, or a new `@deprecated` | 2 maintainer approvals, at least 1 from an owner of each affected area, and 24 hours open after ready for review |
 | T3 | A `behavior-change` label, a removed or renamed export or entry point, a new package or subpath, a new runtime, peer or optional dependency or an upstream major, a `refactor` that spans two or more packages, workflow permissions, secrets or privileged triggers, release workflows, or this policy (`.github/review-policy.json` and the scripts and workflows that enforce it) | T2's approvals, a linked issue labeled `decision: accepted` by an owner of the affected area (by a maintainer when no contract area is affected), and 72 hours open after ready for review |
 
-- Approvals count only on the current head, so every push, autofix commits included, needs fresh approvals. They never count from the author or from anyone who authored or committed a commit in the pull request.
-- Every review thread is resolved before merge, and the `autofix`, `Build Changed Packages`, `Test Changed Packages`, `Typecheck Changed Packages`, `Review Policy Scripts` and `review-tier` checks pass.
+- Approvals count only on the current head, so every push, autofix commits included, needs fresh approvals. They never count from the author or from anyone who authored or committed a commit in the pull request; committing a review suggestion or updating the branch from the web makes you one.
+- Every review thread is resolved before merge, the `autofix`, `Build Changed Packages`, `Test Changed Packages`, `Typecheck Changed Packages` and `Review Policy Scripts` checks pass, and the `review-tier` comment lists nothing still needed.
 - Size never lowers a tier. A T2 or T3 pull request that changes more than 400 lines outside tests, generated files and the T0 paths lands as a stack of smaller pull requests.
 - The title type is a claim reviewers hold the pull request to: `fix` carries a regression test, `feat` links an issue where a maintainer confirmed the direction, and `perf` attaches x-performance numbers. The check verifies `refactor`: it fails a refactor that changes `api-surface/`, an `exports` map or an existing test assertion.
 - An owner of the affected area may add `review-tier/override: size`, `review-tier/override: type` or `review-tier/override: window`, with a comment giving the reason. An override waives that one signal until the label is removed and never lowers the approvals a tier needs.
@@ -77,7 +77,7 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 
 - State in the pull request which tools wrote or changed code and how you verified the result. You must be able to explain every line; a pull request its author cannot explain is closed without review.
 - Bots open draft pull requests only. A maintainer who adopts a bot draft becomes its accountable author.
-- Contributors without write access can have 3 open non-draft pull requests at a time, and contributors with write access who are not maintainers 5. The check fails every pull request of an author over the cap until one is closed or converted to a draft.
+- Contributors without write access can have 3 open non-draft pull requests at a time, and contributors with write access who are not maintainers 5. While an author is over the cap, the check fails their pull requests, and it checks them again when one is closed or converted to a draft.
 - Rebase only to resolve a conflict; the merge queue tests every pull request against the latest `main`.
 
 ### Adding a changeset
