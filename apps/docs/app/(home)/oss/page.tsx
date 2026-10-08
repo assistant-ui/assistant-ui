@@ -207,10 +207,10 @@ function ProjectRow({
           {project.description}
         </p>
         {supplementalDestinations.length > 0 ? (
-          <div className="relative z-10 mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+          <div className="pointer-events-none relative z-10 mt-1 flex flex-wrap items-baseline gap-x-4">
             <ProjectDestinationLinks
               destinations={supplementalDestinations}
-              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground font-mono text-[11px] tracking-wide transition-colors focus-visible:underline"
+              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground pointer-events-auto py-1 font-mono text-[11px] tracking-wide transition-colors focus-visible:underline"
             />
           </div>
         ) : null}
