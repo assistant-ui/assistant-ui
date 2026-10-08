@@ -89,7 +89,6 @@ import {
 import { getResumedStreamIds } from "./DynamicChatTransport";
 import { AI_SDK_SDK } from "./sdkIdentity";
 import { useChatRuntime } from "./useChatRuntime";
-import { splitChatThreadOptions } from "./useChatThread";
 
 const onReact18 = version.startsWith("18.");
 
@@ -260,9 +259,9 @@ describe.skipIf(onReact18)("useChatRuntime", () => {
       expect.anything(),
       expect.objectContaining({ unstable_enableMessageQueue: true }),
     );
-    expect(
-      splitChatThreadOptions({ unstable_enableMessageQueue: true }).chatInit,
-    ).not.toHaveProperty("unstable_enableMessageQueue");
+    expect(mocks.useChat.mock.lastCall?.[0]).not.toHaveProperty(
+      "unstable_enableMessageQueue",
+    );
   });
 
   it("waits for external history to load before resuming a stream", async () => {

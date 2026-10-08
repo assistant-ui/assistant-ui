@@ -34,10 +34,12 @@ export const useMessageQueue = ({
   const sendRef = useRef(send);
   const cancelRef = useRef(cancel);
   const interruptRef = useRef(interrupt);
+  const heldRef = useRef(!enabled || isSendDisabled);
   useInsertionEffect(() => {
     sendRef.current = send;
     cancelRef.current = cancel;
     interruptRef.current = interrupt;
+    heldRef.current = !enabled || isSendDisabled;
   });
 
   const cancelsRef = useRef(0);
@@ -53,6 +55,8 @@ export const useMessageQueue = ({
   const busyEdgesRef = useRef(0);
   const idleWaitersRef = useRef<(() => void)[]>([]);
   const lastDispatchRef = useRef<Promise<void>>(Promise.resolve());
+  const mountedRef = useRef(true);
+  const generationRef = useRef(0);
 
   const queueRef = useRef<MessageQueueController | null>(null);
   if (enabled && !queueRef.current) {
@@ -60,20 +64,34 @@ export const useMessageQueue = ({
       run: (message) => {
         const previous = lastDispatchRef.current;
         const cancels = cancelsRef.current;
+        const generation = generationRef.current;
         lastDispatchRef.current = (async () => {
           // A stopped AI SDK request still reports its status and runs its
           // onFinish once it settles, so a send waits for the previous one
           // and for the chat to be seen idle.
           await previous;
-          while (reportedRef.current.busy) {
-            await new Promise<void>((resolve) => {
-              idleWaitersRef.current.push(resolve);
-            });
+          let settledCancels = cancels;
+          while (true) {
+            if (!mountedRef.current || generation !== generationRef.current) {
+              controller.notifyIdle();
+              return;
+            }
+            if (heldRef.current || reportedRef.current.busy) {
+              await new Promise<void>((resolve) => {
+                idleWaitersRef.current.push(resolve);
+              });
+              continue;
+            }
+            // The runtime schedules its cancellation rollback before returning.
+            // A later task lets that rollback commit before this append.
+            if (settledCancels !== cancelsRef.current) {
+              settledCancels = cancelsRef.current;
+              await new Promise((resolve) => setTimeout(resolve));
+              continue;
+            }
+            break;
           }
-          const overtaken = cancels !== cancelsRef.current;
-          // A cancel writes its rollback to the chat a task later, which
-          // would overwrite a message appended before then.
-          if (overtaken) await new Promise((resolve) => setTimeout(resolve));
+          const overtaken = settledCancels !== cancels;
           const busyEdges = busyEdgesRef.current;
           try {
             await sendRef.current(
@@ -95,10 +113,8 @@ export const useMessageQueue = ({
       },
     });
     queueRef.current = controller;
-  } else if (!enabled && queueRef.current) {
-    queueRef.current = null;
   }
-  const controller = enabled ? queueRef.current : null;
+  const controller = queueRef.current;
 
   useSyncExternalStore(
     controller?.subscribe ?? subscribeNoop,
@@ -112,30 +128,48 @@ export const useMessageQueue = ({
   );
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      controller?.hold();
+      const waiters = idleWaitersRef.current;
+      idleWaitersRef.current = [];
+      for (const resolve of waiters) resolve();
+    };
+  }, [controller]);
+
+  useEffect(() => {
     if (!controller) return;
-    if (isSendDisabled) controller.hold();
+    if (!enabled || isSendDisabled) controller.hold();
     else controller.release();
-  }, [controller, isSendDisabled]);
+  }, [controller, enabled, isSendDisabled]);
 
   useEffect(() => {
     const reported = reportedRef.current;
-    if (reported.controller === controller && reported.busy === isRunning)
-      return;
-    reportedRef.current = { controller, busy: isRunning };
-    if (isRunning) {
-      busyEdgesRef.current++;
-      controller?.notifyBusy();
-      return;
+    if (reported.controller !== controller || reported.busy !== isRunning) {
+      reportedRef.current = { controller, busy: isRunning };
+      if (isRunning) {
+        busyEdgesRef.current++;
+        controller?.notifyBusy();
+      } else {
+        controller?.notifyIdle();
+      }
     }
-    controller?.notifyIdle();
+    if (!enabled || isSendDisabled || isRunning) return;
     const waiters = idleWaitersRef.current;
     idleWaitersRef.current = [];
     for (const resolve of waiters) resolve();
-  }, [controller, isRunning]);
+  }, [controller, enabled, isRunning, isSendDisabled]);
 
   return {
-    adapter: controller?.adapter,
+    adapter: enabled ? controller?.adapter : undefined,
     cancel: cancelRun,
-    clear: () => controller?.clear(),
+    clear: () => {
+      generationRef.current++;
+      controller?.clear();
+      const waiters = idleWaitersRef.current;
+      idleWaitersRef.current = [];
+      for (const resolve of waiters) resolve();
+    },
   };
 };

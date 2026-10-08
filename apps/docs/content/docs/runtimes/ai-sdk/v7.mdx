@@ -749,7 +749,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-A message sent while a run is in progress steers by default: the run stops, client-side tools included, and the message is sent once the stopped request has settled, so its `onFinish` never runs beside the new request. This differs from the local and LangGraph runtimes, where a steer runs next without stopping the current response. `send({ steer: false })` queues a follow-up instead. Pending messages are held in `composer.queue` and sent one request at a time as each run settles. Cancelling the run keeps them, and the next send resumes draining. Editing a message or reloading a response drops them. While `isSendDisabled` is `true`, pending messages wait.
+A message sent while a run is in progress steers by default: the run stops, client-side tools included, and the message is sent once the stopped request has settled, so its `onFinish` never runs beside the new request. This differs from the local and LangGraph runtimes, where a steer runs next without stopping the current response. `send({ steer: false })` queues a follow-up instead. Pending messages are held in `composer.queue` and sent one request at a time as each run settles. Cancelling the run keeps them, and the next send resumes draining. Editing a message or reloading a response drops them. While `isSendDisabled` is `true`, pending messages wait. Disabling `unstable_enableMessageQueue` hides and holds the queue without discarding its messages. Re-enabling it resumes those messages after the current run settles.
 
 Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
 
