@@ -3,7 +3,7 @@ title: AI SDK v7
 description: Integrate Vercel AI SDK v7 with assistant-ui for streaming chat.
 ---
 
-Current-version integration. Requires `ai@^7` and `@ai-sdk/react@^4`. For older versions see the [overview](/docs/runtimes/ai-sdk/overview).
+This page covers the current integration, which requires `ai@^7` and `@ai-sdk/react@^4`. For older versions see the [overview](/docs/runtimes/ai-sdk/overview).
 
 ## Quickstart
 
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages), // async in v7
     tools: {
       get_current_weather: tool({
@@ -245,7 +245,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     system,
     messages: await convertToModelMessages(messages),
     tools: {
@@ -280,7 +280,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       /* ... */
@@ -311,7 +311,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       deploy: tool({
@@ -345,7 +345,6 @@ import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   const chat = useChat({
-    api: "/api/chat",
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
@@ -415,7 +414,6 @@ const toolkit = defineToolkit({
 
 export default function Page() {
   const chat = useChat({
-    api: "/api/chat",
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
@@ -447,7 +445,7 @@ import { openai } from "@ai-sdk/openai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
   return createUIMessageStreamResponse({
@@ -553,7 +551,7 @@ The adapter **must** implement `withFormat`. `useChatRuntime` persists history t
 </Callout>
 
 <Callout type="info">
-For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
+For server-side cloud persistence without writing an adapter, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
 </Callout>
 
 ```tsx
@@ -611,6 +609,13 @@ const runtime = useChatRuntime({
   transport: new AssistantChatTransport({ api: "/my-custom-api/chat" }),
 });
 ```
+
+`useChatRuntime`, `AISDKChat`, and `AISDKThreads` clone
+`AssistantChatTransport` instances per thread so their assistant-ui runtime
+wiring stays isolated. Subclasses that keep additional constructor arguments or
+instance fields should override `__internal_clone()` to preserve that state.
+Other AI SDK `ChatTransport` instances passed directly are shared as-is;
+`AISDKThreads` invokes a transport factory once per thread.
 
 If you need a transport that does not inherit from `AssistantChatTransport`, you forfeit automatic system-message and frontend-tool forwarding; the transport is then a regular AI SDK `ChatTransport` and you control everything explicitly.
 
@@ -684,11 +689,20 @@ const runtime = useChatRuntime({
 });
 ```
 
-The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text` and `reason`) together with the `toolCallId` and `toolName` it answers.
+The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text`, `answers` and `reason`, where `answers` holds a `display: "questions"` request's answers keyed by question id) together with the `toolCallId` and `toolName` it answers.
 
-The answer applies to the approval as soon as the handler starts, and a second response to the same request is rejected while the runtime that received it stays mounted. It is held by that runtime and never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot send it to your chat route. A reload, or a runtime mounted again over the same chat (for example switching away from an in-memory thread and back), shows the request open until the chat records its resolution, so bring the resumed run back into the chat (for example with `resumeStream`) and have your endpoint refuse a second resume. If the handler throws, the request reopens and `respondToApproval` rejects with the handler's error.
+The answer applies as soon as the handler starts and stays out of the `useChat` messages, so `sendAutomaticallyWhen` cannot send it to your chat route. `AISDKThreads` passes its `Chat` as `unstable_hostApprovalOwner`, so an in-memory answer survives switching away and back. A direct `useAISDKRuntime` caller can pass the `Chat` it renders:
 
-While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, so select and text requests render their own controls. The AI SDK's approval object does not declare these fields and `validateUIMessages` strips them, so stream them as the `approvalDescriptor` of the `tool-approval-request` chunk, which arrives as `approval.descriptor` and survives a reload. The converter reads `prompt`, `display`, `allowFreeform`, `dismissible`, `options`, `optionId`, `text` and `resolution` from a descriptor object when the approval itself does not carry them; `id`, `approved`, `reason` and `isAutomatic` always come from the AI SDK, and the descriptor stays on the part unchanged for custom renderers.
+```tsx
+const runtime = useAISDKRuntime(useChat({ chat }), {
+  unstable_hostApprovalOwner: chat,
+  onRespondToToolApproval,
+});
+```
+
+Without an owner or history adapter, an answer lasts only as long as the runtime. With a history adapter, answers are stored under `__aui_toolApprovalResponses` and restored on reload. Bring the resumed run back into the chat, for example with `resumeStream`, and have your endpoint refuse a second resume. If the handler throws, the request reopens and `respondToApproval` rejects with the handler's error.
+
+While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, so select and text requests render their own controls. The AI SDK's approval object does not declare these fields and `validateUIMessages` strips them, so stream them as the `approvalDescriptor` of the `tool-approval-request` chunk, which arrives as `approval.descriptor` and survives a reload. The converter reads `prompt`, `display`, `allowFreeform`, `dismissible`, `options`, `optionId`, `text`, `questions`, `answers` and `resolution` from a descriptor object when the approval itself does not carry them; `id`, `approved`, `reason` and `isAutomatic` always come from the AI SDK, and the descriptor stays on the part unchanged for custom renderers.
 
 ```ts title="@/app/api/chat/route.ts"
 const stream = createUIMessageStream({
@@ -737,7 +751,7 @@ const chat = useChat();
 const runtime = useAISDKRuntime(chat);
 ```
 
-`useAISDKRuntime` does not provide `cloud` or the higher-level adapter slots; those are part of `useChatRuntime`. If you need both your own `useChat` access AND cloud thread support, you generally want `useChatRuntime` and to read the chat state through assistant-ui hooks instead.
+`useAISDKRuntime` does not provide `cloud` or the higher-level adapter slots; those are part of `useChatRuntime`. If you need both access to the `useChat` state and cloud thread support, use `useChatRuntime` and read the chat state through assistant-ui hooks.
 
 `useAISDKRuntime` accepts `joinStrategy`, `onResume`, `onRespondToToolApproval`, `messageRepository`, and `unstable_onBranchChange` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
 
@@ -767,8 +781,7 @@ When enabled (the default), sending a new message marks any pending interactive 
 | `ai` package | `ai@^5` | `ai@^7` |
 | `@ai-sdk/react` | `@ai-sdk/react@^2` | `@ai-sdk/react@^4` |
 | `convertToModelMessages` | Sync | Async (`await`) |
-| Tool schema | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
-| Response | `toDataStreamResponse()` | `createUIMessageStreamResponse()` |
+| Response | `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse()` with `toUIMessageStream()` |
 
 ## Example
 
@@ -781,7 +794,7 @@ For responses that should survive a page reload mid-stream, see [Resumable strea
 <Cards>
   <Card
     title="Adapters"
-    description="Attachments, speech, feedback, history, suggestions; one source of truth."
+    description="Attachments, speech, feedback, history, and suggestions."
     href="/docs/runtimes/concepts/adapters"
   />
   <Card

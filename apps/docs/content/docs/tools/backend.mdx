@@ -1,6 +1,6 @@
 ---
 title: Backend Tools
-description: Wire assistant-ui toolkits into your server with the AI SDK — AISDKToolkit, frontendTools, mixing client and server tools, and multi-modal results.
+description: Wire assistant-ui toolkits into your server with the AI SDK using AISDKToolkit and frontendTools, mix client and server tools, and return multi-modal results.
 platforms: ["react"]
 ---
 
@@ -28,7 +28,7 @@ const {
 
 ## Generative toolkits: `AISDKToolkit`
 
-When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler — schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
+When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler: schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
 
 ```ts title="app/api/chat/route.ts"
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     system,
     messages: await convertToModelMessages(messages),
     tools: await aiToolkit.tools({ frontend: tools }),
@@ -53,6 +53,10 @@ export async function POST(req: Request) {
 ```
 
 `AISDKToolkit.tools()` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded frontend tools. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
+
+Parameter schema conversion is cached by schema object identity. Treat schema
+definitions as immutable; replace the `parameters` object when changing a
+tool's schema.
 
 <Callout type="info">
   If your toolkit spreads in MCP server tools (`defineMcpToolkit`), `.tools()`
@@ -79,7 +83,7 @@ export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools ?? {}),
@@ -95,18 +99,18 @@ export async function POST(req: Request) {
 }
 ```
 
-`AISDKToolkit.tools()` calls `frontendTools` for you under the hood; reach for
+`AISDKToolkit.tools()` calls `frontendTools` for you; use
 `frontendTools` directly when you're not on the generative build.
 
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two
-  renders that register the same set produce byte-identical request bodies —
+  renders that register the same set produce byte-identical request bodies,
   which keeps provider prompt caches stable across renders.
 </Callout>
 
 ## Multi-modal results
 
-When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-tool-results), frontend tool results round-trip through the AI SDK chat protocol back to your route on the next turn. For `toModelOutput` to fire on those round-tripped results, pass the tool registry to `convertToModelMessages` as well — the [same pattern the AI SDK documents](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses) for any multi-modal tool response:
+When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-tool-results), frontend tool results round-trip through the AI SDK chat protocol back to your route on the next turn. For `toModelOutput` to fire on those round-tripped results, pass the tool registry to `convertToModelMessages` as well. This is the [same pattern the AI SDK documents](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses) for any multi-modal tool response:
 
 ```ts
 const aiSDKTools = { ...frontendTools(tools ?? {}) };
@@ -119,7 +123,7 @@ const result = streamText({
 });
 ```
 
-Skip the `{ tools }` argument and prior results are sent as a plain JSON blob — `toModelOutput` is silently ignored. Tools without `toModelOutput` are unaffected either way.
+If you omit the `{ tools }` argument, prior results are sent as a plain JSON blob and `toModelOutput` is silently ignored. Tools without `toModelOutput` are unaffected either way.
 
 <Callout type="warn">
   **Read/write compatibility for persisted threads.** When `toModelOutput` is
@@ -144,4 +148,4 @@ const runtime = useChatRuntime({
 
 `useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
-For the full AI SDK v7 backend setup — history persistence, reasoning, server-side approvals — see the [AI SDK v7 guide](/docs/runtimes/ai-sdk/v7).
+For the full AI SDK v7 backend setup (history persistence, reasoning, server-side approvals), see the [AI SDK v7 guide](/docs/runtimes/ai-sdk/v7).

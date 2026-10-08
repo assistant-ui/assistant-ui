@@ -147,7 +147,7 @@ While editing, the same slot renders a different shape instead:
 </div>
 ```
 
-Standalone, `discardedReplies` is a plain number you supply and can define however your app models deletion. At runtime, editing does not delete anything: sending calls the message's edit composer's `send()`, which appends the rewrite as a new sibling of the original under the same parent, exactly like reloading an assistant message. The original message and everything under it stay in the thread's history, reachable again through the branch picker's `n / m` stepper, so nothing is actually discarded, only no longer the branch showing. If you want the same up-front warning, compute the count that would drop out of view: the assistant replies after this message on the branch currently displayed.
+Standalone, `discardedReplies` is a plain number you supply and can define however your app models deletion. At runtime, editing does not delete anything: sending calls the message's edit composer's `send()`, which appends the rewrite as a new sibling of the original under the same parent, exactly like reloading an assistant message. The original message and everything under it stay in the thread's history, reachable again through the branch picker's `n / m` stepper, so nothing is discarded; those messages are only off the displayed branch. If you want the same up-front warning, compute the count that would drop out of view: the assistant replies after this message on the branch currently displayed.
 
 ## Examples
 
@@ -167,7 +167,7 @@ const discardedReplies = useAuiState(
 
 <StandaloneMode>
 
-There's no transcript to derive from; pass whatever count matches how your app actually handles a resend; some apps really do delete, in which case the count is literal.
+There is no transcript to derive from. Pass the count that matches how your app handles a resend; if your app deletes the later replies, the count is literal.
 
 </StandaloneMode>
 
@@ -181,13 +181,13 @@ There's no transcript to derive from; pass whatever count matches how your app a
 
 <StandaloneMode>
 
-`onCancel` should do the same: reset `value` to the original text (or just flip `editing` back to false and let the parent re-seed it) without touching whatever the message list actually holds.
+`onCancel` should do the same: reset `value` to the original text (or flip `editing` back to false and let the parent re-seed it) without touching what the message list holds.
 
 </StandaloneMode>
 
 ### Restyle the composer
 
-Both lanes take `className` on the root; the `field` token from `surfaces.tsx` is the only surface either state uses.
+Both lanes take `className` on the root. The bubble and the textarea read the `field` token and the editing root reads `paper`, both from `surfaces.tsx`.
 
 ```tsx
 <EditMessage className="max-w-none" /* ... */ />

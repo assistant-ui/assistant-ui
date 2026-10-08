@@ -7,7 +7,7 @@ description: Reactive hooks for accessing runtime state in React Native.
 
 ### useAuiState
 
-The primary hook for accessing reactive state. It accepts a selector function for fine-grained re-renders — the component only re-renders when the selected value changes (shallow equality).
+The primary hook for accessing reactive state. It accepts a selector function, and the component re-renders only when the selected value changes (compared with `Object.is`).
 
 ```tsx
 import { useAuiState } from "@assistant-ui/react-native";

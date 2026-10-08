@@ -1,10 +1,10 @@
 ---
 title: Dynamic Tools
-description: Tools whose executor closes over React state — declare the contract with stubTool() in a "use generative" file and supply the executor with useAuiToolOverrides.
+description: Tools whose executor closes over React state. Declare the contract with stubTool() in a "use generative" file and supply the executor with useAuiToolOverrides.
 platforms: ["react"]
 ---
 
-Most tools are static: their executor is fixed at build time. But some tools need to read or write **component state** — adding to a list the user can also edit, mutating a canvas, pre-filling a form. The executor for those has to close over a React setter, which can't live in a build-split `"use generative"` file.
+Most tools are static: their executor is fixed at build time. But some tools need to read or write **component state**, for example to add to a list the user can also edit, mutate a canvas, or pre-fill a form. The executor for those has to close over a React setter, which can't live in a build-split `"use generative"` file.
 
 The pattern: declare the model-facing **contract** in the toolkit with `execute: stubTool()`, and supply the **real executor** at runtime in the component that owns the state with `useAuiToolOverrides`.
 
@@ -14,7 +14,7 @@ The pattern: declare the model-facing **contract** in the toolkit with `execute:
 
 ## 1. Declare the contract with `stubTool()`
 
-In your `"use generative"` file, give the tool its description, parameters, and renderer, and mark the executor as a stub. The compiler ships the schema to the backend and strips the stub — the model can call the tool, but nothing executes until the component supplies the real implementation. Keeping schemas in a separate non-directive module lets the component import the arg types too:
+In your `"use generative"` file, give the tool its description, parameters, and renderer, and mark the executor as a stub. The compiler ships the schema to the backend and strips the stub, so the model can call the tool but nothing executes until the component supplies the real implementation. Keeping schemas in a separate non-directive module lets the component import the arg types too:
 
 ```tsx title="app/task-board-toolkit.tsx"
 "use generative";
@@ -85,6 +85,9 @@ function TaskBoardToolOverrides({
               prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
             );
             return { success: true };
+          case "remove":
+            setTasks((prev) => prev.filter((t) => t.id !== id));
+            return { success: true };
           case "clear":
             setTasks([]);
             return { success: true };
@@ -98,7 +101,7 @@ function TaskBoardToolOverrides({
 }
 ```
 
-The override supplies **only** the `execute`; the description, parameters, and `renderText` stay in the toolkit file. An override registers above toolkit defaults, so it wins for that tool name — return a useful payload (e.g. a new item's `id`) and the model picks it up on the next turn.
+The override supplies **only** the `execute`; the description, parameters, and `renderText` stay in the toolkit file. An override registers above toolkit defaults, so it wins for that tool name. Return a useful payload (e.g. a new item's `id`) and the model picks it up on the next turn.
 
 <Callout type="info">
   Keep the override keys stable after mount, and let only one mounted provider
@@ -107,6 +110,6 @@ The override supplies **only** the `execute`; the description, parameters, and `
   provider.
 </Callout>
 
-## When to reach for this vs. Interactables
+## When to use this vs. Interactables
 
-If you mainly want the model to update a piece of component state with a partial-update tool generated for you, [Interactables](/docs/tools/interactables) does that out of the box — no `stubTool` needed. Use dynamic tools when you want full control over the tool's name, schema, executor logic, and return value. The two compose: the [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) uses both side by side.
+If you mainly want the model to update a piece of component state with a partial-update tool generated for you, [Interactables](/docs/tools/interactables) does that without a `stubTool`. Use dynamic tools when you want full control over the tool's name, schema, executor logic, and return value. The two compose: the [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) uses both side by side.

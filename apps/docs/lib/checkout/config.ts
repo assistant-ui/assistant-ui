@@ -3,7 +3,7 @@ const configured = process.env.NEXT_PUBLIC_CHECKOUT_URL?.trim().replace(
   "",
 );
 
-/** The agent checkout worker, or `null` when this build has none and the shop stays hidden. */
+/** The agent checkout worker, or `null` when this build has none and the Components page, the cart and every setup entry point stay hidden. */
 export const CHECKOUT_BASE_URL: string | null =
   configured ||
   (process.env.NODE_ENV === "development" ? "http://localhost:8791" : null);

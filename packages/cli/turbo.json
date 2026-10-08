@@ -1,0 +1,14 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/templates/cloud-harness/**",
+        "!$TURBO_ROOT$/templates/cloud-harness/node_modules/**",
+        "!$TURBO_ROOT$/templates/cloud-harness/.next/**"
+      ],
+      "outputs": ["$TURBO_EXTENDS$", "templates/cloud-harness/**"]
+    }
+  }
+}
