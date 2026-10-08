@@ -543,19 +543,20 @@ const failureDetails = {
 
 function requirementDetail(item, tier, context, policy, waivers) {
   const failure = failureDetails[item.code];
-  const detail = failure ? failure(item.detail, policy) : cell(item.detail);
-  const waiver = waivers.get(item.code);
-  if (waiver) {
-    return `${detail}; an owner can waive it with ${code(`${policy.labels.overridePrefix}${waiver}`)}`;
-  }
   const readyAt = Date.parse(context?.readyForReviewAt);
-  if (item.code !== "window" || Number.isNaN(readyAt)) return detail;
-  const hours = policy.windowHours[tier];
-  const until = new Date(readyAt + hours * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 16)
-    .replace("T", " ");
-  return `${hours} hours after ready for review, until ${until} UTC`;
+  let detail = failure ? failure(item.detail, policy) : cell(item.detail);
+  if (item.code === "window" && !Number.isNaN(readyAt)) {
+    const hours = policy.windowHours[tier];
+    const until = new Date(readyAt + hours * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 16)
+      .replace("T", " ");
+    detail = `${hours} hours after ready for review, until ${until} UTC`;
+  }
+  const waiver = waivers.get(item.code);
+  return waiver
+    ? `${detail}; an owner can waive it with ${code(`${policy.labels.overridePrefix}${waiver}`)}`
+    : detail;
 }
 
 export function renderComment(
@@ -595,11 +596,14 @@ export function renderComment(
             tier,
             context,
             policy,
-            new Map(
-              tierResult.failures
+            new Map([
+              ...tierResult.failures
                 .filter((failure) => failure.override !== null)
                 .map((failure) => [failure.code, failure.override]),
-            ),
+              ...(policy.labels.overrideSignals.includes("window")
+                ? [["window", "window"]]
+                : []),
+            ]),
           ),
         ]),
       ),

@@ -1169,6 +1169,10 @@ test("hard policy failures stay failures", async () => {
     !waivable.includes("open pull requests for this author, has 6; an owner"),
     waivable,
   );
+  assert.match(
+    waivable,
+    /\| ⏳ Waiting window \| \d+ hours after ready for review, until .+ UTC; an owner can waive it with `review-tier\/override: window` \|/,
+  );
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
