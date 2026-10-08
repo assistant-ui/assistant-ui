@@ -278,8 +278,12 @@ function htmlBlockEnds(
   return RAW_END_TAGS.some((tag) => lower.includes(tag));
 }
 
-function htmlBlockRanges(text: string): number[] {
+function htmlBlockRanges(text: string): {
+  ranges: number[];
+  blockStarts: number[];
+} {
   const ranges: number[] = [];
+  const blockStarts: number[] = [];
   const listItems: { content: number; depth: number; footnote: boolean }[] = [];
   const closeLists = (depth: number, indent = Number.POSITIVE_INFINITY) => {
     while (
@@ -660,6 +664,17 @@ function htmlBlockRanges(text: string): number[] {
         first === -1 ? Number.POSITIVE_INFINITY : blockItemIndent || indent,
       );
     }
+    if (
+      first !== -1 &&
+      !(
+        continued &&
+        inParagraph &&
+        depth <= lastQuoteDepth &&
+        (blockStart === i || markersInProse)
+      )
+    ) {
+      blockStarts.push(lineStart);
+    }
     if (inParagraph) {
       paragraphItemIndent =
         blockStart !== i && !markersInProse
@@ -684,23 +699,30 @@ function htmlBlockRanges(text: string): number[] {
   }
   if (htmlKind !== 0) ranges.push(htmlStart, text.length);
   if (codeStart !== -1) ranges.push(codeStart, text.length);
-  return ranges;
+  return { ranges, blockStarts };
 }
 
 function rewriteOutsideBlocks(
   text: string,
-  rewrite: (text: string) => string,
+  rewrite: (text: string, blockStarts: number[]) => string,
 ): string {
-  const ranges = htmlBlockRanges(text);
+  const { ranges, blockStarts } = htmlBlockRanges(text);
+  const rewriteSlice = (from: number, to: number) =>
+    rewrite(
+      text.slice(from, to),
+      blockStarts
+        .filter((start) => start > from && start < to)
+        .map((start) => start - from),
+    );
   let out = "";
   let cursor = 0;
   for (let i = 0; i < ranges.length; i += 2) {
     const from = ranges[i]!;
     const to = ranges[i + 1]!;
-    out += rewrite(text.slice(cursor, from)) + text.slice(from, to);
+    out += rewriteSlice(cursor, from) + text.slice(from, to);
     cursor = to;
   }
-  return out + rewrite(text.slice(cursor));
+  return out + rewriteSlice(cursor, text.length);
 }
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
@@ -822,10 +844,14 @@ function opensTildeFence(text: string, index: number): boolean {
  * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
  * -1 when a span never closes.
  */
-function backtickEnd(text: string, start: number): number {
+function backtickEnd(
+  text: string,
+  start: number,
+  blockStarts: number[],
+): number {
   return opensBacktickFence(text, start)
     ? fenceEnd(text, start, "`")
-    : codeSpanEnd(text, start);
+    : codeSpanEnd(text, start, blockStarts);
 }
 
 /**
@@ -855,7 +881,7 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
   ) => string,
 ): string {
-  return rewriteOutsideBlocks(text, (text) => {
+  return rewriteOutsideBlocks(text, (text, blockStarts) => {
     let out = "";
     let index = 0;
     let plainStart = 0;
@@ -885,7 +911,7 @@ function rewriteOutsideCode(
       if (char === "\\") {
         index += 2;
       } else if (char === "`") {
-        const end = backtickEnd(text, index);
+        const end = backtickEnd(text, index, blockStarts);
         if (end !== -1) copyVerbatim(end);
         else index += runLength(text, index, "`");
       } else if (opensTildeFence(text, index)) {
@@ -1085,17 +1111,32 @@ function runLength(text: string, start: number, char: string): number {
  * End index (exclusive) of the code span whose backtick run starts at `start`,
  * or -1 when that run is never closed and its backticks read as literal text. A
  * span closes on a run of exactly its own length, wherever on a line that run
- * sits; a shorter or longer run is content, and a blank line ends the search
- * with the paragraph.
+ * sits; a shorter or longer run is content, and the search ends with the
+ * paragraph, at a blank line or at the next line in `blockStarts`, where a
+ * list item, heading, blockquote or other block starts instead of continuing it.
  */
-function codeSpanEnd(text: string, start: number): number {
+function codeSpanEnd(
+  text: string,
+  start: number,
+  blockStarts: number[],
+): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
   // A span is an inline construct, so it cannot reach past the paragraph it
   // opens in and a run left open in prose does not swallow a later fence.
   PARAGRAPH_BREAK.lastIndex = start;
   const blank = PARAGRAPH_BREAK.exec(text);
-  const limit = blank ? blank.index : text.length;
+  let low = 0;
+  let high = blockStarts.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (blockStarts[middle]! > start) high = middle;
+    else low = middle + 1;
+  }
+  const limit = Math.min(
+    blank ? blank.index : text.length,
+    blockStarts[low] ?? text.length,
+  );
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
   while (closed !== -1 && closed < limit) {
@@ -1112,14 +1153,18 @@ function codeSpanEnd(text: string, start: number): number {
  * -1 when none does. Escapes and code spans are stepped over so that a `$` inside
  * them is not mistaken for the closing delimiter.
  */
-function findClosingDollar(text: string, openIndex: number): number {
+function findClosingDollar(
+  text: string,
+  openIndex: number,
+  blockStarts: number[],
+): number {
   let index = openIndex + 1;
   while (index < text.length) {
     const char = text[index];
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = backtickEnd(text, index);
+      const end = backtickEnd(text, index, blockStarts);
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -1205,11 +1250,15 @@ function isFootnoteDef(text: string, from: number, to: number): boolean {
  * plain character. Returns `index` itself for a single `$`, which the caller has to
  * decide.
  */
-function endOfVerbatimRun(text: string, index: number): number {
+function endOfVerbatimRun(
+  text: string,
+  index: number,
+  blockStarts: number[],
+): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = backtickEnd(text, index);
+    const end = backtickEnd(text, index, blockStarts);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
@@ -1218,7 +1267,7 @@ function endOfVerbatimRun(text: string, index: number): number {
   const dollars = runLength(text, index, "$");
   if (dollars >= 2) return index + dollars;
 
-  const close = findClosingDollar(text, index);
+  const close = findClosingDollar(text, index, blockStarts);
   const opensMath =
     close !== -1 &&
     !opensCurrencyAmount(text, close) &&
@@ -1240,12 +1289,12 @@ function endOfVerbatimRun(text: string, index: number): number {
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  return rewriteOutsideBlocks(text, (slice) => {
+  return rewriteOutsideBlocks(text, (slice, blockStarts) => {
     let out = "";
     let index = 0;
 
     while (index < slice.length) {
-      const verbatimEnd = endOfVerbatimRun(slice, index);
+      const verbatimEnd = endOfVerbatimRun(slice, index, blockStarts);
       if (verbatimEnd > index) {
         out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;

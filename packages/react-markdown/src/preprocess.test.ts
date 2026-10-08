@@ -209,6 +209,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("does not pair a lone backtick with a code span in a later list item", () => {
+    const input = "- Press ` to open the console\n- Type `\\(x\\)` literally";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
   it("protects an unclosed fence still streaming in", () => {
     expect(rewriteLatexBracketDelimiters("```\n\\(x\\)\nstill streaming")).toBe(
       "```\n\\(x\\)\nstill streaming",
@@ -707,6 +712,22 @@ describe("escapeCurrencyDollars", () => {
   it("escapes currency after an unclosed backtick", () => {
     expect(escapeCurrencyDollars("see `unclosed then $5 and $7 later")).toBe(
       "see `unclosed then \\$5 and \\$7 later",
+    );
+  });
+
+  it.each([
+    ["a list item", "- legacy ` syntax\n- Run `cost=$5`"],
+    ["an ordered list item", "1. legacy ` syntax\n2. Run `cost=$5`"],
+    ["a heading", "legacy ` syntax\n# Run `cost=$5`"],
+    ["a blockquote", "legacy ` syntax\n> Run `cost=$5`"],
+    ["a setext underline", "legacy ` syntax\n---\nRun `cost=$5`"],
+  ])("does not pair a lone backtick with a code span after %s", (_, input) => {
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
+  it("pairs a lone backtick across a line that continues its paragraph", () => {
+    expect(escapeCurrencyDollars("legacy ` syntax\n2. Run `cost=$5`")).toBe(
+      "legacy ` syntax\n2. Run `cost=\\$5`",
     );
   });
 
