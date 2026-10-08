@@ -731,6 +731,14 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it.each([
+    ["an indented list marker", "see `cost=$5\n    - more` here"],
+    ["a tab-indented list marker", "see `cost=$5\n\t- more` here"],
+    ["a nested item's indented marker", "- see `cost=$5\n      - more` here"],
+  ])("keeps a code span open across %s", (_, input) => {
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
   it("escapes currency glued to a preceding word", () => {
     expect(escapeCurrencyDollars("Prices range from US$50 to US$100")).toBe(
       "Prices range from US\\$50 to US\\$100",

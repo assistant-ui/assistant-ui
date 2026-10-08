@@ -497,6 +497,10 @@ function htmlBlockRanges(text: string): {
       lineStart = nextLine;
       continue;
     }
+    const containerIndent =
+      listItems.findLast(
+        (item) => item.depth === depth && indent >= item.content,
+      )?.content ?? 0;
     let blockStart = skipListMarkers(text, i, lineEnd);
     let blockItemIndent =
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
@@ -670,7 +674,7 @@ function htmlBlockRanges(text: string): {
         continued &&
         inParagraph &&
         depth <= lastQuoteDepth &&
-        (blockStart === i || markersInProse)
+        (blockStart === i || markersInProse || indent >= containerIndent + 4)
       )
     ) {
       blockStarts.push(lineStart);
