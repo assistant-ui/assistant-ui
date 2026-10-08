@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Install, build and upgrade failures have their own form.
+        Install, build and upgrade failures, and CLI, registry and template problems, each have their own form.
 
   - type: checkboxes
     attributes:
@@ -59,7 +59,6 @@ body:
         - Python
         - Performance
         - Accessibility
-        - CLI / Scaffolding
         - DevTools / Observability
         - Documentation
         - Unsure
