@@ -1,3 +1,4 @@
+import { act, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/RemoteThreadListThreadListRuntimeCore";
 import type { RemoteThreadListAdapter } from "../runtimes/remote-thread-list/types";
@@ -12,6 +13,20 @@ export function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
+
+// React 18's async act holds rendering until its callback settles, so a task that waits on a render starts inside act and settles outside it, where React can commit what the task waits on.
+export async function actSettled<T>(start: () => Promise<T>): Promise<T> {
+  let task!: Promise<T>;
+  await act(async () => {
+    task = start();
+    task.catch(() => {});
+  });
+  await waitFor(() => task.then(settled, settled));
+  await act(async () => {});
+  return task;
+}
+
+const settled = () => {};
 
 export const contextProvider: ModelContextProvider = {
   getModelContext: () => ({}),

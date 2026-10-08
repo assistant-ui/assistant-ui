@@ -26,6 +26,7 @@ export type UserMessagePart = TextPart | ImagePart;
 
 export type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 
@@ -114,7 +115,7 @@ export type AssistantTransportOptions<T> = {
   api: string;
   /**
    * Backs the thread list with Assistant Cloud; requests carry the cloud thread id.
-   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud, as for `useLocalRuntime`.
+   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud on Next.js, as for `useLocalRuntime`.
    */
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
@@ -159,6 +160,11 @@ export type AssistantTransportOptions<T> = {
    *
    * When an error occurs, queued commands are automatically cancelled after `onError` settles.
    * In this case, the `error` parameter contains the error that caused the cancellation.
+   *
+   * A cancel while `onError` is still pending ends the run without waiting for it, so one
+   * failed run can call `onCancel` twice: first without `error`, for the commands queued
+   * since the failure, then with `error`, for the commands queued before it, once `onError`
+   * settles. The second call can arrive after a later run has started.
    */
   onCancel?: (params: {
     commands: AssistantTransportCommand[];

@@ -32,7 +32,7 @@ The runtime also remembers when each run starts and ends. That timing supplies t
 
 ## Delivery, validation, and storage
 
-`cloud.events.track` adds a normalized event to a local buffer and returns immediately. The client flushes as soon as 20 events are waiting, after a two second debounce, when the page is hidden, when document visibility becomes hidden, and when you call `dispose()`. A request carries at most 50 events and uses `keepalive: true`; `dispose()` removes the listeners, clears its timer, and flushes the buffer. Delivery never blocks the interface. A failed scheduled or 20-event flush retries after 250 milliseconds and then 1,000 milliseconds. A page-exit, hidden-page, or `dispose()` flush sends once and ends a pending retry.
+`cloud.events.track` adds a normalized event to a local buffer and returns immediately. The client flushes as soon as 20 events are waiting, after a two second debounce, on the `pagehide` event, when document visibility becomes hidden, and when you call `dispose()`. A request carries at most 50 events and uses `keepalive: true`; `dispose()` removes the listeners, clears its timer, and flushes the buffer. Delivery never blocks the interface. A failed scheduled or 20-event flush retries after 250 milliseconds and then 1,000 milliseconds. A page-exit, hidden-page, or `dispose()` flush sends once and ends a pending retry.
 
 Before buffering, the client applies these limits.
 
@@ -40,7 +40,7 @@ Before buffering, the client applies these limits.
 |---|---|
 | `thread_id`, `message_id`, `run_id` | An empty id or an id longer than 48 characters is omitted. |
 | `value` | Kept only when it is a nonnegative integer. |
-| `props` | Omitted as a whole when any value is not a string, number, or boolean; when a string is longer than 256 characters; or when the JSON encoding is larger than 1,024 bytes. |
+| `props` | Omitted as a whole when any value is not a string, finite number, or boolean; when a string is longer than 256 characters; or when the JSON encoding is larger than 1,024 bytes. |
 
 The endpoint is `POST /v1/events` with `{ events }`. The server accepts 1 to 50 events, validates each `value` as an integer from 0 to 2,147,483,647, and accepts property keys of 1 to 64 characters. It silently drops an event that names a thread the caller does not own, while keeping the rest of the batch. A successful request answers `202` with `{ "accepted": n }`, where `n` is the number stored.
 
