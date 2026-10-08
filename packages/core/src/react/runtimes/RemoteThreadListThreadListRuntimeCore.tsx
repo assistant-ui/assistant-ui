@@ -388,7 +388,13 @@ export class RemoteThreadListThreadListRuntimeCore
       this._loadMorePromise = undefined;
       this._replaceListOnNextLoad = true;
       this._staleThreadIdsOnReplace = new Set(
-        Object.values(this._state.baseValue.threadData)
+        [
+          ...Object.values(this._state.baseValue.threadData),
+          ...Object.values(this._state.value.threadData).filter(
+            (item) =>
+              getThreadData(this._state.baseValue, item.id)?.status === "new",
+          ),
+        ]
           .filter((item) => item.status !== "new")
           .map((item) => item.id),
       );
@@ -1342,12 +1348,12 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
 
-    do {
-      await this._ensureThreadIsNotMain(data.id);
-    } while (data.id === this._mainThreadId);
-    this._requireAdapterGeneration(adapterGeneration);
     let remoteId: string | undefined;
     try {
+      do {
+        await this._ensureThreadIsNotMain(data.id);
+      } while (data.id === this._mainThreadId);
+      this._requireAdapterGeneration(adapterGeneration);
       await this._state.optimisticUpdate({
         execute: async () => {
           ({ remoteId } = await data.initializeTask);
@@ -1365,6 +1371,37 @@ export class RemoteThreadListThreadListRuntimeCore
               ),
       });
     } catch (error) {
+      const hideDeletedThread = () => {
+        if (
+          adapterGeneration === this._adapterGeneration ||
+          !this._replaceListOnNextLoad
+        )
+          return;
+        const current = getThreadData(this._state.baseValue, data.id);
+        if (
+          current !== undefined &&
+          current.status !== "new" &&
+          current.remoteId === undefined &&
+          this._mainThreadId !== current.id &&
+          !this._isOtherAdaptersThread(this._state.baseValue, adapter, data.id)
+        ) {
+          this._state.update(
+            updateStatusReducer(this._state.baseValue, data.id, "deleted"),
+          );
+          this._hookManager.stopThreadRuntime(data.id);
+          clearThreadTitleState(this._titleStates, data.id);
+        }
+      };
+      if (
+        adapterGeneration !== this._adapterGeneration &&
+        this._replaceListOnNextLoad &&
+        getThreadData(this._state.baseValue, data.id)?.status === "new"
+      ) {
+        void data.initializeTask.then(hideDeletedThread, () => {});
+      } else {
+        hideDeletedThread();
+      }
+
       const controlledThreadId = this._options.threadId;
       if (
         this._switchGeneration === this._controlledSwitchGeneration &&
