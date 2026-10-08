@@ -1781,7 +1781,10 @@ export class AgUiThreadRuntimeCore {
         ? this.showThinking && !snapshotHasReasoning
         : isActivityPart(part) && !snapshotHasActivity;
     const kept = previous.filter(shouldKeep);
-    const merged = this.preserveToolInteractions(previous, next);
+    const merged = this.reconcileSnapshotNestedContent(
+      previous,
+      this.preserveToolInteractions(previous, next),
+    );
     if (kept.length === 0) return merged;
 
     const mergedByType = new Map<string, number[]>();
@@ -1825,6 +1828,64 @@ export class AgUiThreadRuntimeCore {
     }
     result.push(...insertions[merged.length]!);
     return result;
+  }
+
+  private reconcileSnapshotNestedContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const nestedIds = new Set<string>();
+    for (const part of previous) {
+      if (part.type !== "tool-call" || !part.messages) continue;
+      for (const nested of part.messages) {
+        if (nested.role !== "assistant") continue;
+        for (const call of iterateToolCallParts(nested.content)) {
+          nestedIds.add(call.toolCallId);
+        }
+      }
+    }
+
+    const flattened = new Map<string, ToolCallMessagePart>();
+    for (const part of next) {
+      if (part.type === "tool-call" && nestedIds.has(part.toolCallId)) {
+        flattened.set(part.toolCallId, part);
+      }
+    }
+    const carried =
+      flattened.size === 0
+        ? previous
+        : mapToolCallPartsDeep(previous, (part) => {
+            const snapshot = flattened.get(part.toolCallId);
+            if (!snapshot) return part;
+            return {
+              ...part,
+              ...(snapshot.result !== undefined
+                ? { result: snapshot.result }
+                : {}),
+              ...(snapshot.isError !== undefined
+                ? { isError: snapshot.isError }
+                : {}),
+              ...(snapshot.artifact !== undefined
+                ? { artifact: snapshot.artifact }
+                : {}),
+            };
+          }).content;
+    const previousCalls = new Map<string, ToolCallMessagePart>();
+    for (const part of carried) {
+      if (part.type !== "tool-call") continue;
+      previousCalls.set(part.toolCallId, part);
+    }
+
+    return next.flatMap<ThreadAssistantMessage["content"][number]>((part) => {
+      if (part.type === "tool-call" && flattened.has(part.toolCallId)) {
+        return [];
+      }
+      if (part.type !== "tool-call") return [part];
+      const prior = previousCalls.get(part.toolCallId);
+      return prior?.messages === undefined
+        ? [part]
+        : [{ ...part, messages: prior.messages }];
+    });
   }
 
   private mergeAssistantMetadata(
