@@ -909,8 +909,14 @@ export class RemoteThreadListThreadListRuntimeCore
     let removedMappingId: string | undefined;
     const initialization = this._state.optimisticUpdate({
       execute: () => initializeTask,
-      optimistic: (state) =>
-        promoteNewThreadReducer(state, threadId, initializeTask),
+      optimistic: (state) => {
+        if (
+          adapterGeneration !== this._adapterGeneration &&
+          !this._replaceListOnNextLoad
+        )
+          return state;
+        return promoteNewThreadReducer(state, threadId, initializeTask);
+      },
       then: (state, { remoteId, externalId }) => {
         if (adapterGeneration !== this._adapterGeneration) return state;
         const reconciliation = reconcileInitializedThread(

@@ -16,6 +16,51 @@ type InitializeResult = { remoteId: string; externalId: string };
 type ListResult = Awaited<ReturnType<ReturnType<typeof makeAdapter>["list"]>>;
 
 describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
+  it("keeps a stale initialization from promoting a draft after the replacement list resolves", async () => {
+    const initializing = deferred<InitializeResult>();
+    const replacementList = deferred<ListResult>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "anchor",
+            externalId: "anchor",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const newAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const core = createCore(oldAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+
+    core.__internal_setOptions({
+      adapter: newAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+    replacementList.resolve({ threads: [] });
+    await loadTask;
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.newThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.status).toBe("new");
+    expect(core.getItemById(localId)?.remoteId).toBeUndefined();
+  });
+
   it("keeps a deleted draft hidden while a replacement adapter loads", async () => {
     const initializing = deferred<InitializeResult>();
     const replacementList = deferred<ListResult>();
