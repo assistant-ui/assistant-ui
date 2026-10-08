@@ -2914,3 +2914,29 @@ test("the built dist serves every packaged file at the docs' URL convention", as
     "curl -fsSL --create-dirs \\\n  -o 'app/api/chat/resume/[streamId]/route.ts' https://r.assistant-ui.com/files/ai-sdk-backend-resumable/app/api/chat/resume/%5BstreamId%5D/route.ts",
   );
 });
+
+test("disclosure registry items install their ref-owning root in both flavors", async () => {
+  const { registry } = await import("../src/registry.ts");
+  const rootItem = registry.find(
+    (entry) => entry.name === "elements-collapsible-root",
+  );
+  for (const [createVariant, dependency, prefix, radix] of [
+    [createBaseRegistryItem, "@base-ui/react", "base/", false],
+    [createRadixRegistryItem, "radix-ui", "", true],
+  ]) {
+    const root = createRegistryPayload(createVariant(rootItem), radix).payload;
+    assert.ok(root.files[0].path.endsWith("/collapsible-root.tsx"));
+    assert.ok(root.files[0].content.includes(`from "${dependency}`));
+    assert.ok(root.dependencies.includes(dependency));
+    for (const name of ["elements-reasoning", "tool-fallback", "tool-group"]) {
+      const item = registry.find((entry) => entry.name === name);
+      const built = createRegistryPayload(createVariant(item), radix).payload;
+      assert.ok(
+        built.registryDependencies.includes(
+          `https://r.assistant-ui.com/${prefix}elements-collapsible-root.json`,
+        ),
+      );
+      assert.ok(built.registryDependencies.includes("collapsible"));
+    }
+  }
+});

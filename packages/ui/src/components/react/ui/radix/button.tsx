@@ -1,4 +1,4 @@
-import { forwardRef, type ComponentProps } from "react";
+import type * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 
@@ -38,27 +38,20 @@ const buttonVariants = cva(
   },
 );
 
-const Button = forwardRef<
-  HTMLButtonElement,
-  ComponentProps<"button"> &
-    VariantProps<typeof buttonVariants> & {
-      asChild?: boolean;
-    }
->(function Button(
-  {
-    className,
-    variant = "default",
-    size = "default",
-    asChild = false,
-    ...props
-  },
-  ref,
-) {
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
   const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
-      ref={ref}
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -66,6 +59,6 @@ const Button = forwardRef<
       {...props}
     />
   );
-});
+}
 
 export { Button, buttonVariants };

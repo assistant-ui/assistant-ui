@@ -2,8 +2,10 @@ import { createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ReasoningRoot, ReasoningTrigger } from "./reasoning.aui";
-import { Collapsible as BaseCollapsible } from "../../ui/base/collapsible";
-import { Collapsible as RadixCollapsible } from "../../ui/radix/collapsible";
+import { ToolFallbackRoot, ToolFallbackTrigger } from "./tool-fallback.aui";
+import { ToolGroupRoot, ToolGroupTrigger } from "./tool-group.aui";
+import { CollapsibleRoot as BaseRoot } from "./collapsible-root";
+import { CollapsibleRoot as RadixRoot } from "./collapsible-root.radix";
 
 const mocks = vi.hoisted(() => ({
   lock: vi.fn(),
@@ -37,15 +39,36 @@ it("forwards the reasoning root to the caller and scroll lock", () => {
   expect(ref.current).toBeNull();
 });
 
-it.each([BaseCollapsible, RadixCollapsible])(
-  "forwards the collapsible root ref",
+it.each([
+  [
+    "tool-fallback-root",
+    ToolFallbackRoot,
+    <ToolFallbackTrigger key="fallback" toolName="search" />,
+  ],
+  [
+    "tool-group-root",
+    ToolGroupRoot,
+    <ToolGroupTrigger key="group" count={2} />,
+  ],
+] as const)("connects %s to its scroll lock", (slot, Root, trigger) => {
+  const view = render(<Root>{trigger}</Root>);
+  const root = view.container.querySelector(`[data-slot="${slot}"]`);
+  expect(root).not.toBeNull();
+  expect(mocks.ref?.current).toBe(root);
+  fireEvent.click(screen.getByRole("button"));
+  expect(mocks.lock).toHaveBeenCalledOnce();
+});
+
+it.each([BaseRoot, RadixRoot])(
+  "owns the root ref in both registry flavors",
   (Root) => {
     const ref = createRef<HTMLDivElement>();
-    const view = render(<Root ref={ref}>content</Root>);
-    expect(ref.current).toBe(
-      view.container.querySelector('[data-slot="collapsible"]'),
+    const view = render(
+      <Root ref={ref} data-testid="root">
+        content
+      </Root>,
     );
-    expect(ref.current).not.toBeNull();
+    expect(ref.current).toBe(screen.getByTestId("root"));
     view.unmount();
     expect(ref.current).toBeNull();
   },

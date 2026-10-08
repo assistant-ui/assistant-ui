@@ -1,4 +1,4 @@
-import { type FC, version } from "react";
+import { type FC } from "react";
 import {
   act,
   cleanup,
@@ -18,8 +18,6 @@ import {
 
 import { McpConfigDialog as BaseDialog } from "./mcp-config.aui";
 import { McpConfigDialog as RadixDialog } from "./mcp-config.aui.radix";
-
-const onReact18 = version.startsWith("18.");
 
 const UNAVAILABLE_URL = "https://unavailable.test/mcp";
 
@@ -91,9 +89,6 @@ describe.each([
   ["Base", BaseDialog],
   ["Radix", RadixDialog],
 ] as const)("%s MCP config dialog", (flavor, Dialog) => {
-  // The Radix Button is a plain function component, so React 18 drops the focus-restore ref and focus stays on the dialog.
-  const radixOnReact18 = onReact18 && flavor === "Radix";
-
   it("connects visible labels to their controls and reports field errors", async () => {
     renderDialog(Dialog);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
@@ -163,7 +158,7 @@ describe.each([
     );
   });
 
-  it.skipIf(radixOnReact18).each(["Cancel", "Close form"])(
+  it.each(["Cancel", "Close form"])(
     "returns focus to Add server after %s",
     async (name) => {
       const form = await openAddForm();
@@ -172,21 +167,18 @@ describe.each([
     },
   );
 
-  it.skipIf(radixOnReact18)(
-    "returns focus to Add server after a successful submit",
-    async () => {
-      await openAddForm();
-      fireEvent.change(screen.getByLabelText("Name"), {
-        target: { value: "Docs" },
-      });
-      fireEvent.change(screen.getByLabelText("URL"), {
-        target: { value: "https://example.com/mcp" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Add server" }));
-      await expectAddServerFocused();
-      expect(await screen.findByText("Docs")).toBeTruthy();
-    },
-  );
+  it("returns focus to Add server after a successful submit", async () => {
+    await openAddForm();
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/mcp" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    await expectAddServerFocused();
+    expect(await screen.findByText("Docs")).toBeTruthy();
+  });
 
   const openServers = async (servers: MCPCustomServerRecord[]) => {
     renderDialog(Dialog, servers);
@@ -208,64 +200,49 @@ describe.each([
       expect(document.activeElement).toBe(screen.getByRole("button", { name })),
     );
 
-  it.skipIf(radixOnReact18)(
-    "moves focus to Disconnect when Connect starts a connection",
-    async () => {
-      await openServers([server("docs")]);
-      press(screen.getByRole("button", { name: "Connect" }));
-      await screen.findAllByText("Connected");
-      await expectFocused("Disconnect");
-    },
-  );
+  it("moves focus to Disconnect when Connect starts a connection", async () => {
+    await openServers([server("docs")]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await screen.findAllByText("Connected");
+    await expectFocused("Disconnect");
+  });
 
-  it.skipIf(radixOnReact18)(
-    "returns focus to Connect when the connection fails",
-    async () => {
-      await openServers([server("unavailable", UNAVAILABLE_URL)]);
-      press(screen.getByRole("button", { name: "Connect" }));
-      await expectFocused("Disconnect");
-      unavailable.resolve(new Response(null, { status: 503 }));
-      await screen.findByText("Error");
-      await expectFocused("Connect");
-    },
-  );
+  it("returns focus to Connect when the connection fails", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await screen.findByText("Error");
+    await expectFocused("Connect");
+  });
 
-  it.skipIf(radixOnReact18)(
-    "returns focus to Connect when the dialog holds focus as the connection fails",
-    async () => {
-      await openServers([server("unavailable", UNAVAILABLE_URL)]);
-      press(screen.getByRole("button", { name: "Connect" }));
-      await expectFocused("Disconnect");
-      screen.getByRole("dialog").focus();
-      unavailable.resolve(new Response(null, { status: 503 }));
-      await expectFocused("Connect");
-    },
-  );
+  it("returns focus to Connect when the dialog holds focus as the connection fails", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    screen.getByRole("dialog").focus();
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await expectFocused("Connect");
+  });
 
-  it.skipIf(radixOnReact18)(
-    "leaves focus where the user moved it during a connection",
-    async () => {
-      await openServers([server("unavailable", UNAVAILABLE_URL)]);
-      press(screen.getByRole("button", { name: "Connect" }));
-      await expectFocused("Disconnect");
-      const addServer = screen.getByRole("button", { name: "Add server" });
-      addServer.focus();
-      unavailable.resolve(new Response(null, { status: 503 }));
-      await screen.findByText("Error");
-      expect(document.activeElement).toBe(addServer);
-    },
-  );
+  it("leaves focus where the user moved it during a connection", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    const addServer = screen.getByRole("button", { name: "Add server" });
+    addServer.focus();
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await screen.findByText("Error");
+    expect(document.activeElement).toBe(addServer);
+  });
 
-  it.skipIf(radixOnReact18)(
-    "returns focus to Connect after Disconnect",
-    async () => {
-      await openServers([server("docs")]);
-      fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-      await screen.findAllByText("Connected");
-      press(screen.getByRole("button", { name: "Disconnect" }));
-      await expectFocused("Connect");
-    },
-  );
+  it("returns focus to Connect after Disconnect", async () => {
+    await openServers([server("docs")]);
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await screen.findAllByText("Connected");
+    press(screen.getByRole("button", { name: "Disconnect" }));
+    await expectFocused("Connect");
+  });
 
   it("moves focus to the next server after Remove", async () => {
     await openServers([server("docs"), server("search")]);

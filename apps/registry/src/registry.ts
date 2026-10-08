@@ -89,6 +89,22 @@ const createElementRegistryItem = (
 
 const elementsRegistryItems: RegistryItem[] = [
   {
+    name: "elements-collapsible-root",
+    type: "registry:component",
+    title: "Collapsible Root",
+    description: "Ref-bearing disclosure root for assistant-ui components.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/collapsible-root.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/collapsible-root.tsx",
+      },
+    ],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
+  },
+  {
     name: "elements-surfaces",
     type: "registry:component",
     title: "Elements Surfaces",
@@ -1399,7 +1415,10 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/elements/reasoning.tsx",
       },
     ],
-    registryDependencies: ["collapsible"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+      "collapsible",
+    ],
     dependencies: ["lucide-react", "class-variance-authority", "tw-shimmer"],
     css: {
       '@import "tw-shimmer"': {},
@@ -1649,7 +1668,12 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
-    registryDependencies: ["button", "collapsible", "textarea"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+      "button",
+      "collapsible",
+      "textarea",
+    ],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
@@ -1674,7 +1698,10 @@ export const registry: RegistryItem[] = [
       "class-variance-authority",
       "tw-shimmer",
     ],
-    registryDependencies: ["collapsible"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+      "collapsible",
+    ],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,

@@ -12,11 +12,11 @@ import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useScrollLock } from "@assistant-ui/react";
 import {
-  Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { CollapsibleRoot as Collapsible } from "./collapsible-root";
 
 const ANIMATION_DURATION = 200;
 

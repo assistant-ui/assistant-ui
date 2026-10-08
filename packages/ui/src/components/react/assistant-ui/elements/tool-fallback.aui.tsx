@@ -31,11 +31,11 @@ import {
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 import {
-  Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { CollapsibleRoot as Collapsible } from "./collapsible-root";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
