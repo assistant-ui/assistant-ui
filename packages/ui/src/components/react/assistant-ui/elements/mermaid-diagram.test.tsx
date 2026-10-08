@@ -3,7 +3,13 @@ import { renderMermaidSVG } from "beautiful-mermaid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MermaidDiagram } from "./mermaid-diagram";
 
-vi.mock("beautiful-mermaid", { spy: true });
+const mocks = vi.hoisted(() => ({ renderMermaidSVG: vi.fn() }));
+
+vi.mock("beautiful-mermaid", async (importOriginal) => {
+  const original = await importOriginal<typeof import("beautiful-mermaid")>();
+  mocks.renderMermaidSVG.mockImplementation(original.renderMermaidSVG);
+  return { ...original, renderMermaidSVG: mocks.renderMermaidSVG };
+});
 
 const FLOW = `graph TD
   W[Webview] -->|postMessage| H[Extension host]
@@ -51,6 +57,23 @@ describe("MermaidDiagram", () => {
     expect(container.querySelector("style")).toBeNull();
     expect(adoptedCss()).toContain(".a");
     expect(adoptedCss()).toContain(".b");
+  });
+
+  it("keeps duplicate selector styles in source order across extraction passes", () => {
+    vi.mocked(renderMermaidSVG).mockReturnValueOnce(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><sty<style>.helper{color:black}</style>le>.a{color:red}</style><style>.a{color:blue}</style><g/></svg>',
+    );
+    render(<MermaidDiagram code={FLOW} />);
+
+    const colors = document.adoptedStyleSheets.flatMap((sheet) =>
+      [...sheet.cssRules]
+        .filter(
+          (rule): rule is CSSStyleRule =>
+            rule instanceof CSSStyleRule && rule.selectorText.includes(".a"),
+        )
+        .map((rule) => rule.style.getPropertyValue("color")),
+    );
+    expect(colors).toEqual(["red", "blue"]);
   });
 
   it("keeps the label font rule that follows the font @import", () => {

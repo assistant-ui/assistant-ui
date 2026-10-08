@@ -20,8 +20,14 @@ describe("SyntaxHighlighter", () => {
       />,
     );
 
-    await waitFor(() => expect(getAllByTestId("pre")).toHaveLength(2));
+    await waitFor(() => {
+      expect(getAllByTestId("pre")).toHaveLength(2);
+      for (const pre of getAllByTestId("pre")) {
+        expect(pre.querySelectorAll("span.token").length).toBeGreaterThan(0);
+      }
+    });
     for (const pre of getAllByTestId("pre")) {
+      expect(pre.querySelector("span.token")?.textContent).toBe("const");
       expect(pre.style.background).toBe("");
       expect(pre.style.backgroundColor).toBe("");
       const code = pre.querySelector("code");
