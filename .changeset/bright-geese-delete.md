@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Clear title state after successful deletion even when a reload restores the row.
+keep completed thread-list updates, such as a deletion, applied when a reload starts from their final state notification

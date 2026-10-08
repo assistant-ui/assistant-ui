@@ -11,6 +11,40 @@ const deferred = () => {
 };
 
 describe("OptimisticState", () => {
+  it("keeps a completed effect applied when its settling notification starts a stale reload", async () => {
+    const state = new OptimisticState({ ids: ["a", "b"] });
+    const deleteRequest = deferred();
+    const reloadRequest = deferred();
+    let deleteResolved = false;
+    let reload: Promise<string[]> | undefined;
+    const unsubscribe = state.subscribe(() => {
+      if (!deleteResolved || reload) return;
+      reload = state.optimisticUpdate({
+        execute: () => reloadRequest.promise.then(() => ["a", "b"]),
+        then: (value, ids) => ({ ...value, ids }),
+      });
+    });
+
+    const deletion = state.optimisticUpdate({
+      execute: () =>
+        deleteRequest.promise.then(() => {
+          deleteResolved = true;
+        }),
+      optimistic: (value) => ({
+        ...value,
+        ids: value.ids.filter((id) => id !== "b"),
+      }),
+    });
+
+    deleteRequest.resolve();
+    await deletion;
+    reloadRequest.resolve();
+    await reload;
+    unsubscribe();
+
+    expect(state.value.ids).toEqual(["a"]);
+  });
+
   it("preserves invocation order when optimistic updates resolve in order", async () => {
     const state = new OptimisticState({ title: "Untitled" });
     const firstRequest = deferred();
