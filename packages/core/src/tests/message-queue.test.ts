@@ -21,6 +21,52 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["queued", "steered"])(
+    "does not restore a rejected %s dispatch after a steer replaces it",
+    async (mode) => {
+      const error = new Error("cancelled before busy");
+      let reject!: (error: Error) => void;
+      const cancelled = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      let finish!: () => void;
+      const replacement = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      const cancel = vi.fn(() => controller.notifyIdle());
+      const controller = createMessageQueue({ run, cancel });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        if (mode === "steered") controller.adapter.enqueue(msg("initial"));
+        run.mockImplementationOnce(() => cancelled);
+        if (mode === "queued") controller.adapter.enqueue(msg("cancelled"));
+        else controller.adapter.steer(msg("cancelled"));
+        run.mockImplementationOnce(() => replacement);
+        cancel.mockImplementationOnce(() => {
+          reject(error);
+          controller.notifyIdle();
+        });
+        controller.adapter.steer(msg("replacement"));
+        const calls = run.mock.calls.length;
+        await cancelled.catch(() => {});
+        controller.adapter.enqueue(msg("later"));
+        expect(run).toHaveBeenCalledTimes(calls);
+        expect(prompts(controller.adapter.items)).toEqual(["later"]);
+        expect(controller.adapter.steerItems).toEqual([]);
+
+        controller.notifyBusy();
+        finish();
+        await replacement;
+        controller.notifyIdle();
+        expect(run).toHaveBeenCalledTimes(calls + 1);
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
   it.each([
     ["queue", true],
     ["steer", true],
