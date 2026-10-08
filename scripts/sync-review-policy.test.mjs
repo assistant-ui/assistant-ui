@@ -125,6 +125,22 @@ const bypass_actors = [
     bypass_mode: "pull_request",
   },
 ];
+const generalFloor = [
+  {
+    file_patterns: ["*"],
+    minimum_approvals: 1,
+    reviewer: { id: 15592476, type: "Team" },
+  },
+];
+const withIntegration = {
+  ...policy,
+  reviewTierCheck: { name: "review-tier", integrationId: 905 },
+};
+const applyUpdates = (rulesets, updates) =>
+  rulesets.map((live) => {
+    const update = updates.find(({ id }) => id === live.id);
+    return update ? { id: live.id, ...update.payload } : live;
+  });
 
 test("CODEOWNERS is rendered exactly from the real policy", () => {
   assert.equal(
@@ -156,7 +172,7 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
   );
 });
 
-test("ruleset updates replace only contract floors and required checks", () => {
+test("ruleset updates replace only review floors and required checks", () => {
   const updates = buildRulesets(policy, liveRulesets, teamIds, {
     requireReviewTier: false,
     mergeQueue: false,
@@ -171,7 +187,14 @@ test("ruleset updates replace only contract floors and required checks", () => {
         conditions,
         bypass_actors,
         rules: [
-          liveRulesets[1].rules[0],
+          {
+            type: "pull_request",
+            parameters: {
+              ...basePullRequest,
+              require_code_owner_review: true,
+              required_reviewers: generalFloor,
+            },
+          },
           {
             type: "required_status_checks",
             parameters: {
@@ -240,10 +263,6 @@ test("ruleset updates replace only contract floors and required checks", () => {
 });
 
 test("review tier and merge queue follow their independent options", () => {
-  const withIntegration = {
-    ...policy,
-    reviewTierCheck: { name: "review-tier", integrationId: 905 },
-  };
   for (const requireReviewTier of [false, true]) {
     for (const mergeQueue of [false, true]) {
       const [checks] = buildRulesets(withIntegration, liveRulesets, teamIds, {
@@ -267,8 +286,48 @@ test("review tier and merge queue follow their independent options", () => {
           ? [{ type: "merge_queue", parameters: policy.mergeQueue }]
           : [],
       );
+      assert.deepEqual(
+        checks.payload.rules.find((rule) => rule.type === "pull_request")
+          .parameters.required_reviewers,
+        requireReviewTier ? [] : generalFloor,
+      );
     }
   }
+});
+
+test("syncing applied rulesets again changes only what the options change", () => {
+  const interim = { requireReviewTier: false, mergeQueue: false };
+  const final = { requireReviewTier: true, mergeQueue: true };
+  const interimUpdates = buildRulesets(
+    withIntegration,
+    liveRulesets,
+    teamIds,
+    interim,
+  );
+  const afterInterim = applyUpdates(liveRulesets, interimUpdates);
+  assert.deepEqual(
+    buildRulesets(withIntegration, afterInterim, teamIds, interim),
+    interimUpdates,
+  );
+  const finalUpdates = buildRulesets(
+    withIntegration,
+    afterInterim,
+    teamIds,
+    final,
+  );
+  assert.deepEqual(
+    finalUpdates,
+    buildRulesets(withIntegration, liveRulesets, teamIds, final),
+  );
+  assert.deepEqual(
+    buildRulesets(
+      withIntegration,
+      applyUpdates(afterInterim, finalUpdates),
+      teamIds,
+      final,
+    ),
+    finalUpdates,
+  );
 });
 
 test("missing team ids and a null review tier integration fail clearly", () => {

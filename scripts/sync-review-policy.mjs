@@ -80,27 +80,33 @@ export function buildRulesets(policy, liveRulesets, teamIds, options) {
       bypass_mode: "pull_request",
     },
   ];
+  const maintainers = {
+    id: requiredTeamId(teamIds, policy.teams.maintainers),
+    type: "Team",
+  };
   const patterns = (area) => [...area.paths, ...area.contractDocs];
-  const reviewers = [
+  const contractFloor = [
     {
       file_patterns: policy.areas.flatMap(patterns),
       minimum_approvals: 2,
-      reviewer: {
-        id: requiredTeamId(teamIds, policy.teams.maintainers),
-        type: "Team",
-      },
+      reviewer: maintainers,
     },
   ];
+  const generalFloor = options.requireReviewTier
+    ? []
+    : [{ file_patterns: ["*"], minimum_approvals: 1, reviewer: maintainers }];
 
   return liveRulesets.flatMap((live) => {
-    const floors = live.rules.some(
-      (rule) =>
-        rule.type === "pull_request" &&
-        rule.parameters.required_reviewers?.length > 0,
-    );
     const checks = live.rules.some(
       (rule) => rule.type === "required_status_checks",
     );
+    const floors =
+      !checks &&
+      live.rules.some(
+        (rule) =>
+          rule.type === "pull_request" &&
+          rule.parameters.required_reviewers?.length > 0,
+      );
     if (!floors && !checks) return [];
 
     const rules = live.rules
@@ -116,7 +122,16 @@ export function buildRulesets(policy, liveRulesets, teamIds, options) {
               dismiss_stale_reviews_on_push: false,
               require_last_push_approval: false,
               required_review_thread_resolution: true,
-              required_reviewers: reviewers,
+              required_reviewers: contractFloor,
+            },
+          };
+        }
+        if (checks && rule.type === "pull_request") {
+          return {
+            ...rule,
+            parameters: {
+              ...rule.parameters,
+              required_reviewers: generalFloor,
             },
           };
         }
