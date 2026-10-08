@@ -231,7 +231,7 @@ describe("useAdkRuntime refetch", () => {
     ).toContain("first");
   });
 
-  it("keeps the previous answer visible when reload checkpoint lookup fails", async () => {
+  it("hides the answer during lookup and restores it when the lookup fails", async () => {
     const checkpoint = deferred<string | null>();
     const getCheckpointId = vi.fn(() => checkpoint.promise);
     const checkpointError = new Error("checkpoint lookup failed");
@@ -261,7 +261,12 @@ describe("useAdkRuntime refetch", () => {
         capture.runtime!.thread.getMessageById(answer.id).reload();
       });
       await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
-      checkpoint.reject(checkpointError);
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("answer");
+      await act(async () => {
+        checkpoint.reject(checkpointError);
+      });
       await waitFor(() => expect(consoleError).toHaveBeenCalledOnce());
 
       expect(consoleError).toHaveBeenCalledExactlyOnceWith(
@@ -276,99 +281,224 @@ describe("useAdkRuntime refetch", () => {
     }
   });
 
-  it("preserves a newer send while the reload checkpoint lookup is pending", async () => {
-    const checkpoint = deferred<string | null>();
-    const getCheckpointId = vi.fn(() => checkpoint.promise);
-    const { capture, streamMock } = await renderAdk(
-      async () => ({
-        messages: [
-          { id: "q-1", type: "human", content: "question" },
-          aiMessage("a-1", "answer"),
-        ],
-      }),
-      getCheckpointId,
-    );
-    await waitFor(() =>
-      expect(
-        JSON.stringify(capture.runtime!.thread.getState().messages),
-      ).toContain("answer"),
-    );
-    const answer = capture
-      .runtime!.thread.getState()
-      .messages.find((message) => message.role === "assistant")!;
-    act(() => {
-      capture.runtime!.thread.getMessageById(answer.id).reload();
-    });
-    await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
-
-    act(() => {
-      capture.runtime!.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "follow-up" }],
-      });
-    });
-    await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
-    expect(
-      JSON.stringify(capture.runtime!.thread.getState().messages),
-    ).toContain("follow-up");
-
-    await act(async () => {
-      checkpoint.resolve("cp-1");
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    expect(streamMock).toHaveBeenCalledOnce();
-    expect(
-      JSON.stringify(capture.runtime!.thread.getState().messages),
-    ).toContain("answer");
-    expect(
-      JSON.stringify(capture.runtime!.thread.getState().messages),
-    ).toContain("follow-up");
-  });
-
-  it("lets the newest overlapping reload own the checkpoint result", async () => {
+  it("restores a failed reload but does not overwrite a newer send", async () => {
     const checkpoints = [deferred<string | null>(), deferred<string | null>()];
     const getCheckpointId = vi.fn(
       () => checkpoints[getCheckpointId.mock.calls.length - 1]!.promise,
     );
-    const { capture, streamMock } = await renderAdk(
-      async () => ({
-        messages: [
-          { id: "q-1", type: "human", content: "question" },
-          aiMessage("a-1", "answer"),
-        ],
-      }),
-      getCheckpointId,
-    );
-    await waitFor(() =>
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture, streamMock } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-1", type: "human", content: "question" },
+            aiMessage("a-1", "answer"),
+          ],
+        }),
+        getCheckpointId,
+      );
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer"),
+      );
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.find((message) => message.role === "assistant")!;
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
+      await act(async () => {
+        checkpoints[0]!.reject(new Error("first lookup failed"));
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer"),
+      );
+
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(2));
       expect(
         JSON.stringify(capture.runtime!.thread.getState().messages),
-      ).toContain("answer"),
+      ).not.toContain("answer");
+
+      act(() => {
+        capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "follow-up" }],
+        });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("follow-up");
+
+      await act(async () => {
+        checkpoints[1]!.reject(new Error("second lookup failed"));
+      });
+
+      expect(streamMock).toHaveBeenCalledOnce();
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("answer");
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("follow-up");
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores a failed reload but does not overwrite a newer load", async () => {
+    const checkpoints = [deferred<string | null>(), deferred<string | null>()];
+    const pendingLoad = deferred<AdkThreadSnapshot>();
+    const getCheckpointId = vi.fn(
+      () => checkpoints[getCheckpointId.mock.calls.length - 1]!.promise,
     );
-    const answer = capture
-      .runtime!.thread.getState()
-      .messages.find((message) => message.role === "assistant")!;
-    act(() => {
-      capture.runtime!.thread.getMessageById(answer.id).reload();
-      capture.runtime!.thread.getMessageById(answer.id).reload();
+    let loadCount = 0;
+    const load = vi.fn(() => {
+      loadCount++;
+      return loadCount === 1
+        ? Promise.resolve({
+            messages: [
+              { id: "q-1", type: "human" as const, content: "question" },
+              aiMessage("a-1", "answer"),
+            ],
+          })
+        : pendingLoad.promise;
     });
-    await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(2));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(load, getCheckpointId);
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer"),
+      );
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.find((m) => m.role === "assistant")!;
 
-    await act(async () => {
-      checkpoints[1]!.resolve("cp-newer");
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
+      await act(async () => {
+        checkpoints[0]!.reject(new Error("first lookup failed"));
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer"),
+      );
 
-    await act(async () => {
-      checkpoints[0]!.resolve("cp-older");
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(2));
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("answer");
 
-    expect(streamMock).toHaveBeenCalledOnce();
-    expect(streamMock.mock.calls[0]![1]).toMatchObject({
-      checkpointId: "cp-newer",
-    });
+      let refetch!: Promise<void>;
+      act(() => {
+        refetch = capture.runtime!.threads.reloadMainThread();
+      });
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        checkpoints[1]!.reject(new Error("second lookup failed"));
+      });
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("answer");
+
+      await act(async () => {
+        pendingLoad.resolve({ messages: [aiMessage("loaded", "new history")] });
+        await refetch;
+      });
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("new history");
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores a failed reload but does not overwrite a newer reload", async () => {
+    const checkpoints = [
+      deferred<string | null>(),
+      deferred<string | null>(),
+      deferred<string | null>(),
+    ];
+    const getCheckpointId = vi.fn(
+      () => checkpoints[getCheckpointId.mock.calls.length - 1]!.promise,
+    );
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture, streamMock } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-1", type: "human", content: "question" },
+            aiMessage("a-1", "answer"),
+          ],
+        }),
+        getCheckpointId,
+      );
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer"),
+      );
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.find((message) => message.role === "assistant")!;
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
+      await act(async () => {
+        checkpoints[0]!.reject(new Error("first lookup failed"));
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer"),
+      );
+
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(3));
+
+      await act(async () => {
+        checkpoints[1]!.reject(new Error("older lookup failed"));
+      });
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("answer");
+
+      await act(async () => {
+        checkpoints[2]!.reject(new Error("newer lookup failed"));
+      });
+
+      expect(streamMock).not.toHaveBeenCalled();
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("answer");
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("defers to an initial load still in flight rather than taking it over", async () => {
