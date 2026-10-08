@@ -5,18 +5,72 @@ export type SSEEvent = {
   retry?: number;
 };
 
+const DEFAULT_MAX_LINE_LENGTH = 16 * 1024 * 1024;
+const DEFAULT_MAX_EVENT_LENGTH = 16 * 1024 * 1024;
+
+export class SSEEventDecoderError extends Error {
+  readonly code: "invalid-limit" | "line-too-long" | "event-too-long";
+
+  constructor(
+    code: "invalid-limit" | "line-too-long" | "event-too-long",
+    message: string,
+  ) {
+    super(message);
+    this.name = "SSEEventDecoderError";
+    this.code = code;
+  }
+}
+
+export type SSEEventDecoderOptions = {
+  trailing?: "drop" | "dispatch";
+  /** Maximum UTF-16 code units retained for one unterminated SSE line. */
+  maxLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across the data lines of one event. */
+  maxEventLength?: number | undefined;
+};
+
+const readLimit = (
+  value: number | undefined,
+  fallback: number,
+  name: string,
+) => {
+  const limit = value ?? fallback;
+  if (!Number.isSafeInteger(limit) || limit <= 0) {
+    throw new SSEEventDecoderError(
+      "invalid-limit",
+      `${name} must be a positive safe integer`,
+    );
+  }
+  return limit;
+};
+
 export class SSEEventDecoder {
   private lineChunks: string[] = [];
+  private lineLength = 0;
+  private linePreview = "";
   private dataLines: string[] = [];
+  private eventLength = 0;
   private eventName: string | undefined;
   private lastEventId: string | undefined;
   private retry: number | undefined;
   private pendingLF = false;
   private started = false;
   private readonly trailing: "drop" | "dispatch";
+  private readonly maxLineLength: number;
+  private readonly maxEventLength: number;
 
-  constructor(options?: { trailing?: "drop" | "dispatch" }) {
+  constructor(options?: SSEEventDecoderOptions) {
     this.trailing = options?.trailing ?? "drop";
+    this.maxLineLength = readLimit(
+      options?.maxLineLength,
+      DEFAULT_MAX_LINE_LENGTH,
+      "maxLineLength",
+    );
+    this.maxEventLength = readLimit(
+      options?.maxEventLength,
+      DEFAULT_MAX_EVENT_LENGTH,
+      "maxEventLength",
+    );
   }
 
   push(text: string): SSEEvent[] {
@@ -40,14 +94,21 @@ export class SSEEventDecoder {
     for (const line of lines) {
       let completeLine = line;
       if (this.lineChunks.length > 0) {
-        this.lineChunks.push(line);
+        this.appendLineChunk(line);
         completeLine = this.lineChunks.join("");
-        this.lineChunks = [];
+        this.resetLine();
+      } else if (line.length > this.maxLineLength) {
+        this.resetFrame();
+        this.resetLine();
+        throw new SSEEventDecoderError(
+          "line-too-long",
+          `SSE line exceeds maxLineLength (${line.length} > ${this.maxLineLength})`,
+        );
       }
       const event = this.processLine(completeLine);
       if (event) events.push(event);
     }
-    if (remainder !== "") this.lineChunks.push(remainder);
+    if (remainder !== "") this.appendLineChunk(remainder);
 
     return events;
   }
@@ -55,7 +116,7 @@ export class SSEEventDecoder {
   flush(): SSEEvent | null {
     if (this.trailing === "drop") {
       this.resetFrame();
-      this.lineChunks = [];
+      this.resetLine();
       this.pendingLF = false;
       return null;
     }
@@ -64,7 +125,7 @@ export class SSEEventDecoder {
       this.processLine(this.lineChunks.join(""));
     }
 
-    this.lineChunks = [];
+    this.resetLine();
     this.pendingLF = false;
     return this.dispatchEvent();
   }
@@ -79,9 +140,20 @@ export class SSEEventDecoder {
     if (value.startsWith(" ")) value = value.slice(1);
 
     switch (field) {
-      case "data":
+      case "data": {
+        const nextEventLength =
+          this.eventLength + value.length + (this.dataLines.length > 0 ? 1 : 0);
+        if (nextEventLength > this.maxEventLength) {
+          this.resetFrame();
+          throw new SSEEventDecoderError(
+            "event-too-long",
+            `SSE event exceeds maxEventLength (${nextEventLength} > ${this.maxEventLength})`,
+          );
+        }
+        this.eventLength = nextEventLength;
         this.dataLines.push(value);
         break;
+      }
       case "event":
         this.eventName = value;
         break;
@@ -116,6 +188,46 @@ export class SSEEventDecoder {
 
   private resetFrame() {
     this.dataLines = [];
+    this.eventLength = 0;
     this.eventName = undefined;
+  }
+
+  private appendLineChunk(chunk: string) {
+    const nextLineLength = this.lineLength + chunk.length;
+    if (nextLineLength > this.maxLineLength) {
+      this.resetFrame();
+      this.resetLine();
+      throw new SSEEventDecoderError(
+        "line-too-long",
+        `SSE line exceeds maxLineLength (${nextLineLength} > ${this.maxLineLength})`,
+      );
+    }
+    this.lineChunks.push(chunk);
+    this.lineLength = nextLineLength;
+    if (this.linePreview.length < 6) {
+      this.linePreview += chunk.slice(0, 6 - this.linePreview.length);
+    }
+
+    if (this.linePreview.length >= 5 && this.linePreview.startsWith("data:")) {
+      const leadingSpace =
+        this.linePreview.length >= 6 && this.linePreview[5] === " " ? 1 : 0;
+      const valueLength = this.lineLength - 5 - leadingSpace;
+      const nextEventLength =
+        this.eventLength + valueLength + (this.dataLines.length > 0 ? 1 : 0);
+      if (nextEventLength > this.maxEventLength) {
+        this.resetFrame();
+        this.resetLine();
+        throw new SSEEventDecoderError(
+          "event-too-long",
+          `SSE event exceeds maxEventLength (${nextEventLength} > ${this.maxEventLength})`,
+        );
+      }
+    }
+  }
+
+  private resetLine() {
+    this.lineChunks = [];
+    this.lineLength = 0;
+    this.linePreview = "";
   }
 }

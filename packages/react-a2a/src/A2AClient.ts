@@ -33,6 +33,10 @@ export type A2AClientOptions = {
   fetchOptions?:
     | Omit<RequestInit, "headers" | "body" | "method" | "signal">
     | undefined;
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 };
 
 export class A2AError extends Error {
@@ -696,6 +700,8 @@ export class A2AClient {
   private basePath: string;
   private tenant: string | undefined;
   private extensionUris: string[] | undefined;
+  private maxStreamLineLength: number | undefined;
+  private maxStreamEventLength: number | undefined;
   private fetchOptions: Omit<
     RequestInit,
     "headers" | "body" | "method" | "signal"
@@ -711,6 +717,8 @@ export class A2AClient {
       : "";
     this.tenant = options.tenant;
     this.extensionUris = options.extensions;
+    this.maxStreamLineLength = options.maxStreamLineLength;
+    this.maxStreamEventLength = options.maxStreamEventLength;
     const {
       headers: _h,
       body: _b,
@@ -1069,7 +1077,6 @@ export class A2AClient {
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    const sseDecoder = new SSEEventDecoder();
 
     let firstSkipReason: string | undefined;
     const noteSkip = (data: string, reason: string) => {
@@ -1105,6 +1112,10 @@ export class A2AClient {
 
     let shouldCancel = true;
     try {
+      const sseDecoder = new SSEEventDecoder({
+        maxLineLength: this.maxStreamLineLength,
+        maxEventLength: this.maxStreamEventLength,
+      });
       while (true) {
         let result: ReadableStreamReadResult<Uint8Array>;
         try {
