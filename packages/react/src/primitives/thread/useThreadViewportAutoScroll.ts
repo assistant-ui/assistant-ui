@@ -352,8 +352,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     onResizeRef.current = onResize;
   });
   const resizeRef = useOnResizeContent(() => onResizeRef.current());
-  // Re-observing every render drops queued mutation records; a pending smooth
-  // scroll and run-start's scroll behavior depend on that.
+  // Re-observing each render moves this commit's resize handling from the
+  // mutation microtask to the fresh observer's first notification, after a
+  // scheduled scroll frame runs; initialize and run-start scrolling rely on it.
   useLayoutEffect(() => {
     if (divRef.current) resizeRef(divRef.current);
   });
