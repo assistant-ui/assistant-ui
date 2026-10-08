@@ -32,7 +32,6 @@ import {
   useReplayRenderWait,
 } from "./replayBoundaryStream";
 import { useRunManager } from "./runManager";
-import { abortable } from "./abortable";
 import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
@@ -284,7 +283,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       const body = await createReplayBoundaryStream(response, {
         setReplaying: setIsReplaying,
-        waitForRender: () => abortable(signal, waitForReplayRender),
+        waitForRender: () => raceWithAbortSignal(signal, waitForReplayRender),
       });
 
       // Select decoder based on protocol option
