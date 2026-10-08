@@ -209,7 +209,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     scopeId,
     sdk: AI_SDK_SDK,
   });
-  const aui = useAui();
+  const clientRef = useAssistantClientRef();
   const previousCloudAdapter = useRef(cloudAdapter);
   useEffect(() => {
     if (previousCloudAdapter.current === cloudAdapter) return;
@@ -219,12 +219,12 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     // committed adapter has changed before clearing the previous scope's list.
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) void aui.threads.reload();
+      if (!cancelled) void clientRef.current!.threads.reload();
     });
     return () => {
       cancelled = true;
     };
-  }, [aui, bindCloud, cloudAdapter]);
+  }, [bindCloud, clientRef, cloudAdapter]);
   const thread = (id: string) => {
     const element = AISDKChatThread({
       threadId: id,
