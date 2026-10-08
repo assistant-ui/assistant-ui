@@ -34,4 +34,4 @@ Closes #
 
 ## AI use
 
-<!-- Which tools wrote or changed code and how you verified their output, or None. -->
+<!-- Required. Which tools wrote or changed code and how you verified their output, or None. -->
