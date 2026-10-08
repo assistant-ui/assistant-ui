@@ -381,7 +381,7 @@ for (const { login, isBot, commitSha, reason } of [
   { login: "outsider", isBot: true, commitSha: null, reason: "bot" },
   { login: "outsider", isBot: false, commitSha: null, reason: "untrusted" },
   { login: "alice", isBot: false, commitSha: null, reason: "stale" },
-  { login: "alice", isBot: false, commitSha: "head", reason: "pusher" },
+  { login: "alice", isBot: false, commitSha: "head", reason: "contributor" },
 ]) {
   test(`candidate exclusion uses the first matching reason: ${reason}`, () => {
     const result = evaluateRequirements(
@@ -408,21 +408,32 @@ test("duplicate approvals by one reviewer do not satisfy a two-approval requirem
   assert.deepEqual(result.approvals.counted, ["alice"]);
 });
 
-test("approvals survive only autofix commits and autofix committers are not the pusher", () => {
+test("an approval before autofix commits is stale", () => {
   const result = evaluateRequirements(
     input({
       headSha: "autofix-2",
       commits: [
         { sha: "base", author: "contributor", committer: "contributor" },
-        { sha: "autofix-1", author: "autofix-ci[bot]", committer: "alice" },
-        { sha: "autofix-2", author: "autofix-ci", committer: "alice" },
+        {
+          sha: "autofix-1",
+          author: "autofix-ci[bot]",
+          committer: "autofix-ci[bot]",
+        },
+        {
+          sha: "autofix-2",
+          author: "autofix-ci[bot]",
+          committer: "autofix-ci[bot]",
+        },
       ],
       reviews: [review("alice", { commitSha: "base" })],
     }),
     policy,
   );
-  assert.equal(result.status, "success");
-  assert.deepEqual(result.approvals, { counted: ["alice"], ignored: [] });
+  assert.equal(result.status, "pending");
+  assert.deepEqual(result.approvals, {
+    counted: [],
+    ignored: [{ login: "alice", reason: "stale" }],
+  });
 });
 
 for (const author of ["contributor", null, "other[bot]"]) {
@@ -492,7 +503,7 @@ test("commits before the approved commit do not make the approval stale", () => 
 });
 
 for (const committer of [null, "web-flow"]) {
-  test(`the pusher falls back to the commit author for committer ${committer}`, () => {
+  test(`a commit author is a contributor with committer ${committer}`, () => {
     const result = evaluateRequirements(
       input({
         commits: [{ sha: "head", author: "alice", committer }],
@@ -501,12 +512,12 @@ for (const committer of [null, "web-flow"]) {
       policy,
     );
     assert.deepEqual(result.approvals.ignored, [
-      { login: "alice", reason: "pusher" },
+      { login: "alice", reason: "contributor" },
     ]);
   });
 }
 
-test("a non-web-flow committer takes precedence over the commit author", () => {
+test("a commit author and committer are both contributors", () => {
   const result = evaluateRequirements(
     input({
       commits: [{ sha: "head", author: "alice", committer: "bob" }],
@@ -515,40 +526,66 @@ test("a non-web-flow committer takes precedence over the commit author", () => {
     policy,
   );
   assert.deepEqual(result.approvals, {
-    counted: ["alice"],
-    ignored: [{ login: "bob", reason: "pusher" }],
+    counted: [],
+    ignored: [
+      { login: "alice", reason: "contributor" },
+      { login: "bob", reason: "contributor" },
+    ],
   });
 });
 
-test("the human pusher stays excluded after an autofix commit", () => {
-  const result = evaluateRequirements(
-    input({
-      commits: [
-        { sha: "base", author: "contributor", committer: "alice" },
-        {
-          sha: "head",
-          author: "autofix-ci[bot]",
-          committer: "autofix-ci[bot]",
-        },
-      ],
-      reviews: [review("alice", { commitSha: "base" })],
-    }),
-    policy,
-  );
-  assert.deepEqual(result.approvals.ignored, [
-    { login: "alice", reason: "pusher" },
-  ]);
-});
+for (const field of ["author", "committer"]) {
+  test(`a reviewer who was the ${field} of an earlier commit is a contributor`, () => {
+    const result = evaluateRequirements(
+      input({
+        commits: [
+          {
+            sha: "base",
+            author: "contributor",
+            committer: "contributor",
+            [field]: "alice",
+          },
+          {
+            sha: "head",
+            author: "autofix-ci[bot]",
+            committer: "autofix-ci[bot]",
+          },
+        ],
+        reviews: [review("alice")],
+      }),
+      policy,
+    );
+    assert.deepEqual(result.approvals.ignored, [
+      { login: "alice", reason: "contributor" },
+    ]);
+  });
+}
 
-test("empty and autofix-only commit histories have no human pusher", () => {
+test("commit history does not affect an approval on the current head", () => {
   const request = input({ commits: [], reviews: [review("alice")] });
-  assert.deepEqual(evaluateRequirements(request, policy).approvals.ignored, [
-    { login: "alice", reason: "stale" },
+  assert.deepEqual(evaluateRequirements(request, policy).approvals.counted, [
+    "alice",
   ]);
   request.commits = [
     { sha: "head", author: "autofix-ci[bot]", committer: "alice" },
   ];
-  assert.equal(evaluateRequirements(request, policy).status, "success");
+  assert.deepEqual(evaluateRequirements(request, policy).approvals.ignored, [
+    { login: "alice", reason: "contributor" },
+  ]);
+});
+
+test("web-flow committer excludes nobody else", () => {
+  const result = evaluateRequirements(
+    input({
+      commits: [{ sha: "head", author: "contributor", committer: "web-flow" }],
+      reviews: [review("alice"), review("bob")],
+    }),
+    policy,
+  );
+  assert.deepEqual(result.approvals, {
+    counted: ["alice", "bob"],
+    ignored: [],
+  });
 });
 
 test("T3 accepts a linked decision from any affected owner", () => {
@@ -625,6 +662,16 @@ for (const tier of [2, 3]) {
     }
   });
 }
+
+test("an unreadable ready time keeps the window unmet", () => {
+  const request = input({
+    tier: 2,
+    reviews: [review("alice"), review("bob")],
+    readyForReviewAt: null,
+    now: new Date().toISOString(),
+  });
+  assert.deepEqual(codes(evaluateRequirements(request, policy)), ["window"]);
+});
 
 test("window overrides require an admin or affected owner and record the grantor", () => {
   const request = input({
@@ -772,7 +819,7 @@ test("overrides never waive approvals, owners, decisions or the open-PR cap", ()
       tier: 3,
       areas: ["reactivity"],
       authorHasWriteAccess: true,
-      openPullRequestCount: policy.openPullRequestCap + 1,
+      openPullRequestCount: policy.openPullRequestCap.withWriteAccess + 1,
       readyForReviewAt: "2026-10-08T11:00:00Z",
       labels: [
         "size",
@@ -798,13 +845,13 @@ test("overrides never waive approvals, owners, decisions or the open-PR cap", ()
   ]);
 });
 
-test("the open-PR cap applies only above the cap to writers outside the maintainer set", () => {
-  for (const author of ["contributor", "reviewer", "alice", "admin"]) {
+test("the open-PR cap uses write access and exempts maintainers", () => {
+  for (const author of ["contributor", "reviewer", "alice", "admin", null]) {
     for (const authorHasWriteAccess of [false, true]) {
-      for (const openPullRequestCount of [
-        policy.openPullRequestCap,
-        policy.openPullRequestCap + 1,
-      ]) {
+      const cap = authorHasWriteAccess
+        ? policy.openPullRequestCap.withWriteAccess
+        : policy.openPullRequestCap.withoutWriteAccess;
+      for (const openPullRequestCount of [cap, cap + 1]) {
         const result = evaluateRequirements(
           input({
             author,
@@ -815,11 +862,18 @@ test("the open-PR cap applies only above the cap to writers outside the maintain
           policy,
         );
         const capped =
-          authorHasWriteAccess &&
           ["contributor", "reviewer"].includes(author) &&
-          openPullRequestCount > policy.openPullRequestCap;
+          openPullRequestCount > cap;
         assert.equal(result.status, capped ? "failure" : "success");
         assert.deepEqual(codes(result), capped ? ["open-pr-cap"] : []);
+        if (capped) {
+          assert.deepEqual(result.unmet, [
+            {
+              code: "open-pr-cap",
+              detail: `allows at most ${cap} open non-draft pull requests for this author, has ${openPullRequestCount}`,
+            },
+          ]);
+        }
       }
     }
   }
@@ -852,7 +906,7 @@ test("waived failures leave unmet approval requirements pending", () => {
   assert.deepEqual(codes(result), ["approvals"]);
 });
 
-test("policy team slugs, labels, windows and autofix logins control requirements", () => {
+test("policy team slugs, labels, windows and open PR caps control requirements", () => {
   const custom = {
     ...policy,
     teams: { maintainers: "core", reviewers: "external" },
@@ -864,8 +918,7 @@ test("policy team slugs, labels, windows and autofix logins control requirements
       overrideSignals: ["window"],
     },
     windowHours: { 0: 2, 3: 4 },
-    openPullRequestCap: 1,
-    autofixLogins: ["custom-fixer"],
+    openPullRequestCap: { withWriteAccess: 1, withoutWriteAccess: 2 },
   };
   const request = input({
     tier: 3,
@@ -873,12 +926,9 @@ test("policy team slugs, labels, windows and autofix logins control requirements
     readyForReviewAt: "2026-10-08T11:00:00Z",
     commits: [
       { sha: "base", author: "contributor", committer: "contributor" },
-      { sha: "head", author: "custom-fixer", committer: "alice" },
+      { sha: "head", author: "contributor", committer: "web-flow" },
     ],
-    reviews: [
-      review("alice", { commitSha: "base" }),
-      review("bob", { commitSha: "base" }),
-    ],
+    reviews: [review("alice"), review("bob")],
     linkedIssues: [
       { number: 1, labels: [{ name: "custom: accepted", addedBy: "owner" }] },
     ],
@@ -907,7 +957,7 @@ test("policy team slugs, labels, windows and autofix logins control requirements
   request.authorHasWriteAccess = false;
   request.tier = 0;
   request.now = "2026-10-08T12:00:00Z";
-  request.reviews = [review("reviewer", { commitSha: "base" })];
+  request.reviews = [review("reviewer")];
   assert.deepEqual(codes(evaluateRequirements(request, custom)), ["window"]);
   request.failures = [{ code: "size", detail: "too large", override: "size" }];
   request.labels = [{ name: "custom/size", addedBy: "alice" }];

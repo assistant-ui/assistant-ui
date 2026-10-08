@@ -17,15 +17,11 @@ export function evaluateRequirements(input, policy) {
     ),
   }));
   const ownerMembers = new Set(owners.flatMap(({ members }) => [...members]));
-  const autofixLogins = new Set(policy.autofixLogins);
-  const lastHumanCommit = input.commits.findLast(
-    (commit) => !autofixLogins.has(commit.author),
+  const contributors = new Set(
+    input.commits.flatMap(({ author, committer }) =>
+      [author, committer].filter((login) => login !== null),
+    ),
   );
-  const pusher =
-    lastHumanCommit?.committer == null ||
-    lastHumanCommit.committer === "web-flow"
-      ? lastHumanCommit?.author
-      : lastHumanCommit.committer;
 
   const latestReviews = new Map();
   for (const review of input.reviews) {
@@ -56,18 +52,10 @@ export function evaluateRequirements(input, policy) {
     } else if (!trusted.has(review.author)) {
       reason = "untrusted";
     } else {
-      const commitIndex = input.commits.findIndex(
-        (commit) => commit.sha === review.commitSha,
-      );
-      if (
-        commitIndex === -1 ||
-        input.commits
-          .slice(commitIndex + 1)
-          .some((commit) => !autofixLogins.has(commit.author))
-      ) {
+      if (review.commitSha !== input.headSha) {
         reason = "stale";
-      } else if (review.author === pusher) {
-        reason = "pusher";
+      } else if (contributors.has(review.author)) {
+        reason = "contributor";
       }
     }
     if (reason) approvals.ignored.push({ login: review.author, reason });
@@ -147,11 +135,8 @@ export function evaluateRequirements(input, policy) {
   }
 
   const windowHours = policy.windowHours[input.tier];
-  if (
-    windowHours !== undefined &&
-    Date.parse(input.now) - Date.parse(input.readyForReviewAt) <
-      windowHours * 60 * 60 * 1000
-  ) {
+  const elapsed = Date.parse(input.now) - Date.parse(input.readyForReviewAt);
+  if (windowHours !== undefined && !(elapsed >= windowHours * 60 * 60 * 1000)) {
     if (overrides.has("window")) {
       waived.push({
         code: "window",
@@ -179,14 +164,17 @@ export function evaluateRequirements(input, policy) {
       hasFailure = true;
     }
   }
+  const openPullRequestCap = input.authorHasWriteAccess
+    ? policy.openPullRequestCap.withWriteAccess
+    : policy.openPullRequestCap.withoutWriteAccess;
   if (
-    input.authorHasWriteAccess &&
+    input.author != null &&
     !maintainerSet.has(input.author) &&
-    input.openPullRequestCount > policy.openPullRequestCap
+    input.openPullRequestCount > openPullRequestCap
   ) {
     unmet.push({
       code: "open-pr-cap",
-      detail: `allows at most ${policy.openPullRequestCap} open pull requests for this author, has ${input.openPullRequestCount}`,
+      detail: `allows at most ${openPullRequestCap} open non-draft pull requests for this author, has ${input.openPullRequestCount}`,
     });
     hasFailure = true;
   }
