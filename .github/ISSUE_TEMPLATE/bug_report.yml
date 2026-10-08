@@ -3,6 +3,11 @@ description: Report an issue to help us improve assistant-ui
 labels: ["bug"]
 
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Install, build and upgrade failures have their own form.
+
   - type: checkboxes
     attributes:
       label: Checklist
