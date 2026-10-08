@@ -1,10 +1,20 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
+export type MergeStreamFinishOrder = {
+  previous: () => Promise<void>;
+  delivered: ReturnType<typeof promiseWithResolvers<void>>;
+};
+
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
   pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
+  orderedFinish?: MergeStreamFinishOrder | undefined;
+};
+
+type MergeStreamOptions = {
+  orderedFinish?: MergeStreamFinishOrder | undefined;
 };
 
 export const createMergeStream = () => {
@@ -21,16 +31,20 @@ export const createMergeStream = () => {
   const cancelAllReaders = () => {
     // Repeated cancellation must wait for cleanup already in progress.
     rawChunkBatch = undefined;
-    cleanupPromise ??= Promise.all(
-      list.splice(0).map(async (item) => {
-        try {
-          await item.reader.cancel().catch(() => undefined);
-          await item.pipeTask;
-        } finally {
-          item.reader.releaseLock();
-        }
-      }),
-    ).then(() => undefined);
+    if (!cleanupPromise) {
+      const items = list.splice(0);
+      for (const item of items) item.orderedFinish?.delivered.resolve();
+      cleanupPromise = Promise.all(
+        items.map(async (item) => {
+          try {
+            await item.reader.cancel().catch(() => undefined);
+            await item.pipeTask;
+          } finally {
+            item.reader.releaseLock();
+          }
+        }),
+      ).then(() => undefined);
+    }
     return cleanupPromise;
   };
 
@@ -56,24 +70,35 @@ export const createMergeStream = () => {
       // idea: avoid reader.read() by instead using a WritableStream & if (!hasPendingPull) await waitForPull()?
       item.promise = item.reader
         .read()
-        .then(({ done, value }) => {
-          item.promise = undefined;
+        .then(async ({ done, value }) => {
           if (cancelled || errored) return;
 
           if (done) {
+            item.orderedFinish?.delivered.resolve();
             list.splice(list.indexOf(item), 1);
             item.reader.releaseLock();
             if (sealed && list.length === 0 && pendingRawBatches === 0) {
               controller.close();
             }
           } else {
+            if (value.type === "part-finish" && item.orderedFinish) {
+              await item.orderedFinish.previous();
+              if (cancelled || errored) return;
+            }
             controller.enqueue(value);
+            if (value.type === "part-finish") {
+              item.orderedFinish?.delivered.resolve();
+            }
           }
 
+          item.promise = undefined;
           currentPull?.resolve();
           currentPull = undefined;
         })
-        .catch(handleError);
+        .catch((error) => {
+          item.promise = undefined;
+          handleError(error);
+        });
     }
   };
 
@@ -131,6 +156,7 @@ export const createMergeStream = () => {
   const addStream = (
     stream: ReadableStream<AssistantStreamChunk>,
     pipeTask?: Promise<unknown>,
+    options?: MergeStreamOptions,
   ) => {
     const handledPipeTask = pipeTask?.catch(() => undefined);
     if (cancelled || errored) {
@@ -145,7 +171,12 @@ export const createMergeStream = () => {
 
     // A ready child must stay ahead of raw chunks enqueued after it.
     rawChunkBatch = undefined;
-    const item = { reader: stream.getReader(), pipeTask: handledPipeTask };
+    const orderedFinish = options?.orderedFinish;
+    const item = {
+      reader: stream.getReader(),
+      pipeTask: handledPipeTask,
+      orderedFinish,
+    };
     list.push(item);
     handlePull(item);
   };

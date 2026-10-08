@@ -48,16 +48,16 @@ import {
   </Step>
   <Step>
 
-### Render a lone reasoning part
+### Render each reasoning part
 
-Most runtimes stream reasoning as consecutive parts, but a single ungrouped `reasoning` part still needs a renderer:
+`children` renders each `reasoning` part in the group through the same render function, so give the `reasoning` case a renderer:
 
 ```tsx
 case "reasoning":
   return <Reasoning {...part} />;
 ```
 
-`Reasoning` renders the part's text as markdown with no disclosure chrome. Wrap it in `ReasoningRoot` / `ReasoningTrigger` / `ReasoningContent` yourself if a lone part should still get the collapsible shell.
+`Reasoning` renders the part's text as markdown with no disclosure chrome. A `reasoning` part that your `groupBy` leaves ungrouped reaches the same case; wrap it in `ReasoningRoot` / `ReasoningTrigger` / `ReasoningContent` yourself if it should still get the collapsible shell.
 
   </Step>
 </Steps>
@@ -66,7 +66,7 @@ case "reasoning":
 
 <StandaloneMode>
 
-Standalone, the element is disclosure UI over content you already have: no message parts, no grouping, just text and a streaming flag.
+Standalone, the element is disclosure UI over content you already have. It takes text and a streaming flag, with no message parts or grouping.
 
 <Steps>
   <Step>
@@ -106,7 +106,7 @@ export function Trace({
 
 ### Control the open state
 
-Left uncontrolled, the root opens on its own while `streaming` is true and closes again once `defaultOpen` is false. Pass `open` and `onOpenChange` to drive it yourself, for example to keep the latest trace expanded:
+Left uncontrolled, the root opens while `streaming` is true and returns to `defaultOpen` (closed by default) when streaming ends. Pass `open` and `onOpenChange` to drive it yourself, for example to keep the latest trace expanded:
 
 ```tsx
 const [open, setOpen] = useState(false);
@@ -138,7 +138,7 @@ const [open, setOpen] = useState(false);
 </div>
 ```
 
-While `streaming` is true and the panel is open, the trace is a live, bottom-pinned preview: it autoscrolls to the newest tokens as they arrive and only stops if the reader scrolls up manually, resuming once they scroll back to the bottom. When streaming ends, the open state returns to `defaultOpen`, unless the reader has already toggled the disclosure by hand at least once, at which point their choice sticks and streaming no longer overrides it. `ReasoningTrigger`'s `active` prop drives both the shimmering label and the timing text; the chevron rotates on open regardless. The runtime `ReasoningRoot` additionally locks the surrounding thread viewport's scroll position for the duration of each open or close animation, so expanding a trace never yanks the message list; the standalone root has no viewport to lock, so it skips that.
+While `streaming` is true and the panel is open, the trace is a live, bottom-pinned preview: it autoscrolls to the newest tokens as they arrive and only stops if the reader scrolls up manually, resuming once they scroll back to the bottom. When streaming ends, the open state returns to `defaultOpen`, unless the reader has already toggled the disclosure by hand at least once, at which point their choice sticks and streaming no longer overrides it. `ReasoningTrigger`'s `active` prop shimmers the label and `duration` adds the timing text; the chevron rotates on open regardless. The runtime `ReasoningRoot` also locks the thread viewport's scroll position during each open or close animation, so expanding a trace does not move the message list. The standalone root has no viewport to lock.
 
 ## Examples
 
@@ -165,12 +165,22 @@ Pass `duration` (seconds) to append a timing suffix to the trigger label:
 
 <RuntimeMode>
 
-The `status.type` on the group (`"running" | "complete" | ...`) is what drives `streaming`; it flips once the model's reasoning stream for that group ends, which is also when a duration becomes worth showing:
+The `status.type` on the group (`"running" | "complete" | ...`) is what drives `streaming`; it flips once the model's reasoning stream for that group ends. The group's `timing` spans the `timing` of its reasoning parts, and gains a `completedAt` once every timed part has finished, which is when a duration becomes worth showing:
 
 ```tsx
 const running = part.status.type === "running";
-<ReasoningTrigger active={running} duration={running ? undefined : elapsedSeconds} />
+const timing = part.timing;
+<ReasoningTrigger
+  active={running}
+  duration={
+    timing?.completedAt === undefined
+      ? undefined
+      : Math.round((timing.completedAt - timing.startedAt) / 1000)
+  }
+/>
 ```
+
+`useDataStreamRuntime` and `useAssistantTransportRuntime` stamp `timing` on each reasoning part as it streams. Other runtimes, the AI SDK and LangGraph ones and a `ChatModelAdapter` among them, leave it unset, so the trigger shows no duration unless the host supplies `timing: { startedAt, completedAt }` on its reasoning parts, in epoch milliseconds; an external store host that follows an agent's records does that from the times they carry.
 
 </RuntimeMode>
 
@@ -188,7 +198,7 @@ Standalone, `text` and `streaming` come from wherever you fetch them, for exampl
 
 | Export | Type | Notes |
 |--------|------|-------|
-| `Reasoning` | `ReasoningMessagePartComponent` | Renders the reasoning part's `text` as markdown. No disclosure chrome; use it for an ungrouped `reasoning` part. |
+| `Reasoning` | `ReasoningMessagePartComponent` | Renders the reasoning part's `text` as markdown. No disclosure chrome; use it for the `reasoning` parts inside a group, or for an ungrouped one. |
 
 ### Reasoning message part
 
@@ -253,7 +263,7 @@ Wire it by mapping a message's `"reasoning"` parts into steps. `s.message.parts`
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAuiState, useMessageTiming } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 import {
   ReasoningPanel,
   type ReasoningStep,
@@ -276,7 +286,20 @@ function AssistantReasoning() {
       (part) => part.type === "reasoning" && part.status.type === "running",
     );
   });
-  const timing = useMessageTiming();
+  const thoughtSeconds = useAuiState((s) => {
+    const timings = s.message.parts.flatMap((part) =>
+      part.type === "reasoning" && part.timing ? [part.timing] : [],
+    );
+    if (timings.length === 0) return undefined;
+    let startedAt = Infinity;
+    let completedAt = -Infinity;
+    for (const timing of timings) {
+      if (timing.completedAt === undefined) return undefined;
+      startedAt = Math.min(startedAt, timing.startedAt);
+      completedAt = Math.max(completedAt, timing.completedAt);
+    }
+    return Math.round((completedAt - startedAt) / 1000);
+  });
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
   if (steps.length === 0) return null;
@@ -289,16 +312,14 @@ function AssistantReasoning() {
       open={userOpen ?? streaming}
       onOpenChange={setUserOpen}
       restingLabel={
-        timing?.totalStreamTime
-          ? `Thought for ${Math.round(timing.totalStreamTime / 1000)}s`
-          : "Done thinking"
+        thoughtSeconds ? `Thought for ${thoughtSeconds}s` : "Done thinking"
       }
     />
   );
 }
 ```
 
-`visibleSteps` is just `steps.length`: the array itself grows as new reasoning parts stream in. `open` follows `streaming` until the reader toggles it once, after which their choice sticks.
+`visibleSteps` is `steps.length`, because the array grows as new reasoning parts stream in. `open` follows `streaming` until the reader toggles it once, after which their choice sticks.
 
 </RuntimeMode>
 

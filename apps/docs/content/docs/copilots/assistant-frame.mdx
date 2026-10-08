@@ -4,7 +4,7 @@ description: Share model context across iframe boundaries
 platforms: ["react"]
 ---
 
-The Assistant Frame API enables iframes to provide model context (tools and instructions) to a parent window's assistant. This is particularly useful for embedded applications, plugins, or sandboxed components that need to contribute capabilities to the main assistant.
+The Assistant Frame API enables iframes to provide model context (tools and instructions) to a parent window's assistant. Use it for embedded applications, plugins, or sandboxed components that contribute capabilities to the main assistant.
 
 ## Overview
 
@@ -60,20 +60,31 @@ instructionHandle.update("You have access to a product catalog search tool.");
 
 ### In the parent window (Host)
 
-The parent window consumes the iframe's context using `AssistantFrameHost`:
+The parent window connects to the iframe with `useAssistantFrameHost` and registers the resulting `AssistantFrameHost` as a model context provider:
 
 ```tsx
 // parent.tsx
-import { useAssistantFrameHost } from "@assistant-ui/react";
-import { useRef } from "react";
+import {
+  useAssistantFrameHost,
+  useAui,
+  type AssistantFrameHost,
+} from "@assistant-ui/react";
+import { useCallback, useRef } from "react";
 
 function ParentComponent() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const aui = useAui();
+
+  const register = useCallback(
+    (frameHost: AssistantFrameHost) => aui.modelContext.register(frameHost),
+    [aui],
+  );
 
   // Connect to the iframe's model context
   useAssistantFrameHost({
     iframeRef,
     targetOrigin: "https://trusted-iframe-domain.com",
+    register,
   });
 
   return (
@@ -93,7 +104,7 @@ function ParentComponent() {
 
 ### ModelContextRegistry
 
-The `ModelContextRegistry` provides a flexible way to manage model context dynamically:
+Use `ModelContextRegistry` to add, update, and remove model context at runtime:
 
 ```tsx
 const registry = new ModelContextRegistry();
@@ -195,6 +206,7 @@ AssistantFrameProvider.addModelContextProvider(
 useAssistantFrameHost({
   iframeRef,
   targetOrigin: "https://iframe-app.com",
+  register,
 });
 ```
 
@@ -239,7 +251,7 @@ When `targetOrigin` is omitted, the provider only communicates with `window.loca
 
 ##### `dispose()`
 
-Cleans up all resources and removes all providers. The parent host is told that the frame no longer provides any model context.
+Cleans up all resources and removes all providers. The parent host is told that the frame no longer provides any model context and rejects tool calls still waiting on the frame.
 
 ```tsx
 AssistantFrameProvider.dispose();
@@ -295,12 +307,15 @@ React hook that manages the lifecycle of an AssistantFrameHost.
 useAssistantFrameHost({
   iframeRef: RefObject<HTMLIFrameElement>,
   targetOrigin?: string, // Defaults to window.location.origin
+  register: (frameHost: AssistantFrameHost) => Unsubscribe,
 });
 ```
 
+`register` is required. The hook calls it with the new `AssistantFrameHost` and calls the returned function on cleanup. Pass a stable function (for example from `useCallback`), because the hook reconnects whenever `register` changes.
+
 ### ModelContextRegistry
 
-A flexible registry for managing model context with dynamic updates.
+A registry for model context that supports updates at runtime.
 
 #### Methods
 

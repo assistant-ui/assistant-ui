@@ -61,6 +61,6 @@ After the transaction commits, the cloud writes an audit entry with `action` set
 | `200` | `{ "threads": number, "runs": number }` | The erasure transaction completed and the audit entry was written after commit. |
 | `400` | A schema validation error object. | `userId` failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | Plain text: `Project-wide user deletion requires API key authentication` | The credential is not an API key, or API key access failed. |
+| `403` | `{ "error": "Project-wide user deletion requires API key authentication" }` | The credential is not an API key, or API key access failed. |
 
 The erasure is final. A repeated call for the same user finds nothing left to erase, returns zero counts and writes another audit entry.

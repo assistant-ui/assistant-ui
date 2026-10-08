@@ -1,6 +1,11 @@
+// @vitest-environment jsdom
+
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AuiProvider, useAui } from "@assistant-ui/store";
+import { useResource } from "@assistant-ui/tap";
+import { AuiProvider, useAui, type ClientOutput } from "@assistant-ui/store";
 import * as SpanPrimitive from "../primitives/span";
 import { SpanResource, type SpanData } from "./SpanResource";
 
@@ -120,6 +125,59 @@ describe("SpanResource", () => {
       (match) => match[1],
     );
     expect(spanIds).toEqual(["root", "earlier", "nested", "later"]);
+  });
+
+  it("keeps sibling resources and flat list order when a span is toggled", () => {
+    const spans = [
+      createSpan("root", null),
+      createSpan("later", "root", 2),
+      createSpan("earlier", "root", 1),
+      createSpan("nested", "earlier", 3),
+    ];
+    let spanResource: ClientOutput<"span"> | undefined;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    const Fixture = () => {
+      spanResource = useResource(SpanResource({ spans }));
+      return null;
+    };
+
+    try {
+      act(() => root.render(<Fixture />));
+      const initial = spanResource!.getState().children;
+      expect(initial.map((span) => span.id)).toEqual([
+        "root",
+        "earlier",
+        "nested",
+        "later",
+      ]);
+
+      act(() => spanResource!.child({ key: "earlier" }).toggleCollapse());
+      const collapsed = spanResource!.getState().children;
+      expect(collapsed.map((span) => span.id)).toEqual([
+        "root",
+        "earlier",
+        "later",
+      ]);
+      expect(collapsed[0]).toBe(initial[0]);
+      expect(collapsed[2]).toBe(initial[3]);
+      expect(collapsed[1]?.isCollapsed).toBe(true);
+
+      act(() => spanResource!.child({ key: "earlier" }).toggleCollapse());
+      const expanded = spanResource!.getState().children;
+      expect(expanded.map((span) => span.id)).toEqual([
+        "root",
+        "earlier",
+        "nested",
+        "later",
+      ]);
+      expect(expanded[0]).toBe(initial[0]);
+      expect(expanded[3]).toBe(initial[3]);
+      expect(expanded[1]?.isCollapsed).toBe(false);
+    } finally {
+      act(() => root.unmount());
+    }
   });
 
   it("renders deeply nested parent chains without overflowing the stack", () => {

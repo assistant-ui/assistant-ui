@@ -219,6 +219,53 @@ describe("useExternalHistory withFormat contract", () => {
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
 
+  it("re-enters loading when remoteId arrives before history settles", async () => {
+    mocks.hasThreadListItem = true;
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useExternalHistory(
+        runtimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    await act(async () => {});
+    expect(result.current.isLoading).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+
+    mocks.remoteId = "remote-thread";
+    await act(async () => {
+      for (const listener of mocks.listeners) listener();
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      resolveLoad({ headId: null, messages: [] });
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+
   it("does not load history when remoteId appears during an active run", async () => {
     mocks.hasThreadListItem = true;
     const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
@@ -1457,6 +1504,100 @@ describe("useExternalHistory persistence", () => {
     });
     expect(onSetMessages.mock.calls[0]?.[0][0]).not.toHaveProperty(
       "metadata.__aui_toolApprovalResponses",
+    );
+  });
+
+  it("stores and restores questionnaire answers with the approval response", async () => {
+    const answers = {
+      scope: { optionIds: ["src", "tests"] },
+      note: { text: "keep it short" },
+    };
+    const saved = new Map<string, RespondToToolApprovalOptions>();
+    const writer = createPersistenceHarness(false, {
+      toolApprovalResponses: saved,
+    });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-ask",
+          toolCallId: "call-1",
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "ask",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    );
+    await waitFor(() => expect(writer.load).toHaveBeenCalledTimes(1));
+    saved.set("approval-1", {
+      approvalId: "approval-1",
+      approved: true,
+      answers,
+    });
+    await writer.runCycle([message]);
+    await waitFor(() =>
+      expect(writer.append).toHaveBeenCalledWith({
+        parentId: null,
+        message: {
+          ...innerMessage,
+          metadata: {
+            __aui_toolApprovalResponses: {
+              "approval-1": { approved: true, answers },
+            },
+          },
+        },
+      }),
+    );
+    writer.unmount();
+
+    const restored = new Map<string, RespondToToolApprovalOptions>();
+    const reader = createPersistenceHarness(true, {
+      loadMessages: {
+        messages: [
+          {
+            parentId: null,
+            message: {
+              ...innerMessage,
+              metadata: {
+                __aui_toolApprovalResponses: {
+                  "approval-1": {
+                    approved: true,
+                    answers: { ...answers, junk: { optionIds: [1] } },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      toolApprovalResponses: restored,
+    });
+    await waitFor(() => expect(reader.load).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(restored.get("approval-1")).toEqual({
+        approvalId: "approval-1",
+        approved: true,
+        answers,
+      }),
     );
   });
 

@@ -1,11 +1,103 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  auiV0Decode,
-  auiV0DecodeSafely,
-  auiV0Encode,
-} from "../react/runtimes/cloud/auiV0";
+import { auiV0DecodeSafely, auiV0Encode } from "../react/runtimes/cloud/auiV0";
 
 describe("auiV0Encode", () => {
+  it("round-trips optional identities on attachment text, image, file, and data parts", () => {
+    const parts = [
+      { type: "text" as const, id: "text-1", text: "hello" },
+      {
+        type: "image" as const,
+        id: "image-1",
+        image: "https://example.com/image.png",
+      },
+      {
+        type: "file" as const,
+        id: "file-1",
+        data: "https://example.com/file.pdf",
+        mimeType: "application/pdf",
+      },
+      { type: "data" as const, id: "data-1", name: "chart", data: { x: 1 } },
+      { type: "text" as const, id: "", text: "empty id" },
+      { type: "text" as const, text: "without id" },
+    ];
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      metadata: { custom: {} },
+      attachments: [
+        {
+          id: "attachment",
+          type: "file",
+          name: "parts.json",
+          status: { type: "complete" },
+          content: parts,
+        },
+      ],
+    });
+    expect(encoded.attachments?.[0]?.content).toEqual(parts);
+    expect(encoded.attachments?.[0]?.content[5]).not.toHaveProperty("id");
+
+    const decoded = auiV0DecodeSafely({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: encoded as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    if (decoded?.message.role !== "user") throw new Error("expected user");
+    expect(decoded.message.attachments[0]?.content).toEqual(parts);
+  });
+
+  it("round-trips optional identities on text, reasoning, data, file, and image parts", () => {
+    const parts = [
+      { type: "text" as const, id: "text-1", text: "hello" },
+      { type: "reasoning" as const, id: "reasoning-1", text: "thinking" },
+      { type: "data" as const, id: "data-1", name: "chart", data: { x: 1 } },
+      {
+        type: "file" as const,
+        id: "file-1",
+        data: "https://example.com/file.pdf",
+        mimeType: "application/pdf",
+      },
+      {
+        type: "image" as const,
+        id: "image-1",
+        image: "https://example.com/image.png",
+      },
+      { type: "text" as const, text: "without id" },
+    ];
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: parts,
+    });
+
+    expect(encoded.content).toEqual(parts);
+    const decoded = auiV0DecodeSafely({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: encoded as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    expect(decoded?.message.content).toEqual(parts);
+  });
+
   it("preserves document source parts in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
@@ -84,6 +176,60 @@ describe("auiV0Encode", () => {
 
     const toolCall = encoded.content.find((p) => p.type === "tool-call");
     expect(toolCall).toMatchObject({ approval: { id: "a1" } });
+  });
+
+  it("round-trips an answered questionnaire approval", () => {
+    const approval = {
+      id: "a1",
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Which files?",
+          options: [{ id: "src", label: "src" }],
+          multiple: true,
+        },
+      ],
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    };
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "ask",
+          args: {},
+          argsText: "{}",
+          result: "ok",
+          approval,
+        },
+      ],
+    });
+
+    const decoded = auiV0DecodeSafely({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toMatchObject({ approval });
   });
 
   it("preserves user attachments in the core cloud encoder", () => {
@@ -427,7 +573,7 @@ describe("auiV0Encode", () => {
   });
 });
 
-describe("auiV0Decode", () => {
+describe("auiV0DecodeSafely", () => {
   it("round-trips a reasoning summary", () => {
     const encoded = auiV0Encode({
       id: "local",
@@ -446,16 +592,57 @@ describe("auiV0Decode", () => {
       ],
     });
 
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    expect(message.content).toEqual([
+    expect(decoded?.message.content).toEqual([
       { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+    ]);
+  });
+
+  it("round-trips reasoning timing", () => {
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "reasoning",
+          text: "thinking",
+          timing: { startedAt: 1_000, completedAt: 13_000 },
+        },
+        { type: "reasoning", text: "untimed" },
+      ],
+    });
+
+    const decoded = auiV0DecodeSafely({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    expect(decoded?.message.content).toEqual([
+      {
+        type: "reasoning",
+        text: "thinking",
+        timing: { startedAt: 1_000, completedAt: 13_000 },
+      },
+      { type: "reasoning", text: "untimed" },
     ]);
   });
 
@@ -481,15 +668,15 @@ describe("auiV0Decode", () => {
       ],
     });
 
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    expect(message.content).toEqual([
+    expect(decoded?.message.content).toEqual([
       {
         type: "reasoning",
         text: "",
@@ -523,7 +710,7 @@ describe("auiV0Decode", () => {
       ],
     });
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -533,7 +720,7 @@ describe("auiV0Decode", () => {
       content: content as never,
     });
 
-    if (decoded.message.role !== "assistant")
+    if (decoded?.message.role !== "assistant")
       throw new Error("expected assistant");
     const toolCall = decoded.message.content.find(
       (p) => p.type === "tool-call",
@@ -569,7 +756,7 @@ describe("auiV0Decode", () => {
       ],
     });
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -579,8 +766,8 @@ describe("auiV0Decode", () => {
       content: content as never,
     });
 
-    expect(decoded.message.role).toBe("user");
-    if (decoded.message.role !== "user") throw new Error("expected user");
+    expect(decoded?.message.role).toBe("user");
+    if (decoded?.message.role !== "user") throw new Error("expected user");
     expect(decoded.message.attachments).toEqual([
       {
         id: "att-1",
@@ -692,15 +879,17 @@ describe("auiV0Decode", () => {
         providerMetadata,
       }),
     );
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "m1",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    const toolCall = message.content.find((p) => p.type === "tool-call");
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
     expect(toolCall).toMatchObject({
       artifact,
       modelContent: artifactModelContent,
@@ -784,18 +973,17 @@ describe("auiV0Decode", () => {
       unstable_interactions,
     );
 
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "m1",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    expect(message.content.find((p) => p.type === "tool-call")).toHaveProperty(
-      "unstable_interactions",
-      unstable_interactions,
-    );
+    expect(
+      decoded?.message.content.find((p) => p.type === "tool-call"),
+    ).toHaveProperty("unstable_interactions", unstable_interactions);
   });
 
   it("stores only readable tool-call interactions", () => {
@@ -820,15 +1008,17 @@ describe("auiV0Decode", () => {
 
   it("carries a falsy tool-call result through a decode round trip", () => {
     const encoded = auiV0Encode(toolCallMessage({ result: false }));
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "m1",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    const toolCall = message.content.find((p) => p.type === "tool-call");
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
     expect(toolCall).toHaveProperty("result", false);
   });
 
@@ -851,60 +1041,19 @@ describe("auiV0Decode", () => {
       modelContent,
     );
 
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "m1",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    const toolCall = message.content.find((p) => p.type === "tool-call");
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
     expect(toolCall).toHaveProperty("result", { blob: "x".repeat(16) });
     expect(toolCall).toHaveProperty("modelContent", modelContent);
-  });
-
-  it("keeps a tool-call modelContent through the safe decoder", () => {
-    const encoded = auiV0Encode(
-      toolCallMessage({ result: "ui blob", modelContent }),
-    );
-    const decoded = auiV0DecodeSafely({
-      id: "m1",
-      parent_id: null,
-      format: "aui/v0",
-      content: encoded,
-      created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
-
-    const toolCall = decoded?.message.content.find(
-      (p) => p.type === "tool-call",
-    );
-    expect(toolCall).toHaveProperty("modelContent", modelContent);
-  });
-
-  it("keeps tool-call artifact and provider metadata through the safe decoder", () => {
-    const encoded = auiV0Encode(
-      toolCallMessage({
-        artifact,
-        modelContent: artifactModelContent,
-        providerMetadata,
-      }),
-    );
-    const decoded = auiV0DecodeSafely({
-      id: "m1",
-      parent_id: null,
-      format: "aui/v0",
-      content: encoded,
-      created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
-
-    const toolCall = decoded?.message.content.find(
-      (p) => p.type === "tool-call",
-    );
-    expect(toolCall).toMatchObject({
-      artifact,
-      providerMetadata,
-    });
   });
 
   it("omits modelContent for a tool call that does not carry one", () => {
@@ -925,15 +1074,17 @@ describe("auiV0Decode", () => {
       isPreliminary: true,
     });
 
-    const { message } = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "m1",
       parent_id: null,
       format: "aui/v0",
       content: encoded,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
-    } as unknown as Parameters<typeof auiV0Decode>[0]);
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    const decodedToolCall = message.content.find((p) => p.type === "tool-call");
+    const decodedToolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
     expect(decodedToolCall).toMatchObject({
       result: "interim",
       isPreliminary: true,
@@ -960,7 +1111,7 @@ describe("auiV0Decode", () => {
       ],
     });
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -970,7 +1121,7 @@ describe("auiV0Decode", () => {
       content: content as never,
     });
 
-    if (decoded.message.role !== "assistant")
+    if (decoded?.message.role !== "assistant")
       throw new Error("expected assistant");
     expect(decoded.message.content).toEqual([
       { type: "text", text: "planned" },
@@ -1126,7 +1277,7 @@ describe("auiV0Decode", () => {
       },
     ]);
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -1136,7 +1287,7 @@ describe("auiV0Decode", () => {
       updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
 
-    if (decoded.message.role !== "assistant")
+    if (decoded?.message.role !== "assistant")
       throw new Error("expected assistant");
     expect(decoded.message.content).toEqual([
       { type: "text", text: "answer", parentId: "text-parent" },
@@ -1224,7 +1375,7 @@ describe("auiV0Decode", () => {
       },
     ]);
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -1234,7 +1385,7 @@ describe("auiV0Decode", () => {
       updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
 
-    if (decoded.message.role !== "user") throw new Error("expected user");
+    if (decoded?.message.role !== "user") throw new Error("expected user");
     expect(decoded.message.content).toEqual([
       {
         type: "image",
@@ -1276,7 +1427,7 @@ describe("auiV0Decode", () => {
     expect(encoded.content[1]).toHaveProperty("filename", "");
     expect(encoded.attachments?.[0]?.content).toEqual([part]);
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -1285,8 +1436,8 @@ describe("auiV0Decode", () => {
       created_at: new Date("2026-03-15T00:00:00.000Z"),
       updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
-    expect(decoded.message.content[0]).toEqual(part);
-    expect(decoded.message.content[1]).toHaveProperty("filename", "");
+    expect(decoded?.message.content[0]).toEqual(part);
+    expect(decoded?.message.content[1]).toHaveProperty("filename", "");
   });
 
   it("round-trips text provider metadata", () => {
@@ -1319,7 +1470,7 @@ describe("auiV0Decode", () => {
       },
     ]);
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -1329,7 +1480,7 @@ describe("auiV0Decode", () => {
       updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
 
-    if (decoded.message.role !== "assistant")
+    if (decoded?.message.role !== "assistant")
       throw new Error("expected assistant");
     expect(decoded.message.content).toEqual([
       {
@@ -1378,7 +1529,7 @@ describe("auiV0Decode", () => {
       },
     ]);
 
-    const decoded = auiV0Decode({
+    const decoded = auiV0DecodeSafely({
       id: "cloud",
       parent_id: null,
       height: 0,
@@ -1388,7 +1539,7 @@ describe("auiV0Decode", () => {
       updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
 
-    if (decoded.message.role !== "user") throw new Error("expected user");
+    if (decoded?.message.role !== "user") throw new Error("expected user");
     expect(decoded.message.content).toEqual(content.content);
     expect(decoded.message.attachments[0]?.content).toEqual(
       content.attachments?.[0]?.content,

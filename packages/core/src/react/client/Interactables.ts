@@ -235,6 +235,7 @@ const useInteractablesResource = ({
     discardPending,
     flushIfPending,
     getDirtyIds,
+    isSaving,
     schedulePersistence,
     flush: flushPersistence,
   } = useInteractablePersistenceQueue({
@@ -280,9 +281,15 @@ const useInteractablesResource = ({
   );
 
   // Applies adapter.load() output: a local edit made while the load was in
-  // flight wins, and thread-scoped items never restore from the adapter.
+  // flight wins, the load replaces the detached copy of an id nobody edited,
+  // and thread-scoped items never restore from the adapter.
   const applyLoadedState = useCallback(
     (saved: Unstable_InteractablePersistedState) => {
+      for (const id of Object.keys(saved)) {
+        if (!touchedIdsRef.current.has(id)) {
+          detachedAppStateRef.current.delete(id);
+        }
+      }
       restorePersistedState(saved, {
         stash: loadedStateRef.current,
         shouldStash: (id) => !touchedIdsRef.current.has(id),
@@ -525,10 +532,10 @@ const useInteractablesResource = ({
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
+      if (!stateRef.current.definitions[id]) return;
       touchedIdsRef.current.add(id);
       setStateAndRef((prev) => {
-        const existing = prev.definitions[id];
-        if (!existing) return prev;
+        const existing = prev.definitions[id]!;
         return {
           ...prev,
           definitions: nullProtoRecord(prev.definitions, {
@@ -749,6 +756,12 @@ const useInteractablesResource = ({
               def.initialState,
           },
         }),
+        persistence:
+          prev.persistence[def.id] === undefined && isSaving(def.id)
+            ? nullProtoRecord(prev.persistence, {
+                [def.id]: { isPending: true, error: undefined },
+              })
+            : prev.persistence,
       }));
 
       return () => {
@@ -766,12 +779,13 @@ const useInteractablesResource = ({
           const existing = prev.definitions[def.id];
           if (existing) {
             if (existing.scope === "thread") {
-              const threadId = getCurrentThreadId();
-              if (threadId) {
-                let stateById = detachedThreadStateRef.current.get(threadId);
+              const ownerThreadId = threadId ?? getCurrentThreadId();
+              if (ownerThreadId) {
+                let stateById =
+                  detachedThreadStateRef.current.get(ownerThreadId);
                 if (!stateById) {
                   stateById = new Map();
-                  detachedThreadStateRef.current.set(threadId, stateById);
+                  detachedThreadStateRef.current.set(ownerThreadId, stateById);
                 }
                 stateById.set(def.id, existing.state);
               }
@@ -797,6 +811,7 @@ const useInteractablesResource = ({
       clientRef,
       getCurrentThreadId,
       installUpdateToolUI,
+      isSaving,
       setStateAndRef,
     ],
   );

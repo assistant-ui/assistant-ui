@@ -53,7 +53,9 @@ env:
 
     Verdict first, terse: lead with the core problem and group the rest under it. Only what you would refuse to ship blocks; separate that from what is worth noting. A sound PR gets a one-line green light; never manufacture findings. Raise architectural direction as questions, not prescriptions. Stay appreciative with external contributors even while blocking. No praise sections, no process narration, no restating the diff or CI. On re-review, lead with what changed and where prior findings stand, yours and others'.
 
-    Line-anchored findings go inline via mcp__github_inline_comment__create_inline_comment, deduplicated against existing comments. On same-repository PRs, put everything else in the sticky comment with no progress placeholders left. On external PRs, return the overall verdict as your final response; the trusted workflow will publish it.
+    When the diff is too large to read in full, review a bounded slice and name in the verdict what you did not review. ${{ github.event_name == 'pull_request_target' && 'List the changed files with mcp__github__get_pull_request_files and read the riskiest with mcp__github__get_file_contents.' || 'List the changed files with `gh pr view <number> --json files` and read the riskiest with Read. The shell runs only the listed `gh` commands, one per call; pipes, `git`, and anything else are denied.' }}
+
+    Line-anchored findings go inline via mcp__github_inline_comment__create_inline_comment, deduplicated against existing comments. On same-repository PRs, put everything else in the sticky comment with no progress placeholders left, and write the verdict there even when the review is partial. On external PRs, return the overall verdict as your final response; the trusted workflow will publish it.
 
   # Allowed tools:
   # - WebSearch/WebFetch: Verify provider/framework behavior against upstream docs and changelogs
@@ -98,7 +100,7 @@ jobs:
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # ratchet:anthropics/claude-code-action@v1.0.233
+        uses: anthropics/claude-code-action@fd1c128679612beff4ca259c78021c506e8aa7a7 # ratchet:anthropics/claude-code-action@v1.0.237
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
@@ -146,22 +148,35 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
             --input "$RUNNER_TEMP/claude-review.json" >/dev/null
 
-      # A run can also end cleanly without ever posting the final review,
-      # leaving the sticky comment stuck on its progress todos under a green
-      # check. The unchecked todos are written by the action's own progress
-      # tracking, so their presence in the last claude[bot] comment means the
-      # review never completed.
-      - name: Fail on unfinished review
+      # A run can also end cleanly without writing its final review into the
+      # sticky comment, leaving it on the progress todos the action's own
+      # tracking writes. Publish the run's final response there instead, as the
+      # fork job does, and fail only when the run left nothing to publish.
+      - name: Publish an unfinished review
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          REVIEW_FILE: ${{ steps.review.outputs.execution_file }}
         run: |
           COMMENT=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq '.[] | select(.user.login == "claude[bot]")' | jq -s 'last')
           [ -n "$COMMENT" ] && [ "$COMMENT" != "null" ] || exit 0
           jq -r .body <<<"$COMMENT" | grep -qE '^- \[ \]' || exit 0
-          echo "::error::Claude review ended without posting the final review (progress todos left unchecked)"
-          exit 1
+
+          if [ ! -f "$REVIEW_FILE" ] || ! jq -e 'last(.[] | select(.type == "result")) | .is_error == false and (.result | type == "string" and length > 0)' "$REVIEW_FILE" >/dev/null; then
+            echo "::error::Claude review ended without posting the final review (progress todos left unchecked)"
+            exit 1
+          fi
+
+          echo "::warning::Claude review ended without updating its comment; publishing its final response there"
+          BODY_FILE="$RUNNER_TEMP/claude-review-final.md"
+          {
+            jq -r 'last(.[] | select(.type == "result")) | .result' "$REVIEW_FILE"
+            printf '\n<!-- review-model -->\n<sub>%s</sub>\n' "$(jq -r "$REVIEW_MODEL_NOTE" "$REVIEW_FILE")"
+          } > "$BODY_FILE"
+          jq -n --rawfile body "$BODY_FILE" '{ body: $body }' > "$RUNNER_TEMP/claude-review-final.json"
+          gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
+            --input "$RUNNER_TEMP/claude-review-final.json" >/dev/null
 
   claude-fork-review:
     if: >-
@@ -189,7 +204,7 @@ jobs:
 
       - name: Review external PR
         id: review
-        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # ratchet:anthropics/claude-code-action@v1.0.233
+        uses: anthropics/claude-code-action@fd1c128679612beff4ca259c78021c506e8aa7a7 # ratchet:anthropics/claude-code-action@v1.0.237
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}

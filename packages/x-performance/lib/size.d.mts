@@ -22,6 +22,7 @@ export type CompareSizesOptions = {
   report?: string | undefined;
 };
 
+export declare const BASE_INSTALL_FILTERS: string[];
 export declare const SIZE_IGNORE: Set<string>;
 export declare const listEntries: (
   pkg: {
