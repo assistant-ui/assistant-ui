@@ -134,7 +134,7 @@ export function TimelineEntry({
               {middleTruncate(detail, DETAIL_CHARS)}
             </p>
           ) : null}
-          {children ? <div className="mt-3">{children}</div> : null}
+          {children}
         </div>
       </div>
     </li>

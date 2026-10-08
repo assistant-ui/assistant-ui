@@ -20,7 +20,7 @@ import {
   SKILLS_PACKAGE,
   SKILLS_PLUGIN_SOURCE,
 } from "../../src/lib/agent-skill";
-import { DOWNLOAD_TIMEOUT_MS } from "../../src/lib/create-project";
+import { DOWNLOAD_TIMEOUT_MS } from "../../src/lib/utils/download";
 
 describe("resolveSkillsInstall", () => {
   it("honors an explicit --skills flag", () => {

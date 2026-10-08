@@ -49,8 +49,8 @@ const DEFAULT_MAX_CHAR_INTERVAL_MS = 5;
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
-  private lastUpdateTime: number = Date.now();
-  public lastCommitTime: number = 0;
+  private lastUpdateTime: number = 0;
+  public lastCommitTime: number = -Infinity;
 
   public targetText: string = "";
   public drainMs: number = DEFAULT_DRAIN_MS;
@@ -68,7 +68,7 @@ class TextStreamAnimator {
 
   start() {
     if (this.animationFrameId !== null) return;
-    this.lastUpdateTime = Date.now();
+    this.lastUpdateTime = performance.now();
     this.animate();
   }
 
@@ -80,7 +80,7 @@ class TextStreamAnimator {
   }
 
   private animate = () => {
-    const currentTime = Date.now();
+    const currentTime = performance.now();
     const deltaTime = currentTime - this.lastUpdateTime;
     let timeToConsume = deltaTime;
 
@@ -214,8 +214,8 @@ export const useSmooth = (
     }
   }, [smoothStatusStore, enabled, text, displayedText, state.status]);
 
-  const [animatorRef] = useState<TextStreamAnimator>(
-    new TextStreamAnimator(displayedText, setText),
+  const [animatorRef] = useState(
+    () => new TextStreamAnimator(displayedText, setText),
   );
 
   useEffect(() => {
@@ -240,7 +240,7 @@ export const useSmooth = (
       if (state.status.type === "running") {
         animatorRef.currentText = "";
         animatorRef.targetText = text;
-        animatorRef.lastCommitTime = 0;
+        animatorRef.lastCommitTime = -Infinity;
         animatorRef.start();
       } else {
         animatorRef.currentText = text;

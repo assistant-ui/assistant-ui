@@ -6,7 +6,10 @@ import {
   clearPendingAssistantCloudEvents,
   type AssistantCloudEvent,
 } from "./AssistantCloudEvents";
-import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import { AssistantCloudAPI } from "./AssistantCloudAPI";
+
+const createAccessToken = (subject: string) =>
+  `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: subject })).toString("base64url")}.sig`;
 
 const event = (index: number): AssistantCloudEvent => ({
   kind: "message_sent",
@@ -25,6 +28,7 @@ const createEvents = (enabled: boolean | (() => boolean) = true) => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   Object.defineProperty(document, "visibilityState", {
     configurable: true,
     value: "visible",
@@ -71,6 +75,42 @@ describe("AssistantCloudEvents", () => {
       expect.any(Function),
     );
     await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+  });
+
+  it("uses cached authentication for a pagehide flush", async () => {
+    const providerToken = createAccessToken("user-a");
+    const internalToken = createAccessToken("internal-user-a");
+    const authToken = vi.fn(async () => providerToken);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ Authorization: `Bearer ${internalToken}` }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        headers: new Headers(),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken,
+    });
+    const events = new AssistantCloudEvents(api, () => true);
+
+    await api.makeRawRequest("/threads");
+    events.track(event(1));
+    window.dispatchEvent(new Event("pagehide"));
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(authToken).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      keepalive: true,
+      headers: expect.objectContaining({
+        Authorization: `Bearer ${internalToken}`,
+      }),
+    });
   });
 
   it("flushes buffered events after two seconds", async () => {
