@@ -9,8 +9,8 @@
  *  2. bridge   — as a resource hosted via useResource inside <StrictMode>
  *  3. tap root — as a resource under createTapRoot (self-emulated strict mode)
  *
- * Each test runs the scenario in the react world to capture the expected event
- * log, then asserts the tap worlds produce the identical log. React is the
+ * Each scenario runs in the react world to capture the expected event log,
+ * then the tests assert the tap worlds produce the identical log. React is the
  * source of truth; there are no hand-maintained expected sequences to drift.
  */
 /* oxlint-disable react/exhaustive-deps -- intentional missing-dep patterns are part of the scenarios */
@@ -391,26 +391,29 @@ describe("StrictMode parity (React vs tap)", () => {
 
   for (const scenario of scenarios) {
     describe(scenario.name, () => {
+      let reactLog: Promise<string[]> | undefined;
+      const getReactLog = () => (reactLog ??= runReact(scenario));
+
       it.skipIf(onReact18 && scenario.react18ReplaysUpdaters)(
         "tap-in-React bridge matches React",
         async () => {
-          const reactLog = await runReact(scenario);
+          const expected = await getReactLog();
           cleanup();
           const bridgeLog = await runBridge(scenario);
           if (scenario.bridgeDefersEagerInvocation) {
-            expect([...bridgeLog].sort()).toEqual([...reactLog].sort());
+            expect([...bridgeLog].sort()).toEqual([...expected].sort());
           } else {
-            expect(bridgeLog).toEqual(reactLog);
+            expect(bridgeLog).toEqual(expected);
           }
         },
       );
 
       // The tap root emulates React 19's StrictMode replay, which reuses hook state that React 18's replay recomputes.
       it.skipIf(onReact18)("tap root matches React", async () => {
-        const reactLog = await runReact(scenario);
+        const expected = await getReactLog();
         cleanup();
         const tapLog = await runTapRoot(scenario);
-        expect(tapLog).toEqual(reactLog);
+        expect(tapLog).toEqual(expected);
       });
     });
   }
