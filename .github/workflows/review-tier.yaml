@@ -33,14 +33,18 @@ permissions:
   contents: read
   actions: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
-
 jobs:
   evaluate:
     name: Evaluate review tier
-    if: vars.REVIEW_POLICY_APP_ID != ''
+    if: >-
+      vars.REVIEW_POLICY_APP_ID != '' &&
+      !(github.event_name == 'pull_request_target' &&
+        (github.event.action == 'labeled' || github.event.action == 'unlabeled') &&
+        startsWith(github.event.label.name, 'tier/')) &&
+      (github.event_name != 'issues' || github.event.label.name == 'decision: accepted')
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -67,6 +71,12 @@ jobs:
         with:
           app-id: ${{ vars.REVIEW_POLICY_APP_ID }}
           private-key: ${{ secrets.REVIEW_POLICY_APP_PRIVATE_KEY }}
+          permission-checks: write
+          permission-contents: read
+          permission-issues: write
+          permission-members: read
+          permission-metadata: read
+          permission-pull-requests: read
 
       - name: Download the relayed pull request number
         if: github.event_name == 'workflow_run'
@@ -80,6 +90,5 @@ jobs:
       - name: Evaluate and publish
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          REVIEW_TIER_MODE: ${{ vars.REVIEW_TIER_MODE }}
           REVIEW_TIER_RELAY_FILE: review-tier-pr/number
         run: node scripts/review-tier.mjs

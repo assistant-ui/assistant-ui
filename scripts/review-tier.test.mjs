@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
-import { loadReviewPolicy } from "./lib/review-policy.mjs";
+import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import {
   createGitHubClient,
   evaluatePullRequest,
@@ -13,6 +13,14 @@ import {
 } from "./review-tier.mjs";
 
 const policy = loadReviewPolicy(path.resolve(import.meta.dirname, ".."));
+const enforcePolicy = {
+  ...policy,
+  reviewTierCheck: {
+    ...policy.reviewTierCheck,
+    integrationId: 42,
+    mode: "enforce",
+  },
+};
 const repo = `/repos/${policy.repository}`;
 const now = new Date("2026-10-08T12:00:00Z");
 const marker = "<!-- review-tier -->";
@@ -111,24 +119,69 @@ function fakeClient({
   permissionStatus,
   openCount = 1,
   issues = {},
+  issueErrors = {},
   contents = {},
   labels = [{ name: "behavior-change" }],
   comments = [],
+  checkRuns = [],
   pages = [{ nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }],
+  reviewPages,
+  commitPages,
   failures = [],
 } = {}) {
   const calls = [];
   const writes = [];
   let currentLabels = structuredClone(labels);
   let currentComments = structuredClone(comments);
+  let currentCheckRuns = structuredClone(checkRuns);
+  const historyPage = (history, after) => {
+    const index = history.findIndex(
+      (page) => page.pageInfo.endCursor === after,
+    );
+    assert.ok(index >= 0 && history[index + 1], `Unrecorded page ${after}`);
+    return structuredClone(history[index + 1]);
+  };
   const client = {
     async graphql(query, variables) {
       calls.push({ kind: "graphql", query, variables });
       if (query.includes("query ReviewTierPullRequest(")) {
         if (failures.includes(variables.number)) throw apiError(500);
-        return { repository: { pullRequest: structuredClone(pr) } };
+        const pullRequest = structuredClone(pr);
+        const events = pullRequest.timelineItems.nodes;
+        pullRequest.labeledEvents ??= {
+          nodes: events
+            .filter((event) => event.__typename === "LabeledEvent")
+            .slice(-100),
+        };
+        pullRequest.readyEvents ??= {
+          nodes: events
+            .filter((event) => event.__typename === "ReadyForReviewEvent")
+            .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+            .slice(-1),
+        };
+        if (reviewPages) pullRequest.reviews = structuredClone(reviewPages[0]);
+        if (commitPages) pullRequest.commits = structuredClone(commitPages[0]);
+        return { repository: { pullRequest } };
+      }
+      if (query.includes("query ReviewTierReviews(")) {
+        assert.ok(reviewPages);
+        return {
+          repository: {
+            pullRequest: { reviews: historyPage(reviewPages, variables.after) },
+          },
+        };
+      }
+      if (query.includes("query ReviewTierCommits(")) {
+        assert.ok(commitPages);
+        return {
+          repository: {
+            pullRequest: { commits: historyPage(commitPages, variables.after) },
+          },
+        };
       }
       if (query.includes("query ReviewTierDecision(")) {
+        if (Object.hasOwn(issueErrors, variables.number))
+          throw issueErrors[variables.number];
         assert.ok(
           Object.hasOwn(issues, variables.number),
           `Unrecorded decision issue ${variables.number}`,
@@ -181,6 +234,16 @@ function fakeClient({
     async rest(method, resource, body) {
       calls.push({ kind: "rest", method, resource, body });
       if (method === "GET") {
+        if (
+          resource ===
+            `${repo}/commits/head/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest` ||
+          resource ===
+            `${repo}/commits/queue-sha/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest`
+        )
+          return {
+            data: { check_runs: structuredClone(currentCheckRuns) },
+            status: 200,
+          };
         if (resource === `${repo}/compare/base-tip...head`)
           return {
             data: { merge_base_commit: { sha: "merge-base" } },
@@ -195,15 +258,21 @@ function fakeClient({
         assert.fail(`Unrecorded GET: ${resource}`);
       }
       writes.push({ method, resource, body });
-      if (resource === `${repo}/check-runs` && method === "POST")
+      if (resource === `${repo}/check-runs` && method === "POST") {
+        currentCheckRuns.unshift({ ...structuredClone(body), app: { id: 42 } });
         return { status: 201, data: { id: 1 } };
+      }
       if (method === "POST" && resource.endsWith("/labels")) {
         currentLabels.push(...body.labels.map((name) => ({ name })));
       } else if (method === "DELETE" && resource.includes("/labels/")) {
         const name = decodeURIComponent(resource.split("/labels/")[1]);
         currentLabels = currentLabels.filter((label) => label.name !== name);
       } else if (method === "POST" && resource.endsWith("/comments")) {
-        currentComments.push({ id: 91, body: body.body });
+        currentComments.push({
+          id: 91,
+          body: body.body,
+          user: { type: "Bot" },
+        });
       } else if (method === "PATCH" && resource.includes("/issues/comments/")) {
         const id = Number(resource.split("/").at(-1));
         currentComments.find((comment) => comment.id === id).body = body.body;
@@ -234,13 +303,12 @@ async function evaluationFor(recording = fakeClient()) {
 function eventOptions(client, name, event = {}, overrides = {}) {
   return {
     client,
-    policy,
+    policy: enforcePolicy,
     now,
     args: [],
     env: {
       GITHUB_EVENT_NAME: name,
       GITHUB_EVENT_PATH: "event.json",
-      REVIEW_TIER_MODE: "enforce",
     },
     readFile: (file, encoding) => {
       assert.equal(file, "event.json");
@@ -249,6 +317,20 @@ function eventOptions(client, name, event = {}, overrides = {}) {
     },
     ...overrides,
   };
+}
+
+function connectionPages(nodes) {
+  const chunks = [];
+  for (let index = 0; index < nodes.length; index += 100) {
+    chunks.push({
+      nodes: nodes.slice(index, index + 100),
+      pageInfo: {
+        hasNextPage: index + 100 < nodes.length,
+        endCursor: String(index + 100),
+      },
+    });
+  }
+  return chunks;
 }
 
 test("the GitHub client sends authenticated JSON, follows Link pages, and accepts empty responses", async () => {
@@ -307,7 +389,10 @@ test("the GitHub client returns raw text, handles only raw 404 as missing, and u
     new Response(JSON.stringify({ data: { repository: { name: "example" } } })),
     new Response(
       JSON.stringify({
-        errors: [{ message: "First error" }, { message: "Second error" }],
+        errors: [
+          { message: "First error", type: "NOT_FOUND" },
+          { message: "Second error", type: "FORBIDDEN" },
+        ],
       }),
     ),
   ];
@@ -333,6 +418,7 @@ test("the GitHub client returns raw text, handles only raw 404 as missing, and u
   await assert.rejects(client.graphql("query Broken", {}), {
     status: 200,
     message: "First error; Second error",
+    types: ["NOT_FOUND", "FORBIDDEN"],
   });
 });
 
@@ -422,6 +508,166 @@ test("the merged tap fixture is T3 with approvals, owner, decision, and window s
       "/orgs/assistant-ui/teams/owners/members",
     ],
   );
+});
+
+test("gathering includes a later requested change after the same reviewer's approval", async () => {
+  const reviews = [
+    review("Kinfe123"),
+    ...Array.from({ length: 99 }, (_, index) => review(`reviewer-${index}`)),
+    review("Kinfe123", {
+      state: "CHANGES_REQUESTED",
+      submittedAt: "2026-10-08T11:30:00Z",
+    }),
+  ];
+  const recording = fakeClient({ reviewPages: connectionPages(reviews) });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.equal(gathered.people.reviews.length, 101);
+  assert.deepEqual(
+    gathered.people.reviews
+      .filter(({ author }) => author === "Kinfe123")
+      .map(({ state }) => state),
+    ["APPROVED", "CHANGES_REQUESTED"],
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierReviews("))
+      .map(({ variables }) => variables.after),
+    ["100"],
+  );
+});
+
+test("gathering reads every commit from oldest to newest across three pages", async () => {
+  const commits = Array.from({ length: 205 }, (_, index) =>
+    commit(`sha-${index}`, `author-${index}`),
+  );
+  const recording = fakeClient({ commitPages: connectionPages(commits) });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(
+    gathered.people.commits.map(({ sha }) => sha),
+    commits.map(({ commit }) => commit.oid),
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierCommits("))
+      .map(({ variables }) => variables.after),
+    ["100", "200"],
+  );
+});
+
+test("ready time survives one hundred later label events", async () => {
+  const readyAt = "2026-10-02T09:00:00Z";
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      timelineItems: {
+        nodes: [
+          readyEvent(readyAt),
+          ...Array.from({ length: 100 }, (_, index) =>
+            labelEvent(`label-${index}`, "okisdev", "2026-10-03T09:00:00Z"),
+          ),
+        ],
+      },
+    }),
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.equal(gathered.people.readyForReviewAt, readyAt);
+  const query = recording.calls.find(({ query }) =>
+    query?.includes("query ReviewTierPullRequest("),
+  ).query;
+  assert.match(
+    query,
+    /readyEvents: timelineItems\(itemTypes: \[READY_FOR_REVIEW_EVENT\], last: 1\)/,
+  );
+  assert.match(
+    query,
+    /labeledEvents: timelineItems\(itemTypes: \[LABELED_EVENT\], last: 100\)/,
+  );
+});
+
+test("a Decision template comment containing an example issue is ignored", async () => {
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      body: "## Decision\n<!-- for example\n#1234 -->\nNone.\n",
+    }),
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.linkedIssues, []);
+  assert.equal(
+    recording.calls.filter(({ query }) =>
+      query?.includes("query ReviewTierDecision("),
+    ).length,
+    0,
+  );
+});
+
+test("unresolved Decision issue numbers are skipped while closing issues still resolve", async () => {
+  const missing = Object.assign(new Error("Could not resolve to an Issue"), {
+    types: ["NOT_FOUND"],
+  });
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      body: "## Decision\nSee #9002.\n",
+      closingIssuesReferences: { nodes: [{ number: 42 }] },
+    }),
+    issues: { 42: { labels: { nodes: [] }, timelineItems: { nodes: [] } } },
+    issueErrors: { 9002: missing },
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.linkedIssues, [{ number: 42, labels: [] }]);
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierDecision("))
+      .map(({ variables }) => variables.number),
+    [42, 9002],
+  );
+  const forbidden = Object.assign(new Error("Forbidden"), {
+    types: ["NOT_FOUND", "FORBIDDEN"],
+  });
+  await assert.rejects(
+    gatherPullRequest(
+      fakeClient({
+        pr: tapPullRequest({ body: "## Decision\nSee #9002.\n" }),
+        issueErrors: { 9002: forbidden },
+      }).client,
+      policy,
+      12,
+      { now },
+    ),
+    forbidden,
+  );
+});
+
+test("malformed head package manifest is recorded without an exports diff", async () => {
+  const manifestPath = "packages/react/package.json";
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [file(manifestPath)],
+    contents: {
+      [`${repo}/contents/${manifestPath}?ref=merge-base`]:
+        '{"exports":{".":"./index.js"}}',
+      [`${repo}/contents/${manifestPath}?ref=head`]: '{"exports":',
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(signalsInput.invalidManifests, [manifestPath]);
+  assert.deepEqual(signalsInput.manifests, [
+    { path: manifestPath, base: null, head: null },
+  ]);
+  assert.deepEqual(signalsInput.exportsDiffs, []);
 });
 
 test("a maintainer's T0 docs pull request succeeds without approvals", async () => {
@@ -659,6 +905,7 @@ test("API surfaces and manifests are diffed at the merge base and head, includin
     base: baseManifest,
     head: headManifest,
   });
+  assert.deepEqual(signalsInput.invalidManifests, []);
   assert.equal(signalsInput.manifests[1].base, null);
   assert.equal(signalsInput.manifests[2].head, null);
   assert.deepEqual(signalsInput.exportsDiffs, [
@@ -798,7 +1045,7 @@ test("a deleted author has no permission lookup or author search", async () => {
 
 test("hard policy failures stay failures", async () => {
   const evaluation = await evaluationFor(
-    fakeClient({ openCount: policy.openPullRequestCap + 1 }),
+    fakeClient({ openCount: policy.openPullRequestCap.withWriteAccess + 1 }),
   );
   assert.equal(evaluation.conclusion, "failure");
   assert.ok(
@@ -845,7 +1092,7 @@ test("the comment starts with its marker and strongest reason and bounds the rea
     "window:",
     "needs 2 maintainer approvals",
     "size-cap: waived by okisdev with review-tier/override: size",
-    "Kinfe123: trusted, current approval",
+    "Kinfe123: trusted approval on the current head from someone who did not author or commit any of its commits.",
     "previous-reviewer: stale",
   ]) {
     assert.ok(comment.includes(expected), expected);
@@ -872,7 +1119,6 @@ test("shadow mode changes pending and failure to neutral while success remains s
       number: 12,
       headSha: "head",
       evaluation,
-      mode: "shadow",
       labelsAndComment: false,
     });
     assert.deepEqual(evaluation, before);
@@ -901,8 +1147,8 @@ test("publishing syncs tier labels and creates a sticky comment without repeatin
     comments: [{ id: 2, body: "Regular comment" }],
   });
   const evaluation = await evaluationFor(recording);
-  const options = { number: 12, headSha: "head", evaluation, mode: "enforce" };
-  await publish(recording.client, policy, options);
+  const options = { number: 12, headSha: "head", evaluation };
+  await publish(recording.client, enforcePolicy, options);
   assert.deepEqual(
     recording.writes.map(({ method, resource }) => [method, resource]),
     [
@@ -919,9 +1165,8 @@ test("publishing syncs tier labels and creates a sticky comment without repeatin
     body: renderComment(evaluation, policy),
   });
   const writeCount = recording.writes.length;
-  await publish(recording.client, policy, options);
-  assert.equal(recording.writes.length, writeCount + 1);
-  assert.equal(recording.writes.at(-1).resource, `${repo}/check-runs`);
+  await publish(recording.client, enforcePolicy, options);
+  assert.equal(recording.writes.length, writeCount);
 });
 
 test("an existing sticky comment is updated only when its body changes", async () => {
@@ -929,13 +1174,13 @@ test("an existing sticky comment is updated only when its body changes", async (
     labels: [{ name: "tier/3" }],
     comments: [
       { id: 81, body: `Leading text ${marker}` },
-      { id: 82, body: `${marker}\nOld result` },
+      { id: 82, body: `${marker}\nOld result`, user: { type: "Bot" } },
     ],
   });
   const evaluation = await evaluationFor(recording);
-  const options = { number: 12, headSha: "head", evaluation, mode: "enforce" };
-  await publish(recording.client, policy, options);
-  await publish(recording.client, policy, options);
+  const options = { number: 12, headSha: "head", evaluation };
+  await publish(recording.client, enforcePolicy, options);
+  await publish(recording.client, enforcePolicy, options);
   assert.deepEqual(
     recording.writes.filter(({ resource }) => resource.includes("comments")),
     [
@@ -946,6 +1191,92 @@ test("an existing sticky comment is updated only when its body changes", async (
       },
     ],
   );
+});
+
+test("a human marker comment is ignored when publishing the sticky bot comment", async () => {
+  const recording = fakeClient({
+    labels: [{ name: "tier/3" }],
+    comments: [
+      { id: 81, body: `${marker}\nHuman text`, user: { type: "User" } },
+    ],
+  });
+  const evaluation = await evaluationFor(recording);
+  await publish(recording.client, enforcePolicy, {
+    number: 12,
+    headSha: "head",
+    evaluation,
+  });
+  assert.deepEqual(
+    recording.writes.filter(({ resource }) => resource.includes("comments")),
+    [
+      {
+        method: "POST",
+        resource: `${repo}/issues/12/comments`,
+        body: { body: renderComment(evaluation, enforcePolicy) },
+      },
+    ],
+  );
+});
+
+test("identical checks from the pinned app skip all writes and issue sync", async () => {
+  const baseline = fakeClient();
+  const evaluation = await evaluationFor(baseline);
+  await publish(baseline.client, enforcePolicy, {
+    number: 12,
+    headSha: "head",
+    evaluation,
+    labelsAndComment: false,
+  });
+  const intended = baseline.writes[0].body;
+  const pinnedPolicy = {
+    ...enforcePolicy,
+    reviewTierCheck: { ...enforcePolicy.reviewTierCheck, integrationId: 42 },
+  };
+  for (const [checkRuns, expectedWrites] of [
+    [[{ ...intended, app: { id: 42 } }], 0],
+    [
+      [
+        {
+          ...intended,
+          output: { ...intended.output, summary: "Old summary" },
+          app: { id: 42 },
+        },
+      ],
+      1,
+    ],
+    [[{ ...intended, app: { id: 99 } }], 1],
+  ]) {
+    const recording = fakeClient({
+      checkRuns,
+      labels: [{ name: "tier/3" }],
+      comments: [
+        {
+          id: 81,
+          body: renderComment(evaluation, pinnedPolicy),
+          user: { type: "Bot" },
+        },
+      ],
+    });
+    await publish(recording.client, pinnedPolicy, {
+      number: 12,
+      headSha: "head",
+      evaluation,
+    });
+    assert.equal(recording.writes.length, expectedWrites);
+    assert.equal(
+      recording.calls.filter(({ resource }) => resource?.includes("/issues/"))
+        .length,
+      expectedWrites === 0 ? 0 : 2,
+    );
+    assert.ok(
+      recording.calls.some(
+        ({ method, resource }) =>
+          method === "GET" &&
+          resource ===
+            `${repo}/commits/head/check-runs?check_name=review-tier&filter=latest`,
+      ),
+    );
+  }
 });
 
 test("merge groups parse branch refs, evaluate fresh data even for drafts, and publish only a check on the queue SHA", async () => {
@@ -1043,6 +1374,7 @@ test("workflow relay files accept a number and reject shell text before making A
           GITHUB_EVENT_NAME: "workflow_run",
           ...(customPath ? { REVIEW_TIER_RELAY_FILE: customPath } : {}),
         },
+        policy,
         readFile: (file, encoding) => {
           assert.equal(file, customPath ?? "review-tier-pr/number");
           assert.equal(encoding, "utf8");
@@ -1110,10 +1442,15 @@ test("schedule and dispatch page through open non-draft pull requests and contin
           call.query?.includes("query ReviewTierOpenPullRequests("),
         )
         .map(({ variables }) => [variables.after, variables.labels]),
-      [
-        [null, null],
-        ["next-page", null],
-      ],
+      eventName === "schedule"
+        ? [
+            [null, [tierLabel(policy, 2), tierLabel(policy, 3)]],
+            ["next-page", [tierLabel(policy, 2), tierLabel(policy, 3)]],
+          ]
+        : [
+            [null, null],
+            ["next-page", null],
+          ],
     );
     assert.deepEqual(
       recording.calls
@@ -1125,13 +1462,51 @@ test("schedule and dispatch page through open non-draft pull requests and contin
       recording.writes.filter(({ resource }) =>
         resource.endsWith("/check-runs"),
       ).length,
-      2,
+      1,
     );
   }
   assert.equal(errors.mock.callCount(), 2);
   assert.match(
     errors.mock.calls[0].arguments[0],
     /Pull request #12: Recorded HTTP 500/,
+  );
+});
+
+test("main fetches organization and teams once across two pull requests", async () => {
+  const recording = fakeClient({
+    pages: [
+      {
+        nodes: [
+          { number: 12, isDraft: false },
+          { number: 14, isDraft: false },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+  });
+  assert.equal(
+    await main(eventOptions(recording.client, "workflow_dispatch")),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(
+        ({ kind, resource }) =>
+          kind === "paginate" && resource.startsWith("/orgs/"),
+      )
+      .map(({ resource }) => resource),
+    [
+      "/orgs/assistant-ui/members?role=admin",
+      `/orgs/assistant-ui/teams/${policy.teams.maintainers}/members`,
+      `/orgs/assistant-ui/teams/${policy.teams.reviewers}/members`,
+      "/orgs/assistant-ui/teams/owners/members",
+    ],
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12, 14],
   );
 });
 
@@ -1142,7 +1517,13 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
   ]) {
     const recording = fakeClient();
     assert.equal(await main(eventOptions(recording.client, name, event)), 0);
-    assert.equal(recording.calls[0].variables.number, 12);
+    assert.ok(
+      recording.calls.some(
+        (call) =>
+          call.query?.includes("query ReviewTierPullRequest(") &&
+          call.variables.number === 12,
+      ),
+    );
     assert.equal(recording.writes[0].body.conclusion, "action_required");
   }
 });
@@ -1200,15 +1581,22 @@ test("--pr takes precedence over events and dry-run prints only the evaluation w
   assert.equal(evaluation.conclusion, "action_required");
 });
 
-test("the CLI defaults every mode other than enforce to shadow", async () => {
-  for (const mode of [undefined, "shadow", "invalid", "enforce"]) {
+test("the CLI uses the policy mode instead of the environment mode", async () => {
+  for (const mode of ["shadow", "enforce"]) {
     const recording = fakeClient();
     assert.equal(
       await main({
         args: ["--pr", "12"],
-        env: { REVIEW_TIER_MODE: mode },
+        env: {},
         client: recording.client,
-        policy,
+        policy: {
+          ...policy,
+          reviewTierCheck: {
+            ...policy.reviewTierCheck,
+            integrationId: mode === "enforce" ? 42 : null,
+            mode,
+          },
+        },
         now,
       }),
       0,

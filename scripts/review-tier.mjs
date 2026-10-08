@@ -80,7 +80,7 @@ export function createGitHubClient({
       if (data.errors?.length) {
         throw Object.assign(
           new Error(data.errors.map(({ message }) => message).join("; ")),
-          { status },
+          { status, types: data.errors.map((error) => error.type) },
         );
       }
       return data.data;
@@ -102,20 +102,45 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
       title body isDraft state headRefOid baseRefOid createdAt
       author { login __typename }
       labels(first: 100) { nodes { name } }
-      timelineItems(itemTypes: [LABELED_EVENT, READY_FOR_REVIEW_EVENT], last: 100) {
+      labeledEvents: timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
         nodes {
-          __typename
           ... on LabeledEvent { label { name } actor { login } createdAt }
-          ... on ReadyForReviewEvent { createdAt }
         }
+      }
+      readyEvents: timelineItems(itemTypes: [READY_FOR_REVIEW_EVENT], last: 1) {
+        nodes { ... on ReadyForReviewEvent { createdAt } }
       }
       reviews(first: 100) {
         nodes { author { login __typename } state submittedAt commit { oid } }
+        pageInfo { hasNextPage endCursor }
       }
-      commits(last: 100) {
+      commits(first: 100) {
         nodes { commit { oid author { user { login } } committer { user { login } } } }
+        pageInfo { hasNextPage endCursor }
       }
       closingIssuesReferences(first: 10) { nodes { number } }
+    }
+  }
+}`;
+
+const reviewsQuery = `query ReviewTierReviews($owner: String!, $name: String!, $number: Int!, $after: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviews(first: 100, after: $after) {
+        nodes { author { login __typename } state submittedAt commit { oid } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}`;
+
+const commitsQuery = `query ReviewTierCommits($owner: String!, $name: String!, $number: Int!, $after: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(first: 100, after: $after) {
+        nodes { commit { oid author { user { login } } committer { user { login } } } }
+        pageInfo { hasNextPage endCursor }
+      }
     }
   }
 }`;
@@ -131,9 +156,9 @@ const decisionQuery = `query ReviewTierDecision($owner: String!, $name: String!,
   }
 }`;
 
-function attributedLabels(node) {
+function attributedLabels(node, events = node.timelineItems.nodes) {
   const latest = new Map();
-  for (const event of node.timelineItems.nodes) {
+  for (const event of events) {
     if (!event.label) continue;
     const previous = latest.get(event.label.name);
     if (
@@ -153,27 +178,41 @@ export async function gatherPullRequest(
   client,
   policy,
   number,
-  { now = new Date() } = {},
+  { now = new Date(), people } = {},
 ) {
   const [owner, name] = policy.repository.split("/");
   const repo = `/repos/${policy.repository}`;
   const data = await client.graphql(pullRequestQuery, { owner, name, number });
   const node = data.repository.pullRequest;
   if (!node) throw new Error(`Pull request #${number} was not found.`);
+  async function allNodes(connection, query, key) {
+    const nodes = [...connection.nodes];
+    while (connection.pageInfo?.hasNextPage) {
+      const page = await client.graphql(query, {
+        owner,
+        name,
+        number,
+        after: connection.pageInfo.endCursor,
+      });
+      connection = page.repository.pullRequest[key];
+      nodes.push(...connection.nodes);
+    }
+    return nodes;
+  }
+  const reviews = await allNodes(node.reviews, reviewsQuery, "reviews");
+  const commits = await allNodes(node.commits, commitsQuery, "commits");
   const author = node.author?.login ?? null;
-  const labels = attributedLabels(node);
+  const labels = attributedLabels(node, node.labeledEvents.nodes);
   const readyForReviewAt =
-    node.timelineItems.nodes
-      .filter((event) => event.__typename === "ReadyForReviewEvent")
-      .map(({ createdAt }) => createdAt)
-      .sort((a, b) => Date.parse(a) - Date.parse(b))
-      .at(-1) ?? node.createdAt;
+    node.readyEvents.nodes.map(({ createdAt }) => createdAt).at(-1) ??
+    node.createdAt;
   const decisionNumbers = new Set(
     node.closingIssuesReferences.nodes.map((issue) => issue.number),
   );
-  const heading = /^## Decision[ \t]*\r?$/im.exec(node.body);
+  const body = node.body.replace(/<!--[\s\S]*?-->/g, "");
+  const heading = /^## Decision[ \t]*\r?$/im.exec(body);
   if (heading) {
-    const section = node.body
+    const section = body
       .slice(heading.index + heading[0].length)
       .split(/^##[ \t]+/m)[0];
     for (const match of section.matchAll(/#(\d+)\b/g))
@@ -181,14 +220,24 @@ export async function gatherPullRequest(
   }
   const linkedIssues = [];
   for (const issueNumber of decisionNumbers) {
-    const result = await client.graphql(decisionQuery, {
-      owner,
-      name,
-      number: issueNumber,
-    });
+    let result;
+    try {
+      result = await client.graphql(decisionQuery, {
+        owner,
+        name,
+        number: issueNumber,
+      });
+    } catch (error) {
+      if (
+        Array.isArray(error.types) &&
+        error.types.length > 0 &&
+        error.types.every((type) => type === "NOT_FOUND")
+      )
+        continue;
+      throw error;
+    }
     const issue = result.repository.issue;
-    if (!issue)
-      throw new Error(`Decision issue #${issueNumber} was not found.`);
+    if (!issue) continue;
     linkedIssues.push({ number: issueNumber, labels: attributedLabels(issue) });
   }
 
@@ -211,6 +260,7 @@ export async function gatherPullRequest(
   const mergeBase = comparison.data.merge_base_commit.sha;
   const apiSurface = [];
   const manifests = [];
+  const invalidManifests = [];
   const exportsDiffs = [];
   const paths = new Set(
     files.flatMap((file) =>
@@ -232,8 +282,16 @@ export async function gatherPullRequest(
     if (isSurface) {
       apiSurface.push({ file, diff: diffApiSurface(baseText, headText) });
     } else {
-      const base = baseText === null ? null : JSON.parse(baseText);
-      const head = headText === null ? null : JSON.parse(headText);
+      let base;
+      let head;
+      try {
+        base = baseText === null ? null : JSON.parse(baseText);
+        head = headText === null ? null : JSON.parse(headText);
+      } catch {
+        invalidManifests.push(file);
+        manifests.push({ path: file, base: null, head: null });
+        continue;
+      }
       manifests.push({ path: file, base, head });
       const diff = diffExportsMap(base?.exports, head?.exports);
       if (diff.added.length || diff.removed.length || diff.changed.length) {
@@ -242,37 +300,7 @@ export async function gatherPullRequest(
     }
   }
 
-  let admins;
-  try {
-    admins = (await client.paginate(`/orgs/${owner}/members?role=admin`)).map(
-      ({ login }) => login,
-    );
-  } catch (error) {
-    if (error.status !== 404) throw error;
-    admins = [];
-    console.warn(
-      `Organization ${owner} does not exist; counting owners as empty.`,
-    );
-  }
-  const teamSlugs = new Set([
-    policy.teams.maintainers,
-    policy.teams.reviewers,
-    ...policy.areas.map(({ ownerTeam }) => ownerTeam),
-  ]);
-  const teams = {};
-  for (const slug of teamSlugs) {
-    try {
-      teams[slug] = (
-        await client.paginate(
-          `/orgs/${owner}/teams/${encodeURIComponent(slug)}/members`,
-        )
-      ).map(({ login }) => login);
-    } catch (error) {
-      if (error.status !== 404) throw error;
-      teams[slug] = [];
-      console.warn(`Team ${slug} does not exist; counting it as empty.`);
-    }
-  }
+  const { admins, teams } = people ?? (await gatherPeople(client, policy));
   let authorHasWriteAccess = false;
   let openPullRequestCount = 0;
   if (author !== null) {
@@ -312,18 +340,19 @@ export async function gatherPullRequest(
       files,
       apiSurface,
       manifests,
+      invalidManifests,
       exportsDiffs,
     },
     people: {
       author,
       authorHasWriteAccess,
       headSha: node.headRefOid,
-      commits: node.commits.nodes.map(({ commit }) => ({
+      commits: commits.map(({ commit }) => ({
         sha: commit.oid,
         author: commit.author?.user?.login ?? null,
         committer: commit.committer?.user?.login ?? null,
       })),
-      reviews: node.reviews.nodes.map((review) => ({
+      reviews: reviews.map((review) => ({
         author: review.author?.login ?? null,
         isBot: review.author?.__typename === "Bot",
         state: review.state,
@@ -339,6 +368,42 @@ export async function gatherPullRequest(
       teams,
     },
   };
+}
+
+export async function gatherPeople(client, policy) {
+  const [owner] = policy.repository.split("/");
+  let admins;
+  try {
+    admins = (await client.paginate(`/orgs/${owner}/members?role=admin`)).map(
+      ({ login }) => login,
+    );
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    admins = [];
+    console.warn(
+      `Organization ${owner} does not exist; counting owners as empty.`,
+    );
+  }
+  const teamSlugs = new Set([
+    policy.teams.maintainers,
+    policy.teams.reviewers,
+    ...policy.areas.map(({ ownerTeam }) => ownerTeam),
+  ]);
+  const teams = {};
+  for (const slug of teamSlugs) {
+    try {
+      teams[slug] = (
+        await client.paginate(
+          `/orgs/${owner}/teams/${encodeURIComponent(slug)}/members`,
+        )
+      ).map(({ login }) => login);
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      teams[slug] = [];
+      console.warn(`Team ${slug} does not exist; counting it as empty.`);
+    }
+  }
+  return { admins, teams };
 }
 
 export function evaluatePullRequest(gathered, policy) {
@@ -392,7 +457,7 @@ export function renderComment({ tierResult, requirementResult }, policy) {
     ...(approvals.counted.length
       ? approvals.counted.map(
           (login) =>
-            `- ${login}: trusted, current approval from someone other than the author or last human pusher.`,
+            `- ${login}: trusted approval on the current head from someone who did not author or commit any of its commits.`,
         )
       : ["None."]),
     "",
@@ -407,17 +472,21 @@ export function renderComment({ tierResult, requirementResult }, policy) {
 export async function publish(
   client,
   policy,
-  { number, headSha, checkSha, evaluation, mode, labelsAndComment = true },
+  { number, headSha, checkSha, evaluation, labelsAndComment = true },
 ) {
   const repo = `/repos/${policy.repository}`;
   const body = renderComment(evaluation, policy);
   const { tier } = evaluation.tierResult;
   const ready = evaluation.conclusion === "success";
-  await client.rest("POST", `${repo}/check-runs`, {
+  const targetSha = checkSha ?? headSha;
+  const check = {
     name: policy.reviewTierCheck.name,
-    head_sha: checkSha ?? headSha,
+    head_sha: targetSha,
     status: "completed",
-    conclusion: mode === "shadow" && !ready ? "neutral" : evaluation.conclusion,
+    conclusion:
+      policy.reviewTierCheck.mode === "shadow" && !ready
+        ? "neutral"
+        : evaluation.conclusion,
     output: {
       title:
         `T${tier}: ${ready ? "ready" : evaluation.requirementResult.unmet[0].detail}`.slice(
@@ -426,7 +495,23 @@ export async function publish(
         ),
       summary: body.slice(marker.length + 1),
     },
-  });
+  };
+  const { data } = await client.rest(
+    "GET",
+    `${repo}/commits/${encodeURIComponent(targetSha)}/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest`,
+  );
+  const latest = data.check_runs.find(
+    (run) =>
+      policy.reviewTierCheck.integrationId === null ||
+      run.app?.id === policy.reviewTierCheck.integrationId,
+  );
+  if (
+    latest?.conclusion === check.conclusion &&
+    latest.output?.title === check.output.title &&
+    latest.output?.summary === check.output.summary
+  )
+    return;
+  await client.rest("POST", `${repo}/check-runs`, check);
   if (!labelsAndComment) return;
   const label = tierLabel(policy, tier);
   const labels = await client.paginate(`${repo}/issues/${number}/labels`);
@@ -444,7 +529,10 @@ export async function publish(
     }
   }
   const comments = await client.paginate(`${repo}/issues/${number}/comments`);
-  const sticky = comments.find((comment) => comment.body?.startsWith(marker));
+  const sticky = comments.find(
+    (comment) =>
+      comment.user?.type === "Bot" && comment.body?.startsWith(marker),
+  );
   if (!sticky) {
     await client.rest("POST", `${repo}/issues/${number}/comments`, { body });
   } else if (sticky.body !== body) {
@@ -540,6 +628,7 @@ export async function main({
         listOpen = true;
         break;
       case "schedule":
+        labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
         listOpen = true;
         break;
       default:
@@ -572,9 +661,14 @@ export async function main({
     } while (after !== null);
   }
   let exitCode = 0;
+  let people;
   for (const number of new Set(numbers)) {
     try {
-      const gathered = await gatherPullRequest(client, policy, number, { now });
+      people ??= await gatherPeople(client, policy);
+      const gathered = await gatherPullRequest(client, policy, number, {
+        now,
+        people,
+      });
       if (gathered.pr.isDraft && !mergeGroup) continue;
       const evaluation = evaluatePullRequest(gathered, policy);
       if (hasOption(args, "--dry-run")) {
@@ -585,7 +679,6 @@ export async function main({
           headSha: gathered.pr.headSha,
           checkSha,
           evaluation,
-          mode: env.REVIEW_TIER_MODE === "enforce" ? "enforce" : "shadow",
           labelsAndComment: !mergeGroup,
         });
       }
