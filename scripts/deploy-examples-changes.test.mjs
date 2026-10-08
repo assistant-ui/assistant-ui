@@ -227,17 +227,11 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
       (input) => input !== WORKFLOW_FILE && !input.startsWith("scripts/"),
     ),
     nativeWorkflowFile,
+    "packages/ui/src/components/react-native",
   ].sort();
 
   assert.equal(pathBlocks.length, 2, "pull request and push path filters");
   for (const patterns of pathBlocks) {
-    assert.deepEqual(
-      patterns
-        .filter((pattern) => !pattern.startsWith("!"))
-        .map((pattern) => pattern.replace(/\/\*\*$/, ""))
-        .sort(),
-      expectedPaths,
-    );
     const matches = (file) =>
       patterns.reduce((included, pattern) => {
         const negative = pattern.startsWith("!");
@@ -249,6 +243,25 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
           : included;
       }, false);
 
+    assert.equal(
+      matches(
+        "packages/ui/src/components/react/assistant-ui/elements/agent-plan.test.tsx",
+      ),
+      false,
+    );
+    assert.equal(
+      matches(
+        "packages/ui/src/components/react-native/assistant-ui/thread.test.tsx",
+      ),
+      true,
+    );
+    assert.deepEqual(
+      patterns
+        .filter((pattern) => !pattern.startsWith("!"))
+        .map((pattern) => pattern.replace(/\/\*\*$/, ""))
+        .sort(),
+      expectedPaths,
+    );
     for (const input of expectedPaths) {
       if (!input.startsWith("packages/")) {
         assert.ok(
@@ -271,12 +284,13 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
       ]) {
         assert.ok(matches(`${input}/${file}`), `${input}/${file}`);
       }
-      // UI tests enter Tailwind's source scan; CJS builds use the full tsconfig program.
+      // Native UI tests enter Tailwind's scan; CJS builds use the full tsconfig program.
+      const packageRoot = input.split("/").slice(0, 2).join("/");
       const pkg = JSON.parse(
-        readFileSync(path.join(repoRoot, input, "package.json"), "utf8"),
+        readFileSync(path.join(repoRoot, packageRoot, "package.json"), "utf8"),
       );
       const testsAreInputs =
-        input === "packages/ui" ||
+        input === "packages/ui/src/components/react-native" ||
         JSON.stringify(pkg.exports ?? {}).includes(".cjs");
       for (const file of [
         "src/index.test.ts",

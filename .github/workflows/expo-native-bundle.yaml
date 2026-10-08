@@ -13,12 +13,13 @@ on:
       - packages/react-native/**
       - packages/store/**
       - packages/tap/**
+      - packages/ui/**
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
       - "!packages/**/*.test.ts"
       - "!packages/**/*.test.tsx"
       - packages/metro/**
-      - packages/ui/**
+      - packages/ui/src/components/react-native/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - turbo.json
@@ -36,12 +37,13 @@ on:
       - packages/react-native/**
       - packages/store/**
       - packages/tap/**
+      - packages/ui/**
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
       - "!packages/**/*.test.ts"
       - "!packages/**/*.test.tsx"
       - packages/metro/**
-      - packages/ui/**
+      - packages/ui/src/components/react-native/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - turbo.json
