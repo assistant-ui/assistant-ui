@@ -212,6 +212,82 @@ describe("useLangGraphRuntime parallel tool results", () => {
       ).toBe(true);
     });
 
+  it("holds a messages-tuple tool result until every streamed call is answered", async () => {
+    let releaseSecondCall!: () => void;
+    const secondCall = new Promise<void>((resolve) => {
+      releaseSecondCall = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length !== 1) return;
+      yield metadataEvent;
+      yield {
+        event: "messages",
+        data: [
+          {
+            id: "calls",
+            type: "AIMessageChunk",
+            content: "",
+            tool_call_chunks: [{ id: "c1", index: 0, name: "ask", args: "{}" }],
+          },
+          { langgraph_node: "agent" },
+        ],
+      };
+      await secondCall;
+      yield {
+        event: "messages",
+        data: [
+          {
+            id: "calls",
+            type: "AIMessageChunk",
+            content: "",
+            tool_call_chunks: [{ id: "c2", index: 1, name: "ask", args: "{}" }],
+          },
+          { langgraph_node: "agent" },
+        ],
+      };
+      yield {
+        event: "updates",
+        data: {
+          agent: {
+            messages: [
+              {
+                id: "calls",
+                type: "ai",
+                content: "",
+                tool_calls: [
+                  { id: "c1", name: "ask", args: {} },
+                  { id: "c2", name: "ask", args: {} },
+                ],
+              },
+            ],
+          },
+        },
+      };
+    });
+    const runtime = mount(stream);
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c1");
+
+    act(() => addResult(runtime, "c1"));
+    expect(sent).toHaveLength(1);
+    act(() => releaseSecondCall());
+    await waitForCall(runtime, "c2");
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    expect(sent).toHaveLength(1);
+
+    act(() => addResult(runtime, "c2"));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(
+      sent[1]!.map(
+        (message) => (message as { tool_call_id: string }).tool_call_id,
+      ),
+    ).toEqual(["c1", "c2"]);
+  });
+
   it("waits for every finished-run call when a result arrives before the final commit", async () => {
     let finish!: () => void;
     const gate = new Promise<void>((resolve) => {

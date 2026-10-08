@@ -9,6 +9,8 @@ import {
 } from "react";
 import type {
   LangChainMessage,
+  LangChainMessageChunk,
+  LangChainToolCall,
   UIMessage,
   UseLangGraphRuntimeOptions,
 } from "./types";
@@ -245,12 +247,19 @@ const useLangGraphRuntimeImpl = (
   const interruptRunConfigRef = useRef<unknown>(undefined);
 
   const rememberMessageOwnership = useCallback(
-    (newMessages: LangChainMessage[], runConfig: unknown) => {
+    (
+      newMessages: (
+        | LangChainMessage
+        | (LangChainMessageChunk & { tool_calls?: LangChainToolCall[] })
+      )[],
+      runConfig: unknown,
+    ) => {
       const messageOwnership = runConfigByMessageIdRef.current;
       const toolOwnership = runConfigByToolCallIdRef.current;
       const runId = currentRunIdRef.current;
       for (const message of newMessages) {
-        if (message.type !== "ai") continue;
+        if (message.type !== "ai" && message.type !== "AIMessageChunk")
+          continue;
         let owner = runConfig;
         const isNewMessage = Boolean(
           message.id && !messageOwnership.has(message.id),
@@ -261,7 +270,14 @@ const useLangGraphRuntimeImpl = (
           if (runId && isNewMessage)
             runIdByMessageIdRef.current.set(message.id, runId);
         }
-        for (const toolCall of message.tool_calls ?? []) {
+        const toolCalls =
+          message.type === "ai"
+            ? (message.tool_calls ?? [])
+            : [
+                ...(message.tool_calls ?? []),
+                ...(message.tool_call_chunks ?? []),
+              ];
+        for (const toolCall of toolCalls) {
           if (typeof toolCall !== "object" || toolCall === null || !toolCall.id)
             continue;
           const isNewTool = !toolOwnership.has(toolCall.id);
