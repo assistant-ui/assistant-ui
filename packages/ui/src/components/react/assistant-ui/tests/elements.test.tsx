@@ -2,7 +2,15 @@ import { cleanup, render } from "@testing-library/react";
 import { TerminalIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { AgentPlan } from "../elements/agent-plan";
 import { AgentStatus, type AgentState } from "../elements/agent-status";
@@ -10,26 +18,34 @@ import { Chart } from "../elements/chart";
 import { CodeDiff } from "../elements/code-diff";
 import { CodeRunner } from "../elements/code-runner";
 import { CommandPalette } from "../elements/command-palette";
+import { ComposerInput } from "../elements/composer";
 import { ComputerUse } from "../elements/computer-use";
 import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
+import { DataTable } from "../elements/data-table";
 import { DocumentReference } from "../elements/document-reference";
 import { FeedbackDialog } from "../elements/feedback-dialog";
 import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
+import { GeoMap } from "../elements/geo-map";
 import { JobProgress } from "../elements/job-progress";
 import { LauncherBubble } from "../elements/launcher-bubble";
+import { LinkPreview } from "../elements/link-preview";
 import { GenerationLoader } from "../elements/loading-state";
+import { ImageGallery } from "../elements/image-gallery";
 import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
+import { AudioPlayer } from "../elements/media-player";
 import { MessagePair } from "../elements/message-pair";
 import { MobileComposer } from "../elements/mobile-composer";
 import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
+import { OptionList } from "../elements/option-list";
 import { PermissionGrant } from "../elements/permission-grant";
 import { PromptLibrary } from "../elements/prompt-library";
+import { QuestionFlow } from "../elements/question-flow";
 import { QuotaBanner } from "../elements/quota-banner";
 import { ReadAloud } from "../elements/read-aloud";
 import { ReasoningEffort } from "../elements/reasoning-effort";
@@ -65,9 +81,6 @@ const list = <T,>(items: number, make: (i: number) => T) =>
 const CASES: Record<string, Case> = {
   "agent-plan": (n, items) => (
     <AgentPlan steps={list(items, (i) => `step ${i}`)} activeIndex={n} />
-  ),
-  "agent-status": () => (
-    <AgentStatus state="working" label={"l".repeat(200)} elapsed="0:12" />
   ),
   chart: (n, items) => (
     <Chart
@@ -147,6 +160,31 @@ const CASES: Record<string, Case> = {
       }))}
     />
   ),
+  "data-table": (n, items) => (
+    <DataTable
+      caption="Rows"
+      columns={[
+        { key: "name", label: "Name", priority: "primary" },
+        {
+          key: "count",
+          label: "Count",
+          format: { kind: "number", decimals: n },
+        },
+        {
+          key: "share",
+          label: "Share",
+          format: { kind: "percent", decimals: n },
+        },
+      ]}
+      rows={list(items, (i) => ({
+        id: `r${i}`,
+        name: `Row ${i}`,
+        count: i * n,
+        share: i / 10,
+      }))}
+      rowKey="id"
+    />
+  ),
   "document-reference": (n, items) => (
     <DocumentReference
       title="Spec"
@@ -190,6 +228,26 @@ const CASES: Record<string, Case> = {
       visibleCount={n}
     />
   ),
+  "geo-map": (_n, items) => (
+    <GeoMap
+      places={list(items, (i) => ({
+        id: `p${i}`,
+        lat: 1.29 + i / 1000,
+        lng: 103.77 + i / 1000,
+        label: `Place ${i}`,
+      }))}
+    />
+  ),
+  "image-gallery": (n, items) => (
+    <ImageGallery
+      images={list(items, (i) => ({
+        id: `image-${i}`,
+        src: `https://example.com/${i}.png`,
+        alt: `Image ${i}`,
+      }))}
+      maxVisible={n}
+    />
+  ),
   "job-progress": (n, items) => (
     <JobProgress
       title="Indexing"
@@ -197,6 +255,14 @@ const CASES: Record<string, Case> = {
       stageIndex={n}
       stageProgress={n}
       eta="2m"
+    />
+  ),
+  "link-preview": () => (
+    <LinkPreview
+      href="https://example.com/guide"
+      title={"t".repeat(200)}
+      description={"d".repeat(400)}
+      siteName="Example"
     />
   ),
   "map-answer": (_n, items) => (
@@ -229,6 +295,13 @@ const CASES: Record<string, Case> = {
       onToggle={() => undefined}
     />
   ),
+  "media-player": () => (
+    <AudioPlayer
+      src="https://example.com/briefing.mp3"
+      title={"t".repeat(200)}
+      durationMs={64_000}
+    />
+  ),
   "message-pair": (n, items) => (
     <MessagePair
       userMessage="hi"
@@ -247,6 +320,17 @@ const CASES: Record<string, Case> = {
       index={n}
     />
   ),
+  "option-list": (n, items) => (
+    <OptionList
+      aria-label="Pick"
+      options={list(items, (i) => ({ id: `o${i}`, label: `Option ${i}` }))}
+      selectionMode="multiple"
+      defaultValue={["o0", "o1"]}
+      minSelections={n}
+      maxSelections={n}
+      onConfirm={() => {}}
+    />
+  ),
   "prompt-library": (_n, items) => (
     <PromptLibrary
       prompts={list(items, (i) => ({
@@ -257,6 +341,25 @@ const CASES: Record<string, Case> = {
       }))}
       query={"q".repeat(200)}
       selectedId="p0"
+    />
+  ),
+  "question-flow": (n, items) => (
+    <QuestionFlow
+      aria-label="Questions"
+      steps={[
+        {
+          id: "checks",
+          question: "Which checks should run?",
+          selectionMode: "multiple",
+          minSelections: n,
+          maxSelections: n,
+          options: list(items, (i) => ({
+            id: `check-${i}`,
+            label: `Check ${i}`,
+          })),
+        },
+      ]}
+      onComplete={() => {}}
     />
   ),
   "quota-banner": (n) => (
@@ -381,6 +484,7 @@ const CASES: Record<string, Case> = {
   "thread-list": (n, items) => (
     <ThreadList
       threads={list(items, (i) => ({
+        id: `t${i}`,
         title: `t${i}`,
         time: "1m",
         unread: true,
@@ -398,6 +502,16 @@ const CASES: Record<string, Case> = {
         title: "t".repeat(300),
       }))}
       visibleCount={n}
+    />
+  ),
+  "todo-list": (n, items) => (
+    <TodoList
+      items={list(items, (i) => ({
+        id: `t${i}`,
+        text: `Todo ${i}`,
+        status: i === 0 ? ("active" as const) : ("pending" as const),
+      }))}
+      maxVisible={n}
     />
   ),
   "tool-timeline": (n, items) => (
@@ -475,10 +589,13 @@ const COUNT_SHAPED = new Set([
   "cost-meter",
   "file-tree",
   "flow-graph",
+  "image-gallery",
   "job-progress",
   "math-block",
   "message-pair",
   "onboarding",
+  "option-list",
+  "question-flow",
   "reasoning-panel",
   "retrieval-chunks",
   "score-breakdown",
@@ -487,6 +604,7 @@ const COUNT_SHAPED = new Set([
   "streaming-text",
   "terminal-block",
   "timeline",
+  "todo-list",
   "tool-timeline",
   "trace-waterfall",
   "voice-conversation",
@@ -567,6 +685,48 @@ beforeAll(() => {
 });
 
 afterEach(cleanup);
+afterAll(() => vi.dynamicImportSettled());
+
+const dispatchSafariImeConfirm = (input: HTMLElement) => {
+  input.dispatchEvent(
+    new CompositionEvent("compositionstart", { bubbles: true }),
+  );
+  input.dispatchEvent(
+    new InputEvent("input", {
+      data: "日本語",
+      inputType: "insertFromComposition",
+      isComposing: true,
+      bubbles: true,
+    }),
+  );
+  input.dispatchEvent(
+    new CompositionEvent("compositionend", {
+      data: "日本語",
+      bubbles: true,
+    }),
+  );
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    keyCode: 229,
+    isComposing: false,
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(event);
+  return event;
+};
+
+const dispatchPlainEnter = (input: HTMLElement) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    keyCode: 13,
+    isComposing: false,
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(event);
+  return event;
+};
 
 describe("file download", () => {
   it("names the default download action with the filename", () => {
@@ -700,26 +860,22 @@ describe("todo-list", () => {
 });
 
 describe.each(Object.entries(CASES))("%s", (name, make) => {
-  it.each(HOSTILE)("survives a %s numeric prop", (_label, n, items) => {
-    const markup = renderToStaticMarkup(make(n, items));
-
-    for (const { property, value } of inlinePercentages(markup)) {
-      const share = Number.parseFloat(value);
-      expect(
-        share,
-        `${name} rendered ${property}: ${value}, which a browser drops as invalid`,
-      ).toBeGreaterThanOrEqual(0);
-      expect(
-        share,
-        `${name} rendered ${property}: ${value}, past the end of its track`,
-      ).toBeLessThanOrEqual(100);
-    }
-  });
-
   it.each(HOSTILE)(
-    "announces a %s numeric prop without the float error of deriving it",
+    "renders a %s numeric prop with valid percentages and announced values",
     (_label, n, items) => {
       const markup = renderToStaticMarkup(make(n, items));
+
+      for (const { property, value } of inlinePercentages(markup)) {
+        const share = Number.parseFloat(value);
+        expect(
+          share,
+          `${name} rendered ${property}: ${value}, which a browser drops as invalid`,
+        ).toBeGreaterThanOrEqual(0);
+        expect(
+          share,
+          `${name} rendered ${property}: ${value}, past the end of its track`,
+        ).toBeLessThanOrEqual(100);
+      }
 
       for (const [, value] of markup.matchAll(/aria-valuenow="([^"]*)"/g)) {
         expect(
@@ -1539,4 +1695,78 @@ describe("state that is carried by more than colour", () => {
       ).toBe(input.getAttribute("aria-controls"));
     },
   );
+
+  it("does not submit the conversion-confirming Enter in ComposerInput", () => {
+    const onSubmit = vi.fn();
+    const { getByRole } = render(
+      <ComposerInput aria-label="Message" onSubmit={onSubmit} />,
+    );
+    const input = getByRole("textbox", { name: "Message" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    dispatchPlainEnter(input);
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("does not send the conversion-confirming Enter in MobileComposer", () => {
+    const onSend = vi.fn();
+    const { getByRole } = render(
+      <MobileComposer
+        value="Draft"
+        keyboardOpen
+        running={false}
+        actions={[]}
+        onSend={onSend}
+      />,
+    );
+    const input = getByRole("textbox", { name: "Message" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onSend).not.toHaveBeenCalled();
+
+    expect(dispatchPlainEnter(input).defaultPrevented).toBe(true);
+    expect(onSend).toHaveBeenCalledOnce();
+  });
+
+  it("does not run a command on the conversion-confirming Enter", () => {
+    const onRun = vi.fn();
+    const { getByRole } = render(
+      <CommandPalette
+        commands={[
+          { id: "new", label: "New thread", group: "Thread", keys: [] },
+        ]}
+        query=""
+        activeId="new"
+        onRun={onRun}
+      />,
+    );
+    const input = getByRole("combobox", { name: "Type a command" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onRun).not.toHaveBeenCalled();
+
+    expect(dispatchPlainEnter(input).defaultPrevented).toBe(true);
+    expect(onRun).toHaveBeenCalledOnce();
+  });
+
+  it("does not insert a prompt on the conversion-confirming Enter", () => {
+    const onInsert = vi.fn();
+    const { getByRole } = render(
+      <PromptLibrary
+        prompts={[{ id: "summary", name: "Summary", body: "", variables: [] }]}
+        query=""
+        selectedId="summary"
+        onInsert={onInsert}
+      />,
+    );
+    const input = getByRole("combobox", { name: "Search saved prompts" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onInsert).not.toHaveBeenCalled();
+
+    expect(dispatchPlainEnter(input).defaultPrevented).toBe(true);
+    expect(onInsert).toHaveBeenCalledOnce();
+  });
 });

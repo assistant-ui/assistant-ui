@@ -66,7 +66,7 @@ const AssistantMessage = () => {
 };
 ```
 
-`ActionBarPrimitive.Edit` calls `aui.composer.beginEdit()` under the hood and is disabled when the composer is already in edit mode.
+`ActionBarPrimitive.Edit` calls `aui.composer.beginEdit()` and is disabled when the composer is already in edit mode.
 
 `ComposerPrimitive.Cancel` calls `aui.composer.cancel()`, which exits edit mode and restores the original message content. See [Composer primitives](/docs/primitives/composer) for the full composer API.
 
@@ -93,10 +93,10 @@ const EditButton = () => {
 
 ## Editing While Streaming
 
-If a user triggers edit mode while the assistant is still generating a response, the in-progress run is cancelled and a new branch is started from the edited message. The hook does not block this. If your UI should prevent editing during streaming, gate the edit button on the thread run state before rendering `ActionBarPrimitive.Edit` or calling `beginEdit()`.
+Entering edit mode while the assistant is still generating a response does not cancel the in-progress run: `beginEdit()` only opens the edit composer, and `ActionBarPrimitive.Edit` stays enabled during streaming. If your UI should prevent editing during streaming, gate the edit button on `s.thread.isRunning` before rendering `ActionBarPrimitive.Edit` or calling `beginEdit()`.
 
 ## References
 
-- [ActionBar primitives](/docs/primitives/action-bar) — `ActionBarPrimitive.Edit` and related actions
-- [Composer primitives](/docs/primitives/composer) — full composer anatomy including `Cancel`, `Send`, and `Input`
-- [Message primitives](/docs/primitives/message) — `MessagePrimitive.Root` and content parts
+- [ActionBar primitives](/docs/primitives/action-bar): `ActionBarPrimitive.Edit` and related actions
+- [Composer primitives](/docs/primitives/composer): full composer anatomy including `Cancel`, `Send`, and `Input`
+- [Message primitives](/docs/primitives/message): `MessagePrimitive.Root` and content parts

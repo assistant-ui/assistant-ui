@@ -2,12 +2,12 @@ import type { CatalogProduct } from "../types";
 
 export const assistantUi: CatalogProduct = {
   slug: "assistant-ui",
-  href: "/shop/assistant-ui",
+  href: "/components/assistant-ui",
   purchase: "setup",
   name: "assistant-ui",
   tagline: "A streaming chat UI wired to the agent framework you already use.",
   description:
-    "The Thread component, the runtime that binds it to your backend, and a chat route that streams from your model provider. Pick the Vercel AI SDK, Mastra or LangGraph at checkout; everything installs into your project as source you own.",
+    "The Thread component, the runtime that binds it to your backend, and a chat route that streams from your model provider. Pick the Vercel AI SDK, Mastra or LangGraph during setup; everything installs into your project as source you own.",
   kind: "library",
   audience: "new and existing React apps",
   license: "MIT",
@@ -22,12 +22,34 @@ export const assistantUi: CatalogProduct = {
     "A streaming chat route with tool calling",
     "Markdown rendering, attachments, and frontend tools",
   ],
+  features: [
+    "Replies that stream token by token, with a stop control",
+    "Markdown rendering with code blocks",
+    "Message editing, with branches to switch between versions",
+    "Copy, regenerate, and export to Markdown on every reply",
+    "Tool calls rendered in the thread, grouped while they run",
+    "Collapsible reasoning",
+    "Scrolling that follows the stream, with a jump to the latest message",
+  ],
+  preview: "thread",
+  bundle: [
+    "thread",
+    "markdown-text",
+    "reasoning",
+    "tool-fallback",
+    "tool-group",
+    "attachment",
+    "file",
+    "image",
+    "follow-up-suggestions",
+    "tooltip-icon-button",
+  ],
   requires: [
     "React 18 or newer",
     "Tailwind CSS v3 or v4",
     "A model provider key",
   ],
-  agentMinutes: [5, 15],
+  agentMinutes: [4, 9],
   steps: [
     {
       title: "Scaffold the UI and runtime",

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
-import type { AppendMessage, ThreadHistoryAdapter } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ThreadHistoryAdapter,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./AgUiThreadRuntimeCore";
 import { makeLogger } from "./logger";
 
@@ -56,6 +60,100 @@ const userMessage = (text: string) =>
   }) as unknown as AppendMessage;
 
 describe("AgUiThreadRuntimeCore late history loading", () => {
+  it("preserves a voice transcript delivered during initial history loading", async () => {
+    const history = createHistory();
+    let finishLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    history.load.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishLoad = resolve;
+      }),
+    );
+    const { core } = createCore(history);
+    const loading = core.__internal_load();
+    const transcript: ThreadMessage = {
+      id: "spoken",
+      role: "user",
+      content: [{ type: "text", text: "spoken while loading" }],
+      attachments: [],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+    };
+    core.appendVoiceTranscript(transcript);
+
+    finishLoad({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user",
+            content: [{ type: "text", text: "earlier" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await loading;
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "restored",
+      "spoken",
+    ]);
+    expect(core.getMessageRepository().messages.at(-1)?.parentId).toBe(
+      "restored",
+    );
+    expect(history.append).toHaveBeenCalledExactlyOnceWith({
+      parentId: "restored",
+      message: transcript,
+    });
+  });
+
+  it("links a new tail append after initial history imports", async () => {
+    const history = createHistory();
+    let finishLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    history.load.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishLoad = resolve;
+      }),
+    );
+    const { core } = createCore(history);
+    const loading = core.__internal_load();
+    const sending = core.append(userMessage("during load"));
+
+    finishLoad({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user",
+            content: [{ type: "text", text: "earlier" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await Promise.all([loading, sending]);
+
+    expect(core.getMessages().map((message) => message.content)).toEqual([
+      [{ type: "text", text: "earlier" }],
+      [{ type: "text", text: "during load" }],
+    ]);
+    expect(core.getMessageRepository().messages.at(-1)?.parentId).toBe(
+      "restored",
+    );
+  });
+
   it("loads history when the adapter arrives after the first load", async () => {
     const { core, update } = createCore();
     const history = createHistory();
@@ -119,5 +217,48 @@ describe("AgUiThreadRuntimeCore steerAway parent selection", () => {
       [{ type: "text", text: "new root" }],
     ]);
     expect(core.getMessageRepository().messages.at(-1)?.parentId).toBeNull();
+  });
+});
+
+describe("AgUiThreadRuntimeCore activity deltas", () => {
+  it("applies a delta to the snapshot the run streamed", async () => {
+    type Subscriber = Record<string, ((payload?: unknown) => void) | undefined>;
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          messageId: "act-1",
+          activityType: "progress",
+          content: { step: 1, label: "loading" },
+          replace: true,
+        },
+      });
+      subscriber.onActivityDeltaEvent?.({
+        event: {
+          type: "ACTIVITY_DELTA",
+          messageId: "act-1",
+          activityType: "progress",
+          patch: [{ op: "replace", path: "/step", value: 2 }],
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as AbstractAgent;
+    const core = new AgUiThreadRuntimeCore({
+      agent,
+      logger: makeLogger(),
+      showThinking: true,
+      notifyUpdate: vi.fn(),
+    });
+
+    await core.append({ ...userMessage("go"), startRun: true });
+    await flush();
+
+    const assistant = core.getMessages().at(-1)!;
+    expect(assistant.content.find((part) => part.type === "data")).toEqual({
+      type: "data",
+      name: "agui-activity/progress",
+      data: { step: 2, label: "loading" },
+    });
   });
 });

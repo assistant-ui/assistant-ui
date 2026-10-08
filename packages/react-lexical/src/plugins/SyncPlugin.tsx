@@ -43,6 +43,7 @@ type ParsedSegment = {
 };
 
 type CompositeParser = (text: string) => readonly ParsedSegment[];
+type ParsedLines = readonly (readonly ParsedSegment[])[];
 
 type SegmentKey =
   | readonly ["text", string]
@@ -110,10 +111,14 @@ function appendTextSegment(segments: SegmentKey[], text: string) {
 function getParsedLines(
   runtimeText: string,
   parse: CompositeParser,
-): SegmentKey[][] {
-  return runtimeText.split("\n").map((line) => {
+): ParsedLines {
+  return runtimeText.split("\n").map(parse);
+}
+
+function getParsedLineKeys(parsedLines: ParsedLines): SegmentKey[][] {
+  return parsedLines.map((line) => {
     const segments: SegmentKey[] = [];
-    for (const { segment } of parse(line)) {
+    for (const { segment } of line) {
       if (segment.kind === "text") {
         appendTextSegment(segments, segment.text);
       } else {
@@ -168,15 +173,12 @@ function collectEditorDirectiveCounts(editor: LexicalEditor) {
   });
 }
 
-function collectParsedMentionCounts(
-  runtimeText: string,
-  parse: CompositeParser,
-) {
+function collectParsedMentionCounts(parsedLines: ParsedLines) {
   const counts = new Map<string, number>();
-  for (const line of getParsedLines(runtimeText, parse)) {
-    for (const segment of line) {
-      if (segment[0] === "mention") {
-        incrementCount(counts, directiveKey(segment[1], segment[2]));
+  for (const line of parsedLines) {
+    for (const { segment } of line) {
+      if (segment.kind === "mention") {
+        incrementCount(counts, directiveKey(segment.id, segment.type));
       }
     }
   }
@@ -184,26 +186,20 @@ function collectParsedMentionCounts(
 }
 
 function editorMatchesParser(
-  editor: LexicalEditor,
-  runtimeText: string,
-  parse: CompositeParser,
+  editorLines: SegmentKey[][],
+  parsedLines: ParsedLines,
 ) {
-  const editorLines = getEditorLines(editor);
-  if (editorLines === undefined) return false;
   return (
     JSON.stringify(editorLines) ===
-    JSON.stringify(getParsedLines(runtimeText, parse))
+    JSON.stringify(getParsedLineKeys(parsedLines))
   );
 }
 
 function shouldRebuildForParser(
   editor: LexicalEditor,
-  runtimeText: string,
-  parse: CompositeParser,
+  parsedLines: ParsedLines,
 ) {
-  if (getEditorLines(editor) === undefined) return false;
-  if (editorMatchesParser(editor, runtimeText, parse)) return false;
-  const parsedCounts = collectParsedMentionCounts(runtimeText, parse);
+  const parsedCounts = collectParsedMentionCounts(parsedLines);
   for (const [key, count] of collectEditorDirectiveCounts(editor)) {
     if ((parsedCounts.get(key) ?? 0) < count) return false;
   }
@@ -287,10 +283,10 @@ function parserOnlyTags(editor: LexicalEditor) {
   return tags;
 }
 
-function parsedLabelQueues(runtimeText: string, parse: CompositeParser) {
+function parsedLabelQueues(parsedLines: ParsedLines) {
   const queues = new Map<string, string[]>();
-  for (const line of runtimeText.split("\n")) {
-    for (const { segment } of parse(line)) {
+  for (const line of parsedLines) {
+    for (const { segment } of line) {
       if (segment.kind !== "mention") continue;
       const key = directiveKey(segment.id, segment.type);
       const labels = queues.get(key) ?? [];
@@ -302,12 +298,11 @@ function parsedLabelQueues(runtimeText: string, parse: CompositeParser) {
 }
 
 function collectPreservedDirectives(
-  runtimeText: string,
-  previousParse: CompositeParser,
-  nextParse: CompositeParser,
+  previousParsedLines: ParsedLines,
+  parsedLines: ParsedLines,
 ) {
-  const previousLabels = parsedLabelQueues(runtimeText, previousParse);
-  const nextLabels = parsedLabelQueues(runtimeText, nextParse);
+  const previousLabels = parsedLabelQueues(previousParsedLines);
+  const nextLabels = parsedLabelQueues(parsedLines);
   const preserved = new Map<string, PreservedDirective[]>();
   for (const paragraph of $getRoot().getChildren()) {
     if (!$isElementNode(paragraph)) continue;
@@ -337,13 +332,18 @@ function syncRuntimeToLexical(
   parse: CompositeParser,
   previousParser: CompositeParser | undefined,
   onComplete: () => void,
+  parsedLines?: ParsedLines,
 ) {
   const parserOnly = previousParser !== undefined;
   editor.update(
     () => {
+      const lines = parsedLines ?? getParsedLines(runtimeText, parse);
       const root = $getRoot();
       const preserved = parserOnly
-        ? collectPreservedDirectives(runtimeText, previousParser, parse)
+        ? collectPreservedDirectives(
+            getParsedLines(runtimeText, previousParser),
+            lines,
+          )
         : undefined;
       const caretOffset = parserOnly ? $getCollapsedRuntimeOffset() : undefined;
       root.clear();
@@ -355,10 +355,8 @@ function syncRuntimeToLexical(
         return;
       }
 
-      const lines = runtimeText.split("\n");
-      for (const line of lines) {
+      for (const segments of lines) {
         const paragraph = $createParagraphNode();
-        const segments = parse(line);
 
         for (const { segment, formatter } of segments) {
           if (segment.kind === "text") {
@@ -504,14 +502,22 @@ export function SyncPlugin({
     const applyRuntimeText = (
       runtimeText: string,
       previousParser: CompositeParser | undefined,
+      parsedLines?: ParsedLines,
     ) => {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
       lastAppliedParserRef.current = parser;
       textDirtySinceSyncRef.current = false;
-      syncRuntimeToLexical(editor, runtimeText, parser, previousParser, () => {
-        isSyncingFromRuntimeRef.current = false;
-      });
+      syncRuntimeToLexical(
+        editor,
+        runtimeText,
+        parser,
+        previousParser,
+        () => {
+          isSyncingFromRuntimeRef.current = false;
+        },
+        parsedLines,
+      );
     };
 
     const tryApplyParserChange = () => {
@@ -522,12 +528,15 @@ export function SyncPlugin({
       }
       if (editor.isComposing()) return;
       const runtimeText = lastSyncedTextRef.current;
-      if (editorMatchesParser(editor, runtimeText, parser)) {
+      const editorLines = getEditorLines(editor);
+      if (editorLines === undefined) return;
+      const parsedLines = getParsedLines(runtimeText, parser);
+      if (editorMatchesParser(editorLines, parsedLines)) {
         lastAppliedParserRef.current = parser;
         return;
       }
-      if (!shouldRebuildForParser(editor, runtimeText, parser)) return;
-      applyRuntimeText(runtimeText, lastAppliedParserRef.current);
+      if (!shouldRebuildForParser(editor, parsedLines)) return;
+      applyRuntimeText(runtimeText, lastAppliedParserRef.current, parsedLines);
     };
 
     const initialText = composerRuntime.getState().text;

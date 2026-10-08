@@ -22,11 +22,12 @@
  *   POST   /threads/:id/thinking    → 204                   (body: { level })
  *   POST   /threads/:id/archive     → 204
  *   POST   /threads/:id/unarchive   → 204
- *   DELETE /threads/:id             → 204
+ *   DELETE /threads/:id             → 204 (also when the thread is already gone)
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
-import { isRecord } from "@assistant-ui/core/internal";
+import { invokeUserCallback, isRecord } from "@assistant-ui/core/internal";
+import { SSEEventDecoderError } from "assistant-stream/utils";
 import {
   createPiEventStreamConnection,
   openPiEventStream,
@@ -159,12 +160,16 @@ export interface PiHttpClientOptions {
   fetchImpl?: typeof fetch;
   /** Extra headers applied to every request (e.g. auth). */
   headers?: Record<string, string>;
-  /** Non-fatal SSE stream errors (reconnects follow). */
+  /** SSE stream errors. Reconnects follow, except after a decoder limit error, which ends the stream and sends its listeners an error event. */
   onStreamError?: (error: unknown) => void;
   /** Reconnect backoff for the event stream; injectable for tests. */
   reconnectDelay?: () => Promise<void>;
   /** Delay before closing an idle shared event stream. Defaults to 30s. */
   streamCloseDelayMs?: number;
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 }
 
 const trimTrailingSlash = (value: string): string =>
@@ -283,6 +288,8 @@ export const createPiHttpClient = (
     onStreamError,
     reconnectDelay,
     streamCloseDelayMs = 30_000,
+    maxStreamLineLength,
+    maxStreamEventLength,
   } = options;
 
   const base = trimTrailingSlash(baseUrl);
@@ -389,7 +396,9 @@ export const createPiHttpClient = (
     },
 
     deleteThread: async (threadId) => {
-      await assertOk(await send(threadUrl(threadId), "DELETE"));
+      const response = await send(threadUrl(threadId), "DELETE");
+      if (response.status === 404) return;
+      await assertOk(response);
     },
 
     respondToHostUiRequest: async (threadId, response: PiHostUiResponse) => {
@@ -431,7 +440,48 @@ export const createPiHttpClient = (
             fetchImpl,
             ...(headers ? { headers } : {}),
             ...(reconnectDelay ? { reconnectDelay } : {}),
-            ...(onStreamError ? { onError: onStreamError } : {}),
+            onError: (error) => {
+              if (!(error instanceof SSEEventDecoderError)) {
+                onStreamError?.(error);
+                return;
+              }
+              queueMicrotask(() => {
+                if (streams.get(streamKey) === createdStream) {
+                  streams.delete(streamKey);
+                }
+                if (createdStream.closeTimer) {
+                  clearTimeout(createdStream.closeTimer);
+                  createdStream.closeTimer = undefined;
+                }
+                const snapshotLoad = createdStream.snapshotLoad;
+                if (snapshotLoad) {
+                  createdStream.snapshotLoad = undefined;
+                  if (snapshotLoad.timeout) clearTimeout(snapshotLoad.timeout);
+                  snapshotLoad.close();
+                }
+                createdStream.pendingEvents.clear();
+                createdStream.connection.close();
+                const errorEvent: PiClientEvent = {
+                  type: "error",
+                  threadId,
+                  seq: 0,
+                  error: error.message,
+                };
+                void invokeUserCallback(
+                  "react-pi",
+                  "onError",
+                  onStreamError,
+                  error,
+                );
+                for (const listener of [...listeners]) {
+                  if (listeners.has(listener)) {
+                    deliverEvent(createdStream, listener, errorEvent);
+                  }
+                }
+              });
+            },
+            maxStreamLineLength,
+            maxStreamEventLength,
             onConnect: () => {
               createdStream.reconnectOnReturnAvailable = true;
               createdStream.awaitingLiveSnapshot = true;
@@ -606,7 +656,19 @@ export const createPiHttpClient = (
             fetchImpl,
             ...(headers ? { headers } : {}),
             ...(reconnectDelay ? { reconnectDelay } : {}),
-            ...(onStreamError ? { onError: onStreamError } : {}),
+            onError: (error) => {
+              if (error instanceof SSEEventDecoderError) {
+                failSnapshotLoad({
+                  type: "error",
+                  threadId,
+                  seq: 0,
+                  error: error.message,
+                });
+              }
+              onStreamError?.(error);
+            },
+            maxStreamLineLength,
+            maxStreamEventLength,
             onEvent: (event) => {
               if (stream.snapshotLoad !== snapshotLoad) return;
               if (event.type === "snapshot") {
@@ -650,8 +712,7 @@ export const createPiHttpClient = (
       }
 
       return () => {
-        const current = streams.get(streamKey);
-        if (!current) return;
+        const current = stream;
         current.listeners.delete(listener);
         current.pendingEvents.delete(listener);
         current.snapshotSeqs.delete(listener);
@@ -663,7 +724,12 @@ export const createPiHttpClient = (
             snapshotLoad.close();
           }
         }
-        if (current.listeners.size > 0 || current.closeTimer) return;
+        if (
+          streams.get(streamKey) !== current ||
+          current.listeners.size > 0 ||
+          current.closeTimer
+        )
+          return;
         if (streamCloseDelayMs <= 0) {
           current.connection.close();
           streams.delete(streamKey);

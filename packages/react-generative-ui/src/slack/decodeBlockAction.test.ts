@@ -2,6 +2,30 @@ import { describe, expect, it } from "vitest";
 import { decodeBlockAction } from "./decodeBlockAction";
 
 describe("decodeBlockAction", () => {
+  it.each([
+    "{}",
+    '{"sku":"typed text","qty":2}',
+    '{"type":"other","$input":"typed text"}',
+  ])("preserves plain-text input containing JSON verbatim: %s", (value) => {
+    expect(
+      decodeBlockAction({
+        type: "plain_text_input",
+        action_id: "leave_note",
+        value,
+      }),
+    ).toEqual({ type: "leave_note", $input: value });
+  });
+
+  it("keeps typed text distinct from a button's serialized payload", () => {
+    const value = '{"sku":"abc123","$input":"ignored"}';
+    expect(
+      decodeBlockAction({ type: "button", action_id: "buy_item", value }),
+    ).toEqual({
+      type: "buy_item",
+      sku: "abc123",
+    });
+  });
+
   it("decodes a button action, spreading its JSON value into the payload", () => {
     const action = {
       action_id: "buy_item",
@@ -11,6 +35,70 @@ describe("decodeBlockAction", () => {
       type: "buy_item",
       sku: "abc123",
       qty: 2,
+    });
+  });
+
+  it("resolves nested field references from named plain-text input state", () => {
+    const blockId = `aui:0:${JSON.stringify([["note", "note"]])}`;
+    expect(
+      decodeBlockAction(
+        {
+          action_id: "save",
+          value: JSON.stringify({ context: { note: { $field: "note" } } }),
+        },
+        {
+          [blockId]: {
+            note: { type: "plain_text_input", value: "edited" },
+          },
+        },
+      ),
+    ).toEqual({ type: "save", context: { note: "edited" } });
+  });
+
+  it("maps each action in a shared block and preserves empty checkbox selections", () => {
+    const blockId = `aui:1:${JSON.stringify([
+      ["choose_plan", "plan"],
+      ["choose_tags", "tags"],
+      ["choose_date", "date"],
+      ["choose_size", "size"],
+    ])}`;
+    expect(
+      decodeBlockAction(
+        {
+          action_id: "submit",
+          value: JSON.stringify({
+            context: {
+              plan: { $field: "plan" },
+              tags: { $field: "tags" },
+              date: { $field: "date" },
+              size: { $field: "size" },
+              missing: { $field: "missing" },
+            },
+          }),
+        },
+        {
+          [blockId]: {
+            choose_plan: {
+              type: "static_select",
+              selected_option: { value: "pro" },
+            },
+            choose_tags: { type: "checkboxes", selected_options: [] },
+            choose_date: { type: "datepicker", selected_date: "2026-09-25" },
+            choose_size: {
+              type: "radio_buttons",
+              selected_option: { value: "small" },
+            },
+          },
+        },
+      ),
+    ).toEqual({
+      type: "submit",
+      context: {
+        plan: "pro",
+        tags: [],
+        date: "2026-09-25",
+        size: "small",
+      },
     });
   });
 
@@ -34,6 +122,16 @@ describe("decodeBlockAction", () => {
       type: "pick_date",
       $input: "2026-07-15",
     });
+  });
+
+  it("decodes a number input action as a number", () => {
+    expect(
+      decodeBlockAction({
+        type: "number_input",
+        action_id: "set_quantity",
+        value: "3.5",
+      }),
+    ).toEqual({ type: "set_quantity", $input: 3.5 });
   });
 
   it("decodes a checkboxes action, reading $input from selected_options[].value", () => {

@@ -40,6 +40,47 @@ const appendMessage = (): AppendMessage => ({
   metadata: { custom: {} },
 });
 
+describe("toAgUiMessages data URLs", () => {
+  it.each(["application/pdf", ""])(
+    "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
+    (mimeType) => {
+      expect(
+        contentOf(
+          userMessage([
+            { type: "file", data: "data:;base64,SGVsbG8=", mimeType },
+          ]),
+        ),
+      ).toEqual([
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "SGVsbG8=",
+            mimeType: mimeType || "application/octet-stream",
+          },
+        },
+      ]);
+    },
+  );
+
+  it("sniffs a media-less image data URL", () => {
+    expect(
+      contentOf(
+        userMessage([{ type: "image", image: "data:;base64,iVBORw0KGgo=" }]),
+      ),
+    ).toEqual([
+      {
+        type: "image",
+        source: {
+          type: "data",
+          value: "iVBORw0KGgo=",
+          mimeType: "image/png",
+        },
+      },
+    ]);
+  });
+});
+
 describe("toAgUiMessages content metadata", () => {
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
@@ -273,6 +314,62 @@ describe("toAgUiMessages content metadata", () => {
       providerMetadata: { agui: { file_id: "f_7" } },
     });
 
+    expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
+  });
+});
+
+describe("toAgUiMessages percent-encoded data URLs", () => {
+  it("sends a data URL that is not base64 as a url source", () => {
+    expect(
+      contentOf(
+        userMessage([
+          { type: "image", image: "data:image/svg+xml,%3Csvg%2F%3E" },
+          {
+            type: "file",
+            data: "data:text/plain,hello",
+            mimeType: "text/plain",
+            filename: "f.txt",
+          },
+        ]),
+      ),
+    ).toEqual([
+      {
+        type: "image",
+        source: { type: "url", value: "data:image/svg+xml,%3Csvg%2F%3E" },
+      },
+      {
+        type: "document",
+        source: {
+          type: "url",
+          value: "data:text/plain,hello",
+          mimeType: "text/plain",
+        },
+        metadata: { filename: "f.txt" },
+      },
+    ]);
+  });
+
+  it("keeps a data URL that is not base64 through a snapshot round trip", () => {
+    const sent = toAgUiMessages([
+      userMessage([
+        {
+          type: "file",
+          data: "data:text/plain,hello",
+          mimeType: "text/plain",
+          filename: "f.txt",
+        },
+      ]),
+    ]);
+
+    const rebuilt = fromAgUiMessages(sent as never);
+    const attachment = (rebuilt[0] as unknown as { attachments: unknown[] })
+      .attachments[0] as { content: unknown[] };
+
+    expect(attachment.content[0]).toMatchObject({
+      type: "file",
+      data: "data:text/plain,hello",
+      mimeType: "text/plain",
+    });
     expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
   });
 });

@@ -311,6 +311,53 @@ describe("BaseComposerRuntimeCore", () => {
     expect(adapter.remove).toHaveBeenCalledWith(pending);
   });
 
+  it.each([
+    ["removeAttachment", "pending", 1],
+    ["reset", "pending", 1],
+    ["reset", "failed", 2],
+    ["reset", "pending-then-failed", 1],
+    ["clearAttachments", "pending", 1],
+    ["clearAttachments", "failed", 2],
+    ["clearAttachments", "pending-then-failed", 1],
+  ] as const)(
+    "removes a draft attachment on %s unless its removal is in flight (%s)",
+    async (action, state, removals) => {
+      const removal = Promise.withResolvers<void>();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      composer.setAttachmentAdapter({
+        accept: "*",
+        add: vi.fn(),
+        send: vi.fn(),
+        remove,
+      });
+      composer.setTestAttachments([makePendingAttachment("att-1")]);
+
+      const removing = composer.removeAttachment("att-1").then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      if (state === "failed") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      await (action === "removeAttachment"
+        ? composer.removeAttachment("att-1")
+        : composer[action]());
+      if (state === "pending") removal.resolve();
+      if (state === "pending-then-failed")
+        removal.reject(new Error("remove failed"));
+
+      expect(await removing).toEqual(
+        state === "pending" ? undefined : new Error("remove failed"),
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(composer.attachments).toEqual([]);
+    },
+  );
+
   it("removeAttachment throws for unknown id", async () => {
     const adapter: AttachmentAdapter = {
       accept: "*",
@@ -412,6 +459,33 @@ describe("BaseComposerRuntimeCore", () => {
       "[assistant-ui] Dictation session stop threw",
       stopError,
     );
+  });
+
+  it("stops a dictation session once when stopped again before the first stop settles", async () => {
+    let settle!: () => void;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      ),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    composer.startDictation();
+    composer.stopDictation();
+    composer.stopDictation();
+    settle();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(session.stop).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeUndefined();
   });
 
   it("finishes dictation cleanup when an unsubscribe throws", async () => {
@@ -1050,5 +1124,66 @@ describe("BaseComposerRuntimeCore.retractDraft", () => {
 
     expect(composer.text).toBe("returned");
     expect(composer.attachments).toHaveLength(1);
+  });
+});
+
+describe("BaseComposerRuntimeCore send with a subscriber that restarts dictation", () => {
+  const makeSession = () => {
+    const end = new Set<(result: DictationAdapter.Result) => void>();
+    let listeners = 0;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(async () => {}),
+      cancel: vi.fn(() => {
+        session.status = { type: "ended", reason: "cancelled" };
+        for (const cb of [...end]) cb({ transcript: "" });
+      }),
+      onSpeechStart: () => {
+        listeners++;
+        return () => listeners--;
+      },
+      onSpeechEnd: (cb) => {
+        end.add(cb);
+        listeners++;
+        return () => {
+          end.delete(cb);
+          listeners--;
+        };
+      },
+      onSpeech: () => {
+        listeners++;
+        return () => listeners--;
+      },
+    };
+    return { session, listeners: () => listeners };
+  };
+
+  it("keeps the session a subscriber starts while send cancels the previous one", async () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const sessions: ReturnType<typeof makeSession>[] = [];
+    const composer = new TestComposerCore();
+    composer.setDictationAdapter({
+      listen: () => {
+        const s = makeSession();
+        sessions.push(s);
+        return s.session;
+      },
+    });
+    composer.subscribe(() => {
+      if (composer.dictation === undefined && sessions.length === 1) {
+        composer.startDictation();
+      }
+    });
+    composer.setText("hello");
+    composer.startDictation();
+    await composer.send();
+
+    expect(sessions).toHaveLength(2);
+    expect(composer.dictation).toBeDefined();
+    expect(sessions[1]!.listeners()).toBe(3);
+    expect(sessions[1]!.session.cancel).not.toHaveBeenCalled();
   });
 });

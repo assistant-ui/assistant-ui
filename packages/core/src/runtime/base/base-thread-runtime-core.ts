@@ -12,7 +12,10 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../utils/message-repository";
-import { captureThreadRuntimeGeneration } from "../utils/thread-runtime-lifecycle";
+import {
+  captureThreadRuntimeDisposal,
+  captureThreadRuntimeGeneration,
+} from "../utils/thread-runtime-lifecycle";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -154,6 +157,11 @@ export abstract class BaseThreadRuntimeCore
   constructor(_contextProvider: ModelContextProvider) {
     super();
     this._contextProvider = _contextProvider;
+    captureThreadRuntimeDisposal(this).addEventListener("abort", () => {
+      this.composer.__internal_dispose();
+      for (const composer of this._editComposers.values())
+        composer.__internal_dispose();
+    });
   }
 
   public getModelContext() {
@@ -198,6 +206,10 @@ export abstract class BaseThreadRuntimeCore
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
+  }
+
+  public __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore> {
+    return this._editComposers.values();
   }
   protected _isVoiceMessage(messageId: string | null) {
     return (
@@ -492,6 +504,9 @@ export abstract class BaseThreadRuntimeCore
         error,
       );
     }
+    // A subscriber notified by the disconnect may have connected a session;
+    // connecting over it would leave it live with no owner.
+    if (this._voiceSession !== undefined) return;
 
     let session: RealtimeVoiceAdapter.Session;
     try {
@@ -538,18 +553,35 @@ export abstract class BaseThreadRuntimeCore
         session.onStatusChange((status) => {
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
-            this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
-            this._onVoiceDisconnected();
+            this._voiceVolume = 0;
+            try {
+              notifySubscribers([
+                () => this._finishVoiceAssistantMessage(false),
+                () => {
+                  if (this._voiceSession === undefined)
+                    this._onVoiceDisconnected();
+                },
+                () =>
+                  notifyEventListeners(
+                    this._voiceVolumeSubscribers,
+                    undefined,
+                    "Voice volume",
+                  ),
+                () => this._notifySubscribers(),
+              ]);
+            } finally {
+              finishDetachedSetup();
+            }
           } else {
             this.voice = this._toVoiceSessionState(
               session,
               status,
               currentMode,
             );
+            this._notifySubscribers();
           }
-          this._notifySubscribers();
         }),
       );
       if (finishDetachedSetup()) return;
@@ -607,8 +639,8 @@ export abstract class BaseThreadRuntimeCore
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
 
-  private _observeVoiceCommit(commit: void | Promise<void>) {
-    void Promise.resolve(commit).catch((error) => {
+  private _observeVoiceCommit(commit: () => void | Promise<void>) {
+    void new Promise<void>((resolve) => resolve(commit())).catch((error) => {
       console.error("[assistant-ui] Voice message commit failed", error);
     });
   }
@@ -616,14 +648,17 @@ export abstract class BaseThreadRuntimeCore
   private _handleVoiceTranscript(
     transcript: RealtimeVoiceAdapter.TranscriptItem,
   ) {
+    const session = this._voiceSession;
     this.ensureInitialized();
+    if (this._voiceSession !== session) return;
 
     if (transcript.role === "user") {
       this._finishVoiceAssistantMessage();
+      if (this._voiceSession !== session) return;
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._observeVoiceCommit(
+        this._observeVoiceCommit(() =>
           this._commitVoiceUserMessage({
             id: generateId(),
             role: "user",
@@ -669,9 +704,8 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
-        this._observeVoiceCommit(
-          this._commitVoiceMessage(this._currentAssistantMsg),
-        );
+        const message = this._currentAssistantMsg;
+        this._observeVoiceCommit(() => this._commitVoiceMessage(message));
         this._currentAssistantMsg = null;
       }
 
@@ -682,10 +716,12 @@ export abstract class BaseThreadRuntimeCore
 
   private _commitVoiceUserMessage(message: ThreadMessage) {
     this._voiceMessages.push(message);
-    const committed = this._commitVoiceMessage(message);
-    this._markVoiceMessagesDirty();
-    this._notifySubscribers();
-    return committed;
+    try {
+      return this._commitVoiceMessage(message);
+    } finally {
+      this._markVoiceMessagesDirty();
+      this._notifySubscribers();
+    }
   }
 
   protected async _appendToVoiceSession(message: AppendMessage) {
@@ -727,6 +763,10 @@ export abstract class BaseThreadRuntimeCore
         "The voice session ended before the typed message was recorded",
       );
     this._finishVoiceAssistantMessage(false);
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
     this._currentAssistantMsg = null;
     await this._commitVoiceUserMessage({
       id: generateId(),
@@ -746,7 +786,7 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
-      this._observeVoiceCommit(
+      this._observeVoiceCommit(() =>
         this._commitVoiceMessage(this._voiceMessages[idx]!),
       );
       this._currentAssistantMsg = null;

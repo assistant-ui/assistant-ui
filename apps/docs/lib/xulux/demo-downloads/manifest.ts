@@ -62,6 +62,7 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/react/ui/base/dot-matrix.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/message-timing.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/model-selector.tsx",
+  "packages/ui/src/components/react/assistant-ui/utils/model-selection.ts",
   "packages/ui/src/components/react/assistant-ui/elements/model-selector.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/quote.aui.tsx",
   "packages/ui/src/components/react/assistant-ui/elements/reasoning.tsx",

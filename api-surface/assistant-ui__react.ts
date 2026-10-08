@@ -6,7 +6,7 @@ import { DropdownMenu, Popover, Slot } from "radix-ui";
 
 import { Primitive } from "radix-ui/internal";
 
-import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
+import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, MouseEvent, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
 
 import { TextareaAutosizeProps } from "react-textarea-autosize";
 
@@ -252,6 +252,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -269,6 +270,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -277,6 +279,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -491,6 +494,7 @@ declare class AssistantCloudScores {
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
   events?: boolean;
+  messages?: boolean;
   release?: string;
   environment?: string;
   tags?: string[];
@@ -501,6 +505,8 @@ type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -562,6 +568,7 @@ type AssistantCloudThreadsCreateBody = {
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
+  upsert?: boolean | undefined;
 };
 
 type AssistantCloudThreadsCreateResponse = {
@@ -849,10 +856,13 @@ type AssistantTransportOptions<T> = Omit<AssistantTransportOptions$1<T>, "conver
 type AssistantTransportOptions$1<T> = {
   initialState: T;
   api: string;
+  cloud?: AssistantCloud | undefined;
   resumeApi?: string;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
   converter: AssistantTransportStateConverter$1<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
@@ -1140,6 +1150,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  __internal_dispose(): void;
   protected cancelSubmission(): void;
   restoreDraft(draft: {
     text: string;
@@ -1423,6 +1434,16 @@ type CloudMessage = {
   updated_at: Date;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
+};
+
+declare function CloudRendererHost(_param1: CloudRendererHostProps): ReactNode;
+
+type CloudRendererHostProps = {
+  children: ReactNode;
+  allowedOrigins?: readonly string[] | undefined;
+  aui?: AssistantRuntimeProvider.Props["aui"];
+  config?: AssistantRuntimeProvider.Props["config"];
 };
 
 type CloudThread = {
@@ -1440,16 +1461,19 @@ type CloudThread = {
 
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
+  scopeId?: string | undefined;
   runtimeHook: () => AssistantRuntime;
-  create?(): Promise<ThreadData>;
+  create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
 };
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
-  create?: (() => Promise<ThreadData$1>) | undefined;
+  create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  upsert?: boolean | undefined;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -1712,7 +1736,7 @@ declare const ComposerPrimitiveTriggerPopover: import("react").ForwardRefExoticC
 } & import("react").RefAttributes<HTMLDivElement>, "ref">, "onSelect"> & {
   readonly char: string;
   readonly matcher?: TriggerMatcher | undefined;
-  readonly adapter?: Unstable_TriggerAdapter | undefined;
+  readonly adapter?: TriggerAdapter | undefined;
   readonly isLoading?: boolean | undefined;
 } & import("react").RefAttributes<HTMLDivElement>> & {
   Directive: import("react").FC<ComposerPrimitiveTriggerPopoverDirective.Props>;
@@ -1721,8 +1745,8 @@ declare const ComposerPrimitiveTriggerPopover: import("react").ForwardRefExoticC
 
 declare namespace ComposerPrimitiveTriggerPopoverAction {
   type Props = {
-    readonly formatter?: Unstable_DirectiveFormatter | undefined;
-    readonly onExecute: (item: Unstable_TriggerItem) => void;
+    readonly formatter?: DirectiveFormatter | undefined;
+    readonly onExecute: (item: TriggerItem) => void;
     readonly removeOnExecute?: boolean | undefined;
   };
 }
@@ -1743,7 +1767,7 @@ declare const ComposerPrimitiveTriggerPopoverBack: import("react").ForwardRefExo
 declare namespace ComposerPrimitiveTriggerPopoverCategories {
   type Element = ComponentRef<typeof Primitive$1.div>;
   type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.div>, "children"> & {
-    children: (categories: readonly Unstable_TriggerCategory[]) => ReactNode;
+    children: (categories: readonly TriggerCategory[]) => ReactNode;
   };
 }
 
@@ -1752,7 +1776,7 @@ declare const ComposerPrimitiveTriggerPopoverCategories: import("react").Forward
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref">, "children"> & {
-  children: (categories: readonly Unstable_TriggerCategory[]) => ReactNode;
+  children: (categories: readonly TriggerCategory[]) => ReactNode;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverCategoryItem {
@@ -1772,8 +1796,8 @@ declare const ComposerPrimitiveTriggerPopoverCategoryItem: import("react").Forwa
 
 declare namespace ComposerPrimitiveTriggerPopoverDirective {
   type Props = {
-    readonly formatter?: Unstable_DirectiveFormatter | undefined;
-    readonly onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+    readonly formatter?: DirectiveFormatter | undefined;
+    readonly onInserted?: ((item: TriggerItem) => void) | undefined;
   };
 }
 
@@ -1782,7 +1806,7 @@ declare const ComposerPrimitiveTriggerPopoverDirective: FC<ComposerPrimitiveTrig
 declare namespace ComposerPrimitiveTriggerPopoverItem {
   type Element = ComponentRef<typeof Primitive$1.button>;
   type Props = ComponentPropsWithoutRef<typeof Primitive$1.button> & {
-    item: Unstable_TriggerItem;
+    item: TriggerItem;
     index?: number | undefined;
   };
 }
@@ -1792,14 +1816,14 @@ declare const ComposerPrimitiveTriggerPopoverItem: import("react").ForwardRefExo
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
-  item: Unstable_TriggerItem;
+  item: TriggerItem;
   index?: number | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverItems {
   type Element = ComponentRef<typeof Primitive$1.div>;
   type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.div>, "children"> & {
-    children: (items: readonly Unstable_TriggerItem[]) => ReactNode;
+    children: (items: readonly TriggerItem[]) => ReactNode;
   };
 }
 
@@ -1808,7 +1832,7 @@ declare const ComposerPrimitiveTriggerPopoverItems: import("react").ForwardRefEx
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref">, "children"> & {
-  children: (items: readonly Unstable_TriggerItem[]) => ReactNode;
+  children: (items: readonly TriggerItem[]) => ReactNode;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverRoot {
@@ -2013,6 +2037,7 @@ type CreateStartRunConfig = {
 };
 
 type CreateSuggestionAdapterOptions = {
+  key?: string | number | symbol | undefined;
   complete: (options: {
     prompt: string;
     signal?: AbortSignal;
@@ -2024,6 +2049,7 @@ type CreateSuggestionAdapterOptions = {
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -2034,6 +2060,7 @@ type DataMessagePartProps<T = any> = MessagePartState & DataMessagePart<T>;
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 
@@ -2123,6 +2150,21 @@ type DictationState = {
   readonly status: DictationAdapter.Status;
   readonly transcript?: string;
   readonly inputDisabled?: boolean;
+};
+
+type DirectiveFormatter = {
+  serialize(item: TriggerItem): string;
+  parse(text: string): readonly DirectiveSegment[];
+};
+
+type DirectiveSegment = {
+  readonly kind: "text";
+  readonly text: string;
+} | {
+  readonly kind: "mention";
+  readonly type: string;
+  readonly label: string;
+  readonly id: string;
 };
 
 declare class EditComposerAttachmentRuntimeImpl extends ComposerAttachmentRuntime<"edit-composer"> {
@@ -2282,10 +2324,13 @@ type ExternalMessageConverterMetadata = {
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
+  unstable_persistsHistory?: boolean | undefined;
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
@@ -2383,6 +2428,8 @@ type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   isSendDisabled?: boolean;
@@ -2431,6 +2478,7 @@ type FeedbackAdapterFeedback = {
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -2461,9 +2509,11 @@ type FrameMessage = {
   id: string;
   result?: unknown;
   error?: string;
+} | {
+  type: "provider-disposed";
 };
 
-type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-cancel" | "tool-result";
+type FrameMessageType = "model-context-request" | "model-context-update" | "provider-disposed" | "tool-call" | "tool-cancel" | "tool-result";
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
@@ -2574,6 +2624,7 @@ type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, 
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -2641,6 +2692,7 @@ type LanguageModelV1CallSettings = {
 
 type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -2758,6 +2810,7 @@ type McpAppResourceCSP = {
   connectDomains?: string[];
   resourceDomains?: string[];
   frameDomains?: string[];
+  baseUriDomains?: string[];
   [k: string]: unknown;
 };
 
@@ -3008,6 +3061,11 @@ type MessagePartStreamStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
 declare namespace MessagePrimitiveAttachmentByIndex {
   type Props = {
     index: number;
@@ -3058,6 +3116,7 @@ declare namespace MessagePrimitiveGroupedParts {
     readonly status: MessagePartStatus | ToolCallMessagePartStatus;
     readonly counts: GroupCounts;
     readonly indices: readonly number[];
+    readonly timing?: MessagePartTiming;
   };
   type IndicatorPart = {
     readonly type: "indicator";
@@ -3075,7 +3134,7 @@ declare namespace MessagePrimitiveGroupedParts {
 }
 
 declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param1: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+  <TKey extends `group-${string}`>(_param2: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
   displayName: string;
 };
 
@@ -3245,12 +3304,13 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param2: ExportedMessageRepository): void;
+  import(_param3: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
@@ -3263,11 +3323,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param3: {
+  submitFeedback(_param4: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param4: {
+  switchToBranch(_param5: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -3298,11 +3358,11 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param5: {
+  submitFeedback(_param6: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param6: {
+  switchToBranch(_param7: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -3816,9 +3876,11 @@ type ReasoningGroupProps = PropsWithChildren<{
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -3931,6 +3993,7 @@ type RespondToToolApprovalOptions = {
   approved: boolean;
   optionId?: string;
   text?: string;
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -3978,6 +4041,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 type SamplingCallData = {
@@ -4234,6 +4298,7 @@ type SubscribableWithState<TState, TPath> = Subscribable & {
 };
 
 type SuggestionAdapter = {
+  key?: string | number | symbol | undefined;
   generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
 };
 
@@ -4326,6 +4391,7 @@ type TaskState = {
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -4417,6 +4483,8 @@ type ThreadData$1 = {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
+  unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
     unstable_resume?: boolean;
@@ -4849,29 +4917,7 @@ type ThreadMessageClientProps = {
 
 type ThreadMessageLike = {
   readonly role: "assistant" | "system" | "user";
-  readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
-    readonly type: "tool-call";
-    readonly toolCallId?: string;
-    readonly toolName: string;
-    readonly args?: ReadonlyJSONObject;
-    readonly argsText?: string;
-    readonly artifact?: any;
-    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
-    readonly result?: any | undefined;
-    readonly isError?: boolean | undefined;
-    readonly isPreliminary?: boolean | undefined;
-    readonly parentId?: string | undefined;
-    readonly messages?: readonly ThreadMessage[] | undefined;
-    readonly interrupt?: {
-      type: "human";
-      payload: unknown;
-    };
-    readonly timing?: ToolCallTiming;
-    readonly mcp?: ToolCallMessagePartMcpMetadata;
-    readonly providerMetadata?: PartProviderMetadata;
-    readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
-    readonly unstable_interactions?: Unstable_ToolInteractionLog;
-  })[];
+  readonly content: string | readonly ThreadMessageLikePart[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
@@ -4894,6 +4940,30 @@ type ThreadMessageLike = {
   } | undefined;
 };
 
+type ThreadMessageLikePart = ThreadUserMessagePart | ThreadAssistantMessagePart | DataPrefixedPart | {
+  readonly type: "tool-call";
+  readonly toolCallId?: string;
+  readonly toolName: string;
+  readonly args?: ReadonlyJSONObject;
+  readonly argsText?: string;
+  readonly artifact?: any;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  readonly result?: any | undefined;
+  readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
+  readonly parentId?: string | undefined;
+  readonly messages?: readonly ThreadMessage[] | undefined;
+  readonly interrupt?: {
+    type: "human";
+    payload: unknown;
+  };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
+};
+
 declare namespace ThreadPrimitiveEmpty {
   type Props = PropsWithChildren;
 }
@@ -4905,6 +4975,17 @@ declare namespace ThreadPrimitiveIf {
 }
 
 declare const ThreadPrimitiveIf: FC<ThreadPrimitiveIf.Props>;
+
+declare namespace ThreadPrimitiveLoadEarlier {
+  type Element = ActionButtonElement;
+  type Props = ActionButtonProps<typeof useThreadLoadEarlier>;
+}
+
+declare const ThreadPrimitiveLoadEarlier: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean;
+}, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ThreadPrimitiveMessageByIndex {
   type Props = {
@@ -4939,6 +5020,35 @@ declare const ThreadPrimitiveRoot: import("react").ForwardRefExoticComponent<Omi
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+
+declare namespace ThreadPrimitiveRow {
+  type RenderInfo = {
+    readonly type: "message";
+    readonly row: Extract<ThreadRow, {
+      type: "message";
+    }>;
+    readonly message: MessageState;
+  } | {
+    readonly type: "part";
+    readonly row: Extract<ThreadRow, {
+      type: "part";
+    }>;
+    readonly part: MessagePrimitiveGroupedParts.GroupPart | EnrichedPartState;
+    readonly children: ReactNode;
+  } | {
+    readonly type: "turn-end";
+    readonly row: Extract<ThreadRow, {
+      type: "turn-end";
+    }>;
+    readonly message: MessageState;
+  };
+  type Props = {
+    readonly row: ThreadRow;
+    readonly children: (info: RenderInfo) => ReactNode;
+  };
+}
+
+declare const ThreadPrimitiveRow: import("react").NamedExoticComponent<ThreadPrimitiveRow.Props>;
 
 declare namespace ThreadPrimitiveScrollToBottom {
   type Element = ActionButtonElement;
@@ -5044,6 +5154,31 @@ declare const ThreadPrimitiveViewportFooter: import("react").ForwardRefExoticCom
 
 declare const ThreadPrimitiveViewportProvider: FC<ThreadViewportProviderProps>;
 
+type ThreadRow = {
+  readonly type: "message";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+} | {
+  readonly type: "part";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+  readonly indices: readonly number[];
+  readonly group?: `group-${string}`;
+} | {
+  readonly type: "turn-end";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
+type ThreadRowsOptions = {
+  readonly groupBy?: ((part: PartState, context: GroupByContext) => readonly `group-${string}`[] | null) | undefined;
+};
+
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
@@ -5056,6 +5191,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
@@ -5101,6 +5237,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5112,6 +5249,9 @@ type ThreadRuntimeCore = Readonly<{
   isDisabled: boolean;
   isSendDisabled: boolean;
   isLoading: boolean;
+  hasEarlier?: boolean;
+  isLoadingEarlier?: boolean;
+  loadEarlier?(): Promise<void>;
   isRunning?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
@@ -5136,6 +5276,12 @@ type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore, ThreadR
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
@@ -5214,6 +5360,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5225,6 +5372,9 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isDisabled: boolean;
       isSendDisabled: boolean;
       isLoading: boolean;
+      hasEarlier?: boolean;
+      isLoadingEarlier?: boolean;
+      loadEarlier?(): Promise<void>;
       isRunning?: boolean | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
@@ -5259,6 +5409,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   stopSpeaking(): void;
   connectVoice(): void;
@@ -5289,7 +5440,10 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
@@ -5305,7 +5459,10 @@ type ThreadState = ThreadRuntimeState;
 type ThreadState$1 = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
@@ -5377,7 +5534,7 @@ type ThreadViewportState = {
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
   }) => void;
-  readonly onScrollToBottom: (callback: (_param7: {
+  readonly onScrollToBottom: (callback: (_param8: {
     behavior: ScrollBehavior;
   }) => void) => Unsubscribe;
   readonly turnAnchor: "bottom" | "top";
@@ -5443,7 +5600,12 @@ type TitleGenerationAdapter = {
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -5458,6 +5620,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -5475,10 +5652,14 @@ type ToolApprovalResponse = {
 } | {
   readonly text: string;
   readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
+  readonly reason?: string;
 };
 
 type ToolArgsStatus<TArgs extends Record<string, unknown> = Record<string, unknown>> = {
   status: "complete" | "incomplete" | "requires-action" | "running";
+  argsStatus: PropFieldStatus;
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
@@ -5530,6 +5711,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -5585,10 +5768,7 @@ type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = str
   complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendToolDeclaration<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -5708,6 +5888,12 @@ type ToolsState = {
   mcpApp?: McpAppResourceOutput | undefined;
 };
 
+type TriggerAdapter = {
+  categories(): readonly TriggerCategory[];
+  categoryItems(categoryId: string): readonly TriggerItem[];
+  search?(query: string): readonly TriggerItem[];
+};
+
 type TriggerBehavior = {
   readonly kind: "directive";
   readonly formatter: Unstable_DirectiveFormatter;
@@ -5717,6 +5903,19 @@ type TriggerBehavior = {
   readonly formatter: Unstable_DirectiveFormatter;
   readonly onExecute: (item: Unstable_TriggerItem) => void;
   readonly removeOnExecute?: boolean;
+};
+
+type TriggerCategory = {
+  readonly id: string;
+  readonly label: string;
+};
+
+type TriggerItem = {
+  readonly id: string;
+  readonly type: string;
+  readonly label: string;
+  readonly description?: string | undefined;
+  readonly metadata?: ReadonlyJSONObject | undefined;
 };
 
 type TriggerMatch = {
@@ -5828,20 +6027,9 @@ type Unstable_ComposerInputHistory = {
   onKeyDown: KeyboardEventHandler<HTMLTextAreaElement>;
 };
 
-type Unstable_DirectiveFormatter = {
-  serialize(item: Unstable_TriggerItem): string;
-  parse(text: string): readonly Unstable_DirectiveSegment[];
-};
+type Unstable_DirectiveFormatter = DirectiveFormatter;
 
-type Unstable_DirectiveSegment = {
-  readonly kind: "text";
-  readonly text: string;
-} | {
-  readonly kind: "mention";
-  readonly type: string;
-  readonly label: string;
-  readonly id: string;
-};
+type Unstable_DirectiveSegment = DirectiveSegment;
 
 type Unstable_IconComponent = FC<{
   className?: string;
@@ -6034,24 +6222,19 @@ type Unstable_ToolInteractionLog = {
   readonly omitted?: number;
 };
 
-type Unstable_TriggerAdapter = {
-  categories(): readonly Unstable_TriggerCategory[];
-  categoryItems(categoryId: string): readonly Unstable_TriggerItem[];
-  search?(query: string): readonly Unstable_TriggerItem[];
-};
+type Unstable_TriggerAdapter = TriggerAdapter;
 
-type Unstable_TriggerCategory = {
-  readonly id: string;
-  readonly label: string;
-};
+type Unstable_TriggerCategory = TriggerCategory;
 
-type Unstable_TriggerItem = {
-  readonly id: string;
-  readonly type: string;
-  readonly label: string;
-  readonly description?: string | undefined;
-  readonly metadata?: ReadonlyJSONObject | undefined;
-};
+type Unstable_TriggerItem = TriggerItem;
+
+type Unstable_TriggerMatch = TriggerMatch;
+
+type Unstable_TriggerMatch$1 = TriggerMatch;
+
+type Unstable_TriggerMatcher = TriggerMatcher;
+
+type Unstable_TriggerMatcher$1 = TriggerMatcher;
 
 type Unstable_TriggerPopoverAriaProps = TriggerPopoverAriaProps;
 
@@ -6116,6 +6299,7 @@ type UserExternalState = keyof Assistant.ExternalState extends never ? Record<st
 
 type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 
@@ -6225,7 +6409,7 @@ declare namespace chainOfThought_d_exports {
 }
 
 declare namespace composer_d_exports {
-  export { ComposerPrimitiveAddAttachment as AddAttachment, ComposerPrimitiveAttachmentByIndex as AttachmentByIndex, ComposerPrimitiveAttachmentDropzone as AttachmentDropzone, ComposerPrimitiveAttachments as Attachments, ComposerPrimitiveCancel as Cancel, ComposerPrimitiveDictate as Dictate, ComposerPrimitiveDictationTranscript as DictationTranscript, ComposerPrimitiveIf as If, ComposerPrimitiveInput as Input, ComposerPrimitiveQueue as Queue, ComposerPrimitiveQuote as Quote, ComposerPrimitiveQuoteDismiss as QuoteDismiss, ComposerPrimitiveQuoteText as QuoteText, ComposerPrimitiveRoot as Root, ComposerPrimitiveSend as Send, ComposerPrimitiveStopDictation as StopDictation, RegisteredTrigger as Unstable_RegisteredTrigger, TriggerMatcher as Unstable_TriggerMatcher, ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover, ComposerPrimitiveTriggerPopoverBack as Unstable_TriggerPopoverBack, ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories, ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem, ComposerPrimitiveTriggerPopoverItem as Unstable_TriggerPopoverItem, ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems, ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional };
+  export { ComposerPrimitiveAddAttachment as AddAttachment, ComposerPrimitiveAttachmentByIndex as AttachmentByIndex, ComposerPrimitiveAttachmentDropzone as AttachmentDropzone, ComposerPrimitiveAttachments as Attachments, ComposerPrimitiveCancel as Cancel, ComposerPrimitiveDictate as Dictate, ComposerPrimitiveDictationTranscript as DictationTranscript, ComposerPrimitiveIf as If, ComposerPrimitiveInput as Input, ComposerPrimitiveQueue as Queue, ComposerPrimitiveQuote as Quote, ComposerPrimitiveQuoteDismiss as QuoteDismiss, ComposerPrimitiveQuoteText as QuoteText, ComposerPrimitiveRoot as Root, ComposerPrimitiveSend as Send, ComposerPrimitiveStopDictation as StopDictation, TriggerMatch, TriggerMatcher, ComposerPrimitiveTriggerPopover as TriggerPopover, ComposerPrimitiveTriggerPopoverBack as TriggerPopoverBack, ComposerPrimitiveTriggerPopoverCategories as TriggerPopoverCategories, ComposerPrimitiveTriggerPopoverCategoryItem as TriggerPopoverCategoryItem, ComposerPrimitiveTriggerPopoverItem as TriggerPopoverItem, ComposerPrimitiveTriggerPopoverItems as TriggerPopoverItems, ComposerPrimitiveTriggerPopoverRoot as TriggerPopoverRoot, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_TriggerMatch$1 as Unstable_TriggerMatch, Unstable_TriggerMatcher$1 as Unstable_TriggerMatcher, ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover, ComposerPrimitiveTriggerPopoverBack as Unstable_TriggerPopoverBack, ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories, ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem, ComposerPrimitiveTriggerPopoverItem as Unstable_TriggerPopoverItem, ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems, ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional };
 }
 
 declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata, cache?: ExternalMessageConversionCache) => ThreadMessage[];
@@ -6233,7 +6417,7 @@ declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callba
 declare const createExternalMessageConversionCache: () => ExternalMessageConversionCache;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
-  useThreadMessages: (_param8: {
+  useThreadMessages: (_param9: {
     messages: T[];
     isRunning: boolean;
     joinStrategy?: JoinStrategy | undefined;
@@ -6252,9 +6436,13 @@ declare const createSimpleTitleAdapter: () => TitleGenerationAdapter;
 
 declare const createSuggestionAdapter: (options: CreateSuggestionAdapterOptions) => SuggestionAdapter;
 
+declare const createThreadRowsSelector: (options?: ThreadRowsOptions) => (state: AssistantState) => readonly ThreadRow[];
+
 declare function createVoiceSession(options: {
   abortSignal?: AbortSignal;
 }, setup: (helpers: VoiceSessionHelpers) => Promise<VoiceSessionControls>): RealtimeVoiceAdapter.Session;
+
+declare const defaultDirectiveFormatter: DirectiveFormatter;
 
 declare const defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
 
@@ -6314,7 +6502,7 @@ declare const hitlTool: typeof humanTool;
 declare function humanTool(): never;
 
 declare namespace entry_root_exports {
-  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentRuntimeState, AttachmentState, AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerRuntimeState, ComposerSendOptions, ComposerState$1 as ComposerState, ComposerSubmission, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppBridgeHandlers, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppPartOptions, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimeState, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, ShimLoadError, ShimLoadErrorCode, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TaskMethods, TaskState, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemRuntimeState, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, TriggerMatch as Unstable_TriggerMatch, TriggerMatcher as Unstable_TriggerMatcher, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unstable_WebMcpProviderOptions, Unstable_WebMcpProviderResult, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createVoiceSession, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, readAnonymousRefreshToken, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, defaultWebMcpFilter as unstable_defaultWebMcpFilter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, unstable_useWebMcpProvider, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
+  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentRuntimeState, AttachmentState, AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CloudRendererHost, CloudRendererHostProps, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerRuntimeState, ComposerSendOptions, ComposerState$1 as ComposerState, ComposerSubmission, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, DirectiveFormatter, DirectiveSegment, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppBridgeHandlers, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppPartOptions, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, MessagePartTiming, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimeState, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, ShimLoadError, ShimLoadErrorCode, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TaskMethods, TaskState, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemRuntimeState, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRow, ThreadRowsOptions, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalAnswer, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalQuestion, ToolApprovalQuestionOption, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, TriggerAdapter, TriggerCategory, TriggerItem, TriggerMatch, TriggerMatcher, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, Unstable_TriggerMatch, Unstable_TriggerMatcher, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unstable_WebMcpProviderOptions, Unstable_WebMcpProviderResult, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createThreadRowsSelector, createVoiceSession, defaultDirectiveFormatter, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, readAnonymousRefreshToken, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, defaultWebMcpFilter as unstable_defaultWebMcpFilter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, unstable_useWebMcpProvider, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
 }
 
 declare namespace internal_d_exports {
@@ -6332,6 +6520,7 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: {
   clickable?: boolean | undefined;
   editable?: boolean | undefined;
+  settleDelayMs?: number | undefined;
 }) => T;
 
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
@@ -6361,6 +6550,7 @@ declare namespace selectionToolbar_d_exports {
 declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options: T) => {
   localRuntimeOptions: {
     cloud: AssistantCloud | undefined;
+    scopeId: string | undefined;
     initialMessages: readonly ThreadMessageLike[] | undefined;
     maxSteps: number | undefined;
     adapters: Omit<{
@@ -6378,7 +6568,7 @@ declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options:
     unstable_queueClearOnRewind: boolean | undefined;
     unstable_queueClearOnCancel: boolean | undefined;
   };
-  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
+  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "scopeId" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
 };
 
 declare function stubTool(): never;
@@ -6400,7 +6590,7 @@ declare namespace threadList_d_exports {
 }
 
 declare namespace thread_d_exports {
-  export { ThreadPrimitiveEmpty as Empty, ThreadPrimitiveIf as If, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadPrimitiveMessages as Messages, ThreadPrimitiveRoot as Root, ThreadPrimitiveScrollToBottom as ScrollToBottom, ThreadPrimitiveSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById, ThreadPrimitiveViewport as Viewport, ThreadPrimitiveViewportFooter as ViewportFooter, ThreadPrimitiveViewportProvider as ViewportProvider };
+  export { ThreadPrimitiveEmpty as Empty, ThreadPrimitiveIf as If, ThreadPrimitiveLoadEarlier as LoadEarlier, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadPrimitiveMessages as Messages, ThreadPrimitiveRoot as Root, ThreadPrimitiveRow as Row, ThreadPrimitiveScrollToBottom as ScrollToBottom, ThreadPrimitiveSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById, ThreadPrimitiveViewport as Viewport, ThreadPrimitiveViewportFooter as ViewportFooter, ThreadPrimitiveViewportProvider as ViewportProvider };
 }
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
@@ -6418,7 +6608,7 @@ declare const unstable_Interactables: Resource<ClientOutput<"unstable_interactab
   (Unstable_InteractablesConfig | undefined)?
 ]>;
 
-declare const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+declare const unstable_defaultDirectiveFormatter: DirectiveFormatter;
 
 declare function unstable_formatInteractableSnapshot(entry: Unstable_InteractableSnapshotEntry): string;
 
@@ -6492,7 +6682,7 @@ declare const unstable_useWebMcpProvider: (options?: Unstable_WebMcpProviderOpti
 
 declare const useActionBarEdit: () => (() => void) | null;
 
-declare const useActionBarExportMarkdown: (_param9?: {
+declare const useActionBarExportMarkdown: (_param10?: {
   filename?: string | undefined;
   onExport?: ((content: string) => void | Promise<void>) | undefined;
 }) => (() => Promise<void>) | null;
@@ -6501,7 +6691,7 @@ declare const useActionBarFeedbackNegative: () => () => void;
 
 declare const useActionBarFeedbackPositive: () => () => void;
 
-declare const useActionBarPrimitiveCopy: (_param10?: {
+declare const useActionBarPrimitiveCopy: (_param11?: {
   copiedDuration?: number | undefined;
 }) => (() => void) | null;
 
@@ -6515,7 +6705,7 @@ declare const useAssistantContext: (config: AssistantContextConfig) => void;
 
 declare const useAssistantDataUI: (dataUI: AssistantDataUIProps | null) => void;
 
-declare const useAssistantFrameHost: (_param11: UseAssistantFrameHostOptions) => void;
+declare const useAssistantFrameHost: (_param12: UseAssistantFrameHostOptions) => void;
 
 declare const useAssistantInstructions: (config: string | AssistantInstructionsConfig) => void;
 
@@ -6557,13 +6747,13 @@ declare const useChainOfThoughtAccordionTrigger: () => () => void;
 
 declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
 
-declare function useCloudThreadListRuntime(_param12: CloudThreadListAdapter): AssistantRuntime;
+declare function useCloudThreadListRuntime(_param13: CloudThreadListAdapter): AssistantRuntime;
 
-declare const useComposerAddAttachment: (_param13?: {
+declare const useComposerAddAttachment: (_param14?: {
   multiple?: boolean | undefined;
 }) => (() => void) | null;
 
-declare const useComposerCancel: () => (() => void) | null;
+declare const useComposerCancel: () => ((event: MouseEvent<HTMLButtonElement>) => void) | null;
 
 declare const useComposerDictate: () => (() => void) | null;
 
@@ -6577,14 +6767,16 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param14: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param15: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 declare const useExternalStoreRuntime: <T>(store: ExternalStoreAdapter<T>) => AssistantRuntime;
@@ -6604,7 +6796,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param15?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param16?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useMessagePartData: <T = any>(name?: string) => DataMessagePart<T> | null;
 
@@ -6773,7 +6965,7 @@ declare const useSmoothStatus: {
   }> | null;
 };
 
-declare const useSuggestionTrigger: (_param16: {
+declare const useSuggestionTrigger: (_param17: {
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 }) => (() => void) | null;
@@ -6788,15 +6980,17 @@ declare const useThreadListItemUnarchive: () => () => void;
 
 declare const useThreadListLoadMore: () => (() => void) | null;
 
+declare const useThreadLoadEarlier: () => (() => void) | null;
+
 declare namespace useThreadScrollToBottom {
   type Options = {
     behavior?: ScrollBehavior | undefined;
   };
 }
 
-declare const useThreadScrollToBottom: (_param17?: useThreadScrollToBottom.Options) => (() => void) | null;
+declare const useThreadScrollToBottom: (_param18?: useThreadScrollToBottom.Options) => (() => void) | null;
 
-declare const useThreadSuggestion: (_param18: {
+declare const useThreadSuggestion: (_param19: {
   prompt: string;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
@@ -6830,7 +7024,7 @@ declare namespace useThreadViewportAutoScroll {
   };
 }
 
-declare const useThreadViewportAutoScroll: <TElement extends HTMLElement>(_param19: useThreadViewportAutoScroll.Options) => RefCallback<TElement>;
+declare const useThreadViewportAutoScroll: <TElement extends HTMLElement>(_param20: useThreadViewportAutoScroll.Options) => RefCallback<TElement>;
 
 declare const useToolArgsStatus: <TArgs extends Record<string, unknown> = Record<string, unknown>>() => ToolArgsStatus<TArgs>;
 
