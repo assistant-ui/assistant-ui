@@ -16,7 +16,7 @@ body:
   - type: textarea
     attributes:
       label: Environment info
-      description: Run `npx assistant-ui info` in your project and paste the output here.
+      description: Run `npx assistant-ui info` in your project and paste the output here. Add the browser or device if the bug depends on it.
       placeholder: |
         Environment:
           OS:               macOS 15.3 (arm64)
@@ -98,6 +98,12 @@ body:
     validations:
       required: true
 
+  - type: input
+    attributes:
+      label: Last version where this worked
+      description: Leave empty if it never worked or you do not know.
+      placeholder: "@assistant-ui/react 0.12.14"
+
   - type: dropdown
     attributes:
       label: How was this found?
@@ -111,16 +117,16 @@ body:
     validations:
       required: true
 
-  - type: input
+  - type: textarea
     attributes:
-      label: Browser (if applicable)
-      placeholder: "e.g. Chrome 131, Firefox 135, Safari 18"
+      label: Error output
+      render: text
+      description: Stack trace or console output as text, not a screenshot. Please remove any secrets.
 
   - type: textarea
     attributes:
-      label: Code snippet or error log
-      render: tsx
-      description: Relevant code, stack traces, or console output. Please remove any secrets.
+      label: Suspected cause or workaround
+      description: Optional. Link exact source lines if you traced it, and say whether you verified the fix.
 
   - type: textarea
     attributes:
