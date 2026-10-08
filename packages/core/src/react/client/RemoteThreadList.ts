@@ -522,6 +522,7 @@ const useRemoteThreadList = (
         lastNotifiedRemoteId: undefined as string | undefined,
         lastControlledThreadId: undefined as string | undefined,
         controlledSwitchGeneration: undefined as number | undefined,
+        controlledReloadPending: false,
         switchTask: undefined as Promise<void> | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
@@ -627,14 +628,21 @@ const useRemoteThreadList = (
     if (adapterChanged) {
       session.adapterGeneration++;
       session.titleStates.clear();
+      const preserveControlled =
+        session.lastControlledThreadId !== undefined &&
+        session.controlledSwitchGeneration === session.switchGeneration;
       session.switchGeneration++;
+      session.controlledReloadPending = preserveControlled;
+      if (preserveControlled) {
+        session.controlledSwitchGeneration = session.switchGeneration;
+      }
       session.switchTask = undefined;
       session.adapterAtLoad = adapter;
       const seeded = seedNewThread(EMPTY_LIST);
       store.reset({ ...seeded.state, isLoading: true });
       assignMainThreadId(seeded.id);
       setStartedIds([seeded.id]);
-      notifyRemoteId(undefined, true);
+      notifyRemoteId(undefined, !preserveControlled);
     } else {
       store.update({
         ...store.baseValue,
@@ -1333,7 +1341,12 @@ const useRemoteThreadList = (
     if (listState.isLoading || listState.isLoadingMore) return;
     if (controlledId === undefined) return;
     if (session.controlledSwitchGeneration !== session.switchGeneration) return;
-    if (getThreadData(listState, controlledId) === undefined) return;
+    if (
+      !session.controlledReloadPending &&
+      getThreadData(listState, controlledId) === undefined
+    )
+      return;
+    session.controlledReloadPending = false;
     if (isSameThread(listState, controlledId, session.mainThreadId)) return;
     handleThreadListAction("switch", () => {
       const task = switchToThread(controlledId, undefined, false);

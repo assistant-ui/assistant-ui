@@ -210,11 +210,12 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     sdk: AI_SDK_SDK,
   });
   const clientRef = useAssistantClientRef();
-  const previousCloudAdapter = useRef(cloudAdapter);
+  const previousCloudAdapter = useRef(bindCloud ? cloudAdapter : undefined);
   useEffect(() => {
-    if (previousCloudAdapter.current === cloudAdapter) return;
-    previousCloudAdapter.current = cloudAdapter;
-    if (!bindCloud) return;
+    const previous = previousCloudAdapter.current;
+    previousCloudAdapter.current = bindCloud ? cloudAdapter : undefined;
+    if (!bindCloud || previous === undefined || previous === cloudAdapter)
+      return;
     // RemoteThreadList reloads a replaced adapter explicitly. Wait until its
     // committed adapter has changed before clearing the previous scope's list.
     let cancelled = false;

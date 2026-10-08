@@ -55,44 +55,52 @@ const chatCallbacks = () => ({
   sendAutomaticallyWhen: vi.fn(() => false),
 });
 
+const thread = (id: string) => ({
+  id,
+  title: id,
+  is_archived: false,
+  last_message_at: null,
+  external_id: null,
+  metadata: null,
+});
+const makeCloud = (id: string) =>
+  ({
+    registerSdk: vi.fn(),
+    threads: {
+      list: vi.fn(async ({ is_archived }: { is_archived?: boolean } = {}) => ({
+        threads: is_archived ? [] : [thread(id)],
+      })),
+      get: vi.fn(async () => thread(id)),
+      messages: {
+        list: vi.fn(async () => ({ messages: [] })),
+        create: vi.fn(async () => ({ message_id: "stored" })),
+      },
+    },
+    runs: { report: vi.fn() },
+    telemetry: { enabled: false },
+  }) as unknown as AssistantCloud;
+
 describe("AISDKThreads", () => {
-  it.each(["client", "scope", "both", "rapid"] as const)(
-    "reloads Cloud threads and stops the previous run when %s changes",
-    async (change) => {
-      const thread = (id: string) => ({
-        id,
-        title: id,
-        is_archived: false,
-        last_message_at: null,
-        external_id: null,
-        metadata: null,
-      });
-      const makeCloud = (id: string) =>
-        ({
-          registerSdk: vi.fn(),
-          threads: {
-            list: vi.fn(
-              async ({ is_archived }: { is_archived?: boolean } = {}) => ({
-                threads: is_archived ? [] : [thread(id)],
-              }),
-            ),
-            get: vi.fn(async () => thread(id)),
-            messages: {
-              list: vi.fn(async () => ({ messages: [] })),
-              create: vi.fn(async () => ({ message_id: "stored" })),
-            },
-          },
-          runs: { report: vi.fn() },
-          telemetry: { enabled: false },
-        }) as unknown as AssistantCloud;
+  it.each(
+    (["client", "scope", "both", "rapid"] as const).flatMap((change) =>
+      [false, true].map((controlled) => ({ change, controlled })),
+    ),
+  )(
+    "reloads Cloud threads when $change changes with controlled=$controlled",
+    async ({ change, controlled }) => {
       const cloudA = makeCloud("a-thread");
       const cloudB = makeCloud("b-thread");
+      const intermediate = makeCloud("intermediate-thread");
       const stream = createCancellableTransport();
       let cloud = cloudA;
       let scopeId = "workspace-a";
+      let threadId = controlled ? "a-thread" : undefined;
+      const onThreadIdChange = vi.fn();
       const { handle, rerender } = createLiveHandle(() => ({
         cloud,
         scopeId,
+        threadId,
+        onThreadIdChange,
         transport: () => stream.transport,
       }));
       try {
@@ -118,6 +126,14 @@ describe("AISDKThreads", () => {
         await vi.waitFor(() =>
           expect(handle.getClient().thread.getState().isRunning).toBe(true),
         );
+        stream.emit(
+          { type: "start" },
+          { type: "text-start", id: "partial" },
+          { type: "text-delta", id: "partial", delta: "A response" },
+        );
+        await vi.waitFor(() =>
+          expect(threadText(handle)).toContain("A response"),
+        );
         const callsBeforeScopeChange = vi.mocked(cloudA.threads.list).mock.calls
           .length;
         rerender();
@@ -128,7 +144,7 @@ describe("AISDKThreads", () => {
           cloudA.threads.messages.create,
         ).mock.calls.length;
         if (change === "rapid") {
-          cloud = makeCloud("intermediate-thread");
+          cloud = intermediate;
           scopeId = "workspace-intermediate";
           rerender();
         }
@@ -140,6 +156,7 @@ describe("AISDKThreads", () => {
           cloud = cloudB;
         }
         if (change !== "client") scopeId = "workspace-b";
+        if (controlled) threadId = "b-thread";
         rerender();
         rerender();
         await vi.waitFor(() =>
@@ -155,14 +172,52 @@ describe("AISDKThreads", () => {
         expect(cloudA.threads.messages.create).toHaveBeenCalledTimes(
           writesBeforeScopeChange,
         );
-        expect(handle.getClient().threads.getState().threadIds).not.toContain(
-          "intermediate-thread",
-        );
+        if (change === "rapid") {
+          expect(intermediate.threads.list).not.toHaveBeenCalled();
+          expect(handle.getClient().threads.getState().threadIds).not.toContain(
+            "intermediate-thread",
+          );
+        }
+        if (controlled) {
+          await vi.waitFor(() =>
+            expect(handle.getClient().threads.getState().mainThreadId).toBe(
+              "b-thread",
+            ),
+          );
+          expect(onThreadIdChange).not.toHaveBeenCalled();
+        }
       } finally {
         handle.destroy();
       }
     },
   );
+
+  it("loads once when entering Cloud mode", async () => {
+    let cloud: AssistantCloud | undefined;
+    const { handle, rerender } = createLiveHandle(() => ({ cloud }));
+    try {
+      cloud = makeCloud("a-thread");
+      rerender();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toContain(
+          "a-thread",
+        ),
+      );
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+      cloud = undefined;
+      rerender();
+      cloud = makeCloud("b-thread");
+      rerender();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toContain(
+          "b-thread",
+        ),
+      );
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+    }
+  });
 
   it("emits the selected thread id when its composer sends", async () => {
     const { transport } = createControlledTransport();

@@ -2076,6 +2076,86 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it.each(
+    (["none", "before reload", "during reload"] as const).flatMap(
+      (manualSwitch) =>
+        [false, true].map((listed) => ({ manualSwitch, listed })),
+    ),
+  )(
+    "preserves controlled replacement selection with manual=$manualSwitch and listed=$listed",
+    async ({ manualSwitch, listed }) => {
+      const replacement = deferred<{ threads: RemoteThreadMetadata[] }>();
+      let adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [{ status: "regular" as const, remoteId: "thread-a" }],
+        })),
+      });
+      let threadId = "thread-a";
+      const onThreadIdChange = vi.fn();
+      const listeners = new Set<() => void>();
+      const handle = createAssistantClient({
+        getConfig: () =>
+          AuiConfig({
+            threads: RemoteThreadList({
+              adapter,
+              threadId,
+              onThreadIdChange,
+              thread: (id) => StubThread({ threadId: id }) as never,
+            }),
+          }),
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      });
+      handle.subscribe(() => {});
+      try {
+        await handle.getClient().threads.getLoadThreadsPromise();
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().mainThreadId).toBe(
+            "thread-a",
+          ),
+        );
+        adapter = makeAdapter({ list: vi.fn(() => replacement.promise) });
+        threadId = "thread-b";
+        flushTapSync(() => listeners.forEach((listener) => listener()));
+        if (manualSwitch === "before reload") {
+          await handle.getClient().threads.switchToThread("manual");
+        }
+        let reload!: Promise<void>;
+        flushTapSync(() => {
+          reload = handle.getClient().threads.reload();
+        });
+        const draftId = handle.getClient().threads.getState().mainThreadId;
+        if (manualSwitch === "during reload") {
+          await handle.getClient().threads.switchToThread("manual");
+        }
+        replacement.resolve({
+          threads: listed ? [{ status: "regular", remoteId: "thread-b" }] : [],
+        });
+        await reload;
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().isLoading).toBe(false),
+        );
+        const expectedId =
+          manualSwitch === "none"
+            ? "thread-b"
+            : manualSwitch === "during reload"
+              ? "manual"
+              : draftId;
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().mainThreadId).toBe(
+            expectedId,
+          ),
+        );
+        if (manualSwitch === "none")
+          expect(onThreadIdChange).not.toHaveBeenCalled();
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
   it("does not reset again when retrying a failed replacement load", async () => {
     const error = new Error("network");
     const methodsA = makeAdapter({
