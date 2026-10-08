@@ -86,6 +86,15 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
   });
 
+  it("lists no default thread in threadIds when the adapter sets threadId without threads", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    expect(core.threadIds).toEqual([]);
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
   it("keeps the synthesized main entry when the adapter lists threads without a threadId", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({

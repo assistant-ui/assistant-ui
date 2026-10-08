@@ -149,7 +149,7 @@ export class ExternalStoreThreadListRuntimeCore
       );
     }
 
-    if (previousThreads !== newThreads) {
+    if (previousThreads !== newThreads || previousThreadId !== newThreadId) {
       this._threads = this.adapter.threads?.map((t) => t.id) ?? EMPTY_ARRAY;
     }
 
