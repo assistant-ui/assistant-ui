@@ -1205,6 +1205,27 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     setPrevRequiresAction(isRequiresAction);
     if (isRequiresAction) setOpen(true);
   }
+  const approvalHadFocusRef = useRef(false);
+  const approvalElementRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useLayoutEffect(() => {
+    const focusedElement = approvalElementRef.current;
+    if (
+      !focusedElement ||
+      focusedElement.isConnected ||
+      isRequiresAction ||
+      !approvalHadFocusRef.current
+    ) {
+      return;
+    }
+
+    const shouldFocusTrigger = approval == null || !isSettled(approval);
+    approvalHadFocusRef.current = false;
+    if (shouldFocusTrigger) {
+      triggerRef.current?.focus({ preventScroll: true });
+    }
+  }, [approval, isRequiresAction]);
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
@@ -1223,6 +1244,26 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             approval={approval}
             respondToApproval={respondToApproval}
             status={status}
+            onFocusCapture={(event) => {
+              const root = event.currentTarget.closest(
+                '[data-slot="tool-fallback-root"]',
+              );
+              triggerRef.current =
+                root?.querySelector<HTMLButtonElement>(
+                  '[data-slot="tool-fallback-trigger"]',
+                ) ?? null;
+              approvalElementRef.current = event.currentTarget;
+              approvalHadFocusRef.current = true;
+            }}
+            onBlurCapture={(event) => {
+              const relatedTarget = event.relatedTarget;
+              const stillFocused = relatedTarget
+                ? event.currentTarget.contains(relatedTarget as Node)
+                : event.currentTarget.contains(
+                    event.currentTarget.ownerDocument.activeElement,
+                  );
+              if (!stillFocused) approvalHadFocusRef.current = false;
+            }}
           />
         )}
         <ToolFallbackResult result={result} />

@@ -262,6 +262,88 @@ describe("ToolFallback", () => {
     ]);
   });
 
+  it.each(["resume", "addResult"] as const)(
+    "returns focus to the trigger after %s settles",
+    (answerPath) => {
+      const resume = vi.fn();
+      const addResult = vi.fn();
+      const initialStatus: ToolCallMessagePartProps["status"] = {
+        type: "requires-action",
+        reason: answerPath === "resume" ? "interrupt" : "tool-calls",
+      };
+      const interrupt =
+        answerPath === "resume"
+          ? { type: "human" as const, payload: {} }
+          : undefined;
+      const renderRequest = (
+        status: ToolCallMessagePartProps["status"],
+        requestInterrupt: ToolCallMessagePartProps["interrupt"],
+      ) => {
+        const props = {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "test-tool",
+          args: {},
+          argsText: "{}",
+          status,
+          interrupt: requestInterrupt,
+          addResult,
+          resume,
+          respondToApproval: vi.fn(async () => {}),
+        } as ToolCallMessagePartProps;
+        return <ToolFallback {...props} />;
+      };
+      const view = render(renderRequest(initialStatus, interrupt));
+      const allow = button("Allow");
+      allow.focus();
+      fireEvent.click(allow);
+      expect(answerPath === "resume" ? resume : addResult).toHaveBeenCalled();
+
+      view.rerender(renderRequest({ type: "running" }, undefined));
+
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-trigger"]'),
+      );
+    },
+  );
+
+  it("does not reclaim focus after it leaves the answer controls", () => {
+    const resume = vi.fn();
+    const addResult = vi.fn();
+    const composer = <input aria-label="Composer" />;
+    const request = (status: ToolCallMessagePartProps["status"]) => {
+      const props = {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "test-tool",
+        args: {},
+        argsText: "{}",
+        status,
+        interrupt: { type: "human", payload: {} },
+        addResult,
+        resume,
+        respondToApproval: vi.fn(async () => {}),
+      } as ToolCallMessagePartProps;
+      return (
+        <>
+          <ToolFallback {...props} />
+          {composer}
+        </>
+      );
+    };
+    const view = render(
+      request({ type: "requires-action", reason: "interrupt" }),
+    );
+    button("Allow").focus();
+    screen.getByRole("textbox", { name: "Composer" }).focus();
+
+    view.rerender(request({ type: "running" }));
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "Composer" }),
+    );
+  });
+
   it("keeps the addResult fallback for tool-call actions", () => {
     const addResult = vi.fn();
     renderTool({
@@ -457,7 +539,9 @@ describe("settled approval receipts", () => {
         respondToApproval: vi.fn(async () => {}),
       } satisfies ToolCallMessagePartProps;
       const view = render(<ToolFallback {...props} />);
-      await act(async () => fireEvent.click(button("Allow")));
+      const allow = button("Allow");
+      allow.focus();
+      await act(async () => fireEvent.click(allow));
       expect(button("Allow").disabled).toBe(true);
 
       view.rerender(<ToolFallback {...props} status={status} />);
@@ -465,6 +549,9 @@ describe("settled approval receipts", () => {
       expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
       expect(receipt()).toBeNull();
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-trigger"]'),
+      );
     },
   );
 
@@ -572,7 +659,7 @@ describe("settled approval receipts", () => {
   );
 
   it.each(["composer", "body", "terminal"])(
-    "does not reclaim focus on re-entry after leaving the approval (%s)",
+    "does not move focus back into the approval on re-entry after leaving it (%s)",
     (departure) => {
       const renderRequest = (
         type: "requires-action" | "running" | "complete",
@@ -613,7 +700,13 @@ describe("settled approval receipts", () => {
       view.rerender(renderRequest("requires-action"));
       expect(button("Allow").disabled).toBe(false);
       expect(document.activeElement).toBe(
-        departure === "composer" ? composer : document.body,
+        departure === "composer"
+          ? composer
+          : departure === "terminal"
+            ? view.container.querySelector(
+                '[data-slot="tool-fallback-trigger"]',
+              )
+            : document.body,
       );
     },
   );
