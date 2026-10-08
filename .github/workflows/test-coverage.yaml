@@ -5,28 +5,36 @@ on:
     branches: [main]
     paths:
       - "packages/**"
+      - "api-surface/**"
       - "apps/**"
       - "examples/**"
       - "templates/**"
-      - "scripts/coverage-summary.mjs"
+      - "scripts/**"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/test-coverage.yaml"
+      - ".github/workflows/code-quality.yaml"
+      - ".github/workflows/deploy-examples.yaml"
+      - ".github/workflows/expo-native-bundle.yaml"
   pull_request:
     branches: [main]
     paths:
       - "packages/**"
+      - "api-surface/**"
       - "apps/**"
       - "examples/**"
       - "templates/**"
-      - "scripts/coverage-summary.mjs"
+      - "scripts/**"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/test-coverage.yaml"
+      - ".github/workflows/code-quality.yaml"
+      - ".github/workflows/deploy-examples.yaml"
+      - ".github/workflows/expo-native-bundle.yaml"
   workflow_dispatch:
 
 permissions:
@@ -70,6 +78,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test coverage routing and summary
+        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs
+
       # test:coverage runs one package at a time, so build every package first at turbo's default concurrency.
       - name: Build packages
         env:
@@ -82,6 +93,12 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:coverage --continue
+
+      - name: Run React Compiler tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm test:react-compiler
 
       - name: Write the coverage summary
         if: always()
