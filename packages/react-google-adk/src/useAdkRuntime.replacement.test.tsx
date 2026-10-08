@@ -637,7 +637,9 @@ describe("useAdkRuntime replacement runs", () => {
 
   it("keeps a history load that lands while a reload looks up its checkpoint when Stop follows", async () => {
     const checkpoint = deferred();
+    const initialLoad = deferred();
     const loaded = deferred();
+    let loadCount = 0;
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
       yield {
         id: "answer",
@@ -646,26 +648,37 @@ describe("useAdkRuntime replacement runs", () => {
         content: { role: "model", parts: [{ text: "answer 0" }] },
       };
     });
+    const getCheckpointId = vi.fn(async () => {
+      await checkpoint.promise;
+      return "cp-1";
+    });
+    const load = vi.fn(async (): Promise<AdkThreadSnapshot> => {
+      if (++loadCount === 1) {
+        await initialLoad.promise;
+        return { messages: [] };
+      }
+      await loaded.promise;
+      return {
+        messages: [
+          {
+            id: "h-1",
+            type: "ai",
+            content: [{ type: "text", text: "loaded" }],
+          },
+        ],
+      };
+    });
     const runtime = await mountWithCheckpoint(
       stream,
-      async () => {
-        await checkpoint.promise;
-        return "cp-1";
-      },
+      getCheckpointId,
       true,
-      async () => {
-        await loaded.promise;
-        return {
-          messages: [
-            {
-              id: "h-1",
-              type: "ai",
-              content: [{ type: "text", text: "loaded" }],
-            },
-          ],
-        };
-      },
+      load,
     );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      initialLoad.resolve();
+    });
 
     await act(async () => {
       runtime.thread.append({
@@ -682,11 +695,15 @@ describe("useAdkRuntime replacement runs", () => {
       .getState()
       .messages.find((m) => JSON.stringify(m).includes("answer 0"))!;
 
+    let refetch!: Promise<void>;
     await act(async () => {
       runtime.thread.getMessageById(answer.id).reload();
-    });
-    await act(async () => {
+      await Promise.resolve();
+      expect(getCheckpointId).toHaveBeenCalledTimes(1);
+      refetch = runtime.threads.reloadMainThread();
+      expect(load).toHaveBeenCalledTimes(2);
       loaded.resolve();
+      await refetch;
     });
     await waitFor(() => expect(texts(runtime)).toEqual(["loaded"]));
     await act(async () => {

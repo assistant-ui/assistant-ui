@@ -320,6 +320,24 @@ describe("appendLangChainChunk incremental tool arguments", () => {
     ]);
   });
 
+  it("keeps distinct tool calls when their complete ids reuse an index", () => {
+    const first = append(
+      undefined,
+      aiChunk([{ id: "call-1", index: 0, name: "search", args: '{"a":1}' }]),
+    );
+    const result = append(
+      first,
+      aiChunk([{ id: "call-2", index: 0, name: "search", args: '{"b":2}' }]),
+    );
+
+    expect(result.tool_calls?.map((call) => call.id)).toEqual([
+      "call-1",
+      "call-2",
+    ]);
+    expect(result.tool_calls?.[0]?.args).toMatchObject({ a: 1 });
+    expect(result.tool_calls?.[1]?.args).toMatchObject({ b: 2 });
+  });
+
   it("does not expose prototype keys from streamed arguments", () => {
     const accumulated = append(
       undefined,

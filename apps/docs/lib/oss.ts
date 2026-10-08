@@ -26,6 +26,24 @@ export type OssProject = {
   license: string | null;
 };
 
+export type OssDestinationKind = "docs" | "website" | "github" | "npm" | "pypi";
+
+export type OssDestination = {
+  kind: OssDestinationKind;
+  label: string;
+  ariaLabel: string;
+  href: string;
+  isPrimary: boolean;
+};
+
+const OSS_DESTINATION_NAMES: Record<OssDestinationKind, string> = {
+  docs: "docs",
+  website: "website",
+  github: "GitHub",
+  npm: "npm",
+  pypi: "PyPI",
+};
+
 export const OSS_CATEGORIES: Record<
   OssCategory,
   { label: string; description: string }
@@ -221,6 +239,41 @@ export function ossPrimaryUrl(project: OssProject): string {
 
 export function ossNpmUrl(pkg: string): string {
   return `https://www.npmjs.com/package/${pkg}`;
+}
+
+export function ossPypiUrl(pkg: string): string {
+  return `https://pypi.org/project/${pkg}/`;
+}
+
+export function ossAbsoluteUrl(url: string, baseUrl: string): string {
+  return url.startsWith("http") ? url : baseUrl + url;
+}
+
+export function ossDestinations(project: OssProject): OssDestination[] {
+  const destinations: {
+    kind: OssDestinationKind;
+    href: string;
+  }[] = [];
+
+  if (project.docs) destinations.push({ kind: "docs", href: project.docs });
+  if (project.site) destinations.push({ kind: "website", href: project.site });
+  destinations.push({ kind: "github", href: ossRepoUrl(project) });
+  if (project.npm)
+    destinations.push({ kind: "npm", href: ossNpmUrl(project.npm) });
+  if (project.pypi)
+    destinations.push({ kind: "pypi", href: ossPypiUrl(project.pypi) });
+
+  const primaryIndex = destinations.findIndex(
+    ({ href }) => href === ossPrimaryUrl(project),
+  );
+
+  return destinations.map(({ kind, href }, index) => ({
+    kind,
+    label: kind,
+    ariaLabel: `${project.name} on ${OSS_DESTINATION_NAMES[kind]}`,
+    href,
+    isPrimary: index === primaryIndex,
+  }));
 }
 
 export type OssStats = {
