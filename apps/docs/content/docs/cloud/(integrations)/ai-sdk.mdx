@@ -325,7 +325,7 @@ export async function POST(req: Request) {
 | `onThreadIdChange` | `undefined` | Receives the settled remote id after a cloud list selection changes. |
 | `transport` | One `AssistantChatTransport` per thread | A transport factory runs once per thread. A plain `AssistantChatTransport` instance is cloned per thread, while another transport instance is shared. |
 
-Changing `AISDKThreads`' Cloud client or `scopeId` reloads the thread list and stops runs from the previous scope. A controlled `threadId` is restored in the replacement scope without reporting the temporary draft through `onThreadIdChange`. A later manual thread switch takes precedence over that restoration.
+Changing `AISDKThreads`' Cloud client or `scopeId` reloads the thread list and stops runs from the previous scope. A new controlled `threadId` requested with the replacement adapter is restored after loading, without reporting the temporary draft through `onThreadIdChange`. Keeping the previous scope's controlled id resets to a draft and emits `undefined`, so the host can clear its selection. A later manual thread switch takes precedence over restoration.
 
 ### Control reports and events
 

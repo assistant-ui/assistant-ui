@@ -216,8 +216,8 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     previousCloudAdapter.current = bindCloud ? cloudAdapter : undefined;
     if (!bindCloud || previous === undefined || previous === cloudAdapter)
       return;
-    // RemoteThreadList reloads a replaced adapter explicitly. Wait until its
-    // committed adapter has changed before clearing the previous scope's list.
+    // Wait until RemoteThreadList commits the replacement adapter before
+    // requesting its explicit reload.
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) void clientRef.current!.threads.reload();

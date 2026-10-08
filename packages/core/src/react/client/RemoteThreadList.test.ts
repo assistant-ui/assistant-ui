@@ -2175,8 +2175,11 @@ describe("RemoteThreadList", () => {
 
   it("retains an unlisted controlled selection through a failed replacement load", async () => {
     const selected = { status: "regular" as const, remoteId: "selected" };
+    let threadId = "old-selected";
     let adapter = makeAdapter({
-      list: vi.fn(async () => ({ threads: [selected] })),
+      list: vi.fn(async () => ({
+        threads: [{ ...selected, remoteId: threadId }],
+      })),
     });
     const listeners = new Set<() => void>();
     const onThreadIdChange = vi.fn();
@@ -2185,7 +2188,7 @@ describe("RemoteThreadList", () => {
         AuiConfig({
           threads: RemoteThreadList({
             adapter,
-            threadId: "selected",
+            threadId,
             onThreadIdChange,
             thread: (id) => StubThread({ threadId: id }) as never,
           }),
@@ -2203,7 +2206,7 @@ describe("RemoteThreadList", () => {
       await handle.getClient().threads.getLoadThreadsPromise();
       await vi.waitFor(() =>
         expect(handle.getClient().threads.getState().mainThreadId).toBe(
-          "selected",
+          "old-selected",
         ),
       );
       const error = new Error("offline");
@@ -2216,18 +2219,21 @@ describe("RemoteThreadList", () => {
         return selected;
       });
       adapter = makeAdapter({ list, fetch });
+      threadId = "selected";
       flushTapSync(() => listeners.forEach((listener) => listener()));
+      const fetchesBeforeReload = fetch.mock.calls.length;
       await handle.getClient().threads.reload();
       await microtasks(20);
       expect(handle.getClient().threads.getState().loadError).toBe(error);
-      expect(fetch).not.toHaveBeenCalled();
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload);
       await handle.getClient().threads.reload();
       await vi.waitFor(() =>
         expect(handle.getClient().threads.getState().mainThreadId).toBe(
           "selected",
         ),
       );
-      expect(fetch).toHaveBeenCalledExactlyOnceWith("selected");
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload + 1);
+      expect(fetch).toHaveBeenLastCalledWith("selected");
       expect(onThreadIdChange).not.toHaveBeenCalled();
     } finally {
       consoleError.mockRestore();
