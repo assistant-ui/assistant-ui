@@ -16,7 +16,8 @@ import type {
   ThreadMessage,
   ThreadMessageLike,
 } from "@assistant-ui/react";
-import { invokeUserCallback, useLatestRef } from "@assistant-ui/core/internal";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useLatestRef } from "@assistant-ui/core/react/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { useMemo, useRef, useState } from "react";
