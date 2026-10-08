@@ -419,6 +419,9 @@ const useLangGraphRuntimeImpl = (
   const pendingResumeRef = useRef(
     new Map<string, (LangChainMessage & { type: "tool" })[]>(),
   );
+  const autoCancelledToolCallTokensRef = useRef(
+    new Map<string, readonly LangChainMessage[]>(),
+  );
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
@@ -547,6 +550,7 @@ const useLangGraphRuntimeImpl = (
   const cancelActiveRun = useCallback(
     (reason?: typeof STOPPED) => {
       pendingResumeRef.current.clear();
+      autoCancelledToolCallTokensRef.current.clear();
       for (const toolCallId of toolResultBufferRef.current.keys()) {
         const runId = runIdByToolCallIdRef.current.get(toolCallId);
         if (runId && activeRunIdsRef.current.has(runId))
@@ -570,6 +574,11 @@ const useLangGraphRuntimeImpl = (
   const langGraphMessagesRef = useRef(messages);
   useInsertionEffect(() => {
     langGraphMessagesRef.current = messages;
+    for (const toolCallId of autoCancelledToolCallTokensRef.current.keys()) {
+      if (hasToolResult(messages, toolCallId)) {
+        autoCancelledToolCallTokensRef.current.delete(toolCallId);
+      }
+    }
   }, [messages]);
 
   const handleSendMessage = (
@@ -752,13 +761,26 @@ const useLangGraphRuntimeImpl = (
                 },
             )
         : [];
+    for (const { tool_call_id: toolCallId } of cancellations) {
+      autoCancelledToolCallTokensRef.current.set(toolCallId, cancellations);
+    }
 
     const humanMessage = toLangGraphUserMessage(msg);
     stageAttachments(humanMessage.id, msg.attachments);
     return handleSendMessage(
       [...cancellations, ...getUnsentTranscripts(), humanMessage],
       { runConfig: msg.runConfig },
-    );
+    ).catch((error: unknown) => {
+      for (const { tool_call_id: toolCallId } of cancellations) {
+        if (
+          autoCancelledToolCallTokensRef.current.get(toolCallId) ===
+          cancellations
+        ) {
+          autoCancelledToolCallTokensRef.current.delete(toolCallId);
+        }
+      }
+      throw error;
+    });
   };
 
   const stagedMessagesRef = useRef(
@@ -893,6 +915,7 @@ const useLangGraphRuntimeImpl = (
 
           if (purpose === "initial") {
             toolResultBufferRef.current.clear();
+            autoCancelledToolCallTokensRef.current.clear();
             pendingToolCallIdsByRunRef.current.clear();
             activeRunIdsRef.current.clear();
             pendingStateRef.current = undefined;
@@ -994,7 +1017,11 @@ const useLangGraphRuntimeImpl = (
       // auto-cancelled when a new turn started, or a duplicate) must not resume
       // the graph with a second tool message. A call awaiting human input has
       // no tool message yet and stays on the normal pending path.
-      if (hasToolResult(messages, toolCallId)) return;
+      if (hasToolResult(messages, toolCallId)) {
+        autoCancelledToolCallTokensRef.current.delete(toolCallId);
+        return;
+      }
+      if (autoCancelledToolCallTokensRef.current.has(toolCallId)) return;
       const producingRunId = runIdByToolCallIdRef.current.get(toolCallId);
       if (producingRunId && activeRunIdsRef.current.has(producingRunId)) {
         toolResultBufferRef.current.set(toolCallId, {
