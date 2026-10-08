@@ -533,7 +533,7 @@ test("HTTP, transport, and invalid JSON failures carry a status", async () => {
   await assert.rejects(invalid.rest("GET", "/items"), { status: 200 });
 });
 
-test("the merged tap fixture is T3 with approvals, owner, decision, and window still needed", async () => {
+test("the merged tap fixture is T3 with owner, decision, and window still needed", async () => {
   const { client, calls } = fakeClient();
   const gathered = await gatherPullRequest(client, policy, 12, { now });
   assert.deepEqual(gathered.pr, {
@@ -574,7 +574,7 @@ test("the merged tap fixture is T3 with approvals, owner, decision, and window s
   assert.equal(evaluation.conclusion, "action_required");
   assert.deepEqual(
     evaluation.requirementResult.unmet.map(({ code }) => code),
-    ["approvals", "owner:reactivity", "decision", "window"],
+    ["owner:reactivity", "decision", "window"],
   );
   assert.deepEqual(evaluation.requirementResult.approvals, {
     counted: ["Kinfe123"],
@@ -1146,6 +1146,11 @@ test("hard policy failures stay failures", async () => {
       ({ code }) => code === "open-pr-cap",
     ),
   );
+  assert.ok(
+    renderComment(evaluation, policy).includes(
+      "❌ Needs a change or an owner override",
+    ),
+  );
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
@@ -1171,7 +1176,8 @@ test("dynamic details stay inside their code spans and the comment stays under t
   const bounded = renderComment(large, policy);
   assert.ok(bounded.length <= 60_000, String(bounded.length));
   assert.match(bounded, /signals behind the tier, too long to list here\._/);
-  assert.match(bounded, /\| ⏳ Approvals \|/);
+  assert.match(bounded, /\| Still needed \| Detail \|/);
+  assert.match(bounded, /\| ⏳ Owner: Reactivity core \|/);
 });
 
 test("the comment starts with its marker and strongest reason and bounds the reasons list", async () => {
@@ -1216,11 +1222,14 @@ test("the comment starts with its marker and strongest reason and bounds the rea
     25,
   );
   assert.ok(signals.includes(`_${total - 25} more signals omitted._`));
+  assert.ok(comment.includes("| Signal | Tier | Where |"));
+  assert.ok(comment.includes("| Still needed | Detail |"));
+  assert.ok(comment.includes("Evaluated on `head`"));
+  assert.ok(comment.includes("⏳ Waits on reviewers or time"));
   for (const expected of [
     "| ⏳ Owner: Reactivity core |",
     "| ⏳ Decision |",
     "| ⏳ Waiting window |",
-    "needs 2 maintainer approvals",
     "- **Waived:** Size, by okisdev with `review-tier/override: size`",
     "Kinfe123 counted",
     "previous-reviewer ignored (approved an older head)",
@@ -1858,10 +1867,7 @@ test("an updated pull request publishes only the second gather", async () => {
   assert.equal(rereads.length, 2);
   assert.equal(checks.length, 1);
   assert.ok(Date.parse(checks[0].body.started_at) > now.getTime());
-  assert.match(
-    checks[0].body.output.summary,
-    /\*\*Approvals:\*\* none counted yet/,
-  );
+  assert.match(checks[0].body.output.summary, /\*\*Approvals:\*\* none needed/);
   assert.ok(
     recording.calls.indexOf(rereads[0]) > recording.calls.indexOf(gathers[0]),
   );

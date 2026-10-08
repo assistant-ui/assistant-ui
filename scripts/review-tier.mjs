@@ -582,7 +582,7 @@ export function renderComment(
     out.push(
       "",
       mdTable(
-        ["still needed", "detail"],
+        ["Still needed", "Detail"],
         ["---", "---"],
         unmet.map((item) => [
           `${isWaiting(item.code) ? "⏳" : "❌"} ${requirementLabel(item.code, policy)}`,
@@ -600,7 +600,7 @@ export function renderComment(
       `<summary>${plural(reasons.length, "signal")} behind the tier</summary>`,
       "",
       mdTable(
-        ["signal", "tier", "where"],
+        ["Signal", "Tier", "Where"],
         ["---", "---:", "---"],
         shown.map((reason) => [
           signalLabel(reason.code),
@@ -616,12 +616,12 @@ export function renderComment(
     );
   }
   const footer = [
-    context?.headSha ? `evaluated on \`${context.headSha.slice(0, 7)}\`` : null,
+    context?.headSha ? `Evaluated on \`${context.headSha.slice(0, 7)}\`` : null,
     unmet.some((item) => isWaiting(item.code))
-      ? "⏳ waits on reviewers or time"
+      ? "⏳ Waits on reviewers or time"
       : null,
     unmet.some((item) => !isWaiting(item.code))
-      ? "❌ needs a change or an owner override"
+      ? "❌ Needs a change or an owner override"
       : null,
   ].filter(Boolean);
   const render = (section) =>
