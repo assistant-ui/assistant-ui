@@ -1,3 +1,7 @@
+Closes #
+
+<!-- Or the issue this follows up, or why there is none. A feat links the issue where a maintainer confirmed the direction. If this is stacked on another pull request, name it. -->
+
 ## Problem
 
 <!-- The user-visible failure or missing capability. Bug fixes include the minimal reproduction and the affected version. -->
