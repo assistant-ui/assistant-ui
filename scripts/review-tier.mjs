@@ -156,6 +156,22 @@ const decisionQuery = `query ReviewTierDecision($owner: String!, $name: String!,
   }
 }`;
 
+function withoutHtmlComments(text) {
+  let result = text;
+  for (
+    let start = result.indexOf("<!--");
+    start !== -1;
+    start = result.indexOf("<!--")
+  ) {
+    const end = result.indexOf("-->", start + 4);
+    result =
+      end === -1
+        ? result.slice(0, start)
+        : result.slice(0, start) + result.slice(end + 3);
+  }
+  return result;
+}
+
 function attributedLabels(node, events = node.timelineItems.nodes) {
   const latest = new Map();
   for (const event of events) {
@@ -209,7 +225,7 @@ export async function gatherPullRequest(
   const decisionNumbers = new Set(
     node.closingIssuesReferences.nodes.map((issue) => issue.number),
   );
-  const body = node.body.replace(/<!--[\s\S]*?-->/g, "");
+  const body = withoutHtmlComments(node.body);
   const heading = /^## Decision[ \t]*\r?$/im.exec(body);
   if (heading) {
     const section = body

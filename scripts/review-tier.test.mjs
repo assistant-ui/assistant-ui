@@ -589,23 +589,25 @@ test("ready time survives one hundred later label events", async () => {
   );
 });
 
-test("a Decision template comment containing an example issue is ignored", async () => {
-  const recording = fakeClient({
-    pr: tapPullRequest({
-      body: "## Decision\n<!-- for example\n#1234 -->\nNone.\n",
-    }),
+for (const body of [
+  "## Decision\n<!-- for example\n#1234 -->\nNone.\n",
+  "## Decision\n<!<!-- x -->-- #77 -->\nNone.\n",
+  "## Decision\nNone.\n<!-- #55",
+]) {
+  test(`Decision references inside HTML comments are ignored: ${JSON.stringify(body)}`, async () => {
+    const recording = fakeClient({ pr: tapPullRequest({ body }) });
+    const gathered = await gatherPullRequest(recording.client, policy, 12, {
+      now,
+    });
+    assert.deepEqual(gathered.people.linkedIssues, []);
+    assert.equal(
+      recording.calls.filter(({ query }) =>
+        query?.includes("query ReviewTierDecision("),
+      ).length,
+      0,
+    );
   });
-  const gathered = await gatherPullRequest(recording.client, policy, 12, {
-    now,
-  });
-  assert.deepEqual(gathered.people.linkedIssues, []);
-  assert.equal(
-    recording.calls.filter(({ query }) =>
-      query?.includes("query ReviewTierDecision("),
-    ).length,
-    0,
-  );
-});
+}
 
 test("unresolved Decision issue numbers are skipped while closing issues still resolve", async () => {
   const missing = Object.assign(new Error("Could not resolve to an Issue"), {
