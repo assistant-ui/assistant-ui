@@ -80,6 +80,20 @@ const threadStatusError = (
 
 const EMPTY_REMOTE_STATE = createEmptyRemoteThreadState();
 
+type PendingThreadFetch = {
+  threadId: string;
+  deleted: boolean;
+  deletion?: PendingThreadDeletion;
+};
+
+type PendingThreadDeletion = {
+  remoteId: Promise<string | undefined>;
+  remoteIdValue: string | undefined;
+  result: Promise<boolean>;
+  complete: (deleted: boolean) => void;
+  active: boolean;
+};
+
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore
@@ -96,6 +110,8 @@ export class RemoteThreadListThreadListRuntimeCore
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
+  private readonly _pendingThreadFetches = new Set<PendingThreadFetch>();
+  private readonly _pendingThreadDeletions = new Set<PendingThreadDeletion>();
   private readonly _titleStates = new Map<string, ThreadTitleState>();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
   private _disposed = false;
@@ -729,75 +745,53 @@ export class RemoteThreadListThreadListRuntimeCore
     let data = getThreadData(this._state.value, threadIdOrRemoteId);
 
     if (!data) {
-      const remoteMetadata =
-        await this._options.adapter.fetch(threadIdOrRemoteId);
-      if (generation !== this._switchGeneration) return;
-
-      const state = this._state.value;
-      const mappingId = createThreadMappingId(remoteMetadata.remoteId);
-
-      const newThreadData = {
-        ...state.threadData,
-        [mappingId]: {
-          id: mappingId,
-          initializeTask: Promise.resolve({
-            remoteId: remoteMetadata.remoteId,
-            externalId: remoteMetadata.externalId,
-          }),
-          remoteId: remoteMetadata.remoteId,
-          externalId: remoteMetadata.externalId,
-          status: remoteMetadata.status,
-          title: remoteMetadata.title,
-          lastMessageAt: remoteMetadata.lastMessageAt,
-          custom: remoteMetadata.custom,
-        } as RemoteThreadData,
+      const fetchRequest: PendingThreadFetch = {
+        threadId: threadIdOrRemoteId,
+        deleted: false,
       };
+      this._pendingThreadFetches.add(fetchRequest);
+      this._associatePendingThreadFetch(fetchRequest);
+      try {
+        const remoteMetadata =
+          await this._options.adapter.fetch(threadIdOrRemoteId);
+        if (generation !== this._switchGeneration) return;
 
-      const newThreadIdMap = {
-        ...state.threadIdMap,
-        [remoteMetadata.remoteId]: mappingId,
-      };
+        const deletion = fetchRequest.deletion;
+        const matchesPendingDeletion =
+          deletion !== undefined &&
+          (await deletion.remoteId) === remoteMetadata.remoteId;
+        if (matchesPendingDeletion && deletion.active && !emitThreadIdChange) {
+          return;
+        }
+        const deletedByPendingOperation =
+          deletion !== undefined && matchesPendingDeletion
+            ? await deletion.result
+            : false;
+        if (generation !== this._switchGeneration) return;
+        if (fetchRequest.deleted || deletedByPendingOperation) {
+          throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
+        }
 
-      // A concurrent `list()` may already have placed this thread; keep that
-      // position and only merge metadata. A genuinely absent thread stays
-      // appended: it may live on an unloaded page, and a prepend would pin it
-      // above newer threads permanently. Filtering both arrays first still
-      // prevents duplication or a wrong-status entry from `list()`.
-      const remoteId = remoteMetadata.remoteId;
-      const wasInTarget =
-        remoteMetadata.status === "regular"
-          ? state.threadIds.includes(remoteId)
-          : state.archivedThreadIds.includes(remoteId);
+        const state = this._state.value;
+        data =
+          getThreadData(state, threadIdOrRemoteId) ??
+          getThreadData(state, remoteMetadata.remoteId);
 
-      const threadIdsWithoutRemote = state.threadIds.filter(
-        (id) => id !== remoteId,
-      );
-      const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-        (id) => id !== remoteId,
-      );
-
-      const newThreadIds =
-        remoteMetadata.status === "regular"
-          ? wasInTarget
-            ? state.threadIds
-            : [...threadIdsWithoutRemote, remoteId]
-          : threadIdsWithoutRemote;
-      const newArchivedThreadIds =
-        remoteMetadata.status === "archived"
-          ? wasInTarget
-            ? state.archivedThreadIds
-            : [...archivedThreadIdsWithoutRemote, remoteId]
-          : archivedThreadIdsWithoutRemote;
-
-      this._state.update({
-        ...state,
-        threadIds: newThreadIds,
-        archivedThreadIds: newArchivedThreadIds,
-        threadIdMap: newThreadIdMap,
-        threadData: newThreadData,
-      });
-
-      data = getThreadData(this._state.value, threadIdOrRemoteId);
+        if (!data) {
+          const classified = classifyThreads([remoteMetadata], {
+            threadIds: [...state.threadIds],
+            archivedThreadIds: [...state.archivedThreadIds],
+            threadIdMap: { ...state.threadIdMap },
+            threadData: { ...state.threadData },
+          });
+          this._state.update({ ...state, ...classified });
+          data =
+            getThreadData(this._state.value, threadIdOrRemoteId) ??
+            getThreadData(this._state.value, remoteMetadata.remoteId);
+        }
+      } finally {
+        this._pendingThreadFetches.delete(fetchRequest);
+      }
     }
 
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
@@ -863,6 +857,14 @@ export class RemoteThreadListThreadListRuntimeCore
           );
     this._controlledSwitchGeneration = this._switchGeneration;
     return task;
+  }
+
+  private _associatePendingThreadFetch(fetchRequest: PendingThreadFetch) {
+    for (const deletion of this._pendingThreadDeletions) {
+      if (deletion.remoteIdValue === fetchRequest.threadId) {
+        fetchRequest.deletion = deletion;
+      }
+    }
   }
 
   private _startSwitchToNewThread(
@@ -1310,38 +1312,93 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
 
-    do {
-      await this._ensureThreadIsNotMain(data.id);
-    } while (data.id === this._mainThreadId);
-    this._requireAdapterGeneration(adapterGeneration);
-    try {
-      await this._state.optimisticUpdate({
-        execute: async () => {
-          const { remoteId } = await data.initializeTask;
-          this._requireAdapterGeneration(adapterGeneration);
-          return await adapter.delete(remoteId);
+    let completeDeletion!: (deleted: boolean) => void;
+    let pendingDeletion!: PendingThreadDeletion;
+    pendingDeletion = {
+      remoteId: data.initializeTask.then(
+        ({ remoteId }) => {
+          pendingDeletion.remoteIdValue = remoteId;
+          for (const fetchRequest of this._pendingThreadFetches) {
+            if (fetchRequest.threadId === remoteId) {
+              fetchRequest.deletion = pendingDeletion;
+            }
+          }
+          return remoteId;
         },
-        optimistic: (state) => {
-          return updateStatusReducer(state, data.id, "deleted");
-        },
-      });
-    } catch (error) {
-      const controlledThreadId = this._options.threadId;
-      if (
-        this._switchGeneration === this._controlledSwitchGeneration &&
-        controlledThreadId !== undefined &&
-        this._mainThreadId !== data.id &&
-        this.getItemById(controlledThreadId)?.id === data.id
-      ) {
-        this._switchToThreadFromProp(controlledThreadId).catch(() => {});
+        () => undefined,
+      ),
+      remoteIdValue: data.remoteId,
+      result: new Promise((resolve) => {
+        completeDeletion = resolve;
+      }),
+      complete: (deleted) => completeDeletion(deleted),
+      active: true,
+    };
+    this._pendingThreadDeletions.add(pendingDeletion);
+    const knownRemoteId = data.remoteId;
+    if (knownRemoteId !== undefined) {
+      for (const fetchRequest of this._pendingThreadFetches) {
+        if (fetchRequest.threadId === knownRemoteId) {
+          fetchRequest.deletion = pendingDeletion;
+        }
       }
-      throw error;
     }
-    // The optimistic layer survives an adapter swap, so a resolved deletion has
-    // dropped the slot from `threadData`, where `_replaceWithThreads` would
-    // otherwise have found it to stop.
-    this._hookManager.stopThreadRuntime(data.id);
-    clearThreadTitleState(this._titleStates, data.id);
+    try {
+      do {
+        await this._ensureThreadIsNotMain(data.id);
+      } while (data.id === this._mainThreadId);
+      this._requireAdapterGeneration(adapterGeneration);
+
+      let remoteId: string | undefined;
+      try {
+        await this._state.optimisticUpdate({
+          execute: async () => {
+            const initialized = await data.initializeTask;
+            this._requireAdapterGeneration(adapterGeneration);
+            remoteId = initialized.remoteId;
+            return await adapter.delete(remoteId);
+          },
+          optimistic: (state) => {
+            return updateStatusReducer(state, data.id, "deleted");
+          },
+          then: (state) => {
+            if (remoteId === undefined) return state;
+            for (const fetchRequest of this._pendingThreadFetches) {
+              if (fetchRequest.threadId === remoteId) {
+                fetchRequest.deleted = true;
+              }
+            }
+            return updateStatusReducer(state, remoteId, "deleted");
+          },
+        });
+      } catch (error) {
+        const controlledThreadId = this._options.threadId;
+        if (
+          this._switchGeneration === this._controlledSwitchGeneration &&
+          controlledThreadId !== undefined &&
+          this._mainThreadId !== data.id &&
+          this.getItemById(controlledThreadId)?.id === data.id
+        ) {
+          this._switchToThreadFromProp(controlledThreadId).catch(() => {});
+        }
+        throw error;
+      }
+
+      await pendingDeletion.remoteId;
+      pendingDeletion.complete(true);
+
+      // The optimistic layer survives an adapter swap, so a resolved deletion has
+      // dropped the slot from `threadData`, where `_replaceWithThreads` would
+      // otherwise have found it to stop.
+      this._hookManager.stopThreadRuntime(data.id);
+      clearThreadTitleState(this._titleStates, data.id);
+    } catch (error) {
+      pendingDeletion.complete(false);
+      throw error;
+    } finally {
+      pendingDeletion.active = false;
+      this._pendingThreadDeletions.delete(pendingDeletion);
+    }
   }
 
   public __internal_dispose() {

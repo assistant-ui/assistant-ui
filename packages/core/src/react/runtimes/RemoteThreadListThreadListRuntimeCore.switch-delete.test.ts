@@ -74,6 +74,219 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(core.getItemById(core.mainThreadId!)).toBeDefined();
   });
 
+  it("does not restore an initialized draft deleted during a fetch", async () => {
+    const fetch = deferred<{
+      status: "regular";
+      remoteId: string;
+      externalId: string;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "other",
+            externalId: "other",
+          },
+        ],
+      })),
+      initialize: vi.fn(async () => ({
+        remoteId: "target",
+        externalId: "target",
+      })),
+      fetch: vi.fn(() => fetch.promise),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("other");
+
+    const draftId = core.newThreadId!;
+    const switchTask = core.switchToThread("target");
+    await vi.waitFor(() => {
+      expect(adapter.fetch).toHaveBeenCalledWith("target");
+    });
+
+    await core.initialize(draftId);
+    await core.delete(draftId);
+
+    fetch.resolve({
+      status: "regular",
+      remoteId: "target",
+      externalId: "target",
+    });
+    await expect(switchTask).rejects.toThrow(
+      'Thread "target" not found while switching to it.',
+    );
+
+    expect(core.threadIds).not.toContain("target");
+    expect(core.getItemById("target")).toBeUndefined();
+  });
+
+  it("keeps the initialized slot when its delete fails during a fetch", async () => {
+    const fetch = deferred<{
+      status: "regular";
+      remoteId: string;
+      externalId: string;
+    }>();
+    const deletion = deferred<void>();
+    const deleteError = new Error("delete failed");
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "other",
+            externalId: "other",
+          },
+        ],
+      })),
+      initialize: vi.fn(async () => ({
+        remoteId: "target",
+        externalId: "target",
+      })),
+      fetch: vi.fn(() => fetch.promise),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("other");
+
+    const draftId = core.newThreadId!;
+    const switchTask = core.switchToThread("target");
+    await vi.waitFor(() => {
+      expect(adapter.fetch).toHaveBeenCalledWith("target");
+    });
+    await core.initialize(draftId);
+
+    const deleteTask = core.delete(draftId);
+    await vi.waitFor(() => {
+      expect(adapter.delete).toHaveBeenCalledWith("target");
+    });
+    fetch.resolve({
+      status: "regular",
+      remoteId: "target",
+      externalId: "target",
+    });
+    deletion.reject(deleteError);
+
+    await expect(deleteTask).rejects.toBe(deleteError);
+    await expect(switchTask).resolves.toBeUndefined();
+
+    expect(core.getItemById("target")?.id).toBe(draftId);
+    expect(core.threadIds).toEqual([draftId, "other"]);
+  });
+
+  it("does not restore an initialized draft when a fetch starts during deletion", async () => {
+    const fetch = deferred<{
+      status: "regular";
+      remoteId: string;
+      externalId: string;
+    }>();
+    const deletion = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "other",
+            externalId: "other",
+          },
+        ],
+      })),
+      initialize: vi.fn(async () => ({
+        remoteId: "target",
+        externalId: "target",
+      })),
+      fetch: vi.fn(() => fetch.promise),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("other");
+
+    const draftId = core.newThreadId!;
+    await core.initialize(draftId);
+    const deleteTask = core.delete(draftId);
+    await vi.waitFor(() => {
+      expect(adapter.delete).toHaveBeenCalledWith("target");
+      expect(core.getItemById(draftId)).toBeUndefined();
+    });
+
+    const switchTask = core.switchToThread("target");
+    await vi.waitFor(() => {
+      expect(adapter.fetch).toHaveBeenCalledWith("target");
+    });
+    fetch.resolve({
+      status: "regular",
+      remoteId: "target",
+      externalId: "target",
+    });
+    deletion.resolve();
+
+    await deleteTask;
+    await expect(switchTask).rejects.toThrow(
+      'Thread "target" not found while switching to it.',
+    );
+
+    expect(core.threadIds).not.toContain("target");
+    expect(core.getItemById("target")).toBeUndefined();
+  });
+
+  it("keeps the initialized slot when a fetch starts during a failed deletion", async () => {
+    const fetch = deferred<{
+      status: "regular";
+      remoteId: string;
+      externalId: string;
+    }>();
+    const deletion = deferred<void>();
+    const deleteError = new Error("delete failed");
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "other",
+            externalId: "other",
+          },
+        ],
+      })),
+      initialize: vi.fn(async () => ({
+        remoteId: "target",
+        externalId: "target",
+      })),
+      fetch: vi.fn(() => fetch.promise),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("other");
+
+    const draftId = core.newThreadId!;
+    await core.initialize(draftId);
+    const deleteTask = core.delete(draftId);
+    await vi.waitFor(() => {
+      expect(adapter.delete).toHaveBeenCalledWith("target");
+      expect(core.getItemById(draftId)).toBeUndefined();
+    });
+
+    const switchTask = core.switchToThread("target");
+    await vi.waitFor(() => {
+      expect(adapter.fetch).toHaveBeenCalledWith("target");
+    });
+    fetch.resolve({
+      status: "regular",
+      remoteId: "target",
+      externalId: "target",
+    });
+    deletion.reject(deleteError);
+
+    await expect(deleteTask).rejects.toBe(deleteError);
+    await expect(switchTask).resolves.toBeUndefined();
+
+    expect(core.getItemById("target")?.id).toBe(draftId);
+    expect(core.threadIds).toEqual([draftId, "other"]);
+  });
+
   it("does not start unarchive after initialization when the target was deleted", async () => {
     const initialization = deferred<{
       remoteId: string;
