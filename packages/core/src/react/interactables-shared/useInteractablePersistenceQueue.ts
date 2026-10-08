@@ -413,14 +413,18 @@ export const useInteractablePersistenceQueue = <State>({
         (latest, batch) => (batch.saved ? Math.max(latest, batch.seq) : latest),
         0,
       );
+      const unsavedIds = (batch: PersistenceBatch) => [
+        ...batch.dirtyIds,
+        ...batch.retryIds,
+      ];
       const latestBatchById = new Map<string, PersistenceBatch>();
       for (const batch of batches) {
-        for (const id of batch.dirtyIds) latestBatchById.set(id, batch);
+        for (const id of unsavedIds(batch)) latestBatchById.set(id, batch);
       }
       return batches.flatMap((batch) => {
         if (batch.saved || batch.seq <= latestSavedSeq) return [];
         const dirtyIds = new Set(
-          [...batch.dirtyIds].filter((id) => latestBatchById.get(id) === batch),
+          unsavedIds(batch).filter((id) => latestBatchById.get(id) === batch),
         );
         return dirtyIds.size > 0 ? [{ payload: batch.payload, dirtyIds }] : [];
       });

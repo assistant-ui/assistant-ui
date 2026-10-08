@@ -2123,4 +2123,97 @@ describe("Interactables switching back to an adapter during its save", () => {
       state: { v: 2 },
     });
   });
+
+  const startFailedSave = async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    a.saves[0]!.reject(new Error("offline"));
+    await flushMicrotasks();
+    expect(root.getValue().getState().persistence.prefs?.error).toBeInstanceOf(
+      Error,
+    );
+    return a;
+  };
+
+  it("keeps a failed edit whose in-flight retry rejects after switching back", async () => {
+    const a = await startFailedSave();
+    void root!.getValue().flush();
+    expect(a.saves).toHaveLength(2);
+
+    root!.getValue().setPersistenceAdapter(otherAdapter());
+    root!.getValue().setPersistenceAdapter(a.adapter);
+    a.saves[1]!.reject(new Error("retry failed"));
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+    expect(a.saves).toHaveLength(3);
+    expect(a.saves[2]!.state.prefs).toEqual({
+      name: "note",
+      state: { v: 1 },
+    });
+
+    a.saves[2]!.resolve();
+    await flushMicrotasks();
+    expect(root!.getValue().getState().persistence.prefs).toBeUndefined();
+  });
+
+  it("does not replay a failed retry over a newer saved edit after switching back", async () => {
+    const a = await startFailedSave();
+    void root!.getValue().flush();
+    root!.getValue().setState("prefs", () => ({ v: 2 }));
+    void root!.getValue().flush();
+    expect(a.saves).toHaveLength(2);
+
+    root!.getValue().setPersistenceAdapter(otherAdapter());
+    root!.getValue().setPersistenceAdapter(a.adapter);
+    a.saves[1]!.reject(new Error("retry failed"));
+    await flushMicrotasks();
+    expect(a.saves).toHaveLength(3);
+    a.saves[2]!.resolve();
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root!, "prefs")).toEqual({ v: 2 });
+    expect(a.saves).toHaveLength(3);
+  });
+
+  it("loads again without waiting on a queued retry a saved snapshot made redundant", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("other", () => ({ v: 5 }));
+    void root.getValue().flush();
+    a.saves[0]!.reject(new Error("offline"));
+    await flushMicrotasks();
+    expect(a.saves).toHaveLength(2);
+    void root.getValue().flush();
+    a.saves[1]!.resolve();
+    await flushMicrotasks();
+    expect(a.saves).toHaveLength(2);
+    expect(root.getValue().getState().persistence.prefs).toBeUndefined();
+
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root, "prefs")).toEqual({ v: 1 });
+    expect(a.saves).toHaveLength(2);
+  });
 });

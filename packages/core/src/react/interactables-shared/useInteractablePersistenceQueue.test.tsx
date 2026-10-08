@@ -342,6 +342,75 @@ describe("useInteractablePersistenceQueue", () => {
       await expect(wait).resolves.toEqual([]);
     });
 
+    it("hands back a retry-only batch whose save rejected", async () => {
+      const retry = createDeferred();
+      const save = vi
+        .fn<(state: TestState) => Promise<void>>()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockImplementationOnce(() => retry.promise);
+      const queue = renderQueue(save);
+      const adapter = queue.adapterRef.current!;
+      await startSave(queue, "a", 1);
+      act(() => {
+        void queue.result.current.flush();
+      });
+      expect(save).toHaveBeenCalledTimes(2);
+
+      const wait = queue.result.current.waitForAdapterSaves(adapter);
+      retry.reject(new Error("retry failed"));
+
+      await expect(wait).resolves.toEqual([
+        { payload: { a: 1 }, dirtyIds: new Set(["a"]) },
+      ]);
+    });
+
+    it("does not hand back a failed retry that a newer saved snapshot covers", async () => {
+      const retry = createDeferred();
+      const newer = createDeferred();
+      const save = vi
+        .fn<(state: TestState) => Promise<void>>()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockImplementationOnce(() => retry.promise)
+        .mockImplementationOnce(() => newer.promise);
+      const queue = renderQueue(save);
+      const adapter = queue.adapterRef.current!;
+      await startSave(queue, "a", 1);
+      act(() => {
+        void queue.result.current.flush();
+      });
+      queue.setState("a", 2);
+      act(() => {
+        queue.result.current.schedulePersistence("a");
+        queue.result.current.flushIfPending();
+      });
+
+      const wait = queue.result.current.waitForAdapterSaves(adapter);
+      retry.reject(new Error("retry failed"));
+      await act(flushMicrotasks);
+      expect(save).toHaveBeenLastCalledWith({ a: 2 });
+      newer.resolve();
+
+      await expect(wait).resolves.toEqual([]);
+    });
+
+    it("stops waiting once a queued retry is skipped as redundant", async () => {
+      const { queue, save, second, firstFlush, flush } =
+        await startRetryBehindQueuedSnapshot();
+      const adapter = queue.adapterRef.current!;
+      const secondFlush = flush();
+
+      let result: unknown;
+      void queue.result.current.waitForAdapterSaves(adapter).then((r) => {
+        result = r;
+      });
+      second.resolve();
+      await act(() => Promise.all([firstFlush, secondFlush]));
+      await act(flushMicrotasks);
+
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([]);
+    });
+
     it("hands back a batch whose save has not settled by the timeout", async () => {
       const queue = renderQueue(() => new Promise<void>(() => {}));
       const adapter = queue.adapterRef.current!;
