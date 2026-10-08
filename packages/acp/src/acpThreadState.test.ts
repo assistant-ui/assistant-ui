@@ -71,8 +71,9 @@ const toolPartOf = (state: AcpThreadState, toolCallId = "t1") => {
   return part?.type === "tool-call" ? part : undefined;
 };
 
-const textContent = (text: string) =>
-  [{ type: "content", content: { type: "text", text } }] as const;
+const textContent = (text: string) => [
+  { type: "content" as const, content: { type: "text" as const, text } },
+];
 
 describe("reduceAcpThreadState", () => {
   it("starts from the empty state", () => {
@@ -95,12 +96,6 @@ describe("reduceAcpThreadState", () => {
     expect(
       reduceAcpThreadState(createAcpThreadState(), { type: "load-ready" }),
     ).toBe(createAcpThreadState());
-
-    const failed = reduceAcpThreadState(loading, {
-      type: "load-error",
-      error: "boom",
-    });
-    expect(failed.loadState).toEqual({ type: "error", error: "boom" });
   });
 
   it("records connection details without clearing earlier agent info", () => {
@@ -125,7 +120,7 @@ describe("reduceAcpThreadState", () => {
 
   it("takes the session modes and config options a connection reports", () => {
     const configOptions: AcpSessionConfigOption[] = [
-      { type: "boolean", currentValue: true },
+      { id: "auto", name: "Auto", type: "boolean", currentValue: true },
     ];
     let state = reduceAcpThreadState(createAcpThreadState(), {
       type: "connection",
@@ -193,20 +188,35 @@ describe("reduceAcpThreadState", () => {
     expect(same.headId).toBe("a1");
   });
 
-  it("replaces messages and clears run and permission state", () => {
-    let state = running(createAcpThreadState());
-    state = reduceAcpThreadState(state, permissionRequest("p1"));
-    expect(Object.keys(state.permissions)).toEqual(["p1"]);
-
-    state = reduceAcpThreadState(state, {
-      type: "replace-messages",
-      messages: [user("u9")],
-      headId: "u9",
+  it("resets the thread and its session state but keeps the connection", () => {
+    let state = reduceAcpThreadState(createAcpThreadState(), {
+      type: "connection",
+      connectionState: "connected",
+      sessionId: "s1",
+      agentInfo: { name: "agent", version: "1" },
+      sessionModes: { currentModeId: "code", availableModes: [] },
     });
-    expect(state.messageOrder).toEqual(["u9"]);
-    expect(state.headId).toBe("u9");
+    state = reduceAcpThreadState(state, {
+      type: "append-message",
+      message: user("u1"),
+    });
+    state = running(state);
+    state = reduceAcpThreadState(state, permissionRequest("p1"));
+    state = reduceAcpThreadState(
+      state,
+      update({ sessionUpdate: "session_info_update", title: "old" }),
+    );
+
+    state = reduceAcpThreadState(state, { type: "reset" });
+    expect(state.messageOrder).toEqual([]);
+    expect(state.headId).toBeNull();
     expect(state.run).toEqual({ type: "idle" });
     expect(state.permissions).toEqual({});
+    expect(state.sessionTitle).toBeUndefined();
+    expect(state.currentModeId).toBeUndefined();
+    expect(state.sessionId).toBeUndefined();
+    expect(state.connectionState).toBe("connected");
+    expect(state.agentInfo).toEqual({ name: "agent", version: "1" });
   });
 
   it("streams agent text into the running assistant message", () => {
@@ -354,7 +364,9 @@ describe("reduceAcpThreadState", () => {
       }),
     );
 
-    expect(state.toolCallStatuses).toEqual({ t1: "in_progress" });
+    expect(toolPartOf(state)?.providerMetadata?.["acp"]).toMatchObject({
+      status: "in_progress",
+    });
     expect(toolPartOf(state)).toMatchObject({
       result: "partial and more",
       isPreliminary: true,
@@ -379,7 +391,9 @@ describe("reduceAcpThreadState", () => {
       );
     }
 
-    expect(state.toolCallStatuses).toEqual({});
+    expect(toolPartOf(state)?.providerMetadata?.["acp"]).not.toHaveProperty(
+      "status",
+    );
     expect(toolPartOf(state)).toMatchObject({
       result: "second",
       isPreliminary: true,
@@ -416,7 +430,9 @@ describe("reduceAcpThreadState", () => {
       }),
     );
 
-    expect(state.toolCallStatuses).toEqual({ t1: "completed" });
+    expect(toolPartOf(state)?.providerMetadata?.["acp"]).toMatchObject({
+      status: "completed",
+    });
     expect(toolPartOf(state)).toMatchObject({
       result: "done",
       isPreliminary: false,
@@ -436,10 +452,9 @@ describe("reduceAcpThreadState", () => {
         content: textContent("done"),
       }),
     );
-    expect(state.toolCallStatuses).toEqual({ t1: "completed" });
+    expect(toolPartOf(state)?.isPreliminary).toBeUndefined();
 
     state = running(state, "a2");
-    expect(state.toolCallStatuses).toEqual({});
 
     state = reduceAcpThreadState(
       state,
@@ -468,6 +483,7 @@ describe("reduceAcpThreadState", () => {
     });
     expect(state.permissions["p1"]).toEqual({
       approvalId: "p1",
+      assistantId: "a1",
       toolCallId: "t1",
       options: [
         { id: "allow", kind: "allow-once", label: "Allow" },
@@ -519,6 +535,7 @@ describe("reduceAcpThreadState", () => {
     state = reduceAcpThreadState(state, permissionRequest("p1"));
     state = reduceAcpThreadState(state, {
       type: "run-end",
+      assistantId: "a1",
       status: { type: "complete", reason: "stop" },
     });
 
@@ -533,12 +550,152 @@ describe("reduceAcpThreadState", () => {
     ).toBe("cancelled");
   });
 
-  it("ends the run without an assistant message", () => {
-    const state = reduceAcpThreadState(createAcpThreadState(), {
+  it("ignores the end of a run that is not the running one", () => {
+    const state = running(createAcpThreadState(), "a2");
+    expect(
+      reduceAcpThreadState(state, {
+        type: "run-end",
+        assistantId: "a1",
+        status: { type: "incomplete", reason: "cancelled" },
+      }),
+    ).toBe(state);
+  });
+
+  it("resolves a later turn's approval on that turn's message only", () => {
+    let state = running(createAcpThreadState(), "a1");
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "first answer" },
+      }),
+    );
+    state = reduceAcpThreadState(state, {
       type: "run-end",
-      status: { type: "incomplete", reason: "cancelled" },
+      assistantId: "a1",
+      status: { type: "complete", reason: "stop" },
     });
-    expect(state.run).toEqual({ type: "idle" });
+    const first = state.messagesById["a1"];
+
+    state = running(state, "a2");
+    state = reduceAcpThreadState(state, permissionRequest("p1"));
+    state = reduceAcpThreadState(state, {
+      type: "permission-resolved",
+      approvalId: "p1",
+      approved: true,
+      optionId: "allow",
+      cancelled: false,
+    });
+
+    expect(state.messagesById["a1"]).toBe(first);
+    const second = state.messagesById["a2"] as AcpAssistantMessage;
+    expect(second.status).toEqual({ type: "running" });
+    expect(second.content[0]).toMatchObject({
+      approval: { id: "p1", approved: true, optionId: "allow" },
+    });
+  });
+
+  it("keeps a message waiting while another of its approvals is open", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(state, permissionRequest("p1"));
+    state = reduceAcpThreadState(state, permissionRequest("p2", "t2"));
+    state = reduceAcpThreadState(state, {
+      type: "permission-resolved",
+      approvalId: "p1",
+      approved: true,
+      cancelled: false,
+    });
+
+    expect((state.messagesById["a1"] as AcpAssistantMessage).status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(Object.keys(state.permissions)).toEqual(["p2"]);
+  });
+
+  it("routes a cancelled turn's late tool updates to it until it settles", () => {
+    let state = running(createAcpThreadState(), "a1");
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "Edit",
+        status: "in_progress",
+      }),
+    );
+    state = reduceAcpThreadState(state, {
+      type: "run-end",
+      assistantId: "a1",
+      status: { type: "incomplete", reason: "cancelled" },
+      settling: true,
+    });
+    state = running(state, "a2");
+
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "late text" },
+      }),
+    );
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        status: "completed",
+        rawOutput: "edited",
+      }),
+    );
+
+    expect(toolPartOf(state)).toMatchObject({ result: "edited" });
+    expect(contentOf(state, "a1")).toHaveLength(1);
+    expect(contentOf(state, "a2")).toEqual([]);
+
+    state = reduceAcpThreadState(state, {
+      type: "run-settled",
+      assistantId: "a1",
+    });
+    expect(state.settlingAssistantId).toBeUndefined();
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "new" },
+      }),
+    );
+    expect(contentOf(state, "a2")).toEqual([{ type: "text", text: "new" }]);
+  });
+
+  it("takes modes and config options only when a session opens", () => {
+    const connected = (
+      sessionId: string | undefined,
+      currentModeId?: string,
+    ): AcpThreadEvent => ({
+      type: "connection",
+      connectionState: sessionId ? "connected" : "disconnected",
+      sessionId,
+      ...(currentModeId && {
+        sessionModes: { currentModeId, availableModes: [] },
+      }),
+    });
+    let state = reduceAcpThreadState(
+      createAcpThreadState(),
+      connected("s1", "code"),
+    );
+    state = reduceAcpThreadState(
+      state,
+      update({ sessionUpdate: "current_mode_update", currentModeId: "ask" }),
+    );
+    state = reduceAcpThreadState(state, connected("s1", "code"));
+    expect(state.currentModeId).toBe("ask");
+
+    state = reduceAcpThreadState(state, connected(undefined));
+    expect(state.currentModeId).toBe("ask");
+
+    state = reduceAcpThreadState(state, connected("s1"));
+    expect(state.currentModeId).toBeUndefined();
   });
 
   it("returns the same state for an unknown event", () => {

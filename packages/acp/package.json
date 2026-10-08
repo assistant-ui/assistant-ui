@@ -37,6 +37,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^1.7.0",
     "@assistant-ui/core": "^0.3.22",
     "assistant-stream": "^0.3.46"
   },

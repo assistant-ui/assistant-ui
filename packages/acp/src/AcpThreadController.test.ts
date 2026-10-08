@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
+import type { AppendMessage } from "@assistant-ui/core";
 import { AcpThreadController } from "./AcpThreadController";
 import { AcpClient, type AcpWebSocketLike } from "./AcpClient";
 import { filterPromptBlocks } from "./conversions";
@@ -26,8 +26,9 @@ class FakeClient {
   agentInfo: { name: string; version: string } | undefined = undefined;
   agentCapabilities: Record<string, unknown> | undefined = undefined;
   pendingCapabilities: Record<string, unknown> | undefined = undefined;
-  permissionHandler: PermissionHandler | undefined = undefined;
-  hasConfiguredPermissionHandler = false;
+  configuredPermissionHandler: PermissionHandler | undefined = undefined;
+  readonly permissionHandlers: PermissionHandler[] = [];
+  resets = 0;
   modes: AcpSessionModeState | undefined = undefined;
   configOptions: readonly AcpSessionConfigOption[] | undefined = undefined;
 
@@ -66,6 +67,23 @@ class FakeClient {
     return () => {
       this.connectionListeners.delete(listener);
     };
+  }
+
+  registerPermissionHandler(handler: PermissionHandler) {
+    this.permissionHandlers.push(handler);
+    return () => {
+      const index = this.permissionHandlers.lastIndexOf(handler);
+      if (index !== -1) this.permissionHandlers.splice(index, 1);
+    };
+  }
+
+  resetSession() {
+    this.resets += 1;
+    this.log?.push("client.resetSession");
+    this.sessionId = undefined;
+    for (const listener of [...this.connectionListeners]) {
+      listener(this.connectionState);
+    }
   }
 
   listenerCounts() {
@@ -131,8 +149,10 @@ class FakeClient {
   }
 
   ask(request: AcpPermissionRequest) {
-    if (!this.permissionHandler) throw new Error("no permission handler");
-    return this.permissionHandler(request);
+    const handler =
+      this.configuredPermissionHandler ?? this.permissionHandlers.at(-1);
+    if (!handler) throw new Error("no permission handler");
+    return handler(request);
   }
 
   unblock() {
@@ -210,7 +230,7 @@ describe("AcpThreadController", () => {
       sessionUpdate: 1,
       connection: 1,
     });
-    expect(client.permissionHandler).toBeDefined();
+    expect(client.permissionHandlers).toHaveLength(1);
     expect(c.getState().connectionState).toBe("disconnected");
 
     await c.attach();
@@ -219,22 +239,20 @@ describe("AcpThreadController", () => {
       connection: 1,
     });
 
-    const installed = client.permissionHandler;
+    expect(client.permissionHandlers).toHaveLength(1);
     await c.detach();
     expect(client.listenerCounts()).toEqual({
       sessionUpdate: 0,
       connection: 0,
     });
-    expect(client.permissionHandler).toBeUndefined();
-    expect(client.permissionHandler).not.toBe(installed);
+    expect(client.permissionHandlers).toHaveLength(0);
   });
 
   it("leaves a caller-owned client's listener and permission handler in place", async () => {
     const callerHandler: PermissionHandler = async () => ({
       outcome: "cancelled",
     });
-    client.permissionHandler = callerHandler;
-    client.hasConfiguredPermissionHandler = true;
+    client.configuredPermissionHandler = callerHandler;
     const seen: AcpSessionUpdate[] = [];
     const unsubscribe = client.subscribeSessionUpdate((_id, update) =>
       seen.push(update),
@@ -243,7 +261,6 @@ describe("AcpThreadController", () => {
     const c = controller(client);
     await c.attach();
     await c.load();
-    expect(client.permissionHandler).toBe(callerHandler);
     expect(client.listenerCounts()).toEqual({
       sessionUpdate: 2,
       connection: 1,
@@ -259,7 +276,7 @@ describe("AcpThreadController", () => {
     expect(c.getState().permissions).toEqual({});
 
     await c.detach();
-    expect(client.permissionHandler).toBe(callerHandler);
+    expect(client.permissionHandlers).toHaveLength(0);
     expect(client.listenerCounts()).toEqual({
       sessionUpdate: 1,
       connection: 0,
@@ -272,18 +289,17 @@ describe("AcpThreadController", () => {
     });
   });
 
-  it("keeps a permission handler the caller installed while attached", async () => {
+  it("keeps a permission handler the caller registered while attached", async () => {
     const c = controller(client);
     await c.attach();
-    expect(client.permissionHandler).toBeDefined();
 
     const callerHandler: PermissionHandler = async () => ({
       outcome: "cancelled",
     });
-    client.permissionHandler = callerHandler;
+    client.registerPermissionHandler(callerHandler);
 
     await c.detach();
-    expect(client.permissionHandler).toBe(callerHandler);
+    expect(client.permissionHandlers).toEqual([callerHandler]);
   });
 
   it("connects on load and records the handshake", async () => {
@@ -306,14 +322,16 @@ describe("AcpThreadController", () => {
       currentModeId: "code",
       availableModes: [{ id: "code", name: "Code" }],
     };
-    client.configOptions = [{ type: "boolean", currentValue: true }];
+    client.configOptions = [
+      { id: "auto", name: "Auto", type: "boolean", currentValue: true },
+    ];
     const c = controller(client);
     await c.attach();
     await c.load();
 
     expect(c.getState().currentModeId).toBe("code");
     expect(c.getState().configOptions).toEqual([
-      { type: "boolean", currentValue: true },
+      { id: "auto", name: "Auto", type: "boolean", currentValue: true },
     ]);
   });
 
@@ -560,29 +578,7 @@ describe("AcpThreadController", () => {
     expect(client.prompts).toHaveLength(2);
   });
 
-  it("replaces thread state from external messages", async () => {
-    const c = controller(client);
-    await c.attach();
-    await c.load();
-
-    const now = new Date(0);
-    await c.applyExternalMessages([
-      {
-        id: "u1",
-        role: "user",
-        createdAt: now,
-        content: [{ type: "text", text: "external" }],
-        metadata: { unstable_data: [], unstable_annotations: [] },
-      } as unknown as ThreadMessage,
-    ]);
-
-    const state = c.getState();
-    expect(state.messageOrder).toEqual(["u1"]);
-    expect(state.headId).toBe("u1");
-    expect(state.run).toEqual({ type: "idle" });
-  });
-
-  it("notifies subscribers and stops after dispose", async () => {
+  it("notifies subscribers until they unsubscribe", async () => {
     const listener = vi.fn();
     const c = controller(client);
     const unsubscribe = c.subscribe(listener);
@@ -592,13 +588,10 @@ describe("AcpThreadController", () => {
 
     listener.mockClear();
     unsubscribe();
-    await c.load();
+    client.emit({ sessionUpdate: "session_info_update", title: "unseen" });
     expect(listener).not.toHaveBeenCalled();
 
-    const second = vi.fn();
-    c.subscribe(second);
-    await c.dispose();
-    expect(second).not.toHaveBeenCalled();
+    await c.detach();
     expect(client.listenerCounts()).toEqual({
       sessionUpdate: 0,
       connection: 0,
@@ -1139,6 +1132,226 @@ describe("AcpThreadController", () => {
       dropped: [blocks[0]],
     });
   });
+
+  it("starts a new thread by stopping the turn and resetting the session", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    const first = c.append(userAppend("1"));
+    await flush();
+    expect(c.getState().run.type).toBe("running");
+
+    await c.startNewThread();
+    await first;
+    expect(client.cancelCalls).toBe(1);
+    expect(client.resets).toBe(1);
+    expect(c.getState().messageOrder).toEqual([]);
+    expect(c.getState().run).toEqual({ type: "idle" });
+
+    client.promptGate = undefined;
+    await c.append(userAppend("2"));
+    expect(client.prompts).toHaveLength(2);
+    expect(assistantOf(c).status).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("stops waiting for the old session's turn when a new thread starts", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    void c.append(userAppend("1"));
+    await flush();
+    const waiting = c.append(userAppend("2"));
+    await flush();
+    expect(client.prompts).toHaveLength(1);
+
+    await c.startNewThread();
+    await waiting;
+    client.promptGate = undefined;
+    await c.append(userAppend("3"));
+
+    expect(client.prompts).toHaveLength(2);
+    expect(client.prompts[1]).toEqual([{ type: "text", text: "3" }]);
+  });
+
+  it("withholds a waiting replacement turn the user stopped", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    const first = c.append(userAppend("1"));
+    await flush();
+    const second = c.append(userAppend("2"));
+    await flush();
+    expect(c.getState().run.type).toBe("running");
+
+    await c.cancel();
+    client.promptGate = undefined;
+    client.unblock();
+    await Promise.all([first, second]);
+
+    expect(client.prompts).toHaveLength(1);
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("sends nothing for an append that a detach in the same task followed", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    const appended = c.append(userAppend("1"));
+    void c.detach();
+    await appended;
+    await flush();
+
+    expect(client.prompts).toHaveLength(0);
+  });
+
+  it("sends nothing when a subscriber stops the turn as it starts", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    let stopped = false;
+    c.subscribe(() => {
+      if (stopped || c.getState().run.type !== "running") return;
+      stopped = true;
+      void c.cancel();
+    });
+    await c.append(userAppend("1"));
+    await flush();
+
+    expect(stopped).toBe(true);
+    expect(client.prompts).toHaveLength(0);
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("delivers an approval a subscriber answers synchronously", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    const turn = c.append(userAppend("1"));
+    await flush();
+    c.subscribe(() => {
+      const [approvalId] = Object.keys(c.getState().permissions);
+      if (approvalId) void c.respondToApproval({ approvalId, approved: true });
+    });
+
+    await expect(client.ask(permissionRequest())).resolves.toEqual({
+      outcome: "selected",
+      optionId: "allow",
+    });
+    client.unblock();
+    await turn;
+  });
+
+  it("does not report the failure of a turn the user already stopped", async () => {
+    const onError = vi.fn();
+    const c = controller(client, { onError });
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.promptError = new Error("socket closed");
+    const turn = c.append(userAppend("1"));
+    await flush();
+    await c.cancel();
+    await turn;
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("applies tool call updates a stopped turn reports before it settles", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    const turn = c.append(userAppend("1"));
+    await flush();
+    client.emit({
+      sessionUpdate: "tool_call",
+      toolCallId: "t1",
+      title: "Edit",
+      status: "in_progress",
+    });
+
+    await c.cancel();
+    client.emit({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "late" },
+    });
+    client.emit({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "t1",
+      status: "completed",
+      rawOutput: "edited",
+    });
+    expect(toolStatus(c)).toMatchObject({ result: "edited" });
+    expect(assistantOf(c).content.some((part) => part.type === "text")).toBe(
+      false,
+    );
+
+    client.unblock();
+    await turn;
+    expect(c.getState().settlingAssistantId).toBeUndefined();
+    client.emit({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "t1",
+      rawOutput: "ignored",
+    });
+    expect(toolStatus(c)).toMatchObject({ result: "edited" });
+  });
+
+  it("resolves an approval on the turn that asked for it", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.emit({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "ignored while idle" },
+    });
+    await c.append(userAppend("1"));
+    client.promptGate = () => {};
+    const second = c.append(userAppend("2"));
+    await flush();
+    const firstAssistant =
+      c.getState().messagesById[c.getState().messageOrder[1]!];
+
+    const asked = client.ask(permissionRequest());
+    const [approvalId] = Object.keys(c.getState().permissions);
+    await c.respondToApproval({ approvalId: approvalId!, approved: true });
+    await expect(asked).resolves.toEqual({
+      outcome: "selected",
+      optionId: "allow",
+    });
+    client.unblock();
+    await second;
+
+    expect(c.getState().messagesById[c.getState().messageOrder[1]!]).toBe(
+      firstAssistant,
+    );
+    expect(toolStatus(c)?.approval).toMatchObject({
+      approved: true,
+      optionId: "allow",
+    });
+  });
 });
 
 type StubFrame = {
@@ -1194,6 +1407,7 @@ describe("AcpThreadController over a real AcpClient", () => {
     StubSocket.instances = [];
     const client = new AcpClient({
       url: "ws://agent.test/",
+      cwd: "/workspace",
       webSocketFactory: () => new StubSocket(),
     });
     const c = new AcpThreadController({ client });
@@ -1228,6 +1442,7 @@ describe("AcpThreadController over a real AcpClient", () => {
     StubSocket.instances = [];
     const client = new AcpClient({
       url: "ws://agent.test/",
+      cwd: "/workspace",
       webSocketFactory: () => new StubSocket(),
     });
     const c = new AcpThreadController({ client });

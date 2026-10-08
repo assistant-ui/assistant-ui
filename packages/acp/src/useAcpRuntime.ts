@@ -36,54 +36,62 @@ import { useAcpControllerState } from "./useAcpControllerState";
 import { acpExtras } from "./acpExtras";
 import type { AcpImplementation, AcpMcpServer } from "./types";
 
-export type UseAcpRuntimeOptions = ExternalStoreSharedOptions & {
-  /** Pre-built ACP client instance. Provide this OR `url`. */
-  client?: AcpClient;
-  /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
-  url?: string;
-  /**
-   * Working directory passed to `session/new`. ACP requires an absolute path;
-   * defaults to `"/"`.
-   */
-  cwd?: string;
-  /** MCP servers passed to `session/new`. */
-  mcpServers?: readonly AcpMcpServer[];
-  /** Client identity for the `initialize` handshake. */
-  clientInfo?: AcpImplementation;
-  /** Inject a WebSocket implementation (tests / custom transports). */
-  webSocketFactory?: AcpWebSocketFactory;
-  /**
-   * Permission policy. `"ask"` (default) surfaces ACP permission requests as
-   * tool-call approvals in the UI; `"auto-allow"` answers them with the
-   * agent's first allow-family option.
-   */
-  permissions?: AcpPermissionsMode;
-  /** Connect on mount. Defaults to true. */
-  autoConnect?: boolean;
+type AcpRuntimeConnection =
+  | {
+      /** Pre-built ACP client instance, used instead of `url`. */
+      client: AcpClient;
+      url?: never;
+      cwd?: never;
+      mcpServers?: never;
+      clientInfo?: never;
+      webSocketFactory?: never;
+    }
+  | {
+      client?: never;
+      /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
+      url: string;
+      /**
+       * Absolute working directory on the agent's host, sent with
+       * `session/new`. The agent roots its file and terminal tools here.
+       */
+      cwd: string;
+      /** MCP servers passed to `session/new`. */
+      mcpServers?: readonly AcpMcpServer[];
+      /** Client identity for the `initialize` handshake. */
+      clientInfo?: AcpImplementation;
+      /** Inject a WebSocket implementation (tests / custom transports). */
+      webSocketFactory?: AcpWebSocketFactory;
+    };
 
-  /** Called when an error occurs. */
-  onError?: (error: Error) => void;
-  /** Called when a run is cancelled. */
-  onCancel?: () => void;
+export type UseAcpRuntimeOptions = ExternalStoreSharedOptions &
+  AcpRuntimeConnection & {
+    /**
+     * Permission policy. `"ask"` (default) surfaces ACP permission requests as
+     * tool-call approvals in the UI; `"auto-allow"` answers them with the
+     * agent's first allow-family option.
+     */
+    permissions?: AcpPermissionsMode;
+    /** Connect on mount. Defaults to true. */
+    autoConnect?: boolean;
 
-  /**
-   * There is deliberately no `history` adapter: the agent owns an ACP
-   * conversation, so a transcript restored from storage would show messages the
-   * next `session/new` knows nothing about.
-   */
-  adapters?: {
-    attachments?: AttachmentAdapter;
-    speech?: SpeechSynthesisAdapter;
-    dictation?: DictationAdapter;
-    voice?: RealtimeVoiceAdapter;
-    feedback?: FeedbackAdapter;
+    /** Called when an error occurs. */
+    onError?: (error: Error) => void;
+    /** Called when a run is cancelled. */
+    onCancel?: () => void;
+
+    /**
+     * There is deliberately no `history` adapter: the agent owns an ACP
+     * conversation, so a transcript restored from storage would show messages
+     * the next `session/new` knows nothing about.
+     */
+    adapters?: {
+      attachments?: AttachmentAdapter;
+      speech?: SpeechSynthesisAdapter;
+      dictation?: DictationAdapter;
+      voice?: RealtimeVoiceAdapter;
+      feedback?: FeedbackAdapter;
+    };
   };
-};
-
-type ManagedAcpClientOptions = Pick<
-  AcpClientOptions,
-  "url" | "cwd" | "mcpServers" | "clientInfo"
->;
 
 type AcpRegistry = {
   readonly key: string;
@@ -125,14 +133,13 @@ const createRegistry = (
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
-const buildManagedClientOptions = (
+const managedClientOptionsOf = (
   options: UseAcpRuntimeOptions,
-): ManagedAcpClientOptions => {
-  const { url } = options;
-  if (!url) throw new Error("useAcpRuntime requires either `client` or `url`");
+): Omit<AcpClientOptions, "webSocketFactory"> | undefined => {
+  if (options.client) return undefined;
   return {
-    url,
-    ...(options.cwd !== undefined && { cwd: options.cwd }),
+    url: options.url,
+    cwd: options.cwd,
     mcpServers: options.mcpServers ?? [],
     ...(options.clientInfo && { clientInfo: options.clientInfo }),
   };
@@ -157,20 +164,17 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
   );
 
   const externalClient = options.client;
-  const managedClientOptions = externalClient
-    ? undefined
-    : buildManagedClientOptions(options);
+  const managedClientOptions = managedClientOptionsOf(options);
   const registryKey = externalClient
     ? "external"
     : JSON.stringify(managedClientOptions);
 
   const createRegistryClient = () =>
-    externalClient
-      ? externalClient
-      : new AcpClient({
-          ...managedClientOptions!,
-          webSocketFactory: stableWebSocketFactory,
-        });
+    externalClient ??
+    new AcpClient({
+      ...managedClientOptions!,
+      webSocketFactory: stableWebSocketFactory,
+    });
 
   const ownsClient = !externalClient;
 
@@ -187,11 +191,11 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
     setPinned(registry);
   }
 
-  const { controller, client } = registry;
+  const { controller } = registry;
 
   useEffect(() => {
     registry.activate();
-    void controller.attach();
+    controller.attach();
     return () => {
       void controller.detach();
       registry.release();
@@ -204,35 +208,25 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
   const onCancel = options.onCancel;
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      await controller.updateOptions({
-        client,
-        permissions,
-        autoConnect,
-        ...(onError && { onError }),
-        ...(onCancel && { onCancel }),
-      });
-      if (cancelled) return;
-      await controller.load();
-    })().catch((error: unknown) => {
+    controller.updateOptions({ permissions, autoConnect, onError, onCancel });
+    controller.load().catch((error: unknown) => {
       invokeUserCallback("acp", "onError", onError, toError(error));
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [autoConnect, client, controller, onCancel, onError, permissions]);
+  }, [autoConnect, controller, onCancel, onError, permissions]);
 
   const adapters = options.adapters;
-  const adapterAdapters = useMemo(
+  const storeAdapters = useMemo(
     () => ({
       attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
       speech: adapters?.speech,
       dictation: adapters?.dictation,
       voice: adapters?.voice,
       feedback: adapters?.feedback,
+      threadList: {
+        onSwitchToNewThread: () => controller.startNewThread(),
+      },
     }),
-    [adapters, runtimeAdapters],
+    [adapters, controller, runtimeAdapters],
   );
 
   const state = useAcpControllerState(controller);
@@ -269,29 +263,24 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
         ...shared,
         isLoading,
         isRunning,
-        unstable_persistsHistory: true,
         messageRepository,
         extras,
         onNew: (message: AppendMessage) => controller.append(message),
         onCancel: () => controller.cancel(),
         onRespondToToolApproval: (approval: RespondToToolApprovalOptions) =>
           controller.respondToApproval(approval),
-        setMessages: (messages: readonly ThreadMessage[]) =>
-          controller.applyExternalMessages(messages),
-        onImport: (messages: readonly ThreadMessage[]) =>
-          controller.applyExternalMessages(messages),
-        adapters: adapterAdapters,
+        adapters: storeAdapters,
       }) satisfies ExternalStoreAdapter<ThreadMessage>,
     [
-      adapterAdapters,
       controller,
       extras,
       isLoading,
       isRunning,
       messageRepository,
       shared,
+      storeAdapters,
     ],
   );
 
-  return useExternalStoreRuntime(store);
+  return useExternalStoreRuntime<ThreadMessage>(store);
 }

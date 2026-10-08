@@ -28,15 +28,18 @@ import type {
   AcpResourceLinkContentBlock,
   AcpStopReason,
   AcpToolCallContent,
+  AcpToolCallLocation,
   AcpToolCallStatus,
   AcpToolCallUpdate,
-  AcpToolKind,
 } from "./types";
 
 type AssistantPart = ThreadAssistantMessage["content"][number];
 
 const isSettled = (status: AcpToolCallStatus) =>
   status === "completed" || status === "failed";
+
+const resourceOf = (block: AcpEmbeddedResourceContentBlock) =>
+  isRecord(block.resource) ? block.resource : undefined;
 
 export function threadContentToAcpBlocks(
   content: ThreadUserMessage["content"],
@@ -96,7 +99,7 @@ export function threadContentToAcpBlocks(
         blocks.push({
           type: "resource",
           resource: {
-            uri: `file:///${part.filename ?? "attachment"}`,
+            uri: `file:///${encodeURIComponent(part.filename ?? "attachment")}`,
             mimeType,
             blob: source.data,
           },
@@ -113,16 +116,13 @@ export type AcpPromptBlocks = {
   readonly dropped: AcpContentBlock[];
 };
 
-const resourceLinkOf = (
-  block: AcpEmbeddedResourceContentBlock,
-): AcpResourceLinkContentBlock => ({
-  type: "resource_link",
-  uri: block.resource.uri,
-  name: block.resource.uri,
-  ...(block.resource.mimeType
-    ? { mimeType: block.resource.mimeType }
-    : undefined),
-});
+const resourceLinkOf = (uri: string, mimeType: string | null | undefined) =>
+  ({
+    type: "resource_link",
+    uri,
+    name: uri,
+    ...(mimeType ? { mimeType } : undefined),
+  }) satisfies AcpResourceLinkContentBlock;
 
 /** A `file:` URI names a client-local file, which the agent cannot fetch. */
 const isAgentRetrievable = (uri: string) => !/^file:/i.test(uri);
@@ -154,10 +154,11 @@ export function filterPromptBlocks(
           kept.push(block);
           break;
         }
-        const text = "text" in block.resource ? block.resource.text : undefined;
-        if (text !== undefined) kept.push({ type: "text", text });
-        else if (isAgentRetrievable(block.resource.uri))
-          kept.push(resourceLinkOf(block));
+        const resource = resourceOf(block);
+        if (resource && "text" in resource)
+          kept.push({ type: "text", text: resource.text });
+        else if (resource && isAgentRetrievable(resource.uri))
+          kept.push(resourceLinkOf(resource.uri, resource.mimeType));
         else dropped.push(block);
         break;
       }
@@ -172,8 +173,10 @@ const blockToText = (block: AcpContentBlock): string | undefined => {
   switch (block.type) {
     case "text":
       return block.text;
-    case "resource":
-      return "text" in block.resource ? block.resource.text : undefined;
+    case "resource": {
+      const resource = resourceOf(block);
+      return resource && "text" in resource ? resource.text : undefined;
+    }
     case "resource_link":
       return `[${block.name}](${block.uri})`;
     default:
@@ -182,24 +185,27 @@ const blockToText = (block: AcpContentBlock): string | undefined => {
 };
 
 const asBlockArray = (raw: unknown): readonly AcpContentBlock[] => {
-  if (Array.isArray(raw)) return raw as readonly AcpContentBlock[];
-  if (raw && typeof raw === "object") return [raw as AcpContentBlock];
+  if (Array.isArray(raw)) return raw.filter(isRecord) as AcpContentBlock[];
+  if (isRecord(raw)) return [raw as AcpContentBlock];
   return [];
 };
 
 export function toolCallContentToText(
   content: readonly AcpToolCallContent[] | null | undefined,
 ): string | undefined {
-  if (!content || content.length === 0) return undefined;
+  if (!Array.isArray(content) || content.length === 0) return undefined;
   const pieces: string[] = [];
-  for (const item of content) {
+  for (const item of content as readonly unknown[]) {
+    if (!isRecord(item)) continue;
     if (item.type === "content") {
       for (const block of asBlockArray(item.content)) {
         const text = blockToText(block);
         if (text) pieces.push(text);
       }
-    } else if (item.type === "diff") {
-      pieces.push(`--- ${item.path}\n+++ ${item.path}\n${item.newText}`);
+    } else if (item.type === "diff" && typeof item.path === "string") {
+      pieces.push(
+        `--- ${item.path}\n+++ ${item.path}\n${String(item.newText)}`,
+      );
     }
   }
   return pieces.length > 0 ? pieces.join("\n") : undefined;
@@ -209,15 +215,18 @@ export function stopReasonToMessageStatus(
   stopReason: AcpStopReason,
 ): MessageStatus {
   switch (stopReason) {
+    case "end_turn":
+      return { type: "complete", reason: "stop" };
     case "cancelled":
       return { type: "incomplete", reason: "cancelled" };
     case "max_tokens":
       return { type: "incomplete", reason: "length" };
     case "refusal":
+      return { type: "incomplete", reason: "content-filter" };
     case "max_turn_requests":
       return { type: "incomplete", reason: "other" };
     default:
-      return { type: "complete", reason: "stop" };
+      return { type: "complete", reason: "unknown" };
   }
 }
 
@@ -257,7 +266,7 @@ export type AcpApprovalDecision = {
 
 /**
  * An explicit `optionId` wins; otherwise the decision picks the first option
- * of the matching family. Never cross families — the agent supplies `options`,
+ * of the matching family. Never cross families: the agent supplies `options`,
  * so an `options[0]` fallback could turn a denial into a grant.
  */
 export function resolvePermissionOutcome(
@@ -285,100 +294,121 @@ const safeStringify = (value: unknown): string => {
 /** Namespace this package uses on a part's `providerMetadata`. */
 const ACP_METADATA_NAMESPACE = "acp";
 
-/** The three fields a `tool_call` or `tool_call_update` can name a call by. */
-type AcpToolIdentityFields = {
-  readonly name?: string | null;
-  readonly kind?: AcpToolKind | null;
-  readonly title?: string | null;
-};
-
 /**
- * What a call is known by, accumulated across updates and kept on the part as
- * `providerMetadata.acp`: a renderer shows `title`, while `toolName` is
- * resolved from the most specific field the agent has sent so far.
+ * What the agent has reported about a call, accumulated across its updates and
+ * kept on the part as `providerMetadata.acp`. A `tool_call_update` carries only
+ * what changed: an omitted or `null` field leaves the earlier value in place,
+ * so a later frame cannot drop one an earlier frame reported.
  */
-type AcpToolIdentity = {
+type AcpToolCallMetadata = {
   readonly name?: string;
   readonly kind?: string;
   readonly title?: string;
+  readonly status?: AcpToolCallStatus;
+  readonly locations?: readonly {
+    readonly path: string;
+    readonly line?: number;
+  }[];
 };
 
-const identityOf = (part: ToolCallMessagePart): AcpToolIdentity | undefined =>
+const locationsOf = (locations: readonly AcpToolCallLocation[]) =>
+  locations.map(({ path, line }) => ({ path, ...(line != null && { line }) }));
+
+const metadataOf = (
+  part: ToolCallMessagePart,
+): AcpToolCallMetadata | undefined =>
   part.providerMetadata?.[ACP_METADATA_NAMESPACE] as
-    | AcpToolIdentity
+    | AcpToolCallMetadata
     | undefined;
 
-/**
- * A `tool_call_update` carries only what changed: omitting `name`, `kind` or
- * `title` — or sending `null` — leaves the existing value in place, so a later
- * frame must not drop one an earlier frame reported.
- */
-const mergedIdentityOf = (
-  update: AcpToolIdentityFields,
-  previous: AcpToolIdentity | undefined,
-): AcpToolIdentity => {
-  const identity: Record<string, string> = {};
+const mergedMetadataOf = (
+  update: AcpToolCallUpdate,
+  previous: AcpToolCallMetadata | undefined,
+): AcpToolCallMetadata => {
   const name = update.name ?? previous?.name;
   const kind = update.kind ?? previous?.kind;
   const title = update.title ?? previous?.title;
-  if (name !== undefined) identity.name = name;
-  if (kind !== undefined) identity.kind = kind;
-  if (title !== undefined) identity.title = title;
-  return identity as AcpToolIdentity;
+  const status = update.status ?? previous?.status;
+  const locations = update.locations
+    ? locationsOf(update.locations)
+    : previous?.locations;
+  return {
+    ...(name !== undefined && { name }),
+    ...(kind !== undefined && { kind }),
+    ...(title !== undefined && { title }),
+    ...(status !== undefined && { status }),
+    ...(locations !== undefined && { locations }),
+  };
 };
 
-const sameIdentity = (
-  identity: AcpToolIdentity,
-  previous: AcpToolIdentity | undefined,
+const sameMetadata = (
+  metadata: AcpToolCallMetadata,
+  previous: AcpToolCallMetadata | undefined,
 ): boolean =>
-  identity.name === previous?.name &&
-  identity.kind === previous?.kind &&
-  identity.title === previous?.title;
+  metadata.name === previous?.name &&
+  metadata.kind === previous?.kind &&
+  metadata.title === previous?.title &&
+  metadata.status === previous?.status &&
+  metadata.locations === previous?.locations;
 
 /**
  * `toolName` is the key apps register tool UIs against, so it has to stay
  * stable for the life of a call: the protocol's programmatic `name` first,
  * then the `kind` enum, and only then the human-readable `title`.
  */
-const toolNameOf = (identity: AcpToolIdentity): string | undefined => {
-  const name = identity.name || identity.kind || identity.title;
+const toolNameOf = (metadata: AcpToolCallMetadata): string | undefined => {
+  const name = metadata.name || metadata.kind || metadata.title;
   return name || undefined;
 };
 
+const withoutResult = ({
+  result: _result,
+  isError: _isError,
+  isPreliminary: _isPreliminary,
+  ...part
+}: ToolCallMessagePart): ToolCallMessagePart => part;
+
+/**
+ * A settled call's result is its `rawOutput`, else the text of the `content`
+ * collection the update replaced, else what an earlier frame reported.
+ */
 const settledResult = (
   update: AcpToolCallUpdate,
   previous: ToolCallMessagePart,
 ): unknown => {
   if (update.rawOutput !== undefined) return update.rawOutput;
   if (update.content != null) {
-    return toolCallContentToText(update.content) ?? previous.result ?? null;
+    return toolCallContentToText(update.content) ?? null;
   }
   return previous.result ?? null;
 };
 
 export function buildToolCallPart(
   update: AcpToolCallUpdate,
-  knownStatus?: AcpToolCallStatus | undefined,
 ): ToolCallMessagePart {
-  const args = isRecord(update.rawInput)
-    ? (update.rawInput as ReadonlyJSONObject)
-    : {};
-  const status = update.status ?? knownStatus ?? "pending";
-  const identity = mergedIdentityOf(update, undefined);
+  const metadata = mergedMetadataOf(update, undefined);
   const part: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: update.toolCallId,
-    toolName: toolNameOf(identity) ?? "tool_call",
-    args,
+    toolName: toolNameOf(metadata) ?? "tool_call",
+    args: isRecord(update.rawInput)
+      ? (update.rawInput as ReadonlyJSONObject)
+      : {},
     argsText:
       update.rawInput !== undefined ? safeStringify(update.rawInput) : "",
-    ...(Object.keys(identity).length > 0 && {
-      providerMetadata: { [ACP_METADATA_NAMESPACE]: identity },
+    ...(Object.keys(metadata).length > 0 && {
+      providerMetadata: { [ACP_METADATA_NAMESPACE]: metadata },
     }),
   };
+  const status = update.status ?? "pending";
   if (!isSettled(status)) {
-    if (update.rawOutput === undefined) return part;
-    return { ...part, result: update.rawOutput, isPreliminary: true };
+    const preliminary =
+      update.rawOutput !== undefined
+        ? update.rawOutput
+        : toolCallContentToText(update.content);
+    return preliminary === undefined
+      ? part
+      : { ...part, result: preliminary, isPreliminary: true };
   }
   return {
     ...part,
@@ -390,23 +420,21 @@ export function buildToolCallPart(
 export function mergeToolCallPart(
   existing: ToolCallMessagePart,
   update: AcpToolCallUpdate,
-  knownStatus?: AcpToolCallStatus | undefined,
 ): ToolCallMessagePart {
   let next = existing;
   const set = (patch: Partial<ToolCallMessagePart>) => {
     next = { ...next, ...patch };
   };
 
-  const previous = identityOf(existing);
-  const identity = mergedIdentityOf(update, previous);
-  const toolName = toolNameOf(identity);
+  const previous = metadataOf(existing);
+  const metadata = mergedMetadataOf(update, previous);
+  const toolName = toolNameOf(metadata);
   if (toolName && toolName !== next.toolName) set({ toolName });
-
-  if (!sameIdentity(identity, previous)) {
+  if (!sameMetadata(metadata, previous)) {
     set({
       providerMetadata: {
         ...next.providerMetadata,
-        [ACP_METADATA_NAMESPACE]: identity,
+        [ACP_METADATA_NAMESPACE]: metadata,
       },
     });
   }
@@ -423,8 +451,7 @@ export function mergeToolCallPart(
     }
   }
 
-  const status = update.status ?? knownStatus ?? "pending";
-
+  const status = metadata.status ?? "pending";
   if (isSettled(status)) {
     const result = settledResult(update, next);
     const isError = status === "failed";
@@ -442,18 +469,20 @@ export function mergeToolCallPart(
     return next;
   }
 
-  if (update.rawOutput !== undefined) {
-    if (update.rawOutput !== next.result) {
-      set({ result: update.rawOutput, isPreliminary: true });
-    }
-    return next;
+  // A call reported running again after it settled is being retried.
+  if (next.result !== undefined && !next.isPreliminary) {
+    next = withoutResult(next);
   }
-
-  if (update.content != null) {
-    const text = toolCallContentToText(update.content);
-    if (text !== undefined && text !== next.result) {
-      set({ result: text, isPreliminary: true });
-    }
+  const preliminary =
+    update.rawOutput !== undefined
+      ? update.rawOutput
+      : update.content != null
+        ? (toolCallContentToText(update.content) ?? null)
+        : undefined;
+  if (preliminary === null) {
+    if (next.result !== undefined) next = withoutResult(next);
+  } else if (preliminary !== undefined && preliminary !== next.result) {
+    set({ result: preliminary, isPreliminary: true });
   }
   return next;
 }
@@ -482,14 +511,13 @@ const replaceAt = (
 export function applyToolCallUpdate(
   content: readonly AssistantPart[],
   update: AcpToolCallUpdate,
-  knownStatus?: AcpToolCallStatus | undefined,
 ): readonly AssistantPart[] | undefined {
   const index = findToolCallIndex(content, update.toolCallId);
   if (index === -1) {
-    return [...content, buildToolCallPart(update, knownStatus)];
+    return [...content, buildToolCallPart(update)];
   }
   const existing = content[index] as ToolCallMessagePart;
-  const merged = mergeToolCallPart(existing, update, knownStatus);
+  const merged = mergeToolCallPart(existing, update);
   return merged === existing ? undefined : replaceAt(content, index, merged);
 }
 
@@ -554,7 +582,8 @@ const mediaPartsFromBlock = (block: AcpContentBlock): readonly MediaPart[] => {
         },
       ];
     case "resource": {
-      const resource = block.resource;
+      const resource = resourceOf(block);
+      if (!resource) return [];
       if ("text" in resource) {
         return resource.text ? [{ type: "text", text: resource.text }] : [];
       }
@@ -579,10 +608,11 @@ const messagePartsFromBlock = (
   if (block.type === "text") {
     return block.text ? [{ type: "reasoning", text: block.text }] : [];
   }
-  if (block.type === "resource" && "text" in block.resource) {
-    return block.resource.text
-      ? [{ type: "reasoning", text: block.resource.text }]
-      : [];
+  if (block.type === "resource") {
+    const resource = resourceOf(block);
+    if (resource && "text" in resource) {
+      return resource.text ? [{ type: "reasoning", text: resource.text }] : [];
+    }
   }
   return mediaPartsFromBlock(block);
 };
@@ -592,6 +622,7 @@ export function appendContentBlock(
   block: AcpContentBlock,
   kind: "text" | "reasoning",
 ): readonly AssistantPart[] | undefined {
+  if (!isRecord(block)) return undefined;
   const parts = messagePartsFromBlock(block, kind);
   if (parts.length === 0) return undefined;
   if (parts.length === 1 && parts[0]!.type === kind) {
@@ -605,30 +636,4 @@ export function appendContentBlock(
     }
   }
   return [...content, ...parts];
-}
-
-export function applySessionUpdateToContent(
-  content: readonly AssistantPart[],
-  update: { readonly sessionUpdate: string } & Partial<AcpToolCallUpdate> & {
-      readonly content?: AcpContentBlock;
-    },
-  knownStatus?: AcpToolCallStatus | undefined,
-): readonly AssistantPart[] | undefined {
-  switch (update.sessionUpdate) {
-    case "agent_message_chunk":
-      return update.content
-        ? appendContentBlock(content, update.content, "text")
-        : undefined;
-    case "agent_thought_chunk":
-      return update.content
-        ? appendContentBlock(content, update.content, "reasoning")
-        : undefined;
-    case "tool_call":
-    case "tool_call_update":
-      return typeof update.toolCallId === "string"
-        ? applyToolCallUpdate(content, update as AcpToolCallUpdate, knownStatus)
-        : undefined;
-    default:
-      return undefined;
-  }
 }

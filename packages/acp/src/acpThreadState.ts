@@ -5,6 +5,7 @@ import type {
   ThreadUserMessagePart,
   ToolApprovalOption,
 } from "@assistant-ui/core";
+import { isRecord } from "@assistant-ui/core/internal";
 import type {
   AcpAgentCapabilities,
   AcpAvailableCommand,
@@ -15,11 +16,11 @@ import type {
   AcpSessionConfigOption,
   AcpSessionModeState,
   AcpSessionUpdate,
-  AcpToolCallStatus,
   AcpUsage,
 } from "./types";
 import {
-  applySessionUpdateToContent,
+  appendContentBlock,
+  applyToolCallUpdate,
   attachToolCallApproval,
   permissionOptionToApprovalOption,
   resolveToolCallApproval,
@@ -30,8 +31,7 @@ type AssistantPart = ThreadAssistantMessage["content"][number];
 export type AcpLoadState =
   | { readonly type: "idle" }
   | { readonly type: "loading" }
-  | { readonly type: "ready" }
-  | { readonly type: "error"; readonly error: string };
+  | { readonly type: "ready" };
 
 export type AcpRunState =
   | { readonly type: "idle" }
@@ -59,6 +59,7 @@ export type AcpThreadMessage = AcpUserMessage | AcpAssistantMessage;
 
 export type AcpPendingPermission = {
   readonly approvalId: string;
+  readonly assistantId: string;
   readonly toolCallId: string;
   readonly options: readonly ToolApprovalOption[];
 };
@@ -73,6 +74,11 @@ export type AcpThreadState = {
   readonly messagesById: Readonly<Record<string, AcpThreadMessage>>;
   readonly headId: string | null;
   readonly run: AcpRunState;
+  /**
+   * A cancelled turn whose `session/prompt` has not settled yet. The agent may
+   * still report its tool calls, and they land on this message.
+   */
+  readonly settlingAssistantId: string | undefined;
   readonly permissions: Readonly<Record<string, AcpPendingPermission>>;
   readonly plan: readonly AcpPlanEntry[] | undefined;
   readonly sessionTitle: string | undefined;
@@ -80,13 +86,11 @@ export type AcpThreadState = {
   readonly availableCommands: readonly AcpAvailableCommand[] | undefined;
   readonly configOptions: readonly AcpSessionConfigOption[] | undefined;
   readonly usage: AcpUsage | undefined;
-  readonly toolCallStatuses: Readonly<Record<string, AcpToolCallStatus>>;
 };
 
 export type AcpThreadEvent =
   | { readonly type: "load-start" }
   | { readonly type: "load-ready" }
-  | { readonly type: "load-error"; readonly error: string }
   | {
       readonly type: "connection";
       readonly connectionState: AcpConnectionState;
@@ -99,11 +103,6 @@ export type AcpThreadEvent =
         | undefined;
     }
   | { readonly type: "append-message"; readonly message: AcpThreadMessage }
-  | {
-      readonly type: "replace-messages";
-      readonly messages: readonly AcpThreadMessage[];
-      readonly headId: string | null;
-    }
   | { readonly type: "run-start"; readonly message: AcpAssistantMessage }
   | { readonly type: "session-update"; readonly update: AcpSessionUpdate }
   | {
@@ -119,7 +118,14 @@ export type AcpThreadEvent =
       readonly cancelled: boolean;
     }
   | { readonly type: "permissions-cancelled" }
-  | { readonly type: "run-end"; readonly status: MessageStatus };
+  | {
+      readonly type: "run-end";
+      readonly assistantId: string;
+      readonly status: MessageStatus;
+      readonly settling?: boolean | undefined;
+    }
+  | { readonly type: "run-settled"; readonly assistantId: string }
+  | { readonly type: "reset" };
 
 export const EMPTY_ACP_THREAD_STATE: AcpThreadState = {
   loadState: { type: "idle" },
@@ -131,6 +137,7 @@ export const EMPTY_ACP_THREAD_STATE: AcpThreadState = {
   messagesById: {},
   headId: null,
   run: { type: "idle" },
+  settlingAssistantId: undefined,
   permissions: {},
   plan: undefined,
   sessionTitle: undefined,
@@ -138,7 +145,6 @@ export const EMPTY_ACP_THREAD_STATE: AcpThreadState = {
   availableCommands: undefined,
   configOptions: undefined,
   usage: undefined,
-  toolCallStatuses: {},
 };
 
 export const createAcpThreadState = (): AcpThreadState =>
@@ -147,77 +153,74 @@ export const createAcpThreadState = (): AcpThreadState =>
 export const isAcpStateRunning = (state: AcpThreadState): boolean =>
   state.run.type === "running";
 
+const RUNNING_STATUS: MessageStatus = { type: "running" };
+
+const runningId = (state: AcpThreadState): string | undefined =>
+  state.run.type === "running" ? state.run.assistantId : undefined;
+
 const withMessage = (
   state: AcpThreadState,
   message: AcpThreadMessage,
-  headId: string | null = message.id,
 ): AcpThreadState => ({
   ...state,
   messageOrder: state.messagesById[message.id]
     ? state.messageOrder
     : [...state.messageOrder, message.id],
   messagesById: { ...state.messagesById, [message.id]: message },
-  headId,
+  headId: message.id,
 });
-
-const runningAssistant = (
-  state: AcpThreadState,
-): AcpAssistantMessage | undefined => {
-  if (state.run.type !== "running") return undefined;
-  const message = state.messagesById[state.run.assistantId];
-  return message?.role === "assistant" ? message : undefined;
-};
 
 const patchAssistant = (
   state: AcpThreadState,
-  patch: (message: AcpAssistantMessage) => AcpAssistantMessage | undefined,
+  assistantId: string | undefined,
+  patch: (message: AcpAssistantMessage) => AcpAssistantMessage,
 ): AcpThreadState => {
-  const message = runningAssistant(state);
-  if (!message) return state;
+  if (assistantId === undefined) return state;
+  const message = state.messagesById[assistantId];
+  if (message?.role !== "assistant") return state;
   const next = patch(message);
-  if (!next || next === message) return state;
+  if (next === message) return state;
   return {
     ...state,
-    messagesById: { ...state.messagesById, [message.id]: next },
+    messagesById: { ...state.messagesById, [assistantId]: next },
+  };
+};
+
+const resolveApproval = (
+  message: AcpAssistantMessage,
+  approvalId: string,
+  resolution: Parameters<typeof resolveToolCallApproval>[2],
+  stillWaiting: boolean,
+): AcpAssistantMessage => {
+  const content = resolveToolCallApproval(
+    message.content,
+    approvalId,
+    resolution,
+  );
+  const resumes = !stillWaiting && message.status.type === "requires-action";
+  if (!content && !resumes) return message;
+  return {
+    ...message,
+    ...(content && { content }),
+    ...(resumes && { status: RUNNING_STATUS }),
   };
 };
 
 const cancelPermissions = (state: AcpThreadState): AcpThreadState => {
-  const approvalIds = Object.keys(state.permissions);
-  if (approvalIds.length === 0) return state;
-  let next = state;
-  for (const approvalId of approvalIds) {
-    next = patchAssistantAt(next, approvalId, (message) => ({
-      ...message,
-      content: resolveToolCallApproval(message.content, approvalId, {
-        resolution: "cancelled",
-      }) as AssistantPart[],
-    }));
+  const pending = Object.values(state.permissions);
+  if (pending.length === 0) return state;
+  let next: AcpThreadState = { ...state, permissions: {} };
+  for (const permission of pending) {
+    next = patchAssistant(next, permission.assistantId, (message) =>
+      resolveApproval(
+        message,
+        permission.approvalId,
+        { resolution: "cancelled" },
+        false,
+      ),
+    );
   }
-  return { ...next, permissions: {} };
-};
-
-const patchAssistantAt = (
-  state: AcpThreadState,
-  approvalId: string,
-  patch: (
-    message: AcpAssistantMessage,
-    approval: AcpPendingPermission,
-  ) => AcpAssistantMessage | undefined,
-): AcpThreadState => {
-  const approval = state.permissions[approvalId];
-  if (!approval) return state;
-  for (const id of state.messageOrder) {
-    const message = state.messagesById[id];
-    if (message?.role !== "assistant") continue;
-    const next = patch(message, approval);
-    if (!next || next === message) continue;
-    return {
-      ...state,
-      messagesById: { ...state.messagesById, [id]: next },
-    };
-  }
-  return state;
+  return next;
 };
 
 const reduceSessionUpdate = (
@@ -225,6 +228,32 @@ const reduceSessionUpdate = (
   update: AcpSessionUpdate,
 ): AcpThreadState => {
   switch (update.sessionUpdate) {
+    case "agent_message_chunk":
+    case "agent_thought_chunk": {
+      if (state.settlingAssistantId !== undefined) return state;
+      const kind =
+        update.sessionUpdate === "agent_message_chunk" ? "text" : "reasoning";
+      return patchAssistant(state, runningId(state), (message) => {
+        const content = appendContentBlock(
+          message.content,
+          update.content,
+          kind,
+        );
+        return content ? { ...message, content } : message;
+      });
+    }
+    case "tool_call":
+    case "tool_call_update": {
+      if (typeof update.toolCallId !== "string") return state;
+      return patchAssistant(
+        state,
+        state.settlingAssistantId ?? runningId(state),
+        (message) => {
+          const content = applyToolCallUpdate(message.content, update);
+          return content ? { ...message, content } : message;
+        },
+      );
+    }
     case "plan":
       return state.plan === update.entries
         ? state
@@ -248,50 +277,17 @@ const reduceSessionUpdate = (
       return state.configOptions === update.configOptions
         ? state
         : { ...state, configOptions: update.configOptions };
-    case "usage_update": {
-      const usage: AcpUsage = {
-        used: update.used,
-        size: update.size,
-        cost: update.cost ?? null,
+    case "usage_update":
+      return {
+        ...state,
+        usage: {
+          used: update.used,
+          size: update.size,
+          cost: update.cost ?? null,
+        },
       };
-      return { ...state, usage };
-    }
-    case "user_message_chunk":
+    default:
       return state;
-    default: {
-      const toolCall = update as Parameters<
-        typeof applySessionUpdateToContent
-      >[1];
-      const toolCallId =
-        typeof toolCall.toolCallId === "string"
-          ? toolCall.toolCallId
-          : undefined;
-      const knownStatus =
-        toolCallId === undefined
-          ? undefined
-          : state.toolCallStatuses[toolCallId];
-      const next = patchAssistant(state, (message) => {
-        const content = applySessionUpdateToContent(
-          message.content,
-          toolCall,
-          knownStatus,
-        );
-        return content === undefined ? undefined : { ...message, content };
-      });
-      const reportedStatus = toolCall.status ?? undefined;
-      if (toolCallId === undefined || reportedStatus === undefined) {
-        return next;
-      }
-      return next.toolCallStatuses[toolCallId] === reportedStatus
-        ? next
-        : {
-            ...next,
-            toolCallStatuses: {
-              ...next.toolCallStatuses,
-              [toolCallId]: reportedStatus,
-            },
-          };
-    }
   }
 };
 
@@ -310,10 +306,9 @@ export const reduceAcpThreadState = (
         ? { ...state, loadState: { type: "ready" } }
         : state;
 
-    case "load-error":
-      return { ...state, loadState: { type: "error", error: event.error } };
-
-    case "connection":
+    case "connection": {
+      const sessionOpened =
+        event.sessionId !== undefined && event.sessionId !== state.sessionId;
       return {
         ...state,
         connectionState: event.connectionState,
@@ -322,59 +317,39 @@ export const reduceAcpThreadState = (
         ...(event.agentCapabilities !== undefined && {
           agentCapabilities: event.agentCapabilities,
         }),
-        ...(event.sessionModes !== undefined && {
-          currentModeId: event.sessionModes.currentModeId,
-        }),
-        ...(event.sessionConfigOptions !== undefined && {
+        ...(sessionOpened && {
+          currentModeId: event.sessionModes?.currentModeId,
           configOptions: event.sessionConfigOptions,
         }),
       };
+    }
 
     case "append-message":
       return withMessage(state, event.message);
-
-    case "replace-messages": {
-      const messagesById: Record<string, AcpThreadMessage> = {};
-      const messageOrder: string[] = [];
-      for (const message of event.messages) {
-        messagesById[message.id] = message;
-        messageOrder.push(message.id);
-      }
-      return {
-        ...state,
-        messagesById,
-        messageOrder,
-        headId: event.headId,
-        run: { type: "idle" },
-        permissions: {},
-        toolCallStatuses: {},
-      };
-    }
 
     case "run-start":
       return {
         ...withMessage(state, event.message),
         run: { type: "running", assistantId: event.message.id },
-        toolCallStatuses: {},
       };
 
     case "session-update":
-      return reduceSessionUpdate(state, event.update);
+      return isRecord(event.update)
+        ? reduceSessionUpdate(state, event.update)
+        : state;
 
     case "permission-request": {
-      const toolCallId = event.request.toolCall.toolCallId;
+      const assistantId = runningId(state);
+      if (assistantId === undefined) return state;
+      const { toolCall, options } = event.request;
       const approval = {
         id: event.approvalId,
-        options: event.request.options.map(permissionOptionToApprovalOption),
+        options: options.map(permissionOptionToApprovalOption),
       };
-      const next = patchAssistant(state, (message) => ({
+      const next = patchAssistant(state, assistantId, (message) => ({
         ...message,
         status: { type: "requires-action", reason: "tool-calls" },
-        content: attachToolCallApproval(
-          message.content,
-          event.request.toolCall,
-          approval,
-        ) as AssistantPart[],
+        content: attachToolCallApproval(message.content, toolCall, approval),
       }));
       return {
         ...next,
@@ -382,7 +357,8 @@ export const reduceAcpThreadState = (
           ...next.permissions,
           [event.approvalId]: {
             approvalId: event.approvalId,
-            toolCallId,
+            assistantId,
+            toolCallId: toolCall.toolCallId,
             options: approval.options,
           },
         },
@@ -390,43 +366,58 @@ export const reduceAcpThreadState = (
     }
 
     case "permission-resolved": {
-      const next = patchAssistantAt(state, event.approvalId, (message) => ({
-        ...message,
-        status: { type: "running" },
-        content: resolveToolCallApproval(message.content, event.approvalId, {
-          approved: event.approved,
-          ...(event.optionId !== undefined && { optionId: event.optionId }),
-          ...(event.cancelled && { resolution: "cancelled" as const }),
-        }) as AssistantPart[],
-      }));
-      const { [event.approvalId]: _removed, ...remaining } = next.permissions;
-      return { ...next, permissions: remaining };
+      const permission = state.permissions[event.approvalId];
+      if (!permission) return state;
+      const { [event.approvalId]: _resolved, ...permissions } =
+        state.permissions;
+      const stillWaiting = Object.values(permissions).some(
+        (other) => other.assistantId === permission.assistantId,
+      );
+      const next = patchAssistant(state, permission.assistantId, (message) =>
+        resolveApproval(
+          message,
+          event.approvalId,
+          {
+            approved: event.approved,
+            ...(event.optionId !== undefined && { optionId: event.optionId }),
+            ...(event.cancelled && { resolution: "cancelled" as const }),
+          },
+          stillWaiting,
+        ),
+      );
+      return { ...next, permissions };
     }
 
-    case "permissions-cancelled": {
-      const next = cancelPermissions(state);
-      const assistant = runningAssistant(next);
-      if (!assistant || assistant.status.type !== "requires-action")
-        return next;
-      return patchAssistant(next, (message) => ({
-        ...message,
-        status: { type: "running" },
-      }));
-    }
+    case "permissions-cancelled":
+      return cancelPermissions(state);
 
     case "run-end": {
-      const next = cancelPermissions(state);
-      const assistant = runningAssistant(next);
-      if (!assistant) return { ...next, run: { type: "idle" } };
+      if (runningId(state) !== event.assistantId) return state;
+      const next = patchAssistant(
+        cancelPermissions(state),
+        event.assistantId,
+        (message) => ({ ...message, status: event.status }),
+      );
       return {
         ...next,
-        messagesById: {
-          ...next.messagesById,
-          [assistant.id]: { ...assistant, status: event.status },
-        },
         run: { type: "idle" },
+        ...(event.settling && { settlingAssistantId: event.assistantId }),
       };
     }
+
+    case "run-settled":
+      return state.settlingAssistantId === event.assistantId
+        ? { ...state, settlingAssistantId: undefined }
+        : state;
+
+    case "reset":
+      return {
+        ...EMPTY_ACP_THREAD_STATE,
+        loadState: state.loadState,
+        connectionState: state.connectionState,
+        agentInfo: state.agentInfo,
+        agentCapabilities: state.agentCapabilities,
+      };
 
     default:
       return state;

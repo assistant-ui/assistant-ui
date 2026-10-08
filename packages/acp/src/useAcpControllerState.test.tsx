@@ -22,8 +22,6 @@ class StubClient {
   sessionId: string | undefined = undefined;
   agentInfo: undefined = undefined;
   agentCapabilities: undefined = undefined;
-  permissionHandler: unknown = undefined;
-  hasConfiguredPermissionHandler = false;
 
   private readonly sessionUpdateListeners = new Set<SessionUpdateHandler>();
 
@@ -35,6 +33,10 @@ class StubClient {
   }
 
   subscribeConnectionChange(_listener: (state: string) => void) {
+    return () => {};
+  }
+
+  registerPermissionHandler(_handler: unknown) {
     return () => {};
   }
 

@@ -39,7 +39,7 @@ import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
 } from "@assistant-ui/core/react";
-import { AcpClient, cancelPermissionHandler } from "./AcpClient";
+import { AcpClient } from "./AcpClient";
 import { useAcpRuntime } from "./useAcpRuntime";
 
 (
@@ -91,6 +91,7 @@ const flushTimers = async () => {
 
 const baseProps = {
   url: "ws://127.0.0.1:2770/",
+  cwd: "/workspace",
   autoConnect: false,
   webSocketFactory: () => {
     throw new Error("not used");
@@ -128,7 +129,10 @@ describe("useAcpRuntime", () => {
   });
 
   it("never disposes a client the caller owns", async () => {
-    const client = new AcpClient({ url: "ws://127.0.0.1:2770/" });
+    const client = new AcpClient({
+      url: "ws://127.0.0.1:2770/",
+      cwd: "/workspace",
+    });
     renderRuntime({ client, autoConnect: false });
 
     act(() => root?.unmount());
@@ -140,6 +144,7 @@ describe("useAcpRuntime", () => {
   it("keeps the same client when an inline webSocketFactory changes identity", async () => {
     const { runtimes, rerender } = renderRuntime({
       url: "ws://127.0.0.1:2770/",
+      cwd: "/workspace",
       autoConnect: false,
       webSocketFactory: () => {
         throw new Error("not used");
@@ -149,6 +154,7 @@ describe("useAcpRuntime", () => {
 
     rerender({
       url: "ws://127.0.0.1:2770/",
+      cwd: "/workspace",
       autoConnect: false,
       webSocketFactory: () => {
         throw new Error("also not used");
@@ -171,17 +177,26 @@ describe("useAcpRuntime", () => {
   });
 
   it("rebuilds the registry when the client prop changes", async () => {
-    const first = new AcpClient({ url: "ws://127.0.0.1:2770/" });
-    const second = new AcpClient({ url: "ws://127.0.0.1:2771/" });
+    const first = new AcpClient({
+      url: "ws://127.0.0.1:2770/",
+      cwd: "/workspace",
+    });
+    const second = new AcpClient({
+      url: "ws://127.0.0.1:2771/",
+      cwd: "/workspace",
+    });
+    const handlersOf = (client: AcpClient) =>
+      (client as unknown as { permissionHandlers: unknown[] })
+        .permissionHandlers;
     const { rerender } = renderRuntime({ client: first, autoConnect: false });
     await flushTimers();
-    expect(first.permissionHandler).not.toBe(cancelPermissionHandler);
+    expect(handlersOf(first)).toHaveLength(1);
 
     rerender({ client: second, autoConnect: false });
     await flushTimers();
 
-    expect(second.permissionHandler).not.toBe(cancelPermissionHandler);
-    expect(first.permissionHandler).toBe(cancelPermissionHandler);
+    expect(handlersOf(second)).toHaveLength(1);
+    expect(handlersOf(first)).toHaveLength(0);
     expect(tracked.disposed).toBe(0);
   });
 
@@ -207,6 +222,8 @@ describe("useAcpRuntime", () => {
     expect(capabilities.cancel).toBe(true);
     expect(capabilities.edit).toBe(false);
     expect(capabilities.reload).toBe(false);
+    expect(capabilities.delete).toBe(false);
+    expect(capabilities.switchToBranch).toBe(false);
   });
 
   it("leaves a thread-list history adapter alone", async () => {
@@ -242,13 +259,5 @@ describe("useAcpRuntime", () => {
       runtimes.at(-1) as AssistantRuntime
     ).thread.getState();
     expect(messages).toEqual([]);
-  });
-
-  it("throws when neither client nor url is provided", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => renderRuntime({ autoConnect: false } as never)).toThrow(
-      "useAcpRuntime requires either `client` or `url`",
-    );
-    errorSpy.mockRestore();
   });
 });

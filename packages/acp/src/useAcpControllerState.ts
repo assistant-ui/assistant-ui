@@ -1,11 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { AcpThreadControllerLike } from "./AcpThreadController";
+import type { AcpThreadController } from "./AcpThreadController";
 import type { AcpThreadState } from "./acpThreadState";
 
 export const useAcpControllerState = (
-  controller: AcpThreadControllerLike,
+  controller: Pick<AcpThreadController, "getState" | "subscribe">,
 ): AcpThreadState =>
   useSyncExternalStore(
     controller.subscribe,

@@ -4,7 +4,6 @@ import {
   type AppendMessage,
   type MessageStatus,
   type RespondToToolApprovalOptions,
-  type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/core";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
@@ -20,7 +19,6 @@ import {
   reduceAcpThreadState,
   type AcpAssistantMessage,
   type AcpThreadEvent,
-  type AcpThreadMessage,
   type AcpThreadState,
   type AcpUserMessage,
 } from "./acpThreadState";
@@ -36,28 +34,15 @@ import type {
 export type AcpPermissionsMode = "ask" | "auto-allow";
 
 export type AcpThreadControllerOptions = {
-  client: AcpClient;
   permissions?: AcpPermissionsMode | undefined;
   autoConnect?: boolean | undefined;
   onError?: ((error: Error) => void) | undefined;
   onCancel?: (() => void) | undefined;
 };
 
-export type AcpThreadControllerLike = {
-  getState(): AcpThreadState;
-  subscribe(listener: () => void): () => void;
-  attach(): Promise<void>;
-  detach(): Promise<void>;
-  updateOptions(options: AcpThreadControllerOptions): Promise<void>;
-  load(): Promise<void>;
-  append(message: AppendMessage): Promise<void>;
-  cancel(): Promise<void>;
-  respondToApproval(options: RespondToToolApprovalOptions): Promise<void>;
-  applyExternalMessages(messages: readonly ThreadMessage[]): Promise<void>;
-  dispose(): Promise<void>;
-};
-
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
+
+const CANCELLED_STATUS = { type: "incomplete", reason: "cancelled" } as const;
 
 const noop = () => {};
 
@@ -69,18 +54,34 @@ type PendingPermission = {
   resolve: (outcome: AcpPermissionOutcome) => void;
 };
 
-type ClaimedRun = {
-  token: number;
-  prompt: Promise<AcpStopReason>;
+type InflightPrompt = {
+  readonly assistantId: string;
+  readonly prompt: Promise<AcpStopReason>;
 };
 
-export class AcpThreadController implements AcpThreadControllerLike {
-  private state: AcpThreadState;
+type ClaimedRun = InflightPrompt & { readonly token: number };
+
+type ThreadEpoch = { readonly ended: Promise<void>; end(): void };
+
+const createEpoch = (): ThreadEpoch => {
+  let end = noop;
+  const ended = new Promise<void>((resolve) => {
+    end = resolve;
+  });
+  return { ended, end };
+};
+
+/**
+ * Owns one thread on one `AcpClient`: the transcript, the running turn and its
+ * approvals. A client belongs to its controller for the controller's lifetime.
+ */
+export class AcpThreadController {
+  private state: AcpThreadState = createAcpThreadState();
   private readonly listeners = new Set<() => void>();
   private readonly pendingPermissions = new Map<string, PendingPermission>();
-  private client: AcpClient;
-  private permissionsMode: AcpPermissionsMode;
-  private autoConnect: boolean;
+  private readonly client: AcpClient;
+  private permissionsMode: AcpPermissionsMode = "ask";
+  private autoConnect = true;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private loadPromise: Promise<void> | undefined;
@@ -89,12 +90,11 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private detachToken = 0;
   private permissionCounter = 0;
   private attached = false;
-  private inflightPrompt: Promise<unknown> | undefined;
+  private inflight: InflightPrompt | undefined;
   private runAbort: AbortController | undefined;
   private startLock: Promise<void> = Promise.resolve();
-  private unsubscribeSessionUpdate: (() => void) | undefined;
-  private unsubscribeConnectionChange: (() => void) | undefined;
-  private restorePermissionHandler: (() => void) | undefined;
+  private epoch = createEpoch();
+  private detachFromClient: (() => void) | undefined;
 
   private readonly boundOnSessionUpdate = (
     _sessionId: string,
@@ -112,13 +112,11 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private readonly boundPermissionHandler = (request: AcpPermissionRequest) =>
     this.handlePermissionRequest(request);
 
-  constructor(options: AcpThreadControllerOptions) {
+  constructor(
+    options: AcpThreadControllerOptions & { readonly client: AcpClient },
+  ) {
     this.client = options.client;
-    this.permissionsMode = options.permissions ?? "ask";
-    this.autoConnect = options.autoConnect ?? true;
-    this.onError = options.onError;
-    this.onCancel = options.onCancel;
-    this.state = createAcpThreadState();
+    this.updateOptions(options);
   }
 
   getState = (): AcpThreadState => this.state;
@@ -131,68 +129,39 @@ export class AcpThreadController implements AcpThreadControllerLike {
   };
 
   /**
-   * Subscribes instead of assigning: a caller-owned `AcpClient` keeps its own
-   * listeners, and a `permissionHandler` the caller configured stays in charge
-   * of approvals. Whatever this replaces is restored by `detach()`.
+   * Subscribes instead of assigning, so a caller-owned `AcpClient` keeps its
+   * own listeners, and a `permissionHandler` it was constructed with keeps
+   * answering approvals ahead of this controller.
    */
-  async attach(): Promise<void> {
+  attach(): void {
     if (this.attached) return;
     this.attached = true;
-    this.unsubscribeSessionUpdate = this.client.subscribeSessionUpdate(
-      this.boundOnSessionUpdate,
-    );
-    this.unsubscribeConnectionChange = this.client.subscribeConnectionChange(
-      this.boundOnConnectionChange,
-    );
-    if (!this.client.hasConfiguredPermissionHandler) {
-      const client = this.client;
-      const previous = client.permissionHandler;
-      this.restorePermissionHandler = () => {
-        if (client.permissionHandler === this.boundPermissionHandler) {
-          client.permissionHandler = previous;
-        }
-      };
-      client.permissionHandler = this.boundPermissionHandler;
-    }
+    const unsubscribes = [
+      this.client.subscribeSessionUpdate(this.boundOnSessionUpdate),
+      this.client.subscribeConnectionChange(this.boundOnConnectionChange),
+      this.client.registerPermissionHandler(this.boundPermissionHandler),
+    ];
+    this.detachFromClient = () => {
+      for (const unsubscribe of unsubscribes) unsubscribe();
+    };
     this.dispatch(this.connectionEvent(this.client.connectionState));
   }
 
   async detach(): Promise<void> {
     if (!this.attached) return;
     this.attached = false;
-    this.unsubscribeSessionUpdate?.();
-    this.unsubscribeSessionUpdate = undefined;
-    this.unsubscribeConnectionChange?.();
-    this.unsubscribeConnectionChange = undefined;
-    this.restorePermissionHandler?.();
-    this.restorePermissionHandler = undefined;
-    this.runToken += 1;
+    this.detachFromClient?.();
+    this.detachFromClient = undefined;
     this.detachToken += 1;
-    this.runAbort?.abort();
-    await this.settlePermissions();
-    if (this.state.run.type === "running") {
-      this.dispatch({
-        type: "run-end",
-        status: { type: "incomplete", reason: "cancelled" },
-      });
-      try {
-        await this.client.cancel();
-      } catch {
-        // an unsendable cancel must not reject teardown
-      }
-    }
     this.hasLoaded = false;
+    await this.stopRun();
   }
 
-  async updateOptions(options: AcpThreadControllerOptions): Promise<void> {
-    const clientChanged = options.client !== this.client;
-    if (clientChanged) await this.detach();
-    this.client = options.client;
+  updateOptions(options: AcpThreadControllerOptions): void {
     this.permissionsMode = options.permissions ?? "ask";
     this.autoConnect = options.autoConnect ?? true;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
-    if (clientChanged) await this.attach();
   }
 
   async load(): Promise<void> {
@@ -214,15 +183,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
   }
 
   async cancel(): Promise<void> {
-    if (this.state.run.type !== "running") return;
-    this.runToken += 1;
-    this.runAbort?.abort();
-    await this.settlePermissions();
-    this.dispatch({
-      type: "run-end",
-      status: { type: "incomplete", reason: "cancelled" },
-    });
-    await this.client.cancel();
+    if (!(await this.stopRun())) return;
     invokeUserCallback("acp", "onCancel", this.onCancel);
   }
 
@@ -251,29 +212,18 @@ export class AcpThreadController implements AcpThreadControllerLike {
     pending.resolve(outcome);
   }
 
-  async applyExternalMessages(
-    messages: readonly ThreadMessage[],
-  ): Promise<void> {
-    const converted: AcpThreadMessage[] = [];
-    const seen = new Set<string>();
-    let parentId: string | null = null;
-    for (const message of messages) {
-      if (seen.has(message.id)) continue;
-      seen.add(message.id);
-      converted.push(toAcpThreadMessage(message, parentId));
-      parentId = message.id;
-    }
-    this.dispatch({
-      type: "replace-messages",
-      messages: converted,
-      headId: parentId,
-    });
-  }
-
-  async dispose(): Promise<void> {
-    await this.detach();
-    this.listeners.clear();
-    this.loadPromise = undefined;
+  /**
+   * Ends the thread together with its ACP session: the transcript clears and
+   * the next prompt opens a new session. It is also the way out of a session
+   * a dropped connection could not restore.
+   */
+  async startNewThread(): Promise<void> {
+    await this.stopRun();
+    this.epoch.end();
+    this.epoch = createEpoch();
+    this.inflight = undefined;
+    this.client.resetSession();
+    this.dispatch({ type: "reset" });
   }
 
   private dispatch(event: AcpThreadEvent): void {
@@ -290,18 +240,10 @@ export class AcpThreadController implements AcpThreadControllerLike {
       type: "connection",
       connectionState,
       sessionId: this.client.sessionId,
-      ...(this.client.agentInfo !== undefined && {
-        agentInfo: this.client.agentInfo,
-      }),
-      ...(this.client.agentCapabilities !== undefined && {
-        agentCapabilities: this.client.agentCapabilities,
-      }),
-      ...(this.client.modes !== undefined && {
-        sessionModes: this.client.modes,
-      }),
-      ...(this.client.configOptions !== undefined && {
-        sessionConfigOptions: this.client.configOptions,
-      }),
+      agentInfo: this.client.agentInfo,
+      agentCapabilities: this.client.agentCapabilities,
+      sessionModes: this.client.modes,
+      sessionConfigOptions: this.client.configOptions,
     };
   }
 
@@ -317,10 +259,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
     );
   }
 
-  private reportDroppedBlocks(dropped: readonly AcpContentBlock[]): void {
-    this.reportError(this.droppedBlocksError(dropped));
-  }
-
   /**
    * Connects and marks the thread ready. The transcript is not restored from
    * storage: the agent owns the conversation, and a UI that shows messages the
@@ -330,39 +268,46 @@ export class AcpThreadController implements AcpThreadControllerLike {
     if (this.autoConnect) {
       try {
         await this.client.connect();
-        this.dispatch(this.connectionEvent("connected"));
       } catch (error) {
-        this.dispatch(this.connectionEvent("disconnected"));
         this.reportError(error);
       }
+      this.dispatch(this.connectionEvent(this.client.connectionState));
     }
     this.hasLoaded = true;
     this.dispatch({ type: "load-ready" });
   }
 
-  /**
-   * Waits for a prompt this run superseded to settle before the next one goes
-   * out. `session/update` carries no turn id, so a still-running old turn
-   * would render its remaining frames inside the new assistant message. There
-   * is no deadline: ACP requires an agent to answer a cancelled
-   * `session/prompt` with `stopReason: "cancelled"`, and `session/prompt` is
-   * exempt from `requestTimeoutMs` because a turn has no bounded duration. The
-   * wait therefore ends on that answer, or on the rejection the client sends
-   * its pending requests when the socket drops.
-   */
-  private async settleSupersededPrompt(): Promise<void> {
-    const previous = this.inflightPrompt;
-    if (!previous) return;
-    await previous.then(noop, noop);
-    if (this.inflightPrompt === previous) this.inflightPrompt = undefined;
-  }
-
-  private async settlePermissions(): Promise<void> {
+  private settlePermissions(): void {
     if (this.pendingPermissions.size === 0) return;
     const pending = [...this.pendingPermissions.values()];
     this.pendingPermissions.clear();
     this.dispatch({ type: "permissions-cancelled" });
     for (const entry of pending) entry.resolve({ outcome: "cancelled" });
+  }
+
+  /**
+   * Ends the running turn as cancelled and tells the agent. A turn whose prompt
+   * is already on the wire keeps receiving the tool call updates the agent may
+   * still send, until that prompt settles.
+   */
+  private async stopRun(): Promise<boolean> {
+    if (this.state.run.type !== "running") return false;
+    const assistantId = this.state.run.assistantId;
+    this.runToken += 1;
+    this.runAbort?.abort();
+    this.settlePermissions();
+    this.dispatch({
+      type: "run-end",
+      assistantId,
+      status: CANCELLED_STATUS,
+      settling: this.inflight?.assistantId === assistantId,
+    });
+    try {
+      await this.client.cancel();
+    } catch {
+      // an unsendable cancel must not reject the stop
+    }
+    return true;
   }
 
   private handlePermissionRequest(
@@ -375,43 +320,66 @@ export class AcpThreadController implements AcpThreadControllerLike {
       return Promise.resolve({ outcome: "cancelled" });
     }
     const approvalId = `acp-permission-${(this.permissionCounter += 1)}`;
-    this.dispatch({ type: "permission-request", approvalId, request });
     return new Promise<AcpPermissionOutcome>((resolve) => {
       this.pendingPermissions.set(approvalId, { request, resolve });
+      this.dispatch({ type: "permission-request", approvalId, request });
     });
   }
 
   /**
-   * Serializes run prologues so two concurrent replacements cannot capture the
-   * same `runToken`. The lock covers the prologue up to sending the prompt, not
-   * the turn itself: the loser's prompt only settles because the winner cancels
-   * it, and that cancel happens inside the prologue.
+   * Starts a turn for `userMessageId` once every earlier start has sent its
+   * prompt or given up, so each message the thread shows reaches the agent
+   * before a later one supersedes it. A stop or detach that lands before the
+   * prompt is sent withholds it: an agent must never run a turn the user
+   * already stopped.
    */
-  private withStartLock<T>(fn: () => Promise<T>): Promise<T> {
-    const result = this.startLock.then(fn, fn);
-    this.startLock = result.then(noop, noop);
-    return result;
+  private async run(userMessageId: string): Promise<void> {
+    const attached = this.detachToken;
+    const epoch = this.epoch;
+    const start = this.startLock.then(() =>
+      this.claimRun(userMessageId, attached, epoch),
+    );
+    this.startLock = start.then(noop, noop);
+    const claimed = await start;
+    if (!claimed) return;
+    const { token, assistantId, prompt } = claimed;
+
+    let status: MessageStatus;
+    try {
+      status = stopReasonToMessageStatus(await prompt);
+    } catch (error) {
+      const err = toError(error);
+      status = { type: "incomplete", reason: "error", error: err.message };
+      if (token === this.runToken) this.reportError(err);
+    } finally {
+      if (this.inflight?.prompt === prompt) this.inflight = undefined;
+      this.dispatch({ type: "run-settled", assistantId });
+    }
+    if (token !== this.runToken) return;
+
+    this.settlePermissions();
+    this.dispatch({ type: "run-end", assistantId, status });
   }
 
   /**
-   * A detach that lands while this prologue is waiting supersedes it: the turn
-   * would otherwise be launched on a controller nobody is listening to. A cancel
-   * that lands while the session is still being created aborts the prompt
-   * instead, so `session/prompt` is never sent for a turn the user stopped. The
-   * prompt is chained off `connect()` because `promptCapabilities` only exist
-   * once the handshake has run, and filtering before it would withhold
-   * attachments from an agent that does accept them.
+   * `session/update` carries no turn id, so a superseded turn still on the wire
+   * would render its remaining frames inside the new message. The new prompt
+   * therefore waits for the superseded one to settle. There is no deadline: ACP
+   * requires an agent to answer a cancelled `session/prompt` with
+   * `stopReason: "cancelled"`, and the client rejects every pending request when
+   * the socket drops. Only a new thread, whose session the old turn cannot
+   * reach, stops waiting early.
    */
   private async claimRun(
     userMessageId: string,
+    attached: number,
+    epoch: ThreadEpoch,
   ): Promise<ClaimedRun | undefined> {
-    const attached = this.detachToken;
-    if (this.state.run.type === "running") await this.cancel();
-    await this.settleSupersededPrompt();
-    if (attached !== this.detachToken) return undefined;
-
+    if (attached !== this.detachToken || epoch !== this.epoch) return undefined;
     const user = this.state.messagesById[userMessageId];
     if (user?.role !== "user") return undefined;
+    const superseded = this.inflight;
+    void this.stopRun();
 
     const assistant: AcpAssistantMessage = {
       role: "assistant",
@@ -421,16 +389,31 @@ export class AcpThreadController implements AcpThreadControllerLike {
       status: { type: "running" },
       content: [],
     };
-    this.dispatch({ type: "run-start", message: assistant });
+    this.runToken += 1;
     const token = this.runToken;
     const abort = new AbortController();
     this.runAbort = abort;
+    this.dispatch({ type: "run-start", message: assistant });
+
+    if (superseded) {
+      await Promise.race([superseded.prompt.then(noop, noop), epoch.ended]);
+      if (this.inflight === superseded) this.inflight = undefined;
+      this.dispatch({
+        type: "run-settled",
+        assistantId: superseded.assistantId,
+      });
+    }
+    if (token !== this.runToken || attached !== this.detachToken) {
+      return undefined;
+    }
+
     const blocks = threadContentToAcpBlocks([
       ...user.content,
       ...user.attachments.flatMap((attachment) => attachment.content ?? []),
     ]);
-    const client = this.client;
-    const prompt = client.connect().then((initialized) => {
+    // filtered after the handshake, because promptCapabilities only exist once it ran
+    const prompt = this.client.connect().then((initialized) => {
+      if (abort.signal.aborted) return "cancelled" as const;
       const filtered = filterPromptBlocks(
         blocks,
         initialized.agentCapabilities?.promptCapabilities,
@@ -440,35 +423,13 @@ export class AcpThreadController implements AcpThreadControllerLike {
           ? this.droppedBlocksError(filtered.dropped)
           : new Error("The message has no content the agent can receive.");
       }
-      if (filtered.dropped.length > 0)
-        this.reportDroppedBlocks(filtered.dropped);
-      return client.prompt(filtered.blocks, abort.signal);
+      if (filtered.dropped.length > 0) {
+        this.reportError(this.droppedBlocksError(filtered.dropped));
+      }
+      return this.client.prompt(filtered.blocks, abort.signal);
     });
-    this.inflightPrompt = prompt;
-    return { token, prompt };
-  }
-
-  private async run(userMessageId: string): Promise<void> {
-    const claimed = await this.withStartLock(() =>
-      this.claimRun(userMessageId),
-    );
-    if (!claimed) return;
-    const { token, prompt } = claimed;
-
-    let status: MessageStatus;
-    try {
-      status = stopReasonToMessageStatus(await prompt);
-    } catch (error) {
-      const err = toError(error);
-      status = { type: "incomplete", reason: "error", error: err.message };
-      this.reportError(err);
-    } finally {
-      if (this.inflightPrompt === prompt) this.inflightPrompt = undefined;
-    }
-    if (token !== this.runToken) return;
-
-    await this.settlePermissions();
-    this.dispatch({ type: "run-end", status });
+    this.inflight = { assistantId: assistant.id, prompt };
+    return { token, assistantId: assistant.id, prompt };
   }
 
   private toUserMessage(message: AppendMessage): AcpUserMessage {
@@ -498,28 +459,3 @@ export class AcpThreadController implements AcpThreadControllerLike {
     };
   }
 }
-
-const toAcpThreadMessage = (
-  message: ThreadMessage,
-  parentId: string | null,
-): AcpThreadMessage => {
-  const createdAt = message.createdAt.getTime();
-  if (message.role === "assistant") {
-    return {
-      role: "assistant",
-      id: message.id,
-      parentId,
-      createdAt,
-      status: message.status,
-      content: message.content,
-    };
-  }
-  return {
-    role: "user",
-    id: message.id,
-    parentId,
-    createdAt,
-    content: message.role === "user" ? message.content : [],
-    attachments: message.role === "user" ? message.attachments : [],
-  };
-};

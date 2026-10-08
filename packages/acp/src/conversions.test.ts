@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { ToolCallMessagePart } from "@assistant-ui/core";
 import {
   appendContentBlock,
-  applySessionUpdateToContent,
   applyToolCallUpdate,
   attachToolCallApproval,
   buildToolCallPart,
@@ -24,11 +23,21 @@ const toolCall = (content: unknown, update: unknown) =>
     update as Parameters<typeof applyToolCallUpdate>[1],
   )!;
 
-const chunk = (content: unknown, update: unknown) =>
-  applySessionUpdateToContent(
-    content as Parameters<typeof applySessionUpdateToContent>[0],
-    update as Parameters<typeof applySessionUpdateToContent>[1],
-  )!;
+const chunk = (content: unknown, update: unknown) => {
+  const current = content as Parameters<typeof appendContentBlock>[0];
+  const u = update as AcpSessionUpdate;
+  switch (u.sessionUpdate) {
+    case "agent_message_chunk":
+      return appendContentBlock(current, u.content, "text")!;
+    case "agent_thought_chunk":
+      return appendContentBlock(current, u.content, "reasoning")!;
+    case "tool_call":
+    case "tool_call_update":
+      return applyToolCallUpdate(current, u)!;
+    default:
+      throw new Error(`not a content update: ${u.sessionUpdate}`);
+  }
+};
 
 describe("stopReasonToMessageStatus", () => {
   it("maps end_turn to complete", () => {
@@ -52,10 +61,10 @@ describe("stopReasonToMessageStatus", () => {
     });
   });
 
-  it("maps refusal and max_turn_requests to incomplete/other", () => {
+  it("maps refusal to content-filter and max_turn_requests to other", () => {
     expect(stopReasonToMessageStatus("refusal")).toEqual({
       type: "incomplete",
-      reason: "other",
+      reason: "content-filter",
     });
     expect(stopReasonToMessageStatus("max_turn_requests")).toEqual({
       type: "incomplete",
@@ -63,10 +72,10 @@ describe("stopReasonToMessageStatus", () => {
     });
   });
 
-  it("treats an unknown stop reason as complete", () => {
+  it("treats an unknown stop reason as complete for an unknown reason", () => {
     expect(stopReasonToMessageStatus("something_new" as never)).toEqual({
       type: "complete",
-      reason: "stop",
+      reason: "unknown",
     });
   });
 });
@@ -504,7 +513,7 @@ describe("mergeToolCallPart", () => {
     });
     expect(renamed.toolName).toBe("read");
     expect(renamed.providerMetadata).toEqual({
-      acp: { title: "Read src/a.ts", kind: "read" },
+      acp: { title: "Read src/a.ts", kind: "read", status: "in_progress" },
     });
     expect(
       mergeToolCallPart(renamed, {
@@ -530,7 +539,11 @@ describe("mergeToolCallPart", () => {
     });
     expect(retitled.toolName).toBe("web_search");
     expect(retitled.providerMetadata).toEqual({
-      acp: { name: "web_search", title: "Searching the web" },
+      acp: {
+        name: "web_search",
+        title: "Searching the web",
+        status: "in_progress",
+      },
     });
   });
 
@@ -580,23 +593,29 @@ describe("mergeToolCallPart", () => {
     ).toBe("web_search");
   });
 
-  const text = (value: string) =>
-    [{ type: "content", content: { type: "text", text: value } }] as const;
+  const text = (value: string) => [
+    {
+      type: "content" as const,
+      content: { type: "text" as const, text: value },
+    },
+  ];
 
-  it("keeps a streamed result preliminary while the known status is running", () => {
-    const pending = buildToolCallPart({ toolCallId: "t1", title: "search" });
-    const streamed = mergeToolCallPart(
-      pending,
-      { toolCallId: "t1", content: text("half") },
-      "in_progress",
-    );
+  it("keeps a streamed result preliminary while the reported status is running", () => {
+    const pending = buildToolCallPart({
+      toolCallId: "t1",
+      title: "search",
+      status: "in_progress",
+    });
+    const streamed = mergeToolCallPart(pending, {
+      toolCallId: "t1",
+      content: text("half"),
+    });
     expect(streamed).toMatchObject({ result: "half", isPreliminary: true });
 
-    const settled = mergeToolCallPart(
-      streamed,
-      { toolCallId: "t1", status: "completed" },
-      "in_progress",
-    );
+    const settled = mergeToolCallPart(streamed, {
+      toolCallId: "t1",
+      status: "completed",
+    });
     expect(settled).toMatchObject({
       result: "half",
       isPreliminary: false,
@@ -633,7 +652,7 @@ describe("mergeToolCallPart", () => {
   });
 });
 
-describe("applySessionUpdateToContent", () => {
+describe("streamed session updates", () => {
   it("merges consecutive text chunks into one part", () => {
     let content = chunk([], {
       sessionUpdate: "agent_message_chunk",
@@ -763,22 +782,13 @@ describe("applySessionUpdateToContent", () => {
     ]);
   });
 
-  it("ignores updates it cannot represent", () => {
+  it("ignores blocks it cannot represent", () => {
+    expect(appendContentBlock([], null as never, "text")).toBeUndefined();
     expect(
-      applySessionUpdateToContent([], {
-        sessionUpdate: "plan",
-        entries: [],
-      } as AcpSessionUpdate as never),
+      appendContentBlock([], { type: "some_future_block" } as never, "text"),
     ).toBeUndefined();
     expect(
-      applySessionUpdateToContent([], {
-        sessionUpdate: "some_future_variant",
-      } as never),
-    ).toBeUndefined();
-    expect(
-      applySessionUpdateToContent([], {
-        sessionUpdate: "tool_call_update",
-      } as never),
+      appendContentBlock([], { type: "resource" } as never, "text"),
     ).toBeUndefined();
   });
 });

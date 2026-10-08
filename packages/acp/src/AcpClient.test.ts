@@ -74,6 +74,7 @@ const mockClient = (
 ) =>
   new AcpClient({
     url: "ws://agent.test/",
+    cwd: "/workspace",
     webSocketFactory: (url) => new MockWebSocket(url),
     ...options,
   });
@@ -174,6 +175,48 @@ describe("AcpClient", () => {
     );
   });
 
+  it("leaves prompts without a deadline while timing out unanswered session creation", async () => {
+    const client = mockClient({ requestTimeoutMs: 20 });
+    const ws = await withSession(client);
+    const prompted = client.prompt([{ type: "text", text: "hi" }]);
+    const prompt = await until(() =>
+      ws.sent.find((f) => f.method === "session/prompt"),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    ws.receive({
+      jsonrpc: "2.0",
+      id: prompt.id!,
+      result: { stopReason: "end_turn" },
+    });
+    await expect(prompted).resolves.toBe("end_turn");
+
+    const unanswered = mockClient({ requestTimeoutMs: 20 });
+    const pending = unanswered.ensureSession();
+    await connectClient(unanswered);
+    await until(() => lastWs().sent.find((f) => f.method === "session/new"));
+    await expect(pending).rejects.toThrow("timed out");
+  });
+
+  it("rejects an unsupported protocol version and closes the socket", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    const ws = lastWs();
+    ws.open();
+    const init = await until(() =>
+      ws.sent.find((f) => f.method === "initialize"),
+    );
+    ws.receive({
+      jsonrpc: "2.0",
+      id: init.id!,
+      result: { protocolVersion: 2 },
+    });
+
+    await expect(pending).rejects.toThrow("2");
+    expect(ws.closed).toBe(true);
+    expect(client.connectionState).toBe("disconnected");
+  });
+
   it("rejects connect when the socket errors before handshake", async () => {
     const client = mockClient();
     const pending = client.connect();
@@ -197,6 +240,59 @@ describe("AcpClient", () => {
       cwd: "/srv/app",
       mcpServers: [],
     });
+  });
+
+  it("checks MCP transport capabilities before creating a session", async () => {
+    const server = {
+      type: "http" as const,
+      name: "docs",
+      url: "https://docs.test/mcp",
+      headers: [],
+    };
+    const unsupported = mockClient({ mcpServers: [server] });
+    const rejected = expect(unsupported.ensureSession()).rejects.toThrow(
+      "docs",
+    );
+    await connectClient(unsupported);
+    await rejected;
+    expect(lastWs().sent.some((f) => f.method === "session/new")).toBe(false);
+
+    const supported = mockClient({ mcpServers: [server] });
+    const supportedSession = supported.ensureSession();
+    const supportedWs = lastWs();
+    await completeHandshake(supportedWs, { mcpCapabilities: { http: true } });
+    const httpNew = await until(() =>
+      supportedWs.sent.find((f) => f.method === "session/new"),
+    );
+    expect(httpNew.params).toEqual({
+      cwd: "/workspace",
+      mcpServers: [server],
+    });
+    supportedWs.receive({
+      jsonrpc: "2.0",
+      id: httpNew.id!,
+      result: { sessionId: "http-session" },
+    });
+    await expect(supportedSession).resolves.toBe("http-session");
+
+    const stdioServer = { name: "local", command: "srv", args: [], env: [] };
+    const stdio = mockClient({ mcpServers: [stdioServer] });
+    const stdioSession = stdio.ensureSession();
+    await connectClient(stdio);
+    const stdioWs = lastWs();
+    const stdioNew = await until(() =>
+      stdioWs.sent.find((f) => f.method === "session/new"),
+    );
+    expect(stdioNew.params).toEqual({
+      cwd: "/workspace",
+      mcpServers: [stdioServer],
+    });
+    stdioWs.receive({
+      jsonrpc: "2.0",
+      id: stdioNew.id!,
+      result: { sessionId: "stdio-session" },
+    });
+    await expect(stdioSession).resolves.toBe("stdio-session");
   });
 
   it("keeps the modes and config options session/new reports", async () => {
@@ -324,7 +420,6 @@ describe("AcpClient", () => {
 
   it("refuses permission requests unless the caller opts in", async () => {
     const client = mockClient();
-    expect(client.permissionHandler).toBe(cancelPermissionHandler);
     await connectClient(client);
     const ws = lastWs();
 
@@ -349,12 +444,47 @@ describe("AcpClient", () => {
     });
   });
 
-  it("reports whether the caller configured a permission handler", () => {
-    expect(mockClient().hasConfiguredPermissionHandler).toBe(false);
-    expect(
-      mockClient({ permissionHandler: autoAllowPermissionHandler })
-        .hasConfiguredPermissionHandler,
-    ).toBe(true);
+  it("answers through the latest registered handler until it unregisters", async () => {
+    const client = mockClient();
+    const unregisterFirst = client.registerPermissionHandler(
+      autoAllowPermissionHandler,
+    );
+    const unregisterSecond = client.registerPermissionHandler(
+      cancelPermissionHandler,
+    );
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive(permissionRequest(90));
+    const latest = await until(() => ws.sent.find((f) => f.id === 90));
+    expect(latest.result).toEqual({ outcome: { outcome: "cancelled" } });
+
+    unregisterSecond();
+    ws.receive(permissionRequest(91));
+    const earlier = await until(() => ws.sent.find((f) => f.id === 91));
+    expect(earlier.result).toEqual({
+      outcome: { outcome: "selected", optionId: "allow-1" },
+    });
+
+    unregisterFirst();
+    ws.receive(permissionRequest(92));
+    const none = await until(() => ws.sent.find((f) => f.id === 92));
+    expect(none.result).toEqual({ outcome: { outcome: "cancelled" } });
+  });
+
+  it("keeps the configured handler ahead of registered ones", async () => {
+    const client = mockClient({
+      permissionHandler: autoAllowPermissionHandler,
+    });
+    client.registerPermissionHandler(cancelPermissionHandler);
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive(permissionRequest(93));
+    const response = await until(() => ws.sent.find((f) => f.id === 93));
+    expect(response.result).toEqual({
+      outcome: { outcome: "selected", optionId: "allow-1" },
+    });
   });
 
   it("replies cancelled when the permission handler throws synchronously", async () => {
@@ -488,7 +618,7 @@ describe("AcpClient", () => {
     );
     expect(load.params).toEqual({
       sessionId: "s1",
-      cwd: "/",
+      cwd: "/workspace",
       mcpServers: [],
     });
     next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
@@ -925,14 +1055,127 @@ describe("AcpClient", () => {
     expect(seen).toContain("s1");
   });
 
-  it("sends an absolute cwd to session/new by default", async () => {
+  it("sends the configured cwd to session/new", async () => {
     const client = mockClient();
     const ws = await withSession(client);
 
     expect(ws.sent.find((f) => f.method === "session/new")?.params).toEqual({
-      cwd: "/",
+      cwd: "/workspace",
       mcpServers: [],
     });
+  });
+
+  it("resets an open session and ignores its later updates", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const states: string[] = [];
+    const updates: string[] = [];
+    client.subscribeConnectionChange((state) => states.push(state));
+    client.subscribeSessionUpdate((sessionId) => updates.push(sessionId));
+
+    client.resetSession();
+    expect(client.sessionId).toBeUndefined();
+    expect(states).toEqual(["connected"]);
+
+    const next = client.ensureSession();
+    const created = await until(() =>
+      ws.sent.filter((f) => f.method === "session/new").at(1),
+    );
+    expect(ws.sent.some((f) => f.method === "session/load")).toBe(false);
+    ws.receive({
+      jsonrpc: "2.0",
+      id: created.id!,
+      result: { sessionId: "s2" },
+    });
+    await expect(next).resolves.toBe("s2");
+
+    ws.receive({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "s1",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "old" },
+        },
+      },
+    });
+    expect(updates).toEqual([]);
+  });
+
+  it("starts a new session after resetting one lost on a dropped socket", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close();
+    client.resetSession();
+
+    const nextSession = client.ensureSession();
+    const nextWs = lastWs();
+    expect(nextWs).not.toBe(ws);
+    await completeHandshake(nextWs, { loadSession: false });
+    const created = await until(() =>
+      nextWs.sent.find((f) => f.method === "session/new"),
+    );
+    expect(nextWs.sent.some((f) => f.method === "session/load")).toBe(false);
+    nextWs.receive({
+      jsonrpc: "2.0",
+      id: created.id!,
+      result: { sessionId: "s2" },
+    });
+    await expect(nextSession).resolves.toBe("s2");
+  });
+
+  it("rejects a session opening that was reset before its reply", async () => {
+    const client = mockClient();
+    const pending = client.ensureSession();
+    await connectClient(client);
+    const ws = lastWs();
+    const created = await until(() =>
+      ws.sent.find((f) => f.method === "session/new"),
+    );
+    const rejected = expect(pending).rejects.toThrow("reset");
+    const updates: string[] = [];
+    client.subscribeSessionUpdate((sessionId) => updates.push(sessionId));
+
+    client.resetSession();
+    ws.receive({
+      jsonrpc: "2.0",
+      id: created.id!,
+      result: { sessionId: "abandoned" },
+    });
+    await rejected;
+    expect(client.sessionId).toBeUndefined();
+
+    ws.receive({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "abandoned",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "old" },
+        },
+      },
+    });
+    expect(updates).toEqual([]);
+  });
+
+  it("rejects permission requests missing options without calling the handler", async () => {
+    const handler = vi.fn(cancelPermissionHandler);
+    const client = mockClient({ permissionHandler: handler });
+    await connectClient(client);
+    const ws = lastWs();
+    ws.receive({
+      ...permissionRequest(94),
+      params: {
+        sessionId: "s1",
+        toolCall: { toolCallId: "t1", title: "write_file" },
+      },
+    });
+
+    const response = await until(() => ws.sent.find((f) => f.id === 94));
+    expect(response.error?.code).toBe(-32602);
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it("finishes dispose cleanup when the transport throws on close", async () => {
