@@ -12,10 +12,7 @@ import type {
   RemoteThreadListAdapter,
   RuntimeAdapters,
 } from "../../../runtimes/remote-thread-list/types";
-import {
-  InMemoryThreadListAdapter,
-  initializeInMemoryThread,
-} from "../../../runtimes/remote-thread-list/adapter/in-memory";
+import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import {
   DEFAULT_CLOUD_SCOPE,
   useScopedAssistantCloudThreadHistoryAdapter,
@@ -170,7 +167,7 @@ export const createCloudThreadListAdapter = (
     const inMemory = new InMemoryThreadListAdapter();
     inMemory.initialize = async (threadId: string) => {
       const result = await getOptions().create?.(threadId);
-      return initializeInMemoryThread(inMemory, threadId, result?.externalId);
+      return inMemory.register(threadId, result?.externalId);
     };
     return inMemory;
   }

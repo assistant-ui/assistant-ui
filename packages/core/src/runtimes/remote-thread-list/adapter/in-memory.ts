@@ -54,9 +54,10 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
   }
 
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse> {
-    return Promise.resolve(initializeInMemoryThread(this, threadId));
+    return Promise.resolve(this.register(threadId));
   }
 
+  /** @internal */
   register(
     threadId: string,
     externalId?: string | undefined,
@@ -89,11 +90,3 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     );
   }
 }
-
-export const initializeInMemoryThread = (
-  adapter: InMemoryThreadListAdapter,
-  threadId: string,
-  externalId?: string | undefined,
-): RemoteThreadInitializeResponse => {
-  return adapter.register(threadId, externalId);
-};
