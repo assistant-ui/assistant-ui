@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { Suspense, startTransition, use, useState, version } from "react";

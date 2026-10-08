@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Adversarial parity scenarios: each one was designed to break the
  * React/tap equivalence and survived. Anything that diverged instead is

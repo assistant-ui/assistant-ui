@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { StrictMode, version } from "react";
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
