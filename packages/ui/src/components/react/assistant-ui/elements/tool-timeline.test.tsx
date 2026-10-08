@@ -74,16 +74,6 @@ describe("ToolTimeline", () => {
     expect(called).toBe(true);
   });
 
-  // Two steps in the same turn can carry an identical chip (two reads
-  // reported with the same label, e.g.) - each must still render as its
-  // own row, not merge or drop one. A single static render can't tell a
-  // correct index key apart from a colliding chip key: React mounts a
-  // fiber per array entry either way, so `getAllByText` sees two rows
-  // under both implementations. What does distinguish them is React's
-  // own duplicate-key validation, which runs on every render (mount
-  // included) and warns via console.error whenever two siblings in the
-  // same array share a key - exactly the case `key={step.chip}` produces
-  // here and `key={index}` does not.
   it("renders two steps with an identical chip as two separate rows, with no duplicate-key warning", () => {
     const duplicateChip: TimelineStep[] = [
       { verb: "Read", chip: "config.ts", icon: FileIcon },
@@ -92,25 +82,65 @@ describe("ToolTimeline", () => {
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    render(
+    try {
+      render(
+        <ToolTimeline
+          steps={duplicateChip}
+          visibleSteps={duplicateChip.length}
+          streaming={false}
+          open
+          onOpenChange={() => {}}
+          restingLabel="Worked for 4s"
+          activeLabel="Working"
+          stats={[]}
+        />,
+      );
+
+      expect(screen.getAllByText("Read")).toHaveLength(2);
+      expect(screen.getAllByText("config.ts")).toHaveLength(2);
+      expect(
+        errorSpy.mock.calls.some((call) =>
+          String(call[0]).includes("same key"),
+        ),
+      ).toBe(false);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("preserves surviving rows and mounts the entering row when an identified window slides", () => {
+    const steps: TimelineStep[] = Array.from({ length: 7 }, (_, index) => ({
+      id: `s${index + 1}`,
+      verb: "Read",
+      chip: `file-${index + 1}.ts`,
+      icon: FileIcon,
+    }));
+    const renderWindow = (window: TimelineStep[]) => (
       <ToolTimeline
-        steps={duplicateChip}
-        visibleSteps={duplicateChip.length}
+        steps={window}
+        visibleSteps={window.length}
         streaming={false}
         open
         onOpenChange={() => {}}
-        restingLabel="Worked for 4s"
+        restingLabel="Worked for 7s"
         activeLabel="Working"
         stats={[]}
-      />,
+      />
     );
 
-    expect(screen.getAllByText("Read")).toHaveLength(2);
-    expect(screen.getAllByText("config.ts")).toHaveLength(2);
-    expect(
-      errorSpy.mock.calls.some((call) => String(call[0]).includes("same key")),
-    ).toBe(false);
+    const { rerender } = render(renderWindow(steps.slice(0, 6)));
+    const rows = steps
+      .slice(0, 6)
+      .map((step) => screen.getByText(step.chip).parentElement);
 
-    errorSpy.mockRestore();
+    rerender(renderWindow(steps.slice(1)));
+
+    expect(screen.queryByText("file-1.ts")).toBeNull();
+    for (let index = 1; index < 6; index++) {
+      expect(screen.getByText(steps[index]!.chip).parentElement).toBe(
+        rows[index],
+      );
+    }
+    expect(screen.getByText("file-7.ts").parentElement).not.toBe(rows[0]);
   });
 });
