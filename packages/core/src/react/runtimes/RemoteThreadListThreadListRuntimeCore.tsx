@@ -94,6 +94,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
   private _adapterGeneration = 0;
+  private _listedAdapterGeneration = 0;
   private _replaceListOnNextLoad = false;
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
@@ -216,6 +217,7 @@ export class RemoteThreadListThreadListRuntimeCore
             appliedList = true;
             if (replaceList) {
               this._replaceListOnNextLoad = false;
+              this._listedAdapterGeneration = this._adapterGeneration;
               replacedList = true;
               return this._replaceWithThreads(
                 { ...state, loadError: undefined },
@@ -240,6 +242,7 @@ export class RemoteThreadListThreadListRuntimeCore
             return;
           }
           this._replaceListOnNextLoad = false;
+          this._listedAdapterGeneration = this._adapterGeneration;
           replacedList = true;
           this._state.update(
             this._replaceWithThreads(
@@ -388,7 +391,13 @@ export class RemoteThreadListThreadListRuntimeCore
       this._loadMorePromise = undefined;
       this._replaceListOnNextLoad = true;
       this._staleThreadIdsOnReplace = new Set(
-        Object.values(this._state.baseValue.threadData)
+        [
+          ...Object.values(this._state.baseValue.threadData),
+          ...Object.values(this._state.value.threadData).filter(
+            (item) =>
+              getThreadData(this._state.baseValue, item.id)?.status === "new",
+          ),
+        ]
           .filter((item) => item.status !== "new")
           .map((item) => item.id),
       );
@@ -904,7 +913,9 @@ export class RemoteThreadListThreadListRuntimeCore
     const initialization = this._state.optimisticUpdate({
       execute: () => initializeTask,
       optimistic: (state) =>
-        promoteNewThreadReducer(state, threadId, initializeTask),
+        this._listedAdapterGeneration > adapterGeneration
+          ? state
+          : promoteNewThreadReducer(state, threadId, initializeTask),
       then: (state, { remoteId, externalId }) => {
         if (adapterGeneration !== this._adapterGeneration) return state;
         const reconciliation = reconcileInitializedThread(
@@ -1341,13 +1352,15 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
+    // Identity protects a replacement draft that reused this local id.
+    const draftAtDelete = getThreadData(this._state.baseValue, data.id);
 
-    do {
-      await this._ensureThreadIsNotMain(data.id);
-    } while (data.id === this._mainThreadId);
-    this._requireAdapterGeneration(adapterGeneration);
     let remoteId: string | undefined;
     try {
+      do {
+        await this._ensureThreadIsNotMain(data.id);
+      } while (data.id === this._mainThreadId);
+      this._requireAdapterGeneration(adapterGeneration);
       await this._state.optimisticUpdate({
         execute: async () => {
           ({ remoteId } = await data.initializeTask);
@@ -1365,6 +1378,46 @@ export class RemoteThreadListThreadListRuntimeCore
               ),
       });
     } catch (error) {
+      const hideDeletedThread = () => {
+        if (adapterGeneration === this._adapterGeneration) return;
+        const current = getThreadData(this._state.baseValue, data.id);
+        if (
+          current?.status === "new" &&
+          current === draftAtDelete &&
+          this._mainThreadId !== current.id
+        ) {
+          this._state.update(
+            deleteThreadReducer(this._state.baseValue, data.id, undefined),
+          );
+          this._hookManager.stopThreadRuntime(data.id);
+          clearThreadTitleState(this._titleStates, data.id);
+          return;
+        }
+        if (!this._replaceListOnNextLoad) return;
+        if (
+          current !== undefined &&
+          current.status !== "new" &&
+          current.remoteId === undefined &&
+          this._mainThreadId !== current.id &&
+          !this._isOtherAdaptersThread(this._state.baseValue, adapter, data.id)
+        ) {
+          this._state.update(
+            updateStatusReducer(this._state.baseValue, data.id, "deleted"),
+          );
+          this._hookManager.stopThreadRuntime(data.id);
+          clearThreadTitleState(this._titleStates, data.id);
+        }
+      };
+      if (
+        adapterGeneration !== this._adapterGeneration &&
+        this._replaceListOnNextLoad &&
+        getThreadData(this._state.baseValue, data.id)?.status === "new"
+      ) {
+        void data.initializeTask.then(hideDeletedThread, () => {});
+      } else {
+        hideDeletedThread();
+      }
+
       const controlledThreadId = this._options.threadId;
       if (
         this._switchGeneration === this._controlledSwitchGeneration &&

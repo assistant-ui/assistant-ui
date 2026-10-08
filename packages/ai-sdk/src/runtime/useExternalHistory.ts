@@ -135,6 +135,10 @@ export const useExternalHistory = <TMessage>(
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
+        const threadState = runtimeRef.current.thread.getState();
+        if (threadState.isRunning || threadState.messages.length > 0) {
+          return;
+        }
         toolArtifacts?.clear();
         toolInteractions?.clear();
         toolApprovalResponses?.clear();

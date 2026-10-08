@@ -42,7 +42,7 @@ export function ThreadList({
 
       {...props}
     >
-      <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>Today</div>
+      <div className={cn(mono, "text-muted-foreground px-3 pb-1.5")}>Today</div>
       {threads.map((thread, i) => {
         const active = i === activeIndex;
         const hasActions = onRename !== undefined || onDelete !== undefined;
@@ -72,7 +72,7 @@ export function ThreadList({
             <span
               className={cn(
                 mono,
-                "text-foreground/35 flex items-center gap-1.5 tabular-nums",
+                "text-muted-foreground flex items-center gap-1.5 tabular-nums",
                 hasActions &&
                   onActiveIndexChange &&
                   "group-focus-within:hidden group-hover:hidden",
@@ -124,7 +124,7 @@ export function ThreadList({
                     type="button"
                     aria-label={`Rename ${thread.title}`}
                     onClick={() => onRename(i)}
-                    className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1"
+                    className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1"
                   >
                     <PencilIcon className="size-3" />
                   </button>
@@ -134,7 +134,7 @@ export function ThreadList({
                     type="button"
                     aria-label={`Delete ${thread.title}`}
                     onClick={() => onDelete(i)}
-                    className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1"
+                    className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1"
                   >
                     <Trash2Icon className="size-3" />
                   </button>

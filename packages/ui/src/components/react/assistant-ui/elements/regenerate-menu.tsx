@@ -65,7 +65,7 @@ export function RegenerateMenu({
                 <span className="min-w-0 flex-1 truncate text-[13px]">
                   {option.label}
                 </span>
-                <span className={cn(mono, "text-foreground/30 shrink-0")}>
+                <span className={cn(mono, "text-muted-foreground shrink-0")}>
                   {option.id === currentId ? "current" : option.detail}
                 </span>
               </>

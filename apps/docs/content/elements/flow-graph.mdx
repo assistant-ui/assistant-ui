@@ -178,7 +178,7 @@ useEffect(() => {
 </div>
 ```
 
-`visibleCount` slices `nodes` from the start of the array. An edge draws with a bright stroke only once both its `from` and `to` ids are inside that slice, and reads as a faint stroke otherwise; an edge naming an id that isn't in `nodes` is skipped entirely. `state` drives each node's border and fill: `"done"` is a muted filled box, `"active"` is a blue outline, and `"pending"` is a dashed, dimmer box.
+`visibleCount` slices `nodes` from the start of the array. An edge draws with a bright stroke only once both its `from` and `to` ids are inside that slice, and reads as a faint stroke otherwise; an edge naming an id that isn't in `nodes` is skipped entirely. `state` drives each node's border and fill: `"done"` is a muted filled box, `"active"` is a blue outline, and `"pending"` is an unfilled box with a dashed border in the theme's `border` color.
 
 ## Examples
 

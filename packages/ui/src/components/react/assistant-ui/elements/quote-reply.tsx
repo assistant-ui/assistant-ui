@@ -89,8 +89,8 @@ export function QuoteReply({
 
       {quoted && (
         <div className="fade-in slide-in-from-bottom-1 animate-in flex flex-col gap-1 duration-300">
-          <span className={cn(mono, "text-foreground/30")}>replying to</span>
-          <div className="border-foreground/15 text-foreground/55 border-s-2 ps-2.5 text-xs leading-relaxed">
+          <span className={cn(mono, "text-muted-foreground")}>replying to</span>
+          <div className="border-foreground/15 text-muted-foreground border-s-2 ps-2.5 text-xs leading-relaxed">
             {quoted}
           </div>
         </div>

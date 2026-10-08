@@ -58,7 +58,7 @@ export function ReadAloud({
             className={cn(
               "transition-colors duration-200 motion-reduce:transition-none",
               i < spokenIndex
-                ? "text-foreground/40"
+                ? "text-muted-foreground"
                 : i === spokenIndex
                   ? "text-foreground/95 rounded bg-blue-500/12 dark:bg-blue-400/15"
                   : "text-foreground/70",
@@ -90,15 +90,17 @@ export function ReadAloud({
           aria-valuemax={100}
           aria-valuenow={announced(progress)}
           aria-valuetext={`${elapsed} of ${duration}`}
-          className="bg-foreground/[0.08] h-[3px] min-w-0 flex-1 overflow-hidden rounded-full"
+          className="bg-foreground/[0.08] inset-ring-border h-[3px] min-w-0 flex-1 overflow-hidden rounded-full inset-ring forced-colors:outline"
         >
           <span
-            className="block h-full rounded-full bg-blue-500 transition-[width] duration-200 ease-linear motion-reduce:transition-none dark:bg-blue-400"
+            className="block h-full rounded-full bg-blue-500 transition-[width] duration-200 ease-linear forced-color-adjust-none motion-reduce:transition-none dark:bg-blue-400"
             style={{ width: `${progress}%` }}
           />
         </span>
 
-        <span className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {elapsed} / {duration}
         </span>
 
@@ -109,7 +111,7 @@ export function ReadAloud({
           className={cn(
             field,
             mono,
-            "text-foreground/55 hover:text-foreground/90 shrink-0 rounded-full px-2 py-1 tabular-nums transition-colors",
+            "text-muted-foreground hover:text-foreground/90 shrink-0 rounded-full px-2 py-1 tabular-nums transition-colors",
           )}
         >
           {rate}×
