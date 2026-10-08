@@ -395,6 +395,13 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     await waitFor(() => expect(harness.requests).toHaveLength(2));
     expect(harness.requests[1]!.prompt).toBe("second");
     expect(execute.mock.calls[0]![1].abortSignal.aborted).toBe(true);
+    expect(result.current.thread.getState().messages[1]?.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "tool-1",
+        isError: true,
+      }),
+    ]);
 
     await act(async () => {
       finishTool("sunny");

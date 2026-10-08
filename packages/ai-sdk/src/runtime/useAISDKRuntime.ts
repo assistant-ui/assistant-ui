@@ -1077,7 +1077,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     enabled: unstable_enableMessageQueue === true,
     isRunning,
     isSendDisabled: adapter.isSendDisabled === true,
-    send: sendNew,
+    send: (message) =>
+      sendNew(message).finally(() => {
+        steeredAnswerIdRef.current = undefined;
+      }),
     cancel: cancelRun,
     // Stopping through the runtime also aborts client tools, but it hands an
     // unanswered message back to the composer. A request with no answer yet
