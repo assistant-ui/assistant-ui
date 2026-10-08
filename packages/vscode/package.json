@@ -1,0 +1,87 @@
+{
+  "name": "@assistant-ui/vscode",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Run assistant-ui inside VS Code extension webviews by tunnelling fetch to the extension host",
+  "keywords": [
+    "vscode",
+    "vscode-extension",
+    "webview",
+    "assistant-ui",
+    "ai",
+    "chat"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./webview": {
+      "types": "./dist/webview.d.ts",
+      "default": "./dist/webview.js"
+    },
+    "./host": {
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    },
+    "./theme.css": {
+      "style": "./src/theme.css",
+      "default": "./src/theme.css"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./src/theme.css"
+  ],
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:watch": "vitest",
+    "test:types:peer-react18": "aui-react18-types"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "^0.3.21"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
+    "ai": "^7.0.101",
+    "jsdom": "^30.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^5.0.1"
+  }
+}

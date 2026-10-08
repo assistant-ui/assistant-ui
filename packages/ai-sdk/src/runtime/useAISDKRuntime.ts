@@ -992,6 +992,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
   };
 
+  // A thread message can join several AI SDK messages, so a slice through it
+  // has to end at the last of them rather than at the id the thread exposes.
+  const lastAISDKMessageId = (threadMessageId: string | null) => {
+    if (threadMessageId == null) return null;
+    const threadMessage = runtimeRef.current.thread
+      .getState()
+      .messages.find((message) => message.id === threadMessageId);
+    return (
+      (threadMessage &&
+        getVercelAIMessages<UI_MESSAGE>(threadMessage).at(-1)?.id) ??
+      threadMessageId
+    );
+  };
+
   const hasSeededRepositoryRef = useRef(false);
   const shouldFeedRepository =
     exportedMessageRepository != null &&
@@ -1130,9 +1144,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
 
+      const parentId = lastAISDKMessageId(message.parentId);
       if (!(message.startRun ?? message.role === "user")) {
         chatHelpers.setMessages((current) => [
-          ...sliceMessagesUntil(current, message.parentId),
+          ...sliceMessagesUntil(current, parentId),
           toUIMessage<UI_MESSAGE>(createMessage, message.role),
         ]);
         return;
@@ -1140,7 +1155,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
       lastRunConfigRef.current = message.runConfig;
       chatHelpers.setMessages((current) =>
-        sliceMessagesUntil(current, message.parentId),
+        sliceMessagesUntil(current, parentId),
       );
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
@@ -1196,7 +1211,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onReload: async (parentId: string | null, config) => {
       lastRunConfigRef.current = config.runConfig;
-      const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
+      const newMessages = sliceMessagesUntil(
+        chatHelpers.messages,
+        lastAISDKMessageId(parentId),
+      );
+      // regenerate drops a trailing assistant message, so the first message of
+      // the reloaded response stays for it to drop instead of the parent.
+      const reloaded = chatHelpers.messages[newMessages.length];
+      if (reloaded?.role === "assistant") newMessages.push(reloaded);
       chatHelpers.setMessages(newMessages);
 
       await chatHelpers.regenerate({ metadata: config.runConfig });

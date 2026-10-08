@@ -209,6 +209,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("does not pair a lone backtick with a code span in a later list item", () => {
+    const input = "- Press ` to open the console\n- Type `\\(x\\)` literally";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
   it("protects an unclosed fence still streaming in", () => {
     expect(rewriteLatexBracketDelimiters("```\n\\(x\\)\nstill streaming")).toBe(
       "```\n\\(x\\)\nstill streaming",
@@ -710,6 +715,41 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it.each([
+    ["a list item", "- legacy ` syntax\n- Run `cost=$5`"],
+    ["an ordered list item", "1. legacy ` syntax\n2. Run `cost=$5`"],
+    ["a heading", "legacy ` syntax\n# Run `cost=$5`"],
+    ["a blockquote", "legacy ` syntax\n> Run `cost=$5`"],
+    ["a setext underline", "legacy ` syntax\n---\nRun `cost=$5`"],
+    [
+      "a heading in a nested list item",
+      "- outer\n  - legacy ` syntax\n    # Run `cost=$5`",
+    ],
+    [
+      "a thematic break in a nested list item",
+      "- outer\n  - legacy ` syntax\n    ***\n    Run `cost=$5`",
+    ],
+  ])("does not pair a lone backtick with a code span after %s", (_, input) => {
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
+  it("pairs a lone backtick across a line that continues its paragraph", () => {
+    expect(escapeCurrencyDollars("legacy ` syntax\n2. Run `cost=$5`")).toBe(
+      "legacy ` syntax\n2. Run `cost=\\$5`",
+    );
+  });
+
+  it.each([
+    ["an indented list marker", "see `cost=$5\n    - more` here"],
+    ["a tab-indented list marker", "see `cost=$5\n\t- more` here"],
+    ["a nested item's indented marker", "- see `cost=$5\n      - more` here"],
+    ["an indented quote marker", "see `cost=$5\n    > more` here"],
+    ["a lazy quote continuation", "> see `cost=$5\nmore` here"],
+    ["a CRLF line ending", "see `cost=$5\r\n    - more` here"],
+  ])("keeps a code span open across %s", (_, input) => {
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
   it("escapes currency glued to a preceding word", () => {
     expect(escapeCurrencyDollars("Prices range from US$50 to US$100")).toBe(
       "Prices range from US\\$50 to US\\$100",
@@ -1074,6 +1114,11 @@ describe("HTML blocks", () => {
 
   it("preserves currency in a completed pre block", () => {
     const text = "<pre>\ncosts $5 and $10\n</pre>";
+    expect(escapeCurrencyDollars(text)).toBe(text);
+  });
+
+  it("preserves currency in an HTML block inside a nested list item", () => {
+    const text = "- a\n  - b\n    <div>\n    costs $5\n    </div>";
     expect(escapeCurrencyDollars(text)).toBe(text);
   });
 
