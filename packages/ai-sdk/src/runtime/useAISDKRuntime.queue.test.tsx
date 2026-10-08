@@ -10,7 +10,12 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useChat } from "@ai-sdk/react";
-import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
+import {
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type ChatTransport,
+  type UIMessage,
+  type UIMessageChunk,
+} from "ai";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
@@ -333,7 +338,7 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     expect(queued()).toBe("");
   });
 
-  it("steering while a client tool runs aborts the tool and sends without waiting for it", async () => {
+  it("steering while a client tool runs aborts the tool and sends without continuing its run", async () => {
     const harness = createTransport();
     let finishTool!: (result: string) => void;
     const execute = vi.fn(
@@ -343,9 +348,13 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
         }),
     );
     const { result } = renderHook(() =>
-      useAISDKRuntime(useChat({ transport: harness.transport }), {
-        unstable_enableMessageQueue: true,
-      }),
+      useAISDKRuntime(
+        useChat({
+          transport: harness.transport,
+          sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+        }),
+        { unstable_enableMessageQueue: true },
+      ),
     );
     result.current.registerModelContextProvider({
       getModelContext: () => ({

@@ -632,6 +632,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     new Map(),
   );
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
+  const steeredAnswerIdRef = useRef<string | undefined>(undefined);
   const markToolArtifactsChanged = useCallback(() => {
     setToolArtifactEpoch((epoch) => epoch + 1);
   }, []);
@@ -1081,10 +1082,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     // Stopping through the runtime also aborts client tools, but it hands an
     // unanswered message back to the composer. A request with no answer yet
     // has no tools to abort, so it stops here and the message stays put.
-    interrupt: () =>
-      chatHelpers.messages.at(-1)?.role === "user"
-        ? cancelRun()
-        : runtimeRef.current.thread.cancelRun(),
+    interrupt: () => {
+      const answer = chatHelpers.messages.at(-1);
+      if (answer?.role === "user") return cancelRun();
+      steeredAnswerIdRef.current = answer?.id;
+      return runtimeRef.current.thread.cancelRun();
+    },
   });
 
   const hasSeededRepositoryRef = useRef(false);
@@ -1282,7 +1285,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           ? wrapModelContentEnvelope(result, modelContent)
           : result;
 
-      if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
+      // The answer a steer stopped is not continued by sendAutomaticallyWhen
+      // once the tools the steer aborted report back.
+      if (
+        targetIndex >= 0 &&
+        (targetIndex !== chatHelpers.messages.length - 1 ||
+          chatHelpers.messages[targetIndex]!.id === steeredAnswerIdRef.current)
+      ) {
         const target = chatHelpers.messages[targetIndex]!;
         const targetPart = target.parts.find(
           (part) =>
