@@ -16,9 +16,11 @@ describe("OptimisticState", () => {
     const deleteRequest = deferred();
     const reloadRequest = deferred();
     let deleteResolved = false;
+    let reloadStarted = false;
     let reload: Promise<string[]> | undefined;
     const unsubscribe = state.subscribe(() => {
-      if (!deleteResolved || reload) return;
+      if (!deleteResolved || reloadStarted) return;
+      reloadStarted = true;
       reload = state.optimisticUpdate({
         execute: () => reloadRequest.promise.then(() => ["a", "b"]),
         then: (value, ids) => ({ ...value, ids }),
@@ -43,6 +45,41 @@ describe("OptimisticState", () => {
     unsubscribe();
 
     expect(state.value.ids).toEqual(["a"]);
+  });
+
+  it("drops completed effects when the settling notification throws", async () => {
+    const state = new OptimisticState({ ids: ["a", "b"] });
+    const deleteRequest = deferred();
+    const subscriberError = new Error("subscriber failed");
+    let deleteResolved = false;
+    let thrown = false;
+    const unsubscribe = state.subscribe(() => {
+      if (!deleteResolved || thrown) return;
+      thrown = true;
+      throw subscriberError;
+    });
+
+    const deletion = state.optimisticUpdate({
+      execute: () =>
+        deleteRequest.promise.then(() => {
+          deleteResolved = true;
+        }),
+      optimistic: (value) => ({
+        ...value,
+        ids: value.ids.filter((id) => id !== "b"),
+      }),
+    });
+
+    deleteRequest.resolve();
+    await expect(deletion).rejects.toBe(subscriberError);
+    unsubscribe();
+
+    await state.optimisticUpdate({
+      execute: async () => ["a", "b"],
+      then: (value, ids) => ({ ...value, ids }),
+    });
+
+    expect(state.value.ids).toEqual(["a", "b"]);
   });
 
   it("preserves invocation order when optimistic updates resolve in order", async () => {

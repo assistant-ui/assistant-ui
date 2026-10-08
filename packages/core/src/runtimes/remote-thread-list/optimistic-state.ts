@@ -158,9 +158,12 @@ export class OptimisticState<TState> extends BaseSubscribable {
         this._pendingTransforms.splice(index, 1);
       }
 
-      this._updateState();
-      if (this._pendingTransforms.length === 0) {
-        this._completedOptimistics.length = 0;
+      try {
+        this._updateState();
+      } finally {
+        if (this._pendingTransforms.length === 0) {
+          this._completedOptimistics.length = 0;
+        }
       }
     }
   }
