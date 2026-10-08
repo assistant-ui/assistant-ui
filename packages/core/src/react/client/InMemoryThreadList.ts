@@ -13,7 +13,10 @@ import {
   useDestroySignalProvider,
 } from "@assistant-ui/store/client";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
-import { useThreadSelectionEvents } from "../../store/internal";
+import {
+  useThreadListItemSelectionEvents,
+  useThreadSelectionEvents,
+} from "../../store/clients/thread-selection-events";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { Tools } from "./Tools";
@@ -42,6 +45,8 @@ type ThreadData = {
 // ThreadListItem Client
 const useThreadListItemClient = (props: {
   data: ThreadData;
+  isMain: boolean;
+  isInitialMain: boolean;
   isRunning: boolean;
   onSwitchTo: () => void;
   onRename: (title: string) => void;
@@ -52,6 +57,8 @@ const useThreadListItemClient = (props: {
 }): ClientOutput<"threadListItem"> => {
   const {
     data,
+    isMain,
+    isInitialMain,
     isRunning,
     onSwitchTo,
     onRename,
@@ -72,6 +79,7 @@ const useThreadListItemClient = (props: {
     }),
     [data.id, data.title, data.status, data.custom, isRunning],
   );
+  useThreadListItemSelectionEvents(data.id, isMain, isInitialMain);
 
   return {
     getState: () => state,
@@ -143,6 +151,8 @@ const useOwnedThread = ({
 
 const OwnedThread = resource(useOwnedThread);
 
+const INITIAL_THREAD_ID = "main";
+
 // InMemoryThreadList Client
 const useInMemoryThreadList = (
   props: InMemoryThreadListProps,
@@ -155,6 +165,7 @@ const useInMemoryThreadList = (
   } = props;
   const ownerDestroySignal = useAssistantClientDestroySignal();
   const [lifetimes] = useState(createThreadLifetimes);
+  const [knownThreadIds] = useState(() => new Set<string>([INITIAL_THREAD_ID]));
 
   // No cleanup: a hidden list must still abort its threads' sends when the owner is destroyed.
   useEffect(() => {
@@ -165,8 +176,10 @@ const useInMemoryThreadList = (
     threads: readonly ThreadData[];
     mainThreadId: string;
   }>(() => ({
-    threads: [{ id: "main", title: "Main Thread", status: "regular" }],
-    mainThreadId: "main",
+    threads: [
+      { id: INITIAL_THREAD_ID, title: "Main Thread", status: "regular" },
+    ],
+    mainThreadId: INITIAL_THREAD_ID,
   }));
   const setThreads = (
     update: (prev: readonly ThreadData[]) => readonly ThreadData[],
@@ -175,6 +188,7 @@ const useInMemoryThreadList = (
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
+    if (!knownThreadIds.has(threadId)) return;
     setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
@@ -216,6 +230,8 @@ const useInMemoryThreadList = (
     // stay selected. The fallback id is minted eagerly so the updater stays
     // pure under batched deletes.
     const fallbackId = `thread-${generateId()}`;
+    knownThreadIds.delete(threadId);
+    if (knownThreadIds.size === 0) knownThreadIds.add(fallbackId);
     setListState((prev) => {
       const remaining = prev.threads.filter((t) => t.id !== threadId);
       if (remaining.length === 0) {
@@ -238,6 +254,7 @@ const useInMemoryThreadList = (
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
+    knownThreadIds.add(newId);
     setListState((prev) => ({
       threads: [
         ...prev.threads,
@@ -265,6 +282,8 @@ const useInMemoryThreadList = (
         t.id,
         ThreadListItemClient({
           data: t,
+          isMain: t.id === mainThreadId,
+          isInitialMain: t.id === INITIAL_THREAD_ID,
           isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
           onSwitchTo: () => handleSwitchToThread(t.id),
           onRename: (title) => handleRename(t.id, title),
@@ -307,7 +326,7 @@ const useInMemoryThreadList = (
     item: (selector) => {
       if (selector === "main") {
         const index = threads.findIndex((t) => t.id === mainThreadId);
-        return threadListItems.get({ index: index === -1 ? 0 : index });
+        return threadListItems.get({ index });
       }
       if ("id" in selector) {
         const index = threads.findIndex((t) => t.id === selector.id);

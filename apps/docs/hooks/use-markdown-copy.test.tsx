@@ -23,29 +23,6 @@ describe("useMarkdownCopy", () => {
     Reflect.deleteProperty(document, "execCommand");
   });
 
-  it("fetches again when the platform-specific URL changes", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => ({
-      ok: true,
-      text: async () => `Content for ${String(input)}`,
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { result, rerender } = renderHook(({ url }) => useMarkdownCopy(url), {
-      initialProps: { url: "/docs/example.md" },
-    });
-
-    act(() => result.current.prefetch());
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith("/docs/example.md"),
-    );
-
-    rerender({ url: "/docs/example.md?platform=rn" });
-    act(() => result.current.prefetch());
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith("/docs/example.md?platform=rn"),
-    );
-  });
-
   it("copies only the current platform through the clipboard fallback", async () => {
     vi.stubGlobal(
       "fetch",

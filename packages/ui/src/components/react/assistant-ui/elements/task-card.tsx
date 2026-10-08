@@ -48,7 +48,7 @@ export function TaskStateIcon({
     return (
       <Ban
         aria-hidden
-        className={cn("text-foreground/35 size-3.5 shrink-0", className)}
+        className={cn("text-muted-foreground size-3.5 shrink-0", className)}
       />
     );
   }
@@ -57,7 +57,7 @@ export function TaskStateIcon({
       <Loader2Icon
         aria-hidden
         className={cn(
-          "text-foreground/35 size-3.5 shrink-0 animate-spin motion-reduce:animate-none",
+          "text-muted-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none",
           className,
         )}
       />
@@ -135,7 +135,7 @@ export function TaskCard({
           <span
             className={cn(
               mono,
-              "text-foreground/35 max-w-24 shrink-0 truncate",
+              "text-muted-foreground max-w-24 shrink-0 truncate",
             )}
           >
             {meta}
@@ -143,7 +143,7 @@ export function TaskCard({
         )}
         {elapsed !== undefined && (
           <span
-            className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
+            className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
           >
             {elapsed}
           </span>
@@ -152,7 +152,7 @@ export function TaskCard({
           <ChevronRightIcon
             aria-hidden
             className={cn(
-              "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+              "text-muted-foreground size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
               isOpen && "rotate-90",
             )}
           />

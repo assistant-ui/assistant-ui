@@ -108,7 +108,7 @@ import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 
 ### Quick Start
 
-Render your normal message parts with `MessagePrimitive.Parts`, then place a `ChainOfThought` component alongside them inside the same `MessagePrimitive.Root` only when maintaining older code that already uses the ChainOfThought primitive.
+Use this path only when maintaining code that already uses the ChainOfThought primitive. Pass your `ChainOfThought` component to `MessagePrimitive.Parts` as `components.ChainOfThought`; it renders once for each run of adjacent reasoning and tool-call parts.
 
 <Callout type="info">
 Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).

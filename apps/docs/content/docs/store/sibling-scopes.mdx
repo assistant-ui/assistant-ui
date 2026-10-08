@@ -3,9 +3,9 @@ title: Sibling Scopes
 description: Scopes that reference each other at the same level.
 ---
 
-Child scopes point down — from parent to child. But sometimes scopes at the same level need to interact. A `tools` scope might need to register definitions into a `modelContext` scope. A `composer` scope might need to read from a `thread` scope.
+Child scopes point down, from parent to child. Sometimes scopes at the same level need to interact. A `tools` scope might need to register definitions into a `modelContext` scope. A `composer` scope might need to read from a `thread` scope.
 
-These are **sibling scopes** — scopes that sit at the same level in the provider tree and reference each other.
+These are **sibling scopes**: scopes that sit at the same level in the provider tree and reference each other.
 
 ## The problem
 
@@ -19,7 +19,7 @@ AuiConfig({
 });
 ```
 
-But what if `ToolsResource` needs to call methods on the `modelContext` scope? At definition time, the `tools` resource doesn't have access to its siblings.
+`ToolsResource` may need to call methods on the `modelContext` scope, but at definition time the `tools` resource doesn't have access to its siblings.
 
 ## useAssistantClientRef
 
@@ -58,11 +58,11 @@ Use `useAssistantClientRef` in effects, not during the resource body. The ref is
 
 ## attachTransformScopes
 
-`useAssistantClientRef` lets a scope talk to siblings at runtime. But what if the sibling scope doesn't exist yet? If a user only provides `thread: ThreadResource()`, there's no `modelContext` to talk to.
+`useAssistantClientRef` lets a scope talk to siblings at runtime, but the sibling scope may not exist yet. If a user only provides `thread: ThreadResource()`, there's no `modelContext` to talk to.
 
 `attachTransformScopes` solves this by letting a resource declare: "when I'm mounted, make sure these sibling scopes also exist."
 
-Attach the transform to the hook function you passed to `resource()` — transforms are keyed by the hook, not the resource wrapper:
+Attach the transform to the hook function you passed to `resource()`. Transforms are keyed by the hook, not the resource wrapper:
 
 ```ts
 import { attachTransformScopes } from "@assistant-ui/store";
@@ -76,16 +76,16 @@ attachTransformScopes(useToolsResource, (scopes, parent) => {
 ```
 
 The transform function receives:
-- `scopes` — the current scopes config being built (mutate it directly)
-- `parent` — the parent `AssistantClient` (from the `AuiProvider` above)
+- `scopes`: the current scopes config being built (mutate it directly)
+- `parent`: the parent `AssistantClient` (from the `AuiProvider` above)
 
 It mutates the `scopes` object directly, adding scopes that should be created alongside.
 
 ### Checking parent.source
 
 Before adding a scope, check `parent.scopeName.source`:
-- `null` — the scope isn't provided by any ancestor. Safe to add it here.
-- `"root"` or a scope name — an ancestor already provides this scope. Don't duplicate it.
+- `null`: the scope isn't provided by any ancestor. Safe to add it here.
+- `"root"` or a scope name: an ancestor already provides this scope. Don't duplicate it.
 
 ```ts
 attachTransformScopes(useMyResource, (scopes, parent) => {
@@ -110,20 +110,20 @@ attachTransformScopes(useThreadResource, (scopes) => {
 });
 ```
 
-This ensures that when a user provides a `thread` scope, the `composer` scope is automatically wired up as a child of that thread — without the user having to declare it.
+This ensures that when a user provides a `thread` scope, the `composer` scope is automatically wired up as a child of that thread, without the user having to declare it.
 
 ### Iterative application
 
-Transforms are applied iteratively. When a transform adds a new root scope, Store checks if that new scope also has a transform attached — and runs it too. This continues until no new scopes are added.
+Transforms are applied iteratively. When a transform adds a new root scope, Store checks if that new scope also has a transform attached, and runs it too. This continues until no new scopes are added.
 
 For example:
 1. User provides `thread: ThreadResource()`
 2. `ThreadResource`'s transform adds `tools: ToolsResource()` and `modelContext: ModelContextResource()`
-3. `ToolsResource`'s transform runs — sees `modelContext` already exists, does nothing
+3. `ToolsResource`'s transform runs, sees `modelContext` already exists, and does nothing
 4. No more new scopes → done
 
 <Callout type="warn">
-Each hook can only have one transform attached. Calling `attachTransformScopes` twice on the same hook throws an error. To carry a wrapped hook's transform over to a wrapper, use `forwardTransformScopes(target, source)` — it composes with any transform the target already has.
+Each hook can only have one transform attached. Calling `attachTransformScopes` twice on the same hook throws an error. To carry a wrapped hook's transform over to a wrapper, use `forwardTransformScopes(target, source)`, which composes with any transform the target already has.
 </Callout>
 
 ## When to use which

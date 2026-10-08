@@ -39,7 +39,7 @@ export function Launcher() {
         <div className={cn(floating, "flex w-full flex-col gap-3 rounded-[20px] p-4")}>
           <div className="flex flex-col gap-1">
             <span className="text-[13.5px] font-medium">How can I help?</span>
-            <span className={cn(mono, "text-foreground/30")}>typically replies in a minute</span>
+            <span className={cn(mono, "text-muted-foreground")}>typically replies in a minute</span>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -79,7 +79,7 @@ export function Launcher() {
 }
 ```
 
-`ThreadPrimitive.Suggestion` defaults to replacing the composer text rather than sending, so picking a prompt loads it for the user to glance at before `ComposerPrimitive.Send` (which disables itself while the composer is empty) actually starts the run.
+`ThreadPrimitive.Suggestion` defaults to replacing the composer text rather than sending, so picking a prompt loads it into the composer, and `ComposerPrimitive.Send` (disabled while the composer is empty) starts the run.
 
   </Step>
 </Steps>

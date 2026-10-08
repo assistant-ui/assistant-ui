@@ -153,6 +153,55 @@ describe("joinExternalMessages", () => {
     },
   );
 
+  it.each([
+    {
+      name: "spans every settled member",
+      first: { startedAt: 1_000, completedAt: 2_000 },
+      second: { startedAt: 3_000, completedAt: 5_000 },
+      expected: { startedAt: 1_000, completedAt: 5_000 },
+    },
+    {
+      name: "drops the finish while a member runs",
+      first: { startedAt: 1_000, completedAt: 2_000 },
+      second: { startedAt: 3_000 },
+      expected: { startedAt: 1_000 },
+    },
+    {
+      name: "keeps the only recorded timing",
+      first: { startedAt: 1_000, completedAt: 2_000 },
+      second: undefined,
+      expected: { startedAt: 1_000, completedAt: 2_000 },
+    },
+  ])("merges reasoning timing that $name", ({ first, second, expected }) => {
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "a", parentId: "r", timing: first },
+        ],
+      },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            text: "b",
+            parentId: "r",
+            ...(second && { timing: second }),
+          },
+        ],
+      },
+    ]);
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "a\n\nb",
+    });
+    expect((result.content[0] as { timing?: unknown }).timing).toEqual(
+      expected,
+    );
+  });
+
   it("preserves strict equality for malformed numeric tool-call IDs", () => {
     const messages = [
       {
@@ -247,6 +296,36 @@ describe("joinExternalMessages", () => {
     expect(result.content[0]).not.toHaveProperty("result");
     expect(result.content[1]).not.toHaveProperty("result");
   });
+
+  it.each([undefined, "", "  "])(
+    "joins reasoning parts that share a parentId when one has text %j",
+    (text) => {
+      const messages = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "reasoning",
+              unstable_summary: "Planning",
+              text,
+              parentId: "r",
+            },
+            { type: "reasoning", text: "step 1", parentId: "r" },
+            {
+              type: "reasoning",
+              unstable_summary: "Checking",
+              text,
+              parentId: "r",
+            },
+          ],
+        },
+      ] as unknown as ExternalMessageConverterMessage[];
+
+      expect(joinExternalMessages(messages).content).toEqual([
+        expect.objectContaining({ type: "reasoning", text: "step 1" }),
+      ]);
+    },
+  );
 });
 
 describe("chunkExternalMessages", () => {

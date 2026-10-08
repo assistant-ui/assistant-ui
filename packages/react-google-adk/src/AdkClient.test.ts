@@ -189,7 +189,8 @@ describe("createAdkStream - proxy mode", () => {
     const messages: AdkMessage[] = [
       { id: "m1", type: "human", content: "Hello" },
     ];
-    const gen = await stream(messages, makeConfig());
+    const config = makeConfig();
+    const gen = await stream(messages, config);
     // drain
     for await (const _ of gen) {
       /* noop */
@@ -200,7 +201,27 @@ describe("createAdkStream - proxy mode", () => {
     expect(url).toBe("/api/adk");
     expect(init?.method).toBe("POST");
     const body = JSON.parse(init?.body as string);
-    expect(body).toMatchObject({ message: "Hello" });
+    expect(body).toMatchObject({ message: "Hello", sessionId: "session-1" });
+    expect(config.initialize).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to the remote thread ID for proxy sessions", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+    const initialize = vi
+      .fn()
+      .mockResolvedValue({ remoteId: "remote-1", externalId: undefined });
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hello" }],
+      makeConfig({ initialize }),
+    );
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.sessionId).toBe("remote-1");
   });
 
   it("sends runConfig and checkpointId in proxy body", async () => {
@@ -601,6 +622,61 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected).toHaveLength(2);
     expect(collected[0]!.id).toBe("e1");
     expect(collected[1]!.id).toBe("e2");
+  });
+
+  it("forwards configurable SSE line and event limits", async () => {
+    const event: AdkEvent = {
+      id: "e1",
+      content: { parts: [{ text: "x".repeat(64) }] },
+    };
+    const text = `data: ${JSON.stringify(event)}\n\n`;
+    const consume = async (options: {
+      maxStreamLineLength: number;
+      maxStreamEventLength: number;
+    }) => {
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
+      const stream = createAdkStream({ api: "/api/adk", ...options });
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      const events: AdkEvent[] = [];
+      for await (const parsedEvent of gen) events.push(parsedEvent);
+      return events;
+    };
+
+    await expect(
+      consume({ maxStreamLineLength: 32, maxStreamEventLength: 1_024 }),
+    ).rejects.toThrow("SSE line exceeds maxLineLength");
+    await expect(
+      consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 32 }),
+    ).rejects.toThrow("SSE event exceeds maxEventLength");
+    await expect(
+      consume({ maxStreamLineLength: 1_024, maxStreamEventLength: 1_024 }),
+    ).resolves.toEqual([event]);
+  });
+
+  it("releases the response reader when decoder limits are invalid", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
+    const stream = createAdkStream({
+      api: "/api/adk",
+      maxStreamLineLength: 0,
+    });
+    const consume = async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _event of gen) void _event;
+    };
+
+    await expect(consume()).rejects.toThrow(
+      "maxLineLength must be a positive safe integer",
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(body.locked).toBe(false);
   });
 
   it.each(["{}", "null", "[]", '["event"]', '"event"'])(
