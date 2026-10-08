@@ -140,7 +140,7 @@ function PanelHeader(): React.ReactNode {
 
   return (
     <div className="border-foreground/10 flex h-11 shrink-0 items-center justify-between border-b px-3.5">
-      <span className="text-muted-foreground font-mono text-[11px] font-medium">
+      <span className="text-muted-foreground text-xs font-medium">
         assistant-ui · Ask AI
       </span>
       <div className="flex items-center gap-1">
@@ -149,7 +149,7 @@ function PanelHeader(): React.ReactNode {
             modelContextWindow={contextWindow}
             usage={contextUsage}
             side="bottom"
-            className="hover:text-foreground text-[11px] transition-colors hover:bg-transparent"
+            className="hover:text-foreground text-xs transition-colors hover:bg-transparent"
           />
         ) : null}
         <button
@@ -167,7 +167,7 @@ function PanelHeader(): React.ReactNode {
             aui.threads.switchToNewThread();
           }}
           aria-label="New chat"
-          className="text-muted-foreground hover:text-foreground rounded-control flex h-7 items-center px-2 font-mono text-[11px] font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground rounded-control flex h-7 items-center px-2 text-xs font-medium transition-colors"
         >
           New
         </button>

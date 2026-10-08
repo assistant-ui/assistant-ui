@@ -166,7 +166,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
     interleaved.push(node);
   });
   return (
-    <div className="text-muted-foreground/70 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+    <div className="text-muted-foreground/70 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-xs">
       {interleaved}
     </div>
   );
@@ -190,7 +190,7 @@ function BulletItem({
       )}
     >
       {withScopeColumn ? (
-        <span className="text-muted-foreground/70 block truncate pt-px text-xs leading-relaxed">
+        <span className="text-muted-foreground/70 block truncate pt-px font-mono text-xs leading-relaxed">
           {item.scope ?? ""}
         </span>
       ) : null}

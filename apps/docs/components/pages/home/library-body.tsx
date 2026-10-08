@@ -118,9 +118,12 @@ export function LibraryBody({
               Contact sales
             </a>
           </div>
-          <p className="text-muted-foreground font-mono text-xs">
-            @assistant-ui/react
-            {reactVersion && <span>@{reactVersion}</span>} · MIT License
+          <p className="text-muted-foreground text-xs">
+            <span className="font-mono">
+              @assistant-ui/react
+              {reactVersion && <span>@{reactVersion}</span>}
+            </span>{" "}
+            · MIT License
           </p>
         </div>
       </section>

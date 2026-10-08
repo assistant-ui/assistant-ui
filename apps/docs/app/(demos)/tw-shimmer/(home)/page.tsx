@@ -127,6 +127,7 @@ export default function TwShimmerPage() {
 
           <Example
             title="Automatic color"
+            titleIsCode={false}
             description="The highlight mixes from the current text color."
             code='<span class="shimmer text-blue-600">Blue Shimmer</span>'
           >
@@ -359,11 +360,13 @@ function DemoSection({
 
 function Example({
   title,
+  titleIsCode = true,
   description,
   code,
   children,
 }: {
   title: string;
+  titleIsCode?: boolean;
   description: string;
   code: string;
   children: ReactNode;
@@ -371,7 +374,9 @@ function Example({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h3 className="text-sm font-medium">{title}</h3>
+        <h3 className="text-sm font-medium">
+          {titleIsCode ? <code className="font-mono">{title}</code> : title}
+        </h3>
         <p className="text-muted-foreground mt-1 max-w-[60ch] text-sm leading-relaxed text-pretty">
           {description}
         </p>
