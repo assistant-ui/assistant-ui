@@ -517,9 +517,9 @@ describe("resolveProject error handling", () => {
 });
 
 describe("PROJECT_METADATA", () => {
-  it("contains all 9 templates", () => {
+  it("contains all 8 templates", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    expect(templates).toHaveLength(9);
+    expect(templates).toHaveLength(8);
     expect(templates.map((t) => t.name)).toEqual([
       "default",
       "minimal",
@@ -529,7 +529,6 @@ describe("PROJECT_METADATA", () => {
       "langchain",
       "mcp",
       "eve",
-      "vscode",
     ]);
   });
 

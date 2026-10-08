@@ -26,4 +26,4 @@ The first time the view opens, it prompts you to set your OpenAI API key, which 
 - `npm run typecheck` checks types.
 - `npm run package` builds a `.vsix` with [`@vscode/vsce`](https://github.com/microsoft/vscode-vsce). Set your `publisher` in `package.json` first.
 
-See the [VS Code guide](https://www.assistant-ui.com/docs/guides/vscode) for more.
+See the [`@assistant-ui/vscode` README](https://github.com/assistant-ui/assistant-ui/tree/main/packages/vscode) for more.
