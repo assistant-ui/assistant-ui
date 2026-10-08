@@ -98,6 +98,19 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    attributes:
+      label: How was this found?
+      options:
+        - I hit it in my app
+        - I hit it in an example or template from this repo
+        - Reading the source, reproduced
+        - Reading the source, not reproduced
+        - Automated audit or agent, reproduced
+        - Automated audit or agent, not reproduced
+    validations:
+      required: true
+
   - type: input
     attributes:
       label: Browser (if applicable)
