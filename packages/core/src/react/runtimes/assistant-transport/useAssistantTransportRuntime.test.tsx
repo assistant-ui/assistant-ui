@@ -50,6 +50,7 @@ const createStreamResponse = () => {
   });
   return {
     response: new Response(stream, { status: 200 }),
+    push: (text: string) => controller.enqueue(new TextEncoder().encode(text)),
     close: () => controller.close(),
   };
 };
@@ -760,6 +761,60 @@ describe("useAssistantTransportRuntime", () => {
       ).toHaveLength(1);
       expect(pendingCommands).toEqual([]);
       expect(fetchMock.requests).toHaveLength(1);
+    });
+
+    const setReply = (value: string) =>
+      `aui-state:[{"type":"set","path":["reply"],"value":"${value}"}]\n`;
+    const agentState = (aui: () => ReturnType<typeof useAui>) =>
+      (aui().thread.getState().extras as { state: unknown }).state;
+
+    // installFetch's body ignores the abort signal, like a body that has
+    // fully arrived, which abort() can no longer error.
+    it("drops a reply read after cancelRun and reports its command cancelled", async () => {
+      const fetchMock = installFetch();
+      const onCancel = vi.fn();
+      const { aui, sendCommand } = mountRuntime({ onCancel });
+      await ready(aui);
+
+      act(() => sendCommand(createMessageCommand("a")));
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+      await act(nextTask);
+      act(() => aui().thread.cancelRun());
+      act(() => {
+        fetchMock.servers[0]!.push(setReply("late"));
+        fetchMock.servers[0]!.close();
+      });
+
+      await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+      expect(texts(onCancel.mock.calls[0]![0].commands)).toEqual(["a"]);
+      expect(agentState(aui)).toEqual({});
+    });
+
+    it("keeps the snapshot committed before cancelRun and ignores later ones", async () => {
+      const fetchMock = installFetch();
+      const onCancel = vi.fn();
+      const { aui, sendCommand } = mountRuntime({ onCancel });
+      await ready(aui);
+
+      act(() => sendCommand(createMessageCommand("a")));
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+      act(() => fetchMock.servers[0]!.push(setReply("early")));
+      await waitFor(() => expect(agentState(aui)).toEqual({ reply: "early" }));
+      act(() => aui().thread.cancelRun());
+      act(() => {
+        fetchMock.servers[0]!.push(setReply("late"));
+        fetchMock.servers[0]!.close();
+      });
+
+      await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+      expect(onCancel.mock.calls[0]![0].commands).toEqual([]);
+      expect(agentState(aui)).toEqual({ reply: "early" });
     });
   });
 
