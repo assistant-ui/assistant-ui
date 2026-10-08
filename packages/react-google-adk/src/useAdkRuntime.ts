@@ -247,7 +247,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const runGenerationRef = useRef(0);
-  const loadGenerationRef = useRef(0);
   const reloadLookupRef = useRef<{
     generation: number;
     beforeReload: AdkThreadSnapshot;
@@ -399,7 +398,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       return loadController.run({
         purpose,
         load: async (signal) => {
-          loadGenerationRef.current++;
           const messagesAtLoadStart = messagesRef.current;
           if (purpose === "initial") setIsLoadingThread(true);
 
@@ -554,7 +552,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             );
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
-            const loadGeneration = loadGenerationRef.current;
             return runExclusive(async (isCurrent) => {
               const lookup = {
                 generation: runGenerationRef.current,
@@ -567,11 +564,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                   ? await getCheckpointId(externalId, truncated)
                   : null;
               } catch (error) {
-                if (
-                  isCurrent() &&
-                  loadGenerationRef.current === loadGeneration &&
-                  reloadLookupRef.current === lookup
-                )
+                if (isCurrent() && reloadLookupRef.current === lookup)
                   applySnapshot(beforeReload);
                 throw error;
               } finally {

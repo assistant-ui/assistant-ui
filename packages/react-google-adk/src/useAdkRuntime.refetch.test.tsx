@@ -371,7 +371,9 @@ describe("useAdkRuntime refetch", () => {
               aiMessage("a-1", "answer"),
             ],
           })
-        : pendingLoad.promise;
+        : loadCount === 2
+          ? pendingLoad.promise
+          : Promise.resolve({ messages: [aiMessage("loaded", "new history")] });
     });
     const consoleError = vi
       .spyOn(console, "error")
@@ -418,7 +420,7 @@ describe("useAdkRuntime refetch", () => {
       });
       expect(
         JSON.stringify(capture.runtime!.thread.getState().messages),
-      ).not.toContain("answer");
+      ).toContain("answer");
 
       await act(async () => {
         pendingLoad.resolve({ messages: [aiMessage("loaded", "new history")] });
@@ -426,11 +428,101 @@ describe("useAdkRuntime refetch", () => {
       });
       expect(
         JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("answer");
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("new history");
+
+      await act(async () => {
+        await capture.runtime!.threads.reloadMainThread();
+      });
+      expect(load).toHaveBeenCalledTimes(3);
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
       ).toContain("new history");
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).not.toContain("answer");
     } finally {
       consoleError.mockRestore();
     }
   });
+
+  it.each(["resolves", "rejects"] as const)(
+    "restores the answer when a refetch %s during a failed lookup",
+    async (outcome) => {
+      const checkpoint = deferred<string | null>();
+      const pendingLoad = deferred<AdkThreadSnapshot>();
+      const getCheckpointId = vi.fn(() => checkpoint.promise);
+      let loadCount = 0;
+      const load = vi.fn(async () => {
+        loadCount++;
+        return loadCount === 1
+          ? {
+              messages: [
+                { id: "q-1", type: "human" as const, content: "question" },
+                aiMessage("a-1", "answer"),
+              ],
+            }
+          : pendingLoad.promise;
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      try {
+        const { capture } = await renderAdk(load, getCheckpointId);
+        await waitFor(() =>
+          expect(
+            JSON.stringify(capture.runtime!.thread.getState().messages),
+          ).toContain("answer"),
+        );
+        const answer = capture
+          .runtime!.thread.getState()
+          .messages.find((message) => message.role === "assistant")!;
+
+        act(() => {
+          capture.runtime!.thread.getMessageById(answer.id).reload();
+        });
+        await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).not.toContain("answer");
+
+        let refetch!: Promise<void>;
+        act(() => {
+          refetch = capture.runtime!.threads.reloadMainThread();
+        });
+        await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+        await act(async () => {
+          if (outcome === "resolves") {
+            pendingLoad.resolve({
+              messages: [aiMessage("loaded", "new history")],
+            });
+            await refetch;
+          } else {
+            pendingLoad.reject(new Error("refetch failed"));
+            await expect(refetch).rejects.toThrow("refetch failed");
+          }
+        });
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).not.toContain("answer");
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).not.toContain("new history");
+
+        await act(async () => {
+          checkpoint.reject(new Error("checkpoint lookup failed"));
+        });
+        await waitFor(() => expect(consoleError).toHaveBeenCalledOnce());
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("answer");
+      } finally {
+        consoleError.mockRestore();
+      }
+    },
+  );
 
   it("restores a failed reload but does not overwrite a newer reload", async () => {
     const checkpoints = [
