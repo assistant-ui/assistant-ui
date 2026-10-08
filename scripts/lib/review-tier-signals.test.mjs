@@ -20,6 +20,7 @@ const input = (overrides = {}) => ({
   apiSurface: [],
   exportsDiffs: [],
   manifests: [],
+  invalidManifests: [],
   ...overrides,
 });
 const apiDiff = (overrides = {}) => ({
@@ -290,6 +291,56 @@ test("a newly added runtime dependency gives T3 even without a base dependencies
   assert.deepEqual(result.areas, []);
 });
 
+for (const field of ["peerDependencies", "optionalDependencies"]) {
+  test(`a new ${field} entry gives T3`, () => {
+    const result = computeTier(
+      manifestInput({}, { [field]: { library: "^1.0.0" } }),
+      policy,
+    );
+    assert.equal(result.tier, 3);
+    assert.ok(
+      result.reasons.some(
+        (reason) =>
+          reason.code === "new-runtime-dependency" &&
+          reason.detail === "packages/react/package.json: library",
+      ),
+    );
+  });
+  for (const baseField of [
+    "dependencies",
+    "peerDependencies",
+    "optionalDependencies",
+  ]) {
+    test(`${field} entry already in base ${baseField} is not new`, () => {
+      const result = computeTier(
+        manifestInput(
+          { [baseField]: { library: "^1.0.0" } },
+          { [field]: { library: "^1.0.0" } },
+        ),
+        policy,
+      );
+      assert.ok(
+        !result.reasons.some(
+          (reason) => reason.code === "new-runtime-dependency",
+        ),
+      );
+    });
+  }
+}
+
+test("invalid package manifests add non-waivable failures", () => {
+  const paths = ["packages/react/package.json", "packages/core/package.json"];
+  const result = computeTier(input({ invalidManifests: paths }), policy);
+  assert.deepEqual(
+    result.failures,
+    paths.map((path) => ({
+      code: "manifest-invalid",
+      detail: path,
+      override: null,
+    })),
+  );
+});
+
 for (const field of ["dependencies", "peerDependencies"]) {
   for (const prefix of ["", "^", "~", ">=", ">", "=", "v", ">= v"]) {
     test(`${field} detects an upstream major with prefix ${JSON.stringify(prefix)}`, () => {
@@ -344,6 +395,25 @@ for (const [base, head] of [
   });
 }
 
+test("reordering manifest contract fields is not a contract change", () => {
+  const result = computeTier(
+    manifestInput(
+      {
+        peerDependencies: { react: "^19.0.0", "react-dom": "^19.0.0" },
+        engines: { node: ">=24", pnpm: ">=10" },
+      },
+      {
+        peerDependencies: { "react-dom": "^19.0.0", react: "^19.0.0" },
+        engines: { pnpm: ">=10", node: ">=24" },
+      },
+    ),
+    policy,
+  );
+  assert.ok(
+    !result.reasons.some((reason) => reason.code === "manifest-contract-field"),
+  );
+});
+
 for (const [field, baseValue, headValue] of [
   ["peerDependencies", { react: "^19.0.0" }, { react: "^19.1.0" }],
   ["peerDependencies", undefined, { react: "^19.0.0" }],
@@ -352,12 +422,15 @@ for (const [field, baseValue, headValue] of [
   ["sideEffects", false, ["*.css"]],
   ["bin", { cli: "./old.mjs" }, { cli: "./new.mjs" }],
 ]) {
-  test(`a contract change in ${field} gives T2 and public-api`, () => {
+  test(`a contract change in ${field} adds public-api`, () => {
     const result = computeTier(
       manifestInput({ [field]: baseValue }, { [field]: headValue }),
       policy,
     );
-    assert.equal(result.tier, 2);
+    assert.equal(
+      result.tier,
+      field === "peerDependencies" && baseValue === undefined ? 3 : 2,
+    );
     assert.deepEqual(result.areas, ["public-api"]);
     assert.ok(
       result.reasons.some(
@@ -469,6 +542,11 @@ for (const patch of [
   "-  permissions: read-all",
   "+  token: ${{ secrets.GITHUB_TOKEN }}",
   "-  token: ${{ secrets.DEPLOY_TOKEN }}",
+  "+secrets: inherit",
+  "-  contents: read\n+  contents: write",
+  "+  pull_request_target:",
+  "+  workflow_run:",
+  null,
 ]) {
   test(`workflow security changes give T3: ${patch}`, () => {
     const path = ".github/workflows/code-quality.yaml";
@@ -496,7 +574,7 @@ for (const [path, patch] of [
     ".github/workflows/code-quality.yaml",
     "+++ b/permissions:\n--- a/secrets.TOKEN",
   ],
-  [".github/workflows/code-quality.yaml", "+secrets: inherit"],
+  [".github/workflows/code-quality.yaml", undefined],
 ]) {
   test(`workflow security ignores ${path} with patch ${JSON.stringify(patch)}`, () => {
     const result = computeTier(

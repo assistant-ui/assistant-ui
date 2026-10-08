@@ -96,7 +96,13 @@ function parseSurface(text) {
           bind(clause.namedBindings.name);
         } else {
           for (const specifier of clause.namedBindings.elements) {
-            imports.set(specifier.name.text, module);
+            imports.set(
+              specifier.name.text,
+              JSON.stringify([
+                module,
+                (specifier.propertyName ?? specifier.name).text,
+              ]),
+            );
             bind(specifier.name);
           }
         }
@@ -304,6 +310,7 @@ function main() {
   const head = heads[0] ?? "HEAD";
   git(["rev-parse", "--verify", `${base}^{commit}`]);
   git(["rev-parse", "--verify", `${head}^{commit}`]);
+  const mergeBase = git(["merge-base", base, head]).trim();
   const files = git([
     "diff",
     "--name-only",
@@ -324,12 +331,12 @@ function main() {
       apiSurface.push({
         file,
         diff: diffApiSurface(
-          git(["show", `${base}:${file}`], true),
+          git(["show", `${mergeBase}:${file}`], true),
           git(["show", `${head}:${file}`], true),
         ),
       });
     } else if (/^packages\/[^/]+\/package\.json$/.test(file)) {
-      const before = git(["show", `${base}:${file}`], true);
+      const before = git(["show", `${mergeBase}:${file}`], true);
       const after = git(["show", `${head}:${file}`], true);
       const diff = diffExportsMap(
         before === null ? null : JSON.parse(before).exports,

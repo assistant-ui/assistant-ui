@@ -8,6 +8,16 @@ import {
   parseTitleType,
 } from "./review-policy.mjs";
 
+function canonical(value) {
+  return JSON.stringify(value, (_key, item) =>
+    item !== null && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.entries(item).toSorted(([a], [b]) => (a < b ? -1 : 1)),
+        )
+      : item,
+  );
+}
+
 function majorOf(range) {
   const major = /^[\s^~>=v]*(\d+)/.exec(range)?.[1];
   return major === undefined ? null : Number(major);
@@ -91,7 +101,12 @@ export function computeTier(input, policy) {
     }
     if (
       file.path.startsWith(".github/workflows/") &&
-      [...added, ...removed].some((line) => /permissions:|secrets\./.test(line))
+      (file.patch === null ||
+        [...added, ...removed].some((line) =>
+          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets[.:]|\bpull_request_target\b|\bworkflow_run\b/.test(
+            line.slice(1),
+          ),
+        ))
     ) {
       addReason(3, "ci-permissions", file.path);
     }
@@ -161,6 +176,10 @@ export function computeTier(input, policy) {
     }
   }
 
+  for (const path of input.invalidManifests) {
+    failures.push({ code: "manifest-invalid", detail: path, override: null });
+  }
+
   for (const { path, base, head } of input.manifests) {
     if (
       !matchesAny(path, ["packages/*/package.json"]) ||
@@ -169,9 +188,20 @@ export function computeTier(input, policy) {
     ) {
       continue;
     }
-    for (const name of Object.keys(head.dependencies ?? {})) {
-      if (!Object.hasOwn(base.dependencies ?? {}, name)) {
-        addReason(3, "new-runtime-dependency", `${path}: ${name}`);
+    const baseDependencies = new Set(
+      ["dependencies", "peerDependencies", "optionalDependencies"].flatMap(
+        (field) => Object.keys(base[field] ?? {}),
+      ),
+    );
+    for (const field of [
+      "dependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ]) {
+      for (const name of Object.keys(head[field] ?? {})) {
+        if (!baseDependencies.has(name)) {
+          addReason(3, "new-runtime-dependency", `${path}: ${name}`);
+        }
       }
     }
     let peerHead = head.peerDependencies;
@@ -194,7 +224,7 @@ export function computeTier(input, policy) {
     }
     for (const field of ["peerDependencies", "engines", "sideEffects", "bin"]) {
       const headValue = field === "peerDependencies" ? peerHead : head[field];
-      if (JSON.stringify(base[field]) !== JSON.stringify(headValue)) {
+      if (canonical(base[field]) !== canonical(headValue)) {
         addApiReason(2, "manifest-contract-field", `${path}: ${field}`);
       }
     }

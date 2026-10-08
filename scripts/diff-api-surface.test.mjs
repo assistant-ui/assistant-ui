@@ -120,6 +120,19 @@ export { entry_root_exports as entry_root };`;
   });
 });
 
+test("a referenced import changing its source name changes the public export", () => {
+  const before = `import { External as Value } from "module";
+interface Widget { value: Value; }
+declare namespace entry_root_exports { export { Widget }; }
+export { entry_root_exports as entry_root };`;
+  const head = before.replace("External as Value", "Other as Value");
+  assert.deepEqual(diffApiSurface(before, head), {
+    ...empty,
+    declarationsChanged: [{ entry: "entry_root", name: "Widget" }],
+    changed: true,
+  });
+});
+
 test("a removed public export is reported without a declaration change", () => {
   const before = base
     .replace(
