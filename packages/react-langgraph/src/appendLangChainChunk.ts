@@ -264,7 +264,9 @@ export const appendLangChainChunk = (
     );
     if (idx === -1 && chunk.index != null) {
       idx = newToolCalls.findIndex(
-        (tc) => tc?.index === chunk.index && (!tc.id || !chunk.id),
+        (tc) =>
+          tc?.index === chunk.index &&
+          (!tc.id || !chunk.id || (tc.name && tc.name === chunk.name)),
       );
     }
     if (idx === -1) {
@@ -276,7 +278,10 @@ export const appendLangChainChunk = (
       const next: LangChainToolCall = {
         ...chunk,
         ...existing,
-        id: existing.id || chunk.id,
+        id:
+          existing.id && chunk.id && existing.id !== chunk.id
+            ? existing.id + chunk.id
+            : existing.id || chunk.id,
         name: existing.name || chunk.name,
         partial_json: partialJson,
         args: existing.args,

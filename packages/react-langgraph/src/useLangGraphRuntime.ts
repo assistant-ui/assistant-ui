@@ -616,66 +616,60 @@ const useLangGraphRuntimeImpl = (
     [],
   );
 
-  const releaseToolResultBatch = useCallback(
-    async (
-      groupKey: string,
-      batch: Extract<LangChainMessage, { type: "tool" }>[],
-    ) => {
-      const queuedResume = pendingResumeRef.current.get(groupKey);
-      if (queuedResume) {
-        for (const message of batch) {
-          const index = queuedResume.findIndex(
-            (m) => m.tool_call_id === message.tool_call_id,
-          );
-          if (index >= 0) queuedResume[index] = message;
-          else queuedResume.push(message);
-        }
-        return;
+  const releaseToolResultBatch = async (
+    groupKey: string,
+    batch: Extract<LangChainMessage, { type: "tool" }>[],
+  ) => {
+    const queuedResume = pendingResumeRef.current.get(groupKey);
+    if (queuedResume) {
+      for (const message of batch) {
+        const index = queuedResume.findIndex(
+          (m) => m.tool_call_id === message.tool_call_id,
+        );
+        if (index >= 0) queuedResume[index] = message;
+        else queuedResume.push(message);
       }
-      const runConfig = batch
-        .map((message) => getToolRunConfig(message.tool_call_id, messages))
-        .find((config) => config !== undefined);
-      pendingResumeRef.current.set(groupKey, batch);
-      try {
-        await handleSendMessage(batch, { runConfig });
-      } catch (error) {
-        if (!(error instanceof SerialRunQueueDropError)) throw error;
-      } finally {
-        if (pendingResumeRef.current.get(groupKey) === batch) {
-          pendingResumeRef.current.delete(groupKey);
-        }
+      return;
+    }
+    const runConfig = batch
+      .map((message) => getToolRunConfig(message.tool_call_id, messages))
+      .find((config) => config !== undefined);
+    pendingResumeRef.current.set(groupKey, batch);
+    try {
+      await handleSendMessage(batch, { runConfig });
+    } catch (error) {
+      if (!(error instanceof SerialRunQueueDropError)) throw error;
+    } finally {
+      if (pendingResumeRef.current.get(groupKey) === batch) {
+        pendingResumeRef.current.delete(groupKey);
       }
-    },
-    [messages, handleSendMessage],
-  );
+    }
+  };
 
-  const flushBufferedToolResults = useCallback(
-    (runId: string, finalMessages: LangChainMessage[], failed: boolean) => {
-      const expected = getPendingToolCallGroups(
-        finalMessages,
-        resolveRunGroupKey,
-      )
-        .filter((group) => group.key === `run:${runId}`)
-        .flatMap((group) => group.toolCalls.map((toolCall) => toolCall.id));
-      if (expected.length === 0) return;
-      pendingToolCallIdsByRunRef.current.set(runId, expected);
-      if (!expected.some((id) => toolResultBufferRef.current.has(id))) return;
-      if (failed) return;
-      if (!expected.every((id) => toolResultBufferRef.current.has(id))) return;
-      const batch = expected.map((id) => toolResultBufferRef.current.get(id)!);
-      for (const id of expected) toolResultBufferRef.current.delete(id);
-      void releaseToolResultBatch(`run:${runId}`, batch).catch(
-        (error: unknown) => {
-          console.error(
-            "useLangGraphRuntime: tool result resume failed",
-            error,
-          );
-        },
-      );
-    },
-    [releaseToolResultBatch, resolveRunGroupKey],
-  );
-  flushBufferedToolResultsRef.current = flushBufferedToolResults;
+  const flushBufferedToolResults = (
+    runId: string,
+    finalMessages: LangChainMessage[],
+    failed: boolean,
+  ) => {
+    const expected = getPendingToolCallGroups(finalMessages, resolveRunGroupKey)
+      .filter((group) => group.key === `run:${runId}`)
+      .flatMap((group) => group.toolCalls.map((toolCall) => toolCall.id));
+    if (expected.length === 0) return;
+    pendingToolCallIdsByRunRef.current.set(runId, expected);
+    if (!expected.some((id) => toolResultBufferRef.current.has(id))) return;
+    if (failed) return;
+    if (!expected.every((id) => toolResultBufferRef.current.has(id))) return;
+    const batch = expected.map((id) => toolResultBufferRef.current.get(id)!);
+    for (const id of expected) toolResultBufferRef.current.delete(id);
+    void releaseToolResultBatch(`run:${runId}`, batch).catch(
+      (error: unknown) => {
+        console.error("useLangGraphRuntime: tool result resume failed", error);
+      },
+    );
+  };
+  useInsertionEffect(() => {
+    flushBufferedToolResultsRef.current = flushBufferedToolResults;
+  }, [flushBufferedToolResults]);
 
   const state = useMemo(
     () =>

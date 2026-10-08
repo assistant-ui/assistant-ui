@@ -524,7 +524,14 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                   )
                 : accumulator.addMessages([normalizedMessage]);
 
-              onMessages?.([normalizedMessage], config.runConfig);
+              onMessages?.(
+                [
+                  updatedMessages.find(
+                    (message) => message.id === normalizedMessage.id,
+                  ) ?? normalizedMessage,
+                ],
+                config.runConfig,
+              );
               setMessagesImmediate(updatedMessages);
               setMessageMetadata(new Map(accumulator.getMetadataMap()));
               break;
