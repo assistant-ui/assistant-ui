@@ -19,6 +19,13 @@ export type WebviewCspOptions = {
   /** Extra `script-src` sources, such as `webview.cspSource` for code-split chunks. */
   scriptSrc?: readonly string[];
   connectSrc?: readonly string[];
+  /**
+   * Extra `img-src` sources, such as `"https:"`. Remote images are blocked by
+   * default, because an image URL in model output can carry chat data away.
+   */
+  imgSrc?: readonly string[];
+  /** Extra `media-src` sources, blocked by default like `imgSrc`. */
+  mediaSrc?: readonly string[];
   frameSrc?: readonly string[];
   /** Adds `'wasm-unsafe-eval'` to `script-src` for WebAssembly modules. */
   wasmUnsafeEval?: boolean;
@@ -133,8 +140,20 @@ export function createWebviewCsp(
       cspSource,
       csp === "relaxed" ? "'unsafe-inline'" : `'nonce-${nonce}'`,
     ],
-    ["img-src", cspSource, "blob:", "data:", "https:"],
-    ["media-src", cspSource, "blob:", "data:", "https:"],
+    [
+      "img-src",
+      cspSource,
+      "blob:",
+      "data:",
+      ...sources("img-src", options.imgSrc ?? []),
+    ],
+    [
+      "media-src",
+      cspSource,
+      "blob:",
+      "data:",
+      ...sources("media-src", options.mediaSrc ?? []),
+    ],
     ["font-src", cspSource, "data:"],
     [
       "connect-src",

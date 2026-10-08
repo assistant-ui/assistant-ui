@@ -34,8 +34,8 @@ describe("createWebviewCsp", () => {
         "default-src 'none'",
         "script-src 'nonce-abc123'",
         `style-src ${CSP_SOURCE} 'nonce-abc123'`,
-        `img-src ${CSP_SOURCE} blob: data: https:`,
-        `media-src ${CSP_SOURCE} blob: data: https:`,
+        `img-src ${CSP_SOURCE} blob: data:`,
+        `media-src ${CSP_SOURCE} blob: data:`,
         `font-src ${CSP_SOURCE} data:`,
         `connect-src ${CSP_SOURCE}`,
         "frame-src 'none'",
@@ -67,12 +67,14 @@ describe("createWebviewCsp", () => {
     expect(wasm).not.toContain("'unsafe-eval'");
   });
 
-  it("appends extra script, connect and frame sources", () => {
+  it("appends extra script, connect, image, media and frame sources", () => {
     const csp = directives(
       createWebviewCsp(webview, {
         nonce: "n",
         scriptSrc: [CSP_SOURCE],
         connectSrc: ["https://api.example.com", "wss://api.example.com"],
+        imgSrc: ["https://icons.duckduckgo.com"],
+        mediaSrc: ["https:"],
         frameSrc: ["https://www.youtube.com"],
       }),
     );
@@ -82,6 +84,18 @@ describe("createWebviewCsp", () => {
       CSP_SOURCE,
       "https://api.example.com",
       "wss://api.example.com",
+    ]);
+    expect(csp.get("img-src")).toEqual([
+      CSP_SOURCE,
+      "blob:",
+      "data:",
+      "https://icons.duckduckgo.com",
+    ]);
+    expect(csp.get("media-src")).toEqual([
+      CSP_SOURCE,
+      "blob:",
+      "data:",
+      "https:",
     ]);
     expect(csp.get("frame-src")).toEqual(["https://www.youtube.com"]);
   });
