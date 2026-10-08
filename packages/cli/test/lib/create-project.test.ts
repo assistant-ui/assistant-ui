@@ -36,8 +36,10 @@ vi.mock("detect-package-manager", () => ({
 }));
 
 import { downloadTemplate } from "giget";
-import { dlxCommand } from "../../src/lib/create-project";
-import { type PackageManagerName } from "../../src/lib/utils/package-manager";
+import {
+  dlxCommand,
+  type PackageManagerName,
+} from "../../src/lib/utils/package-manager";
 
 const TEST_PM: PackageManagerName = "pnpm";
 const [TEST_DLX_CMD] = dlxCommand(TEST_PM);

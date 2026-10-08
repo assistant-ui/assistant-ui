@@ -54,6 +54,22 @@ const createPart = (
   };
 };
 
+describe("ExternalThread send policy", () => {
+  it("projects isSendDisabled onto thread state", () => {
+    const root = createTapRoot(function ExternalThreadRoot() {
+      return useResource(
+        ExternalThread({ messages: [], isSendDisabled: true }),
+      );
+    });
+
+    try {
+      expect(root.getValue().getState().isSendDisabled).toBe(true);
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
 describe("ExternalThread interaction recording", () => {
   it("keeps a part client with its id when parts swap", () => {
     const initial: ExternalThreadMessage = {
@@ -176,6 +192,62 @@ describe("ExternalThread interaction recording", () => {
       );
     } finally {
       unmount();
+    }
+  });
+});
+
+describe("ExternalThread earlier messages", () => {
+  it("shares one in-flight load and reports it in thread state", async () => {
+    let finish!: () => void;
+    const onLoadEarlier = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    const root = createTapRoot(function ExternalThreadRoot() {
+      return useResource(
+        ExternalThread({
+          messages: [message],
+          hasEarlier: true,
+          onLoadEarlier,
+        }),
+      );
+    });
+
+    try {
+      expect(root.getValue().getState()).toMatchObject({
+        hasEarlier: true,
+        isLoadingEarlier: false,
+      });
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      flushTapSync(() => {
+        first = root.getValue().loadEarlier();
+        second = root.getValue().loadEarlier();
+      });
+      expect(second).toBe(first);
+      expect(root.getValue().getState().isLoadingEarlier).toBe(true);
+
+      await Promise.resolve();
+      finish();
+      await first;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(onLoadEarlier).toHaveBeenCalledTimes(1);
+      expect(root.getValue().getState().isLoadingEarlier).toBe(false);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("reports no earlier messages without a loader", () => {
+    const root = createTapRoot(function ExternalThreadRoot() {
+      return useResource(
+        ExternalThread({ messages: [message], hasEarlier: true }),
+      );
+    });
+
+    try {
+      expect(root.getValue().getState().hasEarlier).toBe(false);
+    } finally {
+      root.unmount();
     }
   });
 });

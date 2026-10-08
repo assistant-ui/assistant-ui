@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -6,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useLayoutEffect, useRef } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
 import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.aui";
@@ -52,6 +54,43 @@ const renderTool = (props: Partial<ToolCallMessagePartProps> = {}) => {
 };
 
 describe("ToolFallback", () => {
+  it("preserves focus assigned during the answer commit", () => {
+    function Composer({ answered }: { answered: boolean }) {
+      const ref = useRef<HTMLInputElement>(null);
+      useLayoutEffect(() => {
+        if (answered) ref.current?.focus();
+      }, [answered]);
+      return <input ref={ref} aria-label="Composer" />;
+    }
+    const renderRequest = (answered: boolean) => (
+      <>
+        <Composer answered={answered} />
+        <ToolFallback
+          {...({
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "test-tool",
+            args: {},
+            argsText: "{}",
+            status: answered
+              ? { type: "running" }
+              : { type: "requires-action", reason: "interrupt" },
+            interrupt: answered ? undefined : { type: "human", payload: {} },
+            resume: vi.fn(),
+            addResult: vi.fn(),
+            respondToApproval: vi.fn(async () => {}),
+          } as ToolCallMessagePartProps)}
+        />
+      </>
+    );
+    const view = render(renderRequest(false));
+    button("Allow").focus();
+    view.rerender(renderRequest(true));
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "Composer" }),
+    );
+  });
+
   it("renders non-JSON tool values without throwing", () => {
     const circular: { self?: unknown } = {};
     circular.self = circular;
@@ -220,6 +259,169 @@ describe("ToolFallback", () => {
     expect(resume).toHaveBeenCalledWith({ approved: true });
   });
 
+  it("accepts another interrupt after the run resumes", () => {
+    const resume = vi.fn();
+    const part = {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "test-tool",
+      args: {},
+      argsText: "{}",
+      status: { type: "requires-action", reason: "interrupt" },
+      interrupt: { type: "human", payload: { step: 1 } },
+      resume,
+      addResult: vi.fn(),
+      respondToApproval: vi.fn(async () => {}),
+    } satisfies ToolCallMessagePartProps;
+    const view = render(<ToolFallback {...part} />);
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+
+    view.rerender(
+      <ToolFallback
+        {...part}
+        status={{ type: "running" }}
+        interrupt={undefined}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+
+    view.rerender(
+      <ToolFallback
+        {...part}
+        interrupt={{ type: "human", payload: { step: 2 } }}
+      />,
+    );
+    expect(button("Deny").disabled).toBe(false);
+    fireEvent.click(button("Deny"));
+    expect(resume.mock.calls).toEqual([
+      [{ approved: true }],
+      [{ approved: false }],
+    ]);
+  });
+
+  it.each(["resume", "addResult"] as const)(
+    "returns focus to the trigger after %s settles",
+    (answerPath) => {
+      const resume = vi.fn();
+      const addResult = vi.fn();
+      const initialStatus: ToolCallMessagePartProps["status"] = {
+        type: "requires-action",
+        reason: answerPath === "resume" ? "interrupt" : "tool-calls",
+      };
+      const interrupt =
+        answerPath === "resume"
+          ? { type: "human" as const, payload: {} }
+          : undefined;
+      const renderRequest = (
+        status: ToolCallMessagePartProps["status"],
+        requestInterrupt: ToolCallMessagePartProps["interrupt"],
+      ) => {
+        const props = {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "test-tool",
+          args: {},
+          argsText: "{}",
+          status,
+          interrupt: requestInterrupt,
+          addResult,
+          resume,
+          respondToApproval: vi.fn(async () => {}),
+        } as ToolCallMessagePartProps;
+        return <ToolFallback {...props} />;
+      };
+      const view = render(renderRequest(initialStatus, interrupt));
+      const allow = button("Allow");
+      allow.focus();
+      fireEvent.click(allow);
+      expect(answerPath === "resume" ? resume : addResult).toHaveBeenCalled();
+
+      view.rerender(renderRequest({ type: "running" }, undefined));
+
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-trigger"]'),
+      );
+    },
+  );
+
+  it.each([
+    { type: "complete", reason: "unknown" },
+    { type: "incomplete", reason: "error" },
+  ] as const)(
+    "returns focus when an answered request finishes without a receipt: $type",
+    (terminalStatus) => {
+      const approval = { id: "request" };
+      const respondToApproval = vi.fn(async () => {});
+      const request = (status: ToolCallMessagePartProps["status"]) => (
+        <ToolFallback
+          {...({
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "test-tool",
+            args: {},
+            argsText: "{}",
+            approval,
+            status,
+            respondToApproval,
+            resume: vi.fn(),
+            addResult: vi.fn(),
+          } as ToolCallMessagePartProps)}
+        />
+      );
+      const view = render(
+        request({ type: "requires-action", reason: "tool-calls" }),
+      );
+      button("Allow").focus();
+      fireEvent.click(button("Allow"));
+      view.rerender(request({ type: "running" }));
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-approval"]'),
+      );
+      view.rerender(request(terminalStatus));
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-trigger"]'),
+      );
+    },
+  );
+
+  it("does not reclaim focus after it leaves the answer controls", () => {
+    const resume = vi.fn();
+    const addResult = vi.fn();
+    const composer = <input aria-label="Composer" />;
+    const request = (status: ToolCallMessagePartProps["status"]) => {
+      const props = {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "test-tool",
+        args: {},
+        argsText: "{}",
+        status,
+        interrupt: { type: "human", payload: {} },
+        addResult,
+        resume,
+        respondToApproval: vi.fn(async () => {}),
+      } as ToolCallMessagePartProps;
+      return (
+        <>
+          <ToolFallback {...props} />
+          {composer}
+        </>
+      );
+    };
+    const view = render(
+      request({ type: "requires-action", reason: "interrupt" }),
+    );
+    button("Allow").focus();
+    screen.getByRole("textbox", { name: "Composer" }).focus();
+
+    view.rerender(request({ type: "running" }));
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "Composer" }),
+    );
+  });
+
   it("keeps the addResult fallback for tool-call actions", () => {
     const addResult = vi.fn();
     renderTool({
@@ -343,6 +545,426 @@ describe("ToolFallback", () => {
 describe("settled approval receipts", () => {
   const receipt = () =>
     document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
+
+  it.each([
+    { type: "running" },
+    { type: "complete" },
+    { type: "incomplete", reason: "cancelled" },
+    { type: "incomplete", reason: "error" },
+  ] satisfies ToolCallMessagePartProps["status"][])(
+    "does not expose unanswered controls outside requires-action: %j",
+    (status) => {
+      renderTool({
+        status,
+        approval: pendingApproval,
+        respondToApproval: vi.fn(async () => {}),
+      });
+      fireEvent.click(screen.getByText("test-tool"));
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+    },
+  );
+
+  it.each([true, false])(
+    "keeps keyboard focus after an asynchronous decision (%s)",
+    (approved) => {
+      const respondToApproval = vi.fn(async () => {});
+      const view = render(
+        <ToolFallbackApproval
+          approval={pendingApproval}
+          respondToApproval={respondToApproval}
+        />,
+      );
+      const control = button(approved ? "Allow" : "Deny");
+      control.focus();
+      fireEvent.click(control);
+      expect(control.disabled).toBe(true);
+      control.blur();
+      expect(
+        control
+          .closest('[data-slot="tool-fallback-approval"]')
+          ?.contains(document.activeElement),
+      ).toBe(true);
+
+      view.rerender(
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, approved }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+      expect(document.activeElement).toBe(receipt());
+      expect(receipt()?.getAttribute("tabindex")).toBe("-1");
+    },
+  );
+
+  it.each([
+    { type: "complete" },
+    { type: "incomplete", reason: "cancelled" },
+    { type: "incomplete", reason: "error" },
+  ] satisfies ToolCallMessagePartProps["status"][])(
+    "removes submitted controls when the run ends without a receipt: %j",
+    async (status) => {
+      const props = {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "test-tool",
+        args: {},
+        argsText: "{}",
+        status: { type: "requires-action", reason: "tool-calls" },
+        approval: pendingApproval,
+        addResult: vi.fn(),
+        resume: vi.fn(),
+        respondToApproval: vi.fn(async () => {}),
+      } satisfies ToolCallMessagePartProps;
+      const view = render(<ToolFallback {...props} />);
+      const allow = button("Allow");
+      allow.focus();
+      await act(async () => fireEvent.click(allow));
+      expect(button("Allow").disabled).toBe(true);
+
+      view.rerender(<ToolFallback {...props} status={status} />);
+
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+      expect(receipt()).toBeNull();
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-trigger"]'),
+      );
+    },
+  );
+
+  it("keeps focus when a focused request expires without a submission", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    button("Deny").focus();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, resolution: "expired" }}
+      />,
+    );
+    expect(document.activeElement).toBe(receipt());
+  });
+
+  it("retains focus ownership when a window blur keeps the active control", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    const control = button("Allow");
+    control.focus();
+    fireEvent.blur(control, { relatedTarget: null });
+    expect(document.activeElement).toBe(control);
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, resolution: "expired" }}
+      />,
+    );
+    expect(document.activeElement).toBe(receipt());
+  });
+
+  it.each([true, false])(
+    "keeps ToolFallback focus when status settles with approval: %s",
+    (settleTogether) => {
+      const respondToApproval = vi.fn(async () => {});
+      const view = renderTool({ approval: pendingApproval, respondToApproval });
+      const control = button("Allow");
+      control.focus();
+      fireEvent.click(control);
+      control.blur();
+      const runningTool = (approved?: boolean) => (
+        <ToolFallback
+          type="tool-call"
+          toolCallId="call-1"
+          toolName="test-tool"
+          args={{}}
+          argsText="{}"
+          status={{ type: "running" }}
+          approval={{ ...pendingApproval, approved }}
+          addResult={vi.fn()}
+          resume={vi.fn()}
+          respondToApproval={respondToApproval}
+        />
+      );
+      if (!settleTogether) {
+        view.rerender(runningTool());
+        expect(button("Allow").disabled).toBe(true);
+      }
+      view.rerender(runningTool(true));
+      expect(document.activeElement).toBe(receipt());
+      expect(receipt()?.textContent).toContain("Allowed");
+    },
+  );
+
+  it.each(["req-1", "next-request"])(
+    "allows a fresh response when the run requests action again (%s)",
+    async (id) => {
+      let rejectPrevious!: (error: Error) => void;
+      const previousResponse = new Promise<void>((_, reject) => {
+        rejectPrevious = reject;
+      });
+      const respondToApproval = vi.fn(() => previousResponse);
+      const renderRequest = (running: boolean, approvalId = "req-1") => (
+        <ToolFallback
+          type="tool-call"
+          toolCallId="call-1"
+          toolName="test-tool"
+          args={{}}
+          argsText="{}"
+          status={
+            running
+              ? { type: "running" }
+              : { type: "requires-action", reason: "tool-calls" }
+          }
+          approval={{ id: approvalId }}
+          addResult={vi.fn()}
+          resume={vi.fn()}
+          respondToApproval={respondToApproval}
+        />
+      );
+      const view = render(renderRequest(false));
+      button("Allow").focus();
+      fireEvent.click(button("Allow"));
+      expect(button("Allow").disabled).toBe(true);
+      view.rerender(renderRequest(true));
+      expect(button("Allow").disabled).toBe(true);
+      view.rerender(renderRequest(false, id));
+      expect(button("Allow").disabled).toBe(false);
+      expect(document.activeElement).toBe(
+        button("Allow").closest('[data-slot="tool-fallback-approval"]'),
+      );
+      respondToApproval.mockImplementation(() => new Promise<void>(() => {}));
+      fireEvent.click(button("Deny"));
+      await act(async () => rejectPrevious(new Error("Old attempt failed")));
+      expect(button("Deny").disabled).toBe(true);
+      expect(screen.queryByRole("alert")).toBeNull();
+    },
+  );
+
+  it.each(["composer", "body", "terminal"])(
+    "does not move focus back into the approval on re-entry after leaving it (%s)",
+    (departure) => {
+      const renderRequest = (
+        type: "requires-action" | "running" | "complete",
+      ) => (
+        <>
+          <ToolFallback
+            type="tool-call"
+            toolCallId="call-1"
+            toolName="test-tool"
+            args={{}}
+            argsText="{}"
+            status={
+              type === "complete"
+                ? { type }
+                : type === "requires-action"
+                  ? { type, reason: "tool-calls" }
+                  : { type }
+            }
+            approval={{ id: "req-1" }}
+            addResult={vi.fn()}
+            resume={vi.fn()}
+            respondToApproval={() => new Promise<void>(() => {})}
+          />
+          <input aria-label="Composer" />
+        </>
+      );
+      const view = render(renderRequest("requires-action"));
+      button("Allow").focus();
+      fireEvent.click(button("Allow"));
+      view.rerender(renderRequest("running"));
+      const composer = screen.getByRole("textbox", { name: "Composer" });
+      if (departure === "terminal") {
+        view.rerender(renderRequest("complete"));
+      } else {
+        composer.focus();
+        if (departure === "body") composer.blur();
+      }
+      view.rerender(renderRequest("requires-action"));
+      expect(button("Allow").disabled).toBe(false);
+      expect(document.activeElement).toBe(
+        departure === "composer"
+          ? composer
+          : departure === "terminal"
+            ? view.container.querySelector(
+                '[data-slot="tool-fallback-trigger"]',
+              )
+            : document.body,
+      );
+    },
+  );
+
+  it("does not move focus from another control while a decision is pending", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const content = (approved?: boolean) => (
+      <>
+        <input aria-label="Message" />
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, approved }}
+          respondToApproval={respondToApproval}
+        />
+      </>
+    );
+    const view = render(content());
+    const control = button("Allow");
+    control.focus();
+    fireEvent.click(control);
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    composer.focus();
+    view.rerender(content(true));
+    expect(document.activeElement).toBe(composer);
+  });
+
+  it("does not reclaim focus after the user leaves an unanswered request", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    const control = button("Allow");
+    control.focus();
+    control.blur();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, approved: true }}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("forgets the pending request after focus moves away and is cleared", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const content = (approved?: boolean) => (
+      <>
+        <input aria-label="Message" />
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, approved }}
+          respondToApproval={respondToApproval}
+        />
+      </>
+    );
+    const view = render(content());
+    const control = button("Allow");
+    control.focus();
+    fireEvent.click(control);
+    control.blur();
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    composer.focus();
+    composer.blur();
+    view.rerender(content(true));
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("does not transfer focus to a different request's receipt", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    button("Allow").focus();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ id: "another-request", approved: true }}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("does not autofocus a historical receipt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, approved: true }}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("respects a deliberate body exit while a decision is pending", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    const control = button("Allow");
+    control.focus();
+    fireEvent.click(control);
+    (document.activeElement as HTMLElement).blur();
+    expect(document.activeElement).toBe(document.body);
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, approved: true }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  const confirmationApproval = {
+    ...pendingApproval,
+    options: [{ id: "once", kind: "allow-once", confirm: true }],
+  };
+
+  it("keeps focus within the request when entering and leaving confirmation", () => {
+    render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+    const allow = button("Allow");
+    allow.focus();
+    fireEvent.click(allow);
+    expect(
+      button("Confirm")
+        .closest('[data-slot="tool-fallback-approval-confirm"]')
+        ?.contains(document.activeElement),
+    ).toBe(true);
+    const back = button("Back");
+    back.focus();
+    fireEvent.click(back);
+    expect(
+      button("Allow")
+        .closest('[data-slot="tool-fallback-approval"]')
+        ?.contains(document.activeElement),
+    ).toBe(true);
+  });
+
+  it("does not reclaim focus after leaving confirmation for the body", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    const allow = button("Allow");
+    allow.focus();
+    fireEvent.click(allow);
+    (document.activeElement as HTMLElement).blur();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...confirmationApproval, approved: true }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("keeps pending confirmation focus until its receipt arrives", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+    const confirm = button("Confirm");
+    confirm.focus();
+    fireEvent.click(confirm);
+    expect(button("Allow").disabled).toBe(true);
+    expect(
+      button("Allow")
+        .closest('[data-slot="tool-fallback-approval"]')
+        ?.contains(document.activeElement),
+    ).toBe(true);
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...confirmationApproval, approved: true }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(document.activeElement).toBe(receipt());
+  });
 
   it("records the option a gate was allowed with, without controls", () => {
     renderTool({
@@ -838,5 +1460,421 @@ describe("ToolFallbackApproval", () => {
     expect(button("Production")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+  });
+
+  describe('display "questions"', () => {
+    const answeredReceipt = () =>
+      document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
+    const questions = [
+      {
+        id: "scope",
+        header: "Scope",
+        prompt: "Which files?",
+        options: [
+          { id: "src", label: "src" },
+          { id: "tests", label: "tests" },
+        ],
+        multiple: true,
+      },
+      {
+        id: "style",
+        prompt: "Which style?",
+        options: [
+          { id: "terse", label: "Terse", description: "Short answers" },
+          { id: "verbose", label: "Verbose" },
+        ],
+      },
+      { id: "note", prompt: "Anything else?" },
+    ];
+
+    it("sends every question's answer once each is answered, without an allow or deny path", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      render(
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, display: "questions", questions }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+      expect(button("Send").disabled).toBe(true);
+
+      fireEvent.click(button("src"));
+      fireEvent.click(button("tests"));
+      expect(button("src").getAttribute("aria-pressed")).toBe("true");
+      expect(button("tests").getAttribute("aria-pressed")).toBe("true");
+
+      fireEvent.click(screen.getByRole("button", { name: /Terse/ }));
+      fireEvent.click(button("Verbose"));
+      expect(
+        screen
+          .getByRole("button", { name: /Terse/ })
+          .getAttribute("aria-pressed"),
+      ).toBe("false");
+      expect(button("Send").disabled).toBe(true);
+
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Anything else?" }),
+        {
+          target: { value: "keep it short" },
+        },
+      );
+      expect(button("Send").disabled).toBe(false);
+
+      fireEvent.click(button("Send"));
+      await waitFor(() =>
+        expect(respondToApproval).toHaveBeenCalledWith({
+          answers: {
+            scope: { optionIds: ["src", "tests"] },
+            style: { optionIds: ["verbose"] },
+            note: { text: "keep it short" },
+          },
+        }),
+      );
+    });
+
+    it("answers questions whose ids name object prototype keys", async () => {
+      const respondToApproval = vi.fn(async (_response: unknown) => {});
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions: [
+              {
+                id: "constructor",
+                prompt: "Pick one",
+                options: [{ id: "a", label: "A" }],
+              },
+              { id: "__proto__", prompt: "Say more" },
+            ],
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      fireEvent.click(button("A"));
+      fireEvent.change(screen.getByRole("textbox", { name: "Say more" }), {
+        target: { value: "ok" },
+      });
+      fireEvent.click(button("Send"));
+      await waitFor(() => expect(respondToApproval).toHaveBeenCalled());
+      const { answers } = respondToApproval.mock.calls[0]![0] as {
+        answers: Record<string, unknown>;
+      };
+      expect(Object.hasOwn(answers, "constructor")).toBe(true);
+      expect(Object.hasOwn(answers, "__proto__")).toBe(true);
+      expect(answers["constructor"]).toEqual({ optionIds: ["a"] });
+      expect(
+        Object.getOwnPropertyDescriptor(answers, "__proto__")?.value,
+      ).toEqual({ text: "ok" });
+    });
+
+    it("renders a pending questionnaire and its settled answers through the tool fallback", () => {
+      const view = renderTool({
+        approval: { ...pendingApproval, display: "questions", questions },
+        respondToApproval: vi.fn(async () => {}),
+      });
+      expect(button("Send")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+
+      view.unmount();
+      renderTool({
+        approval: {
+          ...pendingApproval,
+          display: "questions",
+          questions,
+          approved: true,
+          answers: {
+            scope: { optionIds: ["tests"] },
+            style: { optionIds: ["verbose"] },
+            note: { text: "ok" },
+          },
+        },
+      });
+      expect(answeredReceipt()?.textContent).toContain("Scope · tests");
+      expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+    });
+
+    it("offers a dismissal only when the request is dismissible", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            dismissible: true,
+            questions,
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      fireEvent.click(button("Dismiss"));
+      await waitFor(() =>
+        expect(respondToApproval).toHaveBeenCalledWith({ approved: false }),
+      );
+    });
+
+    it("reopens the controls with the error when the host rejects the answers", async () => {
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions: [{ id: "note", prompt: "Anything else?" }],
+          }}
+          respondToApproval={vi.fn(async () => {
+            throw new Error("Stale request");
+          })}
+        />,
+      );
+
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Anything else?" }),
+        {
+          target: { value: "no" },
+        },
+      );
+      fireEvent.click(button("Send"));
+
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "Stale request",
+      );
+      expect(button("Send").disabled).toBe(false);
+    });
+
+    it("records each answer under its question once answered", () => {
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions,
+            approved: true,
+            answers: {
+              scope: { optionIds: ["src", "tests"] },
+              style: { optionIds: ["terse"] },
+              note: { text: "keep it short" },
+            },
+          }}
+        />,
+      );
+
+      expect(answeredReceipt()?.textContent).toContain("Answered");
+      expect(answeredReceipt()?.textContent).toContain("Scope · src, tests");
+      expect(answeredReceipt()?.textContent).toContain("Which style? · Terse");
+      expect(answeredReceipt()?.textContent).toContain(
+        "Anything else? · keep it short",
+      );
+    });
+  });
+});
+
+describe("approval request state", () => {
+  it("preserves questionnaire answers for the same request and resets them for a new request", () => {
+    const approval = {
+      ...pendingApproval,
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Scope",
+          options: [{ id: "src", label: "src" }],
+        },
+        { id: "note", prompt: "Notes" },
+      ],
+    };
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("src"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Notes" }), {
+      target: { value: "first request" },
+    });
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, prompt: "Updated prompt" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("src").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      (screen.getByRole("textbox", { name: "Notes" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe("first request");
+    expect(button("Send").disabled).toBe(false);
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("src").getAttribute("aria-pressed")).toBe("false");
+    expect(
+      (screen.getByRole("textbox", { name: "Notes" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe("");
+    expect(button("Send").disabled).toBe(true);
+    expect(respondToApproval).not.toHaveBeenCalled();
+  });
+
+  const confirmationApproval = {
+    ...pendingApproval,
+    options: [{ id: "once", kind: "allow-once", confirm: true }],
+  };
+
+  it("starts a new approval without carrying over the previous submission lock", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = renderTool({ approval: pendingApproval, respondToApproval });
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+    view.rerender(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="call-1"
+        toolName="test-tool"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "tool-calls" }}
+        approval={{ id: "next-request" }}
+        addResult={vi.fn()}
+        resume={vi.fn()}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("Allow").disabled).toBe(false);
+    expect(button("Deny").disabled).toBe(false);
+  });
+
+  it("starts a new directly rendered approval without the previous lock", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallback.Approval
+        approval={pendingApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+
+    view.rerender(
+      <ToolFallback.Approval
+        approval={{ id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(button("Allow").disabled).toBe(false);
+    expect(button("Deny").disabled).toBe(false);
+    fireEvent.click(button("Deny"));
+    expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
+    expect(respondToApproval).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the previous request's draft and error", async () => {
+    const approval = {
+      ...pendingApproval,
+      display: "text" as const,
+      prompt: "Which environment?",
+    };
+    const respondToApproval = vi.fn(async () => {
+      throw new Error("Environment unavailable");
+    });
+    const view = render(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "staging" },
+    });
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, prompt: "Choose an environment" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+      "staging",
+    );
+    fireEvent.click(button("Send"));
+    await screen.findByRole("alert");
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(button("Send").disabled).toBe(false);
+  });
+
+  it("leaves confirmation when a different request arrives", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+    expect(button("Confirm")).toBeTruthy();
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...confirmationApproval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
+    expect(button("Allow").disabled).toBe(false);
+    expect(respondToApproval).not.toHaveBeenCalled();
+  });
+
+  it("ignores an earlier request's rejection while the next is pending", async () => {
+    let rejectPrevious!: (error: Error) => void;
+    const previousResponse = new Promise<void>((_, reject) => {
+      rejectPrevious = reject;
+    });
+    const nextResponse = vi.fn(() => new Promise<void>(() => {}));
+    const view = render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={() => previousResponse}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ id: "next-request" }}
+        respondToApproval={nextResponse}
+      />,
+    );
+    expect(button("Allow").disabled).toBe(false);
+    fireEvent.click(button("Allow"));
+    expect(nextResponse).toHaveBeenCalledTimes(1);
+
+    await act(async () =>
+      rejectPrevious(new Error("Previous request expired")),
+    );
+
+    expect(button("Allow").disabled).toBe(true);
+    expect(button("Deny").disabled).toBe(true);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

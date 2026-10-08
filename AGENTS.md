@@ -1,6 +1,6 @@
 # assistant-ui
 
-Composable runtime and UI primitives for AI chat in React, React Native, and the terminal; the README carries the rest.
+Composable runtime and UI primitives for AI chat in React, Vue, React Native, and the terminal; the README carries the rest.
 
 ## Commands
 
@@ -58,7 +58,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 - Give every PR that changes a published npm package's shipped files a `patch` changeset (one changeset may name several packages); a maintainer-approved minor or major carries `<!-- caret-break: intended -->`.
 - Add no changeset for tests, top-level Markdown, `version`, `devDependencies`, or a `scripts` entry consumers never run, because the release handles those and naming the package releases it with nothing changed; `CONTRIBUTING.md` lists which `package.json` fields count.
 - The Semver Check job fails a PR whose shipped files change without a changeset, and `pnpm changesets:check` rejects one naming a private package.
-- Never `--admin` merge until `gh pr checks`, minus its `pass` and `skipping` rows, is empty; resolve a failing or pending repository check instead of overriding it.
+- Merge only when the tier requirements in `CONTRIBUTING.md` (Review policy) are met; only organization owners bypass rulesets, never for someone else's PR.
 - On `gitbutler/workspace`, use GitButler: never create branches, stage, commit, or rewrite history with Git unless asked.
 - Assume other agents edit alongside you: check the worktree state first, never overwrite changes you did not make, and keep yours scoped.
 

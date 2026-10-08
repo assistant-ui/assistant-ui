@@ -107,6 +107,31 @@ describe("generative UI surface", () => {
   });
 });
 
+describe("markdown tables", () => {
+  it("leaves a GFM-aligned cell to its align attribute", () => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(generativeUiCssText());
+    document.body.innerHTML =
+      '<div data-aui="markdown"><table><tbody><tr><td align="center"></td><td></td></tr></tbody></table></div>';
+    const [aligned, plain] = document.querySelectorAll("td");
+    const textAlign = (cell: Element | undefined) =>
+      [...sheet.cssRules]
+        .filter(
+          (rule): rule is CSSStyleRule =>
+            rule instanceof CSSStyleRule &&
+            rule.selectorText.includes('[data-aui="markdown"]') &&
+            cell !== undefined &&
+            cell.matches(rule.selectorText),
+        )
+        .map((rule) => rule.style.getPropertyValue("text-align"))
+        .filter(Boolean);
+
+    expect(textAlign(aligned)).toEqual([]);
+    expect(textAlign(plain)).toEqual(["start"]);
+    document.body.innerHTML = "";
+  });
+});
+
 describe("chart colors", () => {
   it("keeps legend labels muted while their swatches read the series color", () => {
     expect(rules['[data-aui="chart-legend-swatch"]']!["background-color"]).toBe(

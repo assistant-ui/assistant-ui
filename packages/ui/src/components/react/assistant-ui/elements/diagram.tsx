@@ -48,7 +48,9 @@ export function Diagram({
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
           {title}
         </span>
-        <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {Math.round(zoom * 100)}%
         </span>
         <button

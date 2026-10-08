@@ -3,7 +3,13 @@ import { defineConfig, mergeConfig } from "vitest/config";
 import base from "./vitest.config";
 
 export default mergeConfig(
-  base,
+  {
+    ...base,
+    test: {
+      ...base.test,
+      include: ["src/resumable/**/*.test.ts"],
+    },
+  },
   defineConfig({
     test: { env: { IOREDIS_PEER_MAJOR: "5" } },
     resolve: {

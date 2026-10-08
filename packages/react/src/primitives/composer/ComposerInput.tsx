@@ -27,6 +27,7 @@ import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
+import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -50,6 +51,8 @@ export namespace ComposerPrimitiveInput {
     render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
+     * After cancelling an edit, focus returns to the main thread composer when
+     * available, unless a handler has moved focus elsewhere.
      * @default true
      */
     cancelOnEscape?: boolean | undefined;
@@ -119,7 +122,7 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
- * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * When rendered inside `TriggerPopoverRoot` and a popover is open, the
  * underlying `<textarea>` automatically receives `aria-controls`,
  * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
  * combobox relationship. These computed attributes override user-provided
@@ -192,6 +195,9 @@ export const ComposerPrimitiveInput = forwardRef<
     const value = useComposerInputValue();
     const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const cancel = useComposerCancelWithFocus(
+      useCallback(() => aui.composer.cancel(), [aui]),
+    );
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
     const compositionRef = useRef(false);
@@ -214,7 +220,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       const composer = aui.composer;
       if (composer.getState().canCancel) {
-        composer.cancel();
+        cancel(textareaRef.current);
         e.preventDefault();
       }
     });

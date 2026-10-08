@@ -53,7 +53,7 @@ export function NumberTicker({
           ),
         )}
       </span>
-      <span className={cn(mono, "text-foreground/35")}>{label}</span>
+      <span className={cn(mono, "text-muted-foreground")}>{label}</span>
     </div>
   );
 }

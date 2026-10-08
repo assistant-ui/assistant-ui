@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type {
   UIMessage,
@@ -60,7 +61,7 @@ import {
   AISDKMessageConverter,
   type AISDKMessageConverterMetadata,
 } from "../converters/convertMessage";
-import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import { wrapModelContentEnvelope } from "assistant-stream/internal";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
@@ -203,11 +204,25 @@ const useGeneratedSuggestions = (
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  const adapterKey = suggestionAdapter?.key;
   const adapterRef = useRef(suggestionAdapter);
+  const lastAdapterKeyRef = useRef(adapterKey);
+  const adapterReplacedRef = useRef(false);
   useInsertionEffect(() => {
+    const previousAdapter = adapterRef.current;
     adapterRef.current = suggestionAdapter;
-  }, [suggestionAdapter]);
-  const hasAdapter = suggestionAdapter != null;
+    const adapterReplaced =
+      previousAdapter !== undefined &&
+      suggestionAdapter !== undefined &&
+      lastAdapterKeyRef.current !== adapterKey;
+    adapterReplacedRef.current ||= adapterReplaced;
+    if (suggestionAdapter === undefined || adapterReplaced) {
+      controllerRef.current?.abort();
+    }
+    lastAdapterKeyRef.current = adapterKey;
+  }, [adapterKey, suggestionAdapter]);
+  const hasAdapter = suggestionAdapter !== undefined;
+  const adapterPresentRef = useRef(hasAdapter);
 
   useEffect(() => {
     const clearSuggestions = () => {
@@ -217,11 +232,17 @@ const useGeneratedSuggestions = (
     };
 
     const adapter = adapterRef.current;
+    const adapterRestored = hasAdapter && !adapterPresentRef.current;
+    adapterPresentRef.current = hasAdapter;
+    const adapterReplaced = adapterReplacedRef.current;
+    adapterReplacedRef.current = false;
     if (!adapter) {
       clearSuggestions();
       wasRunningRef.current = isRunning;
       return;
     }
+
+    if (adapterReplaced) clearSuggestions();
 
     if (isRunning) {
       if (!wasRunningRef.current) {
@@ -231,7 +252,7 @@ const useGeneratedSuggestions = (
       return;
     }
 
-    if (!wasRunningRef.current) return;
+    if (!wasRunningRef.current && !adapterReplaced && !adapterRestored) return;
     wasRunningRef.current = false;
 
     const currentMessages = messagesRef.current;
@@ -252,11 +273,14 @@ const useGeneratedSuggestions = (
 
         await consumeSuggestionResult(promiseOrGenerator, {
           signal,
-          onUpdate: setSuggestions,
+          onUpdate: (nextSuggestions) => {
+            if (controllerRef.current !== controller) return;
+            setSuggestions(nextSuggestions);
+          },
         });
       } catch {}
     })();
-  }, [hasAdapter, isRunning]);
+  }, [adapterKey, hasAdapter, isRunning]);
 
   useReplaySafeEffect(() => {
     return () => {
@@ -290,10 +314,25 @@ type OwnedApproval = {
   response: RespondToToolApprovalOptions;
 };
 
-const hostToolApprovalsByChat = new WeakMap<
-  object,
-  Map<string, OwnedApproval>
->();
+type ChatRuntimeState = {
+  approvals: Map<string, OwnedApproval>;
+  cancelledMessageIds: ReadonlySet<string>;
+};
+
+const chatRuntimeStates = new WeakMap<object, ChatRuntimeState>();
+
+const getChatRuntimeState = (owner: object | undefined) => {
+  if (owner === undefined) return undefined;
+  let state = chatRuntimeStates.get(owner);
+  if (state === undefined) {
+    state = {
+      approvals: new Map(),
+      cancelledMessageIds: NO_CANCELLED_MESSAGE_IDS,
+    };
+    chatRuntimeStates.set(owner, state);
+  }
+  return state;
+};
 
 const toApprovalResponses = (
   owned: ReadonlyMap<string, OwnedApproval> | undefined,
@@ -308,19 +347,19 @@ const toApprovalResponses = (
  * may already be unmounted (a rollback resolving after a remount), and another
  * runtime may be mounted over the same owner.
  */
-const hostApprovalListenersByChat = new WeakMap<object, Set<() => void>>();
+const chatRuntimeListeners = new WeakMap<object, Set<() => void>>();
 
-const subscribeToHostApprovals = (owner: object, listener: () => void) => {
-  const listeners = hostApprovalListenersByChat.get(owner) ?? new Set();
-  hostApprovalListenersByChat.set(owner, listeners);
+const subscribeToChatRuntimeState = (owner: object, listener: () => void) => {
+  const listeners = chatRuntimeListeners.get(owner) ?? new Set();
+  chatRuntimeListeners.set(owner, listeners);
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 };
 
-const notifyHostApprovals = (owner: object) => {
-  for (const listener of [...(hostApprovalListenersByChat.get(owner) ?? [])]) {
+const notifyChatRuntimeState = (owner: object) => {
+  for (const listener of [...(chatRuntimeListeners.get(owner) ?? [])]) {
     listener();
   }
 };
@@ -343,6 +382,7 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
       lastAssistant === messages[lastIndex] &&
       lastAssistant?.parts?.some((part) => {
         if (
+          typeof part?.type !== "string" ||
           !isToolUIPart(part) ||
           part.state === "output-available" ||
           part.state === "output-error" ||
@@ -391,7 +431,12 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
     }
 
     for (const part of message.parts ?? []) {
-      if (!isToolUIPart(part) || part.state !== "approval-requested") continue;
+      if (
+        typeof part?.type !== "string" ||
+        !isToolUIPart(part) ||
+        part.state !== "approval-requested"
+      )
+        continue;
 
       const approval = part.approval;
       if (!approval) continue;
@@ -427,7 +472,10 @@ const findRawToolMessageIndex = <UI_MESSAGE extends UIMessage>(
 ) => {
   const containsToolCall = (message: UI_MESSAGE) =>
     message.parts?.some(
-      (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+      (part) =>
+        typeof part?.type === "string" &&
+        isToolUIPart(part) &&
+        part.toolCallId === toolCallId,
     ) === true;
 
   const messageIndex = messages.findIndex(
@@ -491,14 +539,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   // Set by hosts that own the chat across runtime lifetimes, so a host answer
   // outlives a remount over that same chat.
   const approvalOwner = adapter.unstable_hostApprovalOwner;
-  const ownedApprovals = approvalOwner
-    ? (hostToolApprovalsByChat.get(approvalOwner) ??
-      (() => {
-        const created = new Map<string, OwnedApproval>();
-        hostToolApprovalsByChat.set(approvalOwner, created);
-        return created;
-      })())
-    : undefined;
+  const chatRuntimeState = getChatRuntimeState(approvalOwner);
+  const ownedApprovals = chatRuntimeState?.approvals;
+  const ownedCancelledMessageIds = useSyncExternalStore(
+    useCallback(
+      (listener) =>
+        approvalOwner
+          ? subscribeToChatRuntimeState(approvalOwner, listener)
+          : () => {},
+      [approvalOwner],
+    ),
+    useCallback(
+      () => chatRuntimeState?.cancelledMessageIds ?? NO_CANCELLED_MESSAGE_IDS,
+      [chatRuntimeState],
+    ),
+    () => NO_CANCELLED_MESSAGE_IDS,
+  );
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
   >(() => toApprovalResponses(ownedApprovals));
@@ -532,7 +588,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return unchanged ? prev : next;
       });
     };
-    const unsubscribe = subscribeToHostApprovals(approvalOwner, sync);
+    const unsubscribe = subscribeToChatRuntimeState(approvalOwner, sync);
     // The state was seeded during render, so a write landing between then and
     // this subscription would otherwise never be seen.
     sync();
@@ -559,7 +615,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     new Map(),
   );
   const toolArgsTextCacheRef = useRef<
-    WeakMap<ReadonlyJSONObject, Map<string, string>>
+    NonNullable<AISDKMessageConverterMetadata["toolArgsTextCache"]>
   >(new WeakMap());
   const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
   const toolArtifactsRef = useRef<Map<string, unknown>>(new Map());
@@ -590,8 +646,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const optimisticMessageId =
     isRunning && lastMessage?.role === "assistant" ? lastMessage.id : undefined;
 
-  const cancelledMessageIds =
-    cancelledMessages?.chatId === chatHelpers.id
+  const cancelledMessageIds = chatRuntimeState
+    ? ownedCancelledMessageIds
+    : cancelledMessages?.chatId === chatHelpers.id
       ? cancelledMessages.ids
       : NO_CANCELLED_MESSAGE_IDS;
   const supportsRichToolApprovalResponses =
@@ -646,6 +703,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const retractCancellation = useCallback(
     (chatId: string, messageId: string) => {
+      if (chatRuntimeState !== undefined && approvalOwner !== undefined) {
+        if (!chatRuntimeState.cancelledMessageIds.has(messageId)) return;
+        const ids = new Set(chatRuntimeState.cancelledMessageIds);
+        ids.delete(messageId);
+        chatRuntimeState.cancelledMessageIds = ids;
+        notifyChatRuntimeState(approvalOwner);
+        return;
+      }
       setCancelledMessages((prev) => {
         if (prev?.chatId !== chatId || !prev.ids.has(messageId)) return prev;
         const ids = new Set(prev.ids);
@@ -653,7 +718,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return { chatId, ids };
       });
     },
-    [],
+    [approvalOwner, chatRuntimeState],
   );
 
   // A provider run that resumes the stopped response retracts its cancellation;
@@ -801,7 +866,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
         let messageChanged = false;
         const parts = message.parts?.map((part) => {
-          if (!isToolUIPart(part)) return part;
+          if (typeof part?.type !== "string" || !isToolUIPart(part))
+            return part;
           if (
             part.state === "output-available" ||
             part.state === "output-error" ||
@@ -850,7 +916,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     const requested = chatHelpers.messages
       .flatMap((message) =>
         message.parts.flatMap((part) =>
-          isToolUIPart(part) ? [{ messageId: message.id, part }] : [],
+          typeof part?.type === "string" && isToolUIPart(part)
+            ? [{ messageId: message.id, part }]
+            : [],
         ),
       )
       .find(
@@ -888,7 +956,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       if (startedOwner) {
         // Every runtime mounted over that owner re-reads the record, including
         // one mounted after this response started.
-        notifyHostApprovals(startedOwner);
+        notifyChatRuntimeState(startedOwner);
         return;
       }
 
@@ -1008,16 +1076,26 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         isRunning && message?.role === "assistant" ? message.id : undefined;
       if (cancelledId) {
         const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
-        setCancelledMessages((prev) => {
-          const kept =
-            prev?.chatId === chatHelpers.id
-              ? [...prev.ids].filter((id) => liveIds.has(id))
-              : [];
-          return {
-            chatId: chatHelpers.id,
-            ids: new Set([...kept, cancelledId]),
-          };
-        });
+        if (chatRuntimeState !== undefined && approvalOwner !== undefined) {
+          chatRuntimeState.cancelledMessageIds = new Set([
+            ...[...chatRuntimeState.cancelledMessageIds].filter((id) =>
+              liveIds.has(id),
+            ),
+            cancelledId,
+          ]);
+          notifyChatRuntimeState(approvalOwner);
+        } else {
+          setCancelledMessages((prev) => {
+            const kept =
+              prev?.chatId === chatHelpers.id
+                ? [...prev.ids].filter((id) => liveIds.has(id))
+                : [];
+            return {
+              chatId: chatHelpers.id,
+              ids: new Set([...kept, cancelledId]),
+            };
+          });
+        }
       }
       try {
         await chatHelpers.stop();
@@ -1103,7 +1181,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       if (removedToolArtifact) markToolArtifactsChanged();
       if (removedToolInteractions) markToolInteractionsChanged();
       if (removedToolApprovalResponse || removedHostApprovalId) {
-        if (approvalOwner) notifyHostApprovals(approvalOwner);
+        if (approvalOwner) notifyChatRuntimeState(approvalOwner);
         setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
       }
 
@@ -1154,7 +1232,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
         const target = chatHelpers.messages[targetIndex]!;
         const targetPart = target.parts.find(
-          (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+          (part) =>
+            typeof part?.type === "string" &&
+            isToolUIPart(part) &&
+            part.toolCallId === toolCallId,
         ) as { state?: string; preliminary?: boolean } | undefined;
         // An earlier message's settled output may already have reached the model, as the error a cancelling send writes does.
         if (
@@ -1172,7 +1253,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             return {
               ...message,
               parts: message.parts.map((part) => {
-                if (!isToolUIPart(part) || part.toolCallId !== toolCallId)
+                if (
+                  typeof part?.type !== "string" ||
+                  !isToolUIPart(part) ||
+                  part.toolCallId !== toolCallId
+                )
                   return part;
 
                 const { preliminary: _preliminary, ...finalPart } =
