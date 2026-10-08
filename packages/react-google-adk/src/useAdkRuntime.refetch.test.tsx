@@ -118,6 +118,83 @@ const renderAdk = async (
 };
 
 describe("useAdkRuntime refetch", () => {
+  it("cancels pending calls from history when sending during the initial load", async () => {
+    const loaded = deferred<AdkThreadSnapshot>();
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {});
+    const { capture } = await renderAdk(
+      () => loaded.promise,
+      undefined,
+      streamMock,
+    );
+
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next question" }],
+      });
+    });
+    expect(streamMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      loaded.resolve({
+        messages: [
+          { id: "h1", type: "human", content: "earlier question" },
+          {
+            id: "a1",
+            type: "ai",
+            content: [],
+            tool_calls: [
+              { id: "cancel-me", name: "lookup", args: {} },
+              { id: "keep-me", name: "wait_for_user", args: {} },
+            ],
+          },
+        ],
+        longRunningToolIds: ["keep-me"],
+      });
+    });
+    await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+    expect(streamMock.mock.calls[0]![0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "tool",
+          tool_call_id: "cancel-me",
+          content: '{"cancelled":true}',
+        }),
+      ]),
+    );
+    expect(streamMock.mock.calls[0]![0]).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tool_call_id: "keep-me" }),
+      ]),
+    );
+  });
+
+  it("drops a queued send when switching threads during the initial load", async () => {
+    const loaded = deferred<AdkThreadSnapshot>();
+    const load = vi.fn(() => loaded.promise);
+    const { capture, streamMock } = await renderAdk(load);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "old thread question" }],
+      });
+    });
+    await settleOutsideAct(() => capture.runtime!.threads.switchToNewThread());
+    await act(async () => {
+      loaded.resolve({ messages: [aiMessage("old-answer", "old answer")] });
+    });
+
+    expect(streamMock).not.toHaveBeenCalled();
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).not.toContain("old thread question");
+  });
+
   it("declares the refetch capability only when a load is supplied", async () => {
     const withLoad = await renderAdk(async () => ({ messages: [] }));
     expect(
