@@ -101,6 +101,7 @@ export const createMessageQueue = (
   let interrupting = false;
   let busyEdges = 0;
   let generation = 0;
+  let activeDispatch = 0;
 
   const observeRun = (pending: unknown, restoreFailure: () => void) => {
     if (pending === undefined) return;
@@ -159,9 +160,11 @@ export const createMessageQueue = (
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     dispatchPending = false;
     const dispatch = { id: head.id, item: head, message };
+    const dispatchId = ++activeDispatch;
     const busyEdgesBeforeRun = busyEdges;
     const dispatchGeneration = generation;
     const restoreFailure = () => {
+      if (dispatchId !== activeDispatch) return;
       if (busyEdges === busyEdgesBeforeRun) {
         running = false;
         if (generation === dispatchGeneration) restore(lane, dispatch);
@@ -186,12 +189,13 @@ export const createMessageQueue = (
   ) => {
     paused = false;
     const dispatchGeneration = generation;
+    const dispatchId = ++activeDispatch;
     // the interrupted run settles exactly once, whether or not it was
     // already cancel-notified
     suppressIdle += Math.max(cancelSettles, 1);
     cancelSettles = 0;
     const restoreInterrupted = (replacementStarted = false) => {
-      if (replacementStarted) return;
+      if (replacementStarted || dispatchId !== activeDispatch) return;
       // The live count distinguishes an outstanding cancellation settle
       // from one delivered synchronously by cancel().
       const pendingSettles = suppressIdle;

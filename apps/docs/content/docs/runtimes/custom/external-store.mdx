@@ -465,10 +465,27 @@ Call `notifyBusy()` synchronously before committing a message or starting work t
 A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors: unknown ids or anchors throw instead of being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
 
 ```tsx
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createMessageQueue, useExternalStoreRuntime } from "@assistant-ui/react";
 
-const [queue] = useState(() => createMessageQueue({ run: onNew }));
+const onNewRef = useRef(onNew);
+useLayoutEffect(() => {
+  onNewRef.current = onNew;
+}, [onNew]);
+
+const [queue] = useState(() => {
+  const controller = createMessageQueue({
+    run: async (message) => {
+      controller.notifyBusy();
+      try {
+        await onNewRef.current(message);
+      } finally {
+        controller.notifyIdle();
+      }
+    },
+  });
+  return controller;
+});
 
 const runtime = useExternalStoreRuntime({
   messages,
@@ -476,13 +493,6 @@ const runtime = useExternalStoreRuntime({
   onNew,
   queue: queue.adapter,
 });
-
-const wasRunning = useRef(isRunning);
-useEffect(() => {
-  if (!wasRunning.current && isRunning) queue.notifyBusy();
-  if (wasRunning.current && !isRunning) queue.notifyIdle();
-  wasRunning.current = isRunning;
-}, [isRunning, queue]);
 ```
 
 With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
