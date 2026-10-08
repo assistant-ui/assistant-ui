@@ -18,7 +18,6 @@ import type {
 import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
 import type { AppendMessage } from "../../types/message";
-import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -969,11 +968,12 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
-  it("clears title state when reload starts during deletion notification", async () => {
+  it("keeps a deleted thread absent and clears its title state when reload starts during deletion notification", async () => {
     const deletion = deferred<void>();
     let deletionReleased = false;
     let reloadStarted = false;
     let reload: (() => void) | undefined;
+    let reloadTask: Promise<void> | undefined;
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -1010,7 +1010,9 @@ describe("RemoteThreadList", () => {
       });
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
-    reload = () => void aui.threads.reload();
+    reload = () => {
+      reloadTask = aui.threads.reload();
+    };
     await aui.threads.getLoadThreadsPromise();
     await vi.waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
@@ -1026,9 +1028,10 @@ describe("RemoteThreadList", () => {
       deletion.resolve();
 
       await vi.waitFor(() => expect(reloadStarted).toBe(true));
-      await vi.waitFor(() => {
-        expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
-      });
+      await reloadTask;
+      expect(aui.threads.getState().threadIds).toEqual(["t2"]);
+      await aui.threads.reload();
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
       flushTapSync(() => aui.threads.switchToThread("t1"));
       await vi.waitFor(() => {
         expect(aui.threads.getState().mainThreadId).toBe("t1");
