@@ -541,11 +541,15 @@ const failureDetails = {
   "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
 };
 
-function requirementDetail(item, tier, context, policy) {
+function requirementDetail(item, tier, context, policy, waivers) {
   const failure = failureDetails[item.code];
-  if (failure) return failure(item.detail, policy);
+  const detail = failure ? failure(item.detail, policy) : cell(item.detail);
+  const waiver = waivers.get(item.code);
+  if (waiver) {
+    return `${detail}; an owner can waive it with ${code(`${policy.labels.overridePrefix}${waiver}`)}`;
+  }
   const readyAt = Date.parse(context?.readyForReviewAt);
-  if (item.code !== "window" || Number.isNaN(readyAt)) return cell(item.detail);
+  if (item.code !== "window" || Number.isNaN(readyAt)) return detail;
   const hours = policy.windowHours[tier];
   const until = new Date(readyAt + hours * 60 * 60 * 1000)
     .toISOString()
@@ -586,7 +590,17 @@ export function renderComment(
         ["---", "---"],
         unmet.map((item) => [
           `${isWaiting(item.code) ? "⏳" : "❌"} ${requirementLabel(item.code, policy)}`,
-          requirementDetail(item, tier, context, policy),
+          requirementDetail(
+            item,
+            tier,
+            context,
+            policy,
+            new Map(
+              tierResult.failures
+                .filter((failure) => failure.override !== null)
+                .map((failure) => [failure.code, failure.override]),
+            ),
+          ),
         ]),
       ),
     );
@@ -620,15 +634,7 @@ export function renderComment(
     unmet.some((item) => isWaiting(item.code))
       ? "⏳ Waits on reviewers or time"
       : null,
-    unmet.some((item) => !isWaiting(item.code))
-      ? tierResult.failures.some(
-          (failure) =>
-            failure.override !== null &&
-            unmet.some((item) => item.code === failure.code),
-        )
-        ? "❌ Needs a change or an owner override"
-        : "❌ Needs a change"
-      : null,
+    unmet.some((item) => !isWaiting(item.code)) ? "❌ Needs a change" : null,
   ].filter(Boolean);
   const render = (section) =>
     [

@@ -1158,10 +1158,16 @@ test("hard policy failures stay failures", async () => {
     code: "size-cap",
     detail: "900 source lines exceed the 400 line cap",
   });
+  const waivable = renderComment(evaluation, policy);
   assert.ok(
-    renderComment(evaluation, policy).includes(
-      "❌ Needs a change or an owner override",
+    waivable.includes(
+      "an owner can waive it with `review-tier/override: size`",
     ),
+    waivable,
+  );
+  assert.ok(
+    !waivable.includes("open pull requests for this author, has 6; an owner"),
+    waivable,
   );
 });
 
