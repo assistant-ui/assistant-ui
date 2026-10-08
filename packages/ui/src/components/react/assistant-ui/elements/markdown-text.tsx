@@ -5,6 +5,7 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
+  type MarkdownTextPrimitiveProps,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
   components?: Parameters<typeof memoizeMarkdownComponents>[0];
+  componentsByLanguage?: MarkdownTextPrimitiveProps["componentsByLanguage"];
 };
 
 const useShallowStable = <T extends Record<string, unknown> | undefined>(
@@ -37,8 +39,12 @@ const useShallowStable = <T extends Record<string, unknown> | undefined>(
   return ref.current;
 };
 
-const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({
+  components,
+  componentsByLanguage,
+}) => {
   const stableComponents = useShallowStable(components);
+  const stableComponentsByLanguage = useShallowStable(componentsByLanguage);
   const markdownComponents = useMemo(() => {
     if (!stableComponents) return defaultComponents;
     return {
@@ -52,6 +58,7 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
       remarkPlugins={[remarkGfm]}
       className="aui-md"
       components={markdownComponents}
+      componentsByLanguage={stableComponentsByLanguage}
       defer
     />
   );

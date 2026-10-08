@@ -27,6 +27,7 @@ describe("useCloudThreadListRuntime", () => {
     const runtimeHook = () => ({}) as AssistantRuntime;
     const create = vi.fn();
     const del = vi.fn();
+    const scopeId = "workspace-1";
     const adapter = { list: vi.fn() };
     const runtime = { kind: "runtime" };
     mocks.useCloudThreadListAdapter.mockReturnValue(adapter);
@@ -35,6 +36,7 @@ describe("useCloudThreadListRuntime", () => {
     const { result } = renderHook(() =>
       useCloudThreadListRuntime({
         cloud,
+        scopeId,
         runtimeHook,
         create,
         delete: del,
@@ -43,6 +45,7 @@ describe("useCloudThreadListRuntime", () => {
 
     expect(mocks.useCloudThreadListAdapter).toHaveBeenCalledWith({
       cloud,
+      scopeId,
       create,
       delete: del,
     });

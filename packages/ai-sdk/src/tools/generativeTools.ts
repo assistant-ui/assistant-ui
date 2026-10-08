@@ -13,15 +13,13 @@ import type {
   Toolkit,
   ToolkitDefinition,
 } from "@assistant-ui/core/react";
-import { frontendTools, type FrontendTools } from "./frontendTools";
+import { frontendTools, type FrontendTools } from "assistant-stream/ai-sdk";
 import {
   toAISDKContent,
   toAISDKDefaultOutput,
-} from "../converters/toolOutputConversion";
-import {
   unwrapModelContentEnvelope,
   type ModelContentEnvelope,
-} from "../converters/modelContentEnvelope";
+} from "assistant-stream/internal";
 
 const EMPTY_SCHEMA = { type: "object" as const, properties: {} };
 
@@ -76,8 +74,29 @@ const withMcpConnectionTimeout = async <T>(
   }
 };
 
-const parametersToInputSchema = (parameters: Tool["parameters"] | undefined) =>
-  jsonSchema(parameters ? toJSONSchema(parameters) : EMPTY_SCHEMA);
+// Converted schemas are shared by parameter identity and treated as immutable.
+const convertedParameterSchemas = new WeakMap<
+  object,
+  ReturnType<typeof toJSONSchema>
+>();
+
+const getOrConvertParameterSchema = (
+  parameters: NonNullable<Tool["parameters"]>,
+) => {
+  const cached = convertedParameterSchemas.get(parameters);
+  if (cached) return cached;
+
+  const converted = toJSONSchema(parameters);
+  convertedParameterSchemas.set(parameters, converted);
+  return converted;
+};
+
+const parametersToInputSchema = (
+  parameters: Tool["parameters"] | undefined,
+) => {
+  if (!parameters) return jsonSchema(EMPTY_SCHEMA);
+  return jsonSchema(getOrConvertParameterSchema(parameters));
+};
 
 /**
  * @deprecated Options for the deprecated {@link generativeTools}. Use
@@ -394,7 +413,7 @@ const toAISDKToModelOutput =
     const { result, modelContent } = unwrapModelContentEnvelope(options.output);
 
     if (modelContent !== undefined) {
-      return toAISDKContent(modelContent);
+      return toAISDKContent(modelContent, { taggedFileData: true });
     }
 
     if (!toModelOutput) {
@@ -405,7 +424,7 @@ const toAISDKToModelOutput =
       ...options,
       output: result,
     });
-    return toAISDKContent(parts);
+    return toAISDKContent(parts, { taggedFileData: true });
   };
 
 const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>

@@ -4,7 +4,11 @@ import type {
   LangChainToolCall,
   LangChainToolCallChunk,
 } from "./types";
-import { parsePartialJsonObject } from "assistant-stream/utils";
+import {
+  appendIncrementalToolCallArgs,
+  initializeIncrementalToolCallArgs,
+  transferIncrementalToolCallArgs,
+} from "./incrementalToolCallArgs";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
 type AiContentBlock = Exclude<AiMessage["content"], string>[number];
@@ -43,13 +47,15 @@ const mergeDefined = (
     ),
   }) as AiContentBlock;
 
-const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
+const chunkToToolCall = (chunk: LangChainToolCallChunk): LangChainToolCall => {
   const partialJson = chunk.args ?? chunk.args_json ?? "";
-  return {
+  const toolCall: LangChainToolCall = {
     ...chunk,
     partial_json: partialJson,
-    args: parsePartialJsonObject(partialJson) ?? {},
+    args: {},
   };
+  toolCall.args = initializeIncrementalToolCallArgs(toolCall, partialJson);
+  return toolCall;
 };
 
 const findMatchingToolCall = (
@@ -58,13 +64,13 @@ const findMatchingToolCall = (
 ): LangChainToolCall | undefined => {
   if (toolCall.id != null && toolCall.id !== "") {
     const byId = prevToolCalls.find(
-      (p) => p.id != null && p.id !== "" && p.id === toolCall.id,
+      (p) => p?.id != null && p.id !== "" && p.id === toolCall.id,
     );
     if (byId) return byId;
   }
   if (toolCall.index != null) {
     return prevToolCalls.find(
-      (p) => p.index === toolCall.index && (!p.id || !toolCall.id),
+      (p) => p?.index === toolCall.index && (!p.id || !toolCall.id),
     );
   }
   return undefined;
@@ -84,14 +90,19 @@ const mergeStreamedToolCallArgs = (
 
   let changed = false;
   const mergedToolCalls = currToolCalls.map((toolCall) => {
-    if (toolCall.partial_json) return toolCall;
-    const streamedPartialJson = findMatchingToolCall(
-      prevToolCalls,
-      toolCall,
-    )?.partial_json;
+    if (
+      typeof toolCall !== "object" ||
+      toolCall === null ||
+      toolCall.partial_json
+    )
+      return toolCall;
+    const previousToolCall = findMatchingToolCall(prevToolCalls, toolCall);
+    const streamedPartialJson = previousToolCall?.partial_json;
     if (!streamedPartialJson) return toolCall;
     changed = true;
-    return { ...toolCall, partial_json: streamedPartialJson };
+    const mergedToolCall = { ...toolCall, partial_json: streamedPartialJson };
+    transferIncrementalToolCallArgs(previousToolCall, mergedToolCall);
+    return mergedToolCall;
   });
 
   return changed ? { ...curr, tool_calls: mergedToolCalls } : curr;
@@ -113,6 +124,10 @@ export const appendLangChainChunk = (
     return curr;
   }
 
+  const toolCallChunks = (curr.tool_call_chunks ?? []).filter(
+    (chunk) => typeof chunk === "object" && chunk !== null,
+  );
+
   if (!prev || prev.type !== "ai") {
     const { id, tool_call_chunks: _chunks, ...message } = curr;
     prev = {
@@ -122,7 +137,7 @@ export const appendLangChainChunk = (
       type: "ai",
     };
     if (!Array.isArray(curr.content)) {
-      const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
+      const toolCalls = toolCallChunks.map(chunkToToolCall);
       return {
         ...prev,
         content: typeof curr.content === "string" ? curr.content : [],
@@ -243,31 +258,31 @@ export const appendLangChainChunk = (
   }
 
   const newToolCalls = [...(prev.tool_calls ?? [])];
-  for (const chunk of curr.tool_call_chunks ?? []) {
+  for (const chunk of toolCallChunks) {
     let idx = newToolCalls.findIndex(
-      (tc) => tc.id != null && tc.id !== "" && tc.id === chunk.id,
+      (tc) => tc?.id != null && tc.id !== "" && tc.id === chunk.id,
     );
     if (idx === -1 && chunk.index != null) {
       idx = newToolCalls.findIndex(
-        (tc) => tc.index === chunk.index && (!tc.id || !chunk.id),
+        (tc) => tc?.index === chunk.index && (!tc.id || !chunk.id),
       );
     }
     if (idx === -1) {
       newToolCalls.push(chunkToToolCall(chunk));
     } else {
       const existing = newToolCalls[idx]!;
-      const partialJson =
-        (existing.partial_json ?? "") + (chunk.args ?? chunk.args_json ?? "");
-      newToolCalls[idx] = {
+      const delta = chunk.args ?? chunk.args_json ?? "";
+      const partialJson = (existing.partial_json ?? "") + delta;
+      const next: LangChainToolCall = {
         ...chunk,
         ...existing,
         id: existing.id || chunk.id,
         name: existing.name || chunk.name,
         partial_json: partialJson,
-        args:
-          parsePartialJsonObject(partialJson) ??
-          ("args" in existing ? existing.args : {}),
+        args: existing.args,
       };
+      next.args = appendIncrementalToolCallArgs(existing, next, delta);
+      newToolCalls[idx] = next;
     }
   }
 

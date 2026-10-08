@@ -35,3 +35,21 @@ describe("PromptLibrary", () => {
     expect(onInsert).toHaveBeenCalledOnce();
   });
 });
+
+describe("PromptLibrary variable count", () => {
+  it("counts one variable in the singular and more in the plural", () => {
+    render(
+      <PromptLibrary
+        prompts={[
+          { id: "one", name: "One", body: "{a}", variables: ["a"] },
+          { id: "two", name: "Two", body: "{a} {b}", variables: ["a", "b"] },
+        ]}
+        query=""
+        selectedId="one"
+      />,
+    );
+
+    expect(screen.getByText("1 var")).toBeTruthy();
+    expect(screen.getByText("2 vars")).toBeTruthy();
+  });
+});

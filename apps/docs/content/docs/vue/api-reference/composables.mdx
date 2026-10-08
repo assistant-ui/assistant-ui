@@ -1,0 +1,174 @@
+---
+title: Components and composables
+description: AuiProvider, AuiIf, the scope providers, and the useAui, useAuiState, useAuiEvent, and useScrollLock composables.
+---
+
+These are the non-primitive exports of `@assistant-ui/vue`. The primitives have their own pages under [Primitives](/docs/vue/primitives), and the re-exported client APIs are on [Assistant client](/docs/vue/api-reference/client).
+
+## Providers
+
+### AuiProvider
+
+Creates an assistant client from `config` and provides it to its slot. Every composable and primitive reads the nearest `AuiProvider`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `config` | `AuiConfig` | Required | The scopes this provider creates. Build it with `AuiConfig({ ... })`. |
+| `extends` | `AssistantClient \| null` | None | Required under another `AuiProvider`. Pass the parent's client to inherit its scopes, or `null` to isolate this subtree. |
+
+At the top level, `config` alone creates a client. Under another provider, omitting `extends` throws in development: pass `:extends="aui"` with the client from `useAui()` to inherit, or `:extends="null"` for an independent client. An inheriting provider adds or replaces the scopes in its own `config` and reads every other scope from the parent:
+
+```vue title="app/components/PageSuggestions.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/vue";
+import { Suggestions } from "@assistant-ui/core/store";
+
+const aui = useAui();
+const config = AuiConfig({
+  suggestions: Suggestions(["Summarize this page", "List the open questions"]),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config" :extends="aui">
+    <slot />
+  </AuiProvider>
+</template>
+```
+
+Components inside the slot see these suggestions and the parent's thread, composer, and other scopes.
+
+The `config` prop is live. A new config object with the same keys updates each scope's arguments in place and keeps its state; added keys mount and removed keys unmount. Pass a `computed` config to derive it from reactive values. `extends` is read once when the provider mounts; give the provider a new `key` to change it.
+
+The provider holds its client for as long as it is mounted, and a remounted provider creates a new client. Render it only in the browser; see [Server rendering](/docs/vue/ssr).
+
+### AuiIf
+
+Renders its default slot while `condition` returns `true`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `condition` | `(state: AssistantState) => boolean` | Required | Selects a boolean from the assistant state. |
+
+```vue
+<AuiIf :condition="(s) => s.thread.isRunning">
+  <span>Responding</span>
+</AuiIf>
+```
+
+The condition follows the same rules as a [`useAuiState`](#useauistate) selector.
+
+### Scope providers
+
+The iterator primitives wrap each item in one of these providers. Use them directly when you iterate items yourself. Each renders no element and scopes its default slot.
+
+| Provider | Props | Scopes |
+|---|---|---|
+| `MessageByIdProvider` | `id: string` | `s.message` for that thread message, and its edit composer as `s.composer`. |
+| `PartByIndexProvider` | `index: number` | `s.part` for that part of the current message. |
+| `AttachmentByIndexProvider` | `source: "composer" \| "message"`, `index: number` | `s.attachment` for that composer or message attachment. |
+| `SuggestionByIndexProvider` | `index: number` | `s.suggestion` for that suggestion. |
+| `ThreadListItemByIndexProvider` | `index: number`, `archived?: boolean` | `s.threadListItem` for that thread in `threadIds`, or in `archivedThreadIds` with `archived`. |
+
+Key each provider by the item's identity, not its position, so rows keep their state when the list changes. The [thread list guide](/docs/vue/thread-list#order-the-list-yourself) shows the pattern.
+
+## Composables
+
+Call each composable during `setup`, inside a component rendered under an `AuiProvider`.
+
+### useAui
+
+```ts
+function useAui(): AssistantClient;
+```
+
+Returns the client of the nearest provider. The object is stable for the provider's lifetime and always forwards to its current client, so capture it once and call it from handlers: `aui.composer.send()`, `aui.thread.cancelRun()`, `aui.threadListItem.rename(title)`. Each scope also has `getState()` for a one-off read.
+
+Outside a provider, `useAui()` still returns a client, and using any of its scopes throws an error that names the missing provider.
+
+### useAuiState
+
+```ts
+function useAuiState<T>(selector: (state: AssistantState) => T): ComputedRef<T>;
+```
+
+Returns a computed ref of the selected value. The selector runs on every store update, and dependents re-run only when the selected value changes by `Object.is`.
+
+- Select primitives or references that stay stable. A new object or array literal is a new value on every update.
+- Returning the whole state, `s` or `s.optional`, throws. Call `useAuiState` once per value instead.
+- Read a scope that may be missing through `s.optional`, for example `s.optional.message?.role`.
+
+```vue title="app/components/RunStatus.vue"
+<script setup lang="ts">
+import { useAuiState } from "@assistant-ui/vue";
+
+const isRunning = useAuiState((s) => s.thread.isRunning);
+const messageCount = useAuiState((s) => s.thread.messages.length);
+</script>
+
+<template>
+  <p>{{ isRunning ? "Responding" : `${messageCount} messages` }}</p>
+</template>
+```
+
+### useAuiEvent
+
+```ts
+function useAuiEvent<TEvent extends AssistantEventName>(
+  selector: AssistantEventSelector<TEvent>,
+  callback: AssistantEventCallback<TEvent>,
+): void;
+```
+
+Subscribes to an event for the lifetime of the current effect scope and follows the provider's client across structural changes. The selector is an event name or `{ scope, event }`, and `scope: "*"` receives the event from every descendant scope. [Events](/docs/vue/api-reference/events) lists every event, its payload, and the valid scopes.
+
+```ts
+useAuiEvent("thread.runEnd", ({ threadId }) => {
+  console.info(`run finished in ${threadId}`);
+});
+```
+
+### useScrollLock
+
+```ts
+function useScrollLock(
+  target: Ref<HTMLElement | null | undefined>,
+  animationDuration: number,
+): () => void;
+```
+
+Returns a function that holds the scroll position of the first scrollable element found from `target` upward, `target` included, for `animationDuration` milliseconds. Call it right before content inside the thread expands or collapses, so the viewport does not jump while the animation runs. While locked, that element's scrollbar is hidden and the padding on its scrollbar side grows by the scrollbar width, so the content does not shift. A second call restarts the lock, and disposing the calling scope releases it.
+
+The registry `reasoning.vue` and `tool-fallback.vue` call it before opening or closing their collapsibles, with a 200 millisecond lock. A minimal disclosure:
+
+```vue title="app/components/Disclosure.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useScrollLock } from "@assistant-ui/vue";
+
+const root = ref<HTMLElement | null>(null);
+const open = ref(false);
+const lockScroll = useScrollLock(root, 200);
+
+const toggle = () => {
+  lockScroll();
+  open.value = !open.value;
+};
+</script>
+
+<template>
+  <div ref="root">
+    <button type="button" :aria-expanded="open" @click="toggle">Details</button>
+    <div v-if="open"><slot /></div>
+  </div>
+</template>
+```
+
+## Types
+
+| Type | Description |
+|---|---|
+| `ToolUIProps` | The single `tool` prop of a Vue tool UI component. See [Tool UI](/docs/vue/tool-ui#write-a-tool-ui-component). |
+| `DataUIProps<T>` | The single `data` prop of a Vue data renderer. See [Tool UI](/docs/vue/tool-ui#data-parts). |
+
+`AuiConfig`, `Derived`, `createAssistantClient`, and the client, state, and event types are re-exported from `@assistant-ui/store/client`; see [Assistant client](/docs/vue/api-reference/client).

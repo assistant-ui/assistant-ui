@@ -17,8 +17,8 @@
  *
  * Browser-safe: imports no `@earendil-works/pi-*`.
  */
-import { SSEEventDecoder } from "assistant-stream/utils";
-import { isRecord } from "@assistant-ui/core/internal";
+import { SSEEventDecoder, SSEEventDecoderError } from "assistant-stream/utils";
+import { invokeUserCallback, isRecord } from "@assistant-ui/core/internal";
 import { isKnownPiClientEventType } from "../eventTypes";
 import type { PiAnyClientEvent } from "../types";
 import {
@@ -43,8 +43,11 @@ export interface SseFrame {
  * that chunk; partial trailing data is buffered by the shared decoder until its
  * terminating blank line arrives.
  */
-export const createSseDecoder = () => {
-  const decoder = new SSEEventDecoder();
+export const createSseDecoder = (options?: {
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
+}) => {
+  const decoder = new SSEEventDecoder(options);
   return {
     push(chunk: string): SseFrame[] {
       return decoder.push(chunk).map(({ data, event, id }) => ({
@@ -63,8 +66,8 @@ export interface PiEventStreamOptions {
   onEvent: (event: PiAnyClientEvent) => void;
   /** Called after each successful SSE response is opened, before events. */
   onConnect?: () => void;
-  /** Non-fatal stream errors (network drop, bad JSON, reconnect-delay failures).
-   * The loop reconnects after each; surface these for logging, not control flow. */
+  /** Stream errors surfaced for logging. Transport failures reconnect; decoder
+   * configuration and size-limit failures terminate the connection. */
   onError?: (error: unknown) => void;
   /** Injected `fetch` (defaults to the global). */
   fetchImpl?: typeof fetch;
@@ -77,6 +80,10 @@ export interface PiEventStreamOptions {
   /** Reconnect backoff between a dropped stream and the next attempt. Rejections
    * are reported via `onError`, then followed by the default ~1s backoff. */
   reconnectDelay?: () => Promise<void>;
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 }
 
 const defaultReconnectDelay = () =>
@@ -116,7 +123,10 @@ const isKnownEventPayload = (event: Record<string, unknown>): boolean => {
     case "agent_settled":
       return true;
     case "agent_end":
-      return isOptionalBoolean(event.willRetry);
+      return (
+        isOptionalBoolean(event.willRetry) &&
+        isOptionalBoolean(event.cancelledBeforeStart)
+      );
     case "turn_start":
     case "turn_end":
       return typeof event.turnIndex === "number";
@@ -257,6 +267,8 @@ export const createPiEventStreamConnection = (
     expectedThreadId,
     snapshotRecoveryUrl,
     reconnectDelay = defaultReconnectDelay,
+    maxStreamLineLength,
+    maxStreamEventLength,
   } = options;
 
   let closed = false;
@@ -266,40 +278,14 @@ export const createPiEventStreamConnection = (
   let reconnectPending = false;
   let reconnectRequested = false;
   const abort = new AbortController();
-  const reportCallbackError = (callbackError: unknown) => {
-    console.error("[react-pi] onError callback threw an error", callbackError);
-  };
-  const reportEventCallbackError = (callbackError: unknown) => {
-    console.error("[react-pi] onEvent callback threw an error", callbackError);
-  };
   const reportError = (error: unknown) => {
-    if (!onError) return;
-    try {
-      void Promise.resolve(onError(error)).catch(reportCallbackError);
-    } catch (callbackError) {
-      reportCallbackError(callbackError);
-    }
+    void invokeUserCallback("react-pi", "onError", onError, error);
   };
   const emitEvent = (event: PiAnyClientEvent) => {
-    try {
-      void Promise.resolve(onEvent(event)).catch(reportEventCallbackError);
-    } catch (callbackError) {
-      reportEventCallbackError(callbackError);
-    }
-  };
-  const reportConnectCallbackError = (callbackError: unknown) => {
-    console.error(
-      "[react-pi] onConnect callback threw an error",
-      callbackError,
-    );
+    void invokeUserCallback("react-pi", "onEvent", onEvent, event);
   };
   const emitConnect = () => {
-    if (!onConnect) return;
-    try {
-      void Promise.resolve(onConnect()).catch(reportConnectCallbackError);
-    } catch (callbackError) {
-      reportConnectCallbackError(callbackError);
-    }
+    void invokeUserCallback("react-pi", "onConnect", onConnect);
   };
 
   const waitForReconnect = () => {
@@ -333,6 +319,10 @@ export const createPiEventStreamConnection = (
   const run = async () => {
     while (!closed) {
       try {
+        const sseDecoder = createSseDecoder({
+          maxLineLength: maxStreamLineLength,
+          maxEventLength: maxStreamEventLength,
+        });
         const requestUrl =
           needsSnapshotRecovery && snapshotRecoveryUrl
             ? snapshotRecoveryUrl
@@ -349,7 +339,6 @@ export const createPiEventStreamConnection = (
         validateEventStreamContentType(response);
         emitConnect();
 
-        const sseDecoder = createSseDecoder();
         const reader = response.body.getReader();
         const textDecoder = new TextDecoder();
         const handleFrame = (frame: { event?: string; data: string }) => {
@@ -410,8 +399,10 @@ export const createPiEventStreamConnection = (
         }
       } catch (error) {
         if (closed || abort.signal.aborted) break;
-        reconnectPending = true;
+        const terminal = error instanceof SSEEventDecoderError;
+        reconnectPending = !terminal;
         reportError(error);
+        if (terminal) break;
       }
       if (closed) break;
       needsSnapshotRecovery = true;

@@ -27,7 +27,7 @@ export const ExportedMessageRepository = {
     const conv = messages.map((m) =>
       fromThreadMessageLike(
         m,
-        generateId(),
+        m.id ?? generateId(),
         getRepositoryContentAutoStatus(m.content),
       ),
     );
@@ -91,7 +91,7 @@ const findHead = (
 
 // A history may store a message before its parent, for example one that
 // commits appends concurrently, so such a message is added after its parent.
-const withParentsFirst = (
+export const withParentsFirst = (
   messages: ExportedMessageRepository["messages"],
   isStored: (id: string) => boolean,
 ) => {
@@ -124,6 +124,59 @@ const withParentsFirst = (
   }
   for (const children of waiting.values()) ordered.push(...children);
   return ordered;
+};
+
+export const withoutOrphanedMessages = (
+  repository: ExportedMessageRepository,
+): { repository: ExportedMessageRepository; droppedIds: string[] } => {
+  const listed = new Set(repository.messages.map((item) => item.message.id));
+  const children = new Map<string, string[]>();
+  const pending: string[] = [];
+  for (const { message, parentId } of repository.messages) {
+    if (parentId === null) continue;
+    const siblings = children.get(parentId);
+    if (siblings) siblings.push(message.id);
+    else children.set(parentId, [message.id]);
+    if (!listed.has(parentId)) pending.push(message.id);
+  }
+
+  const dropped = new Set<string>();
+  for (let i = 0; i < pending.length; i++) {
+    const id = pending[i]!;
+    if (dropped.has(id)) continue;
+    dropped.add(id);
+    for (const child of children.get(id) ?? []) pending.push(child);
+  }
+  const headMissing =
+    repository.headId != null && !listed.has(repository.headId);
+  if (dropped.size === 0 && !headMissing) return { repository, droppedIds: [] };
+
+  const droppedIds: string[] = [];
+  const keptParents = new Set<string>();
+  const messages = repository.messages.filter(({ message, parentId }) => {
+    if (dropped.has(message.id)) {
+      droppedIds.push(message.id);
+      return false;
+    }
+    if (parentId !== null) keptParents.add(parentId);
+    return true;
+  });
+  let { headId } = repository;
+  if (headId != null && (headMissing || dropped.has(headId))) {
+    headId = null;
+    for (const { message } of messages) {
+      if (!keptParents.has(message.id)) headId = message.id;
+    }
+  }
+
+  return {
+    repository: {
+      ...repository,
+      messages,
+      ...(headId !== undefined && { headId }),
+    },
+    droppedIds,
+  };
 };
 
 class CachedValue<T> {
@@ -529,9 +582,51 @@ export class MessageRepository {
     }
 
     return {
-      headId: this.canonicalHeadId,
+      headId: this.exportedHeadId(),
       messages: exportItems,
     };
+  }
+
+  /**
+   * The head as it would be if the optimistic messages were deleted. Import
+   * resets to the exported head and drops its descendants, so an optimistic
+   * head resolves to a leaf of the exported tree rather than to its persisted
+   * ancestor, whose other children would be lost.
+   */
+  private exportedHeadId(): string | null {
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) head = head.prev;
+    if (head === this.head) return head?.current.id ?? null;
+
+    for (;;) {
+      const next = this.exportedChild(head ?? this.root);
+      if (!next) return head?.current.id ?? null;
+      head = next;
+    }
+  }
+
+  private exportedChild(parent: RepositoryParent): RepositoryMessage | null {
+    const selected = parent.next;
+    if (selected) {
+      if (!selected.current.metadata?.isOptimistic) return selected;
+      const descendant = this.exportedChild(selected);
+      if (descendant) return descendant;
+    }
+    const selectedIndex = selected
+      ? parent.children.indexOf(selected.current.id)
+      : parent.children.length;
+    const siblings = [
+      ...parent.children.slice(0, selectedIndex).reverse(),
+      ...parent.children.slice(selectedIndex + 1).reverse(),
+    ];
+    for (const id of siblings) {
+      const child = this.messages.get(id);
+      if (!child) continue;
+      if (!child.current.metadata?.isOptimistic) return child;
+      const descendant = this.exportedChild(child);
+      if (descendant) return descendant;
+    }
+    return null;
   }
 
   import({ headId, messages }: ExportedMessageRepository) {

@@ -50,7 +50,7 @@ export function RecommendationCard({
       {...props}
     >
       <p className="text-sm font-medium">{question}</p>
-      <p className="text-foreground/55 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground text-[13px] leading-relaxed">
         {children}
       </p>
 
@@ -67,7 +67,7 @@ export function RecommendationCard({
                   />
                 ))}
               </span>
-              <span className={cn(mono, "text-foreground/40")}>
+              <span className={cn(mono, "text-muted-foreground")}>
                 {confidenceLabel}
               </span>
             </div>
@@ -75,7 +75,7 @@ export function RecommendationCard({
               <button
                 type="button"
                 onClick={onAlternatives}
-                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+                className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
               >
                 Alternatives
               </button>
@@ -94,7 +94,7 @@ export function RecommendationCard({
         ) : (
           <div
             key="accepted"
-            className="fade-in animate-in text-foreground/55 flex items-center gap-2 text-xs duration-300"
+            className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300"
           >
             <CheckIcon className="size-3.5 text-emerald-500" />
             {acceptedLabel}

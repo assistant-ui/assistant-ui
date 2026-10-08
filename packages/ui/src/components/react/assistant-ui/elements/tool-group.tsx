@@ -41,12 +41,12 @@ export function ToolGroup({
     <>
       <ChevronRightIcon
         className={cn(
-          "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+          "text-muted-foreground size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
           open && "rotate-90",
         )}
       />
       <span className="min-w-0 flex-1 truncate text-[13.5px]">{label}</span>
-      <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>
+      <span className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}>
         {running > 0
           ? `${tools.length - running}/${tools.length}`
           : failed > 0
@@ -54,7 +54,7 @@ export function ToolGroup({
             : `${tools.length} done`}
       </span>
       {running > 0 ? (
-        <Loader2Icon className="text-foreground/35 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
+        <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
       ) : failed > 0 ? (
         <XIcon className="size-3.5 shrink-0 text-red-500" />
       ) : (
@@ -96,14 +96,14 @@ export function ToolGroup({
             >
               <span className="flex size-3.5 shrink-0 items-center justify-center">
                 {tool.state === "running" ? (
-                  <Loader2Icon className="text-foreground/35 size-3 animate-spin motion-reduce:animate-none" />
+                  <Loader2Icon className="text-muted-foreground size-3 animate-spin motion-reduce:animate-none" />
                 ) : tool.state === "failed" ? (
                   <XIcon className="size-3 text-red-500" />
                 ) : (
                   <CheckIcon className="size-3 text-emerald-500" />
                 )}
               </span>
-              <span className={cn(mono, "text-foreground/55 shrink-0")}>
+              <span className={cn(mono, "text-muted-foreground shrink-0")}>
                 {tool.name}
               </span>
               <span className="text-foreground/80 min-w-0 flex-1 truncate text-[13px]">
@@ -113,7 +113,7 @@ export function ToolGroup({
                 <span
                   className={cn(
                     mono,
-                    "text-foreground/25 shrink-0 tabular-nums",
+                    "text-muted-foreground shrink-0 tabular-nums",
                   )}
                 >
                   {tool.durationMs}ms
