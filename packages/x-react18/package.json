@@ -14,7 +14,8 @@
     "./tsconfig.json": "./tsconfig.react18.json"
   },
   "scripts": {
-    "test": "node --test \"src/**/*.test.mjs\""
+    "test": "node --test \"src/**/*.test.mjs\"",
+    "test:coverage": "pnpm run test"
   },
   "dependencies": {
     "@types/react-dom-v18": "npm:@types/react-dom@^18.3.0",

@@ -20,6 +20,12 @@ import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
 /**
+ * The promise `ToolInvocationTracker.abort()` returns when no execution is in
+ * flight, so a caller can skip the await instead of yielding a tick.
+ */
+export const NO_TOOL_EXECUTIONS: Promise<void> = Promise.resolve();
+
+/**
  * Streaming execution state for a frontend tool.
  */
 export type ToolExecutionStatus =
@@ -147,6 +153,7 @@ export class ToolInvocationTracker {
   private _statuses = new Map<string, ToolExecutionStatus>();
 
   private _ac: AbortController = new AbortController();
+  private _retiredAc: AbortController | undefined;
   private _pendingRestore = true;
 
   /** Cached last snapshot, used to skip processing on identical re-renders. */
@@ -252,9 +259,36 @@ export class ToolInvocationTracker {
         }
         this._pipelineRestartUsed = true;
         this._pipelineDead = false;
+
+        // A restart is an execution boundary. Capture the old associations
+        // before demotion, because demotion intentionally removes them from
+        // restored entries.
+        const abandonedToolCallIds = new Set<string>();
+        for (const [toolCallId, entry] of this._entries) {
+          if (entry.executionId && this._executing.has(entry.executionId)) {
+            abandonedToolCallIds.add(toolCallId);
+          }
+        }
+
         this._demoteEntriesToRestored();
         this._executing.clear();
+        // Pending human requests share this signal and must remain resumable.
+        if (this._humanInput.size === 0) this._ac.abort();
+        else this._retiredAc = this._ac;
         this._ac = new AbortController();
+
+        const nextStatuses = new Map(this._statuses);
+        for (const toolCallId of abandonedToolCallIds) {
+          if (!this._humanInput.has(toolCallId)) {
+            nextStatuses.delete(toolCallId);
+          }
+        }
+        if (nextStatuses.size !== this._statuses.size) {
+          this._statuses = nextStatuses;
+          this._invokeOnStatusesChange();
+        }
+
+        this._resolveSettledResolvers();
         this._initPipeline();
         // Fall through and process the snapshot against the fresh pipeline.
       }
@@ -358,19 +392,19 @@ export class ToolInvocationTracker {
         }
       }
 
+      this._retiredAc?.abort();
+      this._retiredAc = undefined;
       this._ac.abort();
       this._ac = new AbortController();
 
-      if (this._executing.size === 0) {
-        return Promise.resolve();
-      }
+      if (this._executing.size === 0) return NO_TOOL_EXECUTIONS;
       const executionIds = new Set(this._executing);
       return new Promise<void>((resolve) => {
         this._settledResolvers.push({ executionIds, resolve });
       });
     } catch (err) {
       console.error("[ToolInvocationTracker] abort failed", err);
-      return Promise.resolve();
+      return NO_TOOL_EXECUTIONS;
     }
   }
 
@@ -623,6 +657,17 @@ export class ToolInvocationTracker {
     next.delete(toolCallId);
     this._statuses = next;
     this._invokeOnStatusesChange();
+  }
+
+  private _resolveSettledResolvers(): void {
+    const resolvers = this._settledResolvers.splice(0);
+    for (const { resolve } of resolvers) {
+      try {
+        resolve();
+      } catch {
+        // ignore — settled-resolver consumer threw
+      }
+    }
   }
 
   // ──────────────── internal: snapshot processing ────────────────

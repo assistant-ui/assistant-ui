@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { optionValues } from "./lib/script-options.mjs";
 import {
+  apiSurfaceFileName,
   collectPackages,
   collectTurboFilteredPackageNames,
   posixPath,
@@ -33,12 +34,8 @@ const requireFromBuildUtils = createRequire(
 const { build } = await import(requireFromBuildUtils.resolve("tsdown"));
 const ts = requireFromBuildUtils("typescript");
 
-function packageFileName(packageName) {
-  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
-}
-
 function packageEntryName(packageName) {
-  return packageFileName(packageName).replace(/\.ts$/, "");
+  return apiSurfaceFileName(packageName).replace(/\.ts$/, "");
 }
 
 function relativeImport(fromDir, toFile) {
@@ -860,19 +857,19 @@ function writeOrCheck(file, content, changedFiles) {
 
 // A filtered run cannot judge files for unselected packages, but a file
 // matching no current publishable package (deleted, renamed, privatized) is
-// stale under any filter; only the unfiltered run may treat
-// not-regenerated-this-run as stale.
+// stale under any filter. A selected package may no longer expose declarations.
 export function selectStaleSurfaceFiles({
   files,
   generatedFiles,
   knownFiles,
   filtered,
+  selectedFiles = new Set(),
 }) {
   return files.filter(
     (file) =>
       file.endsWith(".ts") &&
       !generatedFiles.has(file) &&
-      !(filtered && knownFiles.has(file)),
+      !(filtered && knownFiles.has(file) && !selectedFiles.has(file)),
   );
 }
 
@@ -913,7 +910,10 @@ async function main() {
       if (!bundledSurface && !cliPackageSurface) continue;
       const content = bundledSurface ?? renderCliSurface(cliPackageSurface);
 
-      const outputFile = path.join(apiSurfaceRoot, packageFileName(pkg.name));
+      const outputFile = path.join(
+        apiSurfaceRoot,
+        apiSurfaceFileName(pkg.name),
+      );
       generatedFiles.add(outputFile);
       writeOrCheck(outputFile, content, changedFiles);
     }
@@ -921,7 +921,7 @@ async function main() {
     if (existsSync(apiSurfaceRoot)) {
       const knownFiles = new Set(
         allPackages.map(({ pkg }) =>
-          path.join(apiSurfaceRoot, packageFileName(pkg.name)),
+          path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
         ),
       );
       const stale = selectStaleSurfaceFiles({
@@ -931,6 +931,11 @@ async function main() {
         generatedFiles,
         knownFiles,
         filtered: turboFilters.length > 0,
+        selectedFiles: new Set(
+          packages.map(({ pkg }) =>
+            path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
+          ),
+        ),
       });
       for (const file of stale) {
         if (checkMode) {

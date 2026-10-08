@@ -83,7 +83,10 @@ const agent: XuluxAgentDefinition = {
   prepareTools: () => ({}),
 };
 
-const request = (config?: Record<string, unknown>) =>
+const request = (
+  config?: Record<string, unknown>,
+  overrides?: Record<string, unknown>,
+) =>
   new Request("https://www.assistant-ui.com/api/xulux/chat", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -97,6 +100,7 @@ const request = (config?: Record<string, unknown>) =>
           parts: [{ type: "text", text: "Build a weather app" }],
         },
       ],
+      ...overrides,
     }),
   });
 
@@ -131,6 +135,30 @@ describe("createXuluxChatHandler access boundary", () => {
       publicSession.id,
     );
     expect(mocks.beginTurn).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized frontend tools before starting a metered turn", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await createXuluxChatHandler(agent)(
+      request(undefined, {
+        tools: {
+          update: {
+            description: "x".repeat(96_000),
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
+    expect(mocks.beginTurn).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("binds usage accounting to the signed session identity", async () => {

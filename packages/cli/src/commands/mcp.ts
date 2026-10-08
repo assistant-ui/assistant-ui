@@ -2,6 +2,14 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import {
+  applyEdits,
+  parse as parseJsonc,
+  parseTree,
+  stripComments,
+  type Node,
+  type ParseError,
+} from "jsonc-parser";
 import { logger } from "../lib/utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import * as p from "@clack/prompts";
@@ -23,6 +31,7 @@ const MCP_CONFIGS: Record<
     getPath: () => string;
     config: object;
     replaceServerKey?: string;
+    jsoncServerKey?: string;
     postInstall?: string;
   }
 > = {
@@ -66,11 +75,13 @@ const MCP_CONFIGS: Record<
       },
     },
     replaceServerKey: "servers",
+    jsoncServerKey: "servers",
     postInstall:
       "Enable MCP in Settings → search 'MCP' → enable 'Chat > MCP'. Use Copilot Chat in Agent mode.",
   },
   zed: {
     name: "Zed",
+    jsoncServerKey: "context_servers",
     getPath: () => {
       if (process.platform === "win32") {
         return path.join(process.env.APPDATA || "", "Zed", "settings.json");
@@ -147,6 +158,162 @@ class McpConfigParseError extends Error {
 const getTargetFlag = (target: Exclude<MCPTarget, "claude-code">) =>
   `--${target}`;
 
+const lastPropertyValue = (node: Node, key: string) =>
+  node.children?.findLast((property) => property.children?.[0]?.value === key)
+    ?.children?.[1];
+
+const lineStartAt = (content: string, offset: number) =>
+  content.lastIndexOf("\n", offset - 1) + 1;
+
+const lineIndentAt = (content: string, offset: number) =>
+  content.slice(lineStartAt(content, offset), offset).match(/^[\t ]*/)?.[0] ??
+  "";
+
+const getIndentUnit = (content: string, object: Node) => {
+  const objectLine = lineStartAt(content, object.offset);
+  const objectIndent = lineIndentAt(content, object.offset);
+  const multilineChild = object.children?.find(
+    (child) => lineStartAt(content, child.offset) > objectLine,
+  );
+  if (multilineChild) {
+    const childIndent = lineIndentAt(content, multilineChild.offset);
+    if (
+      childIndent.startsWith(objectIndent) &&
+      childIndent.length > objectIndent.length
+    ) {
+      return childIndent.slice(objectIndent.length);
+    }
+  }
+
+  const documentIndent = content.match(/(?:^|\r?\n)([\t ]+)(?=")/)?.[1];
+  if (documentIndent?.includes("\t")) return "\t";
+  return documentIndent || "  ";
+};
+
+const stringifyValue = (
+  value: object,
+  baseIndent: string,
+  indentUnit: string,
+  eol: string,
+) =>
+  JSON.stringify(value, null, indentUnit).replaceAll(
+    "\n",
+    `${eol}${baseIndent}`,
+  );
+
+const appendObjectProperty = (
+  content: string,
+  object: Node,
+  key: string,
+  value: object,
+  eol: string,
+) => {
+  const objectIndent = lineIndentAt(content, object.offset);
+  const indentUnit = getIndentUnit(content, object);
+  const propertyIndent = objectIndent + indentUnit;
+  const property = `${propertyIndent}${JSON.stringify(key)}: ${stringifyValue(
+    value,
+    propertyIndent,
+    indentUnit,
+    eol,
+  )}`;
+  const closeOffset = object.offset + object.length - 1;
+  const closeLineStart = lineStartAt(content, closeOffset);
+  const closeOnOwnLine = /^[\t ]*$/.test(
+    content.slice(closeLineStart, closeOffset),
+  );
+  const edits = [
+    {
+      offset: closeOnOwnLine ? closeLineStart : closeOffset,
+      length: 0,
+      content: closeOnOwnLine
+        ? `${property}${eol}`
+        : `${eol}${property}${eol}${objectIndent}`,
+    },
+  ];
+
+  const lastProperty = object.children?.at(-1);
+  if (lastProperty) {
+    const propertyEnd = lastProperty.offset + lastProperty.length;
+    const trailingContent = stripComments(
+      content.slice(propertyEnd, closeOffset),
+    ).trimStart();
+    if (!trailingContent.startsWith(",")) {
+      edits.unshift({ offset: propertyEnd, length: 0, content: "," });
+    }
+  }
+
+  return applyEdits(content, edits);
+};
+
+const replaceNodeValue = (
+  content: string,
+  node: Node,
+  container: Node,
+  value: object,
+  eol: string,
+) =>
+  applyEdits(content, [
+    {
+      offset: node.offset,
+      length: node.length,
+      content: stringifyValue(
+        value,
+        lineIndentAt(content, node.offset),
+        getIndentUnit(content, container),
+        eol,
+      ),
+    },
+  ]);
+
+function updateJsoncConfig(
+  content: string,
+  serverKey: string,
+  server: object,
+): string {
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const root = parseTree(content, [], {
+    allowTrailingComma: true,
+    allowEmptyContent: true,
+  });
+  if (!root) {
+    const initialized = JSON.stringify(
+      { [serverKey]: { "assistant-ui": server } },
+      null,
+      2,
+    ).replaceAll("\n", eol);
+    if (!content.trim()) return `${initialized}${eol}`;
+    return `${content}${content.endsWith(eol) ? "" : eol}${initialized}${eol}`;
+  }
+
+  // JSONC resolves duplicate keys to the last value.
+  const servers = lastPropertyValue(root, serverKey);
+  if (!servers) {
+    return appendObjectProperty(
+      content,
+      root,
+      serverKey,
+      { "assistant-ui": server },
+      eol,
+    );
+  }
+
+  if (servers.type !== "object") {
+    return replaceNodeValue(
+      content,
+      servers,
+      root,
+      { "assistant-ui": server },
+      eol,
+    );
+  }
+
+  const existing = lastPropertyValue(servers, "assistant-ui");
+  return existing
+    ? replaceNodeValue(content, existing, servers, server, eol)
+    : appendObjectProperty(content, servers, "assistant-ui", server, eol);
+}
+
 async function installForTarget(target: MCPTarget): Promise<void> {
   if (target === "claude-code") {
     logger.info("Installing MCP server for Claude Code...");
@@ -209,10 +376,28 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   }
 
   let existingConfig: any = {};
+  let content = "{}\n";
   if (fs.existsSync(configPath)) {
-    const content = fs.readFileSync(configPath, "utf-8");
+    content = fs.readFileSync(configPath, "utf-8");
     try {
-      existingConfig = JSON.parse(content);
+      if (targetConfig.jsoncServerKey) {
+        const errors: ParseError[] = [];
+        existingConfig = parseJsonc(content, errors, {
+          allowTrailingComma: true,
+          allowEmptyContent: true,
+        });
+        if (existingConfig === undefined) existingConfig = {};
+        if (
+          errors.length > 0 ||
+          existingConfig === null ||
+          typeof existingConfig !== "object" ||
+          Array.isArray(existingConfig)
+        ) {
+          throw new SyntaxError("Invalid MCP configuration");
+        }
+      } else {
+        existingConfig = JSON.parse(content);
+      }
     } catch {
       const flag = getTargetFlag(target);
       logger.error(`Could not parse ${targetConfig.name} MCP config.`);
@@ -235,7 +420,14 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     };
   }
 
-  fs.writeFileSync(configPath, `${JSON.stringify(newConfig, null, 2)}\n`);
+  const updatedContent = targetConfig.jsoncServerKey
+    ? updateJsoncConfig(
+        content,
+        targetConfig.jsoncServerKey,
+        newConfig[targetConfig.jsoncServerKey]["assistant-ui"],
+      )
+    : `${JSON.stringify(newConfig, null, 2)}\n`;
+  fs.writeFileSync(configPath, updatedContent);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);

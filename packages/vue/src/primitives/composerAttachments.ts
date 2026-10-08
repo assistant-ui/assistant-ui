@@ -11,6 +11,7 @@ import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
+import { getAttachmentKeys, useStableKeys } from "./stableKeys";
 
 /**
  * Renders the composer's pending attachments in order, each scoped through
@@ -22,11 +23,14 @@ export const ComposerPrimitiveAttachments = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
     const attachments = useAuiState((s) => s.composer.attachments);
+    const attachmentKeys = useStableKeys(() =>
+      getAttachmentKeys(attachments.value),
+    );
     return () =>
-      attachments.value.map((attachment, index) =>
+      attachmentKeys.value.map((key, index) =>
         h(
           AttachmentByIndexProvider,
-          { source: "composer", index, key: attachment.id },
+          { source: "composer", index, key },
           { default: () => slots.default?.() },
         ),
       );
