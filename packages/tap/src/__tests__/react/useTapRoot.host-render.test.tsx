@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { Component, StrictMode, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";

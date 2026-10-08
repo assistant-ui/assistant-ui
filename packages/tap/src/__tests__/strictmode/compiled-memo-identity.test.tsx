@@ -1,42 +1,48 @@
-import { StrictMode } from "react";
+/** @vitest-environment jsdom */
+import { StrictMode, version } from "react";
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { useTapHost } from "../../index";
 import { c as _c } from "../../react-shim/compiler-runtime";
 
 const SENTINEL = Symbol.for("react.memo_cache_sentinel");
+const onReact18 = version.startsWith("18.");
 
 afterEach(() => {
   cleanup();
 });
 
 describe("compiled memo identity under StrictMode", () => {
-  it("keeps one memoized instance across the StrictMode render replay", () => {
-    const instances: object[] = [];
+  // React 18 discards memoized values across StrictMode's double render, so the replay creates a second owner.
+  it.skipIf(onReact18)(
+    "keeps one memoized instance across the StrictMode render replay",
+    () => {
+      const instances: object[] = [];
 
-    function Harness() {
-      useTapHost(function CompiledHost() {
-        const $ = _c(1);
-        let owner;
-        if ($[0] === SENTINEL) {
-          owner = { listeners: new Set<() => void>() };
-          $[0] = owner;
-        } else {
-          owner = $[0];
-        }
-        instances.push(owner as object);
+      function Harness() {
+        useTapHost(function CompiledHost() {
+          const $ = _c(1);
+          let owner;
+          if ($[0] === SENTINEL) {
+            owner = { listeners: new Set<() => void>() };
+            $[0] = owner;
+          } else {
+            owner = $[0];
+          }
+          instances.push(owner as object);
+          return null;
+        });
         return null;
-      });
-      return null;
-    }
+      }
 
-    render(
-      <StrictMode>
-        <Harness />
-      </StrictMode>,
-    );
+      render(
+        <StrictMode>
+          <Harness />
+        </StrictMode>,
+      );
 
-    expect(instances.length).toBeGreaterThanOrEqual(2);
-    expect(new Set(instances)).toHaveLength(1);
-  });
+      expect(instances.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(instances)).toHaveLength(1);
+    },
+  );
 });

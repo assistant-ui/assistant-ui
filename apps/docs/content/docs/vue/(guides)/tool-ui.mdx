@@ -1,0 +1,274 @@
+---
+title: Tool UI
+description: Render tool calls and data parts with Vue components, and answer tool calls that wait for the user.
+---
+
+`MessagePrimitiveParts` renders a registered component for each matching tool-call part. A Vue tool UI receives one required `tool` prop of type `ToolUIProps`. Declare that prop: undeclared Vue props fall through to the component's root DOM element, so the tool fields and callbacks are kept together instead of being spread onto the component.
+
+## Write a tool UI component
+
+This component is lifted from the Nuxt example:
+
+```vue title="app/components/WeatherToolUI.vue"
+<script setup lang="ts">
+import { computed, type PropType } from "vue";
+import type { ToolUIProps } from "@assistant-ui/vue";
+
+const props = defineProps({
+  tool: { type: Object as PropType<ToolUIProps>, required: true },
+});
+
+const city = computed(() => (props.tool.part.args as { city?: string }).city);
+const result = computed(
+  () =>
+    props.tool.part.result as
+      | { temperature: number; condition: string }
+      | undefined,
+);
+</script>
+
+<template>
+  <div
+    class="border-border/60 my-2 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm"
+  >
+    <span class="text-muted-foreground">Weather</span>
+    <span class="font-medium">{{ city ?? "…" }}</span>
+    <span v-if="result" class="ml-auto"
+      >{{ result.temperature }}°C · {{ result.condition }}</span
+    >
+    <span v-else class="text-muted-foreground ml-auto animate-pulse"
+      >running…</span
+    >
+  </div>
+</template>
+```
+
+The `tool` object contains the part and actions bound to that part:
+
+| Field | Type | Description |
+|---|---|---|
+| `part` | Tool-call part | The call's arguments, result, status, and metadata. |
+| `addResult` | `(result: unknown) => void` | Supply a result for a call without one. |
+| `resume` | `(payload: unknown) => void` | Continue a call waiting for human input. |
+| `respondToApproval` | `(response: ToolApprovalResponse) => Promise<void>` | Answer a server approval request. |
+| `unstable_recordInteraction` | `(input: { type: "action" \| "human-response"; payload: unknown }) => Promise<void>` | Record a user interaction. Present only when the runtime supports it. |
+
+Read these fields from `tool.part`:
+
+| Field | Type | Description |
+|---|---|---|
+| `toolName` | `string` | Name used to find a registered UI. |
+| `toolCallId` | `string` | Identifier of this invocation. |
+| `args` | JSON object | Parsed arguments; fields can be incomplete while streaming. |
+| `argsText` | `string` | Raw JSON argument text. |
+| `result` | `unknown` | Tool result when available. |
+| `isError` | `boolean \| undefined` | Whether the result is an execution error. |
+| `isPreliminary` | `boolean \| undefined` | Whether the result is interim. |
+| `status` | Status object | `running`, `complete`, `incomplete`, or `requires-action`. |
+| `approval` | Approval request or `undefined` | Server approval gate and its recorded answer. |
+| `interrupt` | Human interrupt or `undefined` | Human input request and payload. |
+| `mcp` | MCP metadata or `undefined` | Includes an MCP App resource URI when supplied. |
+| `artifact` | `unknown` | UI-only artifact associated with the result. |
+| `timing` | Timing data or `undefined` | Call timing when tracked. |
+| `modelContent` | Model content or `undefined` | Content returned to the model. |
+| `providerMetadata` | Provider metadata or `undefined` | Metadata supplied with the part. |
+| `parentId` | `string \| undefined` | Parent part ID for a nested call. |
+| `messages` | Thread messages or `undefined` | Nested messages produced by the call. |
+| `unstable_interactions` | Interaction log or `undefined` | Recorded user actions and answers. |
+
+## Register it
+
+Put a renderer in `Tools({ toolkit })` when the tool definition and UI belong to the assistant configuration. The toolkit also registers tool definitions with model context. The Vue renderer needs a cast because the shared toolkit's `render` field is typed as a React component:
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import { Tools, type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
+import WeatherToolUI from "./WeatherToolUI.vue";
+
+const toolkit = {
+  weather: {
+    type: "backend" as const,
+    render: WeatherToolUI as unknown as ToolCallMessagePartComponent,
+  },
+};
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+  tools: Tools({ toolkit }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config"><slot /></AuiProvider>
+</template>
+```
+
+To register from a Vue component's lifecycle, use `aui.tools.setToolUI`. This component is lifted from the Nuxt example, with an unused type import omitted:
+
+```vue title="app/components/RegisterToolUIs.vue"
+<script setup lang="ts">
+import { onMounted, onUnmounted } from "vue";
+import { useAui } from "@assistant-ui/vue";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/core/react";
+import WeatherToolUI from "./WeatherToolUI.vue";
+
+const aui = useAui();
+let unregister: (() => void) | undefined;
+onMounted(() => {
+  unregister = aui.tools.setToolUI(
+    "weather",
+    WeatherToolUI as unknown as ToolCallMessagePartComponent,
+  );
+});
+onUnmounted(() => unregister?.());
+</script>
+
+<template><slot /></template>
+```
+
+Render it under the same `AuiProvider` as the messages. Registrations for one tool name are kept in order, and the first registered UI wins. Unregistering it exposes the next registration or the fallback.
+
+## Status text without a component
+
+Use a toolkit `renderText` descriptor for a tool that needs only status text. `running` is selected for `running` and `requires-action`; `complete` is selected for other statuses. A descriptor can return a string or number for Vue. A React element result renders nothing.
+
+```ts
+const toolkit = {
+  weather: {
+    type: "backend",
+    renderText: {
+      running: ({ args }: { args: { city: string } }) => `Checking ${args.city}`,
+      complete: ({ result }: { result: { temperature: number } | undefined }) =>
+        result ? `${result.temperature}°C` : "No result",
+    },
+  },
+};
+```
+
+## A fallback for unregistered tools
+
+When no named UI or MCP App renderer matches, `MessagePrimitiveParts` uses its `#tool-call` slot, then its default slot. The registry `message.vue` supplies `tool-fallback.vue` in `#tool-call`. That component shows the tool name and status in a collapsible row, then the arguments, result, error, and any approval controls supported by the call.
+
+```vue
+<MessagePrimitiveParts>
+  <template #tool-call>
+    <ToolFallback />
+  </template>
+</MessagePrimitiveParts>
+```
+
+This is an abridged excerpt from the registry `message.vue`. A fallback can read the current part through `useAuiState((s) => s.part)` and act on it through `useAui().part`.
+
+## Answer a tool call
+
+`tool.addResult(result)` supplies a missing result. `tool.resume(payload)` continues an interrupted call with a payload. `tool.respondToApproval(response)` answers a server approval gate and returns a promise that rejects if the answer cannot be recorded. The matching runtime adapter handles each action. Check `tool.part.status.type === "requires-action"` and `s.thread.capabilities.answerToolCall` before offering controls.
+
+An approval response can be `{ approved: boolean }`, `{ optionId: string }`, `{ text: string }`, or `{ answers: Record<string, ToolApprovalAnswer> }`. Decision and option responses may also carry `text` and `reason`; a response may combine `approved` with `optionId`. Use the request's `display`, options, and questions to decide which form to send.
+
+This component handles a plain allow or deny request:
+
+```vue title="app/components/ApprovalToolUI.vue"
+<script setup lang="ts">
+import { computed, ref, type PropType } from "vue";
+import { useAuiState, type ToolUIProps } from "@assistant-ui/vue";
+
+const props = defineProps({
+  tool: { type: Object as PropType<ToolUIProps>, required: true },
+});
+
+const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
+const pending = ref(false);
+const error = ref("");
+const approval = computed(() => props.tool.part.approval);
+const canRespond = computed(() =>
+  canAnswer.value &&
+  props.tool.part.status.type === "requires-action" &&
+  approval.value?.approved === undefined &&
+  approval.value?.resolution === undefined &&
+  !pending.value,
+);
+
+const respond = async (approved: boolean) => {
+  if (!canRespond.value) return;
+  pending.value = true;
+  error.value = "";
+  try {
+    await props.tool.respondToApproval({ approved });
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : String(cause);
+  } finally {
+    pending.value = false;
+  }
+};
+</script>
+
+<template>
+  <div v-if="approval && approval.display === undefined">
+    <p>{{ approval.prompt ?? tool.part.toolName }}</p>
+    <button type="button" :disabled="!canRespond" @click="respond(true)">Allow</button>
+    <button type="button" :disabled="!canRespond" @click="respond(false)">Deny</button>
+    <p v-if="error" role="alert">{{ error }}</p>
+  </div>
+</template>
+```
+
+## Data parts
+
+Data renderers receive one declared `data` prop of type `DataUIProps<T>`. Its `part` holds the data part's `name`, `data`, and status. `aui.dataRenderers.setDataUI(name, component)` handles one name; `setFallbackDataUI(component)` handles names without a registered renderer. Both return unregister functions. A registered data UI runs before the `#data` slot.
+
+```vue title="app/components/RegisterDataUIs.vue"
+<script setup lang="ts">
+import { defineComponent, h, onMounted, onUnmounted } from "vue";
+import { useAui, type DataUIProps } from "@assistant-ui/vue";
+import type { DataMessagePartComponent } from "@assistant-ui/core/react";
+
+const aui = useAui();
+
+const Chart = defineComponent({
+  props: ["data"],
+  setup: (props: { data: DataUIProps<{ points: number[] }> }) => () =>
+    h("pre", null, JSON.stringify(props.data.part.data.points)),
+});
+const OtherData = defineComponent({
+  props: ["data"],
+  setup: (props: { data: DataUIProps }) => () =>
+    h("pre", null, `${props.data.part.name}: ${JSON.stringify(props.data.part.data)}`),
+});
+
+let unregisterChart: (() => void) | undefined;
+let unregisterFallback: (() => void) | undefined;
+onMounted(() => {
+  unregisterChart = aui.dataRenderers.setDataUI(
+    "chart",
+    Chart as unknown as DataMessagePartComponent,
+  );
+  unregisterFallback = aui.dataRenderers.setFallbackDataUI(
+    OtherData as unknown as DataMessagePartComponent,
+  );
+});
+onUnmounted(() => {
+  unregisterChart?.();
+  unregisterFallback?.();
+});
+</script>
+
+<template><slot /></template>
+```
+
+## MCP App resources
+
+`Tools({ mcpApp })` takes a resource that returns `{ render }`. Create it with `resource` from `@assistant-ui/tap`, which you add to your own dependencies to import it. When a tool call carries a `ui://` URI in `tool.part.mcp.app.resourceUri` and no named UI matches, `MessagePrimitiveParts` renders `render` with the same single `tool` prop. A named UI takes precedence; without either renderer, the `#tool-call` slot handles the call.
+
+```ts
+import { resource } from "@assistant-ui/tap";
+import { Tools, type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
+import McpAppView from "./McpAppView.vue";
+
+const McpApp = resource(() => ({
+  render: McpAppView as unknown as ToolCallMessagePartComponent,
+}));
+
+const tools = Tools({ mcpApp: McpApp() });
+```

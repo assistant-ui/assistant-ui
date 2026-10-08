@@ -1,0 +1,152 @@
+{
+  "repository": "assistant-ui/assistant-ui",
+  "teams": {
+    "maintainers": "maintainers",
+    "reviewers": "reviewers"
+  },
+  "areas": [
+    {
+      "id": "reactivity",
+      "name": "Reactivity core",
+      "ownerTeam": "owners",
+      "paths": ["packages/tap/**", "packages/store/**"],
+      "contractDocs": [
+        "apps/docs/content/docs/tap/**",
+        "apps/docs/content/docs/store/**"
+      ]
+    },
+    {
+      "id": "protocol",
+      "name": "Wire protocol",
+      "ownerTeam": "owners",
+      "paths": ["packages/assistant-stream/**"],
+      "contractDocs": []
+    },
+    {
+      "id": "public-api",
+      "name": "Public API",
+      "ownerTeam": "owners",
+      "paths": ["api-surface/**"],
+      "contractDocs": []
+    },
+    {
+      "id": "ci-policy",
+      "name": "CI and policy",
+      "ownerTeam": "owners",
+      "paths": [
+        ".github/**",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "scripts/review-tier.mjs",
+        "scripts/diff-api-surface.mjs",
+        "scripts/sync-review-policy.mjs",
+        "scripts/review-health.mjs",
+        "scripts/lib/review-*.mjs"
+      ],
+      "contractDocs": []
+    }
+  ],
+  "decisionPaths": [
+    ".github/review-policy.json",
+    ".github/CODEOWNERS",
+    ".github/workflows/review-tier.yaml",
+    ".github/workflows/review-tier-relay.yaml",
+    ".github/workflows/review-health.yaml",
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/npm-publish.yaml",
+    ".github/workflows/changeset.yaml",
+    ".github/workflows/pypi-publish.yaml",
+    "scripts/review-tier.mjs",
+    "scripts/diff-api-surface.mjs",
+    "scripts/sync-review-policy.mjs",
+    "scripts/review-health.mjs",
+    "scripts/lib/review-*.mjs"
+  ],
+  "lowRiskPaths": [
+    "apps/**",
+    "examples/**",
+    "templates/**",
+    ".changeset/*.md",
+    "**/*.md",
+    "**/*.mdx"
+  ],
+  "testPaths": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.bench.*",
+    "**/__tests__/**",
+    "**/__fixtures__/**",
+    "**/tests/**"
+  ],
+  "generatedPaths": [
+    "api-surface/**",
+    "pnpm-lock.yaml",
+    "apps/docs/generated/**"
+  ],
+  "sizeCap": {
+    "tiers": [2, 3],
+    "sourceLines": 400
+  },
+  "windowHours": {
+    "2": 24,
+    "3": 72
+  },
+  "openPullRequestCap": {
+    "withWriteAccess": 5,
+    "withoutWriteAccess": 3
+  },
+  "types": [
+    "fix",
+    "feat",
+    "docs",
+    "test",
+    "perf",
+    "refactor",
+    "chore",
+    "ci",
+    "build",
+    "revert"
+  ],
+  "labels": {
+    "tierPrefix": "tier/",
+    "behaviorChange": "behavior-change",
+    "decisionAccepted": "decision: accepted",
+    "overridePrefix": "review-tier/override: ",
+    "overrideSignals": ["size", "type", "window"]
+  },
+  "reviewTierCheck": {
+    "name": "review-tier",
+    "integrationId": 5235540,
+    "mode": "enforce"
+  },
+  "requiredChecks": [
+    {
+      "context": "autofix",
+      "integrationId": 15368
+    },
+    {
+      "context": "Build Changed Packages",
+      "integrationId": 15368
+    },
+    {
+      "context": "Typecheck Changed Packages",
+      "integrationId": 15368
+    },
+    {
+      "context": "Review Policy Scripts",
+      "integrationId": 15368
+    }
+  ],
+  "mergeQueue": {
+    "enabled": true,
+    "parameters": {
+      "merge_method": "SQUASH",
+      "grouping_strategy": "ALLGREEN",
+      "max_entries_to_build": 5,
+      "max_entries_to_merge": 5,
+      "min_entries_to_merge": 1,
+      "min_entries_to_merge_wait_minutes": 5,
+      "check_response_timeout_minutes": 60
+    }
+  }
+}

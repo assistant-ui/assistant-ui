@@ -49,15 +49,15 @@ export function MessageAttachments({
                 <span className="text-foreground/90 truncate text-[13.5px]">
                   {item.name}
                 </span>
-                <span className={cn(mono, "text-foreground/35")}>
+                <span className={cn(mono, "text-muted-foreground")}>
                   {item.size}
                 </span>
               </span>
-              <ImageIcon className="text-foreground/25 me-2 size-3.5 shrink-0" />
+              <ImageIcon className="text-muted-foreground me-2 size-3.5 shrink-0" />
             </>
           ) : (
             <>
-              <span className="bg-background/70 text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-lg">
+              <span className="bg-background/70 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
                 {item.kind === "document" ? (
                   <FileTextIcon className="size-3.5" />
                 ) : (
@@ -68,7 +68,7 @@ export function MessageAttachments({
                 <span className="text-foreground/90 truncate text-[13.5px]">
                   {item.name}
                 </span>
-                <span className={cn(mono, "text-foreground/35")}>
+                <span className={cn(mono, "text-muted-foreground")}>
                   {item.size}
                   {item.pages !== undefined && ` · ${item.pages} pages`}
                 </span>

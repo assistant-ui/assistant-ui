@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 

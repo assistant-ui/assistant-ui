@@ -11,7 +11,7 @@ afterEach(() => {
   cleanup();
   document
     .querySelectorAll(
-      'style[data-aui-dot-matrix], style[href="aui-dot-matrix"], style[data-href="aui-dot-matrix"]',
+      'style[href="aui-dot-matrix"], style[data-href="aui-dot-matrix"]',
     )
     .forEach((style) => style.remove());
 });
@@ -24,7 +24,7 @@ it("renders a stylesheet for both variants", () => {
     </>,
   );
   if (onReact18) {
-    const styles = document.querySelectorAll("style[data-aui-dot-matrix]");
+    const styles = document.querySelectorAll('style[href="aui-dot-matrix"]');
     expect(styles).toHaveLength(2);
     expect(styles[0]?.textContent).toContain("@keyframes aui-dot-matrix-blink");
     expect(styles[1]?.textContent).toContain("@keyframes aui-dot-matrix-blink");

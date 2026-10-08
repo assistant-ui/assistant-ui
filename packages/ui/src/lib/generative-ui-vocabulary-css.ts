@@ -865,6 +865,27 @@ export const generativeUiVocabularyCss: CssRuleset = {
     color: "color-mix(in oklab, currentColor 62%, transparent)",
     margin: "0.5em 0",
   },
+  '[data-aui="markdown"] table': {
+    display: "block",
+    "max-width": "100%",
+    "overflow-x": "auto",
+    "border-collapse": "collapse",
+    margin: "0.5rem 0",
+    "font-size": "0.8125rem",
+  },
+  '[data-aui="markdown"] th, [data-aui="markdown"] td': {
+    padding: "0.375rem 0.75rem",
+    "vertical-align": "top",
+  },
+  '[data-aui="markdown"] th:not([align]), [data-aui="markdown"] td:not([align])':
+    { "text-align": "start" },
+  '[data-aui="markdown"] th': {
+    "font-weight": "500",
+    "border-bottom": `1px solid ${auiHairlineBorder}`,
+  },
+  '[data-aui="markdown"] tbody tr:not(:last-child) td': {
+    "border-bottom": `1px solid ${auiHairlineBorder}`,
+  },
 
   '[data-aui="badge"]': {
     display: "inline-flex",
@@ -1047,7 +1068,7 @@ export const generativeUiElementsThemeCss: CssRuleset = {
     },
 
   [`${T} [data-aui="alert"]`]: {
-    border: "none",
+    "border-color": auiHairlineBorder,
     "border-radius": "14px",
   },
   [`${T} [data-aui="alert-title"]`]: {

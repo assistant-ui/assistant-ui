@@ -666,6 +666,119 @@ describe("AISDKMessageConverter", () => {
     ]);
   });
 
+  it("reads questions and recorded answers from the approval descriptor for a custom response channel", () => {
+    const questions = [
+      {
+        id: "scope",
+        prompt: "Which files?",
+        header: "Scope",
+        options: [
+          { id: "src", label: "src", description: "Sources" },
+          { id: 1, label: "invalid" },
+        ],
+        multiple: true,
+      },
+      { id: "note", prompt: "Anything else?", allowFreeform: "yes" },
+      { prompt: "No id" },
+    ];
+    const parts = [
+      {
+        type: "tool-ask",
+        toolCallId: "tc-1",
+        state: "approval-requested",
+        input: {},
+        approval: {
+          id: "approval-1",
+          descriptor: { display: "questions", questions },
+        },
+      },
+      {
+        type: "tool-ask",
+        toolCallId: "tc-2",
+        state: "approval-responded",
+        input: {},
+        approval: {
+          id: "approval-2",
+          approved: true,
+          descriptor: {
+            display: "questions",
+            questions: [{ id: "note", prompt: "Anything else?" }],
+            answers: {
+              note: { text: "no", optionIds: [1, "x"] },
+              bad: "x",
+              empty: { optionIds: [1] },
+            },
+          },
+        },
+      },
+    ];
+
+    const convert = (supportsRichToolApprovalResponses: boolean) => {
+      const metadata: AISDKMessageConverterMetadata = {
+        supportsRichToolApprovalResponses,
+      };
+      return AISDKMessageConverter.toThreadMessages(
+        [{ id: "a1", role: "assistant", parts } as any],
+        false,
+        metadata,
+      )[0]?.content.map((part) => (part as { approval?: any }).approval);
+    };
+
+    const [requested, responded] = convert(true)!;
+    expect(requested.display).toBe("questions");
+    expect(requested.questions).toEqual([
+      {
+        id: "scope",
+        prompt: "Which files?",
+        header: "Scope",
+        options: [{ id: "src", label: "src", description: "Sources" }],
+        multiple: true,
+      },
+      { id: "note", prompt: "Anything else?" },
+    ]);
+    expect(responded.approved).toBe(true);
+    expect(responded.answers).toEqual({
+      note: { text: "no", optionIds: ["x"] },
+    });
+    expect(
+      convertWith(JSON.parse('{"__proto__":{"text":"kept"}}')).answers
+        .__proto__,
+    ).toEqual({ text: "kept" });
+
+    function convertWith(answers: unknown) {
+      const metadata: AISDKMessageConverterMetadata = {
+        supportsRichToolApprovalResponses: true,
+      };
+      return AISDKMessageConverter.toThreadMessages(
+        [
+          {
+            id: "a2",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-ask",
+                toolCallId: "tc-3",
+                state: "approval-responded",
+                input: {},
+                approval: {
+                  id: "approval-3",
+                  approved: true,
+                  descriptor: { display: "questions", answers },
+                },
+              },
+            ],
+          } as any,
+        ],
+        false,
+        metadata,
+      )[0]?.content.map((part) => (part as { approval?: any }).approval)[0];
+    }
+
+    const [builtIn] = convert(false)!;
+    expect(builtIn).not.toHaveProperty("display");
+    expect(builtIn).not.toHaveProperty("questions");
+  });
+
   it("ignores a non-boolean dismissible field from the approval descriptor", () => {
     const metadata: AISDKMessageConverterMetadata = {
       supportsRichToolApprovalResponses: true,
@@ -1277,7 +1390,9 @@ describe("AISDKMessageConverter", () => {
     const call = terminal[0]?.content.find(
       (part): part is any => part.type === "tool-call",
     );
-    expect(call?.args).toEqual({ city: "NYC" });
+    expect(Object.fromEntries(Object.entries(call?.args ?? {}))).toEqual({
+      city: "NYC",
+    });
     expect(call?.result).toEqual({ temp: 70 });
   });
 
@@ -1416,6 +1531,123 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("forwards toolMetadata.app without a tool-supplied serverId", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            toolMetadata: {
+              app: {
+                resourceUri: "ui://example/search",
+                mimeType: "text/html;profile=mcp-app",
+                visibility: ["app", "model", "bogus"],
+                serverId: "search-server",
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      mimeType: "text/html;profile=mcp-app",
+      visibility: ["app", "model"],
+    });
+  });
+
+  it.each([undefined, "", "other-server"])(
+    "keeps provider serverId when the tool supplies %s",
+    (serverId) => {
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-search",
+              toolCallId: "tc-1",
+              state: "output-available",
+              input: { query: "hi" },
+              output: { results: [] },
+              toolMetadata: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  mimeType: "text/html;profile=mcp-app",
+                  serverId,
+                },
+              },
+              callProviderMetadata: {
+                mcp: {
+                  app: {
+                    resourceUri: "ui://example/search",
+                    serverId: "search-server",
+                  },
+                },
+              },
+            },
+          ],
+        } as any,
+      ]);
+
+      const call = converted[0]?.content.find(
+        (part): part is any => part.type === "tool-call",
+      );
+      expect(call?.mcp?.app).toEqual({
+        resourceUri: "ui://example/search",
+        mimeType: "text/html;profile=mcp-app",
+        serverId: "search-server",
+      });
+    },
+  );
+
+  it("falls back to provider app metadata when toolMetadata.app has an invalid URI", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            toolMetadata: {
+              app: { resourceUri: "https://example.com/search" },
+            },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  mimeType: "text/html;profile=mcp-app",
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      mimeType: "text/html;profile=mcp-app",
+    });
+  });
+
   it("omits an empty callProviderMetadata.mcp.app.serverId", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -1481,6 +1713,42 @@ describe("AISDKMessageConverter", () => {
       providerMetadata: { acme: { agentName: "researcher" } },
     });
     expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("keeps a step scoped reasoning block id off the part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", id: "reasoning-0", text: "first step" },
+          { type: "text", text: "answer" },
+          { type: "reasoning", id: "reasoning-0", text: "second step" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({ type: "reasoning" });
+    expect(converted[0]?.content[0]).not.toHaveProperty("id");
+    expect(converted[0]?.content[1]).not.toHaveProperty("id");
+    expect(converted[0]?.content[2]).not.toHaveProperty("id");
+  });
+
+  it("forwards data part ids", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "data-chart", id: "data-1", data: { x: 1 } }],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "data",
+      id: "data-1",
+      name: "chart",
+      data: { x: 1 },
+    });
   });
 
   it("maps TextUIPart.state onto the per-part status", () => {
@@ -1828,7 +2096,10 @@ describe("AISDKMessageConverter", () => {
     const toolCall = converted[0]?.content.find(
       (part): part is any => part.type === "tool-call",
     );
-    expect(toolCall?.args).toEqual({ city: "NYC", units: "F" });
+    expect(Object.fromEntries(Object.entries(toolCall?.args ?? {}))).toEqual({
+      city: "NYC",
+      units: "F",
+    });
     expect(toolCall?.argsText).toBe('{"city":"NYC","units":"F"}');
   });
 
@@ -1902,6 +2173,7 @@ describe("AISDKMessageConverter", () => {
 
     expect(a.argsText).toBe('{"a":1,"b":2}');
     expect(b.argsText).toBe('{"b":2,"a":1}');
+    expect(Object.keys(b.args)).toEqual(["a", "b"]);
 
     // Both entries must survive a reconversion: the key-order entries are gone
     // by now, so a cache miss would re-serialize B in raw key order.
@@ -1940,5 +2212,117 @@ describe("AISDKMessageConverter", () => {
       AISDKMessageConverter.toThreadMessages(messages, false, metadata);
     }
     expect(stableStringifySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips null parts and parts without a type", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [null, { text: "no type" }, { type: "text", text: "hi" }],
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [null, { text: "no type" }, { type: "text", text: "yo" }],
+      },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([{ type: "text", text: "hi" }]);
+    expect(converted[0]?.attachments).toEqual([]);
+    expect(converted[1]?.content).toMatchObject([{ type: "text", text: "yo" }]);
+  });
+
+  it("joins the text parts of a system message into one text part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "s1",
+        role: "system",
+        parts: [
+          {
+            type: "text",
+            text: "be ",
+            providerMetadata: { p1: { k: "a" }, p2: { k: "b" } },
+          },
+          { type: "text", text: "brief", providerMetadata: { p2: { k: "c" } } },
+        ],
+      },
+      { id: "s2", role: "system", parts: [] },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([
+      {
+        type: "text",
+        text: "be brief",
+        providerMetadata: { p1: { k: "a" }, p2: { k: "c" } },
+      },
+    ]);
+    expect(converted[1]?.content).toMatchObject([{ type: "text", text: "" }]);
+    expect(converted[1]?.content[0]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("reads a user text part without text as empty text", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      { id: "u1", role: "user", parts: [{ type: "text" }] },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([{ type: "text", text: "" }]);
+  });
+
+  it("skips a file part without a url and floors a missing mediaType", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [{ type: "file", mediaType: "image/png", filename: "a.png" }],
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "file", mediaType: "image/png" },
+          { type: "file", url: "https://cdn/file.bin" },
+          { type: "reasoning-file", mediaType: "image/png" },
+          { type: "reasoning-file", url: "https://cdn/thought.bin" },
+        ],
+      },
+    ] as any);
+
+    expect(converted[0]?.attachments).toEqual([]);
+    expect(converted[1]?.content).toMatchObject([
+      {
+        type: "file",
+        data: "https://cdn/file.bin",
+        mimeType: "unknown/unknown",
+      },
+      {
+        type: "file",
+        data: "https://cdn/thought.bin",
+        mimeType: "unknown/unknown",
+      },
+    ]);
+  });
+
+  it("gives a dynamic tool call without a toolName an empty name", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tc-1",
+      toolName: "",
+    });
   });
 });

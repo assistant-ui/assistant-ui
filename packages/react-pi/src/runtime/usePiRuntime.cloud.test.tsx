@@ -203,7 +203,9 @@ describe("usePiRuntime cloud", () => {
       .fn()
       .mockResolvedValueOnce({ external_id: "pi-thread" })
       .mockResolvedValueOnce({ external_id: undefined });
-    const cloud = { threads: { get: getThread } } as unknown as AssistantCloud;
+    const cloud = {
+      threads: { get: getThread },
+    } as unknown as AssistantCloud;
 
     const App = () => {
       usePiRuntime({ client, cloud, workspacePath: "/workspace" });

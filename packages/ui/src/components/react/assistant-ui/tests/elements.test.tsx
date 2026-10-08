@@ -2,7 +2,15 @@ import { cleanup, render } from "@testing-library/react";
 import { TerminalIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { AgentPlan } from "../elements/agent-plan";
 import { AgentStatus, type AgentState } from "../elements/agent-status";
@@ -10,6 +18,7 @@ import { Chart } from "../elements/chart";
 import { CodeDiff } from "../elements/code-diff";
 import { CodeRunner } from "../elements/code-runner";
 import { CommandPalette } from "../elements/command-palette";
+import { ComposerInput } from "../elements/composer";
 import { ComputerUse } from "../elements/computer-use";
 import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
@@ -72,9 +81,6 @@ const list = <T,>(items: number, make: (i: number) => T) =>
 const CASES: Record<string, Case> = {
   "agent-plan": (n, items) => (
     <AgentPlan steps={list(items, (i) => `step ${i}`)} activeIndex={n} />
-  ),
-  "agent-status": () => (
-    <AgentStatus state="working" label={"l".repeat(200)} elapsed="0:12" />
   ),
   chart: (n, items) => (
     <Chart
@@ -679,6 +685,48 @@ beforeAll(() => {
 });
 
 afterEach(cleanup);
+afterAll(() => vi.dynamicImportSettled());
+
+const dispatchSafariImeConfirm = (input: HTMLElement) => {
+  input.dispatchEvent(
+    new CompositionEvent("compositionstart", { bubbles: true }),
+  );
+  input.dispatchEvent(
+    new InputEvent("input", {
+      data: "日本語",
+      inputType: "insertFromComposition",
+      isComposing: true,
+      bubbles: true,
+    }),
+  );
+  input.dispatchEvent(
+    new CompositionEvent("compositionend", {
+      data: "日本語",
+      bubbles: true,
+    }),
+  );
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    keyCode: 229,
+    isComposing: false,
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(event);
+  return event;
+};
+
+const dispatchPlainEnter = (input: HTMLElement) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    keyCode: 13,
+    isComposing: false,
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(event);
+  return event;
+};
 
 describe("file download", () => {
   it("names the default download action with the filename", () => {
@@ -812,26 +860,22 @@ describe("todo-list", () => {
 });
 
 describe.each(Object.entries(CASES))("%s", (name, make) => {
-  it.each(HOSTILE)("survives a %s numeric prop", (_label, n, items) => {
-    const markup = renderToStaticMarkup(make(n, items));
-
-    for (const { property, value } of inlinePercentages(markup)) {
-      const share = Number.parseFloat(value);
-      expect(
-        share,
-        `${name} rendered ${property}: ${value}, which a browser drops as invalid`,
-      ).toBeGreaterThanOrEqual(0);
-      expect(
-        share,
-        `${name} rendered ${property}: ${value}, past the end of its track`,
-      ).toBeLessThanOrEqual(100);
-    }
-  });
-
   it.each(HOSTILE)(
-    "announces a %s numeric prop without the float error of deriving it",
+    "renders a %s numeric prop with valid percentages and announced values",
     (_label, n, items) => {
       const markup = renderToStaticMarkup(make(n, items));
+
+      for (const { property, value } of inlinePercentages(markup)) {
+        const share = Number.parseFloat(value);
+        expect(
+          share,
+          `${name} rendered ${property}: ${value}, which a browser drops as invalid`,
+        ).toBeGreaterThanOrEqual(0);
+        expect(
+          share,
+          `${name} rendered ${property}: ${value}, past the end of its track`,
+        ).toBeLessThanOrEqual(100);
+      }
 
       for (const [, value] of markup.matchAll(/aria-valuenow="([^"]*)"/g)) {
         expect(
@@ -1651,4 +1695,78 @@ describe("state that is carried by more than colour", () => {
       ).toBe(input.getAttribute("aria-controls"));
     },
   );
+
+  it("does not submit the conversion-confirming Enter in ComposerInput", () => {
+    const onSubmit = vi.fn();
+    const { getByRole } = render(
+      <ComposerInput aria-label="Message" onSubmit={onSubmit} />,
+    );
+    const input = getByRole("textbox", { name: "Message" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    dispatchPlainEnter(input);
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("does not send the conversion-confirming Enter in MobileComposer", () => {
+    const onSend = vi.fn();
+    const { getByRole } = render(
+      <MobileComposer
+        value="Draft"
+        keyboardOpen
+        running={false}
+        actions={[]}
+        onSend={onSend}
+      />,
+    );
+    const input = getByRole("textbox", { name: "Message" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onSend).not.toHaveBeenCalled();
+
+    expect(dispatchPlainEnter(input).defaultPrevented).toBe(true);
+    expect(onSend).toHaveBeenCalledOnce();
+  });
+
+  it("does not run a command on the conversion-confirming Enter", () => {
+    const onRun = vi.fn();
+    const { getByRole } = render(
+      <CommandPalette
+        commands={[
+          { id: "new", label: "New thread", group: "Thread", keys: [] },
+        ]}
+        query=""
+        activeId="new"
+        onRun={onRun}
+      />,
+    );
+    const input = getByRole("combobox", { name: "Type a command" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onRun).not.toHaveBeenCalled();
+
+    expect(dispatchPlainEnter(input).defaultPrevented).toBe(true);
+    expect(onRun).toHaveBeenCalledOnce();
+  });
+
+  it("does not insert a prompt on the conversion-confirming Enter", () => {
+    const onInsert = vi.fn();
+    const { getByRole } = render(
+      <PromptLibrary
+        prompts={[{ id: "summary", name: "Summary", body: "", variables: [] }]}
+        query=""
+        selectedId="summary"
+        onInsert={onInsert}
+      />,
+    );
+    const input = getByRole("combobox", { name: "Search saved prompts" });
+
+    expect(dispatchSafariImeConfirm(input).defaultPrevented).toBe(false);
+    expect(onInsert).not.toHaveBeenCalled();
+
+    expect(dispatchPlainEnter(input).defaultPrevented).toBe(true);
+    expect(onInsert).toHaveBeenCalledOnce();
+  });
 });

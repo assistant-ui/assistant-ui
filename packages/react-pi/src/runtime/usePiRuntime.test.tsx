@@ -83,7 +83,10 @@ vi.mock("./ThreadController", async (importOriginal) => {
   return { ...original, PiThreadController };
 });
 
-import { ExportedMessageRepository } from "@assistant-ui/react";
+import {
+  ExportedMessageRepository,
+  MessageNotSentError,
+} from "@assistant-ui/react";
 import { createPiThreadState, type PiThreadState } from "./threadState";
 import type { PiThreadControllerLike } from "./ThreadController";
 import {
@@ -116,9 +119,112 @@ afterEach(() => {
 });
 
 describe("usePiRuntime error callbacks", () => {
-  it.each(["throws", "rejects"] as const)(
-    "preserves the controller error when onError %s",
-    async (failureMode) => {
+  it("reports a pending load failure to the latest callback without reloading", async () => {
+    mocks.state = createPiThreadState("t1");
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    const client = {} as PiClient;
+    let rejectLoad!: (error: unknown) => void;
+    mocks.controller.load.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        rejectLoad = reject;
+      }),
+    );
+    const first = vi.fn();
+    const latest = vi.fn();
+    const App = ({ onError }: { onError: (error: unknown) => void }) => {
+      usePiRuntime({ client, onError, initialThreadId: "t1" });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App, { onError: first })));
+    await act(async () =>
+      root!.render(createElement(App, { onError: latest })),
+    );
+    expect(mocks.controller.load).toHaveBeenCalledOnce();
+
+    const loadError = new Error("load failed");
+    await act(async () => rejectLoad(loadError));
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledExactlyOnceWith(loadError);
+  });
+
+  it("does not report sends that never reached Pi", async () => {
+    mocks.state = createPiThreadState("t1");
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    const notSent = new MessageNotSentError();
+    mocks.controller.sendMessage.mockRejectedValueOnce(notSent);
+    const onError = vi.fn();
+
+    const App = () => {
+      usePiRuntime({
+        client: {} as PiClient,
+        onError,
+        initialThreadId: "t1",
+      });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1)!;
+    await expect(
+      adapter.onNew({
+        role: "user",
+        createdAt: new Date(0),
+        metadata: { custom: {} },
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        content: [{ type: "text", text: "hello" }],
+      }),
+    ).rejects.toBe(notSent);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("does not report cancelled queue sends", async () => {
+    mocks.state = createPiThreadState("t1");
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    mocks.controller.sendMessage
+      .mockRejectedValueOnce(new MessageNotSentError())
+      .mockRejectedValueOnce(new MessageNotSentError());
+    const onError = vi.fn();
+
+    const App = () => {
+      usePiRuntime({
+        client: {} as PiClient,
+        onError,
+        initialThreadId: "t1",
+      });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const queue = mocks.adapters.at(-1)!.queue!;
+    const message: AppendMessage = {
+      role: "user",
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      content: [{ type: "text", text: "hello" }],
+    };
+    queue.enqueue(message);
+    queue.steer(message);
+    await vi.waitFor(() =>
+      expect(mocks.controller.sendMessage).toHaveBeenCalledTimes(2),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  for (const failureMode of ["throws", "rejects"] as const) {
+    it(`preserves the controller error when onError ${failureMode}`, async () => {
       mocks.state = createPiThreadState("t1");
       mocks.repository = ExportedMessageRepository.fromArray([]);
       const controllerError = new Error("send failed");
@@ -169,8 +275,8 @@ describe("usePiRuntime error callbacks", () => {
           callbackError,
         ),
       );
-    },
-  );
+    });
+  }
 });
 
 describe("usePiRuntime tool approvals", () => {
@@ -212,7 +318,10 @@ describe("usePiRuntime tool approvals", () => {
 
     expect(
       mocks.controller.respondToHostUiRequest,
-    ).toHaveBeenCalledExactlyOnceWith({ requestId: "r1", value: "production" });
+    ).toHaveBeenCalledExactlyOnceWith({
+      requestId: "r1",
+      value: "production",
+    });
   });
 
   it("rejects an answer once its request is no longer pending", async () => {

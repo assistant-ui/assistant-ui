@@ -51,9 +51,11 @@ export function useEffectImpl(
       "useEffect called with and without dependencies across re-renders",
     );
 
+  const isRefreshing = fiber.isRefreshing;
   addCommit(fiber, () => {
     cell.setup = effect;
     cell.setupDeps = deps;
+    if (isRefreshing) cell.deps = null;
     cell.generation++;
   });
 }

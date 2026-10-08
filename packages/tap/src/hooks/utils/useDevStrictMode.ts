@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, version } from "react";
 import { isDevelopment } from "../../core/helpers/env";
 import {
   getCurrentResourceFiber,
@@ -25,13 +25,11 @@ const useDevStrictModeReact = () => {
   const detectedOnRender = count.current === 2;
   const strictMode = useRef(false);
   const effectMountCount = useRef(0);
-  const [, forceRender] = useState(0);
 
   useLayoutEffect(() => {
-    if (detectedOnRender || effectMountCount.current++ !== 1) return;
+    if (!version.startsWith("18.") || effectMountCount.current++ !== 1) return;
     strictMode.current = true;
-    forceRender((value) => value + 1);
-  }, [detectedOnRender]);
+  }, []);
 
   return () =>
     detectedOnRender || strictMode.current ? ("child" as const) : null;

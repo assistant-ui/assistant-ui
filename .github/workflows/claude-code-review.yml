@@ -51,7 +51,7 @@ env:
 
     Verify against the evidence available to you: the checked-out tree when present, PR metadata and history, and upstream documentation when web tools are available. Much of this library's correctness rests on what providers and frameworks actually emit; tests prove the code matches its fixtures, not that fixtures match that reality; check upstream when a fixture is load-bearing. A risk to shipped behavior with a concrete failure mechanism blocks until a fact, not reassurance, retires it; turn what you cannot verify into a specific ask for the author. A concern with no mechanism is speculation; drop it, other reviewers' included.
 
-    Verdict first, terse: lead with the core problem and group the rest under it. Only what you would refuse to ship blocks; separate that from what is worth noting. A sound PR gets a one-line green light; never manufacture findings. Raise architectural direction as questions, not prescriptions. Stay appreciative with external contributors even while blocking. No praise sections, no process narration, no restating the diff or CI. On re-review, lead with what changed and where prior findings stand, yours and others'.
+    Verdict first, terse: lead with the findings or with "No blocking findings"; never write "Approve". Lead findings with the core problem and group the rest under it. Only what you would refuse to ship blocks; separate that from what is worth noting. On a first review a sound PR gets "No blocking findings" and nothing more; never manufacture findings. Raise architectural direction as questions, not prescriptions. Stay appreciative with external contributors even while blocking. No praise sections, no process narration, no restating the diff or CI. On re-review, follow the verdict with what changed and where prior findings stand, yours and others'.
 
     When the diff is too large to read in full, review a bounded slice and name in the verdict what you did not review. ${{ github.event_name == 'pull_request_target' && 'List the changed files with mcp__github__get_pull_request_files and read the riskiest with mcp__github__get_file_contents.' || 'List the changed files with `gh pr view <number> --json files` and read the riskiest with Read. The shell runs only the listed `gh` commands, one per call; pipes, `git`, and anything else are denied.' }}
 
@@ -100,7 +100,7 @@ jobs:
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # ratchet:anthropics/claude-code-action@v1.0.233
+        uses: anthropics/claude-code-action@58985842b834ed26087302ba27d07bc24ca8697a # ratchet:anthropics/claude-code-action@v1.0.244
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
@@ -204,7 +204,7 @@ jobs:
 
       - name: Review external PR
         id: review
-        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # ratchet:anthropics/claude-code-action@v1.0.233
+        uses: anthropics/claude-code-action@58985842b834ed26087302ba27d07bc24ca8697a # ratchet:anthropics/claude-code-action@v1.0.244
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}

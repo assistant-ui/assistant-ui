@@ -53,7 +53,7 @@ function OptionText({ option }: { option: OptionListOption }) {
         {option.label}
       </span>
       {option.description ? (
-        <span className="text-foreground/45 text-xs leading-4 break-words">
+        <span className="text-muted-foreground text-xs leading-4 break-words">
           {option.description}
         </span>
       ) : null}
@@ -101,7 +101,7 @@ export function OptionList({
         {...props}
       >
         {chosen.length === 0 ? (
-          <span className={cn(mono, "text-foreground/35 px-2 py-2")}>
+          <span className={cn(mono, "text-muted-foreground px-2 py-2")}>
             Nothing selected
           </span>
         ) : (
@@ -110,7 +110,7 @@ export function OptionList({
               <span className="flex h-5 w-3.5 shrink-0 items-center justify-center">
                 <CheckIcon
                   aria-hidden
-                  className="text-foreground/45 size-3.5"
+                  className="text-muted-foreground size-3.5"
                 />
                 <span className="sr-only">Selected:</span>
               </span>
@@ -128,7 +128,7 @@ export function OptionList({
         {options.map((option) => (
           <div
             key={option.id}
-            className={cn(row, option.disabled && "text-foreground/35")}
+            className={cn(row, option.disabled && "text-muted-foreground")}
           >
             <OptionText option={option} />
           </div>
@@ -213,7 +213,7 @@ export function OptionList({
               isSelected
                 ? "bg-foreground/[0.06]"
                 : !unavailable && !locked && "hover:bg-foreground/[0.035]",
-              unavailable ? "text-foreground/35" : "text-foreground/90",
+              unavailable ? "text-muted-foreground" : "text-foreground/90",
               (unavailable || locked) && "cursor-default",
             )}
           >
@@ -240,7 +240,7 @@ export function OptionList({
                 aria-hidden
                 className="flex h-5 w-3.5 shrink-0 items-center justify-center"
               >
-                <Loader2Icon className="text-foreground/45 size-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2Icon className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-none" />
               </span>
             ) : null}
             <OptionText option={option} />
@@ -257,7 +257,7 @@ export function OptionList({
       ) : null}
       {multiple ? (
         <div className="flex items-center justify-between gap-3 px-2 pt-1.5 pb-1">
-          <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+          <span className={cn(mono, "text-muted-foreground tabular-nums")}>
             {count} of {max}
           </span>
           <button

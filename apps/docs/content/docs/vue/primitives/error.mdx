@@ -1,0 +1,58 @@
+---
+title: Error
+description: Show the error that ended an assistant response.
+---
+
+The error parts read the nearest message scope. Render them in an assistant message row from `ThreadPrimitiveMessages`, and gate the alert so a message without an error does not leave an empty alert in the page.
+
+```vue title="app/components/MessageError.vue"
+<script setup lang="ts">
+import {
+  ActionBarPrimitiveReload,
+  AuiIf,
+  ErrorPrimitiveMessage,
+  ErrorPrimitiveRoot,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <AuiIf :condition="(s) => s.message.status?.type === 'incomplete' && s.message.status.reason === 'error'">
+    <ErrorPrimitiveRoot class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+      <span class="flex-1"><ErrorPrimitiveMessage /></span>
+      <ActionBarPrimitiveReload class="rounded-md px-2 py-1 disabled:opacity-50">
+        Retry
+      </ActionBarPrimitiveReload>
+    </ErrorPrimitiveRoot>
+  </AuiIf>
+</template>
+```
+
+## When a message has an error
+
+The error parts use the message status only when `s.message.status.type` is `"incomplete"` and its `reason` is `"error"`. Other incomplete reasons do not display an error through `ErrorPrimitiveMessage`.
+
+## Error text
+
+`ErrorPrimitiveMessage` uses a string error as written. If the error is an object with a string `message`, it uses that message. Otherwise it renders the value with JavaScript `String()`, so an object without a message becomes `[object Object]` and an array becomes comma-separated text. A missing or null error displays `An error occurred`.
+
+## Retry
+
+`ActionBarPrimitiveReload` calls `aui.message.reload()`; it is disabled while the thread is running or disabled, voice is active, the message is not an assistant message, or the runtime lacks reload capability.
+
+## Listen for message errors
+
+`message.error` fires when a message's status enters `incomplete` with reason `error` from a different status. Its payload has `threadId`, `messageId`, and `reason: "error"`. A message already in that status when its runtime client mounts does not emit the event on mount. See [Events](/docs/vue/api-reference/events) for listening from Vue.
+
+## Parts
+
+### ErrorPrimitiveRoot
+
+A `<div role="alert">` that always renders. Gate it with `AuiIf` when the entire alert should appear only for an error. It has no props; attributes and listeners pass through.
+
+### ErrorPrimitiveMessage
+
+Raw error text with no element. Its default slot replaces the text while an error is present; it renders nothing without an error. Wrap it in an element if you need to style the text.
+
+## Compared with React
+
+Vue exports `ErrorPrimitiveRoot` and `ErrorPrimitiveMessage` directly, while React exports them as `ErrorPrimitive.Root` and `ErrorPrimitive.Message`. React also has `MessagePrimitive.Error` as a conditional wrapper; in Vue, use `AuiIf` with the message status condition. Vue parts have no `asChild` prop.

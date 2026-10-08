@@ -82,6 +82,47 @@ Canonical React Native message viewport backed by `FlatList`. It scopes each row
 
 The built-in auto-scroll behavior assumes the default, non-inverted `FlatList` direction.
 
+### ThreadPrimitive.RowsFlatList
+
+A `FlatList` over the thread flattened into rows, for long threads where one assistant message holds many parts: a row per user or system message (and per message being edited), per top-level node of an assistant message's part grouping, and per turn end. Each row renders through [`ThreadPrimitive.Row`](/docs/primitives/thread#row), so it mounts only that row's scopes, and rows keep stable keys while tokens stream and earlier pages arrive.
+
+```tsx
+import { groupPartByType, ThreadPrimitive } from "@assistant-ui/react-native";
+
+const groupBy = groupPartByType({ reasoning: ["group-reasoning"] });
+
+<ThreadPrimitive.RowsFlatList inverted groupBy={groupBy}>
+  {(info) => {
+    switch (info.type) {
+      case "message":
+        if (info.message.composer.isEditing) return <MyEditComposer />;
+        return info.message.role === "system" ? (
+          <MySystemMessage />
+        ) : (
+          <MyUserMessage />
+        );
+      case "part":
+        return renderPart(info.part, info.children);
+      case "turn-end":
+        return <TurnFooter row={info.row} />;
+    }
+  }}
+</ThreadPrimitive.RowsFlatList>;
+```
+
+Keep `groupBy` at module scope (or in `useCallback`): a new function on every render rebuilds the row cache and re-renders every row.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(info) => ReactNode` | Render function for each row, with the same contract as `ThreadPrimitive.Row` |
+| `groupBy` | ``(part, context) => readonly `group-${string}`[] \| null`` | Coalesces adjacent assistant parts into one row, like `MessagePrimitive.GroupedParts`; without it every part is its own row. Keep its identity stable |
+| `inverted` | `boolean` | Renders the newest row at offset 0. Earlier pages load through `onEndReached`, and `maintainVisibleContentPosition` defaults to `{ minIndexForVisible: 0, autoscrollToTopThreshold: 4 }`, so the visible row stays put while rows arrive and the list follows new rows while it is at the bottom |
+| `autoScroll`, `scrollToBottomOnRunStart`, `scrollToBottomOnInitialize`, `scrollToBottomOnThreadSwitch` | `boolean` | As on `ThreadPrimitive.MessagesFlatList`; with `inverted`, the bottom is offset 0 |
+| `history` | `{ hasMore: boolean; isLoadingMore: boolean; loadMore: () => void }` | As on `ThreadPrimitive.MessagesFlatList`: defaults to the runtime's `thread.hasEarlier` paging, and loads at the start of the list, or at its end when `inverted` |
+| `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, `keyExtractor`, and `children` |
+
+Without `inverted`, it keeps the first visible row anchored with `{ minIndexForVisible: 0 }`, exactly as `ThreadPrimitive.MessagesFlatList` does for messages.
+
 ### ThreadPrimitive.MessageByIndex
 
 Renders a single message at a specific index in the thread. Provides message context so that `useAuiState((s) => s.message)` works inside the rendered component. This component is shared from `@assistant-ui/core/react`.
@@ -580,6 +621,20 @@ Renders a single message part at the specified index, providing part context. Us
 |------|------|-------------|
 | `index` | `number` | Zero-based index of the message part to render |
 | `components` | `object` | Same component map as `MessagePrimitive.Parts` |
+
+### MessagePrimitive.Quote
+
+Renders the quote a message was sent with, read from `s.message.metadata.custom.quote`. Renders nothing when the message carries no quote. Place it above `MessagePrimitive.Parts` in the user message. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text }) => <Text numberOfLines={2}>{text}</Text>}
+</MessagePrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(value: { text: string; messageId: string }) => ReactNode` | Render function called when the message has a quote |
 
 ### Conditional Rendering (Message)
 

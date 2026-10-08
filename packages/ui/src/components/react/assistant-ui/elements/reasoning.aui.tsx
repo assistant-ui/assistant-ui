@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  forwardRef,
-  memo,
-  useCallback,
-  useImperativeHandle,
-  useRef,
-} from "react";
+import { forwardRef, memo, useCallback, useRef } from "react";
 import {
   useScrollLock,
   useAuiState,
@@ -33,7 +27,6 @@ const ReasoningRoot = forwardRef<
   Omit<ReasoningRootProps, "ref">
 >(function ReasoningRoot({ onAnimationStart, ...props }, ref) {
   const collapsibleRef = useRef<HTMLDivElement | null>(null);
-  useImperativeHandle(ref, () => collapsibleRef.current!, [ref]);
   const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const handleAnimationStart = useCallback(() => {
@@ -41,9 +34,17 @@ const ReasoningRoot = forwardRef<
     onAnimationStart?.();
   }, [lockScroll, onAnimationStart]);
 
-  const composedRef = useCallback((node: HTMLDivElement | null) => {
-    collapsibleRef.current = node;
-  }, []);
+  const composedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      collapsibleRef.current = node;
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        (ref as { current: HTMLDivElement | null }).current = node;
+      }
+    },
+    [ref],
+  );
 
   return (
     <ReasoningRootBase

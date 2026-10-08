@@ -56,7 +56,7 @@ export function MessageBranches({
         >
           <ChevronLeftIcon className="size-3.5" />
         </button>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {variants.length === 0
             ? "0 / 0"
             : `${index + 1} / ${variants.length}`}

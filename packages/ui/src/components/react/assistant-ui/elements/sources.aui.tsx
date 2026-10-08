@@ -1,6 +1,12 @@
 "use client";
 
-import { forwardRef, memo, useState, type ComponentProps } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useState,
+  type ComponentProps,
+} from "react";
 import { FileTextIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
@@ -59,6 +65,15 @@ const SourceIcon = forwardRef<
   const src = domain === undefined ? undefined : faviconUrl(domain);
   const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
   const hasError = src === undefined || errorSrc === src;
+  const imageRef = useCallback(
+    (el: HTMLImageElement | null) => {
+      // A server-rendered image that fails before hydration never fires onError.
+      if (el?.complete && el.naturalWidth === 0) setErrorSrc(src);
+      if (typeof ref === "function") return ref(el);
+      if (ref) ref.current = el;
+    },
+    [ref, src],
+  );
 
   if (hasError) {
     return (
@@ -84,10 +99,7 @@ const SourceIcon = forwardRef<
       className={cn("size-3 shrink-0 rounded-sm", className)}
       onError={() => setErrorSrc(src)}
       {...(props as ComponentProps<"img">)}
-      // A server-rendered image that fails before hydration never fires onError.
-      ref={(el) => {
-        if (el?.complete && el.naturalWidth === 0) setErrorSrc(src);
-      }}
+      ref={imageRef}
     />
   );
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, act, type ReactNode } from "react";
+import { Activity, act, type ReactNode, version } from "react";
 import type { Root } from "react-dom/client";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { PiClient } from "../types";
@@ -14,18 +14,21 @@ type RendererInternals = {
   ) => void;
 };
 
-let renderer: RendererInternals | undefined;
-const fiberRoots = new Set<unknown>();
-vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
-  supportsFiber: true,
-  inject: (internals: RendererInternals) => {
-    renderer = internals;
-    return 1;
-  },
-  onScheduleFiberRoot: () => {},
-  onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
-  onCommitFiberUnmount: () => {},
+const { rendererState, fiberRoots } = vi.hoisted(() => {
+  const rendererState = { current: undefined as RendererInternals | undefined };
+  const fiberRoots = new Set<unknown>();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
+    supportsFiber: true,
+    inject: (internals: RendererInternals) => {
+      rendererState.current = internals;
+      return 1;
+    },
+    onScheduleFiberRoot: () => {},
+    onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
+    onCommitFiberUnmount: () => {},
+  });
+  return { rendererState, fiberRoots };
 });
 const { createRoot } = await import("react-dom/client");
 const roots = new Set<Root>();
@@ -48,6 +51,7 @@ const mocks = vi.hoisted(() => ({
   controllers: [] as Array<{
     client: unknown;
     connect: ReturnType<typeof vi.fn>;
+    load: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
   }>,
@@ -100,17 +104,19 @@ import { ExportedMessageRepository } from "@assistant-ui/react";
 import { createPiThreadState } from "./threadState";
 import { usePiRuntime } from "./usePiRuntime";
 
+const onReact18 = version.startsWith("18.");
+
 mocks.state = { ...createPiThreadState("t1"), runStatus: "running" };
 mocks.repository = ExportedMessageRepository.fromArray([]);
 
 const refresh = async (Before: unknown, After: unknown) => {
   const family: Family = { current: After };
-  renderer!.setRefreshHandler((type) =>
+  rendererState.current!.setRefreshHandler((type) =>
     type === Before || type === After ? family : undefined,
   );
   await act(async () => {
     for (const root of fiberRoots) {
-      renderer!.scheduleRefresh(root, {
+      rendererState.current!.scheduleRefresh(root, {
         staleFamilies: new Set(),
         updatedFamilies: new Set([family]),
       });
@@ -155,6 +161,7 @@ it("keeps the registry, thread list, and live controller connection through Fast
   const controller = mocks.controllers[0]!;
   const adapter = mocks.adapters[0];
   expect(controller.connect).toHaveBeenCalledOnce();
+  expect(controller.load).toHaveBeenCalledOnce();
 
   await refresh(Before, After);
 
@@ -162,6 +169,7 @@ it("keeps the registry, thread list, and live controller connection through Fast
   expect(mocks.adapters.at(-1)).toBe(adapter);
   expect(mocks.reloads).toBe(1);
   expect(controller.connect).toHaveBeenCalledOnce();
+  expect(controller.load).toHaveBeenCalledOnce();
   expect(controller.disconnect).not.toHaveBeenCalled();
   expect(controller.dispose).not.toHaveBeenCalled();
 
@@ -225,6 +233,7 @@ it("replaces only the thread list when its scope changes and replaces the regist
   view.rerender(<App client={clientB} workspacePath="/two" includeArchived />);
   await act(async () => {});
   expect(mocks.controllers[1]!.client).toBe(clientB);
+  expect(mocks.controllers[1]!.load).toHaveBeenCalledOnce();
   expect(controller.dispose).toHaveBeenCalledOnce();
   expect(controller.disconnect).toHaveBeenCalledOnce();
   await list();
@@ -234,21 +243,25 @@ it("replaces only the thread list when its scope changes and replaces the regist
   });
 });
 
-it("disconnects the controller and disposes the registry when Activity hides it", async () => {
-  const Host = () => {
-    usePiRuntime({ client: clientA });
-    return null;
-  };
-  const App = ({ mode }: { mode: "visible" | "hidden" }) => (
-    <Activity mode={mode}>
-      <Host />
-    </Activity>
-  );
-  const view = render(<App mode="visible" />);
-  const controller = mocks.controllers[0]!;
+// Activity is React 19 only.
+it.skipIf(onReact18)(
+  "disconnects the controller and disposes the registry when Activity hides it",
+  async () => {
+    const Host = () => {
+      usePiRuntime({ client: clientA });
+      return null;
+    };
+    const App = ({ mode }: { mode: "visible" | "hidden" }) => (
+      <Activity mode={mode}>
+        <Host />
+      </Activity>
+    );
+    const view = render(<App mode="visible" />);
+    const controller = mocks.controllers[0]!;
 
-  view.rerender(<App mode="hidden" />);
-  await act(async () => {});
-  expect(controller.disconnect).toHaveBeenCalledOnce();
-  expect(controller.dispose).toHaveBeenCalledOnce();
-});
+    view.rerender(<App mode="hidden" />);
+    await act(async () => {});
+    expect(controller.disconnect).toHaveBeenCalledOnce();
+    expect(controller.dispose).toHaveBeenCalledOnce();
+  },
+);

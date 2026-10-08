@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Adversarial parity scenarios: each one was designed to break the
  * React/tap equivalence and survived. Anything that diverged instead is
@@ -75,6 +76,7 @@ const scenarios: Scenario[] = [
   },
   {
     name: "mixed eager setState and lazy useReducer dispatch ordering",
+    react18ReplaysUpdaters: true,
     use: (log) => {
       const [a, setA] = useState(0);
       const [b, dispatchB] = useReducer((s: number, n: number) => {

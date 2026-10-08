@@ -1,4 +1,4 @@
-import { version, type ComponentProps, type CSSProperties } from "react";
+import type { ComponentProps, CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 const GRID = 5;
@@ -199,23 +199,11 @@ export type DotMatrixProps = Omit<ComponentProps<"span">, "children"> & {
 /* The blink animation runs on every dot in every state (static states set hi = lo) and the registered hi/lo custom properties carry a transition, because removing or adding an animation never triggers a CSS transition on the animated property itself; transitioning the amplitude bounds is what makes state changes cross-fade. */
 const DOT_MATRIX_CSS =
   '@property --aui-dot-matrix-hi{syntax:"<number>";inherits:false;initial-value:1}@property --aui-dot-matrix-lo{syntax:"<number>";inherits:false;initial-value:0.15}@keyframes aui-dot-matrix-blink{0%,100%{opacity:var(--aui-dot-matrix-hi,1)}50%{opacity:var(--aui-dot-matrix-lo,0.15)}}';
-const REACT_19_STYLE_PROPS = {
+
+const HOISTED_STYLE: Record<string, string> = {
   href: "aui-dot-matrix",
   precedence: "low",
-} as unknown as ComponentProps<"style">;
-
-const isReact18 = version.startsWith("18.");
-
-function DotMatrixStyles() {
-  if (isReact18) return <style data-aui-dot-matrix>{DOT_MATRIX_CSS}</style>;
-
-  return (
-    <>
-      {/* Hoisted and deduplicated by React; this resource must use the HTML namespace. */}
-      <style {...REACT_19_STYLE_PROPS}>{DOT_MATRIX_CSS}</style>
-    </>
-  );
-}
+};
 
 /**
  * Tiny 5x5 dot-matrix status indicator with 20 built-in states. Dots inherit the text color and animate in state-specific patterns: twinkle, waves, ripples, sweeps, equalizer columns, and check/cross/bang glyphs. State changes cross-fade per dot.
@@ -240,7 +228,8 @@ function DotMatrix({
       {...props}
     >
       <span className="sr-only">{label ?? state}</span>
-      <DotMatrixStyles />
+      {/* React 19 hoists and deduplicates this across instances; React 18 renders it inline, and its types don't declare href or precedence, so they're spread. It must live in HTML scope: inside the SVG it would be an SVG-namespace element React does not hoist. */}
+      <style {...HOISTED_STYLE}>{DOT_MATRIX_CSS}</style>
       <svg
         aria-hidden
         viewBox="0 0 20 20"
