@@ -103,7 +103,7 @@ export function computeTier(input, policy) {
       file.path.startsWith(".github/workflows/") &&
       (file.patch === null ||
         [...added, ...removed].some((line) =>
-          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets\s*[.:[]|\b(pull_request_target|workflow_run|issue_comment|pull_request_review_comment|discussion_comment|repository_dispatch)\b/.test(
+          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets\s*[.:[]|\b(pull_request_target|workflow_run|issue_comment|pull_request_review_comment|discussion_comment|repository_dispatch)\b|^\s*(-\s*)?(issues|discussion)\s*(:|$)|^\s*on\s*:.*\b(issues|discussion)\b/.test(
             line.slice(1),
           ),
         ))

@@ -551,6 +551,9 @@ for (const patch of [
   "+  pull_request_review_comment:",
   "+  discussion_comment:",
   "+  repository_dispatch:",
+  "+  issues:",
+  "+  - discussion",
+  "+on: [push, issues]",
   null,
 ]) {
   test(`workflow security changes give T3: ${patch}`, () => {
@@ -580,6 +583,10 @@ for (const [path, patch] of [
     "+++ b/permissions:\n--- a/secrets.TOKEN",
   ],
   [".github/workflows/code-quality.yaml", undefined],
+  [
+    ".github/workflows/code-quality.yaml",
+    "+        run: gh api repos/o/r/issues/1/comments",
+  ],
 ]) {
   test(`workflow security ignores ${path} with patch ${JSON.stringify(patch)}`, () => {
     const result = computeTier(
