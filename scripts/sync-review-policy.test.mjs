@@ -27,8 +27,28 @@ const basePullRequest = {
 };
 const liveRulesets = [
   {
+    id: 10374137,
+    name: "Default Repository Policy",
+    source_type: "Organization",
+    target: "branch",
+    enforcement: "active",
+    conditions,
+    bypass_actors: [],
+    rules: [
+      {
+        type: "required_status_checks",
+        parameters: {
+          do_not_enforce_on_create: false,
+          required_status_checks: [{ context: "org" }],
+          strict_required_status_checks_policy: false,
+        },
+      },
+    ],
+  },
+  {
     id: 18904557,
     name: "Always",
+    source_type: "Repository",
     target: "branch",
     enforcement: "active",
     conditions,
@@ -44,6 +64,7 @@ const liveRulesets = [
   {
     id: 821084,
     name: "Bypass-Admin",
+    source_type: "Repository",
     target: "branch",
     enforcement: "active",
     conditions,
@@ -74,6 +95,7 @@ const liveRulesets = [
   {
     id: 11296070,
     name: "Bypass-Maintainer",
+    source_type: "Repository",
     target: "branch",
     enforcement: "active",
     conditions,
@@ -103,6 +125,7 @@ const liveRulesets = [
   {
     id: 19427140,
     name: "Code Quality Copilot review for default branch",
+    source_type: "Repository",
     target: "branch",
     enforcement: "disabled",
     conditions,
@@ -132,14 +155,15 @@ const generalFloor = [
     reviewer: { id: 15592476, type: "Team" },
   },
 ];
-const withIntegration = {
+const rollout = (mode, enabled) => ({
   ...policy,
-  reviewTierCheck: { name: "review-tier", integrationId: 905 },
-};
+  reviewTierCheck: { ...policy.reviewTierCheck, integrationId: 905, mode },
+  mergeQueue: { ...policy.mergeQueue, enabled },
+});
 const applyUpdates = (rulesets, updates) =>
   rulesets.map((live) => {
     const update = updates.find(({ id }) => id === live.id);
-    return update ? { id: live.id, ...update.payload } : live;
+    return update ? { ...live, ...update.payload } : live;
   });
 
 test("CODEOWNERS is rendered exactly from the real policy", () => {
@@ -173,10 +197,7 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
 });
 
 test("ruleset updates replace only review floors and required checks", () => {
-  const updates = buildRulesets(policy, liveRulesets, teamIds, {
-    requireReviewTier: false,
-    mergeQueue: false,
-  });
+  const updates = buildRulesets(policy, liveRulesets, teamIds);
   assert.deepEqual(updates, [
     {
       id: 821084,
@@ -208,6 +229,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                   context: "Typecheck Changed Packages",
                   integration_id: 15368,
                 },
+                { context: "Review Policy Scripts", integration_id: 15368 },
               ],
             },
           },
@@ -257,18 +279,20 @@ test("ruleset updates replace only review floors and required checks", () => {
     },
   ]);
   assert.deepEqual(
-    liveRulesets[2].rules[0].parameters.required_reviewers[0].file_patterns,
+    liveRulesets.find(({ id }) => id === 11296070).rules[0].parameters
+      .required_reviewers[0].file_patterns,
     ["*"],
   );
 });
 
-test("review tier and merge queue follow their independent options", () => {
-  for (const requireReviewTier of [false, true]) {
-    for (const mergeQueue of [false, true]) {
-      const [checks] = buildRulesets(withIntegration, liveRulesets, teamIds, {
-        requireReviewTier,
-        mergeQueue,
-      });
+test("review tier enforcement and the merge queue follow the policy", () => {
+  for (const mode of ["shadow", "enforce"]) {
+    for (const enabled of [false, true]) {
+      const [checks] = buildRulesets(
+        rollout(mode, enabled),
+        liveRulesets,
+        teamIds,
+      );
       const status = checks.payload.rules.find(
         (rule) => rule.type === "required_status_checks",
       );
@@ -276,82 +300,103 @@ test("review tier and merge queue follow their independent options", () => {
         status.parameters.required_status_checks.filter(
           (check) => check.context === "review-tier",
         ),
-        requireReviewTier
+        mode === "enforce"
           ? [{ context: "review-tier", integration_id: 905 }]
           : [],
       );
       assert.deepEqual(
         checks.payload.rules.filter((rule) => rule.type === "merge_queue"),
-        mergeQueue
-          ? [{ type: "merge_queue", parameters: policy.mergeQueue }]
+        enabled
+          ? [{ type: "merge_queue", parameters: policy.mergeQueue.parameters }]
           : [],
       );
       assert.deepEqual(
         checks.payload.rules.find((rule) => rule.type === "pull_request")
           .parameters.required_reviewers,
-        requireReviewTier ? [] : generalFloor,
+        mode === "enforce" ? [] : generalFloor,
       );
     }
   }
 });
 
-test("syncing applied rulesets again changes only what the options change", () => {
-  const interim = { requireReviewTier: false, mergeQueue: false };
-  const final = { requireReviewTier: true, mergeQueue: true };
-  const interimUpdates = buildRulesets(
-    withIntegration,
-    liveRulesets,
-    teamIds,
-    interim,
-  );
+test("syncing applied rulesets again changes only what the policy changes", () => {
+  const interim = rollout("shadow", false);
+  const final = rollout("enforce", true);
+  const interimUpdates = buildRulesets(interim, liveRulesets, teamIds);
   const afterInterim = applyUpdates(liveRulesets, interimUpdates);
   assert.deepEqual(
-    buildRulesets(withIntegration, afterInterim, teamIds, interim),
+    buildRulesets(interim, afterInterim, teamIds),
     interimUpdates,
   );
-  const finalUpdates = buildRulesets(
-    withIntegration,
-    afterInterim,
-    teamIds,
-    final,
-  );
+  const finalUpdates = buildRulesets(final, afterInterim, teamIds);
+  assert.deepEqual(finalUpdates, buildRulesets(final, liveRulesets, teamIds));
   assert.deepEqual(
-    finalUpdates,
-    buildRulesets(withIntegration, liveRulesets, teamIds, final),
-  );
-  assert.deepEqual(
-    buildRulesets(
-      withIntegration,
-      applyUpdates(afterInterim, finalUpdates),
-      teamIds,
-      final,
-    ),
+    buildRulesets(final, applyUpdates(afterInterim, finalUpdates), teamIds),
     finalUpdates,
   );
 });
 
-test("missing team ids and a null review tier integration fail clearly", () => {
+test("missing team ids and an unexpected ruleset layout fail clearly", () => {
+  assert.throws(
+    () => buildRulesets(policy, liveRulesets, {}),
+    /Missing team id for maintainers/,
+  );
+  const checksRuleset = liveRulesets.find(({ id }) => id === 821084);
   assert.throws(
     () =>
       buildRulesets(
         policy,
-        liveRulesets,
-        {},
-        {
-          requireReviewTier: false,
-          mergeQueue: false,
-        },
+        [...liveRulesets, { ...checksRuleset, id: 1 }],
+        teamIds,
       ),
-    /Missing team id for maintainers/,
+    /Expected one repository branch ruleset with required checks and one with required reviewers, found 2 and 1/,
   );
   assert.throws(
     () =>
-      buildRulesets(policy, liveRulesets, teamIds, {
-        requireReviewTier: true,
-        mergeQueue: false,
-      }),
-    /reviewTierCheck\.integrationId is null/,
+      buildRulesets(
+        policy,
+        liveRulesets.filter(({ id }) => id !== 11296070),
+        teamIds,
+      ),
+    /found 1 and 0/,
   );
+});
+
+test("a missing owner team stops the sync before any write", () => {
+  const gh = (args) => {
+    const endpoint = args.find((arg) => !arg.startsWith("-"));
+    if (endpoint.endsWith("/teams/owners")) throw new Error("HTTP 404");
+    if (endpoint.endsWith(`/teams/${policy.teams.maintainers}`)) {
+      return JSON.stringify({ id: teamIds[policy.teams.maintainers] });
+    }
+    if (endpoint.includes("/rulesets?")) {
+      return JSON.stringify(liveRulesets.map(({ id }) => ({ id })));
+    }
+    const ruleset = liveRulesets.find(({ id }) =>
+      endpoint.endsWith(`/rulesets/${id}`),
+    );
+    if (ruleset) return JSON.stringify(ruleset);
+    assert.fail(`unexpected request ${args.join(" ")}`);
+  };
+  assert.throws(
+    () =>
+      runSyncReviewPolicy(["--apply"], { root: repoRoot, gh, log: () => {} }),
+    /Owner team assistant-ui\/owners does not exist/,
+  );
+});
+
+test("rollout state is read from the policy, not from options", () => {
+  for (const option of ["--require-review-tier", "--merge-queue"]) {
+    assert.throws(
+      () =>
+        runSyncReviewPolicy(["--print", option], {
+          root: repoRoot,
+          gh: () => assert.fail("no request expected"),
+          log: () => {},
+        }),
+      /Unknown option/,
+    );
+  }
 });
 
 test("required labels cover every label the policy names", () => {
@@ -406,18 +451,20 @@ test("apply saves every live ruleset before the first write", () => {
       return "{}";
     }
     const endpoint = args[0];
-    if (endpoint === `repos/${policy.repository}/rulesets`) {
+    if (
+      endpoint === `repos/${policy.repository}/rulesets?includes_parents=false`
+    ) {
       return JSON.stringify(liveRulesets.map(({ id }) => ({ id })));
     }
     const ruleset = liveRulesets.find(
       ({ id }) => endpoint === `repos/${policy.repository}/rulesets/${id}`,
     );
     if (ruleset) return JSON.stringify(ruleset);
-    assert.equal(
-      endpoint,
-      `orgs/${policy.repository.split("/")[0]}/teams/${policy.teams.maintainers}`,
+    const team = endpoint.slice(
+      `orgs/${policy.repository.split("/")[0]}/teams/`.length,
     );
-    return JSON.stringify({ id: teamIds[policy.teams.maintainers] });
+    assert.ok([policy.teams.maintainers, "owners"].includes(team), endpoint);
+    return JSON.stringify({ id: team === "owners" ? 1 : teamIds[team] });
   };
   try {
     assert.equal(
@@ -450,10 +497,9 @@ test("apply saves every live ruleset before the first write", () => {
     );
     assert.deepEqual(
       puts.map(({ payload }) => payload),
-      buildRulesets(policy, liveRulesets, teamIds, {
-        requireReviewTier: false,
-        mergeQueue: false,
-      }).map(({ payload }) => payload),
+      buildRulesets(policy, liveRulesets, teamIds).map(
+        ({ payload }) => payload,
+      ),
     );
     assert.deepEqual(
       labelPosts,

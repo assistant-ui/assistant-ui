@@ -38,6 +38,19 @@ test("an invalid policy lists every problem", () => {
   );
 });
 
+test("malformed areas and empty required checks are reported, not thrown", () => {
+  for (const areas of [{}, [null], ["reactivity"]]) {
+    assert.throws(
+      () => validateReviewPolicy({ ...policy, areas }),
+      /Invalid review policy/,
+    );
+  }
+  assert.throws(
+    () => validateReviewPolicy({ ...policy, requiredChecks: [] }),
+    /requiredChecks must be a non-empty array/,
+  );
+});
+
 test("enforcing the review tier needs the check's integration id", () => {
   const withMode = (mode, integrationId) => ({
     ...policy,

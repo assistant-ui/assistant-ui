@@ -52,6 +52,7 @@
     ".github/workflows/review-tier.yaml",
     ".github/workflows/review-tier-relay.yaml",
     ".github/workflows/review-health.yaml",
+    ".github/workflows/claude-code-review.yml",
     ".github/workflows/npm-publish.yaml",
     ".github/workflows/changeset.yaml",
     ".github/workflows/pypi-publish.yaml",

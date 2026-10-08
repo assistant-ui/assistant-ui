@@ -29,7 +29,11 @@ export function validateReviewPolicy(policy) {
     "areas must be a non-empty array",
   );
   const areaIds = new Set();
-  for (const area of policy?.areas ?? []) {
+  for (const area of Array.isArray(policy?.areas) ? policy.areas : []) {
+    if (typeof area !== "object" || area === null) {
+      problems.push("every area must be an object");
+      continue;
+    }
     expect(typeof area.id === "string", "every area needs an id");
     expect(!areaIds.has(area.id), `area id ${area.id} is repeated`);
     areaIds.add(area.id);
@@ -103,12 +107,13 @@ export function validateReviewPolicy(policy) {
   );
   expect(
     Array.isArray(policy?.requiredChecks) &&
+      policy.requiredChecks.length > 0 &&
       policy.requiredChecks.every(
         (check) =>
           typeof check.context === "string" &&
           isPositiveInteger(check.integrationId),
       ),
-    "requiredChecks entries need a context and an integrationId",
+    "requiredChecks must be a non-empty array of entries with a context and an integrationId",
   );
   expect(
     typeof policy?.mergeQueue?.enabled === "boolean" &&

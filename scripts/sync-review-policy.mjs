@@ -34,7 +34,7 @@ export function requiredLabels(policy) {
     ...overrideSignals.map((signal) => ({
       name: `${overridePrefix}${signal}`,
       color: "c5def5",
-      description: `An owner waived the ${signal} signal on the current head`,
+      description: `An owner waived the ${signal} signal until the label is removed`,
     })),
   ];
 }
@@ -63,16 +63,8 @@ function requiredTeamId(teamIds, slug) {
   return id;
 }
 
-export function buildRulesets(policy, liveRulesets, teamIds, options) {
-  if (
-    options.requireReviewTier &&
-    policy.reviewTierCheck.integrationId === null
-  ) {
-    throw new Error(
-      "reviewTierCheck.integrationId is null; --require-review-tier needs an integration id.",
-    );
-  }
-
+export function buildRulesets(policy, liveRulesets, teamIds) {
+  const enforce = policy.reviewTierCheck.mode === "enforce";
   const bypass_actors = [
     {
       actor_id: null,
@@ -92,91 +84,104 @@ export function buildRulesets(policy, liveRulesets, teamIds, options) {
       reviewer: maintainers,
     },
   ];
-  const generalFloor = options.requireReviewTier
+  const generalFloor = enforce
     ? []
     : [{ file_patterns: ["*"], minimum_approvals: 1, reviewer: maintainers }];
 
-  return liveRulesets.flatMap((live) => {
-    const checks = live.rules.some(
-      (rule) => rule.type === "required_status_checks",
+  const branchRulesets = liveRulesets.filter(
+    (live) => live.source_type === "Repository" && live.target === "branch",
+  );
+  const hasChecks = (live) =>
+    live.rules.some((rule) => rule.type === "required_status_checks");
+  const hasReviewers = (live) =>
+    live.rules.some(
+      (rule) =>
+        rule.type === "pull_request" &&
+        rule.parameters.required_reviewers?.length > 0,
     );
-    const floors =
-      !checks &&
-      live.rules.some(
-        (rule) =>
-          rule.type === "pull_request" &&
-          rule.parameters.required_reviewers?.length > 0,
-      );
-    if (!floors && !checks) return [];
+  const checksRulesets = branchRulesets.filter(hasChecks);
+  const floorRulesets = branchRulesets.filter(
+    (live) => !hasChecks(live) && hasReviewers(live),
+  );
+  if (checksRulesets.length !== 1 || floorRulesets.length !== 1) {
+    throw new Error(
+      `Expected one repository branch ruleset with required checks and one with required reviewers, found ${checksRulesets.length} and ${floorRulesets.length}.`,
+    );
+  }
 
-    const rules = live.rules
-      .filter((rule) => !checks || rule.type !== "merge_queue")
-      .map((rule) => {
-        if (floors && rule.type === "pull_request") {
-          return {
-            ...rule,
-            parameters: {
-              ...rule.parameters,
-              required_approving_review_count: 0,
-              require_code_owner_review: false,
-              dismiss_stale_reviews_on_push: false,
-              require_last_push_approval: false,
-              required_review_thread_resolution: true,
-              required_reviewers: contractFloor,
-            },
-          };
-        }
-        if (checks && rule.type === "pull_request") {
-          return {
-            ...rule,
-            parameters: {
-              ...rule.parameters,
-              required_reviewers: generalFloor,
-            },
-          };
-        }
-        if (checks && rule.type === "required_status_checks") {
-          return {
-            ...rule,
-            parameters: {
-              do_not_enforce_on_create: false,
-              strict_required_status_checks_policy: false,
-              required_status_checks: [
-                ...policy.requiredChecks.map(({ context, integrationId }) => ({
-                  context,
-                  integration_id: integrationId,
-                })),
-                ...(options.requireReviewTier
-                  ? [
-                      {
-                        context: policy.reviewTierCheck.name,
-                        integration_id: policy.reviewTierCheck.integrationId,
-                      },
-                    ]
-                  : []),
-              ],
-            },
-          };
-        }
-        return rule;
-      });
-    if (checks && options.mergeQueue) {
-      rules.push({ type: "merge_queue", parameters: policy.mergeQueue });
-    }
-    return [
-      {
-        id: live.id,
-        payload: {
-          name: floors ? "Contract review floors" : "Required checks",
-          target: live.target,
-          enforcement: live.enforcement,
-          conditions: live.conditions,
-          bypass_actors,
-          rules,
-        },
-      },
-    ];
+  const update = (live, name, rules) => ({
+    id: live.id,
+    payload: {
+      name,
+      target: live.target,
+      enforcement: live.enforcement,
+      conditions: live.conditions,
+      bypass_actors,
+      rules,
+    },
   });
+  const checks = checksRulesets[0];
+  const floors = floorRulesets[0];
+  const checkRules = checks.rules
+    .filter((rule) => rule.type !== "merge_queue")
+    .map((rule) => {
+      if (rule.type === "pull_request") {
+        return {
+          ...rule,
+          parameters: { ...rule.parameters, required_reviewers: generalFloor },
+        };
+      }
+      if (rule.type === "required_status_checks") {
+        return {
+          ...rule,
+          parameters: {
+            do_not_enforce_on_create: false,
+            strict_required_status_checks_policy: false,
+            required_status_checks: [
+              ...policy.requiredChecks.map(({ context, integrationId }) => ({
+                context,
+                integration_id: integrationId,
+              })),
+              ...(enforce
+                ? [
+                    {
+                      context: policy.reviewTierCheck.name,
+                      integration_id: policy.reviewTierCheck.integrationId,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        };
+      }
+      return rule;
+    });
+  if (policy.mergeQueue.enabled) {
+    checkRules.push({
+      type: "merge_queue",
+      parameters: policy.mergeQueue.parameters,
+    });
+  }
+  const floorRules = floors.rules.map((rule) =>
+    rule.type === "pull_request"
+      ? {
+          ...rule,
+          parameters: {
+            ...rule.parameters,
+            required_approving_review_count: 0,
+            require_code_owner_review: false,
+            dismiss_stale_reviews_on_push: false,
+            require_last_push_approval: false,
+            required_review_thread_resolution: true,
+            required_reviewers: contractFloor,
+          },
+        }
+      : rule,
+  );
+  return [
+    update(checks, "Required checks", checkRules),
+    update(floors, "Contract review floors", floorRules),
+  ];
 }
 
 function runGh(args, { input, cwd } = {}) {
@@ -203,9 +208,8 @@ export function runSyncReviewPolicy(
   if (selected.length !== 1) {
     throw new Error(`Choose exactly one of ${actions.join(", ")}.`);
   }
-  const known = new Set([...actions, "--require-review-tier", "--merge-queue"]);
   for (const arg of args) {
-    if (!known.has(arg)) throw new Error(`Unknown option: ${arg}.`);
+    if (!actions.includes(arg)) throw new Error(`Unknown option: ${arg}.`);
   }
 
   const policy = loadReviewPolicy(root);
@@ -226,15 +230,21 @@ export function runSyncReviewPolicy(
 
   const api = (endpoint) => JSON.parse(gh([endpoint], { cwd }));
   const rulesetPath = `repos/${policy.repository}/rulesets`;
-  const summaries = api(rulesetPath);
+  const summaries = api(`${rulesetPath}?includes_parents=false`);
   const liveRulesets = summaries.map(({ id }) => api(`${rulesetPath}/${id}`));
   const org = policy.repository.split("/")[0];
   const slug = policy.teams.maintainers;
   const teamIds = { [slug]: api(`orgs/${org}/teams/${slug}`).id };
-  const updates = buildRulesets(policy, liveRulesets, teamIds, {
-    requireReviewTier: hasOption(args, "--require-review-tier"),
-    mergeQueue: hasOption(args, "--merge-queue"),
-  });
+  for (const ownerTeam of new Set(policy.areas.map((area) => area.ownerTeam))) {
+    try {
+      api(`orgs/${org}/teams/${ownerTeam}`);
+    } catch {
+      throw new Error(
+        `Owner team ${org}/${ownerTeam} does not exist; create it before syncing.`,
+      );
+    }
+  }
+  const updates = buildRulesets(policy, liveRulesets, teamIds);
   const labelPath = `repos/${policy.repository}/labels`;
   const existingLabels = new Set(
     JSON.parse(
@@ -252,13 +262,12 @@ export function runSyncReviewPolicy(
       : "Every policy label exists.",
   );
   if (selected[0] === "--apply") {
-    writeFileSync(
-      path.join(
-        cwd,
-        `review-policy-rulesets-backup-${new Date().toISOString()}.json`,
-      ),
-      `${JSON.stringify(liveRulesets, null, 2)}\n`,
+    const backup = path.join(
+      cwd,
+      `review-policy-rulesets-backup-${new Date().toISOString()}.json`,
     );
+    writeFileSync(backup, `${JSON.stringify(liveRulesets, null, 2)}\n`);
+    log(`Saved the live rulesets to ${backup}.`);
     for (const { name, color, description } of missingLabels) {
       gh(
         [
