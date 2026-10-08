@@ -66,7 +66,7 @@ Composable runtime and UI primitives for AI chat in React, Vue, React Native, an
 
 - `packages/AGENTS.md` carries the build, dependency, and adapter rules for package code.
 - A nested AGENTS.md carries its directory's rules; read it before changing files there.
-- `CONTRIBUTING.md` owns changeset types and pull request scope, titles, and descriptions; read it before writing a changeset or opening a PR.
+- `CONTRIBUTING.md` owns changeset types, issue filing, and pull request scope, titles, and descriptions; read it before writing a changeset or opening an issue or a PR.
 - `packages/x-performance/README.md` owns performance measurement; read it before adding a counter contract, bench, or fixture.
 - `node_modules/next/dist/docs/`, resolved from the app's directory, holds the pinned Next.js docs; read the relevant guide before writing Next.js code, and heed its deprecation notices.
 
