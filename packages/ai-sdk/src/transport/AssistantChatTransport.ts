@@ -22,6 +22,7 @@ const FINISH_MARKER = '"type":"finish"';
 const FINISH_BUFFER_LIMIT = 4096;
 const FINISH_BUFFER_TAIL = 1024;
 const RESUMABLE_THREAD_ID_HEADER = "x-assistant-ui-resumable-thread-id";
+const RESUMABLE_RECONNECT_ID_HEADER = "x-assistant-ui-resumable-reconnect-id";
 
 // 101/204/205/304 are null-body statuses per the fetch spec: `new Response(body, { status })`
 // throws for them, and WebKit returns a non-null empty body, so the body check alone does not guard it.
@@ -137,10 +138,24 @@ function wrapFetchWithResumable(
   return async (input, init) => {
     const headers = new Headers(init?.headers);
     const threadId = headers.get(RESUMABLE_THREAD_ID_HEADER) ?? undefined;
+    const reconnectingStreamId = headers.get(RESUMABLE_RECONNECT_ID_HEADER);
+    const checkpointAtRequest =
+      reconnectingStreamId ?? resumable.storage.getStreamId(threadId);
     headers.delete(RESUMABLE_THREAD_ID_HEADER);
+    headers.delete(RESUMABLE_RECONNECT_ID_HEADER);
     const res = await baseFetch(input, { ...init, headers });
     const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);
-    if (id) resumable.storage.setStreamId(id, threadId);
+    const ownsCheckpoint =
+      !reconnectingStreamId ||
+      resumable.storage.getStreamId(threadId) === reconnectingStreamId;
+    if (id && ownsCheckpoint) resumable.storage.setStreamId(id, threadId);
+    if (
+      (res.status === 204 || res.status === 404) &&
+      reconnectingStreamId &&
+      resumable.storage.getStreamId(threadId) === reconnectingStreamId
+    ) {
+      resumable.storage.clear(threadId);
+    }
     if (!res.body || NULL_BODY_STATUSES.has(res.status)) return res;
 
     const detectFinish = resumable.isFinishEvent ?? defaultIsFinishEvent;
@@ -153,7 +168,11 @@ function wrapFetchWithResumable(
         controller.enqueue(chunk);
         accumulator += decoder.decode(chunk, { stream: true });
         if (detectFinish(chunk, accumulator)) {
-          if (!id || resumable.storage.getStreamId(threadId) === id) {
+          if (
+            ownsCheckpoint &&
+            resumable.storage.getStreamId(threadId) ===
+              (id ?? checkpointAtRequest)
+          ) {
             resumable.storage.clear(threadId);
           }
           accumulator = "";
@@ -195,6 +214,7 @@ function wrapPrepareReconnect(
     const userPrepared = await userPrepareReconnect?.({ ...options, api });
     const headers = new Headers(userPrepared?.headers ?? options.headers);
     headers.set(RESUMABLE_THREAD_ID_HEADER, options.id);
+    headers.set(RESUMABLE_RECONNECT_ID_HEADER, streamId);
     return {
       ...userPrepared,
       headers,

@@ -1,7 +1,7 @@
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { Text } from "ink";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup } from "ink-testing-library";
+import { cleanup, render } from "ink-testing-library";
 import { MessageContent } from "../primitives/message/MessageContent";
 import {
   mockMessageState,
@@ -47,6 +47,65 @@ afterEach(() => {
 });
 
 describe("MessageContent", () => {
+  it("keeps each seed with its id when identified parts swap", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <Text>{`${seed}:${text}`}</Text>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    mockMessageState(mockUseAuiState, {
+      message: {
+        parts: [
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p2", text: "second" },
+        ],
+      },
+    });
+    const instance = render(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    mockMessageState(mockUseAuiState, {
+      message: {
+        parts: [
+          { type: "text", id: "p2", text: "second updated" },
+          { type: "text", id: "p1", text: "first updated" },
+        ],
+      },
+    });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toBe(
+      "second:second updated\nfirst:first updated",
+    );
+  });
+
+  it("keeps a text seed while streaming and resets it for a replacement id", async () => {
+    let content = [{ type: "text", id: "p1", text: "old" }];
+    mockMessageState(mockUseAuiState, { message: { parts: content } });
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <Text>{`${seed}:${text}`}</Text>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    const instance = render(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    content = [{ type: "text", id: "p1", text: "old streamed" }];
+    mockMessageState(mockUseAuiState, { message: { parts: content } });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("old:old streamed");
+
+    content = [{ type: "text", id: "p2", text: "new" }];
+    mockMessageState(mockUseAuiState, { message: { parts: content } });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("new:new");
+  });
+
   it("renders incomplete tool calls as errors instead of running forever", async () => {
     mockMessageState(mockUseAuiState, {
       tools: { toolUIs: {} },
@@ -271,6 +330,82 @@ describe("MessageContent", () => {
       type: "action",
       payload: { choice: "retry" },
     });
+  });
+
+  it("uses tools.mcpApp for a tool call with a ui:// resource", async () => {
+    const McpUI = () => <Text>mcp app</Text>;
+    mockMessageState(mockUseAuiState, {
+      tools: {
+        toolUIs: {},
+        mcpApp: { render: McpUI },
+      },
+      dataRenderers: { renderers: {}, fallbacks: [] },
+      message: {
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-call-1",
+            toolName: "show_chart",
+            args: {},
+            argsText: "{}",
+            mcp: { app: { resourceUri: "ui://chart" } },
+            status: { type: "complete" },
+          },
+        ],
+      },
+    });
+    mockUseAui.mockReturnValue({
+      message: {
+        part: () => ({
+          addToolResult: vi.fn(),
+          resumeToolCall: vi.fn(),
+        }),
+      },
+    });
+
+    const frame = await renderFrame(
+      <MessageContent renderToolCall={() => <Text>render prop tool</Text>} />,
+    );
+
+    expect(frame).toBe("mcp app");
+  });
+
+  it("ignores tools.mcpApp for a non-ui:// resource", async () => {
+    const McpUI = () => <Text>mcp app</Text>;
+    mockMessageState(mockUseAuiState, {
+      tools: {
+        toolUIs: {},
+        mcpApp: { render: McpUI },
+      },
+      dataRenderers: { renderers: {}, fallbacks: [] },
+      message: {
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-call-1",
+            toolName: "show_chart",
+            args: {},
+            argsText: "{}",
+            mcp: { app: { resourceUri: "https://example.com/chart" } },
+            status: { type: "complete" },
+          },
+        ],
+      },
+    });
+    mockUseAui.mockReturnValue({
+      message: {
+        part: () => ({
+          addToolResult: vi.fn(),
+          resumeToolCall: vi.fn(),
+        }),
+      },
+    });
+
+    const frame = await renderFrame(
+      <MessageContent renderToolCall={() => <Text>render prop tool</Text>} />,
+    );
+
+    expect(frame).toBe("render prop tool");
   });
 
   it("uses registered named data renderer before renderData", async () => {

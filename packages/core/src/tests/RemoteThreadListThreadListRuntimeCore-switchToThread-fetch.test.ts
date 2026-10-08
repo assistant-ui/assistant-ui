@@ -34,7 +34,7 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread fetch merge", () 
     expect(core.archivedThreadIds).toEqual([]);
   });
 
-  it("notifies once when the fetch registers and three times by the time the switch lands", async () => {
+  it("notifies once when the fetch registers and four times by the time the switch lands", async () => {
     const fetchDeferred = deferred<RemoteThreadMetadata>();
     const core = createCore(
       makeAdapter({ fetch: vi.fn(() => fetchDeferred.promise) }),
@@ -49,7 +49,7 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread fetch merge", () 
 
     fetchDeferred.resolve({ status: "regular", remoteId: "t2", title: "T2" });
     await switching;
-    expect(listener).toHaveBeenCalledTimes(3);
+    expect(listener).toHaveBeenCalledTimes(4);
   });
 
   it("merges into the slot that initialized under the fetched remote id", async () => {

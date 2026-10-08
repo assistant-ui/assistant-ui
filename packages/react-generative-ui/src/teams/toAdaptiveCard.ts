@@ -12,6 +12,16 @@ import {
   type NormalizedUINode,
 } from "../ir";
 import {
+  classifyTemporal,
+  splitTemporalMinutes,
+  temporalOffsetLabel,
+} from "../temporal";
+import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
+import {
   CHOICE_OPTION_CAP,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
@@ -21,6 +31,7 @@ import {
   buildSubmitAction,
   utf8ByteLength,
 } from "./constants";
+import { encodeTemporalInputId } from "./temporalId";
 import type {
   AdaptiveCardResult,
   TeamsActionSet,
@@ -51,6 +62,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const asFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -100,7 +114,12 @@ function reservedSafeId(
   context: ConversionContext,
 ): string {
   const reserved = id === RESERVED_INPUT_ID;
-  const base = reserved ? `${RESERVED_INPUT_ID}_` : id;
+  const temporalReserved = /^_*aui:datetime:/.test(id);
+  const base = reserved
+    ? `${RESERVED_INPUT_ID}_`
+    : temporalReserved
+      ? `_${id}`
+      : id;
   let candidate = base;
   let n = 2;
   while (context.usedInputIds.has(candidate)) {
@@ -113,6 +132,13 @@ function reservedSafeId(
       "fallback",
       component,
       `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${candidate}".`,
+    );
+  } else if (temporalReserved) {
+    warn(
+      context,
+      "fallback",
+      component,
+      `the input id "${id}" collides with the reserved datetime namespace and was renamed to "${candidate}".`,
     );
   } else if (candidate !== base) {
     warn(
@@ -171,7 +197,14 @@ const toChoice = (option: unknown): TeamsInputChoice | undefined => {
   if (!isRecord(option) || typeof option["value"] !== "string") {
     return undefined;
   }
-  return { title: asString(option["label"]), value: option["value"] };
+  const label = asString(option["label"]);
+  const description = asString(option["description"]);
+  return {
+    title: description
+      ? [label, description].filter(Boolean).join(": ")
+      : label,
+    value: option["value"],
+  };
 };
 
 const choicesFrom = (
@@ -206,10 +239,18 @@ const choicesFrom = (
 };
 
 function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
-  const set: TeamsFact[] = facts.map((fact) => ({
-    title: asString(fact.props["label"]),
-    value: asString(fact.props["value"]),
-  }));
+  const set: TeamsFact[] = facts.map((fact) => {
+    const value = asString(fact.props["value"]);
+    const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
+    return {
+      title: asString(fact.props["label"]),
+      value: deltaText === undefined ? value : `${value} (${deltaText})`,
+    };
+  });
   return { type: "FactSet", facts: set };
 }
 
@@ -277,13 +318,6 @@ const ALERT_STYLE_MAP: Record<string, TeamsContainerStyle> = {
   danger: "attention",
 };
 
-const stringifyCell = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  return "";
-};
-
 function convertTable(
   props: Readonly<Record<string, unknown>>,
   context: ConversionContext,
@@ -342,9 +376,18 @@ function convertTable(
     cells: (Array.isArray(row)
       ? copyBounded(row, TABLE_COLUMN_CAP).items
       : []
-    ).map((cell) => ({
+    ).map((cell, index) => ({
       type: "TableCell" as const,
-      items: [textBlock(stringifyCell(cell))],
+      items: [
+        textBlock(
+          formatValue(
+            cell,
+            isRecord(rawColumns[index])
+              ? rawColumns[index]["format"]
+              : undefined,
+          ),
+        ),
+      ],
     })),
   }));
 
@@ -528,6 +571,22 @@ export function convertElement(
       };
       return withCompanionSubmit(element, input, context);
     }
+    case "Slider": {
+      const name = asString(props["name"]);
+      const label = asString(props["label"]);
+      const min = asFiniteNumber(props["min"]);
+      const max = asFiniteNumber(props["max"]);
+      const defaultValue = asFiniteNumber(props["defaultValue"]);
+      const input = {
+        type: "Input.Number",
+        id: reservedSafeId(name || "slider", "Slider", context),
+        ...(label ? { label } : {}),
+        ...(min !== undefined ? { min } : {}),
+        ...(max !== undefined ? { max } : {}),
+        ...(defaultValue !== undefined ? { value: defaultValue } : {}),
+      } as unknown as TeamsCardElement;
+      return withCompanionSubmit(element, input, context);
+    }
     case "Input": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
@@ -536,18 +595,165 @@ export function convertElement(
       const input: TeamsCardElement = {
         type: "Input.Text",
         id: reservedSafeId(name || "input", "Input", context),
+        ...(props["inputType"] === "password" ? { style: "password" } : {}),
         ...(label ? { label } : {}),
         ...(placeholder ? { placeholder } : {}),
         ...(typeof defaultValue === "string" && defaultValue
           ? { value: defaultValue }
           : {}),
-        ...(props["multiline"] === true ? { isMultiline: true } : {}),
+        ...(props["multiline"] === true &&
+        (props["inputType"] === undefined || props["inputType"] === "text")
+          ? { isMultiline: true }
+          : {}),
       };
       return withCompanionSubmit(element, input, context);
     }
     case "DatePicker": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
+      const mode = props["inputType"];
+      if (mode === "time") {
+        const id = reservedSafeId(name || "datepicker", "DatePicker", context);
+        const rawValue = asString(props["value"]);
+        const parts = splitTemporalMinutes(rawValue);
+        if (
+          classifyTemporal(rawValue).kind === "time" &&
+          parts?.droppedPrecision
+        ) {
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            "Nonzero seconds were dropped from the time value.",
+          );
+        }
+        const value = parts?.time;
+        const rawMin = asString(props["min"]);
+        const minParts = splitTemporalMinutes(rawMin);
+        let min = minParts?.time;
+        if (
+          classifyTemporal(rawMin).kind === "time" &&
+          minParts?.droppedPrecision
+        ) {
+          const minuteOfDay =
+            Number(minParts.time.slice(0, 2)) * 60 +
+            Number(minParts.time.slice(3, 5)) +
+            1;
+          if (minuteOfDay === 24 * 60) {
+            min = undefined;
+            warn(
+              context,
+              "dropped",
+              "DatePicker",
+              "The time minimum rounds past 23:59 and was dropped.",
+            );
+          } else {
+            min = `${String(Math.floor(minuteOfDay / 60)).padStart(2, "0")}:${String(minuteOfDay % 60).padStart(2, "0")}`;
+          }
+        }
+        const rawMax = asString(props["max"]);
+        const maxParts = splitTemporalMinutes(rawMax);
+        const max = maxParts?.time;
+        if (
+          classifyTemporal(rawMax).kind === "time" &&
+          maxParts?.droppedPrecision
+        ) {
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            rawMax.slice(6, 8) === "00"
+              ? "Nonzero fractional seconds were dropped from the time maximum."
+              : /\.\d*[1-9]/.test(rawMax)
+                ? "Nonzero seconds and fractional seconds were dropped from the time maximum."
+                : "Nonzero seconds were dropped from the time maximum.",
+          );
+        }
+        const input: TeamsCardElement = {
+          type: "Input.Time",
+          id,
+          ...(label ? { label } : {}),
+          ...(classifyTemporal(rawValue).kind === "time" && value !== undefined
+            ? { value }
+            : {}),
+          ...(classifyTemporal(rawMin).kind === "time" && min !== undefined
+            ? { min }
+            : {}),
+          ...(classifyTemporal(rawMax).kind === "time" && max !== undefined
+            ? { max }
+            : {}),
+        };
+        return withCompanionSubmit(element, input, context);
+      }
+      if (mode === "datetime") {
+        const rawValue = asString(props["value"]);
+        const temporal = classifyTemporal(rawValue);
+        const fieldId = reservedSafeId(
+          name || "datepicker",
+          "DatePicker",
+          context,
+        );
+        const dateId = encodeTemporalInputId({ fieldId, role: "date" });
+        const timeId = encodeTemporalInputId({
+          fieldId,
+          role: "time",
+          ...(temporal.kind === "instant" ? { previousValue: rawValue } : {}),
+        });
+        const parts = splitTemporalMinutes(rawValue);
+        if (temporal.kind === "floating" && parts?.droppedPrecision) {
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            "Nonzero seconds were dropped from the datetime value.",
+          );
+        }
+        const offsetLabel = temporalOffsetLabel(rawValue);
+        const boundDate = (raw: unknown) => {
+          const value = asString(raw);
+          return classifyTemporal(value).kind === "date"
+            ? value
+            : splitTemporalMinutes(
+                value,
+                temporal.kind === "instant" ? temporal.offset : undefined,
+              )?.date;
+        };
+        const min = boundDate(props["min"]);
+        const max = boundDate(props["max"]);
+        const dateInput: TeamsCardElement = {
+          type: "Input.Date",
+          id: dateId,
+          ...(label ? { label } : {}),
+          ...(parts?.date !== undefined ? { value: parts.date } : {}),
+          ...(min !== undefined ? { min } : {}),
+          ...(max !== undefined ? { max } : {}),
+        };
+        const timeInput: TeamsCardElement = {
+          type: "Input.Time",
+          id: timeId,
+          ...(label || offsetLabel
+            ? {
+                label: `${label ? `${label} time` : "Time"}${offsetLabel ? ` (${offsetLabel})` : ""}`,
+              }
+            : {}),
+          ...(parts?.time !== undefined ? { value: parts.time } : {}),
+        };
+        if (element.action === undefined) return [dateInput, timeInput];
+        const [input, submit] = withCompanionSubmit(
+          element,
+          timeInput,
+          context,
+        );
+        return [dateInput, input!, submit!];
+      }
+      if (mode !== undefined && mode !== "date") {
+        warn(
+          context,
+          "dropped",
+          "DatePicker",
+          "Unsupported inputType was dropped; the picker was rendered as a date input.",
+        );
+      }
       const rawValue = props["value"];
       const value =
         typeof rawValue === "string" && DATE_PATTERN.test(rawValue)
@@ -813,7 +1019,7 @@ export function convertRootToCard(
  * Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
  * non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
  * Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
- * CheckboxGroup/Checkbox/DatePicker whose id would be the reserved
+ * CheckboxGroup/Checkbox/Slider/DatePicker whose id would be the reserved
  * {@link RESERVED_INPUT_ID} is renamed with a warning (see `decodeSubmitData`).
  * Never throws: an unknown `$type` is skipped with a "dropped" warning, and a
  * malformed input resolves to an empty card plus a "dropped" warning instead
@@ -823,7 +1029,10 @@ export function toAdaptiveCard(
   node: unknown,
   _options?: ToAdaptiveCardOptions,
 ): AdaptiveCardResult {
-  const context: ConversionContext = { warnings: [], usedInputIds: new Set() };
+  const context: ConversionContext = {
+    warnings: [],
+    usedInputIds: new Set(),
+  };
   try {
     const bounded = boundSpec(node, (reason) =>
       warn(context, "clamped", "Root", clampReasonDetail(reason)),
