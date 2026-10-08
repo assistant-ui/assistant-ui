@@ -44,6 +44,7 @@ test("each example's inputs follow its workspace dependency graph", () => {
   const ink = exampleInputs(repoRoot, "with-react-ink-web");
   for (const input of [
     "examples/with-react-ink-web",
+    "examples/with-react-ink",
     "packages/react-ink",
     "packages/react-ink-markdown",
     "packages/core",
@@ -64,6 +65,14 @@ test("each example's inputs follow its workspace dependency graph", () => {
 });
 
 test("a change selects only the examples it feeds", () => {
+  assert.deepEqual(
+    examplesOf(
+      planDeploys(repoRoot, [
+        "examples/with-react-ink/src/components/thread-shell.tsx",
+      ]),
+    ),
+    ["with-react-ink-web"],
+  );
   assert.deepEqual(
     examplesOf(
       planDeploys(repoRoot, ["packages/ui/src/components/react-native/x.tsx"]),
@@ -138,4 +147,109 @@ test("the workflow trigger paths are the union of the example inputs", () => {
     .map((line) => line.replace(/^\s*- /, "").replace(/\/\*\*$/, ""))
     .sort();
   assert.deepEqual(triggerPaths, allInputs(repoRoot));
+});
+
+test("the Ink deployment uses the same scoped install inside and outside Vercel", () => {
+  const root = JSON.parse(
+    readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+  );
+  const config = JSON.parse(
+    readFileSync(
+      path.join(repoRoot, "examples/with-react-ink-web/vercel.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    config.installCommand,
+    `pnpm install --frozen-lockfile --filter=${root.name} --filter=with-react-ink-web... --filter=@assistant-ui/react-devtools...`,
+  );
+  const workflow = readFileSync(path.join(repoRoot, WORKFLOW_FILE), "utf8");
+  assert.match(
+    workflow,
+    /cache: \$\{\{ matrix.example != 'with-react-ink-web' \}\}/,
+  );
+  const install = workflow.match(
+    /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+  )?.[0];
+  assert.ok(install);
+  assert.match(
+    install,
+    /working-directory: examples\/\$\{\{ matrix.example \}\}/,
+  );
+  assert.match(install, /require\("\.\/vercel.json"\)\.installCommand/);
+  assert.doesNotMatch(install, /run: pnpm install/);
+});
+
+test("the Ink install includes every explicitly built workspace", () => {
+  const config = JSON.parse(
+    readFileSync(
+      path.join(repoRoot, "examples/with-react-ink-web/vercel.json"),
+      "utf8",
+    ),
+  );
+  const filters = (command) =>
+    [...command.matchAll(/--filter=(\S+)/g)].map((match) => match[1]);
+  const installed = spawnSync(
+    "pnpm",
+    [
+      "list",
+      "--depth=-1",
+      "--json",
+      ...filters(config.installCommand).map((filter) => `--filter=${filter}`),
+    ],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  assert.equal(installed.status, 0, installed.stderr);
+  const names = new Set(JSON.parse(installed.stdout).map((pkg) => pkg.name));
+  const builds = filters(config.buildCommand);
+  assert.ok(builds.length > 0);
+  for (const name of builds) {
+    assert.ok(names.has(name), `${name} is built but not installed`);
+  }
+});
+
+test("the Expo native bundle workflow watches every bundle input", () => {
+  const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
+  const workflow = readFileSync(
+    path.join(repoRoot, nativeWorkflowFile),
+    "utf8",
+  );
+  const pathBlocks = [
+    ...workflow.matchAll(/^    paths:\n((?:      - .*\n)+)/gm),
+  ].map((match) =>
+    match[1]
+      .trim()
+      .split("\n")
+      .map((line) => line.replace(/^\s*- /, "").replace(/\/\*\*$/, ""))
+      .sort(),
+  );
+  const expectedPaths = [
+    ...exampleInputs(repoRoot, "with-expo").filter(
+      (input) => input !== WORKFLOW_FILE && !input.startsWith("scripts/"),
+    ),
+    nativeWorkflowFile,
+  ].sort();
+
+  assert.equal(pathBlocks.length, 2, "pull request and push path filters");
+  assert.deepEqual(pathBlocks[0], expectedPaths);
+  assert.deepEqual(pathBlocks[1], expectedPaths);
+});
+
+test("the Expo native bundle installs only its workspace graph", () => {
+  const workflow = readFileSync(
+    path.join(repoRoot, ".github/workflows/expo-native-bundle.yaml"),
+    "utf8",
+  );
+  const setup = workflow.match(
+    /      - name: Setup pnpm and node\.js\n[\s\S]*?(?=\n      - name:)/,
+  );
+  const install = workflow.match(
+    /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+  );
+
+  assert.match(setup?.[0] ?? "", /cache: false/);
+  assert.match(
+    install?.[0] ?? "",
+    /pnpm install --frozen-lockfile --filter \. --filter="@assistant-ui\/react-devtools\.\.\." --filter="with-expo\.\.\."/,
+  );
 });

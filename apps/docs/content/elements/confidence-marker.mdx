@@ -46,7 +46,7 @@ function ClaimsFromMessage() {
 }
 ```
 
-`cite_claims` and the `{ claims: [...] }` result shape are your own tool contract; `part.result` is the real, typed plumbing that carries whatever you defined back to the client.
+`cite_claims` and the `{ claims: [...] }` result shape are your own tool contract; `part.result` carries whatever you defined back to the client, typed by the generic you give `ToolCallMessagePart`.
 
   </Step>
   <Step>

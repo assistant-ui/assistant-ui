@@ -12,10 +12,12 @@ import {
   type ChatModelAdapter,
   ExportedMessageRepository,
   type RealtimeVoiceAdapter,
+  type ThreadMessageLike,
   useAui,
+  useExternalStoreRuntime,
   useLocalRuntime,
 } from "@assistant-ui/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Thread, type ThreadProps } from "./thread.aui";
@@ -101,6 +103,66 @@ function FeedbackTestThread({ submit }: { submit?: () => void }) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function ReasoningTestThread() {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "reasoning",
+            text: "First thought",
+            timing: { startedAt: 1_000, completedAt: 4_000 },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            timing: { startedAt: 6_000, completedAt: 13_400 },
+          },
+          { type: "text", text: "Answer" },
+        ],
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const pagedMessages: ThreadMessageLike[] = [
+  { id: "m1", role: "user", content: [{ type: "text", text: "First" }] },
+  { id: "m2", role: "assistant", content: [{ type: "text", text: "Second" }] },
+  { id: "m3", role: "user", content: [{ type: "text", text: "Third" }] },
+];
+
+function PagedTestThread({
+  onLoadEarlier,
+}: {
+  onLoadEarlier: () => Promise<void>;
+}) {
+  const [messages, setMessages] = useState(pagedMessages.slice(2));
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+    hasEarlier: messages.length < pagedMessages.length,
+    onLoadEarlier: async () => {
+      await onLoadEarlier();
+      setMessages(pagedMessages);
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
     </AssistantRuntimeProvider>
   );
 }
@@ -238,6 +300,51 @@ describe("Thread", () => {
     expect(submit).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "negative" }),
     );
+  });
+
+  it("labels a settled reasoning group with its span from part timing", async () => {
+    render(<ReasoningTestThread />);
+
+    expect(
+      await screen.findByRole("button", { name: /Reasoning \(12s\)/ }),
+    ).toBeTruthy();
+  });
+
+  it("loads an earlier page from the top of the list while one exists", async () => {
+    let finish!: () => void;
+    const onLoadEarlier = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    render(<PagedTestThread onLoadEarlier={onLoadEarlier} />);
+
+    const loadEarlier = await screen.findByRole("button", {
+      name: "Load earlier messages",
+    });
+    expect(screen.queryByText("First")).toBeNull();
+
+    loadEarlier.focus();
+    fireEvent.click(loadEarlier);
+    const loading = await screen.findByRole("button", {
+      name: "Loading earlier messages",
+    });
+    expect(
+      screen.getByText("Loading earlier messages", {
+        selector: '[role="status"]',
+      }),
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(loading);
+    fireEvent.click(loading);
+    expect(onLoadEarlier).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish());
+    expect(await screen.findByText("First")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /earlier messages/ }),
+    ).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(
+      document.activeElement?.closest('[data-slot="aui_thread-viewport"]'),
+    ).not.toBeNull();
   });
 
   it("groups final voice transcripts into spoken rows", async () => {

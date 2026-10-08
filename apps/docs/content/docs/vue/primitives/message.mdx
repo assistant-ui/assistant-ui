@@ -1,0 +1,168 @@
+---
+title: Message
+description: Render one message with its parts, registered tool and data UI, attachments, and hover state.
+---
+
+A message row reads its role from `s.message` and renders its content through `MessagePrimitiveParts`. Render it inside `ThreadPrimitiveMessages`, which scopes each row to a message. The registry [styled thread](/docs/vue/components) uses the same primitives.
+
+```vue title="app/components/Message.vue"
+<script setup lang="ts">
+import { defineComponent, h } from "vue";
+import {
+  AttachmentPrimitiveName,
+  MessagePrimitiveAttachments,
+  MessagePrimitiveParts,
+  MessagePrimitiveRoot,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const role = useAuiState((s) => s.message.role);
+
+const TextPart = defineComponent({
+  setup() {
+    const text = useAuiState((s) => s.part.type === "text" ? s.part.text : "");
+    return () => h("p", { style: { whiteSpace: "pre-line" } }, text.value);
+  },
+});
+
+const ReasoningPart = defineComponent({
+  setup() {
+    const text = useAuiState((s) => s.part.type === "reasoning" ? s.part.text : "");
+    return () => h("details", [h("summary", "Reasoning"), h("p", text.value)]);
+  },
+});
+
+const ToolCallPart = defineComponent({
+  setup() {
+    const name = useAuiState((s) => s.part.type === "tool-call" ? s.part.toolName : "");
+    return () => h("p", `Tool: ${name.value}`);
+  },
+});
+</script>
+
+<template>
+  <MessagePrimitiveRoot
+    class="flex flex-col gap-1"
+    :class="role === 'user' ? 'items-end' : 'items-start'"
+  >
+    <div
+      class="max-w-[80%] px-4 py-2"
+      :class="role === 'user' ? 'bg-muted rounded-xl' : 'w-full'"
+    >
+      <MessagePrimitiveAttachments v-if="role === 'user'">
+        <span class="text-xs"><AttachmentPrimitiveName /></span>
+      </MessagePrimitiveAttachments>
+      <MessagePrimitiveParts>
+        <template #text><TextPart /></template>
+        <template #reasoning><ReasoningPart /></template>
+        <template #tool-call><ToolCallPart /></template>
+      </MessagePrimitiveParts>
+    </div>
+  </MessagePrimitiveRoot>
+</template>
+```
+
+The `#tool-call` slot is a fallback for calls without a registered tool UI. The [tool UI guide](/docs/vue/tool-ui) covers registration.
+
+## How each part renders
+
+`MessagePrimitiveParts` walks `s.message.parts` in order and gives each part its own scope. For each part, it chooses a renderer in this order:
+
+1. For `tool-call`, look up a registered tool UI by `toolName`. A `renderText` descriptor renders its resolved string or number directly. A registered component receives one `tool` prop. If `renderText` resolves to another kind of value, the part renders nothing.
+2. For a `tool-call` without a registered component or `renderText`, use the MCP app renderer when the part has a `ui://` resource URI and an MCP app renderer is configured. It receives the same `tool` prop.
+3. For `data`, use the renderer registered under `part.name`, then the registered data fallback. The component receives one `data` prop.
+4. For `text`, use `#text` when present. Otherwise render a `<p>` with `white-space: pre-line`. A `#default` slot does not replace this text default.
+5. For any remaining part, use the slot named after `part.type`, then `#default`. With neither slot, render nothing and warn once per missing type in development.
+
+Registered tool and data renderers take precedence over slots. A non-string, non-number `renderText` result ends rendering for that tool call, including the MCP and slot fallbacks.
+
+## Read the part inside a slot
+
+The component rendered by a part slot reads its current `s.part` with `useAuiState`, as `TextPart` and `ToolCallPart` do above. Narrow on `s.part.type` before using fields specific to that part.
+
+| Part type | Key fields |
+|---|---|
+| `text` | `text`, optional `id` |
+| `reasoning` | `text`, optional `id`, `unstable_summary`, `timing` |
+| `tool-call` | `toolCallId`, `toolName`, `args`, optional `result`, `approval`, `mcp` |
+| `data` | `name`, `data`, optional `id` |
+| `source` | `sourceType`, `id`, and `url` or document `title` and `mediaType` |
+| `image` | `image`, optional `filename`, `id` |
+| `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `id` |
+| `generative-ui` | `spec`, optional `id` |
+| `audio` | `audio.data`, `audio.format`; deprecated user part |
+
+`s.part.status.type` reports `running`, `complete`, or `incomplete`. A tool call can also report `requires-action`; check its `reason` when presenting an input or approval control. See [State and actions](/docs/vue/state) for state access.
+
+## Attachments on user messages
+
+`MessagePrimitiveAttachments` repeats its default slot for user attachments and scopes `s.attachment` to each one. It renders no entries for assistant messages. While a sent user message is still represented by its submission, it reads `s.message.submission.attachments`; otherwise it reads `s.message.attachments`. See [Attachments](/docs/vue/attachments) for rendering one attachment.
+
+## Hover and identity
+
+`MessagePrimitiveRoot` sets `data-message-id` on its `<div>` from `s.message.id`. Mouse enter and leave update `s.message.isHovering`. It also detects when it mounts under the pointer, so hover state becomes true without waiting for another mouse move. The state is cleared when the root is disposed.
+
+## Parts
+
+### MessagePrimitiveRoot
+
+Renders a `<div>` around one scoped message. Attributes and listeners pass to that element. Its default slot is the message content; it has no props.
+
+### MessagePrimitiveParts
+
+Renders each message part in order without a wrapper element. Its slots choose the content for parts that do not have a registered renderer.
+
+| Slot | Renders |
+|---|---|
+| `#text` | Text parts instead of the default `<p>`. |
+| `#reasoning` | Reasoning parts. |
+| `#tool-call` | Tool calls without a registered tool or MCP app renderer. |
+| `#data` | Data parts without a registered named or fallback renderer. |
+| `#source`, `#image`, `#file`, `#generative-ui`, `#audio` | The corresponding part types. |
+| `#default` | Any non-text part without a named slot or registered renderer. |
+
+It has no props. Parts use stable keys from their unique ids where available; otherwise the key uses their type and position.
+
+### MessagePrimitiveAttachments
+
+Renders its default slot once per user attachment without a wrapper element. Each iteration has an attachment scope. It has no props.
+
+### PartByIndexProvider
+
+Scopes its default slot to one part of the current message, so descendants read it through `s.part`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `index` | `number` | Required | Zero-based position in `s.message.parts`. |
+
+### MessageByIdProvider
+
+Scopes its default slot to a thread message by identity. Descendants read `s.message` and that message's edit composer through `s.composer`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `id` | `string` | Required | Message id in the current thread. |
+
+### ToolUIProps
+
+A registered Vue tool component declares one `tool` prop of this shape. See [Tool UI](/docs/vue/tool-ui).
+
+| Field | Type | Description |
+|---|---|---|
+| `part` | Tool call part state | The current tool call, including its status. |
+| `addResult` | Function | Add a result to a tool call awaiting one. |
+| `resume` | Function | Resume a tool call waiting for human input. |
+| `respondToApproval` | Function returning `Promise<void>` | Submit a server approval response. |
+| `unstable_recordInteraction` | Optional function returning `Promise<void>` | Record a user interaction when the runtime exposes it. |
+
+### DataUIProps
+
+A registered Vue data component declares one `data` prop of this shape.
+
+| Field | Type | Description |
+|---|---|---|
+| `part` | Data part state with `data: T` | The current data part, including its `name` and payload. |
+
+## Compared with React
+
+Vue has no counterpart for React's `MessagePrimitive.If`, `MessagePrimitive.Quote`, the grouped parts components, or the `MessagePartPrimitive` text and image parts. Use `AuiIf` for conditions, [Error](/docs/vue/primitives/error) for failed responses, and slots with `useAuiState` for part content.

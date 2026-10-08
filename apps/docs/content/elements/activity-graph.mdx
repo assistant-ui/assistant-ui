@@ -162,7 +162,7 @@ const data = useRunHistory(start, end);
 </div>
 ```
 
-Each cell's shade comes from `heat-graph`'s own `level` classification (0 through 4) for that `DataPoint`, mapped here onto a five-step blue tint; a level outside that range falls back to the lightest tint. Day labels only print on odd grid rows, one every other week, so the left edge does not crowd. The week always starts on Monday; that choice is fixed by this element and is not exposed as a prop.
+Each cell's shade comes from `heat-graph`'s own `level` classification (0 through 4) for that `DataPoint`, mapped here onto a five-step blue tint; a level outside that range falls back to the lightest tint. Day labels print only on odd grid rows (Tuesday, Thursday, and Saturday), so the left edge does not crowd. The week always starts on Monday; that choice is fixed by this element and is not exposed as a prop.
 
 ## Examples
 

@@ -311,6 +311,53 @@ describe("BaseComposerRuntimeCore", () => {
     expect(adapter.remove).toHaveBeenCalledWith(pending);
   });
 
+  it.each([
+    ["removeAttachment", "pending", 1],
+    ["reset", "pending", 1],
+    ["reset", "failed", 2],
+    ["reset", "pending-then-failed", 1],
+    ["clearAttachments", "pending", 1],
+    ["clearAttachments", "failed", 2],
+    ["clearAttachments", "pending-then-failed", 1],
+  ] as const)(
+    "removes a draft attachment on %s unless its removal is in flight (%s)",
+    async (action, state, removals) => {
+      const removal = Promise.withResolvers<void>();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      composer.setAttachmentAdapter({
+        accept: "*",
+        add: vi.fn(),
+        send: vi.fn(),
+        remove,
+      });
+      composer.setTestAttachments([makePendingAttachment("att-1")]);
+
+      const removing = composer.removeAttachment("att-1").then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      if (state === "failed") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      await (action === "removeAttachment"
+        ? composer.removeAttachment("att-1")
+        : composer[action]());
+      if (state === "pending") removal.resolve();
+      if (state === "pending-then-failed")
+        removal.reject(new Error("remove failed"));
+
+      expect(await removing).toEqual(
+        state === "pending" ? undefined : new Error("remove failed"),
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(composer.attachments).toEqual([]);
+    },
+  );
+
   it("removeAttachment throws for unknown id", async () => {
     const adapter: AttachmentAdapter = {
       accept: "*",
@@ -412,6 +459,33 @@ describe("BaseComposerRuntimeCore", () => {
       "[assistant-ui] Dictation session stop threw",
       stopError,
     );
+  });
+
+  it("stops a dictation session once when stopped again before the first stop settles", async () => {
+    let settle!: () => void;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      ),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    composer.startDictation();
+    composer.stopDictation();
+    composer.stopDictation();
+    settle();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(session.stop).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeUndefined();
   });
 
   it("finishes dictation cleanup when an unsubscribe throws", async () => {

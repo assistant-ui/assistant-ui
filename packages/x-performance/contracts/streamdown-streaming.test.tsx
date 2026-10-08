@@ -210,6 +210,7 @@ describe("Streamdown settled code blocks", () => {
   // so an unchanged nested provider in between does not stop it, and the
   // innermost consumer re-renders once per token with the one value it has
   // always read while the highlighter beside it does not run.
+  // On mount, streamdown 2.7 renders its root a second time from a caret effect that also runs in static mode, so the innermost consumer mounts with two renders while the highlighter still runs once.
   it("holds the innermost highlighter of nested raw pre markup", () => {
     const DEPTH = 3;
     const nested = (tokens: number) =>
@@ -240,7 +241,7 @@ describe("Streamdown settled code blocks", () => {
       app.show(nested(0), false);
       expect(counter.snapshot()).toMatchObject({
         "renders:highlighter": 1,
-        "renders:pre props consumer": 1,
+        "renders:pre props consumer": 2,
       });
 
       counter.reset();
