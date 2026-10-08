@@ -234,6 +234,26 @@ describe("createAssistantStream task settlement", () => {
     );
   });
 
+  it.each([false, true])(
+    "keeps the args finish of a tool call whose args completed when the callback throws (async: %s)",
+    async (isAsync) => {
+      const run: Parameters<typeof createAssistantStream>[0] = (controller) => {
+        controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "confirm",
+          args: { id: 1 },
+        });
+        throw new Error("upstream failed");
+      };
+      const chunks = await collectChunks(
+        createAssistantStream(isAsync ? async (c) => run(c) : run),
+      );
+
+      expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
+      expect(chunks.map((c) => c.type)).toContain("tool-call-args-text-finish");
+    },
+  );
+
   it.each(["appendText", "appendReasoning"] as const)(
     "finishes the part %s opened when the callback throws",
     async (method) => {

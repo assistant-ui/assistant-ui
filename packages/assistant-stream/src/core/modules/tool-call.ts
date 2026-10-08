@@ -137,6 +137,7 @@ export class ToolCallStreamControllerImpl implements ToolCallStreamController {
   __internal_truncate() {
     if (this._isClosed) return;
     this._isClosed = true;
+    this._finishArgsText();
     this._argsTextController.__internal_truncate();
     this._argsTextState = "finished";
     closeIfOpen(this._controller);
