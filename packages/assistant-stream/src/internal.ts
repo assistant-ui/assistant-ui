@@ -7,3 +7,4 @@ export {
   toAISDKContent,
   toAISDKDefaultOutput,
 } from "./ai-sdk/toolOutputConversion";
+export { markPartialJsonObjectComplete } from "./utils/json/parse-partial-json-object";

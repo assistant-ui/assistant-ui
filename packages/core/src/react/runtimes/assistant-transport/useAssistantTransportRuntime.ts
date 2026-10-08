@@ -36,10 +36,12 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
+import { raceWithAbortSignal } from "../../../utils/abortable-promise";
 import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
 import { generateId } from "../../../utils/id";
+import { createRuntimeExtras } from "../createRuntimeExtras";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -104,46 +106,20 @@ const readResumeState = async <T>(
   return { runId: value.runId, state: value.state as T };
 };
 
-// Rejects as soon as the signal aborts; a started operation keeps running.
-const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
-  new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    if (signal.aborted) return onAbort();
-    signal.addEventListener("abort", onAbort, { once: true });
-    void start()
-      .then(resolve, reject)
-      .finally(() => signal.removeEventListener("abort", onAbort));
-  });
-
-const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
-  [symbolAssistantTransportExtras]: true;
   sendCommand: (command: AssistantTransportCommand) => void;
   state: UserExternalState;
 };
 
-const asAssistantTransportExtras = (
-  extras: unknown,
-): AssistantTransportExtras => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolAssistantTransportExtras in extras)
-  )
-    throw new Error(
-      "This method can only be called when you are using useAssistantTransportRuntime",
-    );
-
-  return extras as AssistantTransportExtras;
-};
+const assistantTransportExtras = createRuntimeExtras<AssistantTransportExtras>(
+  "useAssistantTransportRuntime",
+);
 
 export const useAssistantTransportSendCommand = () => {
   const aui = useAui();
 
   return (command: AssistantTransportCommand) => {
-    const extras = aui.thread.getState().extras;
-    const transportExtras = asAssistantTransportExtras(extras);
-    transportExtras.sendCommand(command);
+    assistantTransportExtras.get(aui).sendCommand(command);
   };
 };
 
@@ -154,9 +130,7 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return useAuiState((s) =>
-    selector(asAssistantTransportExtras(s.thread.extras).state),
-  );
+  return assistantTransportExtras.use((extras) => selector(extras.state));
 }
 
 const useAssistantTransportThreadRuntime = <T>(
@@ -168,6 +142,7 @@ const useAssistantTransportThreadRuntime = <T>(
   const [isReplaying, setIsReplaying] = useState(false);
   const waitForReplayRender = useReplayRenderWait();
   const parentIdRef = useRef<string | null | undefined>(undefined);
+  const cancelledCommandsRef = useRef<QueuedCommand[]>([]);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
@@ -208,10 +183,15 @@ const useAssistantTransportThreadRuntime = <T>(
         aui.threadListItem.getState().remoteId ??
         (isResume
           ? undefined
-          : (await abortable(signal, () => aui.threadListItem.initialize()))
-              .remoteId);
+          : (
+              await raceWithAbortSignal(signal, () =>
+                aui.threadListItem.initialize(),
+              )
+            ).remoteId);
 
-      const headers = await createRequestHeaders(options.headers);
+      const headers = await raceWithAbortSignal(signal, () =>
+        createRequestHeaders(options.headers),
+      );
       let resumeState: { runId: string; state: T } | undefined;
       if (isResume && options.resumeStateApi) {
         const resumeStateResponse = await fetch(options.resumeStateApi, {
@@ -231,10 +211,11 @@ const useAssistantTransportThreadRuntime = <T>(
       }
 
       // `typeof` narrows the `object` member to `Function`, whose call returns `any`; the annotation keeps `sendCommandsBody` checked against its type.
-      const bodyValue: object | undefined =
-        typeof options.body === "function"
-          ? await options.body()
-          : options.body;
+      const bodyValue: object | undefined = await raceWithAbortSignal(
+        signal,
+        () =>
+          typeof options.body === "function" ? options.body() : options.body,
+      );
       const context = runtime.thread.getModelContext();
 
       const sendCommandsBody: SendCommandsRequestBody = {
@@ -257,8 +238,9 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = sendCommandsBody;
       if (options.prepareSendCommandsRequest) {
-        requestBody =
-          await options.prepareSendCommandsRequest(sendCommandsBody);
+        requestBody = await raceWithAbortSignal(signal, () =>
+          options.prepareSendCommandsRequest!(sendCommandsBody),
+        );
       }
 
       if (resumeState !== undefined) {
@@ -280,7 +262,7 @@ const useAssistantTransportThreadRuntime = <T>(
       );
 
       try {
-        await options.onResponse?.(response);
+        await raceWithAbortSignal(signal, () => options.onResponse?.(response));
       } catch (error) {
         void response.body?.cancel().catch(() => {});
         throw error;
@@ -301,7 +283,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       const body = await createReplayBoundaryStream(response, {
         setReplaying: setIsReplaying,
-        waitForRender: waitForReplayRender,
+        waitForRender: () => raceWithAbortSignal(signal, waitForReplayRender),
       });
 
       // Select decoder based on protocol option
@@ -358,15 +340,11 @@ const useAssistantTransportThreadRuntime = <T>(
       }
     },
     onFinish: options.onFinish,
-    onCancel: () => {
+    onCancel: (afterError) => {
       setIsReplaying(false);
-      const cmds = [
-        ...commandQueue.state.inTransit,
-        ...commandQueue.state.queued,
-      ];
-
-      commandQueue.reset();
-      parentIdRef.current = undefined;
+      const cmds = cancelledCommandsRef.current;
+      cancelledCommandsRef.current = [];
+      if (afterError && cmds.length === 0) return;
 
       options.onCancel?.({
         commands: cmds,
@@ -452,8 +430,7 @@ const useAssistantTransportThreadRuntime = <T>(
     adapters: options.adapters,
     unstable_enableToolInvocations: true,
     setToolStatuses,
-    extras: {
-      [symbolAssistantTransportExtras]: true,
+    extras: assistantTransportExtras.provide({
       sendCommand: (command: AssistantTransportCommand) => {
         commandQueue.enqueue(
           command.type === "add-message" && command.message.role === "user"
@@ -468,7 +445,7 @@ const useAssistantTransportThreadRuntime = <T>(
         );
       },
       state: agentStateRef.current as UserExternalState,
-    } satisfies AssistantTransportExtras,
+    }),
     onNew: async (message: AppendMessage): Promise<void> =>
       enqueueAppendMessage(message),
     ...(options.capabilities?.edit && {
@@ -483,7 +460,11 @@ const useAssistantTransportThreadRuntime = <T>(
     }),
     onCancel: async () => {
       resumeFlagRef.current = false;
-      runManager.cancel();
+      if (!runManager.cancel()) return;
+      const { inTransit, queued } = commandQueue.state;
+      cancelledCommandsRef.current.push(...inTransit, ...queued);
+      commandQueue.reset();
+      parentIdRef.current = undefined;
     },
     onResume: async () => {
       if (!options.resumeApi)

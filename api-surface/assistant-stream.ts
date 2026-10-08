@@ -235,6 +235,7 @@ type AssistantTransportStateOperation = {
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -330,7 +331,7 @@ type FrontendTools = Record<string, ToolJSONSchema>;
 
 type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 type GenericFilePart = {
@@ -418,6 +419,15 @@ type InMemoryResumableStreamStoreOptions = {
   readonly gcIntervalMs?: number;
 };
 
+declare class IncrementalJsonObjectParser {
+  #private;
+  private constructor();
+  static from(text?: string, fallback?: ReadonlyJSONObject): IncrementalJsonObjectParser;
+  get currentTextLength(): number;
+  get currentArgs(): ReadonlyJSONObject;
+  append(delta: string): IncrementalJsonObjectParser;
+}
+
 type IoRedisLike = Redis | Cluster;
 
 type JSONValue = null | string | number | boolean | {
@@ -483,6 +493,11 @@ type MessagePartLike = {
     [key: string]: unknown;
   };
   interrupt?: unknown;
+};
+
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
 };
 
 type ModelContentEnvelope<TResult = unknown> = {
@@ -613,6 +628,7 @@ type ReasoningPart = {
   text: string;
   status: TextStatus;
   unstable_summary?: string;
+  timing?: MessagePartTiming;
   parentId?: string;
 };
 
@@ -901,10 +917,7 @@ type ToolCallStreamController = {
   close(): void;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolCallback = (toolCall: {
   toolCallId: string;
@@ -1166,16 +1179,18 @@ declare namespace entry_resumable_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 declare namespace entry_internal_exports {
-  export { ModelContentEnvelope, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
+  export { ModelContentEnvelope, markPartialJsonObjectComplete, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
 }
 
 declare namespace entry_resumable_ioredis_exports {
   export { IoRedisLike, createIoredisResumableStreamStore };
 }
+
+declare const markPartialJsonObjectComplete: <T extends ReadonlyJSONObject>(obj: T) => T;
 
 declare const parsePartialJsonObject: (json: string) => (ReadonlyJSONObject & {
   [PARTIAL_JSON_OBJECT_META_SYMBOL]: PartialJsonObjectMeta;
@@ -1221,7 +1236,7 @@ declare function unwrapModelContentEnvelope<TResult>(output: TResult | ModelCont
 };
 
 declare namespace entry_utils_exports {
-  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, IncrementalJsonObjectParser, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
 declare function wrapModelContentEnvelope<TResult>(result: TResult, modelContent: readonly ToolModelContentPart[]): ModelContentEnvelope<TResult>;

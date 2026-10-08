@@ -251,7 +251,7 @@ Returns a stable emit function. Events are delivered via microtask: listeners fi
 function getClientId(client: object): getClientId.ClientId;
 ```
 
-Returns the opaque identity of a bound client instance. Stable for the lifetime of the bound client regardless of accessor wrapping, so it can serve as a `WeakMap` key for per-client caches. Throws for an unavailable scope's accessor.
+Returns the opaque identity of a bound client instance. The identity resolves through any forwarding layer to the underlying `useClientResource` client, so a scope that delegates to a replaceable client yields that client's identity. It can serve as a `WeakMap` key for per-client caches. Throws for an unavailable scope's accessor.
 
 ---
 

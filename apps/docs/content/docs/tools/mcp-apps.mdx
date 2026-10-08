@@ -171,6 +171,29 @@ const getClient = (serverId?: string) => {
   return clientPromise;
 };
 
+const findListedResource = async (
+  client: Awaited<ReturnType<typeof createMCPClient>>,
+  uri: string,
+) => {
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  try {
+    while (true) {
+      const result = await client.listResources(
+        cursor ? { params: { cursor } } : undefined,
+      );
+      const match = result.resources.find((resource) => resource.uri === uri);
+      if (match) return match;
+      const nextCursor = result.nextCursor;
+      if (!nextCursor || seenCursors.has(nextCursor)) return undefined;
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+  } catch {
+    return undefined;
+  }
+};
+
 export async function POST(req: Request) {
   const { method, params } = await req.json();
   const client = await getClient(params?.serverId);
@@ -179,10 +202,15 @@ export async function POST(req: Request) {
     case "mcp-apps/read-resource": {
       const { contents } = await client.readResource({ uri: params.uri });
       const c = contents.find((x: { uri: string }) => x.uri === params.uri);
+      const readMeta = c?._meta?.ui;
+      const listed = readMeta
+        ? undefined
+        : await findListedResource(client, params.uri);
       return Response.json({
         uri: params.uri,
         mimeType: "text/html;profile=mcp-app",
         html: c?.text ?? "",
+        meta: readMeta ?? listed?._meta?.ui,
       });
     }
     case "tools/call": {
@@ -212,6 +240,8 @@ export async function POST(req: Request) {
 
 The renderer POSTs four method names: `mcp-apps/read-resource`, `tools/call`, `resources/read`, `resources/list`. Reject anything else server-side and apply your own auth / rate limiting in the route.
 
+Forward the resource's `_meta.ui` object as `meta`. Metadata on the `resources/read` content item overrides metadata on the matching `resources/list` entry, so fall back to the list entry only when the content item omits it. The renderer enforces its `csp` declarations before any widget code runs. `connectDomains`, `resourceDomains`, `frameDomains`, and `baseUriDomains` accept HTTP(S) origins (`connectDomains` also accepts WebSocket origins); malformed entries are ignored. When the resource omits a declaration, the corresponding capability stays restricted, including `connect-src 'none'` and `frame-src 'none'` defaults.
+
 ### Multiple MCP servers
 
 When a tool part carries `mcp.app.serverId`, the renderer forwards it to the host operations as `params.serverId` so the route can select the MCP client that owns the resource or tool. The agent stack emits this routable identity in part metadata. For `@ag-ui/mcp-apps-middleware`, assistant-ui uses its configured `serverId`, falling back to `serverHash` when `serverId` is absent or empty. Match the route's map keys to whichever identity your setup emits: configure an explicit `serverId` on each middleware server, or key the map by the emitted hashes. Omitting `serverId` preserves the single-server behavior, as shown by the fallback client in the route example.
@@ -220,7 +250,9 @@ Per-name `setToolUI` registrations always win over the MCP fallback, so you can 
 
 ## AI SDK integration
 
-`@assistant-ui/ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
+AI SDK tool UI parts carry tool-owned metadata in `toolMetadata`. `@assistant-ui/ai-sdk` forwards `toolMetadata.app` into `ToolCallMessagePart.mcp.app`, while retaining `callProviderMetadata.mcp.app` and result `_meta` as compatibility sources. With an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
+
+The `serverId` routing key comes only from `callProviderMetadata.mcp.app`. A `serverId` supplied in tool metadata or result `_meta` is ignored.
 
 The rich UI comes from the MCP server's metadata, not from the model, so the path is identical whichever provider drives the conversation. Running Claude only changes the `model:` in `streamText` (`anthropic("claude-sonnet-5")` via `@ai-sdk/anthropic`); the MCP server, `splitMCPAppTools`, and the renderer are unchanged. MCP Apps is an open standard in the MCP ecosystem (Claude is one of its hosts), so a standard MCP-Apps server renders without the bridge. The bridge below is only needed for servers that use OpenAI's `openai/outputTemplate` convention, again independent of which model you run.
 
@@ -241,7 +273,7 @@ const result = streamText({
 
 ### OpenAI Apps SDK servers
 
-[OpenAI Apps SDK](https://developers.openai.com/apps-sdk) servers carry the same `ui://` template under a different convention: the pointer is `_meta["openai/outputTemplate"]` on the tool definition (not `_meta.ui.resourceUri`), and the resource is served as `text/html+skybridge` rather than `text/html;profile=mcp-app`. `@ai-sdk/mcp` does not recognize `openai/outputTemplate`, so it never populates `callProviderMetadata.mcp.app` and the renderer stays idle.
+[OpenAI Apps SDK](https://developers.openai.com/apps-sdk) servers carry the same `ui://` template under a different convention: the pointer is `_meta["openai/outputTemplate"]` on the tool definition (not `_meta.ui.resourceUri`), and the resource is served as `text/html+skybridge` rather than `text/html;profile=mcp-app`. `@ai-sdk/mcp` does not recognize `openai/outputTemplate`, so it never populates `toolMetadata.app` and the renderer stays idle.
 
 The renderer needs no change; you only have to surface the pointer. assistant-ui reads the canonical `result._meta.ui.resourceUri` off tool results (and still accepts the deprecated flat `result._meta["ui/resourceUri"]`), so the smallest bridge is to copy the template onto the result by tool name. Build the map once from the tool listing, then stamp it inside each tool's `execute`:
 
@@ -287,7 +319,7 @@ const wrappedTools = Object.fromEntries(
 
 Your `mcp-apps/read-resource` handler reads the `ui://` resource as in the route example above. Set the response `mimeType` to the `text/html;profile=mcp-app` literal that `McpAppResource` expects and keep the server's HTML in `html`; don't forward the raw `text/html+skybridge` value, which the type rejects.
 
-The cleaner long-term fix is upstream: if `@ai-sdk/mcp`'s `getMCPAppToolMeta` also read `openai/outputTemplate`, then `callProviderMetadata.mcp.app` would populate automatically and this bridge would be unnecessary.
+`@ai-sdk/mcp` does not currently read `openai/outputTemplate`. If it includes that pointer in tool metadata, `@assistant-ui/ai-sdk` forwards it through `toolMetadata.app`, and the result metadata bridge is unnecessary.
 
 ## AG-UI integration
 
@@ -391,6 +423,7 @@ McpAppRenderer({
 ## Security notes
 
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
+- Resource CSP metadata is enforced inside the widget document. Preserve `_meta.ui.csp` when adapting `resources/read` responses; omitted or malformed declarations use restrictive defaults.
 - The host route is your auth boundary. Apply session checks, rate limiting, and per-tool allowlists there. The renderer trusts whatever the route returns.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
 - Keep custom `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable custom-host identity keeps the widget in `loadingFallback` while refetching on every parent re-render.
