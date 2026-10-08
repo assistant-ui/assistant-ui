@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { ts } from "ts-morph";
 import { getProject } from "./extract.mts";
-import { REPO_ROOT } from "./paths.mts";
+import { REACT_PKG, REPO_ROOT } from "./paths.mts";
 
 const PACKAGES_DIR = path.join(REPO_ROOT, "packages");
 const PROBE_FILE = path.join(
@@ -72,5 +72,31 @@ describe("workspace package resolution", () => {
 
   it("resolves every workspace import the generator reads to source", () => {
     expect(offenders).toEqual([]);
+  });
+
+  it("reads the public transport defaults without test augmentations", () => {
+    const transport = project.getSourceFileOrThrow(
+      path.join(REACT_PKG, "assistant-transport.ts"),
+    );
+    const command = transport.getTypeAliasOrThrow("AssistantTransportCommand");
+    expect(
+      command
+        .getType()
+        .getUnionTypes()
+        .map((variant) =>
+          variant
+            .getPropertyOrThrow("type")
+            .getTypeAtLocation(command)
+            .getLiteralValue(),
+        )
+        .sort(),
+    ).toEqual(["add-message", "add-tool-result"]);
+
+    const state = transport
+      .getFunctionOrThrow("useAssistantTransportState")
+      .getType()
+      .getCallSignatures()
+      .find((signature) => signature.getParameters().length === 0);
+    expect(state?.getReturnType().getStringIndexType()?.isUnknown()).toBe(true);
   });
 });
