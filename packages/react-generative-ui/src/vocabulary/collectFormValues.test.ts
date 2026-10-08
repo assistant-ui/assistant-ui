@@ -28,6 +28,54 @@ const el = (
 });
 
 describe("collectFormValues", () => {
+  it.each([
+    ["time", "13:45:30.500", "13:45:30.5"],
+    ["time", "13:45:30.000", "13:45:30"],
+    ["datetime-local", "2026-07-16T09:45:30.500", "2026-07-16T09:45:30.5"],
+    ["datetime-local", "2026-07-16T09:45:30.000", "2026-07-16T09:45:30"],
+  ])("collects an edited %s in shortest form", (type, value, expected) => {
+    expect(collectFormValues([el({ name: "when", type, value })])).toEqual({
+      when: expected,
+    });
+  });
+
+  it("retains an untouched instant's offset spelling and precision", () => {
+    const anchor = "2025-12-15T17:00:00.5Z";
+    const displayed = toPickerLocalDateTime(anchor);
+    const getAttribute = (name: string) =>
+      name === FIELD_VALUE_ATTR ? anchor : null;
+    expect(
+      collectFormValues([
+        el({
+          name: "when",
+          type: "datetime-local",
+          value: displayed,
+          getAttribute,
+        }),
+      ]),
+    ).toEqual({ when: "2025-12-15T17:00:00.5Z" });
+    expect(
+      collectFormValues([
+        el({
+          name: "when",
+          type: "datetime-local",
+          value: displayed.replace(".500", ".5"),
+          getAttribute,
+        }),
+      ]),
+    ).toEqual({ when: "2025-12-15T17:00:00.5Z" });
+    expect(
+      collectFormValues([
+        el({
+          name: "when",
+          type: "datetime-local",
+          value: displayed.replace(".500", ".750"),
+          getAttribute,
+        }),
+      ]),
+    ).toEqual({ when: "2025-12-15T17:00:00.75Z" });
+  });
+
   it("uses an instant anchor only for datetime-local controls", () => {
     expect(
       collectFormValues([

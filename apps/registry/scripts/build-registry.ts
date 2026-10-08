@@ -946,33 +946,44 @@ export function expandBundledRegistryDependencies(
   };
 }
 
-export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
+function createFlavorRegistryItem(
+  item: RegistryItem,
+  flavor: UiFlavor,
+): RegistryBuildItem {
   const {
-    baseRegistryDependencies: _,
     registryDependencyUsageExemptions: _usageExemptions,
     radixRegistryDependencies,
+    baseRegistryDependencies,
     radixDependencies,
-    baseDependencies: __,
-    ...radixItem
+    baseDependencies,
+    ...flavorItem
   } = item;
+  const flavorRegistryDependencies =
+    flavor === "radix" ? radixRegistryDependencies : baseRegistryDependencies;
+  const flavorDependencies =
+    flavor === "radix" ? radixDependencies : baseDependencies;
 
   const hasRegistryDependencies =
-    radixItem.registryDependencies !== undefined ||
-    radixRegistryDependencies !== undefined;
+    flavorItem.registryDependencies !== undefined ||
+    flavorRegistryDependencies !== undefined;
 
   const hasDependencies =
-    radixItem.dependencies !== undefined || radixDependencies !== undefined;
+    flavorItem.dependencies !== undefined || flavorDependencies !== undefined;
 
-  let result = radixItem;
+  let result = flavorItem;
 
   if (hasRegistryDependencies) {
     result = {
       ...result,
       registryDependencies: [
-        ...new Set([
-          ...(radixItem.registryDependencies ?? []),
-          ...(radixRegistryDependencies ?? []),
-        ]),
+        ...new Set(
+          [
+            ...(flavorItem.registryDependencies ?? []),
+            ...(flavorRegistryDependencies ?? []),
+          ].map((dependency) =>
+            getFlavorRegistryDependency(dependency, flavor),
+          ),
+        ),
       ],
     };
   }
@@ -984,51 +995,18 @@ export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
     dependencies: [
       ...new Set([
         ...(result.dependencies ?? []),
-        ...(radixDependencies ?? []),
+        ...(flavorDependencies ?? []),
       ]),
     ],
   };
 }
 
+export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
+  return createFlavorRegistryItem(item, "radix");
+}
+
 export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
-  const {
-    baseRegistryDependencies,
-    registryDependencyUsageExemptions: _usageExemptions,
-    radixRegistryDependencies: _,
-    radixDependencies: __,
-    baseDependencies,
-    ...baseItem
-  } = item;
-
-  const hasRegistryDependencies =
-    baseItem.registryDependencies !== undefined ||
-    baseRegistryDependencies !== undefined;
-
-  const hasDependencies =
-    baseItem.dependencies !== undefined || baseDependencies !== undefined;
-
-  let result = baseItem;
-
-  if (hasRegistryDependencies) {
-    const registryDependencies = [
-      ...(baseItem.registryDependencies ?? []),
-      ...(baseRegistryDependencies ?? []),
-    ].map((dependency) => getFlavorRegistryDependency(dependency, "base"));
-
-    result = {
-      ...result,
-      registryDependencies: [...new Set(registryDependencies)],
-    };
-  }
-
-  if (!hasDependencies) return result;
-
-  return {
-    ...result,
-    dependencies: [
-      ...new Set([...(result.dependencies ?? []), ...(baseDependencies ?? [])]),
-    ],
-  };
+  return createFlavorRegistryItem(item, "base");
 }
 
 /**

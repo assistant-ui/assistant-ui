@@ -1,3 +1,4 @@
+import { decodeAbsolutePointer } from "./pointer";
 import {
   A2UI_SURFACE_ID,
   type A2uiOperationResult,
@@ -106,15 +107,6 @@ const upsertComponents = (
   }
 };
 
-const decodePointer = (path: string): string[] | undefined => {
-  if (path === "" || path === "/") return [];
-  if (!path.startsWith("/")) return undefined;
-  return path
-    .slice(1)
-    .split("/")
-    .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
-};
-
 const isArrayIndex = (segment: string): boolean =>
   segment === "0" || /^[1-9]\d*$/.test(segment);
 
@@ -124,7 +116,7 @@ export const setAtPointer = (
   value: unknown,
   nullDeletes: boolean,
 ): { readonly ok: boolean; readonly value: unknown } => {
-  const segments = decodePointer(path);
+  const segments = decodeAbsolutePointer(path);
   if (!segments) return { ok: false, value: model };
   if (segments.length === 0) return { ok: true, value };
 

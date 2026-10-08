@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { globSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { committedRangeChangedFiles } from "./lib/changed-files.mjs";
+import { parseReleaseLine, readChangesetSource } from "./lib/changesets.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { hasOption } from "./lib/script-options.mjs";
-import { readJson } from "./lib/workspace.mjs";
+import { readJson, readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -13,7 +15,6 @@ const repoRoot = path.resolve(
 );
 
 const BUMP_VALUES = new Set(["patch", "minor", "major"]);
-const RELEASE_VALUES = new Set([...BUMP_VALUES, "none"]);
 const TEST_DIRECTORIES = new Set(["__fixtures__", "__tests__", "tests"]);
 const TEST_FILE = /\.(?:bench|spec|test)\.[^/]+$/;
 const RELEASE_REWRITTEN_KEYS = new Set(["version"]);
@@ -26,78 +27,76 @@ const DEPENDENCY_KEYS = new Set([
 const CONSUMER_RUN_SCRIPTS = new Set(["install", "postinstall", "preinstall"]);
 const RELEASE_MANAGED_RANGE = "<release managed>";
 
-export function parseWorkspaceGlobs(source) {
-  const globs = [];
-  let inPackages = false;
-  for (const line of source.split("\n")) {
-    if (/^packages:\s*$/.test(line)) {
-      inPackages = true;
+const visible = (text) =>
+  text.replace(
+    /[^\S ]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+
+function readChangesetReleases(source) {
+  const changeset = readChangesetSource(source);
+  if (!changeset) {
+    return {
+      releases: [],
+      errors: [
+        { name: "---", reason: "opens no frontmatter changesets can find" },
+      ],
+    };
+  }
+  const releases = [];
+  const errors = [];
+  const firstLine = source.slice(0, source.indexOf("---")).split("\n").length;
+  let indent;
+  for (const [index, line] of changeset.frontmatter.split("\n").entries()) {
+    if (/^[ \t]*(?:#.*)?\r?$/.test(line)) continue;
+    const release = parseReleaseLine(line);
+    const lineIndent = line.slice(0, line.length - line.trimStart().length);
+    const reason = !release
+      ? "is not a release changesets can parse"
+      : lineIndent.includes("\t")
+        ? "is indented with a tab, which YAML does not allow"
+        : indent !== undefined && lineIndent !== indent
+          ? "is indented differently from the first release"
+          : undefined;
+    if (reason) {
+      errors.push({
+        name: visible(line.replace(/\r$/, "").replace(/^ +| +$/g, "")),
+        line: firstLine + index,
+        reason,
+      });
       continue;
     }
-    if (!inPackages) continue;
-    if (/^\s*(?:#.*)?$/.test(line)) continue;
-    const entry = line.match(
-      /^\s+-\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/,
-    );
-    if (!entry) break;
-    globs.push(entry[1] ?? entry[2] ?? entry[3]);
+    indent ??= lineIndent;
+    if (releases.some(({ name }) => name === release.name)) {
+      errors.push({
+        name: release.name,
+        line: firstLine + index,
+        reason: "is named twice in one changeset",
+      });
+      continue;
+    }
+    releases.push(release);
   }
-  return globs;
-}
-
-export function parseBumpLine(line) {
-  const release = parseReleaseLine(line);
-  return release && BUMP_VALUES.has(release.bump) ? release : null;
-}
-
-function parseReleaseLine(line) {
-  const entry = line
-    .trim()
-    .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
-  if (!entry) return null;
-  const value = entry[4].match(
-    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))\s*(?:#.*)?$/,
-  );
-  if (!value) return null;
-  const bump = value[1] ?? value[2] ?? value[3];
-  if (!RELEASE_VALUES.has(bump)) return null;
-  return { name: entry[1] ?? entry[2] ?? entry[3], bump };
-}
-
-// A copy of `mdRegex` from `@changesets/parse`, which `changeset version` uses
-// to read a changeset. The checks run in CI without installed dependencies, so
-// they cannot import it; keep the two patterns identical.
-const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
-
-export function readChangesetSource(source) {
-  const match = CHANGESET_SOURCE.exec(source);
-  return match ? { frontmatter: match[1], body: match[2] } : null;
+  return { releases, errors };
 }
 
 export function readWorkspacePackages(root) {
-  const globs = parseWorkspaceGlobs(
-    readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-  );
+  const { globs, manifests } = readWorkspaceManifestEntries(root);
   if (globs.length === 0) {
     throw new Error("pnpm-workspace.yaml declares no `packages:` entries.");
   }
   const byName = new Map();
-  for (const glob of globs) {
-    for (const manifest of globSync(`${glob}/package.json`, {
-      cwd: root,
-    })) {
-      const pkg = readJson(path.join(root, manifest));
-      if (typeof pkg.name !== "string") continue;
-      byName.set(pkg.name, {
-        manifest: manifest.replaceAll("\\", "/"),
-        isPrivate: pkg.private === true,
-        hasVersion: Boolean(pkg.version),
-        releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["."])
-          .filter((entry) => typeof entry === "string")
-          .map((entry) => entry.replace(/^(!?)\.\//, "$1"))
-          .filter(Boolean),
-      });
-    }
+  for (const { manifest, pkg } of manifests) {
+    if (typeof pkg.name !== "string") continue;
+    byName.set(pkg.name, {
+      manifest: manifest.replaceAll("\\", "/"),
+      isPrivate: pkg.private === true,
+      hasVersion: Boolean(pkg.version),
+      releaseFiles: (Array.isArray(pkg.files) ? pkg.files : ["."])
+        .filter((entry) => typeof entry === "string")
+        .map((entry) => entry.replace(/^(!?)\.\//, "$1"))
+        .filter(Boolean),
+    });
   }
   return byName;
 }
@@ -105,19 +104,17 @@ export function readWorkspacePackages(root) {
 function readChangesetBumps(root, files = null) {
   const changesetDir = path.join(root, ".changeset");
   const bumps = [];
+  const errors = [];
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
     if (files && !files.has(file)) continue;
-    const changeset = readChangesetSource(
+    const changeset = readChangesetReleases(
       readFileSync(path.join(changesetDir, file), "utf8"),
     );
-    if (!changeset) continue;
-    for (const line of changeset.frontmatter.split("\n")) {
-      const release = parseReleaseLine(line);
-      if (release) bumps.push({ file, ...release });
-    }
+    for (const release of changeset.releases) bumps.push({ file, ...release });
+    for (const error of changeset.errors) errors.push({ file, ...error });
   }
-  return bumps;
+  return { bumps, errors };
 }
 
 export function readSkipRules(config) {
@@ -304,18 +301,6 @@ function runGit(root, args) {
   });
 }
 
-function listChangedFiles(root, baseSha, headSha) {
-  return runGit(root, [
-    "diff",
-    "--name-only",
-    "--no-renames",
-    "-z",
-    `${baseSha}...${headSha}`,
-  ])
-    .split("\0")
-    .filter(Boolean);
-}
-
 function listTreeFiles(root, ref) {
   return new Set(
     runGit(root, ["ls-tree", "-r", "-z", "--name-only", ref])
@@ -340,8 +325,11 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
   let forkPointFiles;
   let headFiles;
   try {
-    forkPoint = runGit(root, ["merge-base", baseSha, headSha]).trim();
-    changedFiles = listChangedFiles(root, baseSha, headSha);
+    ({ forkPoint, files: changedFiles } = committedRangeChangedFiles(
+      root,
+      baseSha,
+      headSha,
+    ));
     forkPointFiles = listTreeFiles(root, forkPoint);
     headFiles = listTreeFiles(root, headSha);
   } catch (error) {
@@ -365,8 +353,9 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .filter((file) => path.posix.dirname(file) === ".changeset")
       .map((file) => path.posix.basename(file)),
   );
+  const changesets = readChangesetBumps(root, changesetFiles);
   const bumpedNames = new Set(
-    readChangesetBumps(root, changesetFiles)
+    changesets.bumps
       .filter(({ bump }) => BUMP_VALUES.has(bump))
       .map(({ name }) => name),
   );
@@ -406,6 +395,7 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
 
   return {
     changedSourceCount: sourceFiles.length,
+    parseErrors: changesets.errors,
     missingChangesets: [...missing.values()].sort((a, b) =>
       a.name < b.name ? -1 : 1,
     ),
@@ -417,20 +407,35 @@ export function runCheck(root = repoRoot) {
   const rules = readSkipRules(
     readJson(path.join(root, ".changeset", "config.json")),
   );
+  const { bumps, errors } = readChangesetBumps(root);
   return {
     packageCount: packages.size,
-    problems: findUnreleasablePackages(
-      packages,
-      readChangesetBumps(root),
-      rules,
-    ),
+    parseErrors: errors,
+    problems: findUnreleasablePackages(packages, bumps, rules),
   };
 }
 
+function reportParseErrors(parseErrors) {
+  if (parseErrors.length === 0) return;
+  console.error("Changesets that `changeset version` cannot parse:\n");
+  for (const { file, line, name, reason } of parseErrors) {
+    const at = line === undefined ? file : `${file}:${line}`;
+    console.error(`  .changeset/${at}: "${name}" ${reason}`);
+  }
+  console.error(
+    '\nWrite each release as `"<package>": patch` on its own line between `---` fences, with the name quoted, each package once, and every line indented the same way with spaces.',
+  );
+}
+
 function main() {
-  const { packageCount, problems } = runCheck(process.env.CHANGESET_CHECK_ROOT);
+  const { packageCount, parseErrors, problems } = runCheck(
+    process.env.CHANGESET_CHECK_ROOT,
+  );
+
+  reportParseErrors(parseErrors);
 
   if (problems.length > 0) {
+    if (parseErrors.length > 0) console.error("");
     console.error("Changesets name packages that cannot be released:\n");
     for (const { file, name, reason } of problems) {
       console.error(`  .changeset/${file}: "${name}" ${reason}`);
@@ -442,8 +447,9 @@ function main() {
       "so `changeset version` aborts and every release stays blocked until the line is removed.",
     );
     console.error("\nDrop the offending line from the changeset frontmatter.");
-    process.exit(1);
   }
+
+  if (parseErrors.length > 0 || problems.length > 0) process.exit(1);
 
   console.log(
     `All changeset bumps name releasable workspace packages. (${packageCount} packages scanned)`,
@@ -485,7 +491,9 @@ function mainChangedPackages() {
     process.exit(1);
   }
 
+  reportParseErrors(result.parseErrors);
   if (result.missingChangesets.length > 0) {
+    if (result.parseErrors.length > 0) console.error("");
     console.error("Changed published packages without a changeset:\n");
     for (const missing of result.missingChangesets) {
       console.error(describeMissingChangeset(missing));
@@ -493,6 +501,8 @@ function mainChangedPackages() {
     console.error(
       "\nAdd a changeset from this PR that names every changed published package.",
     );
+  }
+  if (result.parseErrors.length > 0 || result.missingChangesets.length > 0) {
     process.exit(1);
   }
 

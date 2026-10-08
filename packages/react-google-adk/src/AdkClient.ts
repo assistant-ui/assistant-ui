@@ -1,7 +1,7 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { contentToParts } from "./contentToParts";
 import { parseAdkEventValue } from "./parseAdkEvent";
-import { raceWithAbortSignal } from "./raceWithAbortSignal";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
@@ -97,7 +97,8 @@ export function createAdkStream(
     } else {
       // Proxy mode: POST in parseAdkRequest-compatible format
       url = options.api;
-      body = messagesToProxyBody(messages, config);
+      const { remoteId, externalId } = await config.initialize();
+      body = messagesToProxyBody(messages, config, externalId ?? remoteId);
     }
 
     const response = await fetch(url, {
@@ -209,8 +210,9 @@ function messagesToProxyBody(
     checkpointId?: string | undefined;
     stateDelta?: Record<string, unknown> | undefined;
   },
+  sessionId: string,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
+  const body: Record<string, unknown> = { sessionId };
 
   if (config.runConfig != null) body.runConfig = config.runConfig;
   if (config.checkpointId != null) body.checkpointId = config.checkpointId;

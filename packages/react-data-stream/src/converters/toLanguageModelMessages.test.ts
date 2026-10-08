@@ -22,6 +22,20 @@ const convertFileData = (data: string) => {
 };
 
 describe("toLanguageModelMessages", () => {
+  it("skips an assistant message without content instead of throwing", () => {
+    expect(
+      toLanguageModelMessages([{ id: "a", role: "assistant" }] as never),
+    ).toEqual([]);
+  });
+
+  it("skips an attachment without content instead of throwing", () => {
+    expect(
+      toLanguageModelMessages([
+        { id: "u", role: "user", content: [], attachments: [{ id: "a" }] },
+      ] as never),
+    ).toEqual([]);
+  });
+
   it("preserves IDs when an earlier message produces no model message", () => {
     const messages: ThreadMessage[] = [
       {
@@ -120,6 +134,46 @@ describe("toLanguageModelMessages", () => {
       type: "file",
       filename: "notes.txt",
     });
+  });
+
+  it("preserves generated files in assistant history", () => {
+    expect(
+      toLanguageModelMessages([
+        {
+          id: "assistant-1",
+          role: "assistant",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          content: [
+            {
+              type: "file",
+              data: "iVBORw0KGgo=",
+              mimeType: "image/png",
+              filename: "generated.png",
+            },
+          ],
+          status: { type: "complete", reason: "stop" },
+          metadata: {
+            unstable_state: {},
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "file",
+            data: "iVBORw0KGgo=",
+            mediaType: "image/png",
+            filename: "generated.png",
+          },
+        ],
+      },
+    ]);
   });
 
   it("omits filename when the part has none", () => {
