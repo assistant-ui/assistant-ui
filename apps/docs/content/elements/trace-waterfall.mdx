@@ -9,12 +9,12 @@ TraceWaterfall lays a run's spans on one shared time axis: a header with the tot
 
 <RuntimeMode>
 
-assistant-ui doesn't model nested spans itself. A message carries its own stream timing, and each tool call carries its own start and completion time, but nothing ties them into a tree deeper than "the message" and "the tool calls inside it." That's enough for a flat, two-level waterfall.
+assistant-ui doesn't model nested spans itself. A message carries its own stream timing, and each tool call and reasoning part can carry its own start and completion time, but nothing ties them into a tree deeper than "the message" and "the parts inside it." That's enough for a flat, two-level waterfall.
 
 <Steps>
   <Step>
 
-### Build spans from the message and its tool calls
+### Build spans from the message and its timed parts
 
 ```tsx title="components/assistant-ui/elements/message-trace.tsx"
 "use client";
@@ -41,12 +41,16 @@ function useMessageTrace(): { spans: TraceSpan[]; totalMs: number } {
     },
   ];
 
-  for (const part of parts) {
-    if (part.type !== "tool-call" || !part.timing) continue;
+  for (const [index, part] of parts.entries()) {
+    if ((part.type !== "tool-call" && part.type !== "reasoning") || !part.timing)
+      continue;
     const streamStart = timing?.streamStartTime ?? part.timing.startedAt;
     spans.push({
-      id: part.toolCallId,
-      name: part.toolName,
+      id:
+        part.type === "tool-call"
+          ? `tool-${part.toolCallId}`
+          : `reasoning-${index}`,
+      name: part.type === "tool-call" ? part.toolName : "reasoning",
       depth: 1,
       startMs: Math.max(0, part.timing.startedAt - streamStart),
       durationMs: part.timing.completedAt
@@ -73,7 +77,7 @@ export function MessageTrace() {
 }
 ```
 
-`useMessageTiming` gives the message-level span; `s.message.parts` gives the tool calls inside it, each carrying its own `timing` and `status`.
+`useMessageTiming` gives the message-level span; `s.message.parts` gives the tool calls and reasoning parts inside it, each carrying its own `timing` and `status`.
 
   </Step>
   <Step>
@@ -194,7 +198,7 @@ A tool call whose status settles as anything other than `"running"` or `"complet
 | Selector | Type | Description |
 |----------|------|-------------|
 | `useMessageTiming()` | `MessageTiming \| undefined` | `streamStartTime` anchors every span's `startMs`; `totalStreamTime` is the message-level span's duration. |
-| `s.message.parts` | `readonly PartState[]` | Filter for `part.type === "tool-call"`. Each carries `part.timing?.startedAt` / `part.timing?.completedAt` and `part.status.type`. |
+| `s.message.parts` | `readonly PartState[]` | Filter for `part.type === "tool-call"` and `part.type === "reasoning"`. Each carries `part.timing?.startedAt` / `part.timing?.completedAt` and `part.status.type`. |
 
 There is no dedicated trace primitive: the depth, id, and status mapping above are yours to write, the way `useMessageTrace` does.
 
@@ -211,6 +215,8 @@ There is no dedicated trace primitive: the depth, id, and status mapping above a
 | `visibleCount` | `number` | required | How many spans from the start of `spans` to render. |
 | `className` | `string` | | Merged onto the root. |
 
+All other `div` props are forwarded to the root.
+
 ### TraceSpan
 
 | Field | Type | Description |
@@ -221,7 +227,5 @@ There is no dedicated trace primitive: the depth, id, and status mapping above a
 | `startMs` | `number` | Position along the axis. |
 | `durationMs` | `number` | Bar width along the axis, and the row's own label. |
 | `status` | `"running" \| "completed" \| "failed"` | Bar color; `"running"` also pulses. |
-
-All other `div` props are forwarded to the root.
 
 </StandaloneMode>

@@ -4,13 +4,9 @@ description: Display suggested starter prompts in your AI chat to onboard users 
 platforms: ["react"]
 ---
 
-Suggestions are pre-defined prompts that help users discover what your assistant can do. They appear in the welcome screen and provide a quick way to start conversations.
+Suggestions are predefined prompts that show users what your assistant can do. They appear on the welcome screen while the thread is empty, and clicking one either fills the composer or sends the message.
 
 <AgentSetup product="guides/suggestions" />
-
-## Overview
-
-The Suggestions API allows you to configure a list of suggested prompts that are displayed when the thread is empty. Users can click on a suggestion to either populate the composer or immediately send the message.
 
 ## Quick Start
 
@@ -88,7 +84,7 @@ The default Thread component from the shadcn registry already includes suggestio
 
 ### Customizing Suggestion Display
 
-If you want to customize how suggestions are displayed, you can modify your Thread component. The idiomatic pattern is to wrap the suggestions in `AuiIf` so they only appear when the thread is empty:
+To customize how suggestions are displayed, edit your Thread component. Wrap the suggestions in `AuiIf` so they only appear when the thread is empty:
 
 ```tsx
 import {
@@ -132,11 +128,11 @@ const SuggestionItem = () => {
 
 ### Dismissal
 
-Suggestions dismiss automatically once the user sends a message because `thread.isEmpty` becomes false. No extra state management is needed. If you want to dismiss suggestions without sending (for example, after a user clicks away), manage a local boolean and combine it with the `AuiIf` condition or a plain conditional render.
+Suggestions dismiss once the user sends a message, because `thread.isEmpty` becomes false. To dismiss them without sending (for example, after a user clicks away), keep a local boolean and combine it with the `AuiIf` condition or a plain conditional render.
 
 ## Suggestion Primitives
 
-The primitives available for rendering suggestions are `ThreadPrimitive.Suggestions`, `ThreadPrimitive.SuggestionByIndex`, `SuggestionPrimitive.Title`, `SuggestionPrimitive.Description`, and `SuggestionPrimitive.Trigger`. `ThreadPrimitive.SuggestionByIndex` is useful when you need layout control over a specific suggestion slot rather than iterating all of them. For the full prop reference and usage patterns, see the [Suggestion primitive docs](/docs/primitives/suggestion).
+The primitives available for rendering suggestions are `ThreadPrimitive.Suggestions`, `ThreadPrimitive.SuggestionByIndex`, `SuggestionPrimitive.Title`, `SuggestionPrimitive.Description`, and `SuggestionPrimitive.Trigger`. Use `ThreadPrimitive.SuggestionByIndex` to place one suggestion slot yourself instead of iterating all of them. For the full prop reference and usage patterns, see the [Suggestion primitive docs](/docs/primitives/suggestion).
 
 ## Runtime driven suggestions
 
@@ -239,6 +235,8 @@ const runtime = useChatRuntime({
 });
 ```
 
+Local, data-stream, and AI SDK runtimes treat a keyless adapter, inline or from `createSuggestionAdapter`, as one logical adapter across rerenders. If changing an adapter's inputs should immediately regenerate suggestions for an already-settled response, pass a `key` that changes with those inputs. Switching between separately created keyless adapters also requires changing the `key`; object or factory identity alone does not select a replacement.
+
 Example route that returns suggestion strings with the AI SDK:
 
 ```ts
@@ -265,7 +263,7 @@ The local runtime clears its suggestions when a new run starts. External store r
 
 ### Rendering runtime suggestions
 
-Runtime suggestions land on `thread.suggestions`, and `ThreadPrimitive.Suggestions` picks them up unless a static `Suggestions(...)` configuration overrides the scope. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line chip layout. For a custom layout, read the array yourself:
+`ThreadPrimitive.Suggestions` renders runtime suggestions unless a static `Suggestions(...)` configuration is set. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line chip layout. For a custom layout, read the array yourself:
 
 ```tsx
 import { useAuiState, ThreadPrimitive, AuiIf } from "@assistant-ui/react";
@@ -291,7 +289,7 @@ function FollowUps() {
 
 ## Reacting to application state
 
-You can dynamically change the static suggestion list based on your application state:
+Compute the static suggestion list from your application state:
 
 ```tsx
 import { useMemo } from "react";
@@ -330,16 +328,14 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 ## Best Practices
 
-1. **Keep suggestions concise**: Use clear, actionable prompts that users can understand at a glance
-2. **Show capabilities**: Use suggestions to highlight your assistant's key features
-3. **Provide variety**: Offer suggestions across different use cases
-4. **Use the object format for complex suggestions**: When you need separate title/description, use the object format
-5. **Limit the number**: 3-6 suggestions work best to avoid overwhelming users
-6. **Make them actionable**: Each suggestion should lead to a meaningful interaction
+- Write short prompts that a user can read at a glance.
+- Cover different use cases so the suggestions show what the assistant can do.
+- Use the object format when the display text should differ from the prompt.
+- Offer three to six suggestions.
 
 ## Switching from `ThreadPrimitive.Suggestion`
 
-If your codebase uses the inline `ThreadPrimitive.Suggestion` component (which renders one suggestion at a time with hardcoded `prompt` / `send` props), you can move to the runtime-driven `Suggestions()` API for centralized configuration. The inline component is still supported, but the runtime-driven approach scales better when suggestions need to update dynamically.
+If your codebase uses the inline `ThreadPrimitive.Suggestion` component (which renders one suggestion at a time with hardcoded `prompt` / `send` props), you can move to the `Suggestions()` API and configure them in one place. The inline component is still supported.
 
 ### Inline form
 
@@ -350,7 +346,7 @@ If your codebase uses the inline `ThreadPrimitive.Suggestion` component (which r
 />
 ```
 
-### Runtime-driven form
+### `Suggestions()` form
 
 1. Configure suggestions in your runtime provider's `config`:
 
@@ -368,11 +364,7 @@ AuiConfig({
 </ThreadPrimitive.Suggestions>
 ```
 
-The new API provides:
-- **Centralized configuration**: Define suggestions once in your runtime provider
-- **Better separation of concerns**: Configuration separate from presentation
-- **Type safety**: Full TypeScript support
-- **Consistency**: Follows the same pattern as the Tools API
+The `Suggestions()` form defines the prompts once in your runtime provider, separate from the components that render them, and follows the same pattern as the Tools API.
 
 ## Related
 

@@ -1,14 +1,23 @@
 declare const process: { env: Record<string, string | undefined> };
 
-import { type RefObject, useMemo, useState } from "react";
+import {
+  type RefObject,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
   RuntimeAdapters,
 } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
-import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
+import {
+  DEFAULT_CLOUD_SCOPE,
+  useScopedAssistantCloudThreadHistoryAdapter,
+} from "./AssistantCloudThreadHistoryAdapter";
+import { createScopedCloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
 import { CORE_SDK } from "./sdkIdentity";
 
@@ -18,28 +27,78 @@ type ThreadData = {
 
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the runtime's first render and change it when that scope
+   * changes. `useCloudThreadListRuntime` reloads the list after the hook
+   * returns a replacement adapter; lower-level
+   * `RemoteThreadList` compositions must call their thread-list `reload()`
+   * method after publishing that replacement. When omitted, replacing the
+   * Cloud client preserves attachment URLs and message mappings for backward
+   * compatibility, but still replaces and reloads the thread-list adapter.
+   * History operations attempted before that reload settles are skipped.
+   */
+  scopeId?: string | undefined;
   sdk?: SdkIdentity | undefined;
 
-  create?: (() => Promise<ThreadData>) | undefined;
+  /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
+  create?: ((threadId: string) => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  /** Creates each cloud thread with `upsert`, so a retried create reuses the thread that already has the external id `create` returned; set it when that id names exactly one conversation. */
+  upsert?: boolean | undefined;
 };
 
 const toCustom = (value: unknown): Record<string, unknown> | undefined =>
   isRecord(value) ? value : undefined;
 
 const baseUrl =
-  typeof process !== "undefined" &&
-  process?.env?.NEXT_PUBLIC_ASSISTANT_BASE_URL;
+  typeof process !== "undefined"
+    ? process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL
+    : undefined;
 export const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
 
+export type CommittedScopeRef = RefObject<unknown> & {
+  update(scope: unknown): void;
+  subscribe(listener: (scope: unknown) => void): () => void;
+};
+
+export const createCommittedScopeRef = (
+  initialScope: unknown,
+): CommittedScopeRef => {
+  let current = initialScope;
+  const listeners = new Set<(scope: unknown) => void>();
+  return {
+    get current() {
+      return current;
+    },
+    update(scope) {
+      if (Object.is(current, scope)) return;
+      current = scope;
+      for (const listener of listeners) listener(scope);
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+};
+
 export const useCloudRuntimeAdapters = (
   cloudRef: RefObject<AssistantCloud>,
+  scopeRef: CommittedScopeRef,
 ): RuntimeAdapters => {
-  const history = useAssistantCloudThreadHistoryAdapter(cloudRef);
-  const [attachments] = useState(
-    () => new CloudFileAttachmentAdapter(() => cloudRef.current),
+  const history = useScopedAssistantCloudThreadHistoryAdapter(
+    cloudRef,
+    scopeRef,
+  );
+  const [attachments] = useState(() =>
+    createScopedCloudFileAttachmentAdapter(
+      () => cloudRef.current,
+      () => scopeRef.current,
+      (listener) => scopeRef.subscribe(listener),
+    ),
   );
   return useMemo(
     () => ({
@@ -87,11 +146,12 @@ const parseListCursor = (after: string | undefined): CloudListCursor => {
  * requiring a hook call site, so plain code (a Vue or Svelte setup function,
  * a module-level config) can construct it. Options are read through the
  * getter on every call, so a stable adapter can follow changing `create` and
- * `delete` callbacks; swapping to a different `cloud` instance requires a new
- * adapter (and `reload()` on the list). Without a `cloud` instance (and
- * without `NEXT_PUBLIC_ASSISTANT_BASE_URL`), the adapter falls back to an
- * in-memory list. `useCloudThreadListAdapter` wraps this for the React
- * hook signature.
+ * `delete` callbacks. Swapping to a different `cloud` instance or `scopeId`
+ * requires a new adapter. The consumer must then reload its remote list as
+ * required by the `RemoteThreadList` adapter replacement contract. Without a
+ * `cloud` instance (and without
+ * `NEXT_PUBLIC_ASSISTANT_BASE_URL`), the adapter falls back to an in-memory
+ * list. `useCloudThreadListAdapter` wraps this for the React hook signature.
  */
 export const createCloudThreadListAdapter = (
   options:
@@ -99,24 +159,30 @@ export const createCloudThreadListAdapter = (
     | (() => CloudThreadListAdapterOptions),
 ): RemoteThreadListAdapter => {
   const getOptions = typeof options === "function" ? options : () => options;
+  const initialOptions = getOptions();
+  const cloud = initialOptions.cloud ?? autoCloud;
+  const scopeId = initialOptions.scopeId;
 
-  const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
-    return useCloudRuntimeAdapters({
-      get current() {
-        return getOptions().cloud ?? autoCloud!;
-      },
-    });
-  };
-
-  const cloud = getOptions().cloud ?? autoCloud;
   if (!cloud) {
     const inMemory = new InMemoryThreadListAdapter();
     inMemory.initialize = async (threadId: string) => {
-      const result = await getOptions().create?.();
+      const result = await getOptions().create?.(threadId);
       return { remoteId: threadId, externalId: result?.externalId };
     };
     return inMemory;
   }
+
+  const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
+    const cloudRef = useRef(cloud);
+    const [scopeRef] = useState(() =>
+      createCommittedScopeRef(scopeId ?? DEFAULT_CLOUD_SCOPE),
+    );
+    useInsertionEffect(() => {
+      cloudRef.current = cloud;
+      scopeRef.update(scopeId ?? DEFAULT_CLOUD_SCOPE);
+    }, [cloud, scopeId, scopeRef]);
+    return useCloudRuntimeAdapters(cloudRef, scopeRef);
+  };
 
   cloud.registerSdk?.(CORE_SDK);
   const sdk = getOptions().sdk;
@@ -178,13 +244,16 @@ export const createCloudThreadListAdapter = (
       };
     },
 
-    initialize: async () => {
-      const createTask = getOptions().create?.() ?? Promise.resolve();
+    initialize: async (threadId) => {
+      const createTask = getOptions().create?.(threadId) ?? Promise.resolve();
       const t = await createTask;
       const external_id = t ? t.externalId : undefined;
       const { thread_id: remoteId } = await cloud.threads.create({
         last_message_at: new Date(),
         external_id,
+        ...(external_id !== undefined && getOptions().upsert
+          ? { upsert: true }
+          : {}),
       });
 
       return { externalId: external_id, remoteId: remoteId };

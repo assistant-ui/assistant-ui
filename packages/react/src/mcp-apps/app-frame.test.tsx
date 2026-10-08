@@ -31,6 +31,44 @@ describe("McpAppFrame", () => {
     cleanup();
   });
 
+  it("enforces the resource CSP before rendering widget HTML", () => {
+    let sandboxProps: SandboxHostProps | undefined;
+    sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
+      sandboxProps = props;
+      return null;
+    });
+
+    render(
+      <McpAppFrame
+        app={{ resourceUri: "ui://example/widget" }}
+        resource={{
+          uri: "ui://example/widget",
+          mimeType: MCP_APP_MIME_TYPE,
+          html: '<!doctype html><script src="https://cdn.example/app.js"></script>',
+          meta: {
+            csp: {
+              connectDomains: ["https://api.example"],
+              resourceDomains: ["https://cdn.example"],
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(sandboxProps?.content.html).toContain(
+      'http-equiv="Content-Security-Policy"',
+    );
+    expect(sandboxProps?.content.html).toContain(
+      "connect-src 'self' https://api.example",
+    );
+    expect(sandboxProps?.content.html).toContain(
+      "script-src 'self' 'unsafe-inline' https://cdn.example",
+    );
+    expect(
+      sandboxProps?.content.html.indexOf("Content-Security-Policy"),
+    ).toBeLessThan(sandboxProps?.content.html.indexOf("<script") ?? 0);
+  });
+
   it("keeps bridge options scoped to committed renders", async () => {
     let committedCreateBridge: SandboxHostProps["createBridge"] | null = null;
     sandboxHostMock.mockImplementation((props: SandboxHostProps) => {

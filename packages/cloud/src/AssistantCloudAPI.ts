@@ -25,6 +25,10 @@ export type AssistantCloudTelemetryConfig = {
    * engagement events.
    */
   events?: boolean;
+  /**
+   * Stores the messages of runtimes whose backend keeps the transcript (LangGraph, LangChain, Google ADK, custom external stores), so the dashboard can show them. Defaults to `true` when telemetry is enabled. Set to `false` to keep run reports and events without storing those messages.
+   */
+  messages?: boolean;
   release?: string;
   environment?: string;
   tags?: string[];
@@ -99,6 +103,7 @@ type MakeRequestOptions = {
 };
 
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+const authGenerations = new WeakMap<AssistantCloudAPI, number>();
 
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
@@ -149,12 +154,20 @@ export class AssistantCloudAPI {
     return !!(await this._auth.getAuthHeaders());
   }
 
+  public invalidateAuth(): void {
+    authGenerations.set(this, (authGenerations.get(this) ?? 0) + 1);
+    this._auth.invalidate();
+  }
+
   public async makeRawRequest(
     endpoint: string,
     options: MakeRequestOptions = {},
   ) {
+    const authGeneration = authGenerations.get(this) ?? 0;
     const authHeaders = await this._auth.getAuthHeaders();
-    if (!authHeaders) throw new Error("Authorization failed");
+    if (authGeneration !== (authGenerations.get(this) ?? 0) || !authHeaders) {
+      throw new Error("Authorization failed");
+    }
 
     const headers = {
       ...authHeaders,
@@ -185,7 +198,9 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    this._auth.readAuthHeaders(response.headers);
+    if (authGeneration === (authGenerations.get(this) ?? 0)) {
+      this._auth.readAuthHeaders(response.headers);
+    }
 
     if (!response.ok) {
       const text = await response.text();

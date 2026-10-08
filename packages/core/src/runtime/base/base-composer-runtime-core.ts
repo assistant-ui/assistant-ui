@@ -249,10 +249,15 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  private async _onClearAttachments() {
+  private _draftUploadsToRemove() {
+    return this._attachments.filter(
+      (a) => !isAttachmentComplete(a) && !this._attachmentSends.isRemoved(a),
+    );
+  }
+
+  private async _onClearAttachments(pending: readonly Attachment[]) {
     const adapter = this.getAttachmentAdapter();
     if (adapter) {
-      const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
       await Promise.all(pending.map(async (a) => adapter.remove(a)));
     }
   }
@@ -282,18 +287,28 @@ export abstract class BaseComposerRuntimeCore
     this._runConfig = {};
     this._quote = undefined;
 
-    const task = this._onClearAttachments();
+    const task = this._onClearAttachments(this._draftUploadsToRemove());
     this._emptyTextAndAttachments();
     await Promise.all([task, discarded]);
   }
 
   public async clearAttachments() {
-    this._cancelAllAttachmentAdds();
+    // A send that detached the draft holds the submission's attachments, so
+    // their uploads keep going for it.
+    this._attachmentAddOperations.cancelAll(
+      this.detachesDraftOnSend
+        ? new Set(
+            this._submission?.attachments.map((attachment) => attachment.id),
+          )
+        : undefined,
+    );
+    // Taken before the marks below, which would read as pending removals.
+    const pending = this._draftUploadsToRemove();
     if (this.isSubmitting) {
       for (const attachment of this._attachments)
         this._attachmentSends.markRemoved(attachment);
     }
-    const task = this._onClearAttachments();
+    const task = this._onClearAttachments(pending);
     this.setAttachments([]);
 
     await task;
@@ -371,7 +386,6 @@ export abstract class BaseComposerRuntimeCore
       // the submission waits for its latest state.
       await Promise.all(uploads);
       if (generation !== this._sendGeneration) return;
-      this._refreshSubmissionAttachments();
     }
 
     const submission = this._submission;
@@ -408,6 +422,11 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
+    if (!submission.text.trim() && finalAttachments.length === 0) {
+      this._endSubmission();
+      this._returnToDraft({ ...submission, attachments: [] });
+      return;
+    }
     this._dispatch(generation, submission, finalAttachments, context, true);
   }
 
@@ -485,16 +504,6 @@ export abstract class BaseComposerRuntimeCore
     this.settleInTransit();
   }
 
-  private _refreshSubmissionAttachments() {
-    const submission = this._submission;
-    if (!submission) return;
-    const attachments = submission.attachments.filter(
-      (attachment) => !this._attachmentSends.isRemoved(attachment),
-    );
-    if (attachments.length === submission.attachments.length) return;
-    this._submission = { ...submission, attachments };
-  }
-
   private _returnSubmissionToDraft(
     sent: readonly Attachment[],
     settled: readonly PromiseSettledResult<CompleteAttachment>[],
@@ -540,6 +549,15 @@ export abstract class BaseComposerRuntimeCore
     this._submissionSend = undefined;
   }
 
+  /** Drops the send being prepared without returning it to the draft, for a thread runtime disposed for good. */
+  public __internal_dispose() {
+    this._cancelAllAttachmentAdds();
+    if (!this._submission) return;
+    this._submissionSend?.controller.abort();
+    this._endSubmission();
+    this._notifySubscribers();
+  }
+
   /**
    * Stops the submission and takes its content back into the draft, merging it
    * ahead of anything written since, so a send is never dropped.
@@ -574,8 +592,10 @@ export abstract class BaseComposerRuntimeCore
           .filter((attachment) => !this._attachmentSends.isRemoved(attachment))
           .map((attachment) => [attachment.id, attachment]),
       );
-      this._attachments = this._attachments.map(
-        (attachment) => returned.get(attachment.id) ?? attachment,
+      this._attachments = this._attachments.map((attachment) =>
+        this._attachmentSends.isRemoved(attachment)
+          ? attachment
+          : (returned.get(attachment.id) ?? attachment),
       );
     }
     this._notifySubscribers();
@@ -599,7 +619,9 @@ export abstract class BaseComposerRuntimeCore
       submission.attachments
         .filter(
           (attachment) =>
-            !isAttachmentComplete(attachment) && !drafted.has(attachment.id),
+            !isAttachmentComplete(attachment) &&
+            !drafted.has(attachment.id) &&
+            !this._attachmentSends.isRemovalPending(attachment),
         )
         .map(async (attachment) => adapter.remove(attachment)),
     );
@@ -886,6 +908,7 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
     const attachment = this._attachments[index]!;
+    if (this._attachmentSends.isRemoved(attachment)) return;
 
     this._cancelAttachmentAdd(attachmentId);
 
@@ -926,6 +949,7 @@ export abstract class BaseComposerRuntimeCore
       (a) => a.id === attachmentId,
     );
     if (!submitted) throw new Error("Attachment not found");
+    if (this._attachmentSends.isRemovalPending(submitted)) return;
 
     this._cancelAttachmentAdd(attachmentId);
     this._attachmentSends.markRemoved(submitted);
@@ -988,6 +1012,7 @@ export abstract class BaseComposerRuntimeCore
 
   private _dictation: DictationState | undefined;
   private _dictationSession: DictationAdapter.Session | undefined;
+  private _stoppingDictationSession: DictationAdapter.Session | undefined;
   private _dictationUnsubscribes: Unsubscribe[] = [];
   private _dictationBaseText = "";
   private _currentInterimText = "";
@@ -1165,6 +1190,8 @@ export abstract class BaseComposerRuntimeCore
     if (!this._dictationSession) return;
 
     const session = this._dictationSession;
+    if (this._stoppingDictationSession === session) return;
+    this._stoppingDictationSession = session;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
     this._stopDictationSession(session, cleanup);
@@ -1211,6 +1238,7 @@ export abstract class BaseComposerRuntimeCore
       const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
+      this._stoppingDictationSession = undefined;
       this._activeDictationSessionId = undefined;
       this._dictation = undefined;
       this._dictationBaseText = "";
