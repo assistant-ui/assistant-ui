@@ -1205,6 +1205,69 @@ describe("createLocalStorageAdapter", () => {
     expect(values.has(pendingDeletionsKey)).toBe(false);
   });
 
+  it("keeps initialize, delete, and list usable with malformed pending deletions", async () => {
+    const pendingDeletionsKey = "@assistant-ui:pending-thread-deletions";
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    for (const malformed of [
+      "{not-json",
+      JSON.stringify({ remoteId: "thread-1", keys: [messagesKey] }),
+      JSON.stringify([{ remoteId: "thread-1", keys: [] }]),
+      JSON.stringify([
+        { remoteId: "orphan", keys: ["@assistant-ui:messages:orphan"] },
+        { remoteId: "thread-1", keys: [42] },
+      ]),
+    ]) {
+      const storage = createStorage({
+        "@assistant-ui:threads": JSON.stringify([
+          { remoteId: "thread-1", status: "regular" },
+        ]),
+        [messagesKey]: JSON.stringify({ messages: [] }),
+        [pendingDeletionsKey]: malformed,
+      });
+      const adapter = createLocalStorageAdapter({ storage });
+
+      await expect(adapter.initialize("thread-2")).resolves.toEqual({
+        remoteId: "thread-2",
+        externalId: undefined,
+      });
+      await expect(adapter.delete("thread-1")).resolves.toBeUndefined();
+      await expect(adapter.list()).resolves.toMatchObject({
+        threads: [{ remoteId: "thread-2", status: "regular" }],
+      });
+      expect(storage.get(messagesKey)).toBeUndefined();
+    }
+  });
+
+  it("retries pending cleanup on a later list with the same adapter", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const pendingDeletionsKey = "@assistant-ui:pending-thread-deletions";
+    const baseStorage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular" },
+      ]),
+      [messagesKey]: JSON.stringify({ messages: [] }),
+    });
+    let failCleanup = true;
+    const storage = {
+      ...baseStorage,
+      removeItem: async (key: string) => {
+        if (key === messagesKey && failCleanup) {
+          throw new Error("Storage unavailable");
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.delete("thread-1")).resolves.toBeUndefined();
+    await expect(adapter.list()).resolves.toEqual({ threads: [] });
+    expect(storage.get(messagesKey)).toBeDefined();
+    failCleanup = false;
+    await expect(adapter.list()).resolves.toEqual({ threads: [] });
+    expect(storage.get(messagesKey)).toBeUndefined();
+    expect(storage.get(pendingDeletionsKey)).toBeUndefined();
+  });
+
   it("lists unrelated threads while pending cleanup keeps failing", async () => {
     const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";

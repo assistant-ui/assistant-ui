@@ -156,14 +156,10 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
 const parsePendingThreadDeletions = (
   raw: string | null,
 ): PendingThreadDeletion[] => {
-  if (raw === null) return [];
-
   const parsed = parseJSON(raw);
-  if (!Array.isArray(parsed)) {
-    throw new Error("Stored thread deletion cleanup is invalid.");
-  }
+  if (!Array.isArray(parsed)) return [];
 
-  return parsed.map((item) => {
+  return parsed.flatMap((item) => {
     if (
       !isRecord(item) ||
       typeof item.remoteId !== "string" ||
@@ -171,10 +167,10 @@ const parsePendingThreadDeletions = (
       item.keys.length === 0 ||
       !item.keys.every((key) => typeof key === "string")
     ) {
-      throw new Error("Stored thread deletion cleanup is invalid.");
+      return [];
     }
 
-    return { remoteId: item.remoteId, keys: item.keys };
+    return [{ remoteId: item.remoteId, keys: item.keys }];
   });
 };
 
@@ -817,7 +813,10 @@ export const createLocalStorageAdapter = (
     let failure: unknown;
     for (const deletion of deletions) {
       if (remoteId !== undefined && deletion.remoteId !== remoteId) continue;
-      if (remoteId === undefined && attemptedDeletions.has(deletion.remoteId))
+      if (
+        remoteId === undefined &&
+        attemptedDeletions.delete(deletion.remoteId)
+      )
         continue;
       try {
         if (deletion.remoteId === messageLockHeldFor) {
