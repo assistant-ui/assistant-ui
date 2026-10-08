@@ -59,7 +59,7 @@ export function SettingsPanel({
       {...props}
     >
       <div className="flex flex-col gap-1.5">
-        <span className={cn(mono, "text-foreground/30")}>model</span>
+        <span className={cn(mono, "text-muted-foreground")}>model</span>
         <div className={cn(field, "flex gap-0.5 rounded-full p-0.5")}>
           {models.map((option) => {
             const className = cn(
@@ -68,8 +68,8 @@ export function SettingsPanel({
               option === model
                 ? "bg-background text-foreground/90"
                 : onModelChange
-                  ? "text-foreground/45 hover:text-foreground/70"
-                  : "text-foreground/45",
+                  ? "text-muted-foreground hover:text-foreground/70"
+                  : "text-muted-foreground",
             );
 
             return onModelChange ? (
@@ -96,7 +96,7 @@ export function SettingsPanel({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className={cn(mono, "text-foreground/30")}>system prompt</span>
+        <span className={cn(mono, "text-muted-foreground")}>system prompt</span>
         <textarea
           value={systemPrompt}
           onChange={(event) => onSystemPromptChange?.(event.target.value)}
@@ -111,8 +111,8 @@ export function SettingsPanel({
 
       <div className="flex flex-col gap-1.5">
         <span className="flex items-baseline justify-between">
-          <span className={cn(mono, "text-foreground/30")}>temperature</span>
-          <span className={cn(mono, "text-foreground/55 tabular-nums")}>
+          <span className={cn(mono, "text-muted-foreground")}>temperature</span>
+          <span className={cn(mono, "text-muted-foreground tabular-nums")}>
             {clamp(temperature, 0, 2).toFixed(1)}
           </span>
         </span>
@@ -135,7 +135,7 @@ export function SettingsPanel({
           <div key={toggle.key} className="flex items-center gap-3">
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-[13px]">{toggle.label}</span>
-              <span className="text-foreground/35 truncate text-xs">
+              <span className="text-muted-foreground truncate text-xs">
                 {toggle.detail}
               </span>
             </span>

@@ -110,13 +110,13 @@ export function ThreadSearch({
       <>
         <span className="flex items-center gap-1.5">
           {thread.pinned && (
-            <PinIcon className="text-foreground/30 size-2.5 shrink-0" />
+            <PinIcon className="text-muted-foreground size-2.5 shrink-0" />
           )}
           <span className="min-w-0 flex-1 truncate text-[13px]">
             {thread.title}
           </span>
         </span>
-        <span className="text-foreground/35 truncate text-xs">
+        <span className="text-muted-foreground truncate text-xs">
           {thread.preview}
         </span>
       </>
@@ -169,7 +169,7 @@ export function ThreadSearch({
           "flex items-center gap-2 rounded-xl px-2.5 py-1.5",
         )}
       >
-        <SearchIcon className="text-foreground/30 size-3.5 shrink-0" />
+        <SearchIcon className="text-muted-foreground size-3.5 shrink-0" />
         <input
           value={query}
           onChange={(event) => onQueryChange?.(event.target.value)}
@@ -185,7 +185,7 @@ export function ThreadSearch({
               ? optionId(activeId)
               : undefined
           }
-          className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+          className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[13px] outline-none"
         />
       </div>
 
@@ -199,7 +199,7 @@ export function ThreadSearch({
           <div role="group" aria-label="Pinned" className="flex flex-col">
             <span
               aria-hidden
-              className={cn(mono, "text-foreground/25 px-2 pb-1")}
+              className={cn(mono, "text-muted-foreground px-2 pb-1")}
             >
               pinned
             </span>
@@ -216,7 +216,7 @@ export function ThreadSearch({
           >
             <span
               aria-hidden
-              className={cn(mono, "text-foreground/25 px-2 pb-1")}
+              className={cn(mono, "text-muted-foreground px-2 pb-1")}
             >
               {group}
             </span>
@@ -230,7 +230,7 @@ export function ThreadSearch({
       {matches.length === 0 && (
         <span
           role="status"
-          className="text-foreground/30 px-2 py-4 text-center text-xs"
+          className="text-muted-foreground px-2 py-4 text-center text-xs"
         >
           No thread matches “{query}”
         </span>

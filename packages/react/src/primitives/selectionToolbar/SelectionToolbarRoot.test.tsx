@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { MouseEvent, ReactNode } from "react";
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as StoreModule from "@assistant-ui/store";
 import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
@@ -282,17 +282,33 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
     expect(frames).toHaveLength(2);
   });
 
-  it("recovers when the window blurs during a drag", () => {
+  it("shows the toolbar when the window blurs during a drag", () => {
     const { frames } = deferFrames();
-    render(<SelectionToolbarPrimitiveRoot />);
+    render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
 
     fireEvent.mouseDown(document);
     fireEvent(document, new Event("selectionchange"));
     expect(frames).toHaveLength(0);
 
     fireEvent.blur(window);
-    fireEvent(document, new Event("selectionchange"));
     expect(frames).toHaveLength(1);
+
+    act(() => frames[0]?.(0));
+
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
+  });
+
+  it("does not reopen a toolbar hidden by scroll on an unrelated window blur", () => {
+    render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
+
+    fireEvent(document, new Event("selectionchange"));
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
+
+    fireEvent.scroll(document);
+    expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+
+    fireEvent.blur(window);
+    expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
   });
 
   it("recovers when a context menu consumes the mouseup of a press", () => {

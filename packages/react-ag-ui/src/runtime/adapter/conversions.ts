@@ -509,7 +509,6 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
       : isObject(value.args) && !Array.isArray(value.args)
         ? (value.args as ReadonlyJSONObject)
         : undefined;
-
   const part: ToolCallPart = {
     type: "tool-call",
     ...(toolCallId !== undefined ? { toolCallId } : {}),

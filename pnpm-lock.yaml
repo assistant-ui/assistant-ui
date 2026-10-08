@@ -4109,6 +4109,12 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      ai:
+        specifier: ^7.0.101
+        version: 7.0.123(zod@4.6.5)
+      ai-v6:
+        specifier: npm:ai@^6.0.277
+        version: ai@6.0.297(zod@4.6.5)
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)
@@ -5717,6 +5723,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1(supports-color@10.2.2)
+      shiki:
+        specifier: ^4.4.3
+        version: 4.4.3
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

@@ -5,8 +5,10 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  deleteThreadReducer,
   LOCAL_THREAD_ID_PREFIX,
   getThreadData,
+  mergeFetchedThread,
   promoteNewThreadReducer,
   reconcileInitializedThread,
   seedNewThread,
@@ -361,5 +363,69 @@ describe("remote thread state", () => {
       expect(deleted.threadIds).toEqual([]);
       expect(deleted.archivedThreadIds).toEqual([]);
     }
+  });
+
+  it("deletes a local thread a stale listing re-minted under its remote id", () => {
+    const draft = initializedDraft();
+    const deleted = updateStatusReducer(draft.state, draft.id, "deleted");
+    const relisted = {
+      ...deleted,
+      ...classifyThreads([{ status: "regular", remoteId: "remote-1" }], {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: deleted.threadIdMap,
+        threadData: deleted.threadData,
+      }),
+    };
+    expect(
+      getThreadData(
+        updateStatusReducer(relisted, draft.id, "deleted"),
+        "remote-1",
+      ),
+    ).toBeDefined();
+
+    const replayed = deleteThreadReducer(relisted, draft.id, "remote-1");
+
+    expect(getThreadData(replayed, "remote-1")).toBeUndefined();
+    expect(replayed.threadIds).toEqual([]);
+  });
+
+  it("refreshes the slot a fetched remote id already resolves to", () => {
+    const draft = initializedDraft();
+
+    const merged = mergeFetchedThread(draft.state, {
+      status: "regular",
+      remoteId: "remote-1",
+      title: "Fetched",
+    });
+
+    expect(Object.keys(merged.threadData)).toEqual([draft.mappingId]);
+    expect(merged.threadIds).toEqual([draft.id]);
+    expect(getThreadData(merged, "remote-1")).toMatchObject({
+      id: draft.id,
+      title: "Fetched",
+    });
+    expectOneSlotPerIdentity(merged);
+  });
+
+  it("appends a fetched thread the state does not know", () => {
+    const listed = {
+      ...createEmptyRemoteThreadState(),
+      ...classifyThreads([{ status: "regular", remoteId: "t1" }], {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: {},
+        threadData: {},
+      }),
+    };
+
+    const merged = mergeFetchedThread(listed, {
+      status: "archived",
+      remoteId: "t9",
+    });
+
+    expect(merged.threadIds).toEqual(["t1"]);
+    expect(merged.archivedThreadIds).toEqual(["t9"]);
+    expect(getThreadData(merged, "t9")?.status).toBe("archived");
   });
 });

@@ -563,6 +563,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 checkpointId = externalId
                   ? await getCheckpointId(externalId, truncated)
                   : null;
+              } catch (error) {
+                if (isCurrent() && reloadLookupRef.current === lookup)
+                  applySnapshot(beforeReload);
+                throw error;
               } finally {
                 if (reloadLookupRef.current === lookup)
                   reloadLookupRef.current = null;
