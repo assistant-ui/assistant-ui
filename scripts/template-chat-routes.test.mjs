@@ -15,6 +15,7 @@ const streamOptions = (file) => {
 
 test("template chat routes pass the request signal to streamText", () => {
   for (const [file, signal] of [
+    ["apps/registry/app/api/chat/route.ts", "req.signal"],
     ["templates/default/app/api/chat/route.ts", "req.signal"],
     ["templates/minimal/app/api/chat/route.ts", "req.signal"],
     ["templates/cloud/app/api/chat/route.ts", "req.signal"],
@@ -31,6 +32,7 @@ test("template chat routes pass the request signal to streamText", () => {
 
 test("frontend tool routes share one tool set with conversion and streaming", () => {
   for (const file of [
+    "apps/registry/app/api/chat/route.ts",
     "templates/default/app/api/chat/route.ts",
     "templates/minimal/app/api/chat/route.ts",
     "templates/cloud/app/api/chat/route.ts",
