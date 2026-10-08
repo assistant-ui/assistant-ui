@@ -1,5 +1,6 @@
 name: Feature request
 description: A new capability, integration, or API for assistant-ui
+type: Feature
 labels: ["enhancement"]
 
 body:

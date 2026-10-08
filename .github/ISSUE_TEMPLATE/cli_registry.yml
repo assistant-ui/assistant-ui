@@ -1,5 +1,6 @@
 name: CLI, registry or template problem
 description: "`npx assistant-ui`, `create-assistant-ui`, `shadcn add` of our components, or a starter template"
+type: Bug
 labels: ["bug", "registry-cli"]
 
 body:

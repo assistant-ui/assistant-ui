@@ -1,5 +1,6 @@
 name: Documentation problem
 description: A docs page is wrong, outdated, missing something, or broken
+type: Task
 labels: ["type/docs"]
 
 body:

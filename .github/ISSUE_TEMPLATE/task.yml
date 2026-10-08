@@ -1,5 +1,6 @@
 name: Task or follow-up
 description: Maintenance, CI, refactors, and follow-ups from review. Mostly for maintainers.
+type: Task
 labels: ["maintenance"]
 
 body:

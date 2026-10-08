@@ -1,12 +1,13 @@
 name: Bug report
 description: Report an issue to help us improve assistant-ui
+type: Bug
 labels: ["bug"]
 
 body:
   - type: markdown
     attributes:
       value: |
-        Install, build and upgrade failures, CLI, registry and template problems, and documentation problems each have their own form.
+        Install, build and upgrade failures, CLI, registry and template problems, and documentation problems each have their own form. Vulnerabilities go to a [private advisory](https://github.com/assistant-ui/assistant-ui/security/advisories/new), never a public issue.
 
   - type: checkboxes
     attributes:

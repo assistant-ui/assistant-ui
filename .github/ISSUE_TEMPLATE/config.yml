@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Security vulnerability
+    url: https://github.com/assistant-ui/assistant-ui/security/advisories/new
+    about: Report privately. Do not open a public issue for a vulnerability.
   - name: Question or help
     url: https://discord.gg/S9dwgCNEFs
     about: Ask questions and get help from the community on Discord.
