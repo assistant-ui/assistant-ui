@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Differential StrictMode parity suite.
  *
