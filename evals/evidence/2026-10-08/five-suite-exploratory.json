@@ -783,9 +783,7 @@
       "datasetVersion": "430b6d3b87ba7b2b",
       "rubricVersion": "b09a6bcabbd17e5c",
       "riskArea": "response-quality",
-      "graders": [
-        "llm-judge"
-      ],
+      "graders": ["llm-judge"],
       "gate": {
         "mode": "report-only",
         "thresholds": {}
@@ -799,9 +797,7 @@
       "datasetVersion": "b33d93b97872539b",
       "rubricVersion": "f0bc157086e1a50a",
       "riskArea": "response-quality",
-      "graders": [
-        "llm-judge"
-      ],
+      "graders": ["llm-judge"],
       "gate": {
         "mode": "report-only",
         "thresholds": {}
@@ -815,9 +811,7 @@
       "datasetVersion": "eb9290279f3d7418",
       "rubricVersion": "b8380f811b7d4d87",
       "riskArea": "response-quality",
-      "graders": [
-        "llm-judge"
-      ],
+      "graders": ["llm-judge"],
       "gate": {
         "mode": "report-only",
         "thresholds": {}
@@ -831,9 +825,7 @@
       "datasetVersion": "94284a321dbe16ca",
       "rubricVersion": "53411f51d635a1aa",
       "riskArea": "response-quality",
-      "graders": [
-        "llm-judge"
-      ],
+      "graders": ["llm-judge"],
       "gate": {
         "mode": "report-only",
         "thresholds": {}
@@ -847,9 +839,7 @@
       "datasetVersion": "1c97e43c8023c6a9",
       "rubricVersion": "ed3a991c702a288f",
       "riskArea": "response-quality",
-      "graders": [
-        "llm-judge"
-      ],
+      "graders": ["llm-judge"],
       "gate": {
         "mode": "report-only",
         "thresholds": {}

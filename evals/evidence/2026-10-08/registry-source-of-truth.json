@@ -223,9 +223,7 @@
       "datasetVersion": "eb9290279f3d7418",
       "rubricVersion": "b8380f811b7d4d87",
       "riskArea": "response-quality",
-      "graders": [
-        "llm-judge"
-      ],
+      "graders": ["llm-judge"],
       "gate": {
         "mode": "report-only",
         "thresholds": {}
