@@ -48,6 +48,8 @@ Pick the issue form that matches what you are reporting. Usage questions go to D
 - Label by what the issue is. `bug` means shipped code misbehaves; documentation, CI, accessibility, performance and refactor work take their own label.
 - State how a bug was found and whether it was reproduced. A finding from reading the source that nobody ran says so.
 - Link the pull request or issue a follow-up came from.
+- Report a vulnerability through a private advisory (see [`SECURITY.md`](./SECURITY.md)), including one a maintainer or an agent finds. Hardening with no exploit path can be a public issue.
+- Do not name, link, or quote anything from a private repository.
 
 ### Opening a pull request
 
