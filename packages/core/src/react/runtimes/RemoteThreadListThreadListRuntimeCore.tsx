@@ -26,6 +26,7 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  deleteThreadReducer,
   getThreadData,
   mergeFetchedThread,
   normalizeCursor,
@@ -433,7 +434,7 @@ export class RemoteThreadListThreadListRuntimeCore
     state: RemoteThreadState,
     adapter: RemoteThreadListAdapter,
     threadId: string,
-    status: "regular" | "archived" | "deleted",
+    status: "regular" | "archived",
   ) {
     if (this._isOtherAdaptersThread(state, adapter, threadId)) return state;
     return updateStatusReducer(state, threadId, status);
@@ -1052,17 +1053,21 @@ export class RemoteThreadListThreadListRuntimeCore
     const messages = currentMessages.length
       ? currentMessages
       : (automaticMessages ?? currentMessages);
+    const isRemoved = () =>
+      getThreadData(this._state.baseValue, data.id) === undefined;
     await runThreadTitleGeneration({
       states: this._titleStates,
       threadId: data.id,
       automatic: options?.automatic === true,
       generate: async (onTitle) => {
+        if (isRemoved()) return;
         const stream = await adapter.generateTitle(remoteId, messages);
         this._requireAdapterGeneration(adapterGeneration);
         await applyTitleStream(stream, onTitle);
       },
       rename: async (title) => {
         this._requireAdapterGeneration(adapterGeneration);
+        if (isRemoved()) return;
         await adapter.rename(remoteId, title);
       },
       applyTitle: async (title) => {
@@ -1341,15 +1346,23 @@ export class RemoteThreadListThreadListRuntimeCore
       await this._ensureThreadIsNotMain(data.id);
     } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
+    let remoteId: string | undefined;
     try {
       await this._state.optimisticUpdate({
         execute: async () => {
-          const { remoteId } = await data.initializeTask;
+          ({ remoteId } = await data.initializeTask);
           this._requireAdapterGeneration(adapterGeneration);
           return await adapter.delete(remoteId);
         },
         optimistic: (state) =>
-          this._updateStatusFromAdapter(state, adapter, data.id, "deleted"),
+          this._isOtherAdaptersThread(state, adapter, data.id)
+            ? state
+            : deleteThreadReducer(
+                state,
+                data.id,
+                // A replacement adapter can list its own thread under this remote id.
+                this._options.adapter === adapter ? remoteId : undefined,
+              ),
       });
     } catch (error) {
       const controlledThreadId = this._options.threadId;

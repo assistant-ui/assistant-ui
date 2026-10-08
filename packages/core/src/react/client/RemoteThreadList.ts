@@ -27,6 +27,7 @@ import {
   applyInitialThreadPage,
   appendThreadPage,
   createEmptyRemoteThreadState,
+  deleteThreadReducer,
   getThreadData,
   mergeFetchedThread,
   reconcileInitializedThread,
@@ -1159,13 +1160,14 @@ const useRemoteThreadList = (
         await ensureNotMain(data.id);
       } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
+      let remoteId: string | undefined;
       const result = await store.optimisticUpdate({
         execute: async () => {
-          const { remoteId } = await data.initializeTask;
+          ({ remoteId } = await data.initializeTask);
           requireAdapterGeneration(adapterGeneration);
           return currentAdapter.delete(remoteId);
         },
-        optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
+        optimistic: (state) => deleteThreadReducer(state, data.id, remoteId),
       });
       await leaveRemovedMainThread(data.id);
       // An adapter swap resets the optimistic layer, and a listed thread's slot
@@ -1214,17 +1216,21 @@ const useRemoteThreadList = (
         return;
       }
       if (!messages) return;
+      const isRemoved = () =>
+        getThreadData(store.baseValue, data.id) === undefined;
       await runThreadTitleGeneration({
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
         generate: async (onTitle) => {
+          if (isRemoved()) return;
           const stream = await currentAdapter.generateTitle(remoteId, messages);
           requireAdapterGeneration(adapterGeneration);
           await applyTitleStream(stream, onTitle);
         },
         rename: async (title) => {
           requireAdapterGeneration(adapterGeneration);
+          if (isRemoved()) return;
           await currentAdapter.rename(remoteId, title);
         },
         applyTitle: async (title) => {
