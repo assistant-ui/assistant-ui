@@ -25,6 +25,7 @@ const createDeferred = () => {
 
 const renderQueue = (
   save: ((state: TestState) => void | Promise<void>) | undefined,
+  { retainDirtyWithoutAdapter = false } = {},
 ) => {
   let snapshot: TestState = {};
   let persistence: PersistenceStatusMap = {};
@@ -43,6 +44,7 @@ const renderQueue = (
       adapterGenerationRef,
       snapshot: () => snapshot,
       updatePersistenceStatus,
+      retainDirtyWithoutAdapter,
     }),
   );
 
@@ -50,6 +52,12 @@ const renderQueue = (
     ...hook,
     replaceScope() {
       adapterGenerationRef.current += 1;
+    },
+    detachAdapter() {
+      adapterRef.current = undefined;
+    },
+    attachAdapter() {
+      adapterRef.current = save ? { save } : undefined;
     },
     setState(id: string, value: number) {
       snapshot = { ...snapshot, [id]: value };
@@ -283,7 +291,7 @@ describe("useInteractablePersistenceQueue", () => {
     expect(save).toHaveBeenCalledTimes(2);
   });
 
-  it("retries a failed id with the next save requested after the failure", async () => {
+  it("clears a failed id when a snapshot queued before the failure saves it", async () => {
     const first = createDeferred();
     const second = createDeferred();
     const firstError = new Error("first save failed");
@@ -310,11 +318,59 @@ describe("useInteractablePersistenceQueue", () => {
     });
 
     first.reject(firstError);
+    await act(flushMicrotasks);
+
+    expect(queue.getStatus()).toEqual({
+      a: { isPending: true, error: undefined },
+      b: { isPending: false, error: firstError },
+    });
+
     second.resolve();
     await act(() => flushPromise);
 
     expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+    expect(queue.getStatus()).toEqual({});
+
+    await act(() => queue.result.current.flush());
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a failed id queued when the snapshot queued before the failure also fails", async () => {
+    const first = createDeferred();
+    const second = createDeferred();
+    const firstError = new Error("first save failed");
+    const secondError = new Error("second save failed");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise)
+      .mockResolvedValue(undefined);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    queue.setState("b", 1);
+    act(() => {
+      queue.result.current.schedulePersistence("a");
+      queue.result.current.schedulePersistence("b");
+    });
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.setState("a", 2);
+    act(() => queue.result.current.schedulePersistence("a"));
+    let flushPromise!: Promise<void>;
+    act(() => {
+      flushPromise = queue.result.current.flush();
+    });
+
+    first.reject(firstError);
+    second.reject(secondError);
+    await act(() => flushPromise);
+
     expect(queue.getStatus()).toEqual({
+      a: { isPending: false, error: secondError },
       b: { isPending: false, error: firstError },
     });
 
@@ -322,6 +378,91 @@ describe("useInteractablePersistenceQueue", () => {
 
     expect(save).toHaveBeenCalledTimes(3);
     expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("keeps a failed id's error when it changed after the snapshot that succeeded", async () => {
+    const first = createDeferred();
+    const second = createDeferred();
+    const firstError = new Error("first save failed");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise)
+      .mockResolvedValue(undefined);
+    const queue = renderQueue(save, { retainDirtyWithoutAdapter: true });
+
+    queue.setState("a", 1);
+    queue.setState("b", 1);
+    act(() => {
+      queue.result.current.schedulePersistence("a");
+      queue.result.current.schedulePersistence("b");
+    });
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.setState("a", 2);
+    act(() => queue.result.current.schedulePersistence("a"));
+    let flushPromise!: Promise<void>;
+    act(() => {
+      flushPromise = queue.result.current.flush();
+    });
+    first.reject(firstError);
+    await act(flushMicrotasks);
+
+    queue.detachAdapter();
+    queue.setState("b", 2);
+    act(() => queue.result.current.schedulePersistence("b"));
+    second.resolve();
+    await act(() => flushPromise);
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+    expect(queue.getStatus()).toEqual({
+      b: { isPending: false, error: firstError },
+    });
+
+    queue.attachAdapter();
+    await act(() => queue.result.current.flush());
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 2 });
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("keeps the failure of a newer edit when an older snapshot succeeds", async () => {
+    const first = createDeferred();
+    const error = new Error("offline");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => first.promise)
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue(undefined);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    queue.setState("b", 1);
+    act(() => {
+      queue.result.current.schedulePersistence("a");
+      queue.result.current.schedulePersistence("b");
+    });
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.setState("b", 2);
+    act(() => queue.result.current.schedulePersistence("b"));
+    let flushPromise!: Promise<void>;
+    act(() => {
+      flushPromise = queue.result.current.flush();
+    });
+    first.resolve();
+    await act(() => flushPromise);
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(queue.getStatus()).toEqual({ b: { isPending: false, error } });
+
+    await act(() => queue.result.current.flush());
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenLastCalledWith({ a: 1, b: 2 });
     expect(queue.getStatus()).toEqual({});
   });
 

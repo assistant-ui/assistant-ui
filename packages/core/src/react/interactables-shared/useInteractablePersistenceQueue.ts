@@ -19,6 +19,8 @@ type PersistenceStatus = {
   error: unknown;
 };
 
+type SyncRecord = { seq: number; adapterGeneration: number };
+
 type PersistenceStatusMap = Record<string, PersistenceStatus>;
 
 type PersistenceStatusUpdater = (
@@ -44,13 +46,11 @@ export const useInteractablePersistenceQueue = <State>({
     undefined,
   );
   const syncSeqRef = useRef(0);
-  const latestSyncByIdRef = useRef(
-    new Map<string, { seq: number; adapterGeneration: number }>(),
-  );
+  const latestSyncByIdRef = useRef(new Map<string, SyncRecord>());
   const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
-  const failedIdsRef = useRef(new Map<string, number>());
+  const failedIdsRef = useRef(new Map<string, SyncRecord>());
 
   type PersistenceBatch = {
     adapter: PersistenceAdapter<State>;
@@ -68,19 +68,44 @@ export const useInteractablePersistenceQueue = <State>({
 
   const takeRetryIds = useCallback(() => {
     const retryIds = new Set<string>();
-    for (const [id, adapterGeneration] of failedIdsRef.current) {
-      if (adapterGeneration === adapterGenerationRef.current) retryIds.add(id);
+    for (const [id, failed] of failedIdsRef.current) {
+      if (failed.adapterGeneration === adapterGenerationRef.current)
+        retryIds.add(id);
     }
     failedIdsRef.current.clear();
     return retryIds;
   }, [adapterGenerationRef]);
 
   const hasRetryWork = useCallback(() => {
-    for (const adapterGeneration of failedIdsRef.current.values()) {
-      if (adapterGeneration === adapterGenerationRef.current) return true;
+    for (const failed of failedIdsRef.current.values()) {
+      if (failed.adapterGeneration === adapterGenerationRef.current)
+        return true;
     }
     return false;
   }, [adapterGenerationRef]);
+
+  /**
+   * A batch's snapshot holds every id, so it persists the current value of an
+   * id that failed in an earlier batch of the same scope and was not edited
+   * since.
+   */
+  const takePersistedFailures = useCallback(
+    ({ seq, adapterGeneration }: SyncRecord) => {
+      const persistedIds: string[] = [];
+      for (const [id, failed] of failedIdsRef.current) {
+        if (
+          failed.adapterGeneration !== adapterGeneration ||
+          failed.seq >= seq ||
+          dirtyIdsRef.current.has(id)
+        )
+          continue;
+        failedIdsRef.current.delete(id);
+        persistedIds.push(id);
+      }
+      return persistedIds;
+    },
+    [],
+  );
 
   const takeDirtyBatch = useCallback(
     (
@@ -152,8 +177,11 @@ export const useInteractablePersistenceQueue = <State>({
         return persistence;
       });
 
-      const settleBatch = (status: PersistenceStatus | undefined) => {
-        const settledIds: string[] = [];
+      const settleBatch = (
+        status: PersistenceStatus | undefined,
+        persistedIds: string[] = [],
+      ) => {
+        const settledIds = [...persistedIds];
         for (const id of [...dirtyIds, ...retryIds]) {
           if (latestSyncByIdRef.current.get(id)?.seq !== seq) continue;
           latestSyncByIdRef.current.delete(id);
@@ -177,7 +205,10 @@ export const useInteractablePersistenceQueue = <State>({
 
       try {
         await adapter.save(payload);
-        settleBatch(undefined);
+        settleBatch(
+          undefined,
+          takePersistedFailures({ seq, adapterGeneration }),
+        );
       } catch (e) {
         const isCurrentScope =
           adapterGenerationRef.current === adapterGeneration;
@@ -189,7 +220,7 @@ export const useInteractablePersistenceQueue = <State>({
         }
         if (isCurrentScope) {
           for (const id of settleBatch({ isPending: false, error: e }))
-            failedIdsRef.current.set(id, adapterGeneration);
+            failedIdsRef.current.set(id, { seq, adapterGeneration });
         } else {
           settleBatch(undefined);
         }
@@ -212,7 +243,13 @@ export const useInteractablePersistenceQueue = <State>({
         }
       }
     },
-    [adapterGenerationRef, adapterRef, takeDirtyBatch, updatePersistenceStatus],
+    [
+      adapterGenerationRef,
+      adapterRef,
+      takeDirtyBatch,
+      takePersistedFailures,
+      updatePersistenceStatus,
+    ],
   );
   runPersistenceRef.current = (nextBatch) => {
     void runPersistence(nextBatch);

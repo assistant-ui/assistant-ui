@@ -700,6 +700,29 @@ describe("Interactables persistence save", () => {
     expect(root.getValue().getState().persistence.prefs).toBeUndefined();
   });
 
+  it("does not retry a failed save into a replacement adapter", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const save = vi.fn().mockRejectedValueOnce(new Error("offline"));
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(root.getValue().getState().persistence.prefs?.error).toBeInstanceOf(
+      Error,
+    );
+
+    const nextSave = vi.fn();
+    root.getValue().setPersistenceAdapter({ save: nextSave });
+    await flushMicrotasks();
+    await root.getValue().flush();
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(nextSave).not.toHaveBeenCalled();
+    expect(root.getValue().getState().persistence.prefs).toBeUndefined();
+  });
+
   it("flush() skips the debounce delay and resolves once the save completed", async () => {
     const save = vi.fn();
     root = mount({ persistence: { save } });
