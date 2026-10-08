@@ -67,7 +67,8 @@ not.
 ## Running
 
 Requires the `claude` CLI on PATH, authenticated. Node 22+ runs the TypeScript
-directly — no install step.
+directly. Install this standalone harness with `npm ci` from `evals/`; it is
+not included in the root pnpm workspace.
 
 ```bash
 cd evals
@@ -78,7 +79,8 @@ CANDIDATES=baseline,describe-now node src/cli.ts   # subset of candidates
 AGENT_MODEL=claude-haiku-4-5 node src/cli.ts # pin the agent model
 ```
 
-Results are printed and written to `results/latest.md`.
+Results are printed and written to `results/latest.md` and
+`.evals_output/live/latest.json` (`eval-report/v1`).
 
 ## Adding a case
 
@@ -86,6 +88,12 @@ Drop a file in `src/cases/` exporting an `EvalCase` and register it in
 `src/cases/index.ts`. A good case has a `task` that tempts the mistake and a
 `rubric` the judge can apply mechanically. Confirm `baseline` fails before
 trusting any candidate that passes.
+
+The five registered cases cover editing a stale review comment, a bug fix,
+fresh utility code, editing registry kit code at its source of truth, and
+packaging an optional host-owned SDK correctly. Specialized guidance is scoped
+to its relevant cases. Treat a newly added case as provisional until a live
+baseline run reproduces the targeted mistake.
 
 ## Layout
 
@@ -99,3 +107,42 @@ src/
   cases/          the scenarios
   cli.ts          entry point
 ```
+
+## Eval dashboard
+
+```bash
+npm run dashboard:lint
+npm run dashboard
+npm run dashboard:serve
+```
+
+Open `http://127.0.0.1:4318/eval-dashboard/` for the generated static report.
+The Markdown matrix remains available for terminal use. To expose the same
+report in the docs app, run `npm run dashboard:docs`, then start the docs app
+normally and visit `/eval-dashboard/`. Generated reports are ignored by Git;
+they are not published automatically.
+
+Each scored trial becomes a row with stable case/candidate/trial identity,
+judge reasoning, artifact evidence, and hashes of the dataset, rubric and
+candidate prompt. Baseline rows expect a behavioral failure; candidate rows
+expect a pass. Execution errors and candidates with no trials always produce
+unmet expectations, including for the baseline.
+
+Suites are report-only because the A/B harness includes competing guidance
+candidates. `npm run dashboard:check` explicitly gates on 100% matched
+expectations and disables the raw pass-rate threshold so expected baseline
+failures are not regressions. Run it on the selected candidates appropriate
+for your policy. The harness does not record tool-call trajectories or token
+usage, and the report makes no claim that it does.
+
+Offline verification, without invoking Claude or a judge:
+
+```bash
+npm test
+npm run typecheck
+npm run dashboard:smoke
+```
+
+The smoke run generates a clearly labelled synthetic report, verifies import,
+lint/report output and expected pass/fail gate exits, and checks HTML escaping.
+It does not measure model quality or replace a live eval run.

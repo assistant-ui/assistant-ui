@@ -23,6 +23,8 @@ export interface Candidate {
   label: string;
   /** Guidance appended to the agent's system prompt. Empty = undirected. */
   prompt: string;
+  /** Restrict specialized guidance to the cases it is intended to test. */
+  caseIds?: string[];
 }
 
 export interface Verdict {

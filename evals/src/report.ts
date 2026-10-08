@@ -3,7 +3,13 @@ import type { CaseResult } from "./types.ts";
 /** Render a pass-rate matrix (candidates × cases) plus baseline evidence. */
 export function renderReport(results: CaseResult[]): string {
   const caseIds = results.map((r) => r.case.id);
-  const labels = results[0]?.variants.map((v) => v.candidate.label) ?? [];
+  const labels = [
+    ...new Set(
+      results.flatMap((result) =>
+        result.variants.map((variant) => variant.candidate.label),
+      ),
+    ),
+  ];
   const labelW = Math.max(9, ...labels.map((l) => l.length));
   const colW = Math.max(8, ...caseIds.map((c) => c.length));
 
@@ -16,7 +22,7 @@ export function renderReport(results: CaseResult[]): string {
   for (const label of labels) {
     const cells = results.map((r) => {
       const v = r.variants.find((x) => x.candidate.label === label);
-      return cell(`${Math.round((v?.passRate ?? 0) * 100)}%`);
+      return cell(v ? `${Math.round(v.passRate * 100)}%` : "—");
     });
     lines.push(`${label.padEnd(labelW)}  ${cells.join("  ")}`);
   }

@@ -455,6 +455,7 @@ const config: NextConfig = {
   ],
   rewrites: async () => ({
     beforeFiles: [
+      { source: "/eval-dashboard", destination: "/eval-dashboard/index.html" },
       ...faviconRewrites,
       ...AGENT_DISCOVERY_REWRITES,
       {

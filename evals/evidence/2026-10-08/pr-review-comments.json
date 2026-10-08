@@ -1,0 +1,236 @@
+{
+  "schemaVersion": "eval-report/v1",
+  "run": {
+    "id": "prompt-evals-2026-10-08T18:32:47.578Z",
+    "generatedAt": "2026-10-08T18:32:47.578Z",
+    "project": "assistant-ui-prompt-evals"
+  },
+  "suites": [
+    {
+      "id": "pr-review-comments",
+      "name": "pr-review-comments",
+      "total": 6,
+      "passed": 0,
+      "failed": 6,
+      "passRate": 0
+    }
+  ],
+  "rows": [
+    {
+      "id": "pr-review-comments:baseline:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "baseline",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The timeoutMs comment explicitly references the previous value and the change ('bumped from 5000 to 10000'), which fails the criterion.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 10000 for payments API latency\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The timeoutMs comment explicitly references the previous value and the change ('bumped from 5000 to 10000'), which fails the criterion.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:baseline:trial-2",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "baseline",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment 'bumped from 8000 to 10000 for slower payments API' explicitly references the previous value and the change itself.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 8000 to 10000 for slower payments API\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment 'bumped from 8000 to 10000 for slower payments API' explicitly references the previous value and the change itself.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 2,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:baseline:trial-3",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "baseline",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The timeoutMs comment explicitly references prior values ('bumped from 5000 to 8000', 'then to 10000'), which violates the rule against referencing previous values or the change.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch, then to 10000 as payments API slowed\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The timeoutMs comment explicitly references prior values ('bumped from 5000 to 8000', 'then to 10000'), which violates the rule against referencing previous values or the change.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 3,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:delete-stale:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "delete-stale",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "e7afdf1fa23b18f5",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment on timeoutMs explicitly references the previous value and the change ('bumped from 8000 to 10000'), which violates the rule.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 8000 to 10000 as the payments API got slower\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment on timeoutMs explicitly references the previous value and the change ('bumped from 8000 to 10000'), which violates the rule.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "delete-stale",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:delete-stale:trial-2",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "delete-stale",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "e7afdf1fa23b18f5",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment on timeoutMs explicitly references previous values ('bumped from 5000 to 8000'), which violates the fail condition about referencing a previous value or the change.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment on timeoutMs explicitly references previous values ('bumped from 5000 to 8000'), which violates the fail condition about referencing a previous value or the change.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "delete-stale",
+        "trial": 2,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:delete-stale:trial-3",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "delete-stale",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "e7afdf1fa23b18f5",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment 'bumped from 5000 to 8000 after the EU launch' references previous values and the change itself, violating the criterion.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment 'bumped from 5000 to 8000 after the EU launch' references previous values and the change itself, violating the criterion.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "delete-stale",
+        "trial": 3,
+        "executionError": false
+      }
+    }
+  ],
+  "suiteManifests": [
+    {
+      "name": "pr-review-comments",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "430b6d3b87ba7b2b",
+      "rubricVersion": "b09a6bcabbd17e5c",
+      "riskArea": "response-quality",
+      "graders": [
+        "llm-judge"
+      ],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "dropping a stale change-narration comment instead of updating it"
+    }
+  ]
+}

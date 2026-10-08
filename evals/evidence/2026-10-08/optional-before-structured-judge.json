@@ -1,0 +1,236 @@
+{
+  "schemaVersion": "eval-report/v1",
+  "run": {
+    "id": "prompt-evals-2026-10-08T18:21:44.434Z",
+    "generatedAt": "2026-10-08T18:21:44.434Z",
+    "project": "assistant-ui-prompt-evals"
+  },
+  "suites": [
+    {
+      "id": "optional-host-sdk-dependency",
+      "name": "optional-host-sdk-dependency",
+      "total": 6,
+      "passed": 2,
+      "failed": 4,
+      "passRate": 0.3333333333333333
+    }
+  ],
+  "rows": [
+    {
+      "id": "optional-host-sdk-dependency:baseline:trial-1",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "baseline",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The lexical peerDependency is pinned to an exact version \"0.38.2\" rather than a non-exact range with a compatible floor, and peerDependenciesMeta.lexical.optional is missing entirely.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \"0.38.2\"\n  },\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  return (\n    typeof value === \"object\" &&\n    value !== null &&\n    \"_editorState\" in value &&\n    \"_rootElement\" in value\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "The lexical peerDependency is pinned to an exact version \"0.38.2\" rather than a non-exact range with a compatible floor, and peerDependenciesMeta.lexical.optional is missing entirely.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:baseline:trial-2",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "baseline",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "invalid judge JSON: {\"pass\": true, \"reason\": \"lexical is 0.38.2 exact in devDependencies, peerDependencies has a compatible ^0.38.2 floor, p",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \"^0.38.2\"\n  },\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  return (\n    value !== null &&\n    typeof value === \"object\" &&\n    typeof (value as Record<string, unknown>).getEditorState === \"function\" &&\n    typeof (value as Record<string, unknown>).update === \"function\" &&\n    typeof (value as Record<string, unknown>).read === \"function\"\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "invalid judge JSON: {\"pass\": true, \"reason\": \"lexical is 0.38.2 exact in devDependencies, peerDependencies has a compatible ^0.38.2 floor, p",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 2,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:baseline:trial-3",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "baseline",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "package.json lacks a peerDependenciesMeta.lexical.optional:true entry, so the peer dependency isn't marked optional.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \"^0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  return value instanceof LexicalEditor;\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "package.json lacks a peerDependenciesMeta.lexical.optional:true entry, so the peer dependency isn't marked optional.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 3,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:optional-host-sdk-peer:trial-1",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "optional-host-sdk-peer",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "b94fc1278d31877f",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "package.json uses an invalid top-level \"peerDependenciesOptional\": true flag instead of the required peerDependenciesMeta.lexical.optional = true.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \">=0.38.2\"\n  },\n  \"peerDependenciesOptional\": true,\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  if (typeof value !== \"object\" || value === null) {\n    return false;\n  }\n\n  const editor = value as Record<string, unknown>;\n  return (\n    typeof editor.getEditorState === \"function\" &&\n    typeof editor.update === \"function\" &&\n    typeof editor.setEditorState === \"function\"\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "package.json uses an invalid top-level \"peerDependenciesOptional\": true flag instead of the required peerDependenciesMeta.lexical.optional = true.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "optional-host-sdk-peer",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:optional-host-sdk-peer:trial-2",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "optional-host-sdk-peer",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "b94fc1278d31877f",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "package.json has exact lexical 0.38.2 devDependency, a peerDependency floor of >=0.38.2 (no higher than 0.38.2), peerDependenciesMeta.lexical.optional true, no lexical in dependencies, and src/lexical.ts exists importing the LexicalEditor type.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \">=0.38.2\"\n  },\n  \"peerDependenciesMeta\": {\n    \"lexical\": {\n      \"optional\": true\n    }\n  },\n  \"devDependencies\": {\n    \"lexical\": \"^0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  if (value == null || typeof value !== \"object\") {\n    return false;\n  }\n\n  return (\n    typeof (value as Record<string, unknown>).getEditorState === \"function\" &&\n    typeof (value as Record<string, unknown>).setEditorState === \"function\" &&\n    typeof (value as Record<string, unknown>).registerUpdateListener ===\n      \"function\"\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "package.json has exact lexical 0.38.2 devDependency, a peerDependency floor of >=0.38.2 (no higher than 0.38.2), peerDependenciesMeta.lexical.optional true, no lexical in dependencies, and src/lexical.ts exists importing the LexicalEditor type.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "optional-host-sdk-peer",
+        "trial": 2,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:optional-host-sdk-peer:trial-3",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "optional-host-sdk-peer",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "b94fc1278d31877f",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "package.json has exact lexical 0.38.2 devDependency, a compatible ^0.38.2 peerDependency, peerDependenciesMeta.lexical.optional true, no lexical in dependencies, and src/lexical.ts exists importing the LexicalEditor type.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \"^0.38.2\"\n  },\n  \"peerDependenciesMeta\": {\n    \"lexical\": {\n      \"optional\": true\n    }\n  },\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  return (\n    typeof value === \"object\" &&\n    value !== null &&\n    \"_editorState\" in value &&\n    \"_rootElement\" in value &&\n    \"setRootElement\" in value &&\n    \"getRootElement\" in value &&\n    \"getEditorState\" in value &&\n    \"setEditorState\" in value &&\n    \"update\" in value\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "package.json has exact lexical 0.38.2 devDependency, a compatible ^0.38.2 peerDependency, peerDependenciesMeta.lexical.optional true, no lexical in dependencies, and src/lexical.ts exists importing the LexicalEditor type.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "optional-host-sdk-peer",
+        "trial": 3,
+        "executionError": false
+      }
+    }
+  ],
+  "suiteManifests": [
+    {
+      "name": "optional-host-sdk-dependency",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "94284a321dbe16ca",
+      "rubricVersion": "53411f51d635a1aa",
+      "riskArea": "response-quality",
+      "graders": [
+        "llm-judge"
+      ],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "packaging an optional host SDK without forcing it on consumers"
+    }
+  ]
+}
