@@ -280,11 +280,16 @@ const scenarios: Scenario[] = [
       log(`render ${count}`);
       useEffect(() => {
         if (count === 0) {
-          setTimeout(() => {
+          // The cleanup matters: without it the strict double effect-mount
+          // schedules two timers, and whether their dispatches batch into one
+          // render is a race between the timer phase and the schedulers.
+          const timer = setTimeout(() => {
             log("timeout");
             setCount(1);
           }, 5);
+          return () => clearTimeout(timer);
         }
+        return undefined;
       }, [count]);
     },
     drive: ({ settle }) => settle(),
