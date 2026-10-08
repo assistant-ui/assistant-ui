@@ -4,9 +4,12 @@ import type {
   SourceProviderMetadata,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
+  MessagePartTiming,
   ToolCallTiming,
   ToolApprovalDisplay,
+  ToolApprovalAnswer,
   ToolApprovalOption,
+  ToolApprovalQuestion,
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
@@ -49,6 +52,8 @@ type AuiV0ToolApproval = {
   readonly options?: readonly ToolApprovalOption[];
   readonly optionId?: string;
   readonly text?: string;
+  readonly questions?: readonly ToolApprovalQuestion[];
+  readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly resolution?: "cancelled" | "expired";
 };
 
@@ -67,6 +72,7 @@ type AuiV0MessagePart =
       readonly id?: string;
       readonly text: string;
       readonly unstable_summary?: string;
+      readonly timing?: MessagePartTiming;
       readonly providerMetadata?: NonNullable<
         ReasoningMessagePart["providerMetadata"]
       >;
@@ -419,6 +425,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
               : undefined),
+            ...(part.timing !== undefined
+              ? { timing: part.timing }
+              : undefined),
             ...(part.providerMetadata !== undefined
               ? { providerMetadata: part.providerMetadata }
               : undefined),
@@ -714,25 +723,6 @@ export function auiV0DecodeSafely(
     );
     return null;
   }
-}
-
-export function auiV0Decode(
-  cloudMessage: CloudMessage & { format: "aui/v0" },
-): ExportedMessageRepositoryItem {
-  const payload = cloudMessage.content as unknown as AuiV0Message;
-  const message = decodeAuiV0Message(
-    {
-      ...payload,
-      id: cloudMessage.id,
-      createdAt: cloudMessage.created_at,
-    },
-    cloudMessage.id,
-  );
-
-  return {
-    parentId: cloudMessage.parent_id,
-    message,
-  };
 }
 
 const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({

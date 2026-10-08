@@ -23,6 +23,7 @@ import {
   type RuntimeAdapters,
 } from "../runtimes/RuntimeAdapterProvider";
 import { RemoteThreadList } from "./RemoteThreadList";
+import { createLocalStorageAdapter } from "../adapters/LocalStorageThreadListAdapter";
 
 const stubComposer = { getState: () => ({}) };
 const stubSuggestions = { getState: () => ({ suggestions: [] }) };
@@ -389,13 +390,10 @@ describe("RemoteThreadList", () => {
     });
     const { handle } = mountList(adapter);
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
-      const state = handle.getClient().threads.getState();
-      expect(state.threadIds).toEqual(["t1"]);
-      expect(state.archivedThreadIds).toEqual(["t2"]);
-      expect(state.isLoading).toBe(false);
-    });
     const state = handle.getClient().threads.getState();
+    expect(state.threadIds).toEqual(["t1"]);
+    expect(state.archivedThreadIds).toEqual(["t2"]);
+    expect(state.isLoading).toBe(false);
     expect(adapter.list).toHaveBeenCalledOnce();
     expect(state.newThreadId).toMatch(/^__LOCALID_/);
     expect(state.mainThreadId).toBe(state.newThreadId);
@@ -877,6 +875,63 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("opens a controlled threadId whose fetch failed once the list loads it", async () => {
+    const list = deferred<{
+      threads: { status: "regular"; remoteId: string; title: string }[];
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const { handle } = mountList(adapter, "t1");
+    await vi.waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
+
+    list.resolve({
+      threads: [{ status: "regular", remoteId: "t1", title: "One" }],
+    });
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    handle.destroy();
+  });
+
+  it("opens a controlled threadId whose fetch failed once a later page loads it", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async (options?: { after?: string }) =>
+        options?.after === "c1"
+          ? {
+              threads: [
+                { status: "regular" as const, remoteId: "t1", title: "One" },
+              ],
+            }
+          : {
+              threads: [
+                { status: "regular" as const, remoteId: "t0", title: "Zero" },
+              ],
+              nextCursor: "c1",
+            },
+      ),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const { handle } = mountList(adapter, "t1");
+    const threads = handle.getClient().threads;
+    await vi.waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
+    await vi.waitFor(() => {
+      expect(threads.getState().threadIds).toEqual(["t0"]);
+    });
+
+    await threads.loadMore();
+    await vi.waitFor(() => {
+      expect(threads.getState().mainThreadId).toBe("t1");
+    });
+    handle.destroy();
+  });
+
   it("keeps the latest switch when an earlier fetch resolves last", async () => {
     const fetchB = deferred<{
       status: "regular";
@@ -1027,6 +1082,62 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps a local thread deleted when history cleanup fails", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const messagesKey = "@assistant-ui:messages:t1";
+    const values = new Map([
+      [threadsKey, JSON.stringify([{ remoteId: "t1", status: "regular" }])],
+      [messagesKey, JSON.stringify({ messages: [] })],
+    ]);
+    const cleanupError = new Error("Storage unavailable");
+    const removeItem = vi.fn(async () => {
+      throw cleanupError;
+    });
+    const adapter = createLocalStorageAdapter({
+      storage: {
+        getItem: async (key) => values.get(key) ?? null,
+        setItem: async (key, value) => {
+          values.set(key, value);
+        },
+        removeItem,
+      },
+    });
+    const onDelete = vi.fn();
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      onDelete,
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const aui = handle.getClient();
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).toContain("t1");
+      });
+
+      await expect(
+        aui.threads.item({ id: "t1" }).delete(),
+      ).resolves.toBeUndefined();
+
+      expect(removeItem).toHaveBeenCalledWith(messagesKey);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("local history cleanup failed"),
+        cleanupError,
+      );
+      expect((await adapter.list()).threads).toEqual([]);
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).not.toContain("t1");
+        expect(onDelete).toHaveBeenCalledWith("t1");
+      });
+    } finally {
+      handle.destroy();
+      warn.mockRestore();
+    }
+  });
+
   const deleteDuringAdapterSwap = async (
     replacementThreads: RemoteThreadMetadata[],
   ) => {
@@ -1146,10 +1257,10 @@ describe("RemoteThreadList", () => {
     const { handle, aui, localId } = await mountRacedInitialize("archived");
 
     await vi.waitFor(() => {
-      expect(aui.threads.getState().threadIds).toEqual([localId]);
+      expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     });
+    expect(aui.threads.getState().threadIds).toEqual([localId]);
     expect(aui.threads.getState().archivedThreadIds).toEqual([]);
-    expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     handle.destroy();
   });
 

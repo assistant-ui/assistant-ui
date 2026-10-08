@@ -3,13 +3,18 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { changedFilesSince } from "./lib/changed-files.mjs";
+import { hasOption, optionArgs, optionValues } from "./lib/script-options.mjs";
+import { apiSurfaceFileName, collectPackages } from "./lib/workspace.mjs";
 
 export const FULL_API_SURFACE_INPUTS = [
   "api-surface",
   "packages/x-buildutils",
   "scripts/generate-api-surface.mjs",
+  "scripts/autofix-install.mjs",
   "scripts/update-api-surface.mjs",
+  "scripts/lib/changed-files.mjs",
+  "scripts/check-api-surface.mjs",
   "scripts/lib/script-options.mjs",
   "scripts/lib/workspace.mjs",
   "package.json",
@@ -17,18 +22,34 @@ export const FULL_API_SURFACE_INPUTS = [
   "pnpm-workspace.yaml",
   "turbo.json",
   ".github/workflows/autofix.yaml",
+  ".github/workflows/code-quality.yaml",
 ];
 
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 
-export function requiresFullApiSurface(changedFiles) {
-  return changedFiles.some((file) =>
-    FULL_API_SURFACE_INPUTS.some((input) => touches(file, input)),
+export function requiresFullApiSurface(changedFiles, packageNames = []) {
+  const knownSnapshots = new Set(
+    packageNames.map((name) => `api-surface/${apiSurfaceFileName(name)}`),
+  );
+  return changedFiles.some(
+    (file) =>
+      !knownSnapshots.has(file) &&
+      FULL_API_SURFACE_INPUTS.some((input) => touches(file, input)),
   );
 }
 
-export function filtersForApiSurfaceChanges(changedFiles, base) {
-  return requiresFullApiSurface(changedFiles) ? [] : [`...[${base}]`];
+export function filtersForApiSurfaceChanges(
+  changedFiles,
+  base,
+  packageNames = [],
+) {
+  if (requiresFullApiSurface(changedFiles, packageNames)) return [];
+
+  const changed = new Set(changedFiles);
+  const snapshotOwners = packageNames.filter((name) =>
+    changed.has(`api-surface/${apiSurfaceFileName(name)}`),
+  );
+  return [`...[${base}]`, ...snapshotOwners.sort()];
 }
 
 export function apiSurfaceCommands(filters) {
@@ -57,22 +78,7 @@ function run(command, args, options = {}) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-function changedFilesSince(base) {
-  const result = spawnSync(
-    "git",
-    ["diff", "--name-only", "--no-renames", "-z", base],
-    { cwd: process.cwd(), encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Unable to determine API surface inputs since ${base}:\n${result.stdout}${result.stderr}`,
-    );
-  }
-  return result.stdout.split("\0").filter((file) => file !== "");
-}
-
-function main() {
-  const args = process.argv.slice(2);
+export function resolveApiSurfaceFilters(args) {
   const bases = optionValues(args, "--base");
   const explicitFilters = optionValues(args, "--filter");
   if (bases.length > 1) throw new Error("Only one --base may be provided.");
@@ -81,9 +87,25 @@ function main() {
   }
 
   const base = bases[0];
-  const filters = base
-    ? filtersForApiSurfaceChanges(changedFilesSince(base), base)
+  return base
+    ? filtersForApiSurfaceChanges(
+        changedFilesSince(base),
+        base,
+        collectPackages(process.cwd(), undefined, (a, b) =>
+          a.localeCompare(b),
+        ).map(({ pkg }) => pkg.name),
+      )
     : explicitFilters;
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const filters = resolveApiSurfaceFilters(args);
+  if (hasOption(args, "--print-filters")) {
+    console.log(JSON.stringify(filters));
+    return;
+  }
+  const base = optionValues(args, "--base")[0];
   if (base) {
     console.log(
       filters.length > 0
@@ -92,7 +114,10 @@ function main() {
     );
   }
 
-  for (const [command, commandArgs] of apiSurfaceCommands(filters)) {
+  const commands = apiSurfaceCommands(filters);
+  for (const [command, commandArgs] of hasOption(args, "--build-only")
+    ? commands.slice(0, 1)
+    : commands) {
     run(command, commandArgs);
   }
 }

@@ -1,0 +1,25 @@
+{
+  "title": "Guides",
+  "description": "Build chat features with the Vue primitives, composables, and runtimes",
+  "icon": "Lightbulb",
+  "root": true,
+  "pages": [
+    "---Concepts---",
+    "architecture",
+    "state",
+    "---Threads---",
+    "thread-list",
+    "---Composer---",
+    "attachments",
+    "suggestions",
+    "---Messages---",
+    "editing",
+    "branching",
+    "markdown",
+    "reasoning",
+    "---Tools---",
+    "tools",
+    "tool-ui",
+    "model-context"
+  ]
+}

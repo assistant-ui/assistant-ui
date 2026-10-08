@@ -1,0 +1,284 @@
+---
+title: Thread list
+description: Let users switch between conversations, start new ones, and archive, rename, or delete old ones.
+---
+
+A thread list needs a runtime that holds more than one thread. `AISDKThreads` does, and `AISDKChat` holds exactly one. Swap the runtime, then render a list from the registry component or from the thread list primitives.
+
+## Use a multi-thread runtime
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+import Thread from "~/components/assistant-ui/thread.vue";
+import ThreadList from "~/components/assistant-ui/thread-list.vue";
+
+const config = AuiConfig({
+  threads: AISDKThreads(),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <div class="flex h-dvh">
+      <aside class="w-64 shrink-0 border-r p-2">
+        <ThreadList />
+      </aside>
+      <Thread class="min-w-0 flex-1" />
+    </div>
+  </AuiProvider>
+</template>
+```
+
+Every thread in the list gets its own AI SDK chat, and each one posts to the same `/api/chat` route as a single chat.
+
+Without the `cloud` option, the list lives in memory. It starts with one thread titled "Main Thread", each new thread is titled "New Thread", and a page reload starts over from a fresh "Main Thread". Only the selected thread is mounted, but a thread you switch away from keeps streaming into its stored history until its run settles. Pass an `AssistantCloud` instance to keep threads across reloads and generate titles; see [Cloud persistence](/docs/vue/cloud).
+
+## Install the registry thread list
+
+The registry ships a styled list built on these primitives:
+
+```sh
+npx shadcn-vue@latest add @assistant-ui/thread-list
+```
+
+`thread-list.vue` has a New Thread button, a search box, a loading skeleton, Today, Yesterday, and Earlier groups based on each thread's last message time, and a per-thread menu with Archive and Delete. The menu uses reka-ui and its open and close animation classes come from `tw-animate-css`. If your stylesheet does not import `tw-animate-css`, the menu opens without the animation.
+
+The registry list has no Load More button, no archived view, and no rename. Build those from the primitives below.
+
+## Build a list from primitives
+
+```vue title="app/components/ThreadList.vue"
+<script setup lang="ts">
+import {
+  AuiIf,
+  ThreadListItemPrimitiveArchive,
+  ThreadListItemPrimitiveDelete,
+  ThreadListItemPrimitiveRoot,
+  ThreadListItemPrimitiveTitle,
+  ThreadListItemPrimitiveTrigger,
+  ThreadListPrimitiveItems,
+  ThreadListPrimitiveLoadMore,
+  ThreadListPrimitiveNew,
+  ThreadListPrimitiveRoot,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <ThreadListPrimitiveRoot class="flex flex-col gap-0.5" role="group" aria-label="Conversations">
+    <ThreadListPrimitiveNew
+      class="hover:bg-muted rounded-md px-2.5 py-1.5 text-left text-sm"
+    >
+      New chat
+    </ThreadListPrimitiveNew>
+    <ThreadListPrimitiveItems>
+      <ThreadListItemPrimitiveRoot
+        class="group hover:bg-muted data-[active=true]:bg-muted flex items-center rounded-md"
+      >
+        <ThreadListItemPrimitiveTrigger
+          class="min-w-0 flex-1 truncate px-2.5 py-1.5 text-left text-sm"
+        >
+          <ThreadListItemPrimitiveTitle fallback="New chat" />
+        </ThreadListItemPrimitiveTrigger>
+        <ThreadListItemPrimitiveArchive
+          class="text-muted-foreground hover:text-foreground px-1.5 text-xs"
+        >
+          Archive
+        </ThreadListItemPrimitiveArchive>
+        <ThreadListItemPrimitiveDelete
+          class="text-muted-foreground hover:text-destructive px-1.5 text-xs"
+        >
+          Delete
+        </ThreadListItemPrimitiveDelete>
+      </ThreadListItemPrimitiveRoot>
+    </ThreadListPrimitiveItems>
+    <AuiIf :condition="(s) => s.threads.hasMore">
+      <ThreadListPrimitiveLoadMore
+        class="text-muted-foreground rounded-md px-2.5 py-1.5 text-left text-sm disabled:opacity-50"
+      >
+        Load more
+      </ThreadListPrimitiveLoadMore>
+    </AuiIf>
+  </ThreadListPrimitiveRoot>
+</template>
+```
+
+`ThreadListPrimitiveItems` repeats its slot once per thread, keyed by thread id, and scopes `s.threadListItem` and `aui.threadListItem` to that thread. Everything in the slot acts on its own thread: the trigger switches to it, and the archive and delete buttons act on it.
+
+The selected thread's item root and trigger carry `data-active="true"` and `aria-current="true"`, so style the selection with a `data-[active=true]:` variant. When each trigger sits in a `ThreadListItemPrimitiveRoot` inside `ThreadListPrimitiveRoot`, ArrowUp and ArrowDown move focus between the triggers.
+
+An in-memory list never has more pages, so `s.threads.hasMore` stays false and the `AuiIf` above keeps Load More hidden. A cloud list loads 20 threads per page.
+
+## Show archived threads
+
+Pass `archived` to iterate archived threads instead of active ones, and give each a way back:
+
+```vue title="app/components/ArchivedThreads.vue"
+<script setup lang="ts">
+import {
+  AuiIf,
+  ThreadListItemPrimitiveDelete,
+  ThreadListItemPrimitiveTitle,
+  ThreadListItemPrimitiveUnarchive,
+  ThreadListPrimitiveItems,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <AuiIf :condition="(s) => s.threads.archivedThreadIds.length > 0">
+    <section aria-label="Archived conversations" class="flex flex-col gap-0.5">
+      <h2 class="text-muted-foreground px-2.5 pt-3 pb-1 text-xs font-medium">
+        Archived
+      </h2>
+      <ThreadListPrimitiveItems archived>
+        <div class="flex items-center gap-1 px-2.5 py-1 text-sm">
+          <span class="min-w-0 flex-1 truncate">
+            <ThreadListItemPrimitiveTitle fallback="Untitled" />
+          </span>
+          <ThreadListItemPrimitiveUnarchive class="text-xs">
+            Restore
+          </ThreadListItemPrimitiveUnarchive>
+          <ThreadListItemPrimitiveDelete class="text-destructive text-xs">
+            Delete
+          </ThreadListItemPrimitiveDelete>
+        </div>
+      </ThreadListPrimitiveItems>
+    </section>
+  </AuiIf>
+</template>
+```
+
+In an in-memory list, deleting the selected thread selects another one, and deleting the last thread starts a fresh one.
+
+## Rename a thread
+
+There is no rename primitive. Call `aui.threadListItem.rename` from a component rendered inside the item slot:
+
+```vue title="app/components/RenameThread.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useAui, useAuiState } from "@assistant-ui/vue";
+
+const aui = useAui();
+const title = useAuiState((s) => s.threadListItem.title ?? "");
+const draft = ref("");
+const editing = ref(false);
+
+const start = () => {
+  draft.value = title.value;
+  editing.value = true;
+};
+
+const save = () => {
+  const next = draft.value.trim();
+  if (next) aui.threadListItem.rename(next);
+  editing.value = false;
+};
+</script>
+
+<template>
+  <form v-if="editing" class="flex-1" @submit.prevent="save">
+    <input
+      v-model="draft"
+      aria-label="Thread title"
+      class="w-full rounded-md border px-2 py-1 text-sm"
+      @keydown.esc="editing = false"
+    />
+  </form>
+  <button v-else type="button" class="text-xs" @click="start">Rename</button>
+</template>
+```
+
+The same scope has `archive()`, `unarchive()`, `delete()`, and `switchTo()`, which is what the primitive buttons call.
+
+## Read and drive the list from code
+
+Outside `ThreadListPrimitiveItems`, `s.threadListItem` is the selected thread, so a header can show its title:
+
+```vue title="app/components/ThreadHeader.vue"
+<script setup lang="ts">
+import { useAuiState } from "@assistant-ui/vue";
+
+const title = useAuiState((s) => s.threadListItem.title || "New chat");
+</script>
+
+<template>
+  <h1 class="truncate text-sm font-medium">{{ title }}</h1>
+</template>
+```
+
+`aui.threads.switchToThread(id)` and `aui.threads.switchToNewThread()` change the selection from code. `s.threads.threadIds`, `s.threads.mainThreadId`, and `s.threads.isLoading` describe the list.
+
+`threads.selectionChanged` fires after every switch, whichever control caused it. This drawer closes itself when the selection changes:
+
+```vue title="app/components/ThreadDrawer.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useAuiEvent } from "@assistant-ui/vue";
+import ThreadList from "./ThreadList.vue";
+
+const open = ref(false);
+
+useAuiEvent("threads.selectionChanged", () => {
+  open.value = false;
+});
+</script>
+
+<template>
+  <button type="button" :aria-expanded="open" @click="open = !open">
+    Conversations
+  </button>
+  <div v-if="open" class="fixed inset-y-0 left-0 z-40 w-64 border-r p-2">
+    <ThreadList />
+  </div>
+</template>
+```
+
+## Order the list yourself
+
+`ThreadListPrimitiveItems` renders threads in list order. To group or filter them, iterate `s.threads.threadIds` yourself and scope each row with `ThreadListItemByIndexProvider`, which is what the registry list does for its date groups:
+
+```vue title="app/components/SortedThreadList.vue"
+<script setup lang="ts">
+import { computed } from "vue";
+import {
+  ThreadListItemByIndexProvider,
+  ThreadListItemPrimitiveTitle,
+  ThreadListItemPrimitiveTrigger,
+  ThreadListPrimitiveRoot,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const threadIds = useAuiState((s) => s.threads.threadIds);
+const items = useAuiState((s) => s.threads.threadItems);
+
+const order = computed(() =>
+  threadIds.value
+    .map((id, index) => ({
+      id,
+      index,
+      title: items.value.find((item) => item.id === id)?.title ?? "",
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title)),
+);
+</script>
+
+<template>
+  <ThreadListPrimitiveRoot class="flex flex-col gap-0.5">
+    <ThreadListItemByIndexProvider
+      v-for="row in order"
+      :key="row.id"
+      :index="row.index"
+    >
+      <ThreadListItemPrimitiveTrigger class="truncate px-2.5 py-1.5 text-left text-sm">
+        <ThreadListItemPrimitiveTitle fallback="New chat" />
+      </ThreadListItemPrimitiveTrigger>
+    </ThreadListItemByIndexProvider>
+  </ThreadListPrimitiveRoot>
+</template>
+```
+
+Key each row by thread id, not by position, so a row keeps its DOM and component state when the order changes. `index` is the thread's position in `s.threads.threadIds`; add `archived` to index into `s.threads.archivedThreadIds`.
+
+The [thread list primitives](/docs/vue/primitives/thread-list) page lists every part and prop.

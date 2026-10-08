@@ -27,7 +27,7 @@ const cloud = new AssistantCloud({
 });
 ```
 
-`AssistantCloud` exposes `threads`, `projects`, `auth.tokens`, `runs`, `files`, `events`, `scores`, `telemetry`, and `registerSdk`. It has no `dispose` method. Call `cloud.events.dispose()` when an event buffer must flush and its listeners must be removed.
+`AssistantCloud` exposes `threads`, `projects`, `auth.tokens`, `auth.invalidate`, `runs`, `files`, `events`, `scores`, `telemetry`, and `registerSdk`. It has no `dispose` method. Call `cloud.events.dispose()` when an event buffer must flush and its listeners must be removed.
 
 | Configuration arm | Fields | Default | Behaviour |
 |---|---|---|---|
@@ -52,7 +52,7 @@ The client chooses an arm in this order: `authToken`, then `apiKey`, then `anony
 
 ### Choose authentication
 
-**JWT.** The client caches a token until it is within 30 seconds of its JWT expiry and shares one pending callback invocation. It sends `Authorization: Bearer <token>`. A null or empty callback result makes the request throw `Authorization failed`. Every response is inspected for an `Authorization: Bearer <token>` header, which refreshes the cache. A response authorization header with another scheme throws `Invalid auth header received`.
+**JWT.** The client caches a token until it is within 30 seconds of its JWT expiry and shares one pending callback invocation. It sends `Authorization: Bearer <token>`. A null or empty callback result makes the request throw `Authorization failed`. Recreate a runtime-backed client when the signed-in user or workspace changes so the runtime also drops the previous session's loaded data. For a client used outside a runtime, call `cloud.auth.invalidate()` before the next request; this clears the cached credential and pending engagement events. Every response is inspected for an `Authorization: Bearer <token>` header, which refreshes the cache only when it belongs to the request's current identity. A response authorization header with another scheme throws `Invalid auth header received`.
 
 **API key.** The client does no token caching or network work. Every request sends `Authorization: Bearer <apiKey>`, `Aui-User-Id: <userId>`, and `Aui-Workspace-Id: <workspaceId>`.
 
@@ -186,6 +186,7 @@ await cloud.scores.create({
 | `cloud.events.track` | `(event: AssistantCloudEvent) => void` | `POST /events` | Never surfaces delivery failures. |
 | `cloud.events.dispose` | `() => void` | `POST /events` when buffered | Never surfaces delivery failures. |
 | `cloud.auth.tokens.create` | `() => Promise<{ token: string }>` | `POST /auth/tokens` | Both. |
+| `cloud.auth.invalidate` | `() => void` | None | Clears cached authentication and pending engagement events. |
 | `cloud.projects.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /projects/threads` | Both. |
 | `cloud.projects.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /projects/threads/{threadId}/messages` | Both. |
 
