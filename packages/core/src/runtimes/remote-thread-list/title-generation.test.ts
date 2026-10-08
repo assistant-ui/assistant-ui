@@ -210,6 +210,52 @@ describe("runThreadTitleGeneration", () => {
     expect(states.size).toBe(0);
   });
 
+  it("ends the runs on a thread whose title state is cleared", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const applied: (string | undefined)[] = [];
+    const rename = vi.fn(noop);
+    const streamOpen = deferred<void>();
+    const applyTitle = async (title: string | undefined) => {
+      applied.push(title);
+    };
+
+    const streaming = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: async (onTitle) => {
+        await streamOpen.promise;
+        await onTitle("Generated");
+      },
+      rename,
+      applyTitle,
+    });
+    await flushMicrotasks();
+    const renamed = startThreadTitleRename(states, "t1", "Manual");
+    finishThreadTitleRename(states, "t1", renamed, true);
+
+    const waitingGenerate = vi.fn(noop);
+    const pending = startThreadTitleRename(states, "t2", "Manual");
+    const waiting = runThreadTitleGeneration({
+      states,
+      threadId: "t2",
+      automatic: false,
+      generate: waitingGenerate,
+      rename,
+      applyTitle,
+    });
+
+    clearThreadTitleState(states, "t1");
+    clearThreadTitleState(states, "t2");
+    streamOpen.resolve();
+    finishThreadTitleRename(states, "t2", pending, true);
+    await Promise.all([streaming, waiting]);
+
+    expect(waitingGenerate).not.toHaveBeenCalled();
+    expect(rename).not.toHaveBeenCalled();
+    expect(applied).toEqual([]);
+  });
+
   it("lets an explicit generation supersede an in-flight automatic one", async () => {
     const states = new Map<string, ThreadTitleState>();
     const applied: (string | undefined)[] = [];

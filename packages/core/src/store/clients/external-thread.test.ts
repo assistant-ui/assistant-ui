@@ -54,6 +54,22 @@ const createPart = (
   };
 };
 
+describe("ExternalThread send policy", () => {
+  it("projects isSendDisabled onto thread state", () => {
+    const root = createTapRoot(function ExternalThreadRoot() {
+      return useResource(
+        ExternalThread({ messages: [], isSendDisabled: true }),
+      );
+    });
+
+    try {
+      expect(root.getValue().getState().isSendDisabled).toBe(true);
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
 describe("ExternalThread interaction recording", () => {
   it("keeps a part client with its id when parts swap", () => {
     const initial: ExternalThreadMessage = {

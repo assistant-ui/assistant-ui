@@ -254,6 +254,95 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     await waitForRemoteThread(runtimeRef, "thread-a");
   });
 
+  it("keeps a later draft switch when a replacement list loads", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [makeThreadMetadata("thread-a")] })),
+    });
+    const replacementList = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const replacement = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+    const onThreadIdChange = vi.fn();
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={replacement}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(replacement.list).toHaveBeenCalledTimes(1));
+    await act(() => runtimeRef.current!.threads.switchToNewThread());
+    expect(
+      runtimeRef.current!.threads.mainItem.getState().remoteId,
+    ).toBeUndefined();
+
+    await act(async () => {
+      replacementList.resolve({ threads: [makeThreadMetadata("thread-a")] });
+    });
+    await waitFor(() => {
+      expect(
+        runtimeRef.current!.threads.mainItem.getState().remoteId,
+      ).toBeUndefined();
+    });
+  });
+
+  it("opens a controlled thread changed while a replacement list is pending", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [makeThreadMetadata("thread-a")] })),
+    });
+    const replacementList = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const replacement = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+    const onThreadIdChange = vi.fn();
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={replacement}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(replacement.list).toHaveBeenCalledTimes(1));
+    rerender(
+      <ControlledRuntime
+        adapter={replacement}
+        threadId="thread-b"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await act(async () => {
+      replacementList.resolve({ threads: [makeThreadMetadata("thread-b")] });
+    });
+    await waitForRemoteThread(runtimeRef, "thread-b");
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("keeps a later switch when the list loads a controlled thread whose fetch failed", async () => {
     const list = deferred<{ threads: RemoteThreadMetadata[] }>();
     const adapter = makeAdapter({
