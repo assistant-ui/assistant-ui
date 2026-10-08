@@ -47,32 +47,37 @@ Open an issue before a non-trivial feature pull request, so a maintainer can con
 - Keep one concern per pull request, so each one can be reviewed, approved, and reverted on its own.
 - Attach a minimal reproduction to every bug report and fix: a repository, a sandbox, or a snippet on the exact version. An issue or pull request whose behavior a maintainer cannot reproduce is closed.
 - Do not add an example app that duplicates one in `examples/`. A new example belongs in a repository of your own unless a maintainer asked for it here.
-- Title the pull request `<type>(<scope>): <observable outcome>`, for example `fix(react): preserve message status when switching threads` or `feat: expose runtime metadata mutation`. Omit the scope when no package or surface name improves the title, and put trade-offs and divergences in the body.
-- Write the description yourself, before any automated summary, so a reviewer can judge the change without reverse-engineering the diff; a bot-generated summary or badge is not a description. Use this shape and omit the sections that do not apply:
-
-```md
-## Problem
-
-Describe the user-visible failure or missing capability. Bug fixes include the minimal reproduction and affected version.
-
-## Root cause
-
-Explain the mechanism that produced the behavior.
-
-## Change
-
-Explain the implementation, why it follows the existing architecture, and any intentional runtime or provider differences.
-
-## Verification
-
-List exact focused tests and checks. For a bug, confirm the reproduction fails without the fix and passes with it.
-
-## Public surface
-
-List affected packages, exports, documentation, API-reference output, templates, and changesets, or state `None`.
-```
+- Title the pull request `<type>(<scope>): <observable outcome>`, for example `fix(react): preserve message status when switching threads` or `feat: expose runtime metadata mutation`. Omit the scope when no package or surface name improves the title, and put trade-offs and divergences in the body. The type is one of `fix`, `feat`, `docs`, `test`, `perf`, `refactor`, `chore`, `ci`, `build` or `revert`.
+- Write the description yourself in the sections of `.github/pull_request_template.md`, before any automated summary, so a reviewer can judge the change without reverse-engineering the diff; a bot-generated summary or badge is not a description. Omit the sections that do not apply, and keep long analysis in the linked issue.
 
 Maintainers add the `preview` label to a ready pull request to publish installable package previews through pkg.pr.new. Every later push updates them while the label stays, and a draft publishes nothing until it is marked ready.
+
+### Review policy
+
+Every pull request gets a tier from T0 to T3, and the `review-tier` check reports the tier, the reasons for it, and what the merge still needs. `.github/review-policy.json` holds the areas, their owner teams and the thresholds; `.github/CODEOWNERS` and the branch rulesets are generated from it by `scripts/sync-review-policy.mjs`.
+
+| Tier | Triggered by | Needs before merge |
+| --- | --- | --- |
+| T0 | Only `apps/`, `examples/`, `templates/`, Markdown outside contract areas, changeset text, or new tests outside contract areas | Nothing more when a maintainer authored it; otherwise 1 approval from a maintainer or a member of the `reviewers` team |
+| T1 | Package code outside contract areas that changes no public API or documented behavior | 1 approval from a maintainer or a member of the `reviewers` team; 2, including a maintainer, when the author is neither |
+| T2 | A contract area (`packages/tap`, `packages/store`, `packages/assistant-stream`, `api-surface/`, `.github/`, the policy scripts, the tap and store docs), added or changed public exports, a changed `exports` map or manifest contract field, or a new `@deprecated` | 2 maintainer approvals, at least 1 from an owner of each affected area, and 24 hours open after ready for review |
+| T3 | A `behavior-change` label, a removed or renamed export or entry point, a new package or subpath, a new runtime dependency or upstream major, a cross-package refactor, CI permissions, secrets or release workflows, or this policy | T2's approvals, a linked issue labeled `decision: accepted` by an owner of the affected area, and 72 hours open after ready for review |
+
+- Approvals count only on the current head, and only from someone other than the author and the person who pushed the last commit. Autofix commits do not reset them.
+- Size never lowers a tier. A T2 or T3 pull request over 400 changed lines of non-test, non-generated source lands as a stack of smaller pull requests.
+- The title type is a claim the check verifies: `fix` carries a regression test, `feat` links an issue where a maintainer confirmed the direction, `refactor` leaves `api-surface/`, `exports` maps and existing test assertions unchanged, and `perf` attaches x-performance numbers.
+- An owner of the affected area may add `review-tier/override: size`, `review-tier/override: type` or `review-tier/override: window`, with a comment giving the reason. An override waives that one signal on the current head and never lowers the approvals a tier needs.
+- Only organization owners can bypass the rulesets, and only for their own pull requests. The weekly review health issue lists every bypass and override.
+- Any maintainer may open a revert, without discussion, of a pull request merged within 7 days that broke `main`, skipped this policy, or drew an owner's objection. The revert is reviewed at its own tier.
+- Pull requests merge through the merge queue with auto-merge, which tests the merged result before it lands.
+- Maintainers aim to give outside pull requests a first response within 2 business days.
+
+#### AI-assisted contributions
+
+- State in the pull request which tools wrote or changed code and how you verified the result. You must be able to explain every line; a pull request its author cannot explain is closed without review.
+- Bots open draft pull requests only. A maintainer who adopts a bot draft becomes its accountable author.
+- Contributors without write access can have 3 pull requests open at a time. Contributors with write access who are not maintainers keep at most 5 non-draft pull requests awaiting review.
+- Rebase only to resolve a conflict; the merge queue tests every pull request against the latest `main`.
 
 ### Adding a changeset
 
