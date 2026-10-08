@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -169,6 +176,24 @@ test("isolated package tests do not deploy examples, but production and source i
       ]),
     ),
     ["with-react-ink-web"],
+  );
+});
+
+test("deleted shared package inputs still select both deployments", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "aui-deploy-inputs-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "packages"));
+  for (const example of ["with-expo", "with-react-ink-web"]) {
+    const dir = path.join(root, "examples", example);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ name: example }),
+    );
+  }
+  assert.deepEqual(
+    examplesOf(planDeploys(root, ["packages/x-buildutils/package.json"])),
+    ["with-expo", "with-react-ink-web"],
   );
 });
 

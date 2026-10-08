@@ -112,6 +112,7 @@ export function planDeploys(repoRoot, changedFiles) {
           if (files.length === 0) return false;
           if (
             !input.startsWith("packages/") ||
+            SHARED_INPUTS.includes(input) ||
             EXAMPLES[example].extraInputs.includes(input)
           )
             return true;
