@@ -460,6 +460,8 @@ The `createMessageQueue` helper owns the two-lane ordering and the in-flight gua
 
 The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue also logs rejected dispatches.
 
+Call `notifyBusy()` synchronously before committing a message or starting work that can fail. A busy notification from a later React effect can arrive after a fast failure and is too late to establish that the message was already accepted. After accepting a message, the driver owns failure handling and must eventually report `notifyIdle()` when that run settles.
+
 A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors: unknown ids or anchors throw instead of being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
 
 ```tsx
