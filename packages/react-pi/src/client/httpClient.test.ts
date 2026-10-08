@@ -576,6 +576,78 @@ describe("createPiHttpClient", () => {
     ).resolves.toEqual(event);
   });
 
+  it("delivers an oversized snapshot failure to a pending listener", async () => {
+    const oversizedSnapshot = `data: ${JSON.stringify({ ...snapshotAt(1), padding: "x".repeat(2048) })}\n\n`;
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(oversizedSnapshot, {
+          headers: { "content-type": "text/event-stream" },
+        }),
+    ) as unknown as typeof fetch;
+    const reconnectDelay = vi.fn(() => Promise.resolve());
+    const client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      maxStreamLineLength: 1024,
+    });
+    const events: PiAnyClientEvent[] = [];
+    const unsubscribe = client.subscribe("t1", (event) => events.push(event));
+    const otherEvents: PiAnyClientEvent[] = [];
+    const unsubscribeOther = client.subscribe("t1", (event) =>
+      otherEvents.push(event),
+    );
+
+    await vi.waitFor(() =>
+      expect(events).toEqual([
+        expect.objectContaining({
+          type: "error",
+          threadId: "t1",
+          seq: 0,
+          error: expect.stringContaining("SSE line exceeds maxLineLength"),
+        }),
+      ]),
+    );
+    expect(otherEvents).toEqual(events);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(reconnectDelay).not.toHaveBeenCalled();
+    unsubscribe();
+    unsubscribeOther();
+  });
+
+  it("opens a fresh shared stream after an oversized snapshot failure", async () => {
+    const oversizedSnapshot = `data: ${JSON.stringify({ ...snapshotAt(1), padding: "x".repeat(2048) })}\n\n`;
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(oversizedSnapshot, {
+          headers: { "content-type": "text/event-stream" },
+        }),
+      )
+      .mockImplementation(async () =>
+        sseResponse(snapshotAt(1), { keepOpen: true }),
+      ) as unknown as typeof fetch;
+    const client = createPiHttpClient({
+      fetchImpl,
+      maxStreamLineLength: 1024,
+      streamCloseDelayMs: 60_000,
+    });
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) =>
+      firstEvents.push(event),
+    );
+    await vi.waitFor(() => expect(firstEvents[0]?.type).toBe("error"));
+
+    const laterEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLater = client.subscribe("t1", (event) =>
+      laterEvents.push(event),
+    );
+    await vi.waitFor(() => expect(laterEvents).toEqual([snapshotAt(1)]));
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    unsubscribeFirst();
+    unsubscribeLater();
+  });
+
   it("reconnects promptly when a listener joins during backoff", async () => {
     let finishBackoff!: () => void;
     const reconnectDelay = vi.fn(
