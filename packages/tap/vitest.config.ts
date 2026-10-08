@@ -21,7 +21,7 @@ export default defineConfig({
       {
         test: {
           name: "dev",
-          environment: "jsdom",
+          environment: "node",
           include: ["src/**/*.test.{ts,tsx}"],
           globals: true,
         },

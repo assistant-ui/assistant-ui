@@ -10,6 +10,12 @@ export const PERSISTENCE_DEBOUNCE_MS = 500;
  */
 export const FLUSH_LOAD_TIMEOUT_MS = 5_000;
 
+/**
+ * `save` has no settling contract either, so a load waiting on earlier saves
+ * to the same adapter stops waiting here and hands the unsettled batches back.
+ */
+export const SAVE_WAIT_TIMEOUT_MS = 5_000;
+
 type PersistenceAdapter<State> = {
   save(state: State): void | Promise<void>;
 };
@@ -59,9 +65,13 @@ export const useInteractablePersistenceQueue = <State>({
     retryIds: Set<string>;
     seq: number;
     adapterGeneration: number;
+    saved: boolean;
+    settled: Promise<void>;
+    settle: () => void;
   };
 
   const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
+  const unsettledBatchesRef = useRef(new Set<PersistenceBatch>());
   const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(
     () => {},
   );
@@ -138,14 +148,23 @@ export const useInteractablePersistenceQueue = <State>({
       const adapterGeneration = adapterGenerationRef.current;
       for (const id of [...dirtyIds, ...retryIds])
         latestSyncByIdRef.current.set(id, { seq, adapterGeneration });
-      return {
+      let settle!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      const batch: PersistenceBatch = {
         adapter,
         adapterGeneration,
         payload: snapshot(),
         dirtyIds,
         retryIds,
         seq,
+        saved: false,
+        settled,
+        settle,
       };
+      unsettledBatchesRef.current.add(batch);
+      return batch;
     },
     [adapterGenerationRef, hasRetryWork, snapshot, takeRetryIds],
   );
@@ -161,13 +180,14 @@ export const useInteractablePersistenceQueue = <State>({
       batch = outgoingQueueRef.current.shift()
     ) {
       const { seq } = batch;
-      const retryIds = new Set(
+      batch.retryIds = new Set(
         [...batch.retryIds].filter(
           (id) => latestSyncByIdRef.current.get(id)?.seq === seq,
         ),
       );
-      if (batch.dirtyIds.size > 0 || retryIds.size > 0)
-        return { ...batch, retryIds };
+      if (batch.dirtyIds.size > 0 || batch.retryIds.size > 0) return batch;
+      unsettledBatchesRef.current.delete(batch);
+      batch.settle();
     }
     return undefined;
   }, []);
@@ -243,6 +263,7 @@ export const useInteractablePersistenceQueue = <State>({
 
       try {
         await adapter.save(payload);
+        resolved.saved = true;
         settleBatch(
           undefined,
           takePersistedFailures({ seq, adapterGeneration }),
@@ -263,6 +284,8 @@ export const useInteractablePersistenceQueue = <State>({
           settleBatch(undefined);
         }
       } finally {
+        unsettledBatchesRef.current.delete(resolved);
+        resolved.settle();
         inFlightPersistenceRef.current -= 1;
         const next =
           takeQueuedBatch() ??
@@ -369,6 +392,42 @@ export const useInteractablePersistenceQueue = <State>({
     return p;
   }, [adapterRef, enqueuePersistence, hasRetryWork]);
 
+  const waitForAdapterSaves = useCallback(
+    async (adapter: PersistenceAdapter<State>) => {
+      const batches = [...unsettledBatchesRef.current].filter(
+        (batch) => batch.adapter === adapter,
+      );
+      if (batches.length === 0) return [];
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          Promise.all(batches.map((batch) => batch.settled)),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, SAVE_WAIT_TIMEOUT_MS);
+          }),
+        ]);
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
+      const latestSavedSeq = batches.reduce(
+        (latest, batch) => (batch.saved ? Math.max(latest, batch.seq) : latest),
+        0,
+      );
+      const latestBatchById = new Map<string, PersistenceBatch>();
+      for (const batch of batches) {
+        for (const id of batch.dirtyIds) latestBatchById.set(id, batch);
+      }
+      return batches.flatMap((batch) => {
+        if (batch.saved || batch.seq <= latestSavedSeq) return [];
+        const dirtyIds = new Set(
+          [...batch.dirtyIds].filter((id) => latestBatchById.get(id) === batch),
+        );
+        return dirtyIds.size > 0 ? [{ payload: batch.payload, dirtyIds }] : [];
+      });
+    },
+    [],
+  );
+
   return {
     discardPending,
     flushIfPending,
@@ -376,5 +435,6 @@ export const useInteractablePersistenceQueue = <State>({
     isSaving,
     schedulePersistence,
     flush,
+    waitForAdapterSaves,
   };
 };

@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { cleanup, render } from "@testing-library/react";
 import {
   StrictMode,
