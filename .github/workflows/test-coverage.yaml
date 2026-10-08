@@ -5,36 +5,36 @@ on:
     branches: [main]
     paths:
       - "packages/**"
-      - "api-surface/**"
       - "apps/**"
       - "examples/**"
       - "templates/**"
-      - "scripts/**"
+      - "scripts/coverage-summary.mjs"
+      - "scripts/coverage-summary.test.mjs"
+      - "scripts/test-coverage-contract.test.mjs"
+      - "scripts/lib/**"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/test-coverage.yaml"
       - ".github/workflows/code-quality.yaml"
-      - ".github/workflows/deploy-examples.yaml"
-      - ".github/workflows/expo-native-bundle.yaml"
   pull_request:
     branches: [main]
     paths:
       - "packages/**"
-      - "api-surface/**"
       - "apps/**"
       - "examples/**"
       - "templates/**"
-      - "scripts/**"
+      - "scripts/coverage-summary.mjs"
+      - "scripts/coverage-summary.test.mjs"
+      - "scripts/test-coverage-contract.test.mjs"
+      - "scripts/lib/**"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/test-coverage.yaml"
       - ".github/workflows/code-quality.yaml"
-      - ".github/workflows/deploy-examples.yaml"
-      - ".github/workflows/expo-native-bundle.yaml"
   workflow_dispatch:
 
 permissions:
