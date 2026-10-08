@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 import { createMergeStream } from "./merge";
 
 const textDelta = (textDelta: string): AssistantStreamChunk => ({
@@ -164,6 +165,62 @@ describe("createMergeStream", () => {
       textDelta("after"),
       textDelta("child"),
     ]);
+  });
+
+  it("orders opted-in finishes across uneven child backlogs", async () => {
+    const merger = createMergeStream();
+    const received: AssistantStreamChunk[] = [];
+    let firstController!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    let secondController!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const first = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        firstController = controller;
+      },
+    });
+    const second = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        secondController = controller;
+      },
+    });
+    const firstDelivered = promiseWithResolvers<void>();
+    const secondDelivered = promiseWithResolvers<void>();
+    let firstPrevious = Promise.resolve();
+    let secondPrevious = Promise.resolve();
+
+    merger.addStream(first, undefined, {
+      orderedFinish: {
+        previous: () => firstPrevious,
+        delivered: firstDelivered,
+      },
+    });
+    merger.addStream(second, undefined, {
+      orderedFinish: {
+        previous: () => secondPrevious,
+        delivered: secondDelivered,
+      },
+    });
+    firstPrevious = Promise.resolve();
+    firstController.enqueue(textDelta("first-1"));
+    firstController.enqueue(textDelta("first-2"));
+    firstController.enqueue({ type: "part-finish", path: [0] });
+    firstController.close();
+    secondPrevious = firstDelivered.promise;
+    secondController.enqueue({ type: "part-finish", path: [1] });
+    secondController.close();
+    merger.seal();
+    await merger.readable.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          received.push(chunk);
+        },
+      }),
+    );
+
+    expect(
+      received
+        .filter((chunk) => chunk.type === "part-finish")
+        .map((chunk) => chunk.path),
+    ).toEqual([[0], [1]]);
   });
 
   it("propagates child errors while raw chunks are pending", async () => {

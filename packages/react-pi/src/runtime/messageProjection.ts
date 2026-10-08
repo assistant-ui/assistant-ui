@@ -25,7 +25,7 @@
  */
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
-import { parseDataUrl } from "@assistant-ui/core/internal";
+import { isParsableUrl, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   ThreadMessageLike,
   ToolCallMessagePart,
@@ -65,7 +65,7 @@ const messageId = (index: number) => `pi-msg:${index}`;
 const stepId = (index: number) => `pi-step:${index}`;
 
 const toDataUrl = (data: string, mimeType: string) =>
-  /^data:/i.test(data) ? data : `data:${mimeType};base64,${data}`;
+  isParsableUrl(data) ? data : `data:${mimeType};base64,${data}`;
 
 const createdAtOf = (message: { timestamp?: number }): Date =>
   new Date(typeof message.timestamp === "number" ? message.timestamp : 0);
