@@ -18,7 +18,8 @@
         "$TURBO_DEFAULT$",
         "!**/*.test.{ts,tsx}",
         "!**/*.spec.{ts,tsx}",
-        "!**/__tests__/**"
+        "!**/__tests__/**",
+        "!vitest.peer-*.config.ts"
       ],
       "outputs": [
         "dist/**",
