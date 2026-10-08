@@ -10,6 +10,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
+import { iterateToolCallParts } from "@assistant-ui/core/internal";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger } from "../src/runtime/logger";
 
@@ -1216,34 +1217,9 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     ]);
   });
 
-  it("preserves nested subagent messages and omitted content across snapshots", async () => {
+  it("keeps flattened snapshot tool results on one nested subagent call", async () => {
     let runCount = 0;
     let userId = "";
-    const emitSnapshot = (
-      subscriber: any,
-      nestedMessages?: readonly unknown[],
-    ) => {
-      const toolCall: Record<string, unknown> = {
-        id: "tool-1",
-        type: "function",
-        function: { name: "delegate", arguments: "{}" },
-      };
-      if (nestedMessages !== undefined) toolCall.messages = nestedMessages;
-      subscriber.onMessagesSnapshotEvent?.({
-        event: {
-          type: "MESSAGES_SNAPSHOT",
-          messages: [
-            { id: userId, role: "user", content: "hi" },
-            {
-              id: "assistant-1",
-              role: "assistant",
-              content: "Root",
-              toolCalls: [toolCall],
-            },
-          ],
-        },
-      });
-    };
     const agent = {
       runAgent: vi.fn(async (input: any, subscriber: any) => {
         runCount++;
@@ -1325,32 +1301,54 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
               subagentRunId: "sub-1",
             },
           });
-          subscriber.onSubagentFinishedEvent?.({
-            event: { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },
-          });
-        } else if (runCount === 2) {
-          emitSnapshot(subscriber, [
-            {
-              id: "sub-1",
-              role: "assistant",
-              content: "Snapshot transcript",
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tool-2",
+              toolCallName: "search",
+              subagentRunId: "sub-1",
             },
-          ]);
-        } else if (runCount === 3) {
-          emitSnapshot(subscriber);
-        } else if (runCount === 4) {
-          emitSnapshot(subscriber, [
-            {
-              id: "sub-1",
-              role: "assistant",
-              content: [
-                { type: "reasoning", text: "snapshot thinking" },
-                { type: "text", text: "Snapshot transcript" },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: {
+              type: "TOOL_CALL_END",
+              toolCallId: "tool-2",
+              subagentRunId: "sub-1",
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "assistant-1",
+                  role: "assistant",
+                  content: "Root",
+                  toolCalls: [
+                    {
+                      id: "tool-1",
+                      type: "function",
+                      function: { name: "delegate", arguments: "{}" },
+                    },
+                    {
+                      id: "tool-2",
+                      type: "function",
+                      function: { name: "search", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "tool-result",
+                  role: "tool",
+                  toolCallId: "tool-2",
+                  content: '{"answer":42}',
+                  isError: true,
+                },
               ],
             },
-          ]);
-        } else {
-          emitSnapshot(subscriber, []);
+          });
         }
         subscriber.onRunFinalized?.();
       }),
@@ -1359,63 +1357,63 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     const core = createCore(agent);
     await core.append(createAppendMessage());
 
-    const nestedAssistant = () => {
-      const parent = core
+    const parent = () =>
+      core
         .getMessages()
         .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
-      const toolCall = parent.content.find((part) => part.type === "tool-call");
-      expect(toolCall?.type).toBe("tool-call");
-      if (toolCall?.type !== "tool-call") throw new Error("Missing tool call");
-      return toolCall.messages;
-    };
-    expect(nestedAssistant()?.[0]?.content).toMatchObject([
-      { type: "reasoning", text: "thinking" },
-      { type: "text", text: "Nested transcript" },
-      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
-    ]);
-
-    await core.append(
-      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
-    );
-    expect(nestedAssistant()?.[0]?.content ?? []).toContainEqual({
-      type: "text",
-      text: "Snapshot transcript",
-    });
-    expect(nestedAssistant()?.[0]?.content).toMatchObject([
-      { type: "reasoning", text: "thinking" },
-      { type: "text", text: "Snapshot transcript" },
-      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
-    ]);
-
-    await core.append(
-      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
-    );
-    expect(nestedAssistant()?.[0]?.content).toMatchObject([
-      { type: "reasoning", text: "thinking" },
-      { type: "text", text: "Snapshot transcript" },
-      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
-    ]);
-
-    await core.append(
-      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
-    );
-    expect(nestedAssistant()?.[0]?.content).toMatchObject([
-      { type: "reasoning", text: "snapshot thinking" },
-      { type: "text", text: "Snapshot transcript" },
-      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
-    ]);
-    const root = core
-      .getMessages()
-      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
     expect(
-      root.content.find((part) => part.type === "reasoning"),
+      [...iterateToolCallParts(parent().content)].filter(
+        ({ toolCallId }) => toolCallId === "tool-2",
+      ),
+    ).toHaveLength(1);
+    expect(
+      parent().content.find((part) => part.type === "tool-call"),
     ).toMatchObject({
-      text: "root thinking",
+      messages: [
+        {
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "Nested transcript" },
+            { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+            { type: "tool-call", toolCallId: "tool-2" },
+          ],
+        },
+      ],
     });
 
     await core.append(
       createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
     );
-    expect(nestedAssistant()).toEqual([]);
+
+    const calls = [...iterateToolCallParts(parent().content)].filter(
+      ({ toolCallId }) => toolCallId === "tool-2",
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      result: { answer: 42 },
+      isError: true,
+    });
+    expect(
+      parent().content.find((part) => part.type === "reasoning"),
+    ).toMatchObject({ text: "root thinking" });
+    expect(
+      parent().content.filter(
+        (part) => part.type === "tool-call" && part.toolCallId === "tool-2",
+      ),
+    ).toHaveLength(0);
+    expect(
+      parent().content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({
+      messages: [
+        {
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "Nested transcript" },
+            { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+            { type: "tool-call", toolCallId: "tool-2", result: { answer: 42 } },
+          ],
+        },
+      ],
+    });
   });
 });

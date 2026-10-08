@@ -85,26 +85,6 @@ const isResolvedToolCall = (
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
   part.type === "data" && part.name.startsWith("agui-activity/");
 
-const hasSnapshotAssistantPart = (
-  messages: readonly ThreadMessage[],
-  matches: (part: ThreadAssistantMessage["content"][number]) => boolean,
-) => {
-  const pending = [...messages];
-  const visited = new Set<ThreadAssistantMessage>();
-  while (pending.length > 0) {
-    const message = pending.pop()!;
-    if (message.role !== "assistant" || visited.has(message)) continue;
-    visited.add(message);
-    for (const part of message.content) {
-      if (matches(part)) return true;
-      if (part.type === "tool-call" && part.messages) {
-        pending.push(...part.messages);
-      }
-    }
-  }
-  return false;
-};
-
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
@@ -1795,8 +1775,6 @@ export class AgUiThreadRuntimeCore {
     next: ThreadAssistantMessage["content"],
     snapshotHasReasoning: boolean,
     snapshotHasActivity: boolean,
-    nestedSnapshotHasReasoning = snapshotHasReasoning,
-    nestedSnapshotHasActivity = snapshotHasActivity,
   ): ThreadAssistantMessage["content"] {
     const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
       part.type === "reasoning"
@@ -1806,8 +1784,6 @@ export class AgUiThreadRuntimeCore {
     const merged = this.reconcileSnapshotNestedContent(
       previous,
       this.preserveToolInteractions(previous, next),
-      nestedSnapshotHasReasoning,
-      nestedSnapshotHasActivity,
     );
     if (kept.length === 0) return merged;
 
@@ -1857,71 +1833,58 @@ export class AgUiThreadRuntimeCore {
   private reconcileSnapshotNestedContent(
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
-    snapshotHasReasoning: boolean,
-    snapshotHasActivity: boolean,
   ): ThreadAssistantMessage["content"] {
-    const previousCalls = new Map<string, ToolCallMessagePart[]>();
+    const nestedIds = new Set<string>();
     for (const part of previous) {
-      if (part.type !== "tool-call") continue;
-      const calls = previousCalls.get(part.toolCallId) ?? [];
-      calls.push(part);
-      previousCalls.set(part.toolCallId, calls);
-    }
-
-    const callOrdinals = new Map<string, number>();
-    return next.map((part) => {
-      if (part.type !== "tool-call") return part;
-      const ordinal = callOrdinals.get(part.toolCallId) ?? 0;
-      callOrdinals.set(part.toolCallId, ordinal + 1);
-      const prior = previousCalls.get(part.toolCallId)?.[ordinal];
-      if (part.messages === undefined) {
-        return prior?.messages === undefined
-          ? part
-          : { ...part, messages: prior.messages };
+      if (part.type !== "tool-call" || !part.messages) continue;
+      for (const nested of part.messages) {
+        if (nested.role !== "assistant") continue;
+        for (const call of iterateToolCallParts(nested.content)) {
+          nestedIds.add(call.toolCallId);
+        }
       }
-      return {
-        ...part,
-        messages: this.reconcileSnapshotNestedMessages(
-          prior?.messages ?? [],
-          part.messages,
-          snapshotHasReasoning,
-          snapshotHasActivity,
-        ),
-      };
-    });
-  }
-
-  private reconcileSnapshotNestedMessages(
-    previous: readonly ThreadMessage[],
-    next: readonly ThreadMessage[],
-    snapshotHasReasoning: boolean,
-    snapshotHasActivity: boolean,
-  ): ThreadMessage[] {
-    const previousByKey = new Map<string, ThreadMessage[]>();
-    for (const message of previous) {
-      const key = `${message.role}:${message.id}`;
-      const messages = previousByKey.get(key) ?? [];
-      messages.push(message);
-      previousByKey.set(key, messages);
     }
 
-    const ordinals = new Map<string, number>();
-    return next.map((message) => {
-      const key = `${message.role}:${message.id}`;
-      const ordinal = ordinals.get(key) ?? 0;
-      ordinals.set(key, ordinal + 1);
-      const prior = previousByKey.get(key)?.[ordinal];
-      if (message.role !== "assistant" || prior?.role !== "assistant")
-        return message;
-      return {
-        ...message,
-        content: this.mergeSnapshotAssistantContent(
-          prior.content,
-          message.content,
-          snapshotHasReasoning,
-          snapshotHasActivity,
-        ),
-      };
+    const flattened = new Map<string, ToolCallMessagePart>();
+    for (const part of next) {
+      if (part.type === "tool-call" && nestedIds.has(part.toolCallId)) {
+        flattened.set(part.toolCallId, part);
+      }
+    }
+    const carried =
+      flattened.size === 0
+        ? previous
+        : mapToolCallPartsDeep(previous, (part) => {
+            const snapshot = flattened.get(part.toolCallId);
+            if (!snapshot) return part;
+            return {
+              ...part,
+              ...(snapshot.result !== undefined
+                ? { result: snapshot.result }
+                : {}),
+              ...(snapshot.isError !== undefined
+                ? { isError: snapshot.isError }
+                : {}),
+              ...(snapshot.artifact !== undefined
+                ? { artifact: snapshot.artifact }
+                : {}),
+            };
+          }).content;
+    const previousCalls = new Map<string, ToolCallMessagePart>();
+    for (const part of carried) {
+      if (part.type !== "tool-call") continue;
+      previousCalls.set(part.toolCallId, part);
+    }
+
+    return next.flatMap<ThreadAssistantMessage["content"][number]>((part) => {
+      if (part.type === "tool-call" && flattened.has(part.toolCallId)) {
+        return [];
+      }
+      if (part.type !== "tool-call") return [part];
+      const prior = previousCalls.get(part.toolCallId);
+      return prior?.messages === undefined
+        ? [part]
+        : [{ ...part, messages: prior.messages }];
     });
   }
 
@@ -2234,14 +2197,6 @@ export class AgUiThreadRuntimeCore {
         (message) =>
           message.role === "assistant" && message.content.some(isActivityPart),
       );
-      const nestedSnapshotHasReasoning = hasSnapshotAssistantPart(
-        converted,
-        (part) => part.type === "reasoning",
-      );
-      const nestedSnapshotHasActivity = hasSnapshotAssistantPart(
-        converted,
-        isActivityPart,
-      );
       for (let index = 0; index < converted.length; index++) {
         const convertedMessage = converted[index]!;
         const existing = this.session.tryGetMessage(
@@ -2258,8 +2213,6 @@ export class AgUiThreadRuntimeCore {
               convertedMessage.content,
               snapshotHasReasoning,
               snapshotHasActivity,
-              nestedSnapshotHasReasoning,
-              nestedSnapshotHasActivity,
             ),
           };
         }

@@ -1,11 +1,9 @@
 "use client";
 
 import type { InputContent, RunAgentParameters } from "@ag-ui/client";
-import { fromThreadMessageLike, generateId } from "@assistant-ui/core";
+import { generateId } from "@assistant-ui/core";
 import type {
-  ThreadAssistantMessage,
   ThreadMessageLike as CoreThreadMessageLike,
-  ThreadMessage,
   PartProviderMetadata,
   ReasoningMessagePart,
 } from "@assistant-ui/core";
@@ -109,76 +107,6 @@ type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
   isError?: boolean | undefined;
   unstable_toolMessageId?: string;
 };
-
-function toSnapshotNestedMessages(
-  value: unknown,
-  depth = 0,
-): ThreadMessage[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  if (depth >= 16) return [];
-
-  return value.flatMap((rawMessage) => {
-    if (!isObject(rawMessage)) return [];
-    const role = rawMessage.role;
-    if (role !== "assistant" && role !== "user" && role !== "system") {
-      return [];
-    }
-    const rawContent = rawMessage.content;
-    if (!Array.isArray(rawContent) && typeof rawContent !== "string") return [];
-
-    const content =
-      typeof rawContent === "string"
-        ? rawContent
-        : rawContent
-            .filter(
-              (part): part is Record<string, unknown> =>
-                isObject(part) && typeof part.type === "string",
-            )
-            .map((part) => {
-              if (part.type !== "tool-call" || !Array.isArray(part.messages))
-                return part;
-              return {
-                ...part,
-                messages:
-                  toSnapshotNestedMessages(part.messages, depth + 1) ?? [],
-              };
-            });
-    const createdAt =
-      rawMessage.createdAt instanceof Date
-        ? rawMessage.createdAt
-        : typeof rawMessage.createdAt === "string"
-          ? new Date(rawMessage.createdAt)
-          : new Date();
-
-    try {
-      return [
-        fromThreadMessageLike(
-          {
-            id: getString(rawMessage, "id"),
-            role,
-            content: content as unknown as CoreThreadMessageLike["content"],
-            createdAt,
-            ...(role === "assistant" && isObject(rawMessage.status)
-              ? {
-                  status: rawMessage.status as ThreadAssistantMessage["status"],
-                }
-              : {}),
-            ...(isObject(rawMessage.metadata)
-              ? {
-                  metadata:
-                    rawMessage.metadata as CoreThreadMessageLike["metadata"],
-                }
-              : {}),
-          },
-          generateId(),
-          { type: "complete", reason: "unknown" },
-        ),
-      ];
-    } catch {
-      return [];
-    }
-  });
-}
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -581,15 +509,12 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
       : isObject(value.args) && !Array.isArray(value.args)
         ? (value.args as ReadonlyJSONObject)
         : undefined;
-  const messages = toSnapshotNestedMessages(value.messages);
-
   const part: ToolCallPart = {
     type: "tool-call",
     ...(toolCallId !== undefined ? { toolCallId } : {}),
     toolName,
     argsText: argsText ?? JSON.stringify(args ?? {}),
     ...(args !== undefined ? { args } : {}),
-    ...(messages !== undefined ? { messages } : {}),
   };
 
   if (value.type === "tool-call") {
