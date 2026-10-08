@@ -1,20 +1,39 @@
 name: Feature request
-description: Suggest an improvement or new capability for assistant-ui
+description: A new capability, integration, or API for assistant-ui
 labels: ["enhancement"]
 
 body:
-  - type: textarea
+  - type: markdown
     attributes:
-      label: Problem statement
-      description: What problem are you trying to solve?
-      placeholder: I'm trying to ... but currently ...
+      value: |
+        A non-trivial feature needs an issue a maintainer has agreed to before a pull request, so this is the place to settle direction.
+
+  - type: dropdown
+    attributes:
+      label: Kind
+      options:
+        - New capability in an existing package
+        - New integration (provider, framework, or protocol)
+        - Parity (one runtime or platform has it, another does not)
+        - New component, example or template
     validations:
       required: true
 
   - type: textarea
     attributes:
-      label: Proposed solution
-      description: If you have an idea for an API, component, or behavior change, describe it here.
+      label: Problem and use case
+      description: What you are building and where the current API stops you.
+      placeholder: I'm building ... and need to ... but currently ...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Proposed API or behavior
+      description: Show how you would like to call it. A rough snippet is enough.
+      render: tsx
+    validations:
+      required: true
 
   - type: dropdown
     attributes:
@@ -27,22 +46,36 @@ body:
         - Cloud (assistant-cloud)
         - React / UI Components
         - React Native
+        - Terminal (Ink)
+        - Vue / Svelte
         - Store / Tap
         - Content Rendering (Markdown, Syntax Highlighting)
         - Rich Text / Composer (Lexical)
+        - Generative UI
+        - MCP
         - Provider Adapters
-        - Performance
         - CLI / Scaffolding
         - DevTools / Observability
         - Documentation
         - Unsure
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Upstream reference
+      description: For an integration, link the SDK or protocol spec and the version you target.
 
   - type: textarea
     attributes:
-      label: Alternatives considered
-      description: Other approaches or workarounds you've tried.
+      label: Workaround or alternatives
+      description: What you do today, and other designs you ruled out.
 
-  - type: textarea
+  - type: dropdown
     attributes:
-      label: Additional context
-      description: Any extra details, links, mockups, or examples.
+      label: Would you send a pull request?
+      options:
+        - "Yes, once a maintainer confirms the direction"
+        - "No"
+    validations:
+      required: true
