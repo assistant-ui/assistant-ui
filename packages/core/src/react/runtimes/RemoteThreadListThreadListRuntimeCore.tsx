@@ -1313,8 +1313,8 @@ export class RemoteThreadListThreadListRuntimeCore
     do {
       await this._ensureThreadIsNotMain(data.id);
     } while (data.id === this._mainThreadId);
-    this._requireAdapterGeneration(adapterGeneration);
     try {
+      this._requireAdapterGeneration(adapterGeneration);
       await this._state.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
@@ -1326,6 +1326,20 @@ export class RemoteThreadListThreadListRuntimeCore
         },
       });
     } catch (error) {
+      if (
+        adapterGeneration !== this._adapterGeneration &&
+        this._replaceListOnNextLoad
+      ) {
+        const current = getThreadData(this._state.baseValue, data.id);
+        if (current !== undefined && current.remoteId === undefined) {
+          this._state.update(
+            updateStatusReducer(this._state.baseValue, data.id, "deleted"),
+          );
+          this._hookManager.stopThreadRuntime(data.id);
+          clearThreadTitleState(this._titleStates, data.id);
+        }
+      }
+
       const controlledThreadId = this._options.threadId;
       if (
         this._switchGeneration === this._controlledSwitchGeneration &&
