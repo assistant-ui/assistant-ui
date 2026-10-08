@@ -210,7 +210,7 @@ function BuilderPlayground() {
           <div className="flex items-center gap-0.5">
             <ThreadListPrimitive.New
               className={cn(toolBtn, toolBtnOff)}
-              aria-label="New thread"
+              aria-label="New Thread"
             >
               <Plus className="size-3.5" />
               <span className="hidden sm:inline">New Thread</span>
@@ -261,6 +261,7 @@ function BuilderPlayground() {
             <button
               type="button"
               onClick={() => setShowCode(!showCode)}
+              aria-label={showCode ? "Close" : "Code"}
               className={cn(toolBtn, showCode ? toolBtnOn : toolBtnOff)}
             >
               {showCode ? (
@@ -281,7 +282,12 @@ function BuilderPlayground() {
               container={previewContainerRef}
               onOpenCodeView={() => setShowCode(true)}
             >
-              <Button type="button" variant="outline" size="sm">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Create Project"
+              >
                 <SquareTerminal className="size-3.5" />
                 <span className="hidden sm:inline">Create Project</span>
               </Button>
@@ -407,30 +413,32 @@ export default function PlaygroundPage() {
     <>
       {isAiPlaygroundEnabled && (
         <HeaderPortal>
-          <div className="bg-muted/70 grid grid-cols-2 rounded-lg p-1 text-xs">
+          <div className="bg-muted/70 grid min-w-max grid-cols-2 rounded-lg p-1 text-xs">
             <button
               type="button"
+              aria-label="AI Builder"
               onClick={() => handleModeChange("agent")}
               className={cn(
-                "rounded-sm px-2.5 py-1 font-medium transition-colors",
+                "rounded-sm px-2 py-1 font-medium whitespace-nowrap transition-colors sm:px-2.5",
                 mode === "agent"
                   ? "bg-background text-foreground"
                   : "text-foreground/45 hover:text-foreground/90",
               )}
             >
-              AI Builder
+              AI<span className="hidden sm:inline"> Builder</span>
             </button>
             <button
               type="button"
+              aria-label="UI Builder"
               onClick={() => handleModeChange("builder")}
               className={cn(
-                "rounded-sm px-2.5 py-1 font-medium transition-colors",
+                "rounded-sm px-2 py-1 font-medium whitespace-nowrap transition-colors sm:px-2.5",
                 mode === "builder"
                   ? "bg-background text-foreground"
                   : "text-foreground/45 hover:text-foreground/90",
               )}
             >
-              UI Builder
+              UI<span className="hidden sm:inline"> Builder</span>
             </button>
           </div>
         </HeaderPortal>
@@ -445,7 +453,7 @@ export default function PlaygroundPage() {
             )}
             aria-hidden={mode !== "agent"}
           >
-            <XuluxApp />
+            <XuluxApp active={mode === "agent"} />
           </div>
         )}
         {visitedModes.builder && (

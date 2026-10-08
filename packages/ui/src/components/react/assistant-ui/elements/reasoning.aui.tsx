@@ -41,7 +41,7 @@ function ReasoningRoot({
       if (typeof ref === "function") {
         ref(node);
       } else if (ref) {
-        ref.current = node;
+        (ref as { current: HTMLDivElement | null }).current = node;
       }
     },
     [ref],

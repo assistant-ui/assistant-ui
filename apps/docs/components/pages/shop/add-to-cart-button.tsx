@@ -3,8 +3,10 @@
 import { CheckIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toggleCartItem, useInCart } from "@/lib/catalog/cart-store";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
+import { AgentToolDialog } from "./agent-tool-dialog";
 
 export function AddToCartButton({
   slug,
@@ -21,13 +23,21 @@ export function AddToCartButton({
   className?: string;
 }) {
   const inCart = useInCart(slug);
+  const target = useCheckoutSession() ? "next setup" : "setup";
+
+  if (slug === "agent-tools")
+    return (
+      <AgentToolDialog size={size} variant={variant} className={className} />
+    );
 
   return (
     <Button
       variant={inCart ? "outline" : variant}
       size={size}
       aria-pressed={inCart}
-      aria-label={inCart ? `Remove ${name} from cart` : `Add ${name} to cart`}
+      aria-label={
+        inCart ? `Remove ${name} from ${target}` : `Add ${name} to ${target}`
+      }
       onClick={() => {
         analytics.shop.cartToggled(slug, !inCart);
         toggleCartItem(slug);
@@ -39,7 +49,7 @@ export function AddToCartButton({
       ) : (
         <PlusIcon data-icon="inline-start" />
       )}
-      {inCart ? "In cart" : "Add to cart"}
+      {inCart ? `In ${target}` : `Add to ${target}`}
     </Button>
   );
 }

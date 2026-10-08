@@ -216,6 +216,37 @@ function MyComponent() {
       expect(applyTransform(input)?.trim()).toBe(expected.trim());
     });
 
+    it.each(["user", "assistant", "system"])(
+      "should migrate <MessagePrimitive.If %s={false}> to the inequality",
+      (role) => {
+        const input = `
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <MessagePrimitive.If ${role}={false}>
+      <div>Other roles</div>
+    </MessagePrimitive.If>
+  );
+}
+`;
+
+        const expected = `
+import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <AuiIf condition={(s) => s.message.role !== "${role}"}>
+      <div>Other roles</div>
+    </AuiIf>
+  );
+}
+`;
+
+        expect(applyTransform(input)?.trim()).toBe(expected.trim());
+      },
+    );
+
     it("should migrate <MessagePrimitive.If assistant>", () => {
       const input = `
 import { MessagePrimitive } from "@assistant-ui/react";

@@ -3,7 +3,7 @@ title: State
 description: Subscribe to state changes with useAuiState.
 ---
 
-Scopes can define a special method called `getState()`. It's just a regular method but it has special integration in the Store: it powers `useAuiState`, `AuiIf` as well as the `subscribe` API.
+Scopes can define a special method called `getState()`. It's a regular method with special integration in the Store: it powers `useAuiState`, `AuiIf`, and the `subscribe` API.
 
 ## Defining state
 
@@ -88,7 +88,7 @@ const summary = useAuiState((s) => ({
 
 `useAuiState` compares the selector's return value by reference (`Object.is`). An object literal like `{ count, name }` creates a new reference every time the selector runs, so Store thinks the value changed, re-renders the component, which runs the selector again (infinite loop).
 
-The fix is simple: use a separate `useAuiState` call for each value.
+To fix this, use a separate `useAuiState` call for each value.
 
 ```tsx
 const count = useAuiState((s) => s.counter.count);
@@ -99,7 +99,7 @@ This is also more precise: the component only re-renders when the specific value
 
 ## Checking if a scope exists
 
-Accessing `s.counter` in a selector throws if the `counter` scope hasn't been provided. To read state from a scope that may not exist, use `s.optional` — an unavailable scope resolves to `undefined` instead of throwing:
+Accessing `s.counter` in a selector throws if the `counter` scope hasn't been provided. To read state from a scope that may not exist, use `s.optional`, where an unavailable scope resolves to `undefined` instead of throwing:
 
 ```tsx
 const count = useAuiState((s) => s.optional.counter?.count);
