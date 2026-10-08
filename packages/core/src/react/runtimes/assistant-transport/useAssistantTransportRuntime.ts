@@ -32,6 +32,7 @@ import {
   useReplayRenderWait,
 } from "./replayBoundaryStream";
 import { useRunManager } from "./runManager";
+import { abortable } from "./abortable";
 import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
@@ -105,17 +106,6 @@ const readResumeState = async <T>(
   return { runId: value.runId, state: value.state as T };
 };
 
-// Rejects as soon as the signal aborts; a started operation keeps running.
-const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
-  new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    if (signal.aborted) return onAbort();
-    signal.addEventListener("abort", onAbort, { once: true });
-    void start()
-      .then(resolve, reject)
-      .finally(() => signal.removeEventListener("abort", onAbort));
-  });
-
 type AssistantTransportExtras = {
   sendCommand: (command: AssistantTransportCommand) => void;
   state: UserExternalState;
@@ -152,6 +142,7 @@ const useAssistantTransportThreadRuntime = <T>(
   const [isReplaying, setIsReplaying] = useState(false);
   const waitForReplayRender = useReplayRenderWait();
   const parentIdRef = useRef<string | null | undefined>(undefined);
+  const cancelledCommandsRef = useRef<QueuedCommand[]>([]);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
@@ -285,7 +276,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       const body = await createReplayBoundaryStream(response, {
         setReplaying: setIsReplaying,
-        waitForRender: waitForReplayRender,
+        waitForRender: () => abortable(signal, waitForReplayRender),
       });
 
       // Select decoder based on protocol option
@@ -349,15 +340,11 @@ const useAssistantTransportThreadRuntime = <T>(
       }
     },
     onFinish: options.onFinish,
-    onCancel: () => {
+    onCancel: (afterError) => {
       setIsReplaying(false);
-      const cmds = [
-        ...commandQueue.state.inTransit,
-        ...commandQueue.state.queued,
-      ];
-
-      commandQueue.reset();
-      parentIdRef.current = undefined;
+      const cmds = cancelledCommandsRef.current;
+      cancelledCommandsRef.current = [];
+      if (afterError && cmds.length === 0) return;
 
       options.onCancel?.({
         commands: cmds,
@@ -473,7 +460,11 @@ const useAssistantTransportThreadRuntime = <T>(
     }),
     onCancel: async () => {
       resumeFlagRef.current = false;
-      runManager.cancel();
+      if (!runManager.cancel()) return;
+      const { inTransit, queued } = commandQueue.state;
+      cancelledCommandsRef.current.push(...inTransit, ...queued);
+      commandQueue.reset();
+      parentIdRef.current = undefined;
     },
     onResume: async () => {
       if (!options.resumeApi)

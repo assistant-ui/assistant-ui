@@ -411,6 +411,15 @@ type InMemoryResumableStreamStoreOptions = {
   readonly gcIntervalMs?: number;
 };
 
+declare class IncrementalJsonObjectParser {
+  #private;
+  private constructor();
+  static from(text?: string, fallback?: ReadonlyJSONObject): IncrementalJsonObjectParser;
+  get currentTextLength(): number;
+  get currentArgs(): ReadonlyJSONObject;
+  append(delta: string): IncrementalJsonObjectParser;
+}
+
 type IoRedisLike = Redis | Cluster;
 
 type McpServerConfig = {
@@ -1130,9 +1139,15 @@ declare namespace entry_root_exports {
   export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, DataStreamOptions, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
+declare namespace entry_internal_exports {
+  export { markPartialJsonObjectComplete };
+}
+
 declare namespace entry_resumable_ioredis_exports {
   export { IoRedisLike, createIoredisResumableStreamStore };
 }
+
+declare const markPartialJsonObjectComplete: <T extends ReadonlyJSONObject>(obj: T) => T;
 
 declare const parsePartialJsonObject: (json: string) => (ReadonlyJSONObject & {
   [PARTIAL_JSON_OBJECT_META_SYMBOL]: PartialJsonObjectMeta;
@@ -1155,7 +1170,7 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
 declare namespace entry_utils_exports {
-  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, SSEEventDecoderError, SSEEventDecoderOptions, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, IncrementalJsonObjectParser, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, SSEEventDecoderError, SSEEventDecoderOptions, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
-export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };
+export { entry_internal_exports as entry_internal, entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

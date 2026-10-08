@@ -42,36 +42,6 @@ test("does not start Redis for unrelated tests or consumer builds", () => {
   );
 });
 
-test("coverage selection does not change report or artifact collection", () => {
-  const workflow = readFileSync(
-    path.join(root, ".github/workflows/code-quality.yaml"),
-    "utf8",
-  );
-  const job = workflow.match(/\n  coverage:\n([\s\S]*?)(?=\n  [\w-]+:)/)[1];
-  assert.doesNotMatch(job, /\n    services:/);
-  assert.match(job, /REDIS_URL: redis:\/\/127\.0\.0\.1:6379/);
-  assert.match(job, /set -euo pipefail/);
-  assert.match(
-    job,
-    /pnpm exec turbo run test:coverage --dry=json --filter="\.\.\.\[\$BASE\]" \| node scripts\/test-redis-inputs\.mjs/,
-  );
-  assert.match(job, /Select Redis coverage service\n        id: redis/);
-  assert.match(job, /echo "run=\$run" >> "\$GITHUB_OUTPUT"/);
-  assert.match(job, /steps\.redis\.outputs\.run == 'true'/);
-  assert.match(job, /docker exec aui-coverage-redis redis-cli ping/);
-  assert.match(
-    job,
-    /pnpm turbo test:coverage --concurrency=1 --filter="\$FILTER"/,
-  );
-  assert.match(job, /Write the coverage summary\n        if: always\(\)/);
-  assert.match(job, /Upload coverage reports\n        if: always\(\)/);
-  assert.match(
-    job,
-    /Stop Redis\n        if: always\(\) && steps\.redis\.outputs\.run == 'true'/,
-  );
-  assert.match(job, /docker rm --force aui-coverage-redis/);
-});
-
 test("invalid task plans fail instead of silently skipping Redis", () => {
   for (const plan of [null, {}, { tasks: null }, { tasks: [{}] }]) {
     assert.throws(
@@ -136,7 +106,7 @@ test("the workflow keeps selection, readiness, cleanup and test commands wired",
   assert.match(job, /node scripts\/test-redis-inputs\.mjs/);
   assert.match(
     job,
-    /pnpm exec turbo run test --dry=json --filter="\.\.\.\[\$BASE\]"/,
+    /pnpm exec turbo run test:coverage --dry=json --filter="\.\.\.\[\$BASE\]"/,
   );
   assert.match(job, /Select Redis test service\n        id: redis/);
   assert.match(job, /echo "run=\$run" >> "\$GITHUB_OUTPUT"/);
@@ -145,6 +115,12 @@ test("the workflow keeps selection, readiness, cleanup and test commands wired",
   assert.match(job, /always\(\)/);
   assert.match(job, /docker rm --force aui-test-redis/);
   assert.match(job, /pnpm test:react-compiler/);
+  assert.match(
+    job,
+    /pnpm turbo test:coverage --concurrency=1 --filter="\$FILTER"/,
+  );
+  assert.match(job, /Write the coverage summary\n        if: always\(\)/);
+  assert.match(job, /Upload coverage reports\n        if: always\(\)/);
   for (const file of [
     "scripts/test-redis-inputs.mjs",
     "scripts/test-redis-inputs.test.mjs",

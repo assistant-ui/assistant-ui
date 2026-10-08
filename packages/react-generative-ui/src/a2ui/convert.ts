@@ -7,7 +7,7 @@ import {
 } from "./valueFunctions";
 import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
 import type { A2uiBinding } from "./BindingContext";
-import { resolvePointer } from "./dataModel";
+import { resolvePath, resolvePointer } from "./dataModel";
 import { decodeScopeRelativePointer } from "./pointer";
 
 const DEPTH_CAP = 32;
@@ -166,6 +166,24 @@ const withFieldReferences = (
   return result;
 };
 
+const compactArrays = (value: unknown, depth = 0): unknown => {
+  if (depth >= DEPTH_CAP) return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => compactArrays(entry, depth + 1))
+      .filter((entry) => entry !== undefined);
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        compactArrays(entry, depth + 1),
+      ]),
+    );
+  }
+  return value;
+};
+
 const materializeEntries = (
   value: Record<string, unknown>,
   source: unknown,
@@ -306,10 +324,12 @@ type ConversionContext = {
   functionDepthWarned: boolean;
   readonly templates: Map<string, ExpressionPart[] | null>;
   readonly inputFields: Map<string, unknown>;
+  readonly actionContexts: Set<Record<string, unknown>>;
   readonly textFields: Map<string, boolean>;
   readonly boundActionEntries: {
     readonly target: Record<string, unknown>;
     readonly key: string;
+    readonly path: readonly string[];
     readonly pointer: string;
   }[];
   readonly boundUserMessages: {
@@ -379,6 +399,13 @@ const sliderStep = (
   );
 };
 
+const eventContext = (
+  action: Record<string, unknown>,
+): Record<string, unknown> | undefined => {
+  const event = isRecord(action["event"]) ? action["event"] : action;
+  return isRecord(event["context"]) ? event["context"] : undefined;
+};
+
 const recordBindings = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
@@ -426,17 +453,35 @@ const recordBindings = (
     ? isRecord(raw["functionCall"])
       ? raw["functionCall"]["args"]
       : undefined
-    : event["context"];
+    : eventContext(raw);
   const target = functionCall ? action["args"] : action["context"];
   if (!isRecord(rawEntries) || !isRecord(target)) return;
-  for (const [key, entry] of Object.entries(rawEntries)) {
+  if (!functionCall) context.actionContexts.add(target);
+  const visit = (
+    entry: unknown,
+    key: string,
+    path: readonly string[],
+    depth: number,
+  ) => {
+    if (depth >= DEPTH_CAP) return;
     if (isBinding(entry)) {
       context.boundActionEntries.push({
         target,
         key,
+        path,
         pointer: pointerIn(scope, entry.path),
       });
+    } else if (
+      Array.isArray(entry) ||
+      (isPlainObject(entry) && !isFunctionCall(entry))
+    ) {
+      for (const [childKey, child] of Object.entries(entry)) {
+        visit(child, key, [...path, childKey], depth + 1);
+      }
     }
+  };
+  for (const [key, entry] of Object.entries(rawEntries)) {
+    visit(entry, key, [], 0);
   }
 };
 
@@ -1008,6 +1053,11 @@ function convertComponent(
           scope.data,
           context,
           key !== "checks",
+          0,
+          key === "action" &&
+            component === "Button" &&
+            isRecord(value) &&
+            eventContext(value) !== undefined,
         );
         if (resolved !== undefined) setOwnProperty(props, key, resolved);
       }
@@ -1168,6 +1218,7 @@ function convertSurface(
     functionDepthWarned: false,
     templates,
     inputFields: new Map(),
+    actionContexts: new Set(),
     textFields: new Map(),
     boundActionEntries: [],
     boundUserMessages: [],
@@ -1185,13 +1236,19 @@ function convertSurface(
       0,
       new Set(),
     );
-    for (const { target, key, pointer } of context.boundActionEntries) {
+    for (const { target, key, path, pointer } of context.boundActionEntries) {
       const value = withFieldReferences(
-        target[key],
+        resolvePath(target[key], path),
         pointer,
         context.inputFields,
       );
-      if (value !== undefined) setOwnProperty(target, key, value);
+      if (value !== undefined)
+        setOwnProperty(target, key, setIn(target[key], path, value));
+    }
+    for (const target of context.actionContexts) {
+      for (const [key, value] of Object.entries(target)) {
+        setOwnProperty(target, key, compactArrays(value));
+      }
     }
     for (const { action, pointer } of context.boundUserMessages) {
       if (!context.textFields.get(pointer)) continue;

@@ -38,6 +38,7 @@ declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknow
 type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "messages" | "transport"> & {
   transport?: ChatTransport<UI_MESSAGE> | (() => ChatTransport<UI_MESSAGE>) | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
@@ -1751,6 +1752,7 @@ type ThreadComposerState = BaseComposerState & {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
@@ -1983,6 +1985,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -2366,8 +2369,10 @@ type Unstable_ToolInteractionLog = {
 
 type Unsubscribe = () => void;
 
-type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE> & {
+type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
+  transport?: ChatTransport<UI_MESSAGE> | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
 
