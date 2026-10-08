@@ -10,6 +10,12 @@ export const PERSISTENCE_DEBOUNCE_MS = 500;
  */
 export const FLUSH_LOAD_TIMEOUT_MS = 5_000;
 
+/**
+ * `save` has no settling contract either, so a load waiting on earlier saves
+ * to the same adapter stops waiting here and hands the unsettled batches back.
+ */
+export const SAVE_WAIT_TIMEOUT_MS = 5_000;
+
 type PersistenceAdapter<State> = {
   save(state: State): void | Promise<void>;
 };
@@ -57,9 +63,13 @@ export const useInteractablePersistenceQueue = <State>({
     dirtyIds: Set<string>;
     seq: number;
     adapterGeneration: number;
+    saved: boolean;
+    settled: Promise<void>;
+    settle: () => void;
   };
 
   const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
+  const unsettledBatchesRef = useRef(new Set<PersistenceBatch>());
   const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(
     () => {},
   );
@@ -73,13 +83,22 @@ export const useInteractablePersistenceQueue = <State>({
       const adapterGeneration = adapterGenerationRef.current;
       for (const id of dirtyIds)
         latestSyncByIdRef.current.set(id, { seq, adapterGeneration });
-      return {
+      let settle!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      const batch: PersistenceBatch = {
         adapter,
         adapterGeneration,
         payload: snapshot(),
         dirtyIds,
         seq,
+        saved: false,
+        settled,
+        settle,
       };
+      unsettledBatchesRef.current.add(batch);
+      return batch;
     },
     [adapterGenerationRef, snapshot],
   );
@@ -145,6 +164,7 @@ export const useInteractablePersistenceQueue = <State>({
 
       try {
         await adapter.save(payload);
+        resolved.saved = true;
         settleBatch(undefined);
       } catch (e) {
         const isCurrentScope =
@@ -159,6 +179,8 @@ export const useInteractablePersistenceQueue = <State>({
           isCurrentScope ? { isPending: false, error: e } : undefined,
         );
       } finally {
+        unsettledBatchesRef.current.delete(resolved);
+        resolved.settle();
         inFlightPersistenceRef.current -= 1;
         const next =
           outgoingQueueRef.current.shift() ??
@@ -256,6 +278,30 @@ export const useInteractablePersistenceQueue = <State>({
     return p;
   }, [adapterRef, enqueuePersistence]);
 
+  const waitForAdapterSaves = useCallback(
+    async (adapter: PersistenceAdapter<State>) => {
+      const batches = [...unsettledBatchesRef.current].filter(
+        (batch) => batch.adapter === adapter,
+      );
+      if (batches.length === 0) return [];
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          Promise.all(batches.map((batch) => batch.settled)),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, SAVE_WAIT_TIMEOUT_MS);
+          }),
+        ]);
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
+      return batches
+        .filter((batch) => !batch.saved)
+        .map(({ payload, dirtyIds }) => ({ payload, dirtyIds }));
+    },
+    [],
+  );
+
   return {
     discardPending,
     flushIfPending,
@@ -263,5 +309,6 @@ export const useInteractablePersistenceQueue = <State>({
     isSaving,
     schedulePersistence,
     flush,
+    waitForAdapterSaves,
   };
 };
