@@ -326,6 +326,34 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
+  it("keeps viewport event subscriptions across an unrelated rerender", () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    const addListenerSpy = vi.spyOn(viewport, "addEventListener");
+    const removeListenerSpy = vi.spyOn(viewport, "removeEventListener");
+    try {
+      view.rerender(
+        <SyncRuntimeProvider>
+          <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        </SyncRuntimeProvider>,
+      );
+
+      expect(addListenerSpy).not.toHaveBeenCalled();
+      expect(removeListenerSpy).not.toHaveBeenCalled();
+
+      view.unmount();
+      expect(removeListenerSpy).toHaveBeenCalled();
+    } finally {
+      addListenerSpy.mockRestore();
+      removeListenerSpy.mockRestore();
+    }
+  });
+
   it("preserves smooth scrolling from a control outside the viewport", async () => {
     render(
       <SyncRuntimeProvider>
