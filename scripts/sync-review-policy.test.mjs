@@ -321,7 +321,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "scripts/review-health.mjs",
                     "scripts/lib/review-*.mjs",
                   ],
-                  minimum_approvals: 2,
+                  minimum_approvals: 1,
                   reviewer: { id: 15592476, type: "Team" },
                 },
               ],

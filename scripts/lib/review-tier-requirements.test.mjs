@@ -78,6 +78,10 @@ for (const author of ["contributor", "reviewer"]) {
     const pending = evaluateRequirements(input({ author }), policy);
     assert.equal(pending.status, "pending");
     assert.deepEqual(codes(pending), ["approvals"]);
+    assert.equal(
+      pending.unmet[0].detail,
+      "needs 1 approval from a maintainer or reviewer on the current head",
+    );
     const approved = evaluateRequirements(
       input({ author, reviews: [review("second-reviewer")] }),
       policy,
@@ -92,6 +96,10 @@ for (const author of ["admin", "alice", "reviewer"]) {
     const pending = evaluateRequirements(input({ tier: 1, author }), policy);
     assert.equal(pending.status, "pending");
     assert.deepEqual(codes(pending), ["approvals"]);
+    assert.equal(
+      pending.unmet[0].detail,
+      "needs 1 approval from a maintainer or reviewer on the current head",
+    );
     assert.equal(
       evaluateRequirements(
         input({ tier: 1, author, reviews: [review("second-reviewer")] }),
@@ -115,21 +123,23 @@ test("a reviewers-team member counts as trusted at T1", () => {
   assert.deepEqual(result.approvals.counted, ["second-reviewer"]);
 });
 
-test("T1 needs two approvals including a maintainer for an untrusted author", () => {
-  for (const logins of [[], ["alice"], ["reviewer", "second-reviewer"]]) {
+test("T1 needs one maintainer approval for an untrusted author", () => {
+  for (const logins of [[], ["reviewer"], ["reviewer", "second-reviewer"]]) {
     const result = evaluateRequirements(
       input({ tier: 1, reviews: logins.map((login) => review(login)) }),
       policy,
     );
     assert.equal(result.status, "pending");
     assert.deepEqual(codes(result), ["approvals"]);
-    assert.match(result.unmet[0].detail, /needs 2 approvals/);
-    assert.match(result.unmet[0].detail, /needs 1 maintainer approval/);
+    assert.equal(
+      result.unmet[0].detail,
+      "needs 1 maintainer approval on the current head",
+    );
   }
   for (const maintainer of ["alice", "admin"]) {
     assert.equal(
       evaluateRequirements(
-        input({ tier: 1, reviews: [review(maintainer), review("reviewer")] }),
+        input({ tier: 1, reviews: [review(maintainer)] }),
         policy,
       ).status,
       "success",
@@ -138,11 +148,11 @@ test("T1 needs two approvals including a maintainer for an untrusted author", ()
 });
 
 for (const tier of [2, 3]) {
-  test(`T${tier} requires two maintainers and an owner for each area`, () => {
+  test(`T${tier} requires an approval from an owner of each area`, () => {
     const request = input({
       tier,
       areas: ["reactivity", "protocol"],
-      reviews: [review("alice"), review("admin")],
+      reviews: [review("alice")],
       linkedIssues: [decisionIssue("alice")],
     });
     const missingOwner = evaluateRequirements(request, policy);
@@ -152,37 +162,54 @@ for (const tier of [2, 3]) {
     assert.equal(evaluateRequirements(request, policy).status, "success");
     request.reviews = [review("admin")];
     assert.deepEqual(codes(evaluateRequirements(request, policy)), [
-      "approvals",
+      "owner:protocol",
+      "owner:reactivity",
+    ]);
+    request.reviews = [review("reviewer")];
+    assert.deepEqual(codes(evaluateRequirements(request, policy)), [
       "owner:protocol",
       "owner:reactivity",
     ]);
   });
 
-  test(`reviewer approvals do not satisfy T${tier}'s maintainer count`, () => {
+  test(`reviewer approvals do not satisfy area-less T${tier}'s maintainer requirement`, () => {
     const result = evaluateRequirements(
       input({
         tier,
-        reviews: [review("alice"), review("reviewer")],
+        areas: [],
+        reviews: [review("reviewer")],
         linkedIssues: [decisionIssue("bob")],
       }),
       policy,
     );
     assert.equal(result.status, "pending");
-    assert.deepEqual(result.approvals.counted, ["alice", "reviewer"]);
+    assert.deepEqual(result.approvals.counted, ["reviewer"]);
     assert.deepEqual(result.unmet, [
       {
         code: "approvals",
-        detail: "needs 2 maintainer approvals on the current head, has 1",
+        detail: "needs 1 maintainer approval on the current head",
       },
     ]);
+    assert.equal(
+      evaluateRequirements(
+        input({
+          tier,
+          areas: [],
+          reviews: [review("alice")],
+          linkedIssues: [decisionIssue("bob")],
+        }),
+        policy,
+      ).status,
+      "success",
+    );
   });
 }
 
-test("a trusted owner can sign off separately from the two maintainers", () => {
+test("a trusted owner can sign off separately from a maintainer", () => {
   const request = input({
     tier: 2,
     areas: ["reactivity"],
-    reviews: [review("alice"), review("bob"), review("reviewer")],
+    reviews: [review("alice")],
     teams: { ...input().teams, "reviewer-owners": ["reviewer"] },
   });
   const custom = {
@@ -193,6 +220,10 @@ test("a trusted owner can sign off separately from the two maintainers", () => {
         : area,
     ),
   };
+  assert.deepEqual(codes(evaluateRequirements(request, custom)), [
+    "owner:reactivity",
+  ]);
+  request.reviews.push(review("reviewer"));
   assert.equal(evaluateRequirements(request, custom).status, "success");
 });
 
@@ -240,11 +271,7 @@ test("empty admin and maintainer teams remove maintainer trust", () => {
     policy,
   );
   assert.equal(result.status, "pending");
-  assert.deepEqual(codes(result), [
-    "approvals",
-    "decision",
-    "owner:reactivity",
-  ]);
+  assert.deepEqual(codes(result), ["decision", "owner:reactivity"]);
   assert.deepEqual(result.approvals.ignored, [
     { login: "alice", reason: "untrusted" },
   ]);
@@ -271,11 +298,7 @@ test("missing team slugs have no members", () => {
     linkedIssues: [decisionIssue("alice")],
   });
   const result = evaluateRequirements(request, policy);
-  assert.deepEqual(codes(result), [
-    "approvals",
-    "decision",
-    "owner:reactivity",
-  ]);
+  assert.deepEqual(codes(result), ["decision", "owner:reactivity"]);
   assert.deepEqual(result.approvals.ignored, [
     { login: "alice", reason: "untrusted" },
     { login: "reviewer", reason: "untrusted" },
@@ -399,12 +422,12 @@ for (const { login, isBot, commitSha, reason } of [
   });
 }
 
-test("duplicate approvals by one reviewer do not satisfy a two-approval requirement", () => {
+test("duplicate approvals by one reviewer count once", () => {
   const result = evaluateRequirements(
     input({ tier: 1, reviews: [review("alice"), review("alice")] }),
     policy,
   );
-  assert.equal(result.status, "pending");
+  assert.equal(result.status, "success");
   assert.deepEqual(result.approvals.counted, ["alice"]);
 });
 
@@ -835,11 +858,22 @@ test("overrides never waive approvals, owners, decisions or the open-PR cap", ()
   );
   assert.equal(result.status, "failure");
   assert.deepEqual(codes(result), [
-    "approvals",
     "decision",
     "open-pr-cap",
     "owner:reactivity",
   ]);
+  const areaLess = evaluateRequirements(
+    input({
+      tier: 3,
+      areas: [],
+      reviews: [review("reviewer")],
+      linkedIssues: [decisionIssue("alice")],
+      labels: [overrideLabel("approvals", "admin")],
+    }),
+    policy,
+  );
+  assert.deepEqual(codes(areaLess), ["approvals"]);
+  assert.deepEqual(areaLess.waived, []);
   assert.deepEqual(result.waived, [
     { code: "window", signal: "window", by: "admin" },
   ]);
@@ -965,7 +999,7 @@ test("policy team slugs, labels, windows and open PR caps control requirements",
   assert.deepEqual(evaluateRequirements(request, custom).waived, []);
 });
 
-test("the merged reactivity PR still needs approvals, ownership, a decision and time", () => {
+test("the merged reactivity PR still needs ownership, a decision and time", () => {
   const result = evaluateRequirements(
     input({
       tier: 3,
@@ -986,12 +1020,7 @@ test("the merged reactivity PR still needs approvals, ownership, a decision and 
     policy,
   );
   assert.equal(result.status, "pending");
-  assert.deepEqual(codes(result), [
-    "approvals",
-    "decision",
-    "owner:reactivity",
-    "window",
-  ]);
+  assert.deepEqual(codes(result), ["decision", "owner:reactivity", "window"]);
   assert.deepEqual(result.approvals, { counted: ["Kinfe123"], ignored: [] });
   assert.deepEqual(result.waived, []);
 });

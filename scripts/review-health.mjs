@@ -90,13 +90,9 @@ export function computeReviewHealth(
         ? maintainerSet.has(author)
           ? 0
           : 1
-        : tier === 1
-          ? trusted.has(author)
-            ? 1
-            : 2
-          : tier === 2 || tier === 3
-            ? 2
-            : null;
+        : tier === 1 || tier === 2 || tier === 3
+          ? 1
+          : null;
     const maintainerApprovals = [...approvers].filter((login) =>
       maintainerSet.has(login),
     ).length;

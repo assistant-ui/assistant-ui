@@ -81,7 +81,7 @@ export function buildRulesets(policy, liveRulesets, teamIds) {
   const contractFloor = [
     {
       file_patterns: policy.areas.flatMap(patterns),
-      minimum_approvals: 2,
+      minimum_approvals: 1,
       reviewer: maintainers,
     },
   ];

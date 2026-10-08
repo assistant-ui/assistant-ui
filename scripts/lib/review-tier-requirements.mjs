@@ -80,10 +80,10 @@ export function evaluateRequirements(input, policy) {
     maintainerSet.has(login),
   ).length;
   if (input.tier >= 2) {
-    if (maintainerApprovals < 2) {
+    if (owners.length === 0 && maintainerApprovals === 0) {
       unmet.push({
         code: "approvals",
-        detail: `needs 2 maintainer approvals on the current head, has ${maintainerApprovals}`,
+        detail: "needs 1 maintainer approval on the current head",
       });
     }
     for (const { id, members } of owners) {
@@ -95,22 +95,20 @@ export function evaluateRequirements(input, policy) {
       }
     }
   } else {
-    const required =
-      input.tier === 0
-        ? maintainerSet.has(input.author)
-          ? 0
-          : 1
-        : trusted.has(input.author)
-          ? 1
-          : 2;
     const needsMaintainer = input.tier === 1 && !trusted.has(input.author);
-    if (
-      approvals.counted.length < required ||
-      (needsMaintainer && maintainerApprovals === 0)
+    if (needsMaintainer && maintainerApprovals === 0) {
+      unmet.push({
+        code: "approvals",
+        detail: "needs 1 maintainer approval on the current head",
+      });
+    } else if (
+      !(input.tier === 0 && maintainerSet.has(input.author)) &&
+      approvals.counted.length === 0
     ) {
       unmet.push({
         code: "approvals",
-        detail: `needs ${required} approvals on the current head, has ${approvals.counted.length}${needsMaintainer ? `; needs 1 maintainer approval, has ${maintainerApprovals}` : ""}`,
+        detail:
+          "needs 1 approval from a maintainer or reviewer on the current head",
       });
     }
   }
