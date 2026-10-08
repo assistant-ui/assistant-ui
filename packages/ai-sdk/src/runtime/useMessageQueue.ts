@@ -110,11 +110,11 @@ export const useMessageQueue = ({
               overtaken ? { ...message, startRun: false } : message,
             );
           } catch (error) {
-            if (!mountedRef.current || generation !== generationRef.current)
-              return;
-            onErrorRef.current?.(
-              error instanceof Error ? error : new Error(String(error)),
-            );
+            if (mountedRef.current && generation === generationRef.current) {
+              onErrorRef.current?.(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+            }
             throw error;
           }
           if (busyEdgesRef.current === busyEdges && !reportedRef.current.busy) {

@@ -19,6 +19,46 @@ const message = (text: string): AppendMessage => ({
 afterEach(cleanup);
 
 describe("useMessageQueue lifecycle", () => {
+  it("releases a cleared rejection without surfacing its stale error", async () => {
+    const error = new Error("discarded send rejected");
+    let reject!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, fail) => {
+      reject = fail;
+    });
+    const send = vi.fn(async (_message: AppendMessage) => {});
+    send.mockReturnValueOnce(pending);
+    const onError = vi.fn();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() =>
+        useMessageQueue({
+          enabled: true,
+          isRunning: false,
+          isSendDisabled: false,
+          send,
+          cancel: async () => {},
+          interrupt: () => {},
+          onError,
+        }),
+      );
+      await act(async () => result.current.adapter!.enqueue(message("first")));
+      act(() => {
+        result.current.clear();
+        result.current.adapter!.enqueue(message("replacement"));
+      });
+      await act(async () => {
+        reject(error);
+        await pending.catch(() => {});
+      });
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(send).toHaveBeenLastCalledWith(message("replacement"));
+      expect(result.current.adapter!.items).toEqual([]);
+      expect(onError).not.toHaveBeenCalledWith(error);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it("pauses later prompts after a rejected send and retries the failed prompt first", async () => {
     const error = new Error("send rejected");
     let reject!: (error: Error) => void;
