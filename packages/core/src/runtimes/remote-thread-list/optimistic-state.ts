@@ -40,7 +40,9 @@ export class OptimisticState<TState> extends BaseSubscribable {
   /**
    * Completed optimistic callbacks stay applied on top of the base value while
    * any transform is pending, so a state replacement made meanwhile cannot hide
-   * them. They are dropped when the last transform settles, so `update()` must
+   * them. They are dropped once the last transform has settled and notified
+   * subscribers, so a transform started from that notification still replays
+   * them. `update()` must
    * be given a state that already contains the completed effects, such as one
    * derived from `baseValue`. While transforms are pending, callbacks apply
    * in invocation order. A transform that settles with `then` has every
@@ -156,11 +158,13 @@ export class OptimisticState<TState> extends BaseSubscribable {
         this._pendingTransforms.splice(index, 1);
       }
 
-      if (this._pendingTransforms.length === 0) {
-        this._completedOptimistics.length = 0;
+      try {
+        this._updateState();
+      } finally {
+        if (this._pendingTransforms.length === 0) {
+          this._completedOptimistics.length = 0;
+        }
       }
-
-      this._updateState();
     }
   }
 }

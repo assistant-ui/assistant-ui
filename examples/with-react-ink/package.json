@@ -14,15 +14,15 @@
   "dependencies": {
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
-    "ink": "^7.1.1",
+    "ink": "^8.0.0",
     "react": "^19.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
     "esbuild": "^0.28.2",
+    "ink-testing-library": "^4.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "ink-testing-library": "^4.0.0",
     "vitest": "^5.0.3"
   }
 }

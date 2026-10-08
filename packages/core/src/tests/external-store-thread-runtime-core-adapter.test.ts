@@ -360,6 +360,30 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(setMessages).not.toHaveBeenCalled();
     });
 
+    it("does not resync cancelled messages over an explicit reset", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [
+            createUserMessage("u1"),
+            createAssistantMessage("a1", "partial answer"),
+          ],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+      const replacement = createUserMessage("replacement", "fresh prompt");
+
+      core.cancelRun();
+      core.reset([replacement]);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(setMessages).toHaveBeenLastCalledWith([replacement]);
+    });
+
     it("re-applies the user leaf rollback when the store updates before the flush", async () => {
       const messages = [createUserMessage("u1", "cancel me")];
       const setMessages = vi.fn();

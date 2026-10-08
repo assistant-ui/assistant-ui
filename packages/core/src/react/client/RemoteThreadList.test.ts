@@ -968,6 +968,82 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps a deleted thread absent and clears its title state when reload starts during deletion notification", async () => {
+    const deletion = deferred<void>();
+    let deletionReleased = false;
+    let reloadStarted = false;
+    let reload: (() => void) | undefined;
+    let reloadTask: Promise<void> | undefined;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          { status: "regular" as const, remoteId: "t2", title: "Two" },
+        ],
+      })),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const originalNotify = (
+      OptimisticState.prototype as unknown as {
+        _notifySubscribers: () => void;
+      }
+    )._notifySubscribers;
+    const notifySpy = vi
+      .spyOn(
+        OptimisticState.prototype as unknown as {
+          _notifySubscribers: () => void;
+        },
+        "_notifySubscribers",
+      )
+      .mockImplementation(function (this: OptimisticState<unknown>) {
+        originalNotify.call(this);
+        const state = this.value as { threadIds?: readonly string[] };
+        if (
+          deletionReleased &&
+          !reloadStarted &&
+          state.threadIds !== undefined &&
+          !state.threadIds.includes("t1")
+        ) {
+          reloadStarted = true;
+          reload?.();
+        }
+      });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    reload = () => {
+      reloadTask = aui.threads.reload();
+    };
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+    });
+
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    expect(adapter.rename).toHaveBeenCalledWith("t1", "Manual title");
+
+    try {
+      flushTapSync(() => aui.threads.item({ id: "t1" }).delete());
+      await vi.waitFor(() => expect(adapter.delete).toHaveBeenCalledOnce());
+      deletionReleased = true;
+      deletion.resolve();
+
+      await vi.waitFor(() => expect(reloadStarted).toBe(true));
+      await reloadTask;
+      expect(aui.threads.getState().threadIds).toEqual(["t2"]);
+      await aui.threads.reload();
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+      flushTapSync(() => aui.threads.switchToThread("t1"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("t1");
+      });
+      await aui.threads.item({ id: "t1" }).generateTitle({ automatic: true });
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    } finally {
+      notifySpy.mockRestore();
+      handle.destroy();
+    }
+  });
+
   it("preserves an existing title when generation returns no title", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -1998,6 +2074,171 @@ describe("RemoteThreadList", () => {
     );
     expect(methodsB.list).toHaveBeenCalled();
     handle.destroy();
+  });
+
+  it.each(
+    (["none", "before reload", "during reload"] as const).flatMap(
+      (manualSwitch) =>
+        [false, true].map((listed) => ({ manualSwitch, listed })),
+    ),
+  )(
+    "preserves controlled replacement selection with manual=$manualSwitch and listed=$listed",
+    async ({ manualSwitch, listed }) => {
+      const replacement = deferred<{ threads: RemoteThreadMetadata[] }>();
+      let adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [{ status: "regular" as const, remoteId: "thread-a" }],
+        })),
+      });
+      let threadId = "thread-a";
+      const onThreadIdChange = vi.fn();
+      const listeners = new Set<() => void>();
+      const handle = createAssistantClient({
+        getConfig: () =>
+          AuiConfig({
+            threads: RemoteThreadList({
+              adapter,
+              threadId,
+              onThreadIdChange,
+              thread: (id) => StubThread({ threadId: id }) as never,
+            }),
+          }),
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      });
+      handle.subscribe(() => {});
+      try {
+        await handle.getClient().threads.getLoadThreadsPromise();
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().mainThreadId).toBe(
+            "thread-a",
+          ),
+        );
+        adapter = makeAdapter({ list: vi.fn(() => replacement.promise) });
+        threadId = "thread-b";
+        flushTapSync(() => listeners.forEach((listener) => listener()));
+        if (manualSwitch === "before reload") {
+          await handle.getClient().threads.switchToThread("manual");
+        }
+        let reload!: Promise<void>;
+        flushTapSync(() => {
+          reload = handle.getClient().threads.reload();
+        });
+        const draftId = handle.getClient().threads.getState().mainThreadId;
+        if (manualSwitch === "during reload") {
+          await handle.getClient().threads.switchToThread("manual");
+        }
+        replacement.resolve({
+          threads: listed ? [{ status: "regular", remoteId: "thread-b" }] : [],
+        });
+        await reload;
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().isLoading).toBe(false),
+        );
+        const expectedId =
+          manualSwitch === "none"
+            ? "thread-b"
+            : manualSwitch === "during reload"
+              ? "manual"
+              : draftId;
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().mainThreadId).toBe(
+            expectedId,
+          ),
+        );
+        if (manualSwitch === "none")
+          expect(onThreadIdChange).not.toHaveBeenCalled();
+        if (manualSwitch === "during reload") {
+          const fetched = deferred<RemoteThreadMetadata>();
+          const fetch = vi.mocked(adapter.fetch);
+          const previousCalls = fetch.mock.calls.length;
+          fetch.mockReturnValue(fetched.promise);
+          threadId = "not-listed";
+          flushTapSync(() => listeners.forEach((listener) => listener()));
+          await handle.getClient().threads.reload();
+          await microtasks(20);
+          expect(fetch).toHaveBeenCalledTimes(previousCalls + 1);
+          fetched.resolve({ status: "regular", remoteId: "not-listed" });
+          await vi.waitFor(() =>
+            expect(handle.getClient().threads.getState().mainThreadId).toBe(
+              "not-listed",
+            ),
+          );
+        }
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it("retains an unlisted controlled selection through a failed replacement load", async () => {
+    const selected = { status: "regular" as const, remoteId: "selected" };
+    let threadId = "old-selected";
+    let adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ ...selected, remoteId: threadId }],
+      })),
+    });
+    const listeners = new Set<() => void>();
+    const onThreadIdChange = vi.fn();
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            threadId,
+            onThreadIdChange,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().mainThreadId).toBe(
+          "old-selected",
+        ),
+      );
+      const error = new Error("offline");
+      const list = vi
+        .fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue({ threads: [] });
+      const fetch = vi.fn(async () => {
+        if (list.mock.calls.length < 2) throw error;
+        return selected;
+      });
+      adapter = makeAdapter({ list, fetch });
+      threadId = "selected";
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+      const fetchesBeforeReload = fetch.mock.calls.length;
+      await handle.getClient().threads.reload();
+      await microtasks(20);
+      expect(handle.getClient().threads.getState().loadError).toBe(error);
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload);
+      await handle.getClient().threads.reload();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().mainThreadId).toBe(
+          "selected",
+        ),
+      );
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload + 1);
+      expect(fetch).toHaveBeenLastCalledWith("selected");
+      expect(onThreadIdChange).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+      handle.destroy();
+    }
   });
 
   it("does not reset again when retrying a failed replacement load", async () => {

@@ -17,7 +17,8 @@
         "!$TURBO_ROOT$/examples/bundle-*/node_modules/**",
         "$TURBO_ROOT$/packages/ui/src/**",
         "$TURBO_ROOT$/scripts/lib/script-options.mjs",
-        "!$TURBO_ROOT$/examples/bundle-*/build/**"
+        "!$TURBO_ROOT$/examples/bundle-*/build/**",
+        "$TURBO_ROOT$/packages/*/vitest.peer-*.config.ts"
       ],
       "outputs": [
         "dist/**",

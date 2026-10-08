@@ -522,6 +522,10 @@ const useRemoteThreadList = (
         lastNotifiedRemoteId: undefined as string | undefined,
         lastControlledThreadId: undefined as string | undefined,
         controlledSwitchGeneration: undefined as number | undefined,
+        controlledSwitchAdapter: undefined as
+          | RemoteThreadListAdapter
+          | undefined,
+        controlledReloadPending: false,
         switchTask: undefined as Promise<void> | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
@@ -627,14 +631,22 @@ const useRemoteThreadList = (
     if (adapterChanged) {
       session.adapterGeneration++;
       session.titleStates.clear();
+      const preserveControlled =
+        session.lastControlledThreadId !== undefined &&
+        session.controlledSwitchAdapter === adapter &&
+        session.controlledSwitchGeneration === session.switchGeneration;
       session.switchGeneration++;
+      session.controlledReloadPending = preserveControlled;
+      if (preserveControlled) {
+        session.controlledSwitchGeneration = session.switchGeneration;
+      }
       session.switchTask = undefined;
       session.adapterAtLoad = adapter;
       const seeded = seedNewThread(EMPTY_LIST);
       store.reset({ ...seeded.state, isLoading: true });
       assignMainThreadId(seeded.id);
       setStartedIds([seeded.id]);
-      notifyRemoteId(undefined, true);
+      notifyRemoteId(undefined, !preserveControlled);
     } else {
       store.update({
         ...store.baseValue,
@@ -722,6 +734,7 @@ const useRemoteThreadList = (
   const startSwitch = useCallback(
     (run: (generation: number) => Promise<void>) => {
       const generation = ++session.switchGeneration;
+      session.controlledReloadPending = false;
       let settle!: (error?: unknown) => void;
       const task = new Promise<void>((resolve, reject) => {
         settle = (error) => {
@@ -1309,6 +1322,7 @@ const useRemoteThreadList = (
       handleThreadListAction("switch", () => {
         const task = switchToThread(threadId, undefined, false);
         session.controlledSwitchGeneration = session.switchGeneration;
+        session.controlledSwitchAdapter = session.adapter;
         return task;
       });
       return;
@@ -1322,6 +1336,7 @@ const useRemoteThreadList = (
     handleThreadListAction("switch", () => {
       const task = switchToThread(threadId, undefined, false);
       session.controlledSwitchGeneration = session.switchGeneration;
+      session.controlledSwitchAdapter = session.adapter;
       return task;
     });
   }, [session, switchToNewThread, switchToThread, threadId]);
@@ -1333,11 +1348,19 @@ const useRemoteThreadList = (
     if (listState.isLoading || listState.isLoadingMore) return;
     if (controlledId === undefined) return;
     if (session.controlledSwitchGeneration !== session.switchGeneration) return;
-    if (getThreadData(listState, controlledId) === undefined) return;
+    if (session.controlledReloadPending && listState.loadError !== undefined)
+      return;
+    if (
+      !session.controlledReloadPending &&
+      getThreadData(listState, controlledId) === undefined
+    )
+      return;
+    session.controlledReloadPending = false;
     if (isSameThread(listState, controlledId, session.mainThreadId)) return;
     handleThreadListAction("switch", () => {
       const task = switchToThread(controlledId, undefined, false);
       session.controlledSwitchGeneration = session.switchGeneration;
+      session.controlledSwitchAdapter = session.adapter;
       return task;
     });
     // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
