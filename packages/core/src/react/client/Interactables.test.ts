@@ -1968,4 +1968,34 @@ describe("Interactables switching back to an adapter during its save", () => {
     expect(a.saves).toHaveLength(1);
     expect(c.save).not.toHaveBeenCalled();
   });
+
+  it("keeps the newest saved edit when an earlier queued save fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("prefs", () => ({ v: 2 }));
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    root.getValue().setPersistenceAdapter(a.adapter);
+
+    a.saves[0]!.reject(new Error("first save failed"));
+    await flushMicrotasks();
+    a.saves[1]!.resolve();
+    await flushMicrotasks();
+
+    expect(stateOf(root, "prefs")).toEqual({ v: 2 });
+    expect(a.saves).toHaveLength(2);
+    root.getValue().setState("other", () => ({ v: 5 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(a.saves.at(-1)!.state.prefs).toEqual({
+      name: "note",
+      state: { v: 2 },
+    });
+  });
 });

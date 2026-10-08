@@ -295,9 +295,17 @@ export const useInteractablePersistenceQueue = <State>({
       } finally {
         if (timer !== undefined) clearTimeout(timer);
       }
-      return batches
-        .filter((batch) => !batch.saved)
-        .map(({ payload, dirtyIds }) => ({ payload, dirtyIds }));
+      const latestBatchById = new Map<string, PersistenceBatch>();
+      for (const batch of batches) {
+        for (const id of batch.dirtyIds) latestBatchById.set(id, batch);
+      }
+      return batches.flatMap((batch) => {
+        if (batch.saved) return [];
+        const dirtyIds = new Set(
+          [...batch.dirtyIds].filter((id) => latestBatchById.get(id) === batch),
+        );
+        return dirtyIds.size > 0 ? [{ payload: batch.payload, dirtyIds }] : [];
+      });
     },
     [],
   );

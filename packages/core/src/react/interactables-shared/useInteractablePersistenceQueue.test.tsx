@@ -268,6 +268,30 @@ describe("useInteractablePersistenceQueue", () => {
       ]);
     });
 
+    it("does not recover an older failed edit after a newer save succeeds", async () => {
+      const first = createDeferred();
+      const second = createDeferred();
+      const save = vi
+        .fn<(state: TestState) => Promise<void>>()
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise);
+      const queue = renderQueue(save);
+      const adapter = queue.adapterRef.current!;
+      await startSave(queue, "a", 1);
+      queue.setState("a", 2);
+      act(() => {
+        queue.result.current.schedulePersistence("a");
+        queue.result.current.flushIfPending();
+      });
+
+      const wait = queue.result.current.waitForAdapterSaves(adapter);
+      first.reject(new Error("first save failed"));
+      await act(flushMicrotasks);
+      second.resolve();
+
+      await expect(wait).resolves.toEqual([]);
+    });
+
     it("hands back a batch whose save has not settled by the timeout", async () => {
       const queue = renderQueue(() => new Promise<void>(() => {}));
       const adapter = queue.adapterRef.current!;
