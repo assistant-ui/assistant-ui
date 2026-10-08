@@ -54,7 +54,7 @@ export function ComposerAttachmentsRow() {
           <span className="max-w-36 truncate text-xs font-medium">
             <AttachmentPrimitive.Name />
           </span>
-          {attachment.status.type === "complete" && (
+          {attachment.status.type !== "running" && (
             <AttachmentPrimitive.Remove aria-label={`Remove ${attachment.name}`} className={cn(ghostButton, "size-5")}>
               <XIcon className="size-3" />
             </AttachmentPrimitive.Remove>
@@ -162,7 +162,7 @@ async function upload(file: File) {
 </div>
 ```
 
-The trailing slot has three outcomes, not two: uploading shows a spinner; done with an `onRemove` handler shows a remove button; done with no `onRemove` shows a plain check mark instead, since there is nothing to remove once nothing is watching for it. An `"error"` state shows none of the three (only the red meta text), matching the runtime's own `"incomplete"` status, which carries a `message` but no built-in retry affordance of its own.
+The trailing slot has three outcomes: uploading shows a spinner; done with an `onRemove` handler shows a remove button; done with no `onRemove` shows a check mark. An `"error"` state shows none of the three (only the red meta text), matching the runtime's own `"incomplete"` status, which carries a `message` but no built-in retry.
 
 ## Examples
 
@@ -182,7 +182,7 @@ const status = useAuiState((s) => s.attachment.status);
 
 <StandaloneMode>
 
-The catalog chip reads `progress` directly and widens a blue bar to match it while `state` is `"uploading"`; once you flip `state` to `"done"`, the bar disappears entirely rather than sitting at full width.
+The catalog chip reads `progress` directly and widens a blue bar to match it while `state` is `"uploading"`; once you flip `state` to `"done"`, the bar disappears rather than sitting at full width.
 
 ```tsx
 <ComposerAttachmentChip attachment={{ name: "photo.png", meta: "1.2 MB", state: "uploading", progress: 62, kind: "image" }} />

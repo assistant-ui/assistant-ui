@@ -1,5 +1,31 @@
 # assistant-ui
 
+## 0.0.121
+
+### Patch Changes
+
+- [#8758](https://github.com/assistant-ui/assistant-ui/pull/8758) [`cae68a4`](https://github.com/assistant-ui/assistant-ui/commit/cae68a45bf24b528151d182e657979053910bec5) - the agent skill the CLI installs now comes from the skills commit that routes cloud persistence to the `cloud` option of `useChatRuntime` instead of the removed cloud-ai-sdk hooks ([@okisdev](https://github.com/okisdev))
+
+- [#8754](https://github.com/assistant-ui/assistant-ui/pull/8754) [`880d66a`](https://github.com/assistant-ui/assistant-ui/commit/880d66af8cdb171cd5eee1b1159e35df5b0d9919) - add browser sign-in and cloud setup commands that provision a shared multiplayer chat with hackathon access-code support. ([@Yonom](https://github.com/Yonom))
+
+- [#8759](https://github.com/assistant-ui/assistant-ui/pull/8759) [`a73237b`](https://github.com/assistant-ui/assistant-ui/commit/a73237b277793c9b9e56cd638357fc57005c07e1) - add --setup-url to cloud login and setup so an active setup wizard can show device authorization while the CLI polls Accounts and keeps its credentials locally. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.120
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/agent-launcher@0.1.17
+
+## 0.0.119
+
+### Patch Changes
+
+- [#8406](https://github.com/assistant-ui/assistant-ui/pull/8406) [`cec9fd4`](https://github.com/assistant-ui/assistant-ui/commit/cec9fd4bf1d17aeff969f5ff57e4c5b34ea3ea61) - fix: `assistant-ui agent` installs the skills commit whose cloud skill no longer shows `files.pdfToImages` ([@okisdev](https://github.com/okisdev))
+
+- [#8082](https://github.com/assistant-ui/assistant-ui/pull/8082) [`3104efa`](https://github.com/assistant-ui/assistant-ui/commit/3104efa20a6659919fb230b8b5d4e6ecf0ed7c63) - fix: honor user={false}, assistant={false} and system={false} on MessagePrimitive.If, and migrate them to the matching AuiIf inequality ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.0.118
 
 ### Patch Changes

@@ -733,6 +733,22 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("Input", () => {
+    it("maps password and number inputs while preserving string values", () => {
+      const { card } = toAdaptiveCard([
+        {
+          $type: "Input",
+          name: "quantity",
+          inputType: "number",
+          defaultValue: "2.5",
+        },
+        { $type: "Input", name: "password", inputType: "password" },
+      ]);
+      expect(card.body).toEqual([
+        { type: "Input.Text", id: "quantity", value: "2.5" },
+        { type: "Input.Text", id: "password", style: "password" },
+      ]);
+    });
+
     it("renders an Input.Text", () => {
       const { card } = toAdaptiveCard({
         $type: "Input",
@@ -757,6 +773,20 @@ describe("toAdaptiveCard", () => {
         multiline: true,
       });
       expect((card.body[0] as TeamsInputText).isMultiline).toBe(true);
+    });
+
+    it("keeps a multiline password input single-line", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Input",
+        name: "password",
+        inputType: "password",
+        multiline: true,
+      });
+      expect(card.body[0]).toEqual({
+        type: "Input.Text",
+        id: "password",
+        style: "password",
+      });
     });
 
     it("sets value from a non-empty defaultValue", () => {

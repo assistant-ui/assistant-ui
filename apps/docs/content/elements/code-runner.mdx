@@ -64,7 +64,7 @@ const toolkit = defineToolkit({
 
 ### Complete the call from the button
 
-`addResult(result)` is the only way this call finishes; there's no `execute` for the runtime to fall back on. Call it exactly once, from inside `onRun`, once the sandboxed run actually returns.
+`addResult(result)` is the only way this call finishes; there's no `execute` for the runtime to fall back on. Call it exactly once, from inside `onRun`, once the sandboxed run returns.
 
 ```tsx title="app/providers.tsx"
 const config = AuiConfig({ tools: Tools({ toolkit }) });
@@ -136,7 +136,7 @@ async function run() {
 </div>
 ```
 
-The code block is always visible; the output block only mounts once `state` leaves `"idle"`. Each output line fades in staggered by `80ms` per line, and reads in red when `state` is `"error"`, neutral otherwise. A blinking caret renders only while `state` is `"running"`, after the lines received so far. The run button renders when `onRun` is provided and shows a disabled spinner while running; running display-only output keeps the same disabled spinner as a status indicator. The duration badge only shows once a duration is known and the run isn't currently in progress.
+The code block is always visible; the output block only mounts once `state` leaves `"idle"`. Each output line fades in staggered by `80ms` per line, and reads in red when `state` is `"error"`, neutral otherwise. A blinking caret renders only while `state` is `"running"`, after the lines received so far. The run button renders when `onRun` is provided and shows a disabled spinner while running. Without `onRun`, the same disabled spinner still renders while `state` is `"running"`, as a status indicator. The duration badge only shows once a duration is known and the run isn't currently in progress.
 
 ## Examples
 

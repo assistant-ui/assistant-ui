@@ -153,7 +153,7 @@ Both lanes take `className` on the root. `detail` reads the shared `mono` surfac
 
 <RuntimeMode>
 
-Most threads never produce a `subagent` or `tool` row; `turnsFor` above still returns a plain two-kind list (`user`, `agent`) for them, since the loop over `content` simply finds nothing to add.
+Most threads never produce a `subagent` or `tool` row; `turnsFor` above still returns a plain two-kind list (`user`, `agent`) for them, since the loop over `content` finds nothing to add.
 
 </RuntimeMode>
 
@@ -192,6 +192,8 @@ Passing turns of a single `kind` works the same as a mixed list; the icon and to
 | `turns` | `readonly SpeakerTurn[]` | required | The full, ordered list to render. |
 | `className` | `string` | | Merged onto the root. |
 
+All other `div` props are forwarded to the root.
+
 ### SpeakerTurn
 
 | Field | Type | Description |
@@ -201,7 +203,5 @@ Passing turns of a single `kind` works the same as a mixed list; the icon and to
 | `name` | `string` | |
 | `detail` | `string \| undefined` | Shown beside the name, e.g. a model name or a duration. |
 | `text` | `string` | |
-
-All other `div` props are forwarded to the root.
 
 </StandaloneMode>

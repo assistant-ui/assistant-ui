@@ -81,6 +81,20 @@ describe("getPendingToolCalls", () => {
 });
 
 describe("getPendingCancellations", () => {
+  it("skips a null tool_calls entry and cancels the rest", () => {
+    const messages = [
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [null, { id: "tc-1", name: "tool_a", args: {} }],
+      },
+    ] as unknown as AdkMessage[];
+    expect(getPendingCancellations(messages, [])).toMatchObject([
+      { type: "tool", name: "tool_a", tool_call_id: "tc-1", status: "error" },
+    ]);
+  });
+
   it("emits a {cancelled:true} tool message for every pending tool call", () => {
     const messages: AdkMessage[] = [
       aiWithToolCalls("ai-1", [{ id: "tc-1", name: "tool_a" }]),
@@ -283,6 +297,25 @@ describe("getMessageContent", () => {
     );
     expect(result).toEqual([
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
+    ]);
+  });
+
+  it("uses the binary data URL default for a media-less file", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "",
+          data: "data:;base64,SGVsbG8=",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "application/octet-stream",
+        data: "SGVsbG8=",
+      },
     ]);
   });
 

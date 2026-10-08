@@ -1,0 +1,38 @@
+{
+  "repository": "https://github.com/assistant-ui/harness-sdk",
+  "revision": "3d3a180f0400b84267f62969d42f8b102bed4479",
+  "artifacts": [
+    {
+      "name": "harness-sdk",
+      "version": "0.3.1",
+      "directory": "packages/harness-sdk/core",
+      "normalizations": [
+        "@assistant-ui/tap becomes a required peer ^0.9.6",
+        "statewire becomes a required peer ^0.19.0"
+      ],
+      "filename": "harness-sdk-0.3.1.tgz",
+      "sha256": "41334159edffa2bafbdf669d372c7455fdaed8d1e47699e4ff8cebf0ca85669d"
+    },
+    {
+      "name": "@assistant-ui/react-harness-sdk",
+      "version": "0.0.2",
+      "directory": "packages/harness-sdk/assistant-ui",
+      "normalizations": [
+        "@assistant-ui/core becomes a required peer ^0.3.18",
+        "@assistant-ui/store becomes a required peer ^0.3.3",
+        "@assistant-ui/tap becomes a required peer ^0.9.6",
+        "harness-sdk dependency becomes a required peer ^0.3.1"
+      ],
+      "filename": "assistant-ui-react-harness-sdk-0.0.2.tgz",
+      "sha256": "7aed398d12e126e28ffcc216713b3cfe0200bbf51d1567b28d5b99dadf717307"
+    },
+    {
+      "name": "statewire",
+      "version": "0.19.3",
+      "directory": "packages/statewire/core",
+      "normalizations": ["@assistant-ui/tap becomes a required peer ^0.9.6"],
+      "filename": "statewire-0.19.3.tgz",
+      "sha256": "9dbc65f74427f5f1fdaccbec98baebb7aa207bb1a2d972288b03225afc6cc48f"
+    }
+  ]
+}
