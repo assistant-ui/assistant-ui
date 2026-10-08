@@ -8,6 +8,8 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
+import { useLangGraphSend } from "./hooks";
+import type { ReactNode } from "react";
 import { mockStreamCallbackFactory } from "./testUtils";
 
 const emptyStream = () => vi.fn(() => mockStreamCallbackFactory([])());
@@ -105,9 +107,8 @@ describe("useLangGraphRuntime parallel tool results", () => {
 
     const runtime = capture.runtime!;
 
-    let firstAppend!: Promise<void>;
     act(() => {
-      firstAppend = runtime.thread.append("go");
+      runtime.thread.append("go");
     });
 
     await waitForCall(runtime, "c1");
@@ -123,11 +124,10 @@ describe("useLangGraphRuntime parallel tool results", () => {
         .addToolResult({ ok: 1 });
     });
 
-    await act(async () => {
-      resolveSecondCall();
-      await firstAppend;
-    });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => resolveSecondCall());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
     expect(sent.length).toBe(1);
 
     await waitFor(() => {
@@ -237,21 +237,47 @@ describe("useLangGraphRuntime parallel tool results", () => {
       };
     });
     const runtime = mount(stream);
-    let firstAppend!: Promise<void>;
     act(() => {
-      firstAppend = runtime.thread.append("go");
+      runtime.thread.append("go");
     });
     await waitForCall(runtime, "c1");
     act(() => addResult(runtime, "c1"));
-    await act(async () => {
-      finish();
-      await firstAppend;
-    });
+    act(() => finish());
     await waitFor(() => expect(sent).toHaveLength(2));
     expect(sent[1]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
   });
 
-  it("releases a buffered result when a sibling call has no id", async () => {
+  it("flushes a call added to an existing assistant message by its own run", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      yield metadataEvent;
+      if (sent.length === 1) yield aiWith(["c0"]);
+      if (sent.length === 2) {
+        yield aiWith(["c0", "c1"]);
+        await gate;
+      }
+    });
+    const runtime = mount(stream);
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c0");
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => addResult(runtime, "c0"));
+    await waitForCall(runtime, "c1");
+    act(() => addResult(runtime, "c1"));
+    expect(sent).toHaveLength(2);
+    act(() => finish());
+    await waitFor(() => expect(sent).toHaveLength(3));
+    expect(sent[2]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
+  });
+
+  it("keeps buffered results after a top-level run error", async () => {
     let finish!: () => void;
     const gate = new Promise<void>((resolve) => {
       finish = resolve;
@@ -260,37 +286,101 @@ describe("useLangGraphRuntime parallel tool results", () => {
     const stream = vi.fn(async function* (messages: unknown[]) {
       sent.push(messages);
       if (sent.length !== 1) return;
-      yield metadataEvent;
-      yield aiWith(["c1"]);
+      yield aiWith(["c1", "c2"]);
       await gate;
-      yield {
-        event: "messages/complete",
-        data: [
-          {
-            id: "calls",
-            type: "ai",
-            content: [],
-            tool_calls: [
-              { name: "ask", args: {} },
-              { id: "c1", name: "ask", args: {} },
-            ],
-          },
-        ],
-      };
+      yield { event: "error", data: { message: "graph failed" } };
     });
     const runtime = mount(stream);
-    let firstAppend!: Promise<void>;
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c2");
     act(() => {
-      firstAppend = runtime.thread.append("go");
+      addResult(runtime, "c1");
+      addResult(runtime, "c2");
     });
-    await waitForCall(runtime, "c1");
-    act(() => addResult(runtime, "c1"));
-    await act(async () => {
-      finish();
-      await firstAppend;
-    });
+    act(() => finish());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    expect(sent).toHaveLength(1);
+    act(() => addResult(runtime, "c2"));
     await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[1]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
+    expect(
+      sent[1]!.map(
+        (message) => (message as { tool_call_id: string }).tool_call_id,
+      ),
+    ).toEqual(["c1", "c2"]);
+  });
+
+  it("releases finished-run siblings when a late call leaves the visible group", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    let finishReplacement!: () => void;
+    const replacementGate = new Promise<void>((resolve) => {
+      finishReplacement = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length === 1) {
+        yield aiWith(["c1", "c2"]);
+        await gate;
+      } else if (sent.length === 2) {
+        yield { event: "values", data: { messages: [] } };
+        await replacementGate;
+      }
+    });
+    const runtime = mount(stream);
+    const { result: send } = renderHook(() => useLangGraphSend(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      ),
+    });
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c2");
+    const assistantIndex = runtime.thread
+      .getState()
+      .messages.findIndex((message) => message.role === "assistant");
+    const latePart = runtime.thread
+      .getMessageByIndex(assistantIndex)
+      .getMessagePartByToolCallId("c2");
+    act(() => addResult(runtime, "c1"));
+    act(() => finish());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => {
+      void send.current([], {});
+    });
+    await waitFor(() =>
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === "c2",
+            ),
+          ),
+      ).toBe(false),
+    );
+    act(() => {
+      latePart.addToolResult({ attempt: 1 });
+      latePart.addToolResult({ attempt: 2 });
+    });
+    act(() => finishReplacement());
+    await waitFor(() => expect(sent).toHaveLength(3));
+    expect(
+      sent[2]!.map(
+        (message) => (message as { tool_call_id: string }).tool_call_id,
+      ),
+    ).toEqual(["c1", "c2"]);
+    expect(sent[2]).toMatchObject([
+      { content: JSON.stringify({ ok: true }) },
+      { content: JSON.stringify({ attempt: 2 }) },
+    ]);
   });
 
   it("reports a rejected resume started by run completion", async () => {
@@ -309,16 +399,12 @@ describe("useLangGraphRuntime parallel tool results", () => {
         await gate;
       });
       const runtime = mount(stream);
-      let firstAppend!: Promise<void>;
       act(() => {
-        firstAppend = runtime.thread.append("go");
+        runtime.thread.append("go");
       });
       await waitForCall(runtime, "c1");
       act(() => addResult(runtime, "c1"));
-      await act(async () => {
-        finish();
-        await firstAppend;
-      });
+      act(() => finish());
       await waitFor(() =>
         expect(reported).toHaveBeenCalledWith(
           "useLangGraphRuntime: tool result resume failed",
