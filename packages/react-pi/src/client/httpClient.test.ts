@@ -604,6 +604,7 @@ describe("createPiHttpClient", () => {
           threadId: "t1",
           seq: 0,
           error: expect.stringContaining("SSE line exceeds maxLineLength"),
+          terminal: true,
         }),
       ]),
     );

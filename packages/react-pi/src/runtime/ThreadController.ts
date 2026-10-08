@@ -551,6 +551,9 @@ export class PiThreadController implements PiThreadControllerLike {
       (event: PiClientEvent) => {
         if (generation !== this.eventSubscriptionGeneration) return;
         if (event.threadId !== this.threadId) return;
+        if (event.type === "error" && event.terminal) {
+          this.disconnectFromEvents();
+        }
         this.dispatch(event);
       },
       options,
