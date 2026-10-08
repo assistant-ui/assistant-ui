@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { Component, StrictMode, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import { useTapRoot, flushTapSync } from "../../index";
 import { useState as useResourceState } from "../../react-hooks/useState";
@@ -127,6 +128,18 @@ describe("useTapRoot host renders", () => {
     expect(() => flushTapSync(() => setCount(1))).toThrow(error);
     expect(laterSubscriber).toHaveBeenCalledOnce();
     expect(root.getValue()).toBe(1);
+  });
+
+  it("renders server markup without layout-effect warnings", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    function Host() {
+      const root = useTapRoot(function Counter() {
+        return useResourceState(0)[0];
+      });
+      return <span>{root.getValue()}</span>;
+    }
+    expect(renderToString(<Host />)).toBe("<span>0</span>");
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("replays tap root updates under React StrictMode", () => {
