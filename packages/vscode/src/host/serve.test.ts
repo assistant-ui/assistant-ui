@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { VSCODE_BRIDGE_CHANNEL, type RpcRequestMessage } from "../protocol";
 import { createInMemoryBridge } from "../testUtils";
 import { createVSCodeFetch } from "../webview/fetch";
 import { callHost } from "../webview/rpc";
@@ -115,6 +116,41 @@ describe("serveWebviewHost", () => {
     await expect(call).rejects.toThrow("Webview host disposed");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(bridge.hostToWebview).toHaveLength(1);
+  });
+
+  it("ignores a host call that reuses an in-flight id", async () => {
+    let finish: (opened: boolean) => void = () => {};
+    const openExternal = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { bridge } = setup({ openExternal });
+    const call: RpcRequestMessage = {
+      channel: VSCODE_BRIDGE_CHANNEL,
+      kind: "rpc:request",
+      id: "rpc-1",
+      method: "openExternal",
+      params: ["https://example.com/"],
+    };
+
+    bridge.port.postMessage(call);
+    bridge.port.postMessage(call);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    finish(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(openExternal).toHaveBeenCalledOnce();
+    expect(bridge.hostToWebview).toEqual([
+      {
+        channel: VSCODE_BRIDGE_CHANNEL,
+        kind: "rpc:response",
+        id: "rpc-1",
+        ok: true,
+        result: true,
+      },
+    ]);
   });
 
   it("stops answering after dispose", async () => {

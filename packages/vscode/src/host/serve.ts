@@ -102,6 +102,7 @@ export function serveWebviewHost(
   const pending = new Set<string>();
 
   const handle = async ({ id, method, params }: RpcRequestMessage) => {
+    if (pending.has(id)) return;
     pending.add(id);
     try {
       const handler = Object.hasOwn(handlers, method) ? handlers[method] : null;
