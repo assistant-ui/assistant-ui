@@ -44,7 +44,13 @@ export const composerInput = (options?: {
   };
   const onkeydown = (event: KeyboardEvent) => {
     if (event.defaultPrevented || !submitOnEnter) return;
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.isComposing ||
+      event.keyCode === 229
+    )
+      return;
     if (sendDisabled.current || inputDisabled.current) return;
     event.preventDefault();
     aui.composer.send();

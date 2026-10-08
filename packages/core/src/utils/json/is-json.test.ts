@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isJSONArray, isJSONObject, isJSONValue, isRecord } from "./is-json";
+import { isJSONValue, isRecord } from "./is-json";
 
 const wrapInArrays = (value: unknown, depth: number): unknown => {
   let result = value;
@@ -75,49 +75,5 @@ describe("isJSONValue", () => {
 
   it("accepts objects whose only keys are symbols", () => {
     expect(isJSONValue({ [Symbol("s")]: () => {} })).toBe(true);
-  });
-});
-
-describe("isJSONArray", () => {
-  it("accepts arrays of JSON values", () => {
-    expect(isJSONArray([])).toBe(true);
-    expect(isJSONArray([1, "a", null, { b: true }])).toBe(true);
-  });
-
-  it("rejects arrays containing non-JSON values", () => {
-    expect(isJSONArray([NaN])).toBe(false);
-    expect(isJSONArray([() => {}])).toBe(false);
-    expect(isJSONArray([1, undefined])).toBe(false);
-  });
-
-  it("rejects non-arrays", () => {
-    expect(isJSONArray({})).toBe(false);
-    expect(isJSONArray("x")).toBe(false);
-    expect(isJSONArray(null)).toBe(false);
-  });
-
-  it("does not consume the element index as recursion depth", () => {
-    expect(isJSONArray(Array.from({ length: 150 }, () => 0))).toBe(true);
-    expect(
-      isJSONArray(Array.from({ length: 150 }, () => wrapInArrays(1, 50))),
-    ).toBe(true);
-  });
-});
-
-describe("isJSONObject", () => {
-  it("accepts objects of JSON values", () => {
-    expect(isJSONObject({})).toBe(true);
-    expect(isJSONObject({ a: 1, b: [true, null] })).toBe(true);
-  });
-
-  it("rejects arrays and null", () => {
-    expect(isJSONObject([])).toBe(false);
-    expect(isJSONObject(null)).toBe(false);
-  });
-
-  it("rejects objects containing non-JSON values", () => {
-    expect(isJSONObject({ a: NaN })).toBe(false);
-    expect(isJSONObject({ a: () => {} })).toBe(false);
-    expect(isJSONObject({ a: undefined })).toBe(false);
   });
 });

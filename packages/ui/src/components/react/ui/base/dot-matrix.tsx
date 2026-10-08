@@ -200,6 +200,11 @@ export type DotMatrixProps = Omit<ComponentProps<"span">, "children"> & {
 const DOT_MATRIX_CSS =
   '@property --aui-dot-matrix-hi{syntax:"<number>";inherits:false;initial-value:1}@property --aui-dot-matrix-lo{syntax:"<number>";inherits:false;initial-value:0.15}@keyframes aui-dot-matrix-blink{0%,100%{opacity:var(--aui-dot-matrix-hi,1)}50%{opacity:var(--aui-dot-matrix-lo,0.15)}}';
 
+const HOISTED_STYLE: Record<string, string> = {
+  href: "aui-dot-matrix",
+  precedence: "low",
+};
+
 /**
  * Tiny 5x5 dot-matrix status indicator with 20 built-in states. Dots inherit the text color and animate in state-specific patterns: twinkle, waves, ripples, sweeps, equalizer columns, and check/cross/bang glyphs. State changes cross-fade per dot.
  *
@@ -223,10 +228,8 @@ function DotMatrix({
       {...props}
     >
       <span className="sr-only">{label ?? state}</span>
-      {/* Hoisted and deduplicated across instances by React; must live in HTML scope, inside the SVG it would be an SVG-namespace element React does not hoist. */}
-      <style href="aui-dot-matrix" precedence="low">
-        {DOT_MATRIX_CSS}
-      </style>
+      {/* React 19 hoists and deduplicates this across instances; React 18 renders it inline, and its types don't declare href or precedence, so they're spread. It must live in HTML scope: inside the SVG it would be an SVG-namespace element React does not hoist. */}
+      <style {...HOISTED_STYLE}>{DOT_MATRIX_CSS}</style>
       <svg
         aria-hidden
         viewBox="0 0 20 20"

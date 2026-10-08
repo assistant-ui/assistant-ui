@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useImperativeHandle,
+  useRef,
+  useState,
+  type FormEvent,
+  type Ref,
+} from "react";
 import {
   Composer,
   ComposerBar,
@@ -10,21 +16,20 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 
 export function SetupComposer({
   checkout,
+  ref,
 }: {
   checkout: CheckoutContextValue;
+  ref?: Ref<HTMLTextAreaElement>;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string>();
   const textarea = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(ref, () => textarea.current!, []);
   const closed =
     checkout.state?.status === "done" || checkout.state?.status === "cancelled";
   const disabled =
     closed || checkout.degraded || checkout.state?.createdAt == null;
-
-  useEffect(() => {
-    textarea.current?.focus();
-  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -43,21 +48,21 @@ export function SetupComposer({
     }
   };
 
-  if (closed) return null;
-
   return (
     <Composer className="max-w-none shrink-0">
-      <ComposerBar className="focus-within:border-foreground/30 gap-0 border-transparent bg-[color-mix(in_oklab,var(--color-foreground)_4%,var(--color-background))] p-1.5 dark:bg-[color-mix(in_oklab,var(--color-foreground)_6%,var(--color-background))]">
+      <ComposerBar className="focus-within:border-foreground/30 bg-muted gap-0 border-transparent p-1.5">
         <form onSubmit={(event) => void submit(event)}>
-          <div className="flex items-end gap-1">
+          <div className="flex items-end gap-1.5">
             <textarea
               ref={textarea}
               name="message"
               aria-label="Message your agent"
-              placeholder="Message your agent…"
+              placeholder={
+                closed ? "The setup is closed." : "Message your agent…"
+              }
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              disabled={sending}
+              disabled={sending || closed}
               rows={1}
               onKeyDown={(event) => {
                 if (

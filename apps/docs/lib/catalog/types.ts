@@ -27,9 +27,12 @@ export type CatalogItem = {
    * as a low and high bound. The cart sums them into a delivery estimate.
    */
   agentMinutes: [number, number];
+  /** The /elements slug of the element whose demo shows the product running. */
+  preview?: string;
+  hidden?: boolean;
 };
 
-/** A product with its own page under /shop. */
+/** A product with its own page under /components. */
 export type CatalogProduct = CatalogItem & {
   /** A short paragraph for the detail page. */
   description: string;
@@ -42,6 +45,10 @@ export type CatalogProduct = CatalogItem & {
   packages: string[];
   /** What the product adds, phrased as noun phrases without periods. */
   includes: string[];
+  /** What works once it is installed, with no further setup, phrased as noun phrases without periods. */
+  features?: string[];
+  /** The /elements slugs of the elements the product installs, the container first. */
+  bundle?: string[];
   /** Requirements a project must satisfy first, phrased as noun phrases. */
   requires: string[];
   /** The human install path shown on the detail page. */

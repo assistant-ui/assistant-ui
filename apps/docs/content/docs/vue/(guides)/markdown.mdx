@@ -1,0 +1,104 @@
+---
+title: Markdown
+description: Render assistant text as Markdown with the registry component or a renderer of your own.
+---
+
+`MessagePrimitiveParts` renders a text part as plain text in a `<p>` with `white-space: pre-line` unless you provide a `#text` slot. The registry message component uses that slot to render assistant text as Markdown; its user messages stay plain text.
+
+## The registry renderer
+
+The registry's `markdown-text.vue` creates a `markdown-it` parser with `html: false`, `linkify: true`, and `breaks: true`. Raw HTML in the message stays text, URL-like text becomes a link, and a newline within a paragraph becomes a line break. The component passes the parsed output to `v-html` and parses the whole text again as the part changes during streaming. See [Styled components](/docs/vue/components) for the registry thread.
+
+Its scoped CSS styles paragraphs, headings `h1` through `h3`, lists and list items, inline and fenced code, links, and blockquotes. The parser does not configure syntax highlighting.
+
+## Use it for text parts
+
+Put the registry renderer in the `#text` slot of `MessagePrimitiveParts`. This is abridged from the registry `message.vue`:
+
+```vue
+<MessagePrimitiveParts>
+  <template #text>
+    <MarkdownText />
+  </template>
+</MessagePrimitiveParts>
+```
+
+Each slot invocation has the current part scope, so `MarkdownText` reads the text through `useAuiState`. The [message primitive](/docs/vue/primitives/message) covers the other part slots.
+
+## Write your own renderer
+
+Install `markdown-it` and its TypeScript declarations, `@types/markdown-it`, in your Nuxt app. Read `s.part.text` inside the part scope and pass it through the parser. This component keeps raw HTML disabled before inserting the output with `v-html`:
+
+```vue title="app/components/MarkdownText.vue"
+<script setup lang="ts">
+import { computed } from "vue";
+import MarkdownIt from "markdown-it";
+import { useAuiState } from "@assistant-ui/vue";
+
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
+const text = useAuiState((s) =>
+  s.part.type === "text" ? s.part.text : "",
+);
+const html = computed(() => md.render(text.value));
+</script>
+
+<template>
+  <div class="markdown-text" v-html="html" />
+</template>
+
+<style scoped>
+.markdown-text :deep(p) {
+  margin: 0.5rem 0;
+}
+.markdown-text :deep(pre) {
+  overflow-x: auto;
+  padding: 0.75rem;
+}
+</style>
+```
+
+Render this component in the `#text` slot where you want Markdown. The parser runs again when `s.part.text` changes.
+
+## Highlight code
+
+`markdown-it` accepts a `highlight` function for fenced code blocks. It must return escaped HTML, or an empty string to let `markdown-it` escape the code. This example marks a small set of JavaScript and TypeScript keywords without another dependency:
+
+```vue title="app/components/HighlightedMarkdownText.vue"
+<script setup lang="ts">
+import { computed } from "vue";
+import MarkdownIt from "markdown-it";
+import { useAuiState } from "@assistant-ui/vue";
+
+const md: InstanceType<typeof MarkdownIt> = new MarkdownIt({
+  html: false,
+  highlight(code, language): string {
+    if (language !== "js" && language !== "ts") return "";
+    return md.utils.escapeHtml(code).replace(
+      /\b(const|let|function|return)\b/g,
+      '<span class="code-keyword">$1</span>',
+    );
+  },
+});
+const text = useAuiState((s) =>
+  s.part.type === "text" ? s.part.text : "",
+);
+const html = computed(() => md.render(text.value));
+</script>
+
+<template>
+  <div class="markdown-text" v-html="html" />
+</template>
+
+<style scoped>
+.markdown-text :deep(pre) {
+  overflow-x: auto;
+  padding: 0.75rem;
+}
+.markdown-text :deep(.code-keyword) {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+</style>
+```
+
+The replacement also matches those words inside strings and comments. For language-aware highlighting, supply a tokenizer in the same `highlight` option.

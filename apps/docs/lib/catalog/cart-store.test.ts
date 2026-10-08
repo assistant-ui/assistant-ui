@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { cartEntryId } from "./agent-tool-config";
 
 const storageKey = "aui-catalog-cart";
 const instructionsKey = "aui-catalog-instructions";
@@ -30,10 +31,97 @@ const loadStore = async () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
 describe("cart store", () => {
+  it("preserves stored and merged products when configured tool ids match their slugs", async () => {
+    const values = setupStorage();
+    const first = {
+      id: "cloud",
+      slug: "agent-tools" as const,
+      name: "Search",
+      purpose: "Search support sources.",
+    };
+    const second = {
+      id: "elements/thread-list",
+      slug: "agent-tools" as const,
+      name: "History",
+      purpose: "Read our conversation history.",
+    };
+    values.set(storageKey, JSON.stringify([first, "cloud"]));
+    const store = await loadStore();
+    expect(store.getCartEntries()).toEqual([first, "cloud"]);
+    store.mergeIntoCart([first, second, "elements/thread-list"]);
+    expect(store.getCartEntries()).toEqual([
+      first,
+      "cloud",
+      second,
+      "elements/thread-list",
+    ]);
+    const restored = await loadStore();
+    expect(restored.getCartEntries()).toEqual([
+      first,
+      "cloud",
+      second,
+      "elements/thread-list",
+    ]);
+    restored.removeFromCart("cloud");
+    expect(restored.getCartEntries()).toEqual([
+      first,
+      second,
+      "elements/thread-list",
+    ]);
+    restored.removeFromCart(cartEntryId(first));
+    expect(restored.getCartEntries()).toEqual([second, "elements/thread-list"]);
+    restored.removeFromCart("elements/thread-list");
+    expect(restored.getCartEntries()).toEqual([second]);
+    restored.removeFromCart(cartEntryId(second));
+    expect(restored.getCartEntries()).toEqual([]);
+  });
+
+  it("requires a purpose and preserves independently configured tool instances", async () => {
+    const values = setupStorage();
+    values.set(storageKey, JSON.stringify(["agent-tools"]));
+    const store = await loadStore();
+    store.addAgentTool("Web search", "  ");
+    expect(store.getCart()).toEqual(["agent-tools"]);
+    store.addAgentTool("Web search", "Search our support sources.");
+    store.addAgentTool("Web search", "Search current news.");
+    const entries = store.getCartEntries();
+    expect(entries).toHaveLength(2);
+    expect(entries).not.toContain("agent-tools");
+    expect(entries[0]).toMatchObject({
+      slug: "agent-tools",
+      purpose: "Search our support sources.",
+    });
+    expect(entries[1]).toMatchObject({
+      slug: "agent-tools",
+      purpose: "Search current news.",
+    });
+    expect(JSON.parse(values.get(storageKey)!)).toEqual(entries);
+    const restored = await loadStore();
+    expect(restored.getCartEntries()).toEqual(entries);
+    const first = entries[0];
+    if (typeof first === "string" || first === undefined)
+      throw new Error("Expected configured tool");
+    restored.removeFromCart(cartEntryId(first));
+    expect(restored.getCartEntries()).toEqual([entries[1]]);
+  });
+
+  it("drops incomplete stored tool configuration", async () => {
+    const values = setupStorage();
+    values.set(
+      storageKey,
+      JSON.stringify([
+        { id: "tool", slug: "agent-tools", name: "Search", purpose: "" },
+      ]),
+    );
+    const store = await loadStore();
+    expect(store.getCartEntries()).toEqual([]);
+  });
+
   it("adds known products once and persists them", async () => {
     const values = setupStorage();
     const store = await loadStore();
@@ -51,6 +139,17 @@ describe("cart store", () => {
     values.set(storageKey, JSON.stringify(["cloud", "gone", "cloud"]));
     const store = await loadStore();
     expect(store.getCart()).toEqual(["cloud"]);
+  });
+
+  it("drops every stored product when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    const values = setupStorage();
+    values.set(storageKey, JSON.stringify(["cloud", "elements/thread-list"]));
+    const store = await loadStore();
+    expect(store.getCart()).toEqual([]);
+    store.addToCart("cloud");
+    expect(store.getCart()).toEqual([]);
   });
 
   it("removes the storage entry when the cart empties", async () => {

@@ -36,6 +36,17 @@ function encodeServerIdInState(serverId: string): string {
   return `${STATE_PREFIX}${bytesToBase64Url(bytes)}`;
 }
 
+function createStateNonce(): string {
+  if (typeof crypto === "undefined") {
+    throw new Error("Web Crypto is required to start MCP OAuth");
+  }
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  if (typeof crypto.getRandomValues !== "function") {
+    throw new Error("Web Crypto is required to start MCP OAuth");
+  }
+  return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
 export function decodeServerIdFromState(state: string): string | null {
   if (!state.startsWith(STATE_PREFIX)) return null;
   const dot = state.indexOf(".", STATE_PREFIX.length);
@@ -376,10 +387,7 @@ export function createOAuthProvider(
     state() {
       // Embed the server id so the callback handler can route it back to the
       // right MCPServerResource without app-level wiring.
-      const nonce =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}.${Math.random()}`;
+      const nonce = createStateNonce();
       pendingState = `${encodeServerIdInState(serverId)}.${nonce}`;
       return pendingState;
     },

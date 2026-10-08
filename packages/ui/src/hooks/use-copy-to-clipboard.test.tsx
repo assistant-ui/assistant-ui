@@ -1,7 +1,9 @@
-import { Activity } from "react";
+import { Activity, version } from "react";
 import { act, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCopyToClipboard } from "./use-copy-to-clipboard";
+
+const onReact18 = version.startsWith("18.");
 
 const stubClipboard = (writeText: (value: string) => Promise<void>) => {
   vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
@@ -114,36 +116,40 @@ describe("useCopyToClipboard", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("resets the confirmation when a hidden Activity cancels its timer", async () => {
-    stubClipboard(vi.fn().mockResolvedValue(undefined));
-    let copy!: ReturnType<typeof useCopyToClipboard>;
-    const Probe = () => {
-      copy = useCopyToClipboard();
-      return null;
-    };
-    const App = ({ mode }: { mode: "visible" | "hidden" }) => (
-      <Activity mode={mode}>
-        <Probe />
-      </Activity>
-    );
-    const view = render(<App mode="visible" />);
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "resets the confirmation when a hidden Activity cancels its timer",
+    async () => {
+      stubClipboard(vi.fn().mockResolvedValue(undefined));
+      let copy!: ReturnType<typeof useCopyToClipboard>;
+      const Probe = () => {
+        copy = useCopyToClipboard();
+        return null;
+      };
+      const App = ({ mode }: { mode: "visible" | "hidden" }) => (
+        <Activity mode={mode}>
+          <Probe />
+        </Activity>
+      );
+      const view = render(<App mode="visible" />);
 
-    await act(async () => {
-      copy.copyToClipboard("first");
-      await Promise.resolve();
-    });
-    expect(copy.isCopied).toBe(true);
+      await act(async () => {
+        copy.copyToClipboard("first");
+        await Promise.resolve();
+      });
+      expect(copy.isCopied).toBe(true);
 
-    view.rerender(<App mode="hidden" />);
-    view.rerender(<App mode="visible" />);
+      view.rerender(<App mode="hidden" />);
+      view.rerender(<App mode="visible" />);
 
-    expect(copy.isCopied).toBe(false);
-    expect(vi.getTimerCount()).toBe(0);
+      expect(copy.isCopied).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
 
-    await act(async () => {
-      copy.copyToClipboard("second");
-      await Promise.resolve();
-    });
-    expect(copy.isCopied).toBe(true);
-  });
+      await act(async () => {
+        copy.copyToClipboard("second");
+        await Promise.resolve();
+      });
+      expect(copy.isCopied).toBe(true);
+    },
+  );
 });
