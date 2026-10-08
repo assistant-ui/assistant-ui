@@ -155,33 +155,37 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("pauses bottom follow after opening a collapsed disclosure in a message", () => {
-    const view = geometry(500, 100);
-    view.setTop(400);
-    const message = document.createElement("div");
-    message.setAttribute("data-message-id", "m1");
-    const disclosure = document.createElement("button");
-    disclosure.setAttribute("aria-expanded", "false");
-    message.append(disclosure);
-    view.element.append(message);
+  it.each([undefined, "false"])(
+    "pauses bottom follow after opening a collapsed disclosure with aria-haspopup=%s",
+    (popup) => {
+      const view = geometry(500, 100);
+      view.setTop(400);
+      const message = document.createElement("div");
+      message.setAttribute("data-message-id", "m1");
+      const disclosure = document.createElement("button");
+      disclosure.setAttribute("aria-expanded", "false");
+      if (popup !== undefined) disclosure.setAttribute("aria-haspopup", popup);
+      message.append(disclosure);
+      view.element.append(message);
 
-    const controller = createThreadViewportAutoScroll({
-      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
-      onAtBottomChange: vi.fn(),
-    });
-    controller.attach(view.element);
-    observers[0]!.trigger();
-    view.scrollTo.mockClear();
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      observers[0]!.trigger();
+      view.scrollTo.mockClear();
 
-    disclosure.click();
-    view.grow(600);
-    observers[0]!.trigger();
+      disclosure.click();
+      view.grow(600);
+      observers[0]!.trigger();
 
-    expect(view.scrollTo).not.toHaveBeenCalled();
-    expect(view.element.scrollTop).toBe(400);
-    expect(controller.isAtBottom).toBe(false);
-    controller.dispose();
-  });
+      expect(view.scrollTo).not.toHaveBeenCalled();
+      expect(view.element.scrollTop).toBe(400);
+      expect(controller.isAtBottom).toBe(false);
+      controller.dispose();
+    },
+  );
 
   it("pauses when opening a closed details summary", () => {
     const view = geometry(500, 100);

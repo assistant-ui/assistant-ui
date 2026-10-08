@@ -29,9 +29,10 @@ const isOpeningDisclosure = (target: Element) => {
   if (!control) return false;
   if (control.tagName === "SUMMARY")
     return control.parentElement?.hasAttribute("open") === false;
+  const popup = control.getAttribute("aria-haspopup");
   return (
     control.getAttribute("aria-expanded") === "false" &&
-    !control.hasAttribute("aria-haspopup") &&
+    (popup === null || popup === "false") &&
     control.getAttribute("role") !== "combobox"
   );
 };
