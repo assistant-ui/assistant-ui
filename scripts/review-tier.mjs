@@ -441,6 +441,10 @@ export function evaluatePullRequest(gathered, policy) {
   return {
     tierResult,
     requirementResult,
+    context: {
+      headSha: gathered.pr.headSha,
+      readyForReviewAt: gathered.people.readyForReviewAt,
+    },
     conclusion:
       requirementResult.status === "pending"
         ? "action_required"
@@ -448,50 +452,191 @@ export function evaluatePullRequest(gathered, policy) {
   };
 }
 
-export function renderComment({ tierResult, requirementResult }, policy) {
-  const reasons = tierResult.reasons.toSorted((a, b) => b.tier - a.tier);
-  const line = (value) => value.replace(/\s+/g, " ").trim();
-  const reasonText = ({ code, detail }) => `${code}: ${line(detail)}`;
-  const { unmet, waived, approvals } = requirementResult;
-  return [
-    marker,
-    `T${tierResult.tier} (${tierLabel(policy, tierResult.tier)}): ${reasons.length ? reasonText(reasons[0]) : "No risk signals"}`,
-    "",
-    "Reasons:",
-    "",
-    ...reasons.slice(0, 10).map((reason) => `- ${reasonText(reason)}`),
-    ...(reasons.length > 10 ? [`and ${reasons.length - 10} more`] : []),
-    "",
-    "Still needed:",
-    "",
-    ...(unmet.length
-      ? unmet.map((item) => `- ${reasonText(item)}`)
-      : ["None. Ready to merge."]),
-    "",
-    "Waived overrides:",
-    "",
-    ...(waived.length
-      ? waived.map(
-          ({ code, signal, by }) =>
-            `- ${code}: waived by ${by} with ${policy.labels.overridePrefix}${signal}.`,
-        )
-      : ["None."]),
-    "",
-    "Counted approvals:",
-    "",
-    ...(approvals.counted.length
-      ? approvals.counted.map(
-          (login) =>
-            `- ${login}: trusted approval on the current head from someone who did not author or commit any of its commits.`,
-        )
-      : ["None."]),
-    "",
-    "Ignored approvals:",
-    "",
-    ...(approvals.ignored.length
-      ? approvals.ignored.map(({ login, reason }) => `- ${login}: ${reason}.`)
-      : ["None."]),
+const tierNames = ["low risk", "package code", "contract", "decision"];
+const signalLabels = {
+  "decision-path": "decision path",
+  "contract-area": "contract area",
+  "contract-docs": "contract docs",
+  "low-risk-path": "low risk path",
+  "test-addition": "new test",
+  "test-change": "test change",
+  source: "package source",
+  "new-package": "new package",
+  deprecation: "new @deprecated",
+  "ci-permissions": "workflow permissions, secrets or triggers",
+  "behavior-change-label": "behavior-change label",
+  "entry-point-added": "new entry point",
+  "entry-point-removed": "removed entry point",
+  "export-added": "new export",
+  "export-removed": "removed export",
+  "declaration-changed": "changed public type",
+  "exports-map-changed": "changed exports map",
+  "new-runtime-dependency": "new runtime dependency",
+  "upstream-major": "upstream major",
+  "manifest-contract-field": "manifest contract field",
+  "cross-package-refactor": "refactor across packages",
+  "no-files": "no changed files",
+};
+const requirementLabels = {
+  approvals: "Approvals",
+  decision: "Decision",
+  window: "Waiting window",
+  "size-cap": "Size",
+  "unknown-type": "Title type",
+  "refactor-changes-api": "Refactor claim",
+  "refactor-changes-exports": "Refactor claim",
+  "refactor-changes-assertions": "Refactor claim",
+  "manifest-invalid": "Manifest",
+  "open-pr-cap": "Open pull requests",
+};
+const ignoredLabels = {
+  author: "author",
+  bot: "bot",
+  untrusted: "not a maintainer or reviewer",
+  stale: "approved an older head",
+  contributor: "wrote a commit here",
+};
+
+const cell = (value) =>
+  String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\s+/g, " ")
+    .trim();
+const code = (value) => {
+  const text = cell(value);
+  const fence = "`".repeat(
+    Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length)) + 1,
+  );
+  const pad = text.startsWith("`") || text.endsWith("`") ? " " : "";
+  return `${fence}${pad}${text}${pad}${fence}`;
+};
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+const mdTable = (header, aligns, rows) =>
+  [
+    `| ${header.join(" | ")} |`,
+    `| ${aligns.join(" | ")} |`,
+    ...rows.map((row) => `| ${row.join(" | ")} |`),
   ].join("\n");
+const isWaiting = (code) =>
+  code === "approvals" ||
+  code === "decision" ||
+  code === "window" ||
+  code.startsWith("owner:");
+const requirementLabel = (code, policy) =>
+  code.startsWith("owner:")
+    ? `Owner: ${policy.areas.find((area) => `owner:${area.id}` === code)?.name ?? code.slice(6)}`
+    : (requirementLabels[code] ?? code);
+const signalLabel = (code) => signalLabels[code] ?? code;
+
+const failureDetails = {
+  "unknown-type": (_detail, policy) =>
+    `start the title with one of ${policy.types.map(code).join(", ")}, as in ${code("fix(react): keep the composer focused")}`,
+  "refactor-changes-api": (detail) =>
+    `a \`refactor\` must not change ${code(detail)}; retitle it or split the change`,
+  "refactor-changes-exports": (detail) =>
+    `a \`refactor\` must not change the exports map in ${code(detail)}`,
+  "refactor-changes-assertions": (detail) =>
+    `a \`refactor\` must not change test assertions in ${code(detail)}`,
+  "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
+};
+
+function requirementDetail(item, tier, context, policy) {
+  const failure = failureDetails[item.code];
+  if (failure) return failure(item.detail, policy);
+  const readyAt = Date.parse(context?.readyForReviewAt);
+  if (item.code !== "window" || Number.isNaN(readyAt)) return cell(item.detail);
+  const hours = policy.windowHours[tier];
+  const until = new Date(readyAt + hours * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ");
+  return `${hours} hours after ready for review, until ${until} UTC`;
+}
+
+export function renderComment(
+  { tierResult, requirementResult, context },
+  policy,
+) {
+  const { tier } = tierResult;
+  const reasons = tierResult.reasons.toSorted((a, b) => b.tier - a.tier);
+  const { unmet, waived, approvals } = requirementResult;
+  const rules = `[CONTRIBUTING.md](https://github.com/${policy.repository}/blob/main/CONTRIBUTING.md#review-policy)`;
+  const [top] = reasons;
+  const out = [
+    marker,
+    `### review-tier: T${tier} · ${unmet.length ? `${unmet.length} still needed` : "ready to merge"}`,
+    "",
+    policy.reviewTierCheck.mode === "enforce"
+      ? `_Required to merge. Rules in ${rules}._`
+      : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
+    "",
+    `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
+    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals") ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
+    ...waived.map(
+      ({ code, signal, by }) =>
+        `- **Waived:** ${requirementLabel(code, policy)}, by ${by} with \`${policy.labels.overridePrefix}${signal}\``,
+    ),
+  ];
+  if (unmet.length) {
+    out.push(
+      "",
+      mdTable(
+        ["still needed", "detail"],
+        ["---", "---"],
+        unmet.map((item) => [
+          `${isWaiting(item.code) ? "⏳" : "❌"} ${requirementLabel(item.code, policy)}`,
+          requirementDetail(item, tier, context, policy),
+        ]),
+      ),
+    );
+  }
+  const signals = [];
+  if (reasons.length) {
+    const shown = reasons.slice(0, 25);
+    signals.push(
+      "",
+      "<details>",
+      `<summary>${plural(reasons.length, "signal")} behind the tier</summary>`,
+      "",
+      mdTable(
+        ["signal", "tier", "where"],
+        ["---", "---:", "---"],
+        shown.map((reason) => [
+          signalLabel(reason.code),
+          `T${reason.tier}`,
+          code(reason.detail),
+        ]),
+      ),
+      ...(reasons.length > shown.length
+        ? ["", `_${reasons.length - shown.length} more signals omitted._`]
+        : []),
+      "",
+      "</details>",
+    );
+  }
+  const footer = [
+    context?.headSha ? `evaluated on \`${context.headSha.slice(0, 7)}\`` : null,
+    unmet.some((item) => isWaiting(item.code))
+      ? "⏳ waits on reviewers or time"
+      : null,
+    unmet.some((item) => !isWaiting(item.code))
+      ? "❌ needs a change or an owner override"
+      : null,
+  ].filter(Boolean);
+  const render = (section) =>
+    [
+      ...out,
+      ...section,
+      ...(footer.length ? ["", footer.join(" · ")] : []),
+    ].join("\n");
+  const full = render(signals);
+  return full.length <= 60_000
+    ? full
+    : render([
+        "",
+        `_${plural(reasons.length, "signal")} behind the tier, too long to list here._`,
+      ]);
 }
 
 export async function publish(
@@ -521,11 +666,7 @@ export async function publish(
         ? "neutral"
         : evaluation.conclusion,
     output: {
-      title:
-        `T${tier}: ${ready ? "ready" : evaluation.requirementResult.unmet[0].detail}`.slice(
-          0,
-          255,
-        ),
+      title: `T${tier} · ${ready ? "ready to merge" : `${evaluation.requirementResult.unmet.length} still needed`}`,
       summary: body.slice(marker.length + 1),
     },
   };

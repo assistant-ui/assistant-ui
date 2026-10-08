@@ -116,8 +116,8 @@
   },
   "reviewTierCheck": {
     "name": "review-tier",
-    "integrationId": null,
-    "mode": "shadow"
+    "integrationId": 5235540,
+    "mode": "enforce"
   },
   "requiredChecks": [
     {

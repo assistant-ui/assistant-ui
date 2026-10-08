@@ -21,6 +21,14 @@ const enforcePolicy = {
     mode: "enforce",
   },
 };
+const shadowPolicy = {
+  ...policy,
+  reviewTierCheck: {
+    ...policy.reviewTierCheck,
+    integrationId: null,
+    mode: "shadow",
+  },
+};
 const repo = `/repos/${policy.repository}`;
 const now = new Date("2026-10-08T12:00:00Z");
 const marker = "<!-- review-tier -->";
@@ -1140,15 +1148,46 @@ test("hard policy failures stay failures", async () => {
   );
 });
 
+test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
+  const evaluation = await evaluationFor();
+  evaluation.tierResult.reasons.unshift({
+    tier: 3,
+    code: "new-package",
+    detail: "packages/a`b`@octocat/package.json",
+  });
+  const comment = renderComment(evaluation, policy);
+  assert.ok(
+    comment.includes("``packages/a`b`@octocat/package.json``"),
+    comment,
+  );
+  const large = await evaluationFor();
+  large.tierResult.reasons.push(
+    ...Array.from({ length: 25 }, (_, index) => ({
+      tier: 0,
+      code: "low-risk-path",
+      detail: `docs/${index}-${"x".repeat(3000)}.md`,
+    })),
+  );
+  const bounded = renderComment(large, policy);
+  assert.ok(bounded.length <= 60_000, String(bounded.length));
+  assert.match(bounded, /signals behind the tier, too long to list here\._/);
+  assert.match(bounded, /\| ⏳ Approvals \|/);
+});
+
 test("the comment starts with its marker and strongest reason and bounds the reasons list", async () => {
   const evaluation = await evaluationFor();
   evaluation.tierResult.reasons.push(
-    ...Array.from({ length: 12 }, (_, index) => ({
+    ...Array.from({ length: 30 }, (_, index) => ({
       tier: 0,
       code: "low-risk-path",
       detail: `docs/${index}.md`,
     })),
   );
+  evaluation.tierResult.reasons.push({
+    tier: 1,
+    code: "source",
+    detail: "packages/a|b\\c.ts",
+  });
   evaluation.requirementResult.waived.push({
     code: "size-cap",
     signal: "size",
@@ -1162,23 +1201,30 @@ test("the comment starts with its marker and strongest reason and bounds the rea
   const comment = renderComment(evaluation, policy);
   assert.deepEqual(evaluation, before);
   assert.equal(comment.split("\n")[0], marker);
-  assert.match(comment.split("\n")[1], /^T3.*behavior-change-label/);
-  const reasons = comment
-    .split("Reasons:\n\n")[1]
-    .split("\n\nStill needed:")[0];
-  assert.equal(
-    reasons.split("\n").filter((line) => line.startsWith("- ")).length,
-    10,
+  assert.match(
+    comment.split("\n")[1],
+    /^### review-tier: T3 · \d+ still needed$/,
   );
-  assert.match(reasons, /and 6 more$/);
+  assert.ok(
+    comment.includes("- **T3, decision tier:** behavior-change label"),
+    comment,
+  );
+  const signals = comment.split("behind the tier</summary>")[1];
+  const total = evaluation.tierResult.reasons.length;
+  assert.equal(
+    signals.split("\n").filter((line) => /^\| .* \| T\d \| /.test(line)).length,
+    25,
+  );
+  assert.ok(signals.includes(`_${total - 25} more signals omitted._`));
   for (const expected of [
-    "owner:reactivity",
-    "decision:",
-    "window:",
+    "| ⏳ Owner: Reactivity core |",
+    "| ⏳ Decision |",
+    "| ⏳ Waiting window |",
     "needs 2 maintainer approvals",
-    "size-cap: waived by okisdev with review-tier/override: size",
-    "Kinfe123: trusted approval on the current head from someone who did not author or commit any of its commits.",
-    "previous-reviewer: stale",
+    "- **Waived:** Size, by okisdev with `review-tier/override: size`",
+    "Kinfe123 counted",
+    "previous-reviewer ignored (approved an older head)",
+    "`packages/a\\|b\\\\c.ts`",
   ]) {
     assert.ok(comment.includes(expected), expected);
   }
@@ -1186,21 +1232,17 @@ test("the comment starts with its marker and strongest reason and bounds the rea
 
 test("shadow mode changes pending and failure to neutral while success remains success", async () => {
   for (const [recording, conclusion, title] of [
-    [fakeClient(), "neutral", /^T3: needs 2 maintainer approvals/],
-    [
-      fakeClient({ openCount: 6 }),
-      "neutral",
-      /^T3: needs 2 maintainer approvals/,
-    ],
+    [fakeClient(), "neutral", /^T3 · \d+ still needed$/],
+    [fakeClient({ openCount: 6 }), "neutral", /^T3 · \d+ still needed$/],
     [
       fakeClient({ pr: docsPullRequest(), files: [file("README.md")] }),
       "success",
-      /^T0: ready$/,
+      /^T0 · ready to merge$/,
     ],
   ]) {
     const evaluation = await evaluationFor(recording);
     const before = structuredClone(evaluation);
-    await publish(recording.client, policy, {
+    await publish(recording.client, shadowPolicy, {
       number: 12,
       headSha: "head",
       evaluation,
@@ -1216,7 +1258,7 @@ test("shadow mode changes pending and failure to neutral while success remains s
     assert.match(body.output.title, title);
     assert.equal(
       body.output.summary,
-      renderComment(evaluation, policy).split("\n").slice(1).join("\n"),
+      renderComment(evaluation, shadowPolicy).split("\n").slice(1).join("\n"),
     );
   }
 });
@@ -1593,7 +1635,7 @@ test("workflow relay files accept a number and reject shell text before making A
           GITHUB_EVENT_NAME: "workflow_run",
           ...(customPath ? { REVIEW_TIER_RELAY_FILE: customPath } : {}),
         },
-        policy,
+        policy: shadowPolicy,
         readFile: (file, encoding) => {
           assert.equal(file, customPath ?? "review-tier-pr/number");
           assert.equal(encoding, "utf8");
@@ -1816,7 +1858,10 @@ test("an updated pull request publishes only the second gather", async () => {
   assert.equal(rereads.length, 2);
   assert.equal(checks.length, 1);
   assert.ok(Date.parse(checks[0].body.started_at) > now.getTime());
-  assert.match(checks[0].body.output.summary, /Counted approvals:\n\nNone\./);
+  assert.match(
+    checks[0].body.output.summary,
+    /\*\*Approvals:\*\* none counted yet/,
+  );
   assert.ok(
     recording.calls.indexOf(rereads[0]) > recording.calls.indexOf(gathers[0]),
   );
