@@ -5,6 +5,8 @@ import { defaultExclude } from "vitest/config";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
+  // Vite rejects Next's string-valued PostCSS plugins; DOM tests do not assert transformed styles.
+  css: { postcss: { plugins: [] } },
   test: {
     coverage: {
       include: [
@@ -22,6 +24,13 @@ export default {
         "lib/xulux/learn/courses/*/shared/**",
         "lib/xulux/learn/courses/*/stages/**",
       ],
+      thresholds: {
+        lines: 36,
+        functions: 28,
+        branches: 32,
+        statements: 35,
+        autoUpdate: (threshold: number) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "node",
     pool: "threads",
@@ -50,6 +59,10 @@ export default {
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",
+      ),
+      "@/hooks/use-attachment-src": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-attachment-src",
       ),
       "@/components/ui": resolve(
         __dirname,

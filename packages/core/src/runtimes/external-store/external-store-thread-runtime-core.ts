@@ -48,6 +48,7 @@ import {
 import { generateId } from "../../utils/id";
 import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
+  NO_TOOL_EXECUTIONS,
   ToolInvocationTracker,
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
@@ -186,6 +187,13 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
+  // What the host holds or has moved past, as far as this runtime knows: the
+  // branch the last snapshot pass derived, before the placeholder, or the array
+  // last handed to setMessages, whichever was written last.
+  private _storeMessages: readonly ThreadMessage[] = [];
+
+  private _runStarts = 0;
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -195,6 +203,15 @@ export class ExternalStoreThreadRuntimeCore
   ) {
     this._getInitializePromise = getPromise;
   }
+
+  // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so the
+  // prefix gated against is the one the message lands on whatever the host
+  // routes by. Queuing only ever accepts a tail append, so a later tail is the
+  // same intent.
+  private _queueDispatchTransform = (message: AppendMessage) => {
+    const parentId = this.messages.at(-1)?.id ?? null;
+    return this.enrichAppendMetadata({ ...message, parentId }, parentId);
+  };
 
   private _transformedQueue: ExternalThreadQueueAdapter | undefined;
 
@@ -213,7 +230,8 @@ export class ExternalStoreThreadRuntimeCore
    * status changes synchronously. Re-entering the snapshot pipeline from
    * inside them would feed the tracker a stale snapshot and consume the
    * restore arming a reset just installed, so the running refresh is
-   * deferred until the mutation returns and stays off the tracker.
+   * deferred until the mutation returns and re-derives the published
+   * messages without feeding the tracker.
    */
   private _runTrackerUpdate(fn: () => void): void {
     this._inTrackerUpdate = true;
@@ -229,11 +247,9 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private _refreshEffectiveIsRunning(): void {
-    const isRunning = this._getEffectiveIsRunning(this._store);
-    if (this._effectiveIsRunning === isRunning) return;
-    this._effectiveIsRunning = isRunning;
-    this._notifyEventSubscribers(isRunning ? "runStart" : "runEnd", {});
-    this._notifySubscribers();
+    if (this._effectiveIsRunning === this._getEffectiveIsRunning(this._store))
+      return;
+    this._updateStoreSnapshot(this._store, false);
   }
 
   private _hasExecutingTools(store: ExternalStoreAdapter<any>): boolean {
@@ -270,7 +286,10 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
-  private _updateStoreSnapshot(store: ExternalStoreAdapter<any>) {
+  private _updateStoreSnapshot(
+    store: ExternalStoreAdapter<any>,
+    fromHostSnapshot = true,
+  ) {
     const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
     this.isSendDisabled = store.isSendDisabled ?? false;
@@ -295,14 +314,9 @@ export class ExternalStoreThreadRuntimeCore
     }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
-      store.queue?.__internal_setDispatchTransform?.((message) => {
-        // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so
-        // the prefix gated against is the one the message lands on whatever
-        // the host routes by. Queuing only ever accepts a tail append, so a
-        // later tail is the same intent.
-        const parentId = this.messages.at(-1)?.id ?? null;
-        return this.enrichAppendMetadata({ ...message, parentId }, parentId);
-      });
+      store.queue?.__internal_setDispatchTransform?.(
+        this._queueDispatchTransform,
+      );
       if (store.queue?.__internal_setDispatchTransform)
         this._transformedQueue = store.queue;
     }
@@ -458,7 +472,12 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
 
-      if (this._pendingDeleteEvictions.size > 0) {
+      // A pass over the host's previous array, such as a client tool's
+      // running refresh, can predate the host's answer to onDelete.
+      if (
+        this._pendingDeleteEvictions.size > 0 &&
+        oldStore?.messages !== store.messages
+      ) {
         const incomingIds = new Set(messages.map((m) => m.id));
         for (const [id, calls] of this._pendingDeleteEvictions) {
           if (incomingIds.has(id)) {
@@ -481,6 +500,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
+    this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
     this._effectiveIsRunning = isRunning;
@@ -534,10 +554,12 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    if (repositoryChanged) {
-      this._runTrackerUpdate(() => this._toolInvocations?.reset());
+    if (fromHostSnapshot) {
+      if (repositoryChanged) {
+        this._runTrackerUpdate(() => this._toolInvocations?.reset());
+      }
+      this._runTrackerUpdate(() => this._driveToolInvocations());
     }
-    this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();
   }
@@ -712,11 +734,11 @@ export class ExternalStoreThreadRuntimeCore
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
-    message =
+    const stamped =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? message
+        ? undefined
         : this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
@@ -733,13 +755,26 @@ export class ExternalStoreThreadRuntimeCore
         await initPromise;
       }
       if (generation.aborted) return;
+    }
 
+    // Read after the barrier, which the host may have used to replace or
+    // drop its queue.
+    const queue = isEdit ? undefined : this._store.queue;
+
+    if (!queue || queue !== this._transformedQueue)
+      message = stamped ?? this.enrichAppendMetadata(message);
+
+    if (queue) {
+      // The queue holds one transform, which another runtime sharing it may
+      // have replaced, so the runtime queuing the message claims it.
+      if (queue === this._transformedQueue)
+        queue.__internal_setDispatchTransform?.(this._queueDispatchTransform);
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.
       if (message.steer ?? this._getEffectiveIsRunning(this._store))
-        this._store.queue.steer(message);
-      else this._store.queue.enqueue(message);
+        queue.steer(message);
+      else queue.enqueue(message);
       return;
     }
 
@@ -757,7 +792,11 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      await this._toolInvocations?.abort({ discardPending: true });
+      const toolsSettled = this._toolInvocations?.abort({
+        discardPending: true,
+      });
+      if (toolsSettled && toolsSettled !== NO_TOOL_EXECUTIONS)
+        await toolsSettled;
     }
     if (generation.aborted) return;
 
@@ -896,6 +935,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._runStarts++;
     const visible = this.repository.getMessages();
     const kept = new Set(
       visible
@@ -922,6 +962,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._runStarts++;
     await this._store.onResume(config);
   }
 
@@ -980,6 +1021,8 @@ export class ExternalStoreThreadRuntimeCore
 
     const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
+    const cancelledTailId = previousMessage?.id ?? null;
+    const runStartsAtCancel = this._runStarts;
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
@@ -1015,15 +1058,23 @@ export class ExternalStoreThreadRuntimeCore
     }
     this._publishRepositoryMessages();
 
-    // The resync commits what the cancel left (a kept optimistic message, the
-    // restored branch) back to the store a macrotask later. The store may move
-    // in that gap; a server settling the cancelled turn lands in the same
-    // tick. Read the repository at flush time and re-apply the rollbacks to
-    // it, instead of stamping a snapshot captured above over the newer state.
+    // The resync commits the rollback to the store a macrotask later. The
+    // store may move in that gap; a server settling the cancelled turn lands
+    // in the same tick. Read the repository at flush time and re-apply the
+    // rollbacks to it, instead of stamping a snapshot captured above over the
+    // newer state.
     setTimeout(() => {
       if (generation.aborted) return;
 
-      this.dropEmptyOptimisticHead();
+      // A placeholder under a message other than the cancelled tail, or one
+      // following a reload or resume issued after the cancel, belongs to a
+      // run that started after the cancel, so the rollback leaves it.
+      const startedSinceCancel =
+        this._getEffectiveIsRunning(this._store) &&
+        (this._runStarts !== runStartsAtCancel ||
+          (this.repository.getMessages().at(-2)?.id ?? null) !==
+            cancelledTailId);
+      if (!startedSinceCancel) this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();
         if (current.at(-1)?.id === movedLeaf.id) {
@@ -1036,7 +1087,13 @@ export class ExternalStoreThreadRuntimeCore
         }
       }
       this._publishRepositoryMessages();
-      this.updateMessages(this._messages);
+
+      // setMessages replaces the whole array, and the host may hold updates
+      // this runtime has not received yet, so it is called only when the
+      // rollback left something the host does not already hold.
+      const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
+      if (!shallowArrayEqual(view, this._storeMessages))
+        this.updateMessages(view);
     }, 0);
   }
 
@@ -1137,6 +1194,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {
+    this._storeMessages = messages;
     const hasConverter = this._store.convertMessage !== undefined;
     if (hasConverter) {
       this._store.setMessages?.(messages.flatMap(getExternalStoreMessages));

@@ -166,6 +166,53 @@ describe("vue primitives", () => {
     unmount();
   });
 
+  it("does not submit on Safari's post-compositionend Enter", async () => {
+    const { runtime, onNew } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => h(ComposerPrimitiveInput),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const textarea = el.querySelector("textarea")!;
+    textarea.dispatchEvent(
+      new CompositionEvent("compositionstart", { bubbles: true }),
+    );
+    textarea.value = "hello";
+    textarea.dispatchEvent(
+      new InputEvent("input", { bubbles: true, isComposing: true }),
+    );
+    textarea.dispatchEvent(
+      new CompositionEvent("compositionend", {
+        data: "hello",
+        bubbles: true,
+      }),
+    );
+
+    const composingEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(composingEnter)).toBe(true);
+    await vi.waitFor(() => {
+      expect(runtime.thread.composer.getState().text).toBe("hello");
+    });
+    expect(onNew).not.toHaveBeenCalled();
+
+    const plainEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 13,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(plainEnter)).toBe(false);
+    await vi.waitFor(() => {
+      expect(onNew).toHaveBeenCalledTimes(1);
+    });
+
+    unmount();
+  });
+
   it("does not submit on Enter when submitOnEnter is false", async () => {
     const { runtime, onNew } = createTestRuntime();
     const View = defineComponent({

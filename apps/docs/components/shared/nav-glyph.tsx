@@ -1,336 +1,740 @@
+import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { NavGlyphKind } from "@/lib/constants";
 
-const ACCENT = "transition-colors duration-200 group-hover/navlink:bg-blue-500";
-const TEXT_ACCENT =
-  "transition-colors duration-200 group-hover/navlink:text-blue-500";
+const ACCENT_STROKE =
+  "transition-colors duration-200 group-hover/navlink:stroke-blue-500 group-focus-visible/navlink:stroke-blue-500";
+const ACCENT_FILL =
+  "transition-colors duration-200 group-hover/navlink:fill-blue-500 group-focus-visible/navlink:fill-blue-500";
+const FAINT = "stroke-foreground/15";
+const DIM = "stroke-foreground/25";
+
+type GlyphMotion =
+  | "draw"
+  | "fade"
+  | "blip"
+  | "march"
+  | "pop"
+  | "spin"
+  | "drop"
+  | "settle"
+  | "shift"
+  | "trade"
+  | "trade-top"
+  | "bob"
+  | "tilt"
+  | "rise"
+  | "twinkle"
+  | "blink"
+  | "orbit";
+
+function motion(
+  kind: GlyphMotion,
+  delay = 0,
+  vars: Record<`--glyph-${string}`, string> = {},
+) {
+  return {
+    "data-glyph-motion": kind,
+    style: { "--glyph-delay": `${delay}ms`, ...vars } as CSSProperties,
+  };
+}
+
+function GlyphSvg({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 32 24"
+      aria-hidden
+      className="stroke-foreground/40 h-6 w-8 overflow-visible fill-none [stroke-width:1.25] [stroke-linecap:round] [stroke-linejoin:round]"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function WindowChrome({
+  y = 3.5,
+  height = 17,
+}: {
+  y?: number;
+  height?: number;
+}) {
+  return (
+    <>
+      <rect x="3" y={y} width="26" height={height} rx="2" className={DIM} />
+      <path d={`M3 ${y + 4}H29`} className={FAINT} />
+      <circle
+        cx="5.6"
+        cy={y + 2}
+        r="0.75"
+        className="fill-foreground/30 stroke-none"
+      />
+      <circle
+        cx="7.9"
+        cy={y + 2}
+        r="0.75"
+        className="fill-foreground/30 stroke-none"
+      />
+    </>
+  );
+}
 
 function GlyphElements() {
+  const cells = [0, 1, 2, 3, 4, 5].map((index) => ({
+    x: 4.5 + (index % 3) * 8.5,
+    y: 4.5 + Math.floor(index / 3) * 8.5,
+    index,
+  }));
   return (
-    <span className="grid grid-cols-3 gap-[3px]">
-      {Array.from({ length: 6 }, (_, index) => (
-        <span
+    <GlyphSvg>
+      {cells.map(({ x, y, index }) => (
+        <rect
           key={index}
-          className={cn("bg-foreground/15 size-[7px]", index === 0 && ACCENT)}
+          {...motion("pop", index * 50)}
+          x={x}
+          y={y}
+          width="6.5"
+          height="6.5"
+          rx="1.6"
+          className={
+            index === 0
+              ? cn("fill-foreground/35 stroke-none", ACCENT_FILL)
+              : DIM
+          }
         />
       ))}
-    </span>
+    </GlyphSvg>
   );
 }
 
 function GlyphDesign() {
+  const handles: Array<[number, number, string, string]> = [
+    [6, 5, "-1.5px", "-1.5px"],
+    [26, 5, "1.5px", "-1.5px"],
+    [6, 19, "-1.5px", "1.5px"],
+    [26, 19, "1.5px", "1.5px"],
+  ];
   return (
-    <span className="relative flex h-6 w-8">
-      <span className="border-foreground/25 absolute inset-[3px] border" />
-      <span className="bg-foreground/40 absolute top-[1px] left-[1px] size-[4px]" />
-      <span className="bg-foreground/40 absolute top-[1px] right-[1px] size-[4px]" />
-      <span className="bg-foreground/40 absolute bottom-[1px] left-[1px] size-[4px]" />
-      <span
-        className={cn(
-          "bg-foreground/40 absolute right-[1px] bottom-[1px] size-[4px]",
-          ACCENT,
-        )}
+    <GlyphSvg>
+      <rect
+        {...motion("march")}
+        x="6"
+        y="5"
+        width="20"
+        height="14"
+        className={cn(DIM, "[stroke-dasharray:2_2]")}
       />
-    </span>
+      {handles.map(([x, y, dx, dy], index) => (
+        <rect
+          key={index}
+          {...motion("shift", 0, { "--glyph-dx": dx, "--glyph-dy": dy })}
+          x={x - 1.4}
+          y={y - 1.4}
+          width="2.8"
+          height="2.8"
+          rx="0.5"
+          className={cn("fill-background", index === 3 && ACCENT_STROKE)}
+        />
+      ))}
+    </GlyphSvg>
   );
 }
 
 function GlyphReact() {
   return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="bg-foreground/12 ml-auto h-[5px] w-3.5" />
-      <span className="bg-foreground/25 h-[3px] w-full" />
-      <span className="bg-foreground/25 h-[3px] w-4/5" />
-      <span className="border-foreground/25 mt-[2px] flex h-[9px] items-center justify-end border px-[2px]">
-        <span
-          className={cn("bg-foreground/40 rounded-capsule size-[4px]", ACCENT)}
-        />
-      </span>
-    </span>
+    <GlyphSvg>
+      <WindowChrome />
+      <rect
+        {...motion("pop")}
+        x="17"
+        y="9.5"
+        width="9.5"
+        height="3"
+        rx="1.5"
+        className="fill-foreground/15 stroke-none"
+      />
+      <path {...motion("draw", 120)} pathLength={100} d="M6 11.5H13" />
+      <path
+        {...motion("draw", 200)}
+        pathLength={100}
+        d="M6 14H11"
+        className={DIM}
+      />
+      <rect x="5.5" y="16.3" width="21" height="2.6" rx="1.3" className={DIM} />
+      <circle
+        {...motion("pop", 320)}
+        cx="24.4"
+        cy="17.6"
+        r="0.85"
+        className={cn("fill-foreground/40 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphNative() {
   return (
-    <span className="border-foreground/30 flex h-7 w-[18px] flex-col justify-between border p-[3px]">
-      <span className="flex flex-col gap-[2px]">
-        <span className="bg-foreground/25 h-[2px] w-full" />
-        <span className="bg-foreground/25 h-[2px] w-3/4" />
-      </span>
-      <span className={cn("bg-foreground/40 mx-auto h-[2px] w-2", ACCENT)} />
-    </span>
+    <GlyphSvg>
+      <g {...motion("tilt")}>
+        <rect x="11" y="1.75" width="10.5" height="20.5" rx="2.4" />
+        <path d="M14.75 4.2H17.75" className={FAINT} />
+        <rect
+          {...motion("pop", 150)}
+          x="13.2"
+          y="7"
+          width="6"
+          height="2.4"
+          rx="1.2"
+          className="fill-foreground/15 stroke-none"
+        />
+        <path
+          {...motion("draw", 220)}
+          pathLength={100}
+          d="M13.2 12.5H19.3"
+          className={DIM}
+        />
+        <path
+          {...motion("draw", 290)}
+          pathLength={100}
+          d="M13.2 15H17.3"
+          className={DIM}
+        />
+        <path d="M14.5 19.5H18" className={ACCENT_STROKE} />
+      </g>
+    </GlyphSvg>
   );
 }
 
 function GlyphInk() {
   return (
-    <span className="border-foreground/25 flex h-6 w-8 flex-col border">
-      <span className="border-foreground/25 flex h-[6px] items-center gap-[2px] border-b px-[3px]">
-        <span className="bg-foreground/30 rounded-capsule size-[2px]" />
-        <span className="bg-foreground/30 rounded-capsule size-[2px]" />
-      </span>
-      <span className="flex flex-1 flex-col justify-center gap-[2px] px-[3px]">
-        <span className="flex items-center gap-[2px]">
-          <span className="bg-foreground/40 h-[2px] w-[3px]" />
-          <span className="bg-foreground/25 h-[2px] w-2" />
-        </span>
-        <span className={cn("bg-foreground/40 h-[4px] w-[3px]", ACCENT)} />
-      </span>
-    </span>
+    <GlyphSvg>
+      <WindowChrome y={4} height={16} />
+      <path d="M6.5 11.5L9 13.5L6.5 15.5" />
+      <path
+        {...motion("draw", 60)}
+        pathLength={100}
+        d="M11 13.5H17.5"
+        className={DIM}
+      />
+      <rect
+        {...motion("blink", 380)}
+        x="19"
+        y="12.3"
+        width="2.4"
+        height="2.6"
+        className={cn("fill-foreground/40 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphVue() {
   return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="flex items-center gap-[2px]">
-        <span className="bg-foreground/40 h-[3px] w-[5px]" />
-        <span className="bg-foreground/15 h-[3px] flex-1" />
-      </span>
-      <span className="border-foreground/25 flex h-[9px] flex-col justify-center gap-[2px] border px-[3px]">
-        <span className="bg-foreground/25 h-[2px] w-3/4" />
-        <span className={cn("bg-foreground/40 h-[2px] w-1/2", ACCENT)} />
-      </span>
-      <span className="flex items-center gap-[2px]">
-        <span className="bg-foreground/40 h-[3px] w-[5px]" />
-        <span className="bg-foreground/15 h-[3px] flex-1" />
-      </span>
-    </span>
+    <GlyphSvg>
+      <path d="M5 4.5H9" />
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M11.5 4.5H27"
+        className={FAINT}
+      />
+      <rect x="5" y="8" width="22" height="8" rx="1.5" className={DIM} />
+      <path
+        {...motion("draw", 120)}
+        pathLength={100}
+        d="M8.5 10.75H20"
+        className={DIM}
+      />
+      <path
+        {...motion("draw", 220)}
+        pathLength={100}
+        d="M8.5 13.25H15"
+        className={ACCENT_STROKE}
+      />
+      <path d="M5 19.5H9" />
+      <path
+        {...motion("draw", 320)}
+        pathLength={100}
+        d="M11.5 19.5H27"
+        className={FAINT}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphCloud() {
   return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className={cn("bg-foreground/30 h-[6px] w-full", ACCENT)} />
-      <span className="border-foreground/25 h-[6px] w-full border" />
-      <span className="border-foreground/25 h-[6px] w-full border" />
-    </span>
-  );
-}
-
-function GlyphShimmer() {
-  return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="bg-foreground/15 h-[3px] w-full" />
-      <span className="flex h-[3px] w-full gap-[2px]">
-        <span className="bg-foreground/15 w-[6px]" />
-        <span className={cn("bg-foreground/40 w-[9px]", ACCENT)} />
-        <span className="bg-foreground/15 flex-1" />
-      </span>
-      <span className="bg-foreground/15 h-[3px] w-2/3" />
-    </span>
-  );
-}
-
-function GlyphHeat() {
-  const tones = [
-    "bg-foreground/10",
-    "bg-foreground/25",
-    "bg-foreground/10",
-    "bg-foreground/40",
-    "bg-foreground/20",
-    "bg-foreground/25",
-    "bg-foreground/10",
-    "bg-foreground/30",
-    "bg-foreground/10",
-    "bg-foreground/25",
-    "bg-foreground/10",
-    "bg-foreground/30",
-    "bg-foreground/15",
-    "bg-foreground/25",
-    "bg-foreground/10",
-  ];
-  return (
-    <span className="grid grid-cols-5 gap-[2px]">
-      {tones.map((tone, index) => (
-        <span
-          key={index}
-          className={cn("size-[4px]", tone, index === 3 && ACCENT)}
-        />
-      ))}
-    </span>
-  );
-}
-
-function GlyphFrame() {
-  return (
-    <span className="border-foreground/25 flex h-6 w-8 border p-[3px]">
-      <span className="border-foreground/40 flex flex-1 items-center justify-center border">
-        <span className={cn("bg-foreground/25 size-[5px]", ACCENT)} />
-      </span>
-    </span>
-  );
-}
-
-function GlyphO11y() {
-  return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="bg-foreground/30 h-[3px] w-full" />
-      <span className="bg-foreground/20 ml-[5px] h-[3px] w-[13px]" />
-      <span
-        className={cn("bg-foreground/40 ml-[11px] h-[3px] w-[10px]", ACCENT)}
+    <GlyphSvg>
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M9.5 19.5h13.2a4.6 4.6 0 0 0 .6-9.16A6.6 6.6 0 0 0 10.6 9.6a5 5 0 0 0-1.1 9.9z"
       />
-    </span>
+      <g {...motion("rise", 300)}>
+        <path
+          d="M16 17V11.5M13.6 13.9L16 11.5L18.4 13.9"
+          className={ACCENT_STROKE}
+        />
+      </g>
+    </GlyphSvg>
   );
 }
 
 function GlyphPlayground() {
   return (
-    <span className="border-foreground/25 flex h-6 w-8 border">
-      <span className="border-foreground/25 flex flex-1 flex-col justify-center gap-[2px] border-r px-[3px]">
-        <span className="bg-foreground/25 h-[2px] w-full" />
-        <span className="bg-foreground/25 h-[2px] w-3/4" />
-        <span className="bg-foreground/25 h-[2px] w-full" />
-      </span>
-      <span className="flex flex-1 items-center justify-center">
-        <span className={cn("bg-foreground/15 size-[8px]", ACCENT)} />
-      </span>
-    </span>
+    <GlyphSvg>
+      <rect x="3" y="4" width="26" height="16" rx="2" className={DIM} />
+      <path d="M16 4V20" className={FAINT} />
+      <path {...motion("draw")} pathLength={100} d="M6 9H12.5" />
+      <path
+        {...motion("draw", 60)}
+        pathLength={100}
+        d="M7.5 12H13.5"
+        className={DIM}
+      />
+      <path
+        {...motion("draw", 120)}
+        pathLength={100}
+        d="M6 15H11"
+        className={DIM}
+      />
+      <path
+        {...motion("pop", 220)}
+        d="M20.5 9.2L25.5 12L20.5 14.8Z"
+        className={cn("fill-foreground/30 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
+  );
+}
+
+function GlyphShimmer() {
+  const lines = ["M4 7H28", "M4 12H22", "M4 17H25"];
+  return (
+    <GlyphSvg>
+      {lines.map((d) => (
+        <path
+          key={d}
+          d={d}
+          className="stroke-foreground/12 [stroke-width:2.6]"
+        />
+      ))}
+      {lines.map((d, index) => (
+        <path
+          key={`${d}-shine`}
+          {...motion("blip", index * 140)}
+          pathLength={100}
+          d={d}
+          className={cn(
+            "stroke-foreground/60 [stroke-width:2.6]",
+            index === 1 && ACCENT_STROKE,
+          )}
+        />
+      ))}
+    </GlyphSvg>
+  );
+}
+
+function GlyphHeat() {
+  const tones = [
+    "fill-foreground/10",
+    "fill-foreground/25",
+    "fill-foreground/15",
+    "fill-foreground/40",
+    "fill-foreground/20",
+    "fill-foreground/10",
+    "fill-foreground/30",
+  ];
+  return (
+    <GlyphSvg>
+      {Array.from({ length: 28 }, (_, index) => (
+        <rect
+          key={index}
+          {...motion("twinkle", ((index * 7) % 10) * 90)}
+          x={2.5 + (index % 7) * 4}
+          y={4.5 + Math.floor(index / 7) * 4}
+          width="3"
+          height="3"
+          rx="0.6"
+          className={cn(
+            "stroke-none",
+            tones[(index * 3) % tones.length],
+            index === 10 && ACCENT_FILL,
+          )}
+        />
+      ))}
+    </GlyphSvg>
+  );
+}
+
+function GlyphFrame() {
+  return (
+    <GlyphSvg>
+      <WindowChrome />
+      <rect
+        {...motion("march")}
+        x="7"
+        y="10"
+        width="18"
+        height="7.5"
+        rx="1"
+        className="[stroke-dasharray:2_2]"
+      />
+      <rect
+        {...motion("orbit")}
+        x="14.5"
+        y="12.5"
+        width="3"
+        height="2.5"
+        rx="0.6"
+        className={cn("fill-foreground/35 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
+  );
+}
+
+function GlyphO11y() {
+  return (
+    <GlyphSvg>
+      <path d="M3 3.5V20.5" className={FAINT} />
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M5 6.5H28"
+        className="stroke-foreground/30 [stroke-width:2.4]"
+      />
+      <path
+        {...motion("draw", 110)}
+        pathLength={100}
+        d="M9 12H21"
+        className="stroke-foreground/25 [stroke-width:2.4]"
+      />
+      <path
+        {...motion("draw", 220)}
+        pathLength={100}
+        d="M14 17.5H25"
+        className={cn("[stroke-width:2.4]", ACCENT_STROKE)}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphExamples() {
+  const windows: Array<[number, number]> = [
+    [1.5, 2],
+    [19, 2],
+    [1.5, 16],
+    [19, 16],
+  ];
   return (
-    <span className="grid grid-cols-2 gap-[3px]">
-      {Array.from({ length: 4 }, (_, index) => (
-        <span
-          key={index}
-          className="border-foreground/25 flex h-[11px] w-[14px] flex-col border"
-        >
-          <span
-            className={cn(
-              "bg-foreground/15 h-[3px] w-full",
-              index === 0 && ACCENT,
-            )}
+    <GlyphSvg>
+      {windows.map(([x, y], index) => (
+        <g key={index}>
+          <rect x={x} y={y} width="11.5" height="8" rx="1.3" className={DIM} />
+          <path d={`M${x} ${y + 2.6}H${x + 11.5}`} className={FAINT} />
+          <path
+            {...motion("draw", index * 90)}
+            pathLength={100}
+            d={`M${x + 2.3} ${y + 5.3}H${x + 8}`}
+            className={index === 0 ? ACCENT_STROKE : DIM}
           />
-        </span>
+        </g>
       ))}
-    </span>
+    </GlyphSvg>
   );
 }
 
 function GlyphChangelog() {
+  const entries = [
+    { y: 5, d: "M10 5H28", r: 2 },
+    { y: 12, d: "M10 12H24", r: 1.6 },
+    { y: 19, d: "M10 19H20", r: 1.6 },
+  ];
   return (
-    <span className="flex w-7 flex-col gap-[4px]">
-      {Array.from({ length: 3 }, (_, index) => (
-        <span key={index} className="flex items-center gap-[3px]">
-          <span
+    <GlyphSvg>
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M5 3V21"
+        className="stroke-foreground/18"
+      />
+      {entries.map(({ y, d, r }, index) => (
+        <g key={y}>
+          <circle
+            {...motion("pop", 50 + index * 150)}
+            cx="5"
+            cy={y}
+            r={r}
             className={cn(
-              "bg-foreground/30 rounded-capsule size-[4px]",
-              index === 0 && ACCENT,
+              "fill-foreground/30 stroke-none",
+              index === 0 && ACCENT_FILL,
             )}
           />
-          <span className="bg-foreground/20 h-[2px] flex-1" />
-        </span>
+          <path
+            {...motion("draw", 120 + index * 150)}
+            pathLength={100}
+            d={d}
+            className={DIM}
+          />
+        </g>
       ))}
-    </span>
+    </GlyphSvg>
+  );
+}
+
+function ShowcaseWindow({
+  x,
+  y,
+  lines,
+}: {
+  x: number;
+  y: number;
+  lines?: boolean;
+}) {
+  return (
+    <>
+      <rect
+        x={x}
+        y={y}
+        width="17.5"
+        height="12"
+        rx="1.5"
+        className="fill-background"
+      />
+      <path d={`M${x} ${y + 3.4}H${x + 17.5}`} className={FAINT} />
+      {lines ? (
+        <path d={`M${x + 2.5} ${y + 6.9}H${x + 11.5}`} className={DIM} />
+      ) : null}
+    </>
   );
 }
 
 function GlyphShowcase() {
+  const toFront = { "--glyph-dx": "-7.5px", "--glyph-dy": "6px" } as const;
   return (
-    <span className="relative block h-6 w-8">
-      <span className="border-foreground/20 bg-background absolute top-0 right-0 h-[16px] w-[22px] border" />
-      <span className="border-foreground/30 bg-background absolute bottom-0 left-0 flex h-[16px] w-[22px] flex-col gap-[2px] border p-[3px]">
-        <span className={cn("bg-foreground/20 h-[3px] w-full", ACCENT)} />
-        <span className="bg-foreground/20 h-[2px] w-3/4" />
-      </span>
-    </span>
+    <GlyphSvg>
+      <g
+        {...motion("trade", 0, {
+          ...toFront,
+          "--glyph-from": "0.55",
+          "--glyph-to": "1",
+        })}
+        className="opacity-55"
+      >
+        <ShowcaseWindow x={11} y={3} />
+      </g>
+      <g
+        {...motion("trade", 0, {
+          "--glyph-dx": "7.5px",
+          "--glyph-dy": "-6px",
+          "--glyph-from": "1",
+          "--glyph-to": "0.55",
+        })}
+      >
+        <ShowcaseWindow x={3.5} y={9} lines />
+      </g>
+      <g
+        {...motion("trade-top", 0, { ...toFront, "--glyph-to": "1" })}
+        className="opacity-0"
+      >
+        <ShowcaseWindow x={11} y={3} />
+      </g>
+      <path
+        {...motion("spin", 250)}
+        d="M26 15.5L26.9 17.6L29 18.5L26.9 19.4L26 21.5L25.1 19.4L23 18.5L25.1 17.6Z"
+        className={cn("fill-foreground/40 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphOss() {
   return (
-    <span
-      className={cn(
-        "text-foreground/40 font-mono text-[11px] font-medium",
-        TEXT_ACCENT,
-      )}
-    >
-      {"</>"}
-    </span>
-  );
-}
-
-function GlyphBlog() {
-  return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className={cn("bg-foreground/35 h-[4px] w-2/3", ACCENT)} />
-      <span className="bg-foreground/20 h-[2px] w-full" />
-      <span className="bg-foreground/20 h-[2px] w-full" />
-      <span className="bg-foreground/20 h-[2px] w-1/2" />
-    </span>
-  );
-}
-
-function GlyphCareers() {
-  return (
-    <span className="flex items-end gap-[4px]">
-      <span className="flex flex-col items-center gap-[2px]">
-        <span
-          className={cn("bg-foreground/35 rounded-capsule size-[6px]", ACCENT)}
-        />
-        <span className="bg-foreground/20 h-[6px] w-[10px] rounded-t-[3px]" />
-      </span>
-      <span className="flex flex-col items-center gap-[2px]">
-        <span className="bg-foreground/25 rounded-capsule size-[5px]" />
-        <span className="bg-foreground/15 h-[5px] w-[9px] rounded-t-[3px]" />
-      </span>
-    </span>
-  );
-}
-
-function GlyphBrand() {
-  return (
-    <span className="relative block h-6 w-7">
-      <span className="border-foreground/20 bg-foreground/[0.06] absolute top-0 right-0 size-[15px] border" />
-      <span
-        className={cn(
-          "bg-foreground/30 absolute bottom-0 left-0 size-[15px]",
-          ACCENT,
-        )}
+    <GlyphSvg>
+      <path
+        {...motion("shift", 0, { "--glyph-dx": "-2px", "--glyph-dy": "0px" })}
+        d="M10.5 6.5L5 12L10.5 17.5"
       />
-    </span>
+      <path
+        {...motion("shift", 0, { "--glyph-dx": "2px", "--glyph-dy": "0px" })}
+        d="M21.5 6.5L27 12L21.5 17.5"
+      />
+      <path
+        {...motion("draw", 150)}
+        pathLength={100}
+        d="M18.5 4.5L13.5 19.5"
+        className={ACCENT_STROKE}
+      />
+    </GlyphSvg>
+  );
+}
+
+function Cube({
+  x,
+  y,
+  className,
+}: {
+  x: number;
+  y: number;
+  className?: string;
+}) {
+  const s = 5;
+  const h = s * 1.1;
+  return (
+    <>
+      <path
+        d={`M${x} ${y - s}L${x + s} ${y - s / 2}L${x} ${y}L${x - s} ${y - s / 2}Z`}
+        className={cn("fill-foreground/10 [stroke-width:1]", className)}
+      />
+      <path
+        d={`M${x - s} ${y - s / 2}L${x} ${y}V${y + h}L${x - s} ${y + h - s / 2}Z`}
+        className="fill-foreground/5 [stroke-width:1]"
+      />
+      <path
+        d={`M${x} ${y}L${x + s} ${y - s / 2}V${y + h - s / 2}L${x} ${y + h}Z`}
+        className="fill-foreground/[0.02] [stroke-width:1]"
+      />
+    </>
   );
 }
 
 function GlyphPackages() {
   return (
-    <span className="flex flex-col items-center gap-[2px]">
-      <span className="border-foreground/30 size-[9px] border" />
-      <span className="flex gap-[2px]">
-        <span className="border-foreground/30 size-[9px] border" />
-        <span className={cn("bg-foreground/25 size-[9px]", ACCENT)} />
-      </span>
-    </span>
+    <GlyphSvg>
+      <g {...motion("settle", 350)}>
+        <Cube x={11.5} y={15.5} />
+      </g>
+      <g {...motion("settle", 400)}>
+        <Cube x={20.5} y={15.5} />
+      </g>
+      <g {...motion("drop")}>
+        <Cube
+          x={16}
+          y={8.6}
+          className="transition-colors duration-200 group-hover/navlink:fill-blue-500 group-hover/navlink:stroke-blue-500 group-focus-visible/navlink:fill-blue-500 group-focus-visible/navlink:stroke-blue-500"
+        />
+      </g>
+    </GlyphSvg>
+  );
+}
+
+function GlyphBlog() {
+  return (
+    <GlyphSvg>
+      <path d="M9 3.5H19L24 8.5V20.5H9Z" className={DIM} />
+      <path d="M19 3.5V8.5H24" className={FAINT} />
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M11.5 11.5H19.5"
+        className={cn("[stroke-width:1.6]", ACCENT_STROKE)}
+      />
+      <path
+        {...motion("draw", 110)}
+        pathLength={100}
+        d="M11.5 14.75H21.5"
+        className={DIM}
+      />
+      <path
+        {...motion("draw", 180)}
+        pathLength={100}
+        d="M11.5 17.75H18"
+        className={DIM}
+      />
+    </GlyphSvg>
+  );
+}
+
+function GlyphCareers() {
+  return (
+    <GlyphSvg>
+      <circle
+        {...motion("bob")}
+        cx="11"
+        cy="8.5"
+        r="2.6"
+        className={cn("fill-foreground/30 stroke-none", ACCENT_FILL)}
+      />
+      <path d="M6.5 18.5a4.5 4.5 0 0 1 9 0" />
+      <circle
+        {...motion("bob", 140)}
+        cx="19.5"
+        cy="9.5"
+        r="2.2"
+        className="fill-foreground/20 stroke-none"
+      />
+      <path d="M15.6 18.5a3.9 3.9 0 0 1 7.8 0" className={DIM} />
+      <path
+        {...motion("spin", 280)}
+        d="M27 5.5V9.5M25 7.5H29"
+        className={ACCENT_STROKE}
+      />
+    </GlyphSvg>
+  );
+}
+
+function GlyphBrand() {
+  return (
+    <GlyphSvg>
+      <circle
+        {...motion("shift", 0, { "--glyph-dx": "-12px", "--glyph-dy": "3px" })}
+        cx="21.5"
+        cy="10.5"
+        r="6"
+      />
+      <rect
+        {...motion("shift", 0, { "--glyph-dx": "12px", "--glyph-dy": "-3px" })}
+        x="4"
+        y="8"
+        width="11"
+        height="11"
+        rx="2"
+        className={cn("fill-foreground/25 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphTraction() {
   return (
-    <span className="flex h-6 items-end gap-[3px]">
-      <span className="bg-foreground/15 h-[6px] w-[5px]" />
-      <span className="bg-foreground/25 h-[10px] w-[5px]" />
-      <span className="bg-foreground/25 h-[14px] w-[5px]" />
-      <span className={cn("bg-foreground/40 h-[19px] w-[5px]", ACCENT)} />
-    </span>
+    <GlyphSvg>
+      <path
+        {...motion("fade", 200)}
+        d="M2 20L9 15.5L15 17L22 9.5L29.5 4V21H2Z"
+        className="fill-foreground/[0.07] stroke-none"
+      />
+      <path d="M2 21H30" className={FAINT} />
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M2 20L9 15.5L15 17L22 9.5L29.5 4"
+      />
+      <circle
+        {...motion("pop", 600)}
+        cx="29.5"
+        cy="4"
+        r="1.7"
+        className={cn("fill-foreground/45 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
   );
 }
 
 function GlyphStatus() {
+  const beat = "M1 13H9.5L11.5 13L13.5 6L16 19.5L18.5 9.5L20 13H31";
   return (
-    <span className="flex h-6 items-center gap-[3px]">
-      <span className="bg-foreground/15 h-[3px] w-[4px]" />
-      <span className="bg-foreground/15 h-[3px] w-[4px]" />
-      <span className={cn("bg-foreground/40 h-[16px] w-[4px]", ACCENT)} />
-      <span className="bg-foreground/25 h-[8px] w-[4px]" />
-      <span className="bg-foreground/15 h-[3px] w-[4px]" />
-    </span>
+    <GlyphSvg>
+      <path d="M1 13H31" className={FAINT} />
+      <path {...motion("draw")} pathLength={100} d={beat} />
+      <path
+        {...motion("blip", 300)}
+        pathLength={100}
+        d={beat}
+        className="stroke-blue-500 [stroke-width:1.6]"
+      />
+    </GlyphSvg>
   );
 }
 
-const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
+const GLYPHS: Record<NavGlyphKind, () => ReactNode> = {
   elements: GlyphElements,
   design: GlyphDesign,
   react: GlyphReact,
@@ -366,8 +770,8 @@ export function NavGlyph({
 
   if (size === "lg") {
     return (
-      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
-        <span className="block scale-[2.5]">
+      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 rounded-document [container-type:size] flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
+        <span className="flex w-[min(56cqw,90cqh)] [&>svg]:h-auto [&>svg]:w-full [&>svg]:[stroke-width:0.5]">
           <Glyph />
         </span>
       </span>
@@ -375,7 +779,7 @@ export function NavGlyph({
   }
 
   return (
-    <span className="border-foreground/10 bg-background grid size-11 shrink-0 place-items-center border">
+    <span className="border-foreground/10 bg-background rounded-document grid size-11 shrink-0 place-items-center border">
       <Glyph />
     </span>
   );

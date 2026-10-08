@@ -119,6 +119,8 @@ type A2AClientOptions = {
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) | undefined;
   extensions?: string[] | undefined;
   fetchOptions?: Omit<RequestInit, "body" | "headers" | "method" | "signal"> | undefined;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 };
 
 type A2ADeviceCodeOAuthFlow = {
@@ -1364,6 +1366,7 @@ type ThreadComposerState = BaseComposerState & {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
@@ -1596,6 +1599,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
