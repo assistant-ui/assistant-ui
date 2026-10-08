@@ -221,7 +221,8 @@ test("computeReviewHealth counts tiers, approvals, bypasses, and response time",
   assert.deepEqual(result.missingApprovals, [
     { number: 102, tier: 0, approvals: 0, minimum: 1 },
     { number: 104, tier: 1, approvals: 1, minimum: 2 },
-    { number: 105, tier: 2, approvals: 1, minimum: 2 },
+    { number: 105, tier: 2, approvals: 0, minimum: 2 },
+    { number: 106, tier: 3, approvals: 0, minimum: 2 },
   ]);
   assert.deepEqual(result.adminBypasses, [
     { id: 1, actorName: "admin", number: 102 },
@@ -244,11 +245,11 @@ test("latest decisive review wins while comments do not change approval", () => 
   const fixture = pr(201, {
     labels: ["tier/2"],
     reviews: [
-      review("a", "CHANGES_REQUESTED", 5),
-      review("a", "APPROVED", 7),
-      review("a", "COMMENTED", 8),
-      review("b", "APPROVED", 4),
-      review("b", "DISMISSED", 6),
+      review("maintainer", "CHANGES_REQUESTED", 5),
+      review("maintainer", "APPROVED", 7),
+      review("maintainer", "COMMENTED", 8),
+      review("admin", "APPROVED", 4),
+      review("admin", "DISMISSED", 6),
     ],
   });
   const result = computeReviewHealth(
@@ -324,7 +325,7 @@ test("renderReviewHealth includes every measure and exception list", () => {
   });
   assert.match(markdown, /^# Review health, 2026-10-01 to 2026-10-07/m);
   for (const row of [
-    "| Merges missing their tier's approvals | 3 | 0 |",
+    "| Merges missing their tier's approvals | 4 | 0 |",
     "| Bypasses outside the organization owners | 2 | 0 |",
     "| Organization owner bypasses | 1 | Listed below |",
     "| Non-maintainer PRs approved and merged by one person | 2 | 0 |",
@@ -334,7 +335,7 @@ test("renderReviewHealth includes every measure and exception list", () => {
   ])
     assert.ok(markdown.includes(row), row);
   for (const line of [
-    "Merges missing their tier's approvals: #102, #104, #105",
+    "Merges missing their tier's approvals: #102, #104, #105, #106",
     "Bypasses outside the organization owners: #105, Unmatched rule suite 4",
     "Organization owner bypasses: #102",
     "Organization owner merges of someone else's PR below the tier minimum: #102, #104",

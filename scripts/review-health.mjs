@@ -97,11 +97,22 @@ export function computeReviewHealth(
           : tier === 2 || tier === 3
             ? 2
             : null;
-    if (minimum !== null && approvers.size < minimum) {
+    const maintainerApprovals = [...approvers].filter((login) =>
+      maintainerSet.has(login),
+    ).length;
+    const counted =
+      tier === 2 || tier === 3
+        ? maintainerApprovals
+        : [...approvers].filter((login) => trusted.has(login)).length;
+    const needsMaintainer = tier === 1 && !trusted.has(author);
+    if (
+      minimum !== null &&
+      (counted < minimum || (needsMaintainer && maintainerApprovals === 0))
+    ) {
       missingApprovals.push({
         number: pr.number,
         tier,
-        approvals: approvers.size,
+        approvals: counted,
         minimum,
       });
       if (admins.has(mergedBy) && mergedBy !== author)
@@ -482,6 +493,14 @@ async function main() {
   const untilExclusive = new Date(`${until}T00:00:00Z`);
   untilExclusive.setUTCDate(untilExclusive.getUTCDate() + 1);
   if (since > until) throw new Error("--since must be on or before --until.");
+  const oldestCovered = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  if (since < oldestCovered) {
+    throw new Error(
+      `--since must be on or after ${oldestCovered}, because GitHub returns rule suites for the last month only.`,
+    );
+  }
   const issueValues = optionValues(args, "--post");
   if (
     issueValues.length > 1 ||
