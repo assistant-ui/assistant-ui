@@ -1157,6 +1157,11 @@ test("the comment starts with its marker and strongest reason and bounds the rea
       detail: `docs/${index}.md`,
     })),
   );
+  evaluation.tierResult.reasons.push({
+    tier: 1,
+    code: "source",
+    detail: "packages/a|b\\c.ts",
+  });
   evaluation.requirementResult.waived.push({
     code: "size-cap",
     signal: "size",
@@ -1193,6 +1198,7 @@ test("the comment starts with its marker and strongest reason and bounds the rea
     "- **Waived:** Size, by okisdev with `review-tier/override: size`",
     "Kinfe123 counted",
     "previous-reviewer ignored (approved an older head)",
+    "`packages/a\\|b\\\\c.ts`",
   ]) {
     assert.ok(comment.includes(expected), expected);
   }

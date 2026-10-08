@@ -498,7 +498,11 @@ const ignoredLabels = {
 };
 
 const cell = (value) =>
-  String(value).replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+  String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\s+/g, " ")
+    .trim();
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const mdTable = (header, aligns, rows) =>
   [
