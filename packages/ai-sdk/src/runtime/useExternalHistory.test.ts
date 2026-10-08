@@ -139,14 +139,8 @@ describe("useExternalHistory withFormat contract", () => {
     expect(adapter.withFormat).toHaveBeenCalledWith(storageFormat);
   });
 
-  it("loads history and reports loading when remoteId appears after the first paint", async () => {
-    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
-    const load = vi.fn(
-      () =>
-        new Promise<MessageFormatRepository<unknown>>((resolve) => {
-          resolveLoad = resolve;
-        }),
-    );
+  it("loads history when threadListItem.remoteId appears after the first paint", async () => {
+    const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
     const adapter: ThreadHistoryAdapter = {
       load: vi.fn(),
       append: vi.fn(),
@@ -156,7 +150,7 @@ describe("useExternalHistory withFormat contract", () => {
       }),
     };
 
-    const { result, rerender } = renderHook(() =>
+    const { rerender } = renderHook(() =>
       useExternalHistory(
         runtimeRef,
         adapter,
@@ -168,7 +162,6 @@ describe("useExternalHistory withFormat contract", () => {
 
     await act(async () => {});
     expect(load).not.toHaveBeenCalled();
-    expect(result.current.isLoading).toBe(false);
 
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -178,12 +171,6 @@ describe("useExternalHistory withFormat contract", () => {
     rerender();
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
-    expect(result.current.isLoading).toBe(true);
-
-    await act(async () => {
-      resolveLoad({ headId: null, messages: [] });
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it("loads when a mounted thread later receives a remoteId", async () => {

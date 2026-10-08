@@ -203,7 +203,6 @@ export const useExternalHistory = <TMessage>(
       setHasLoaded(true);
       return aui.subscribe(() => {
         if (optionalThreadListItem()?.getState().remoteId) {
-          setHasLoaded(false);
           setItemEpoch((n) => n + 1);
         }
       });
