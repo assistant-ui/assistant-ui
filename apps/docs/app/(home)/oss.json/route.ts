@@ -3,13 +3,12 @@ import { BASE_URL } from "@/lib/constants";
 import {
   OSS_CATEGORIES,
   OSS_PROJECTS,
+  ossAbsoluteUrl,
   ossNpmUrl,
   ossPrimaryUrl,
+  ossPypiUrl,
   ossRepoUrl,
 } from "@/lib/oss";
-
-const absolute = (url: string) =>
-  url.startsWith("http") ? url : BASE_URL + url;
 
 async function getBody() {
   "use cache";
@@ -19,14 +18,12 @@ async function getBody() {
     categories: OSS_CATEGORIES,
     projects: OSS_PROJECTS.map((project) => ({
       ...project,
-      url: absolute(ossPrimaryUrl(project)),
+      url: ossAbsoluteUrl(ossPrimaryUrl(project), BASE_URL),
       repoUrl: ossRepoUrl(project),
-      ...(project.docs ? { docs: absolute(project.docs) } : {}),
-      ...(project.site ? { site: absolute(project.site) } : {}),
+      ...(project.docs ? { docs: ossAbsoluteUrl(project.docs, BASE_URL) } : {}),
+      ...(project.site ? { site: ossAbsoluteUrl(project.site, BASE_URL) } : {}),
       ...(project.npm ? { npmUrl: ossNpmUrl(project.npm) } : {}),
-      ...(project.pypi
-        ? { pypiUrl: `https://pypi.org/project/${project.pypi}/` }
-        : {}),
+      ...(project.pypi ? { pypiUrl: ossPypiUrl(project.pypi) } : {}),
     })),
   };
 
