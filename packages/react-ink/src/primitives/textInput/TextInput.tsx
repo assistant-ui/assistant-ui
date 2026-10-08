@@ -21,7 +21,11 @@ export type TextInputProps = ComponentProps<typeof Box> & {
   multiLine?: boolean | undefined;
 };
 
-export const TextInput = ({
+type TextInputInternalProps = TextInputProps & {
+  isDisabled: boolean;
+};
+
+const TextInputInternal = ({
   value,
   onChange,
   onSubmit,
@@ -29,9 +33,10 @@ export const TextInput = ({
   placeholder = "",
   autoFocus = true,
   multiLine = false,
+  isDisabled,
   ...boxProps
-}: TextInputProps) => {
-  const { isFocused } = useFocus({ autoFocus });
+}: TextInputInternalProps) => {
+  const { isFocused } = useFocus({ autoFocus, isActive: !isDisabled });
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
@@ -88,11 +93,14 @@ export const TextInput = ({
   };
 
   const submit = () => {
+    if (isDisabled) return;
     onSubmit?.(bufferStateRef.current.text);
   };
 
   useInput(
     (input, key) => {
+      if (isDisabled) return;
+
       const extendedKey = key as typeof key & {
         home?: boolean;
         end?: boolean;
@@ -209,7 +217,7 @@ export const TextInput = ({
         if (insertText) commitAction({ type: "insert", text: insertText });
       }
     },
-    { isActive: isFocused },
+    { isActive: isFocused && !isDisabled },
   );
 
   const hasText = text.length > 0;
@@ -243,3 +251,30 @@ export const TextInput = ({
     </Box>
   );
 };
+
+export const TextInput = ({
+  value,
+  onChange,
+  onSubmit,
+  submitOnEnter = false,
+  placeholder = "",
+  autoFocus = true,
+  multiLine = false,
+  ...boxProps
+}: TextInputProps) => (
+  <TextInputInternal
+    value={value}
+    onChange={onChange}
+    onSubmit={onSubmit}
+    submitOnEnter={submitOnEnter}
+    placeholder={placeholder}
+    autoFocus={autoFocus}
+    multiLine={multiLine}
+    {...boxProps}
+    isDisabled={false}
+  />
+);
+
+export const ComposerTextInput = (
+  props: TextInputProps & { isDisabled: boolean },
+) => <TextInputInternal {...props} />;

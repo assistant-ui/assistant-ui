@@ -29,13 +29,23 @@ type InputHandler = (
 ) => void;
 
 let inputHandler: InputHandler | undefined;
+let inputOptions: { isActive?: boolean } | undefined;
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
     useAui: () => mockUseAui(),
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
+    useAuiState: (selector: UseAuiStateSelector) =>
+      mockUseAuiState((state: Parameters<UseAuiStateSelector>[0]) =>
+        selector({
+          ...state,
+          thread: {
+            ...state.thread,
+            isDisabled: state.thread?.isDisabled ?? false,
+          },
+        }),
+      ),
   };
 });
 
@@ -55,8 +65,9 @@ vi.mock("ink", async (importOriginal) => {
   return {
     ...actual,
     useFocus: () => mockUseFocus(),
-    useInput: (handler: InputHandler) => {
+    useInput: (handler: InputHandler, options?: { isActive?: boolean }) => {
       inputHandler = handler;
+      inputOptions = options;
     },
   };
 });
@@ -70,6 +81,7 @@ const flush = async () => {
 afterEach(() => {
   cleanup();
   inputHandler = undefined;
+  inputOptions = undefined;
 });
 
 describe("ComposerInput", () => {
@@ -150,6 +162,42 @@ describe("ComposerInput", () => {
     inputHandler?.("", { return: true });
 
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("disabled thread ignores text changes and Enter", async () => {
+    const send = vi.fn(() => undefined);
+    const setText = vi.fn();
+    const buffer = createBuffer("hello");
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({
+        composer: { text: "hello" },
+        thread: { isDisabled: true },
+      } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: { send, setText },
+      thread: {
+        getState: () => ({
+          isRunning: false,
+          capabilities: { queue: false },
+        }),
+      },
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput submitOnEnter />);
+    await flush();
+
+    inputHandler?.("!", {});
+    inputHandler?.("", { return: true });
+
+    expect({
+      textChanges: setText.mock.calls.length,
+      sends: send.mock.calls.length,
+      inputActive: inputOptions?.isActive,
+    }).toEqual({ textChanges: 0, sends: 0, inputActive: false });
   });
 
   it("does not send on enter while the thread is running without queue support", async () => {

@@ -8,7 +8,12 @@ const h = vi.hoisted(() => ({
   sendSpy: vi.fn<() => void>(),
   flushTapSyncSpy: vi.fn(<T,>(fn: () => T) => fn()),
   composerState: { text: "" },
-  threadState: { isRunning: false, queue: false, voice: false },
+  threadState: {
+    isRunning: false,
+    queue: false,
+    voice: false,
+    isDisabled: false,
+  },
   platform: { os: "web" as "web" | "ios" | "android" },
 }));
 
@@ -28,12 +33,20 @@ vi.mock("@assistant-ui/store", () => {
   return {
     useAui: () => aui,
     useAuiState: <T,>(
-      selector: (s: { composer: typeof h.composerState }) => T,
-    ) => selector({ composer: h.composerState }),
+      selector: (s: {
+        composer: typeof h.composerState;
+        thread: { isDisabled: boolean };
+      }) => T,
+    ) =>
+      selector({
+        composer: h.composerState,
+        thread: { isDisabled: h.threadState.isDisabled },
+      }),
   };
 });
 
-vi.mock("@assistant-ui/tap", () => ({
+vi.mock("@assistant-ui/tap", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/tap")>()),
   flushTapSync: h.flushTapSyncSpy,
 }));
 
@@ -111,6 +124,7 @@ describe("ComposerInput", () => {
     h.threadState.isRunning = false;
     h.threadState.queue = false;
     h.threadState.voice = false;
+    h.threadState.isDisabled = false;
     h.platform.os = "web";
 
     container = document.createElement("div");
@@ -420,5 +434,38 @@ describe("ComposerInput", () => {
       expect(event.defaultPrevented).toBe(false);
       expect(onKeyPress).toHaveBeenCalledTimes(1);
     });
+  });
+
+  describe("disabled thread", () => {
+    beforeEach(() => {
+      h.threadState.isDisabled = true;
+    });
+
+    it("makes the input non-editable", async () => {
+      const input = await mount();
+      expect(input.disabled || input.readOnly).toBe(true);
+    });
+
+    it("does not let editable props override the disabled thread", async () => {
+      const input = await mount({ editable: true, readOnly: false });
+      expect(input.readOnly).toBe(true);
+    });
+
+    it("ignores text changes", async () => {
+      const input = await mount();
+      await act(async () => fireInput(input, "hello"));
+      expect(h.setText).not.toHaveBeenCalled();
+    });
+
+    it("does not submit on Enter", async () => {
+      const input = await mount();
+      await act(async () => fireKeyDown(input, { key: "Enter" }));
+      expect(h.sendSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it("preserves a caller-provided non-editable setting", async () => {
+    const input = await mount({ editable: false });
+    expect(input.readOnly).toBe(true);
   });
 });

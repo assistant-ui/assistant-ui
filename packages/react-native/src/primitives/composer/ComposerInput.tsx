@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Platform, TextInput, type TextInputProps } from "react-native";
+import { composerInputDisabled } from "@assistant-ui/core/store/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 
@@ -59,14 +60,19 @@ export const ComposerInput = ({
   onKeyPress: onKeyPressProp,
   numberOfLines,
   style,
+  editable,
+  readOnly,
   ...props
 }: ComposerInputProps) => {
   const aui = useAui();
   const text = useAuiState((s) => s.composer.text);
+  const isInputDisabled = useAuiState(composerInputDisabled);
   const inputRef = useRef<TextInputInstance>(null);
 
   const onChangeText = useCallback(
     (value: string) => {
+      if (isInputDisabled) return;
+
       if (Platform.OS === "web") {
         // Keep the controlled value in sync mid-IME so react-dom does not reset the textarea to a stale value
         flushTapSync(() => {
@@ -76,7 +82,7 @@ export const ComposerInput = ({
       }
       aui.composer.setText(value);
     },
-    [aui],
+    [aui, isInputDisabled],
   );
 
   // Auto-resize textarea on web when text changes
@@ -87,6 +93,8 @@ export const ComposerInput = ({
 
   const onKeyPress = useCallback(
     (e: TextInputKeyPressEvent) => {
+      if (isInputDisabled) return;
+
       onKeyPressProp?.(e);
       if (e.isDefaultPrevented()) return;
 
@@ -113,8 +121,10 @@ export const ComposerInput = ({
         aui.composer.send();
       }
     },
-    [aui, submitMode, onKeyPressProp],
+    [aui, isInputDisabled, submitMode, onKeyPressProp],
   );
+
+  const isReadOnly = isInputDisabled || editable === false || readOnly === true;
 
   return (
     <TextInput
@@ -123,6 +133,8 @@ export const ComposerInput = ({
       onChangeText={onChangeText}
       onKeyPress={onKeyPress}
       numberOfLines={numberOfLines ?? (Platform.OS === "web" ? 1 : undefined)}
+      editable={editable}
+      readOnly={isReadOnly}
       style={style}
       {...props}
     />
