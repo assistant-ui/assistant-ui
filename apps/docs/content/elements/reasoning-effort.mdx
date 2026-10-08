@@ -7,7 +7,7 @@ description: "How hard to think, and how much of that budget the run actually sp
 
 <RuntimeMode>
 
-`reasoningEffort` is a real field on assistant-ui's model context, the same mechanism the composer's own model picker uses to pass an effort setting through to the model. Selecting a level and reading how much it cost are two separate concerns: the first is a registration, the second is usage data from the adapter.
+`reasoningEffort` is a field on assistant-ui's model context, which the [model selector](/elements/model-selector) also uses to pass an effort setting to the model. Selecting a level and reading how much it cost are separate: the first is a registration, the second is usage data from the adapter.
 
 <Steps>
   <Step>
@@ -41,7 +41,7 @@ function useRegisteredEffort() {
 }
 ```
 
-`budget` has no runtime counterpart: it is a fact about your own effort tiers, so it stays app defined either way. Registering through `modelContext` only affects the next run; it does not retroactively change one already in flight.
+`budget` has no runtime counterpart: it describes your own effort tiers, so your app defines it. Registering through `modelContext` only affects the next run; it does not retroactively change one already in flight.
 
   </Step>
   <Step>

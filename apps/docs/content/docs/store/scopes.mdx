@@ -3,7 +3,7 @@ title: Scopes
 description: Named, independent units of state in your store.
 ---
 
-A **scope** is a named slot in your store. Instead of putting everything in one place, you split your app's state into independent units — each with a name, its own methods, and its own state.
+A **scope** is a named slot in your store. Instead of putting everything in one place, you split your app's state into independent units, each with a name, its own methods, and its own state.
 
 A chat app might have three scopes that nest naturally:
 
@@ -43,9 +43,9 @@ declare module "@assistant-ui/store" {
 }
 ```
 
-This is a **type-level** declaration — no runtime code. It tells TypeScript what scopes exist and what shape each one has. Every Store hook uses this for autocomplete and type checking.
+This is a **type-level** declaration with no runtime code. It tells TypeScript what scopes exist and what shape each one has. Every Store hook uses this for autocomplete and type checking.
 
-Because `ScopeRegistry` uses TypeScript module augmentation, different packages can each register their own scopes. A `@my-org/chat` package can register `thread` and `message`, while `@my-org/analytics` registers `analytics` — and your app can access all of them through the same `useAui` hook.
+Because `ScopeRegistry` uses TypeScript module augmentation, different packages can each register their own scopes. A `@my-org/chat` package can register `thread` and `message`, while `@my-org/analytics` registers `analytics`, and your app can access all of them through the same `useAui` hook.
 
 ## Filling scopes
 
@@ -74,7 +74,7 @@ const App = () => {
 
 Now any component inside `App` can call `useAui()` to get the store with the `threadList` scope filled.
 
-You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes — a nested provider passes `extends={aui}` to extend the parent (or `extends={null}` to isolate):
+You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes. A nested provider passes `extends={aui}` to extend the parent (or `extends={null}` to isolate):
 
 ```tsx
 const ThreadView = () => {

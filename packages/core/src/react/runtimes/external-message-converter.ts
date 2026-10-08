@@ -30,6 +30,10 @@ export namespace useExternalMessageConverter {
   export type Message = ExternalMessageConverterMessage;
   export type Metadata = ExternalMessageConverterMetadata;
   export type Callback<T> = ExternalMessageConverterCallback<T>;
+  export type GetMetadataKey<T> = (
+    message: T,
+    metadata: ExternalMessageConverterMetadata,
+  ) => unknown;
 }
 
 export const convertExternalMessages = <T extends WeakKey>(
@@ -54,12 +58,21 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   isRunning,
   joinStrategy,
   metadata,
+  getMetadataKey,
 }: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  /**
+   * Returns the metadata dependency for one message. The value must change
+   * whenever metadata read by the callback for that message changes and remain
+   * stable while those values are unchanged. Prefer a primitive or an object
+   * whose identity is preserved across renders. Defaults to the complete
+   * metadata object identity.
+   */
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => {
   // The cache lives for the component lifetime: React Compiler hoists allocations without reactive dependencies out of useMemo, so entries carry the callback and metadata that produced them instead of being flushed when those change.
   const [cache] = useState(() =>
@@ -70,8 +83,9 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     () => ({
       metadata: metadata ?? {},
       callback,
+      getMetadataKey,
     }),
-    [callback, metadata],
+    [callback, metadata, getMetadataKey],
   );
 
   return useMemo(() => {
@@ -82,6 +96,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
       state.metadata,
       joinStrategy,
       cache,
+      state.getMetadataKey,
     );
 
     bindExternalStoreMessage(threadMessages, messages);

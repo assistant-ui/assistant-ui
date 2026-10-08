@@ -11,7 +11,7 @@ export {
   rewriteCustomMathTags,
   normalizeMathDelimiters,
   escapeCurrencyDollars,
-} from "./preprocess";
+} from "@assistant-ui/react-markdown/preprocess";
 
 export { tailBoundedRemend, findRemendWindowStart } from "./remend";
 

@@ -9,7 +9,7 @@ A verdict backed by its own arithmetic: a total out of a max, a colored verdict 
 
 <RuntimeMode>
 
-This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A score is usually the product of real grading work: running tests, checking a diff, comparing against a rubric, so the criteria belong on the tool's `result` rather than on its streamed `args`.
+No assistant-ui primitive backs this element, so the runtime wiring is a tool renderer. A score usually comes from grading work, such as running tests or comparing against a rubric, so the criteria belong on the tool's `result`, not on its streamed `args`.
 
 <Steps>
   <Step>
@@ -41,7 +41,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Because the whole breakdown lands as one result rather than as streamed steps, `visibleCount` is simply `result.criteria.length`; there is no partial state to size it against.
+The whole breakdown arrives as one result, so `visibleCount` is `result.criteria.length`.
 
   </Step>
   <Step>
@@ -72,7 +72,7 @@ export function MyRuntimeProvider({
 }
 ```
 
-Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `review_change` call appears in the message, so nothing needs to be placed by hand.
+Once the toolkit is registered, `Thread` and any message list built on `MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts` render this UI wherever a `review_change` call appears in a message.
 
   </Step>
 </Steps>
@@ -81,7 +81,7 @@ Once the toolkit is registered, `Thread` and any custom message list built on as
 
 <StandaloneMode>
 
-Standalone, the element is a plain display component: it owns no state of its own, so the minimal usage is a constant set of criteria shown all at once.
+Standalone, the element is a display component with no state of its own. The minimal usage passes a constant set of criteria and shows them all at once.
 
 <Steps>
   <Step>
@@ -179,13 +179,13 @@ export function ReviewVerdict() {
 </div>
 ```
 
-The header (the total, the `/ outOf`, and the verdict pill) always renders regardless of `visibleCount`; only the criteria list is sliced, floored and clamped into `0…criteria.length` the same way it is on the other structured output elements. The verdict pill's color is a plain threshold on `total / outOf`, treated as `0` when `outOf` is `0`: emerald at `0.75` and above, amber from `0.5` up to just under `0.75`, red below `0.5`. Each criterion's own bar is scaled against the overall `outOf`, not against that criterion's own `weight` or any per-criterion maximum, so two criteria with the same `score` always draw identical bar widths no matter how differently they are weighted; `weight` only ever shows up as the `×N` label next to the score. Each criterion bar's track is a named meter with a `0…100` value matching its score width and value text reading the same `score` of `outOf` the row prints; the value sits on the track rather than the fill, which collapses to nothing at zero.
+The header (the total, the `/ outOf`, and the verdict pill) renders whatever `visibleCount` is. Only the criteria list is sliced, with `visibleCount` floored and clamped into `0…criteria.length`. The verdict pill's color is a plain threshold on `total / outOf`, treated as `0` when `outOf` is `0`: emerald at `0.75` and above, amber from `0.5` up to just under `0.75`, red below `0.5`. Each criterion's bar is scaled against the overall `outOf`, so two criteria with the same `score` draw the same bar width whatever their weights. `weight` appears only as the `×N` label next to the score. Each criterion bar's track is a named meter with a `0…100` value matching its score width and value text reading the same `score` of `outOf` the row prints; the value sits on the track rather than the fill, which collapses to nothing at zero.
 
 ## Examples
 
 ### An empty denominator
 
-`outOf: 0` is a real edge case the component handles rather than dividing by zero: the ratio reads as `0`, so the verdict pill always falls into the red band regardless of what `total` says.
+With `outOf: 0` the component skips the division and treats the ratio as `0`, so the verdict pill is red whatever `total` is.
 
 ```tsx
 <ScoreBreakdown
@@ -201,7 +201,7 @@ The header (the total, the `/ outOf`, and the verdict pill) always renders regar
 
 <RuntimeMode>
 
-The backend entry declares only what is being reviewed. The model supplies `target`, your server runs the actual grading, and the client renderer never sees anything but the finished verdict.
+The backend entry declares only what is being reviewed. The model supplies `target`, your server runs the grading, and the client renderer receives the finished verdict as `result`.
 
 ```ts title="app/api/chat/route.ts"
 review_change: tool({

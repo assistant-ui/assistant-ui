@@ -34,7 +34,7 @@ function ScrollToBottom() {
 }
 ```
 
-The primitive supplies the click handler and hides itself, `ScrollToBottom` in particular renders nothing once the thread is already at the bottom; `TooltipIconButton` only supplies the look, the tooltip, and the accessible name.
+The primitive supplies the click handler and the disabled state: `ScrollToBottom` disables the button once the thread is already at the bottom, and the kit's `thread.aui.tsx` hides the disabled button with a `disabled:invisible` class. `TooltipIconButton` supplies the look, the tooltip, and the accessible name.
 
   </Step>
   <Step>
@@ -130,10 +130,10 @@ A tooltip provider and a floating content panel wrap the button but render nothi
 | File | Tooltip text |
 |------|--------------|
 | `thread.aui.tsx` | "Scroll to bottom", "Send message", "Voice input", "Stop dictation" |
-| `thread.aui.tsx` | "Copy", "Refresh", "More", "Edit", "Previous", "Next" |
+| `thread.aui.tsx` | "Copy", "Helpful", "Not helpful", "Refresh", "More", "Edit", "Previous", "Next" |
 | `voice.aui.tsx` | "Mute" / "Unmute", "Disconnect" |
-| `attachment.aui.tsx` | "Add Attachment", "Remove file" |
-| `assistant-modal.aui.tsx` | "Open Assistant" / "Close Assistant" |
+| `attachment.aui.tsx` | "Add Attachment", "Remove [filename]" |
+| `assistant-modal.aui.tsx` | "Open Assistant" / "Close Assistant", "Threads", "New Thread" |
 | `markdown-text.tsx` | "Copy", on a rendered code block |
 
 There's no state selector of its own: it renders whatever the primitive it wraps decides, through `render`.
