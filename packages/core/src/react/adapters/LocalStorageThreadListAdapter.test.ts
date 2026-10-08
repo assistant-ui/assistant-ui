@@ -1268,6 +1268,42 @@ describe("createLocalStorageAdapter", () => {
     expect(storage.get(pendingDeletionsKey)).toBeUndefined();
   });
 
+  it("retries failed deletion cleanup on the next list after storage recovers", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const formattedKey =
+      '@assistant-ui:formatted-messages:["thread-1","test/v1"]';
+    const pendingDeletionsKey = "@assistant-ui:pending-thread-deletions";
+    const baseStorage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular", formats: ["test/v1"] },
+      ]),
+      [messagesKey]: JSON.stringify({ messages: [] }),
+      [formattedKey]: JSON.stringify({ messages: [] }),
+    });
+    let failCleanup = true;
+    const storage = {
+      ...baseStorage,
+      removeItem: async (key: string) => {
+        if (failCleanup && (key === messagesKey || key === formattedKey)) {
+          throw new Error("Storage unavailable");
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.delete("thread-1")).resolves.toBeUndefined();
+    expect(storage.get(messagesKey)).toBeDefined();
+    expect(storage.get(formattedKey)).toBeDefined();
+    expect(storage.get(pendingDeletionsKey)).toBeDefined();
+
+    failCleanup = false;
+    await expect(adapter.list()).resolves.toEqual({ threads: [] });
+    expect(storage.get(messagesKey)).toBeUndefined();
+    expect(storage.get(formattedKey)).toBeUndefined();
+    expect(storage.get(pendingDeletionsKey)).toBeUndefined();
+  });
+
   it("lists unrelated threads while pending cleanup keeps failing", async () => {
     const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";
@@ -1846,7 +1882,6 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
       ...baseStorage,
       removeItem: async (key: string) => {
         if (key === formattedKey && failCleanup) {
-          failCleanup = false;
           throw new Error("Storage unavailable");
         }
         await baseStorage.removeItem(key);
@@ -1858,6 +1893,7 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
     await expect(adapter.list()).resolves.toEqual({ threads: [] });
     expect(storage.get(formattedKey)).toBeDefined();
 
+    failCleanup = false;
     await createLocalStorageAdapter({ storage }).delete("thread-1");
 
     expect(storage.get(formattedKey)).toBeUndefined();
@@ -1961,9 +1997,9 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
     const adapter = createLocalStorageAdapter({ storage });
 
     await expect(adapter.delete("thread-1")).resolves.toBeUndefined();
-    await expect(adapter.list()).resolves.toEqual({ threads: [] });
-    const initialization = adapter.initialize("thread-1");
+    const listing = adapter.list();
     await cleanupStarted;
+    const initialization = adapter.initialize("thread-1");
     const client = createThreadClient(adapter, ["thread-1"]);
     const formatted = withTestFormat(
       createHistory(storage, client.getAui as () => never),
@@ -1982,6 +2018,7 @@ describe("createLocalStorageHistoryAdapter withFormat", () => {
       releaseCleanup();
     }
 
+    await expect(listing).resolves.toEqual({ threads: [] });
     await initialization;
     await write;
     expect(storage.get(formattedKey)).toBeDefined();

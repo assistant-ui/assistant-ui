@@ -691,7 +691,6 @@ export const createLocalStorageAdapter = (
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
   const pendingDeletionsKey = `${prefix}pending-thread-deletions`;
   const mutationQueue = getMutationQueue(storage);
-  const attemptedDeletions = new Set<string>();
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
@@ -813,11 +812,6 @@ export const createLocalStorageAdapter = (
     let failure: unknown;
     for (const deletion of deletions) {
       if (remoteId !== undefined && deletion.remoteId !== remoteId) continue;
-      if (
-        remoteId === undefined &&
-        attemptedDeletions.delete(deletion.remoteId)
-      )
-        continue;
       try {
         if (deletion.remoteId === messageLockHeldFor) {
           await drainPendingDeletion(deletion);
@@ -879,7 +873,6 @@ export const createLocalStorageAdapter = (
       const key = messagesKey(remoteId);
       return mutationQueue.run(key, async () => {
         await drainPendingDeletions(remoteId, remoteId);
-        attemptedDeletions.delete(remoteId);
 
         return mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
@@ -941,7 +934,6 @@ export const createLocalStorageAdapter = (
         try {
           await removePendingKeys(deletion);
         } catch (error) {
-          attemptedDeletions.add(remoteId);
           console.warn(
             "[assistant-ui] Thread deletion committed, but local history cleanup failed:",
             error,
