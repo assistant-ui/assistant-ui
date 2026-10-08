@@ -14,13 +14,13 @@ statistical benchmark.
 
 | File | Rows | Matched expectations | Purpose | SHA-256 |
 | --- | ---: | ---: | --- | --- |
-| `five-suite-exploratory.json` | 22 | 16/22 | One trial for every applicable candidate across all five suites | `a178e081de94405b681a9d253de2291de506abe3c5f667c29f2467c599addc27` |
-| `registry-before-guidance-revision.json` | 6 | 5/6 | Three paired trials before clarifying that registry files are generated | `4d2366d7ce68e50495e60cd277dcde1dba917e6e21c726414b06b398ad350651` |
-| `registry-source-of-truth.json` | 6 | 6/6 | Final three paired registry trials: baseline 0/3, guidance 3/3 | `a7f3b6a8c3cb5fdb7e972edd9dfbf067728edc5e726365547d3ad05f24b2fd8d` |
-| `optional-before-structured-judge.json` | 6 | 5/6 | Captured malformed/misread judge output before schema enforcement | `030daa9a06bf663eed84711508c433d3e0eb23a6b05fbba5ac20ce985e612021` |
-| `optional-guided-variance.json` | 3 | 2/3 | Guided-only rerun showing a real caret-range agent miss | `51f3c989a936b3a2a61bf61fddf3b745151cb6c814e09638663432654530d0bc` |
-| `optional-host-sdk-dependency.json` | 6 | 6/6 | Final three paired dependency trials: baseline 0/3, guidance 3/3 | `d4e0ab0976de8855b9a0b328aaa0ad95abd8089af789bb7f5a1ae1427f81068d` |
-| `pr-review-comments.json` | 6 | 3/6 | Final three paired comment trials: baseline 0/3, `delete-stale` 0/3 | `c4be4fe41eb17b51bec5e09903f5979e0951a1c1e753ce55d3850a522c42b42b` |
+| `five-suite-exploratory.json` | 22 | 16/22 | One trial for every applicable candidate across all five suites | `970a0bcaaebcd3f98e743b039fc3c85f37fa2589b65b07afe19ae9becd7a3e66` |
+| `registry-before-guidance-revision.json` | 6 | 5/6 | Three paired trials before clarifying that registry files are generated | `5c8ae3849f5cbff108a6e1c19d5a862ba11ad856b1837798434d989c0ff05e6f` |
+| `registry-source-of-truth.json` | 6 | 6/6 | Final three paired registry trials: baseline 0/3, guidance 3/3 | `c1eb9191269db02051bc58b13f00ae99de10ad3518028d3cdd3bab6c9db8a2fa` |
+| `optional-before-structured-judge.json` | 6 | 5/6 | Captured malformed/misread judge output before schema enforcement | `f13aab552aaaf775fd66ef571cb5d150db1b4f167401f126edde92ff038ddf88` |
+| `optional-guided-variance.json` | 3 | 2/3 | Guided-only rerun showing a real caret-range agent miss | `272295e110ca14a0d26a178e30c580e652d4d1dc5f7d7fa8e277c9c13a851b34` |
+| `optional-host-sdk-dependency.json` | 6 | 6/6 | Final three paired dependency trials: baseline 0/3, guidance 3/3 | `2f16247c5a4e6c10a7c74c60130560dc9865455a79403ee162261163fa235dea` |
+| `pr-review-comments.json` | 6 | 3/6 | Final three paired comment trials: baseline 0/3, `delete-stale` 0/3 | `119232a58ce2600870173d2d699b6d73a9050faa0ef61a6e3cbf95b04a5b2f80` |
 
 All selected reports have `schemaVersion: "eval-report/v1"`, zero execution
 errors, and explicit model identifiers. A scan of the raw JSON reports for an
