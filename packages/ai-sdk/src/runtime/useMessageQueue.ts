@@ -22,18 +22,22 @@ export const useMessageQueue = ({
   isSendDisabled,
   send,
   cancel,
+  interrupt,
 }: {
   enabled: boolean;
   isRunning: boolean;
   isSendDisabled: boolean;
   send: (message: AppendMessage) => Promise<void>;
   cancel: () => Promise<void>;
+  interrupt: () => void | Promise<void>;
 }) => {
   const sendRef = useRef(send);
   const cancelRef = useRef(cancel);
+  const interruptRef = useRef(interrupt);
   useInsertionEffect(() => {
     sendRef.current = send;
     cancelRef.current = cancel;
+    interruptRef.current = interrupt;
   });
 
   const cancelsRef = useRef(0);
@@ -66,12 +70,14 @@ export const useMessageQueue = ({
               idleWaitersRef.current.push(resolve);
             });
           }
+          const overtaken = cancels !== cancelsRef.current;
+          // A cancel writes its rollback to the chat a task later, which
+          // would overwrite a message appended before then.
+          if (overtaken) await new Promise((resolve) => setTimeout(resolve));
           const busyEdges = busyEdgesRef.current;
           try {
             await sendRef.current(
-              cancels === cancelsRef.current
-                ? message
-                : { ...message, startRun: false },
+              overtaken ? { ...message, startRun: false } : message,
             );
           } finally {
             if (
@@ -84,7 +90,8 @@ export const useMessageQueue = ({
         })().catch(() => {});
       },
       cancel: () => {
-        void cancelRun().catch(() => {});
+        cancelsRef.current++;
+        void Promise.resolve(interruptRef.current()).catch(() => {});
       },
     });
     queueRef.current = controller;
@@ -126,5 +133,9 @@ export const useMessageQueue = ({
     for (const resolve of waiters) resolve();
   }, [controller, isRunning]);
 
-  return { adapter: controller?.adapter, cancel: cancelRun };
+  return {
+    adapter: controller?.adapter,
+    cancel: cancelRun,
+    clear: () => controller?.clear(),
+  };
 };

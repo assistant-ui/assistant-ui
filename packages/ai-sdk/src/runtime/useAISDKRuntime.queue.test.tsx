@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useChat } from "@ai-sdk/react";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 import type { AssistantRuntime } from "@assistant-ui/core";
@@ -25,8 +25,10 @@ const createTransport = () => {
   const events: string[] = [];
   const requests: {
     prompt: string;
+    messages: string[];
     signal: AbortSignal | undefined;
     stream: (text: string) => void;
+    emit: (...chunks: UIMessageChunk[]) => void;
     finish: () => void;
   }[] = [];
   let held: Promise<void> | undefined;
@@ -43,11 +45,15 @@ const createTransport = () => {
       });
       requests.push({
         prompt,
+        messages: messages.map(textOf).filter(Boolean),
         signal: abortSignal,
         stream: (text) => {
           controller.enqueue({ type: "start" });
           controller.enqueue({ type: "text-start", id: "t" });
           controller.enqueue({ type: "text-delta", id: "t", delta: text });
+        },
+        emit: (...chunks) => {
+          for (const chunk of chunks) controller.enqueue(chunk);
         },
         finish: () => {
           controller.enqueue({ type: "text-end", id: "t" });
@@ -163,7 +169,8 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
   });
 
   it("steering stops the running request and sends once it has settled", async () => {
-    const { requests, events, hold, release, send, isRunning } = setup();
+    const { requests, events, hold, release, send, isRunning, runtime } =
+      setup();
 
     hold();
     await send("first");
@@ -196,6 +203,8 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
       "send second",
       "finish two",
     ]);
+    expect(requests[1]!.messages).toEqual(["first", "second"]);
+    expect(runtime().thread.composer.getState().text).toBe("");
   });
 
   it("keeps queued messages when the run is cancelled and sends them on the next send", async () => {
@@ -223,6 +232,71 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1]!.prompt).toBe("second");
     await waitFor(() => expect(queued()).toBe("third"));
+  });
+
+  const cancelWithQueued = async (harness: ReturnType<typeof setup>) => {
+    const { requests, send, queued, isRunning, runtime } = harness;
+    await send("first");
+    await waitFor(() => expect(requests).toHaveLength(1));
+    await act(async () => {
+      requests[0]!.stream("partial");
+    });
+    await send("second", false);
+    await waitFor(() => expect(queued()).toBe("second"));
+    act(() => {
+      runtime().thread.cancelRun();
+    });
+    await waitFor(() => expect(isRunning()).toBe(false));
+    expect(queued()).toBe("second");
+  };
+
+  it("drops queued messages when a message is edited", async () => {
+    const harness = setup();
+    const { requests, queued, isRunning, runtime } = harness;
+    await cancelWithQueued(harness);
+
+    act(() => {
+      const composer = runtime().thread.getMessageByIndex(0).composer;
+      composer.beginEdit();
+      composer.setText("edited");
+      composer.send();
+    });
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1]!.prompt).toBe("edited");
+    expect(queued()).toBe("");
+
+    await act(async () => {
+      requests[1]!.stream("two");
+      requests[1]!.finish();
+    });
+    await waitFor(() => expect(isRunning()).toBe(false));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("drops queued messages when a response is reloaded", async () => {
+    const harness = setup();
+    const { requests, queued, isRunning, runtime } = harness;
+    await cancelWithQueued(harness);
+
+    act(() => {
+      runtime().thread.getMessageByIndex(1).reload();
+    });
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1]!.prompt).toBe("first");
+    expect(queued()).toBe("");
+
+    await act(async () => {
+      requests[1]!.stream("again");
+      requests[1]!.finish();
+    });
+    await waitFor(() => expect(isRunning()).toBe(false));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(requests).toHaveLength(2);
   });
 
   it("keeps a steer that a cancel overtook in the thread without sending it", async () => {
@@ -257,6 +331,74 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1]!.prompt).toBe("third");
     expect(queued()).toBe("");
+  });
+
+  it("steering while a client tool runs aborts the tool and sends without waiting for it", async () => {
+    const harness = createTransport();
+    let finishTool!: (result: string) => void;
+    const execute = vi.fn(
+      (_args: unknown, _context: { abortSignal: AbortSignal }) =>
+        new Promise<string>((resolve) => {
+          finishTool = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useAISDKRuntime(useChat({ transport: harness.transport }), {
+        unstable_enableMessageQueue: true,
+      }),
+    );
+    result.current.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          weather: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+      }),
+    });
+
+    act(() => {
+      result.current.thread.composer.setText("first");
+      result.current.thread.composer.send();
+    });
+    await waitFor(() => expect(harness.requests).toHaveLength(1));
+    await act(async () => {
+      harness.requests[0]!.emit(
+        { type: "start" },
+        {
+          type: "tool-input-available",
+          toolCallId: "tool-1",
+          toolName: "weather",
+          input: {},
+        },
+        { type: "finish" },
+      );
+      harness.requests[0]!.finish();
+    });
+    await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    expect(result.current.thread.getState().isRunning).toBe(true);
+
+    act(() => {
+      result.current.thread.composer.setText("second");
+      result.current.thread.composer.send({ steer: true });
+    });
+    await waitFor(() => expect(harness.requests).toHaveLength(2));
+    expect(harness.requests[1]!.prompt).toBe("second");
+    expect(execute.mock.calls[0]![1].abortSignal.aborted).toBe(true);
+
+    await act(async () => {
+      finishTool("sunny");
+      harness.requests[1]!.stream("two");
+      harness.requests[1]!.finish();
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().isRunning).toBe(false),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(harness.requests).toHaveLength(2);
   });
 
   it("holds queued messages while sending is disabled", async () => {

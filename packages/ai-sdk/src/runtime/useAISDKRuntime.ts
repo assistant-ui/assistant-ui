@@ -1078,6 +1078,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isSendDisabled: adapter.isSendDisabled === true,
     send: sendNew,
     cancel: cancelRun,
+    // Stopping through the runtime also aborts client tools, but it hands an
+    // unanswered message back to the composer. A request with no answer yet
+    // has no tools to abort, so it stops here and the message stays put.
+    interrupt: () =>
+      chatHelpers.messages.at(-1)?.role === "user"
+        ? cancelRun()
+        : runtimeRef.current.thread.cancelRun(),
   });
 
   const hasSeededRepositoryRef = useRef(false);
@@ -1162,6 +1169,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onNew: sendNew,
     ...(messageQueue.adapter && { queue: messageQueue.adapter }),
     onEdit: async (message) => {
+      messageQueue.clear();
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -1232,6 +1240,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
     },
     onReload: async (parentId: string | null, config) => {
+      messageQueue.clear();
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
