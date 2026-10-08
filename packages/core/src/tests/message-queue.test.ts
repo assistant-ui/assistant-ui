@@ -21,6 +21,57 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each([
+    ["queue", true],
+    ["steer", true],
+    ["steer", false],
+    ["move", true],
+    ["move", false],
+  ] as const)(
+    "releases a cleared rejected %s (cancellation settled: %s)",
+    async (lane, settled) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      const controller = createMessageQueue({
+        run,
+        cancel: () => {
+          if (settled) controller.notifyIdle();
+        },
+      });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        if (lane !== "queue") controller.adapter.enqueue(msg("active"));
+        run.mockImplementationOnce(() => pending);
+        if (lane === "queue") controller.adapter.enqueue(msg("failed"));
+        else if (lane === "steer") controller.adapter.steer(msg("failed"));
+        else {
+          controller.adapter.enqueue(msg("failed"));
+          controller.adapter.move(controller.adapter.items[0]!.id, {
+            lane: "steer",
+          });
+        }
+        controller.clear();
+        controller.adapter.enqueue(msg("replacement"));
+        reject(new Error("late rejection"));
+        await pending.catch(() => {});
+        if (!settled) {
+          expect(prompts(controller.adapter.items)).toEqual(["replacement"]);
+          controller.notifyIdle();
+        }
+        expect(run).toHaveBeenLastCalledWith(msg("replacement"), {
+          steer: false,
+        });
+        expect(controller.adapter.items).toEqual([]);
+        expect(controller.adapter.steerItems).toEqual([]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
   it.each(["queue", "steer", "move"])(
     "restores and pauses an asynchronously rejected %s until the next send",
     async (lane) => {

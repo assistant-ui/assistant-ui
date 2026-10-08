@@ -15,8 +15,9 @@ import type {
 export type MessageQueueDriver = {
   /**
    * A throw or rejected promise before `notifyBusy` restores the message and
-   * pauses draining until the next send. A driver that started work must call
-   * `notifyBusy` before failing. Promise fulfillment does not signal idle.
+   * pauses draining until the next send. Call `notifyBusy` synchronously before
+   * committing the message or starting work that can fail; a later render's
+   * effect is insufficient. Promise fulfillment does not signal idle.
    */
   run: (message: AppendMessage, options: { steer: boolean }) => void;
   /** When omitted, steering degrades to "process next" instead of interrupting. */
@@ -161,12 +162,10 @@ export const createMessageQueue = (
     const busyEdgesBeforeRun = busyEdges;
     const dispatchGeneration = generation;
     const restoreFailure = () => {
-      if (
-        generation === dispatchGeneration &&
-        busyEdges === busyEdgesBeforeRun
-      ) {
+      if (busyEdges === busyEdgesBeforeRun) {
         running = false;
-        restore(lane, dispatch);
+        if (generation === dispatchGeneration) restore(lane, dispatch);
+        else advance();
       }
     };
     try {
@@ -186,6 +185,7 @@ export const createMessageQueue = (
     restoreIndex = 0,
   ) => {
     paused = false;
+    const dispatchGeneration = generation;
     // the interrupted run settles exactly once, whether or not it was
     // already cancel-notified
     suppressIdle += Math.max(cancelSettles, 1);
@@ -198,7 +198,9 @@ export const createMessageQueue = (
       suppressIdle = Math.max(pendingSettles - 1, 0);
       cancelSettles = pendingSettles > 0 ? 1 : 0;
       running = pendingSettles > 0;
-      restore(restoreLane, dispatch, restoreIndex);
+      if (generation === dispatchGeneration)
+        restore(restoreLane, dispatch, restoreIndex);
+      else advance();
     };
     // a driver whose cancel routes through the runtime notifies this queue
     // back; the interrupt already accounted for that settle and is dispatching
@@ -214,9 +216,7 @@ export const createMessageQueue = (
     }
     running = true;
     const busyEdgesBeforeRun = busyEdges;
-    const dispatchGeneration = generation;
     const restoreFailure = () => {
-      if (generation !== dispatchGeneration) return;
       restoreInterrupted(busyEdges !== busyEdgesBeforeRun);
     };
     try {
