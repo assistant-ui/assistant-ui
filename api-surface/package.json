@@ -26,7 +26,7 @@
     "@standard-schema/spec": "^1.1.0",
     "ai": "^7.0.123",
     "eve": "^0.70.1",
-    "ink": "^7.1.1",
+    "ink": "^8.0.0",
     "ink-spinner": "^5.0.0",
     "ioredis": "^6.0.0",
     "lexical": "^0.52.0",
