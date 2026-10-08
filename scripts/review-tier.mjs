@@ -99,7 +99,7 @@ export function createGitHubClient({
 const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      title body isDraft state headRefOid baseRefOid createdAt
+      title body isDraft state headRefOid baseRefOid createdAt updatedAt
       author { login __typename }
       labels(first: 100) { nodes { name } }
       labeledEvents: timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
@@ -120,6 +120,12 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
       }
       closingIssuesReferences(first: 10) { nodes { number } }
     }
+  }
+}`;
+
+const pullRequestStateQuery = `query ReviewTierPullRequestState($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) { updatedAt headRefOid }
   }
 }`;
 
@@ -351,6 +357,7 @@ export async function gatherPullRequest(
       isDraft: node.isDraft,
       state: node.state,
       headSha: node.headRefOid,
+      updatedAt: node.updatedAt,
     },
     signalsInput: {
       title: node.title,
@@ -628,12 +635,13 @@ export async function main({
       case "pull_request_target":
         if (
           event.action === "closed" ||
-          event.action === "converted_to_draft" ||
-          event.pull_request.draft
+          event.action === "converted_to_draft"
         ) {
           siblingAuthor = event.pull_request.user?.login ?? null;
           if (siblingAuthor === null) return 0;
           excludedNumber = pullRequestNumber(event.pull_request.number);
+        } else if (event.pull_request.draft) {
+          return 0;
         } else {
           numbers = [pullRequestNumber(event.pull_request.number)];
         }
@@ -746,6 +754,19 @@ export async function main({
       if (hasOption(args, "--dry-run")) {
         console.log(JSON.stringify(evaluation, null, 2));
       } else {
+        const [owner, name] = policy.repository.split("/");
+        const current = (
+          await client.graphql(pullRequestStateQuery, { owner, name, number })
+        ).repository.pullRequest;
+        if (
+          current?.updatedAt !== gathered.pr.updatedAt ||
+          current?.headRefOid !== gathered.pr.headSha
+        ) {
+          console.log(
+            `Pull request #${number} changed during evaluation; skipping publish.`,
+          );
+          continue;
+        }
         await publish(client, policy, {
           number,
           headSha: gathered.pr.headSha,

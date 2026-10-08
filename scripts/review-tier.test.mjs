@@ -70,6 +70,7 @@ function tapPullRequest(overrides = {}) {
     headRefOid: "head",
     baseRefOid: "base-tip",
     createdAt: "2026-10-01T08:00:00Z",
+    updatedAt: "2026-10-08T11:30:00Z",
     labels: { nodes: [{ name: "behavior-change" }] },
     timelineItems: {
       nodes: [
@@ -131,6 +132,7 @@ function fakeClient({
   reviewPages,
   commitPages,
   failures = [],
+  latestPrByNumber = {},
 } = {}) {
   const calls = [];
   const writes = [];
@@ -166,6 +168,17 @@ function fakeClient({
         if (reviewPages) pullRequest.reviews = structuredClone(reviewPages[0]);
         if (commitPages) pullRequest.commits = structuredClone(commitPages[0]);
         return { repository: { pullRequest } };
+      }
+      if (query.includes("query ReviewTierPullRequestState(")) {
+        const latest = latestPrByNumber[variables.number] ?? pr;
+        return {
+          repository: {
+            pullRequest: {
+              updatedAt: latest.updatedAt,
+              headRefOid: latest.headRefOid,
+            },
+          },
+        };
       }
       if (query.includes("query ReviewTierReviews(")) {
         assert.ok(reviewPages);
@@ -501,7 +514,13 @@ test("the merged tap fixture is T3 with approvals, owner, decision, and window s
     isDraft: false,
     state: "MERGED",
     headSha: "head",
+    updatedAt: "2026-10-08T11:30:00Z",
   });
+  assert.match(
+    calls.find(({ query }) => query?.includes("query ReviewTierPullRequest("))
+      .query,
+    /createdAt updatedAt/,
+  );
   assert.deepEqual(gathered.people.labels, [
     { name: "behavior-change", addedBy: "okisdev" },
   ]);
@@ -1659,14 +1678,112 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
     );
     assert.equal(recording.writes[0].body.conclusion, "action_required");
     assert.equal(recording.writes[0].body.started_at, now.toISOString());
+    const rereads = recording.calls.filter(({ query }) =>
+      query?.includes("query ReviewTierPullRequestState("),
+    );
+    assert.equal(rereads.length, 1);
+    assert.deepEqual(rereads[0].variables, {
+      owner: "assistant-ui",
+      name: "assistant-ui",
+      number: 12,
+    });
+    assert.match(
+      rereads[0].query,
+      /pullRequest\(number: \$number\) \{ updatedAt headRefOid \}/,
+    );
   }
+});
+
+test("main skips publishing when a pull request changes during evaluation", async (t) => {
+  const logs = t.mock.method(console, "log", () => {});
+  for (const latest of [
+    { updatedAt: "2026-10-08T11:31:00Z", headRefOid: "head" },
+    { updatedAt: "2026-10-08T11:30:00Z", headRefOid: "new-head" },
+  ]) {
+    const recording = fakeClient({ latestPrByNumber: { 12: latest } });
+    assert.equal(
+      await main({
+        args: ["--pr", "12"],
+        env: {},
+        client: recording.client,
+        policy: enforcePolicy,
+        now,
+      }),
+      0,
+    );
+    assert.deepEqual(recording.writes, []);
+    assert.equal(
+      recording.calls.filter(({ query }) =>
+        query?.includes("query ReviewTierPullRequestState("),
+      ).length,
+      1,
+    );
+    assert.ok(
+      !recording.calls.some(
+        ({ resource }) =>
+          resource?.includes("/check-runs") || resource?.includes("/issues/"),
+      ),
+    );
+    assert.equal(
+      logs.mock.calls.at(-1).arguments[0],
+      "Pull request #12 changed during evaluation; skipping publish.",
+    );
+  }
+  assert.equal(logs.mock.callCount(), 2);
+});
+
+test("a stale pull request does not stop later pull requests from publishing", async (t) => {
+  const logs = t.mock.method(console, "log", () => {});
+  const recording = fakeClient({
+    latestPrByNumber: {
+      12: { updatedAt: "2026-10-08T11:31:00Z", headRefOid: "head" },
+    },
+    pages: [
+      {
+        nodes: [
+          { number: 12, isDraft: false },
+          { number: 14, isDraft: false },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+  });
+  assert.equal(
+    await main(eventOptions(recording.client, "workflow_dispatch")),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) =>
+        query?.includes("query ReviewTierPullRequestState("),
+      )
+      .map(({ variables }) => variables.number),
+    [12, 14],
+  );
+  assert.deepEqual(
+    recording.writes
+      .filter(({ resource }) => resource.endsWith("/check-runs"))
+      .map(({ body }) => body.head_sha),
+    ["head"],
+  );
+  assert.ok(
+    recording.writes.some(
+      ({ resource }) => resource === `${repo}/issues/14/comments`,
+    ),
+  );
+  assert.ok(
+    !recording.writes.some(({ resource }) => resource.includes("/issues/12/")),
+  );
+  assert.equal(
+    logs.mock.calls[0].arguments[0],
+    "Pull request #12 changed during evaluation; skipping publish.",
+  );
 });
 
 test("closing or drafting a pull request re-evaluates the author's open siblings", async () => {
   for (const [action, draft] of [
     ["closed", false],
     ["converted_to_draft", true],
-    ["edited", true],
   ]) {
     const recording = fakeClient({
       authorPages: [
@@ -1764,16 +1881,23 @@ test("maintainer authors do not trigger sibling evaluation", async () => {
 });
 
 test("draft pull requests are skipped outside merge groups, including fresh draft state", async () => {
-  const eventDraft = fakeClient();
-  assert.equal(
-    await main(
-      eventOptions(eventDraft.client, "pull_request_target", {
-        pull_request: { number: 12, draft: true },
-      }),
-    ),
-    0,
-  );
-  assert.deepEqual(eventDraft.calls, []);
+  for (const action of ["synchronize", "edited", "opened"]) {
+    const eventDraft = fakeClient();
+    assert.equal(
+      await main(
+        eventOptions(eventDraft.client, "pull_request_target", {
+          action,
+          pull_request: {
+            number: 12,
+            draft: true,
+            user: { login: "samdickson22" },
+          },
+        }),
+      ),
+      0,
+    );
+    assert.deepEqual(eventDraft.calls, []);
+  }
   const freshDraft = fakeClient({ pr: tapPullRequest({ isDraft: true }) });
   assert.equal(
     await main(
@@ -1814,6 +1938,11 @@ test("--pr takes precedence over events and dry-run prints only the evaluation w
   const evaluation = JSON.parse(logs.mock.calls[0].arguments[0]);
   assert.equal(evaluation.tierResult.tier, 3);
   assert.equal(evaluation.conclusion, "action_required");
+  assert.ok(
+    !recording.calls.some(({ query }) =>
+      query?.includes("query ReviewTierPullRequestState("),
+    ),
+  );
 });
 
 test("the CLI uses the policy mode instead of the environment mode", async () => {
