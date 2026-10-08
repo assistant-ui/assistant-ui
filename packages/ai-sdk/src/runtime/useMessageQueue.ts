@@ -65,6 +65,7 @@ export const useMessageQueue = ({
         const previous = lastDispatchRef.current;
         const cancels = cancelsRef.current;
         const generation = generationRef.current;
+        const busyEdgesAtDispatch = busyEdgesRef.current;
         lastDispatchRef.current = (async () => {
           // A stopped AI SDK request still reports its status and runs its
           // onFinish once it settles, so a send waits for the previous one
@@ -73,7 +74,13 @@ export const useMessageQueue = ({
           let settledCancels = cancels;
           while (true) {
             if (!mountedRef.current || generation !== generationRef.current) {
-              controller.notifyIdle();
+              if (
+                mountedRef.current &&
+                (!reportedRef.current.busy ||
+                  busyEdgesAtDispatch === busyEdgesRef.current)
+              ) {
+                controller.notifyIdle();
+              }
               return;
             }
             if (heldRef.current || reportedRef.current.busy) {

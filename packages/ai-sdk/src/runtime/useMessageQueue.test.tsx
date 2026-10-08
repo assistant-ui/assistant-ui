@@ -19,6 +19,50 @@ const message = (text: string): AppendMessage => ({
 afterEach(cleanup);
 
 describe("useMessageQueue lifecycle", () => {
+  it.each([true, false])(
+    "keeps the replacement queue until idle (intermediate idle: %s)",
+    async (intermediateIdle) => {
+      let finish!: () => void;
+      const firstRun = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const send = vi.fn(async (_message: AppendMessage) => {});
+      send.mockReturnValueOnce(firstRun);
+      const { result, rerender } = renderHook(
+        ({ isRunning }) =>
+          useMessageQueue({
+            enabled: true,
+            isRunning,
+            isSendDisabled: false,
+            send,
+            cancel: async () => {},
+            interrupt: () => {},
+          }),
+        { initialProps: { isRunning: false } },
+      );
+      await act(async () => result.current.adapter!.enqueue(message("first")));
+      rerender({ isRunning: true });
+      act(() => result.current.adapter!.steer(message("discarded")));
+      act(() => result.current.clear());
+      if (intermediateIdle) rerender({ isRunning: false });
+      rerender({ isRunning: true });
+      act(() => result.current.adapter!.enqueue(message("after replacement")));
+
+      await act(async () => {
+        finish();
+        await firstRun;
+      });
+      expect(send).toHaveBeenCalledOnce();
+      expect(result.current.adapter!.items.map((item) => item.prompt)).toEqual([
+        "after replacement",
+      ]);
+
+      rerender({ isRunning: false });
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+      expect(send).toHaveBeenLastCalledWith(message("after replacement"));
+    },
+  );
+
   it("preserves pending messages while disabled and resumes when enabled", async () => {
     const send = vi.fn(async (_message: AppendMessage) => {});
     const { result, rerender } = renderHook(
