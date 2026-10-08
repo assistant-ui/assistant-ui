@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Install, build and upgrade failures, and CLI, registry and template problems, each have their own form.
+        Install, build and upgrade failures, CLI, registry and template problems, and documentation problems each have their own form.
 
   - type: checkboxes
     attributes:
@@ -60,7 +60,6 @@ body:
         - Performance
         - Accessibility
         - DevTools / Observability
-        - Documentation
         - Unsure
     validations:
       required: true
