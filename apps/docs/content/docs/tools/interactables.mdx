@@ -638,10 +638,12 @@ const [state, { setState, isPending, error, flush }] =
 
 // isPending: true while a save is in-flight
 // error: the error from the last failed load or save, if any
-// flush(): force an immediate save (useful before navigation)
+// flush(): force an immediate save, retrying a failed one (useful before navigation)
 ```
 
 State changes are automatically debounced (500ms) before saving. Once the persistence scope has loaded, unmounting the owning component flushes any pending save immediately. If the load is still pending or has failed, the state remains in memory and joins the next snapshot after a successful load. A failed load keeps queued changes and exposes the error through the sync metadata. The next edit retries the load after the debounce delay, while an explicit `flush()` retries it immediately. If a load is already pending, `flush()` waits up to 5 seconds for it to settle before saving; past that it resolves without saving and the queued changes join the next snapshot after a successful load, so an adapter whose `load` stalls cannot block navigation. Saving starts only after a load succeeds. If the retry started by `flush()` also fails, `flush()` resolves without saving; check `error` and call `flush()` again after the load failure is resolved.
+
+A failed save keeps its value queued for retry and is not retried in the background. The value is sent again with the next save requested after the failure: an edit to any interactable, or an explicit `flush()`, which sends it immediately even when nothing else changed. While a retry is in flight, `isPending` is `true` and `error` still holds the last failure. `error` clears once a save carrying the value succeeds; if the retry fails too, it holds the new error. A newer edit to the same interactable supersedes the failed value. Replacing the adapter drops failed saves along with the rest of the old scope.
 
 ### Export / Import
 
@@ -951,7 +953,8 @@ const [state, { id, setState, isPending, error, flush }] =
       name: "flush",
       type: "() => Promise<void>",
       required: true,
-      description: "Force an immediate persistence save.",
+      description:
+        "Force an immediate persistence save, including a retry of a failed save.",
     },
   ]}
 />

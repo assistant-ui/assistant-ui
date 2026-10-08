@@ -48,6 +48,9 @@ const renderQueue = (
 
   return {
     ...hook,
+    replaceScope() {
+      adapterGenerationRef.current += 1;
+    },
     setState(id: string, value: number) {
       snapshot = { ...snapshot, [id]: value };
     },
@@ -195,6 +198,193 @@ describe("useInteractablePersistenceQueue", () => {
     pending.reject(new Error("save failed"));
     await act(flushMicrotasks);
 
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("retries a failed save on flush and keeps its error until a save succeeds", async () => {
+    const retry = createDeferred();
+    const error = new Error("offline");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockRejectedValueOnce(error)
+      .mockImplementationOnce(() => retry.promise);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    expect(queue.getStatus()).toEqual({ a: { isPending: false, error } });
+
+    let flushPromise!: Promise<void>;
+    act(() => {
+      flushPromise = queue.result.current.flush();
+    });
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith({ a: 1 });
+    expect(queue.getStatus()).toEqual({ a: { isPending: true, error } });
+
+    retry.resolve();
+    await act(() => flushPromise);
+
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("retries a permanently failing save only when a save is requested", async () => {
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockRejectedValue(new Error("offline"));
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await act(() => queue.result.current.flush());
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(save).toHaveBeenCalledTimes(2);
+
+    queue.setState("b", 2);
+    act(() => queue.result.current.schedulePersistence("b"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenLastCalledWith({ a: 1, b: 2 });
+    expect(queue.getStatus()).toEqual({
+      a: { isPending: false, error: expect.any(Error) },
+      b: { isPending: false, error: expect.any(Error) },
+    });
+  });
+
+  it("clears a failed id once a later save carrying its value succeeds", async () => {
+    const error = new Error("offline");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue(undefined);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.setState("b", 2);
+    act(() => queue.result.current.schedulePersistence("b"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith({ a: 1, b: 2 });
+    expect(queue.getStatus()).toEqual({});
+
+    await act(() => queue.result.current.flush());
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a failed id with the next save requested after the failure", async () => {
+    const first = createDeferred();
+    const second = createDeferred();
+    const firstError = new Error("first save failed");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise)
+      .mockResolvedValue(undefined);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    queue.setState("b", 1);
+    act(() => {
+      queue.result.current.schedulePersistence("a");
+      queue.result.current.schedulePersistence("b");
+    });
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.setState("a", 2);
+    act(() => queue.result.current.schedulePersistence("a"));
+    let flushPromise!: Promise<void>;
+    act(() => {
+      flushPromise = queue.result.current.flush();
+    });
+
+    first.reject(firstError);
+    second.resolve();
+    await act(() => flushPromise);
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(queue.getStatus()).toEqual({
+      b: { isPending: false, error: firstError },
+    });
+
+    await act(() => queue.result.current.flush());
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("does not retry a failed save from a replaced scope", async () => {
+    const pending = createDeferred();
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => pending.promise);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.replaceScope();
+    pending.reject(new Error("save failed"));
+    await act(flushMicrotasks);
+    await act(() => queue.result.current.flush());
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("drops a failed save on discardPending", async () => {
+    const error = new Error("offline");
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue(undefined);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    act(() => queue.result.current.discardPending());
+    await act(() => queue.result.current.flush());
+    expect(save).toHaveBeenCalledTimes(1);
+
+    queue.setState("b", 2);
+    act(() => queue.result.current.schedulePersistence("b"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(queue.getStatus()).toEqual({ a: { isPending: false, error } });
+  });
+
+  it("retries a failed id without recreating its removed status", async () => {
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("still offline"));
+    const queue = renderQueue(save);
+
+    queue.setState("removed", 1);
+    act(() => queue.result.current.schedulePersistence("removed"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    queue.removeStatus("removed");
+    await act(() => queue.result.current.flush());
+
+    expect(save).toHaveBeenCalledTimes(2);
     expect(queue.getStatus()).toEqual({});
   });
 });

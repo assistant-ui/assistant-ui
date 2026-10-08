@@ -50,11 +50,13 @@ export const useInteractablePersistenceQueue = <State>({
   const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
+  const failedIdsRef = useRef(new Map<string, number>());
 
   type PersistenceBatch = {
     adapter: PersistenceAdapter<State>;
     payload: State;
     dirtyIds: Set<string>;
+    retryIds: Set<string>;
     seq: number;
     adapterGeneration: number;
   };
@@ -64,29 +66,52 @@ export const useInteractablePersistenceQueue = <State>({
     () => {},
   );
 
+  const takeRetryIds = useCallback(() => {
+    const retryIds = new Set<string>();
+    for (const [id, adapterGeneration] of failedIdsRef.current) {
+      if (adapterGeneration === adapterGenerationRef.current) retryIds.add(id);
+    }
+    failedIdsRef.current.clear();
+    return retryIds;
+  }, [adapterGenerationRef]);
+
+  const hasRetryWork = useCallback(() => {
+    for (const adapterGeneration of failedIdsRef.current.values()) {
+      if (adapterGeneration === adapterGenerationRef.current) return true;
+    }
+    return false;
+  }, [adapterGenerationRef]);
+
   const takeDirtyBatch = useCallback(
-    (adapter: PersistenceAdapter<State>): PersistenceBatch | undefined => {
-      if (dirtyIdsRef.current.size === 0) return;
+    (
+      adapter: PersistenceAdapter<State>,
+      retryFailed = false,
+    ): PersistenceBatch | undefined => {
+      if (dirtyIdsRef.current.size === 0 && !(retryFailed && hasRetryWork()))
+        return;
       const dirtyIds = new Set(dirtyIdsRef.current);
       dirtyIdsRef.current.clear();
+      const retryIds = takeRetryIds();
+      for (const id of dirtyIds) retryIds.delete(id);
       const seq = ++syncSeqRef.current;
       const adapterGeneration = adapterGenerationRef.current;
-      for (const id of dirtyIds)
+      for (const id of [...dirtyIds, ...retryIds])
         latestSyncByIdRef.current.set(id, { seq, adapterGeneration });
       return {
         adapter,
         adapterGeneration,
         payload: snapshot(),
         dirtyIds,
+        retryIds,
         seq,
       };
     },
-    [adapterGenerationRef, snapshot],
+    [adapterGenerationRef, hasRetryWork, snapshot, takeRetryIds],
   );
 
   const enqueuePersistence = useCallback(
-    (adapter: PersistenceAdapter<State>) => {
-      const batch = takeDirtyBatch(adapter);
+    (adapter: PersistenceAdapter<State>, retryFailed = false) => {
+      const batch = takeDirtyBatch(adapter, retryFailed);
       if (!batch) return;
       if (inFlightPersistenceRef.current === 0) {
         runPersistenceRef.current(batch);
@@ -110,7 +135,8 @@ export const useInteractablePersistenceQueue = <State>({
         return;
       }
 
-      const { adapter, adapterGeneration, payload, dirtyIds, seq } = resolved;
+      const { adapter, adapterGeneration, payload, dirtyIds, retryIds, seq } =
+        resolved;
       inFlightPersistenceRef.current += 1;
 
       updatePersistenceStatus((prev) => {
@@ -118,18 +144,23 @@ export const useInteractablePersistenceQueue = <State>({
         for (const id of dirtyIds) {
           persistence[id] = { isPending: true, error: undefined };
         }
+        for (const id of retryIds) {
+          const status = prev[id];
+          if (status)
+            persistence[id] = { isPending: true, error: status.error };
+        }
         return persistence;
       });
 
       const settleBatch = (status: PersistenceStatus | undefined) => {
         const settledIds: string[] = [];
-        for (const id of dirtyIds) {
+        for (const id of [...dirtyIds, ...retryIds]) {
           if (latestSyncByIdRef.current.get(id)?.seq !== seq) continue;
           latestSyncByIdRef.current.delete(id);
           if (dirtyIdsRef.current.has(id)) continue;
           settledIds.push(id);
         }
-        if (settledIds.length === 0) return;
+        if (settledIds.length === 0) return settledIds;
         updatePersistenceStatus((prev) => {
           let changed = false;
           const persistence = nullProtoRecord(prev);
@@ -141,6 +172,7 @@ export const useInteractablePersistenceQueue = <State>({
           }
           return changed ? persistence : prev;
         });
+        return settledIds;
       };
 
       try {
@@ -155,9 +187,12 @@ export const useInteractablePersistenceQueue = <State>({
             e,
           );
         }
-        settleBatch(
-          isCurrentScope ? { isPending: false, error: e } : undefined,
-        );
+        if (isCurrentScope) {
+          for (const id of settleBatch({ isPending: false, error: e }))
+            failedIdsRef.current.set(id, adapterGeneration);
+        } else {
+          settleBatch(undefined);
+        }
       } finally {
         inFlightPersistenceRef.current -= 1;
         const next =
@@ -220,6 +255,7 @@ export const useInteractablePersistenceQueue = <State>({
       debounceTimerRef.current = undefined;
     }
     dirtyIdsRef.current.clear();
+    failedIdsRef.current.clear();
     if (
       inFlightPersistenceRef.current === 0 &&
       outgoingQueueRef.current.length === 0
@@ -247,14 +283,15 @@ export const useInteractablePersistenceQueue = <State>({
     const hasWork =
       inFlightPersistenceRef.current > 0 ||
       outgoingQueueRef.current.length > 0 ||
-      (adapterRef.current !== undefined && dirtyIdsRef.current.size > 0);
+      (adapterRef.current !== undefined &&
+        (dirtyIdsRef.current.size > 0 || hasRetryWork()));
     if (!hasWork) return;
     const p = new Promise<void>((resolve) => {
       flushResolversRef.current.push(resolve);
     });
-    if (adapterRef.current) enqueuePersistence(adapterRef.current);
+    if (adapterRef.current) enqueuePersistence(adapterRef.current, true);
     return p;
-  }, [adapterRef, enqueuePersistence]);
+  }, [adapterRef, enqueuePersistence, hasRetryWork]);
 
   return {
     discardPending,

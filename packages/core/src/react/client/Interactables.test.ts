@@ -655,6 +655,51 @@ describe("Interactables persistence save", () => {
     expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
   });
 
+  it("flush() retries a failed save", async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error("offline"));
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(root.getValue().getState().persistence.prefs?.error).toBeInstanceOf(
+      Error,
+    );
+
+    await root.getValue().flush();
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]![0]).toEqual({
+      prefs: { name: "note", state: { v: 1 } },
+    });
+    expect(root.getValue().getState().persistence.prefs).toBeUndefined();
+  });
+
+  it("clears a save error once a later save persisted the value", async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error("offline"));
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(root.getValue().getState().persistence.prefs?.error).toBeInstanceOf(
+      Error,
+    );
+
+    root.getValue().setState("other", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]![0]).toEqual({
+      prefs: { name: "note", state: { v: 1 } },
+      other: { name: "note", state: { v: 2 } },
+    });
+    expect(root.getValue().getState().persistence.prefs).toBeUndefined();
+  });
+
   it("flush() skips the debounce delay and resolves once the save completed", async () => {
     const save = vi.fn();
     root = mount({ persistence: { save } });
