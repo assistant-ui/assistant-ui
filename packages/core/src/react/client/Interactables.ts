@@ -239,6 +239,7 @@ const useInteractablesResource = ({
     schedulePersistence,
     flush: flushPersistence,
     waitForAdapterSaves,
+    consumeAdapterRecovery,
   } = useInteractablePersistenceQueue({
     adapterRef: saveAdapterRef,
     adapterGenerationRef,
@@ -347,7 +348,7 @@ const useInteractablesResource = ({
         }
       }
       const ids = Object.keys(unsaved);
-      if (ids.length === 0) return;
+      if (ids.length === 0) return false;
       for (const id of ids) {
         touchedIdsRef.current.add(id);
         loadedStateRef.current.delete(id);
@@ -358,6 +359,7 @@ const useInteractablesResource = ({
       });
       for (const id of ids) schedulePersistence(id);
       updateDirtyLoadStatus({ isPending: true, error: undefined });
+      return true;
     },
     [restorePersistedState, schedulePersistence, updateDirtyLoadStatus],
   );
@@ -367,7 +369,12 @@ const useInteractablesResource = ({
       if (!adapter.load) return { status: "loaded" } as const;
       const unsaved = await waitForAdapterSaves(adapter);
       if (adapterRef.current !== adapter) return { status: "stale" } as const;
-      restoreUnsavedEdits(unsaved);
+      const [recovery] = unsaved;
+      if (recovery) {
+        consumeAdapterRecovery(adapter, recovery, () =>
+          restoreUnsavedEdits([recovery]),
+        );
+      }
       try {
         const saved = await adapter.load();
         if (adapterRef.current !== adapter) return { status: "stale" } as const;
@@ -378,7 +385,12 @@ const useInteractablesResource = ({
         return { status: "error", error: e } as const;
       }
     },
-    [applyLoadedState, restoreUnsavedEdits, waitForAdapterSaves],
+    [
+      applyLoadedState,
+      consumeAdapterRecovery,
+      restoreUnsavedEdits,
+      waitForAdapterSaves,
+    ],
   );
 
   const prepareAdapter = useCallback(

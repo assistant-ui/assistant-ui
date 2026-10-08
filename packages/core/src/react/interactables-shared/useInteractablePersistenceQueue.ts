@@ -63,13 +63,26 @@ export const useInteractablePersistenceQueue = <State>({
     dirtyIds: Set<string>;
     seq: number;
     adapterGeneration: number;
-    saved: boolean;
+    timedOut: boolean;
     settled: Promise<void>;
     settle: () => void;
   };
 
+  type RecoverableBatch = {
+    payload: State;
+    dirtyIds: Set<string>;
+  };
+
+  type AdapterRecovery = {
+    seq: number;
+    batch: RecoverableBatch;
+  };
+
   const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
   const unsettledBatchesRef = useRef(new Set<PersistenceBatch>());
+  const recoveryByAdapterRef = useRef(
+    new WeakMap<PersistenceAdapter<State>, AdapterRecovery>(),
+  );
   const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(
     () => {},
   );
@@ -83,6 +96,17 @@ export const useInteractablePersistenceQueue = <State>({
       const adapterGeneration = adapterGenerationRef.current;
       for (const id of dirtyIds)
         latestSyncByIdRef.current.set(id, { seq, adapterGeneration });
+      const recovery = recoveryByAdapterRef.current.get(adapter);
+      const recoverableDirtyIds = new Set(recovery?.batch.dirtyIds ?? []);
+      for (const id of dirtyIds) recoverableDirtyIds.add(id);
+      const payload = snapshot();
+      recoveryByAdapterRef.current.set(adapter, {
+        seq,
+        batch: { payload, dirtyIds: recoverableDirtyIds },
+      });
+      const blockedByTimedOutBatch = [...unsettledBatchesRef.current].some(
+        (batch) => batch.adapter === adapter && batch.timedOut,
+      );
       let settle!: () => void;
       const settled = new Promise<void>((resolve) => {
         settle = resolve;
@@ -90,10 +114,10 @@ export const useInteractablePersistenceQueue = <State>({
       const batch: PersistenceBatch = {
         adapter,
         adapterGeneration,
-        payload: snapshot(),
+        payload,
         dirtyIds,
         seq,
-        saved: false,
+        timedOut: blockedByTimedOutBatch,
         settled,
         settle,
       };
@@ -130,6 +154,7 @@ export const useInteractablePersistenceQueue = <State>({
       }
 
       const { adapter, adapterGeneration, payload, dirtyIds, seq } = resolved;
+      resolved.timedOut = false;
       inFlightPersistenceRef.current += 1;
 
       updatePersistenceStatus((prev) => {
@@ -164,7 +189,10 @@ export const useInteractablePersistenceQueue = <State>({
 
       try {
         await adapter.save(payload);
-        resolved.saved = true;
+        const recovery = recoveryByAdapterRef.current.get(adapter);
+        if (recovery && recovery.seq <= seq) {
+          recoveryByAdapterRef.current.delete(adapter);
+        }
         settleBatch(undefined);
       } catch (e) {
         const isCurrentScope =
@@ -281,35 +309,48 @@ export const useInteractablePersistenceQueue = <State>({
   const waitForAdapterSaves = useCallback(
     async (adapter: PersistenceAdapter<State>) => {
       const batches = [...unsettledBatchesRef.current].filter(
-        (batch) => batch.adapter === adapter,
+        (batch) => batch.adapter === adapter && !batch.timedOut,
       );
-      if (batches.length === 0) return [];
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          Promise.all(batches.map((batch) => batch.settled)),
-          new Promise<void>((resolve) => {
-            timer = setTimeout(resolve, SAVE_WAIT_TIMEOUT_MS);
-          }),
-        ]);
-      } finally {
-        if (timer !== undefined) clearTimeout(timer);
+      if (batches.length > 0) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let timedOut = false;
+        try {
+          await Promise.race([
+            Promise.all(batches.map((batch) => batch.settled)),
+            new Promise<void>((resolve) => {
+              timer = setTimeout(() => {
+                timedOut = true;
+                resolve();
+              }, SAVE_WAIT_TIMEOUT_MS);
+            }),
+          ]);
+        } finally {
+          if (timer !== undefined) clearTimeout(timer);
+        }
+        if (timedOut) {
+          for (const batch of unsettledBatchesRef.current) {
+            if (batch.adapter === adapter) batch.timedOut = true;
+          }
+        }
       }
-      const latestSavedSeq = batches.reduce(
-        (latest, batch) => (batch.saved ? Math.max(latest, batch.seq) : latest),
-        0,
-      );
-      const latestBatchById = new Map<string, PersistenceBatch>();
-      for (const batch of batches) {
-        for (const id of batch.dirtyIds) latestBatchById.set(id, batch);
+      const recovery = recoveryByAdapterRef.current.get(adapter);
+      return recovery ? [recovery.batch] : [];
+    },
+    [],
+  );
+
+  const consumeAdapterRecovery = useCallback(
+    (
+      adapter: PersistenceAdapter<State>,
+      batch: RecoverableBatch,
+      consume: () => boolean,
+    ) => {
+      const recovery = recoveryByAdapterRef.current.get(adapter);
+      if (recovery?.batch !== batch || !consume()) return false;
+      if (recoveryByAdapterRef.current.get(adapter) === recovery) {
+        recoveryByAdapterRef.current.delete(adapter);
       }
-      return batches.flatMap((batch) => {
-        if (batch.saved || batch.seq <= latestSavedSeq) return [];
-        const dirtyIds = new Set(
-          [...batch.dirtyIds].filter((id) => latestBatchById.get(id) === batch),
-        );
-        return dirtyIds.size > 0 ? [{ payload: batch.payload, dirtyIds }] : [];
-      });
+      return true;
     },
     [],
   );
@@ -322,5 +363,6 @@ export const useInteractablePersistenceQueue = <State>({
     schedulePersistence,
     flush,
     waitForAdapterSaves,
+    consumeAdapterRecovery,
   };
 };
