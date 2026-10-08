@@ -14,11 +14,10 @@ import {
 } from "react";
 import { useComposerSend } from "./ComposerSend";
 import { ComposerCompactContext } from "./ComposerCompactContext";
-
-const CONTENT_EDITABLE_SELECTOR =
-  "[contenteditable]:not([contenteditable='false'])";
-
-const COMPOSER_INPUT_SELECTOR = `textarea:not(:disabled), ${CONTENT_EDITABLE_SELECTOR}`;
+import {
+  COMPOSER_INPUT_SELECTOR,
+  CONTENT_EDITABLE_SELECTOR,
+} from "./composerInputSelector";
 
 // Keeps tabindex="-1": roving-tabindex widgets click-focus items at -1.
 const INTERACTIVE_ELEMENT_SELECTOR = [
@@ -82,6 +81,7 @@ export const ComposerPrimitiveRoot = forwardRef<
   ComposerPrimitiveRoot.Props
 >(({ onSubmit, onMouseDown, compact, ...rest }, forwardedRef) => {
   const send = useComposerSend();
+  const composerType = useAuiState((s) => s.composer.type);
 
   const [multiline, setMultiline] = useState(false);
   const compactContext = useMemo(() => ({ setMultiline }), []);
@@ -126,6 +126,7 @@ export const ComposerPrimitiveRoot = forwardRef<
     <ComposerCompactContext.Provider value={compact ? compactContext : null}>
       <Primitive.form
         {...rest}
+        data-aui-composer-type={composerType}
         data-compact={isCompact ? "" : undefined}
         ref={forwardedRef}
         onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
