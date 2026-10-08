@@ -777,7 +777,10 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
 
   for (;;) {
     const next = nextLineStart(text, lineStart);
-    const line = text.slice(lineStart, next === undefined ? undefined : next - 1);
+    const line = text.slice(
+      lineStart,
+      next === undefined ? undefined : next - 1,
+    );
     const prefix = QUOTE_PREFIX.exec(line)![0];
     const lineDepth = quoteDepth(prefix);
     if (lineDepth < depth) return prevNext - 1;
