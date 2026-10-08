@@ -86,6 +86,38 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
   });
 
+  it("preserves the threadIds reference when only the selected thread changes", () => {
+    const threads = [
+      { id: "thread-alpha", status: "regular" as const },
+      { id: "thread-beta", status: "regular" as const },
+    ];
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha", threads }),
+      makeFactory(),
+    );
+    const threadIds = core.threadIds;
+
+    core.__internal_setAdapter(
+      makeAdapter({ threadId: "thread-beta", threads }),
+    );
+
+    expect(core.mainThreadId).toBe("thread-beta");
+    expect(core.threadIds).toBe(threadIds);
+  });
+
+  it("drops the placeholder list when an initially implicit selection becomes explicit", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+    expect(core.threadIds).toEqual([core.mainThreadId]);
+
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-alpha" }));
+
+    expect(core.threadIds).toEqual([]);
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
   it("lists no default thread in threadIds when the adapter sets threadId without threads", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
