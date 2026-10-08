@@ -87,18 +87,22 @@ function parseSurface(text) {
       const module = statement.moduleSpecifier.text;
       const clause = statement.importClause;
       if (clause?.name) {
-        imports.set(clause.name.text, module);
+        imports.set(clause.name.text, JSON.stringify(["default", module]));
         bind(clause.name);
       }
       if (clause?.namedBindings) {
         if (ts.isNamespaceImport(clause.namedBindings)) {
-          imports.set(clause.namedBindings.name.text, module);
+          imports.set(
+            clause.namedBindings.name.text,
+            JSON.stringify(["namespace", module]),
+          );
           bind(clause.namedBindings.name);
         } else {
           for (const specifier of clause.namedBindings.elements) {
             imports.set(
               specifier.name.text,
               JSON.stringify([
+                "named",
                 module,
                 (specifier.propertyName ?? specifier.name).text,
               ]),
