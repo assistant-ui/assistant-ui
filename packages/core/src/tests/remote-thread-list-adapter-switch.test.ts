@@ -489,4 +489,72 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.getItemById(draftId!)).toBeUndefined();
     expect(core.threadIds).toEqual(["thread-b"]);
   });
+
+  it("keeps the replacement's thread when an old deletion of the same remote id settles", async () => {
+    const deleteRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      initialize: vi.fn(async () => ({ remoteId: "same", externalId: "same" })),
+      delete: vi.fn(() => deleteRequest.promise),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId!;
+    await core.initialize(draftId);
+    const deleteTask = core.delete(draftId);
+    await vi.waitFor(() => expect(adapterA.delete).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    deleteRequest.resolve();
+    await deleteTask;
+
+    expect(core.threadIds).toEqual(["same"]);
+  });
+
+  it("keeps an old deletion when the adapter swaps away and back before it settles", async () => {
+    const deleteRequest = deferred<void>();
+    const staleList = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ threads: [] })
+      .mockReturnValueOnce(staleList.promise);
+    const adapterA = makeAdapter({
+      list,
+      initialize: vi.fn(async () => ({ remoteId: "same", externalId: "same" })),
+      delete: vi.fn(() => deleteRequest.promise),
+    });
+    const adapterB = makeAdapter();
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId!;
+    await core.initialize(draftId);
+    const deleteTask = core.delete(draftId);
+    await vi.waitFor(() => expect(adapterA.delete).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    core.__internal_setOptions({
+      adapter: adapterA,
+      runtimeHook: () => ({}) as never,
+    });
+    const loading = core.getLoadThreadsPromise();
+    await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    deleteRequest.resolve();
+    await deleteTask;
+    staleList.resolve({ threads: [thread("same")] });
+    await loading;
+
+    expect(core.getItemById("same")).toBeUndefined();
+  });
 });
