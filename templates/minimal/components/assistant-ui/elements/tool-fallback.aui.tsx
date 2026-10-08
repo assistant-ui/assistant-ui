@@ -1222,7 +1222,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
     const shouldFocusTrigger = approval == null || !isSettled(approval);
     approvalHadFocusRef.current = false;
-    if (shouldFocusTrigger) {
+    const { activeElement, body } = focusedElement.ownerDocument;
+    if (
+      shouldFocusTrigger &&
+      (activeElement == null || activeElement === body)
+    ) {
       triggerRef.current?.focus({ preventScroll: true });
     }
   }, [approval, isRequiresAction]);

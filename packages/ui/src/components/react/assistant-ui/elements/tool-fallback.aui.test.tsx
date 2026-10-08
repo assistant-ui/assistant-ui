@@ -7,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useLayoutEffect, useRef } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
 import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.aui";
@@ -53,6 +54,43 @@ const renderTool = (props: Partial<ToolCallMessagePartProps> = {}) => {
 };
 
 describe("ToolFallback", () => {
+  it("preserves focus assigned during the answer commit", () => {
+    function Composer({ answered }: { answered: boolean }) {
+      const ref = useRef<HTMLInputElement>(null);
+      useLayoutEffect(() => {
+        if (answered) ref.current?.focus();
+      }, [answered]);
+      return <input ref={ref} aria-label="Composer" />;
+    }
+    const renderRequest = (answered: boolean) => (
+      <>
+        <Composer answered={answered} />
+        <ToolFallback
+          {...({
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "test-tool",
+            args: {},
+            argsText: "{}",
+            status: answered
+              ? { type: "running" }
+              : { type: "requires-action", reason: "interrupt" },
+            interrupt: answered ? undefined : { type: "human", payload: {} },
+            resume: vi.fn(),
+            addResult: vi.fn(),
+            respondToApproval: vi.fn(async () => {}),
+          } as ToolCallMessagePartProps)}
+        />
+      </>
+    );
+    const view = render(renderRequest(false));
+    button("Allow").focus();
+    view.rerender(renderRequest(true));
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "Composer" }),
+    );
+  });
+
   it("renders non-JSON tool values without throwing", () => {
     const circular: { self?: unknown } = {};
     circular.self = circular;
