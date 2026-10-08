@@ -17,6 +17,8 @@ import type {
   AssistantTransportStateConverter,
 } from "./types";
 
+const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const converter: AssistantTransportStateConverter<unknown> = (
   _state,
   meta,
@@ -151,6 +153,59 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it.each([
+    {
+      name: "line",
+      protocol: "assistant-transport" as const,
+      response: "data: [DONE]\n\n",
+      limits: { maxStreamLineLength: 5 },
+      expectedError: "maxLineLength",
+    },
+    {
+      name: "event",
+      protocol: "assistant-transport" as const,
+      response: "data: a\ndata: b\n\n",
+      limits: { maxStreamLineLength: 7, maxStreamEventLength: 2 },
+      expectedError: "maxEventLength",
+    },
+    {
+      name: "data-stream line",
+      protocol: "data-stream" as const,
+      response: '0:"hello"\n',
+      limits: { maxStreamLineLength: 4 },
+      expectedError: "maxLineLength",
+    },
+  ])("forwards the configured $name limit", async (testCase) => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(testCase.response)),
+    );
+
+    const { aui, sendCommand } = mountRuntime({
+      protocol: testCase.protocol,
+      ...testCase.limits,
+      onError,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("hello")));
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining(testCase.expectedError),
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
   it.each([false, 0, "", null])(
     "preserves the falsy tool artifact %j",
     async (artifact) => {
@@ -312,6 +367,75 @@ describe("useAssistantTransportRuntime", () => {
       expect(cancel).toHaveBeenCalledOnce();
     },
   );
+
+  it.each(["headers", "body", "prepare"] as const)(
+    "settles cancellation while resolving request %s",
+    async (phase) => {
+      const pending = vi.fn(() => new Promise<never>(() => {}));
+      const fetchMock = vi.fn();
+      const onCancel = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      let pendingOption: Partial<AssistantTransportOptions<unknown>>;
+      if (phase === "headers") {
+        pendingOption = { headers: pending };
+      } else if (phase === "body") {
+        pendingOption = { body: pending };
+      } else {
+        pendingOption = { prepareSendCommandsRequest: pending };
+      }
+
+      const { aui, sendCommand } = mountRuntime({
+        ...pendingOption,
+        onCancel,
+      });
+
+      act(() => sendCommand(createMessageCommand("hello")));
+      await waitFor(() => expect(pending).toHaveBeenCalledOnce());
+      expect(aui().thread.getState().isRunning).toBe(true);
+
+      act(() => aui().thread.cancelRun());
+
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(onCancel).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("settles cancellation while the response callback is pending", async () => {
+    const cancel = vi.fn();
+    const onResponse = vi.fn(() => new Promise<void>(() => {}));
+    const onCancel = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
+
+    const { aui, sendCommand } = mountRuntime({ onResponse, onCancel });
+
+    act(() => sendCommand(createMessageCommand("hello")));
+    await waitFor(() => expect(onResponse).toHaveBeenCalledOnce());
+
+    act(() => aui().thread.cancelRun());
+
+    await act(nextTask);
+    expect(aui().thread.getState().isRunning).toBe(false);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(
+      onCancel.mock.calls[0]![0].commands.map(
+        (command: any) => command.message.parts[0].text,
+      ),
+    ).toEqual(["hello"]);
+  });
 
   it("no-ops a follow-up run that finds an empty queue", async () => {
     const fetchMock = installFetch();
