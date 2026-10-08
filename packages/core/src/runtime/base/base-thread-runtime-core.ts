@@ -650,6 +650,7 @@ export abstract class BaseThreadRuntimeCore
   ) {
     const session = this._voiceSession;
     this.ensureInitialized();
+    if (this._voiceSession !== session) return;
 
     if (transcript.role === "user") {
       this._finishVoiceAssistantMessage();

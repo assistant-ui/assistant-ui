@@ -3133,6 +3133,57 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     expect(thread.voice).toBeDefined();
   });
 
+  it("keeps the replacement session's queue held when a history append reconnects during an ended commit", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const run = vi.fn(async () => ({}));
+    let thread!: ReturnType<
+      LocalRuntimeCore["threads"]["getMainThreadRuntimeCore"]
+    >;
+    let reconnect = true;
+    const runtime = new LocalRuntimeCore(
+      {
+        unstable_enableMessageQueue: true,
+        adapters: {
+          chatModel: { run },
+          voice: adapter,
+          history: {
+            load: async () => ({ messages: [] }),
+            append: async () => {
+              if (!reconnect) return;
+              reconnect = false;
+              void thread.append({
+                parentId: thread.messages.at(-1)?.id ?? null,
+                sourceId: null,
+                role: "user",
+                content: [{ type: "text", text: "queued" }],
+                attachments: [],
+                metadata: { custom: {} },
+                createdAt: new Date(),
+                runConfig: {},
+              });
+              thread.connectVoice();
+            },
+          },
+        },
+      },
+      undefined,
+    );
+    thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+    await Promise.resolve();
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+    expect(thread.getQueueItems()).toHaveLength(1);
+    expect(run).not.toHaveBeenCalled();
+    thread.disconnectVoice();
+  });
+
   it("keeps a session the transcript callback connects when the previous one ends", () => {
     const { adapter, sessions } = makeAdapter();
     let reconnect = false;
@@ -3202,6 +3253,31 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     runtime.unstable_on("initialize", () => runtime.connectVoice());
 
     firstVoice.emitTranscript({ role: "user", text: "old", isFinal: true });
+
+    expect(firstVoice.adapter.connect).toHaveBeenCalledTimes(2);
+    expect(firstVoice.session.disconnect).toHaveBeenCalledOnce();
+    expect(replacementVoice.session.disconnect).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeDefined();
+    expect(runtime.messages).toEqual([]);
+    runtime.disconnectVoice();
+  });
+
+  it("drops an assistant transcript whose session an initialize subscriber replaced", () => {
+    const firstVoice = createVoiceAdapter();
+    const replacementVoice = createVoiceAdapter();
+    firstVoice.adapter.connect = vi
+      .fn()
+      .mockReturnValueOnce(firstVoice.session)
+      .mockReturnValueOnce(replacementVoice.session);
+    const runtime = new TestRuntime(firstVoice);
+    runtime.connectVoice();
+    runtime.unstable_on("initialize", () => runtime.connectVoice());
+
+    firstVoice.emitTranscript({
+      role: "assistant",
+      text: "old",
+      isFinal: true,
+    });
 
     expect(firstVoice.adapter.connect).toHaveBeenCalledTimes(2);
     expect(firstVoice.session.disconnect).toHaveBeenCalledOnce();
