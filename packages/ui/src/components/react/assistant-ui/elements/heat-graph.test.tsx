@@ -55,6 +55,7 @@ describe("HeatGraph", () => {
 
     const scroller = container.querySelector(".overflow-x-auto");
     expect(scroller?.classList.contains("flex-row-reverse")).toBe(true);
+    expect(scroller?.firstElementChild?.classList.contains("grow")).toBe(true);
     expect(
       scroller?.querySelector('[style*="grid-template-columns"]'),
     ).not.toBeNull();

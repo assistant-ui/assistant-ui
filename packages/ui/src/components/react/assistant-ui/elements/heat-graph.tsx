@@ -22,7 +22,7 @@ export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
       className="flex flex-col gap-2"
     >
       <div className="flex flex-row-reverse overflow-x-auto">
-        <div className="flex min-w-fit flex-col gap-2">
+        <div className="flex min-w-fit grow flex-col gap-2">
           <MonthLabels end={end} />
           <div className="flex gap-2">
             <DayLabels />
