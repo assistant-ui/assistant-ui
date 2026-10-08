@@ -2173,6 +2173,68 @@ describe("RemoteThreadList", () => {
     },
   );
 
+  it("retains an unlisted controlled selection through a failed replacement load", async () => {
+    const selected = { status: "regular" as const, remoteId: "selected" };
+    let adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [selected] })),
+    });
+    const listeners = new Set<() => void>();
+    const onThreadIdChange = vi.fn();
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            threadId: "selected",
+            onThreadIdChange,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().mainThreadId).toBe(
+          "selected",
+        ),
+      );
+      const error = new Error("offline");
+      const list = vi
+        .fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue({ threads: [] });
+      const fetch = vi.fn(async () => {
+        if (list.mock.calls.length < 2) throw error;
+        return selected;
+      });
+      adapter = makeAdapter({ list, fetch });
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+      await handle.getClient().threads.reload();
+      await microtasks(20);
+      expect(handle.getClient().threads.getState().loadError).toBe(error);
+      expect(fetch).not.toHaveBeenCalled();
+      await handle.getClient().threads.reload();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().mainThreadId).toBe(
+          "selected",
+        ),
+      );
+      expect(fetch).toHaveBeenCalledExactlyOnceWith("selected");
+      expect(onThreadIdChange).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+      handle.destroy();
+    }
+  });
+
   it("does not reset again when retrying a failed replacement load", async () => {
     const error = new Error("network");
     const methodsA = makeAdapter({

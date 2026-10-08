@@ -1342,6 +1342,8 @@ const useRemoteThreadList = (
     if (listState.isLoading || listState.isLoadingMore) return;
     if (controlledId === undefined) return;
     if (session.controlledSwitchGeneration !== session.switchGeneration) return;
+    if (session.controlledReloadPending && listState.loadError !== undefined)
+      return;
     if (
       !session.controlledReloadPending &&
       getThreadData(listState, controlledId) === undefined
