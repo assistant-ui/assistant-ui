@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallbackRef, useComposedRefs } from "radix-ui/internal";
+import { useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
@@ -247,7 +247,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     );
   }, [threadViewportStore]);
 
-  const handleScroll = useCallbackRef(() => {
+  const onScroll = () => {
     const div = divRef.current;
     if (!div) return;
 
@@ -304,9 +304,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastScrollTop.current = div.scrollTop;
     lastScrollHeight.current = div.scrollHeight;
     firstMessageRef.current = measureFirstMessage(div);
+  };
+  const onScrollRef = useRef(onScroll);
+  useLayoutEffect(() => {
+    onScrollRef.current = onScroll;
   });
+  const handleScroll = useCallback(() => onScrollRef.current(), []);
 
-  const resizeRef = useOnResizeContent(() => {
+  const onResize = () => {
     const div = divRef.current;
     if (!div) return;
 
@@ -341,6 +346,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     }
 
     handleScroll();
+  };
+  const onResizeRef = useRef(onResize);
+  useLayoutEffect(() => {
+    onResizeRef.current = onResize;
+  });
+  const resizeRef = useOnResizeContent(() => onResizeRef.current());
+  useLayoutEffect(() => {
+    if (divRef.current) resizeRef(divRef.current);
   });
 
   const scrollRef = useManagedRef<HTMLElement>(
