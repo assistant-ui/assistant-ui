@@ -112,6 +112,55 @@ describe("AISDKChat as a standalone client config entry", () => {
     });
   });
 
+  it("holds a send made during a run until the run settles with unstable_enableMessageQueue", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const sendMessages = vi.spyOn(transport, "sendMessages");
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKChat({ transport, unstable_enableMessageQueue: true }),
+      }),
+    );
+    try {
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const queued = () =>
+        aui.composer.getState().queue.map((item) => item.prompt);
+
+      flushTapSync(() => aui.composer.setText("first"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+      expect(aui.thread.getState().capabilities.queue).toBe(true);
+
+      flushTapSync(() => aui.composer.setText("second"));
+      flushTapSync(() => aui.composer.send({ steer: false }));
+      await vi.waitFor(() => {
+        expect(queued()).toEqual(["second"]);
+      });
+      expect(sendMessages).toHaveBeenCalledTimes(1);
+
+      emit(
+        { type: "start" },
+        { type: "text-start", id: "t1" },
+        { type: "text-delta", id: "t1", delta: "one" },
+        { type: "text-end", id: "t1" },
+        { type: "finish" },
+      );
+      close();
+
+      await vi.waitFor(() => {
+        expect(sendMessages).toHaveBeenCalledTimes(2);
+      });
+      expect(
+        sendMessages.mock.calls[1]![0].messages.at(-1)?.parts,
+      ).toContainEqual(expect.objectContaining({ text: "second" }));
+      expect(queued()).toEqual([]);
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("installs the RuntimeAdapter scope defaults", () => {
     const { transport } = createControlledTransport();
     const handle = createAssistantClient(

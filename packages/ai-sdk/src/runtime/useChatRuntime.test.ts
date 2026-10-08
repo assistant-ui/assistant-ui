@@ -89,6 +89,7 @@ import {
 import { getResumedStreamIds } from "./DynamicChatTransport";
 import { AI_SDK_SDK } from "./sdkIdentity";
 import { useChatRuntime } from "./useChatRuntime";
+import { splitChatThreadOptions } from "./useChatThread";
 
 const onReact18 = version.startsWith("18.");
 
@@ -245,6 +246,23 @@ describe.skipIf(onReact18)("useChatRuntime", () => {
     expect(mocks.useChat.mock.calls[0]?.[0]).not.toHaveProperty(
       "onRespondToToolApproval",
     );
+  });
+
+  it("forwards unstable_enableMessageQueue to the runtime, not the chat", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ unstable_enableMessageQueue: true }));
+
+    expect(mocks.useAISDKRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ unstable_enableMessageQueue: true }),
+    );
+    expect(
+      splitChatThreadOptions({ unstable_enableMessageQueue: true }).chatInit,
+    ).not.toHaveProperty("unstable_enableMessageQueue");
   });
 
   it("waits for external history to load before resuming a stream", async () => {

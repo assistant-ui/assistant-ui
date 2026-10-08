@@ -621,7 +621,7 @@ If you need a transport that does not inherit from `AssistantChatTransport`, you
 
 ## Runtime options
 
-Beyond transports and adapters, `useChatRuntime` accepts options that control thread routing, message grouping, and run resumption.
+Beyond transports and adapters, `useChatRuntime` accepts options that control thread routing, message grouping, run resumption, and message queuing.
 
 ### onThreadIdChange
 
@@ -739,6 +739,20 @@ const runtime = useChatRuntime({
 
 `unstable_onBranchChange` fires after an explicit `switchToBranch` (for example a BranchPicker click). It complements `setMessages` and does not enable switching by itself. The callback is unstable and may change without notice.
 
+### unstable_enableMessageQueue
+
+Set `unstable_enableMessageQueue` to keep the composer usable while a response streams:
+
+```tsx
+const runtime = useChatRuntime({
+  unstable_enableMessageQueue: true,
+});
+```
+
+A message sent while a run is in progress steers by default: the running response stops, and the message is sent once the stopped request has settled, so its `onFinish` never runs beside the new request. This differs from the local and LangGraph runtimes, where a steer runs next without stopping the current response. `send({ steer: false })` queues a follow-up instead. Pending messages are held in `composer.queue` and sent one request at a time as each run settles. Cancelling the run keeps them, and the next send resumes draining. While `isSendDisabled` is `true`, pending messages wait.
+
+Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
+
 ## Advanced: useAISDKRuntime
 
 When you need direct access to the `useChat` instance (e.g. to share it with non-assistant-ui code), drop down to `useAISDKRuntime`:
@@ -753,7 +767,7 @@ const runtime = useAISDKRuntime(chat);
 
 `useAISDKRuntime` does not provide `cloud` or the higher-level adapter slots; those are part of `useChatRuntime`. If you need both access to the `useChat` state and cloud thread support, use `useChatRuntime` and read the chat state through assistant-ui hooks.
 
-`useAISDKRuntime` accepts `joinStrategy`, `onResume`, `onRespondToToolApproval`, `messageRepository`, and `unstable_onBranchChange` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
+`useAISDKRuntime` accepts `joinStrategy`, `onResume`, `onRespondToToolApproval`, `messageRepository`, `unstable_onBranchChange`, and `unstable_enableMessageQueue` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
 
 ```tsx
 const runtime = useAISDKRuntime(chat, {
