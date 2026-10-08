@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Ignore deferred cancellation resync after resetting thread messages.
+ignore the deferred cancel resync once the thread is reset
