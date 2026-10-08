@@ -380,7 +380,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           // ref alone leaves the gesture undone.
           cancelScheduledFrame();
           scrollingToBottomBehaviorRef.current = null;
-          followBottomRef.current = isViewportAtBottom(el);
           handleScroll();
         };
         // The composer renders inside the viewport, so its keystrokes bubble here;

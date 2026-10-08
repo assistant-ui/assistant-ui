@@ -514,60 +514,6 @@ describe("useThreadViewportAutoScroll", () => {
     }
   });
 
-  it("keeps a first-frame scroll-up after a delayed smooth bottom scroll", async () => {
-    const view = render(
-      <SyncRuntimeProvider>
-        <Thread autoScroll scrollToBottomOnInitialize={false} />
-      </SyncRuntimeProvider>,
-    );
-
-    const viewport = getViewport();
-    await waitFor(() => {
-      expect(screen.getAllByTestId("thread-message")).toHaveLength(
-        messages.length,
-      );
-    });
-    act(() => {
-      viewport.scrollTop = 100;
-      viewport.dispatchEvent(new Event("scroll"));
-    });
-
-    const scrollToSpy = vi
-      .spyOn(viewport, "scrollTo")
-      .mockImplementation(() => {});
-    try {
-      view.rerender(
-        <SyncRuntimeProvider>
-          <Thread autoScroll scrollToBottomOnInitialize={false} />
-          <RequestSmoothScrollToBottom />
-        </SyncRuntimeProvider>,
-      );
-      await waitFor(() => {
-        expect(scrollToSpy).toHaveBeenCalledWith({
-          top: viewport.scrollHeight,
-          behavior: "smooth",
-        });
-      });
-      expect(viewport.scrollTop).toBe(100);
-
-      act(() => {
-        viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -80 }));
-        viewport.scrollTop = 320;
-        viewport.dispatchEvent(new Event("scroll"));
-      });
-
-      const scrollTopAfterLeave = viewport.scrollTop;
-      viewportMeasurementOffset += 200;
-      act(notifyResizeObservers);
-
-      expect(scrollToSpy).toHaveBeenCalledTimes(1);
-      expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
-      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
-    } finally {
-      scrollToSpy.mockRestore();
-    }
-  });
-
   it("scrolls sync initialMessages to the bottom when the viewport mounts after initialization", async () => {
     render(
       <SyncRuntimeProvider>
