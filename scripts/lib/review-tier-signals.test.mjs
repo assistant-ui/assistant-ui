@@ -546,6 +546,11 @@ for (const patch of [
   "-  contents: read\n+  contents: write",
   "+  pull_request_target:",
   "+  workflow_run:",
+  "+  token: ${{ secrets['DEPLOY_TOKEN'] }}",
+  "+  issue_comment:",
+  "+  pull_request_review_comment:",
+  "+  discussion_comment:",
+  "+  repository_dispatch:",
   null,
 ]) {
   test(`workflow security changes give T3: ${patch}`, () => {
