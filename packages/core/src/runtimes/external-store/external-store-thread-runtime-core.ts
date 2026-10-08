@@ -193,6 +193,7 @@ export class ExternalStoreThreadRuntimeCore
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private _runStarts = 0;
+  private _cancelRunResyncGeneration = 0;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -977,6 +978,8 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onLoadExternalState)
       throw new Error("Runtime does not support importing external states.");
 
+    this._cancelRunResyncGeneration++;
+
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
     // fires for the loaded tool calls. The adapter is expected to update
@@ -995,6 +998,7 @@ export class ExternalStoreThreadRuntimeCore
    * without run-cancel semantics (`onCancel`, composer draft restoration).
    */
   public unstable_notifySessionReset(): void {
+    this._cancelRunResyncGeneration++;
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1004,6 +1008,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support cancelling runs.");
 
     const generation = captureThreadRuntimeGeneration(this);
+    const resyncGeneration = this._cancelRunResyncGeneration;
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
@@ -1064,7 +1069,11 @@ export class ExternalStoreThreadRuntimeCore
     // rollbacks to it, instead of stamping a snapshot captured above over the
     // newer state.
     setTimeout(() => {
-      if (generation.aborted) return;
+      if (
+        generation.aborted ||
+        resyncGeneration !== this._cancelRunResyncGeneration
+      )
+        return;
 
       // A placeholder under a message other than the cancelled tail, or one
       // following a reload or resume issued after the cancel, belongs to a
@@ -1180,12 +1189,14 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this._cancelRunResyncGeneration++;
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
   }
 
   public override import(data: ExportedMessageRepository) {
+    this._cancelRunResyncGeneration++;
     super.import(data);
 
     if (this._store.onImport) {
