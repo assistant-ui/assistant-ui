@@ -23,6 +23,7 @@ export const useMessageQueue = ({
   send,
   cancel,
   interrupt,
+  onError,
 }: {
   enabled: boolean;
   isRunning: boolean;
@@ -30,15 +31,18 @@ export const useMessageQueue = ({
   send: (message: AppendMessage) => Promise<void>;
   cancel: () => Promise<void>;
   interrupt: () => void | Promise<void>;
+  onError?: ((error: Error | undefined) => void) | undefined;
 }) => {
   const sendRef = useRef(send);
   const cancelRef = useRef(cancel);
   const interruptRef = useRef(interrupt);
+  const onErrorRef = useRef(onError);
   const heldRef = useRef(!enabled || isSendDisabled);
   useInsertionEffect(() => {
     sendRef.current = send;
     cancelRef.current = cancel;
     interruptRef.current = interrupt;
+    onErrorRef.current = onError;
     heldRef.current = !enabled || isSendDisabled;
   });
 
@@ -66,7 +70,7 @@ export const useMessageQueue = ({
         const cancels = cancelsRef.current;
         const generation = generationRef.current;
         const busyEdgesAtDispatch = busyEdgesRef.current;
-        lastDispatchRef.current = (async () => {
+        const dispatch = (async () => {
           // A stopped AI SDK request still reports its status and runs its
           // onFinish once it settles, so a send waits for the previous one
           // and for the chat to be seen idle.
@@ -100,19 +104,25 @@ export const useMessageQueue = ({
           }
           const overtaken = settledCancels !== cancels;
           const busyEdges = busyEdgesRef.current;
+          onErrorRef.current?.(undefined);
           try {
             await sendRef.current(
               overtaken ? { ...message, startRun: false } : message,
             );
-          } finally {
-            if (
-              busyEdgesRef.current === busyEdges &&
-              !reportedRef.current.busy
-            ) {
-              controller.notifyIdle();
-            }
+          } catch (error) {
+            if (!mountedRef.current || generation !== generationRef.current)
+              return;
+            onErrorRef.current?.(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+            throw error;
           }
-        })().catch(() => {});
+          if (busyEdgesRef.current === busyEdges && !reportedRef.current.busy) {
+            controller.notifyIdle();
+          }
+        })();
+        lastDispatchRef.current = dispatch.catch(() => {});
+        return dispatch;
       },
       cancel: () => {
         cancelsRef.current++;
@@ -172,6 +182,7 @@ export const useMessageQueue = ({
     adapter: enabled ? controller?.adapter : undefined,
     cancel: cancelRun,
     clear: () => {
+      onErrorRef.current?.(undefined);
       generationRef.current++;
       controller?.clear();
       const waiters = idleWaitersRef.current;

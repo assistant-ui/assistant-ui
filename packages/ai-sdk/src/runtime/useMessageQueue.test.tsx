@@ -19,6 +19,55 @@ const message = (text: string): AppendMessage => ({
 afterEach(cleanup);
 
 describe("useMessageQueue lifecycle", () => {
+  it("pauses later prompts after a rejected send and retries the failed prompt first", async () => {
+    const error = new Error("send rejected");
+    let reject!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, fail) => {
+      reject = fail;
+    });
+    const send = vi.fn(async (_message: AppendMessage) => {});
+    send.mockReturnValueOnce(pending);
+    const onError = vi.fn();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() =>
+        useMessageQueue({
+          enabled: true,
+          isRunning: false,
+          isSendDisabled: false,
+          send,
+          cancel: async () => {},
+          interrupt: () => {},
+          onError,
+        }),
+      );
+      await act(async () => result.current.adapter!.enqueue(message("first")));
+      act(() => result.current.adapter!.enqueue(message("later")));
+      await act(async () => {
+        reject(error);
+        await pending.catch(() => {});
+      });
+      expect(send).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenLastCalledWith(error);
+      expect(result.current.adapter!.items.map((item) => item.prompt)).toEqual([
+        "first",
+        "later",
+      ]);
+
+      await act(async () => result.current.adapter!.enqueue(message("retry")));
+      expect(send.mock.calls.map(([m]) => m.content[0])).toEqual([
+        { type: "text", text: "first" },
+        { type: "text", text: "first" },
+        { type: "text", text: "later" },
+        { type: "text", text: "retry" },
+      ]);
+      expect(onError).toHaveBeenLastCalledWith(undefined);
+      expect(result.current.adapter!.items).toEqual([]);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it.each([true, false])(
     "keeps the replacement queue until idle (intermediate idle: %s)",
     async (intermediateIdle) => {

@@ -21,6 +21,80 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["queue", "steer", "move"])(
+    "restores and pauses an asynchronously rejected %s until the next send",
+    async (lane) => {
+      const error = new Error("send failed before append");
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      const controller = createMessageQueue({
+        run,
+        cancel: () => controller.notifyIdle(),
+      });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        if (lane !== "queue") controller.adapter.enqueue(msg("active"));
+        run.mockImplementationOnce(() => pending);
+        if (lane === "queue") controller.adapter.enqueue(msg("failed"));
+        else if (lane === "steer") controller.adapter.steer(msg("failed"));
+        else {
+          controller.adapter.enqueue(msg("failed"));
+          controller.adapter.move(controller.adapter.items[0]!.id, {
+            lane: "steer",
+          });
+        }
+        controller.adapter.enqueue(msg("later"));
+        const before = run.mock.calls.length;
+        reject(error);
+        await pending.catch(() => {});
+        expect(run).toHaveBeenCalledTimes(before);
+        expect(
+          prompts(
+            lane === "steer"
+              ? controller.adapter.steerItems
+              : controller.adapter.items,
+          ),
+        ).toContain("failed");
+        expect(logged).toHaveBeenCalledWith(
+          "[MessageQueue] run rejected",
+          error,
+        );
+
+        controller.adapter.enqueue(msg("retry"));
+        expect(run).toHaveBeenLastCalledWith(msg("failed"), { steer: false });
+        expect(prompts(controller.adapter.items)).toEqual(["later", "retry"]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each(["clear", "busy"])(
+    "does not restore an async failure after %s",
+    async (action) => {
+      const error = new Error("late failure");
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const controller = createMessageQueue({ run: () => pending });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("first"));
+        if (action === "clear") controller.clear();
+        else controller.notifyBusy();
+        reject(error);
+        await pending.catch(() => {});
+        expect(controller.adapter.items).toEqual([]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
   it.each(["steer", "move"])(
     "queues a reentrant %s until the reserved run settles",
     (mode) => {

@@ -16,10 +16,12 @@ import {
   type UIMessage,
   type UIMessageChunk,
 } from "ai";
-import type { AssistantRuntime } from "@assistant-ui/core";
+import type { AppendMessage, AssistantRuntime } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { useAISDKError } from "../hooks";
+import { toCreateMessage } from "../converters/toCreateMessage";
 
 const textOf = (message: UIMessage | undefined) =>
   message?.parts
@@ -94,6 +96,11 @@ const QueuedPrompts = () => {
   return <output data-testid="queued">{prompts}</output>;
 };
 
+const QueueError = () => {
+  const error = useAISDKError();
+  return <output data-testid="queue-error">{error?.message}</output>;
+};
+
 const setup = (
   options: Parameters<typeof useAISDKRuntime>[1] = {
     unstable_enableMessageQueue: true,
@@ -113,6 +120,7 @@ const setup = (
   render(
     <AssistantRuntimeProvider runtime={runtime()}>
       <QueuedPrompts />
+      <QueueError />
     </AssistantRuntimeProvider>,
   );
   const send = (text: string, steer?: boolean) =>
@@ -130,6 +138,90 @@ afterEach(() => {
 });
 
 describe("useAISDKRuntime unstable_enableMessageQueue", () => {
+  it("does not mark an earlier answer failed when a queued prompt fails before append", async () => {
+    let fail = false;
+    function createMessage<UI_MESSAGE extends UIMessage>(
+      message: AppendMessage,
+    ) {
+      if (fail) throw new Error("conversion failed");
+      return toCreateMessage<UI_MESSAGE>(message);
+    }
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { send, requests, runtime, isRunning, queued } = setup({
+        unstable_enableMessageQueue: true,
+        toCreateMessage: createMessage,
+      });
+      await send("first");
+      await waitFor(() => expect(requests).toHaveLength(1));
+      await act(async () => {
+        requests[0]!.stream("answer");
+        requests[0]!.finish();
+      });
+      await waitFor(() => expect(isRunning()).toBe(false));
+      const status = runtime().thread.getState().messages[1]!.status;
+      fail = true;
+      await send("second");
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-error").textContent).toBe(
+          "conversion failed",
+        ),
+      );
+      expect(queued()).toBe("second");
+      expect(runtime().thread.getState().messages).toHaveLength(2);
+      expect(runtime().thread.getState().messages[1]!.status).toEqual(status);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  it("retains a failed prompt and exposes the error until an explicit retry", async () => {
+    const error = new Error("message conversion failed");
+    let fail = true;
+    function createMessage<UI_MESSAGE extends UIMessage>(
+      message: AppendMessage,
+    ) {
+      if (fail) throw error;
+      return toCreateMessage<UI_MESSAGE>(message);
+    }
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { send, requests, queued, isRunning } = setup({
+        unstable_enableMessageQueue: true,
+        toCreateMessage: createMessage,
+      });
+      await send("first");
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-error").textContent).toBe(
+          error.message,
+        ),
+      );
+      expect(queued()).toBe("first");
+      expect(requests).toHaveLength(0);
+
+      fail = false;
+      await send("second", false);
+      await waitFor(() => expect(requests).toHaveLength(1));
+      expect(requests[0]!.prompt).toBe("first");
+      expect(queued()).toBe("second");
+      expect(screen.getByTestId("queue-error").textContent).toBe("");
+      await act(async () => {
+        requests[0]!.stream("one");
+        requests[0]!.finish();
+      });
+      await waitFor(() => expect(requests).toHaveLength(2));
+      expect(requests[1]!.prompt).toBe("second");
+      await act(async () => {
+        requests[1]!.stream("two");
+        requests[1]!.finish();
+      });
+      await waitFor(() => expect(isRunning()).toBe(false));
+      expect(logged).toHaveBeenCalledWith("[MessageQueue] run rejected", error);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it("holds sends made during a run and sends them one request at a time", async () => {
     const { requests, events, send, queued, isRunning, runtime } = setup();
 
