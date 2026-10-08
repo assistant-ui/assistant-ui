@@ -265,4 +265,49 @@ describe("info command", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("reports unscoped packages and the upstream SDKs installed adapters peer on", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-"));
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({
+          name: "fixture",
+          dependencies: {
+            "@assistant-ui/react-langgraph": "0.7.0",
+            "@langchain/langgraph-sdk": "1.2.0",
+            "tw-shimmer": "0.4.0",
+            tailwindcss: "4.1.0",
+            lodash: "4.17.21",
+          },
+        }),
+      );
+      writePackage(root, "@assistant-ui/react-langgraph", {
+        version: "0.7.0",
+        peerDependencies: {
+          "@assistant-ui/react": "^0.12.0",
+          "@langchain/langgraph-sdk": "^1.0.0",
+        },
+      });
+      writePackage(root, "@langchain/langgraph-sdk", { version: "1.2.0" });
+      writePackage(root, "tw-shimmer", { version: "0.4.0" });
+      writePackage(root, "tailwindcss", { version: "4.1.0" });
+      writePackage(root, "lodash", { version: "4.17.21" });
+
+      await info.parseAsync(["node", "info", "--cwd", root], {
+        from: "node",
+      });
+
+      const output = consoleLog.mock.calls.flat().join("\n");
+      expect(output).toMatch(/tw-shimmer\s+0\.4\.0/);
+      expect(output).toMatch(/@langchain\/langgraph-sdk\s+1\.2\.0/);
+      expect(output).toMatch(/tailwindcss\s+4\.1\.0/);
+      expect(output).not.toContain("lodash");
+    } finally {
+      consoleLog.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
