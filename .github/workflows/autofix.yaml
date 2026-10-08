@@ -69,7 +69,8 @@ jobs:
         if: github.event_name == 'merge_group'
         run: |
           if [ -n "$(git status --porcelain)" ]; then
-            echo "autofix would change files; fix the PR before it enters the queue"
+            git status --porcelain
+            echo "autofix would change the files above; run pnpm lint:fix and pnpm api-surface on the pull request before it enters the queue"
             exit 1
           fi
 
