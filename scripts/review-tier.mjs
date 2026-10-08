@@ -5,7 +5,7 @@ import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
-import { advise } from "./lib/review-tier-advice.mjs";
+import { advise, sectionText } from "./lib/review-tier-advice.mjs";
 import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
 import { hasOption, optionValues } from "./lib/script-options.mjs";
@@ -241,14 +241,10 @@ export async function gatherPullRequest(
     node.closingIssuesReferences.nodes.map((issue) => issue.number),
   );
   const body = withoutHtmlComments(node.body);
-  const heading = /^## Decision[ \t]*\r?$/im.exec(body);
-  if (heading) {
-    const section = body
-      .slice(heading.index + heading[0].length)
-      .split(/^##[ \t]+/m)[0];
-    for (const match of section.matchAll(/#(\d+)\b/g))
-      decisionNumbers.add(Number(match[1]));
-  }
+  for (const match of (sectionText(body, "Decision") ?? "").matchAll(
+    /#(\d+)\b/g,
+  ))
+    decisionNumbers.add(Number(match[1]));
   const linkedIssues = [];
   for (const issueNumber of decisionNumbers) {
     let result;
@@ -369,6 +365,10 @@ export async function gatherPullRequest(
     },
     adviceInput: {
       number,
+      title: node.title,
+      body,
+      authorIsBot: node.author?.__typename === "Bot",
+      hasLinkedIssue: linkedIssues.length > 0,
       closingIssues: node.closingIssuesReferences.nodes.map((issue) => ({
         number: issue.number,
         pullRequests: issue.closedByPullRequestsReferences.nodes,
@@ -456,7 +456,7 @@ export function evaluatePullRequest(gathered, policy) {
   return {
     tierResult,
     requirementResult,
-    advice: advise(gathered.adviceInput),
+    advice: advise(gathered.adviceInput, policy),
     context: {
       headSha: gathered.pr.headSha,
       readyForReviewAt: gathered.people.readyForReviewAt,

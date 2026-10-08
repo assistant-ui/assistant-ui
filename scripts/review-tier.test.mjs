@@ -1202,6 +1202,7 @@ test("the comment names another pull request for the same issue without blocking
   const alone = await evaluationFor(
     fakeClient({
       pr: docsPullRequest({
+        body: "Clarify installation.\n\n## AI use\nNone.\n",
         closingIssuesReferences: {
           nodes: [closingIssue(42, [{ number: 12, state: "OPEN" }])],
         },
