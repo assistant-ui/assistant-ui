@@ -629,7 +629,7 @@ describe("createPiHttpClient", () => {
     const client = createPiHttpClient({
       fetchImpl,
       maxStreamLineLength: 1024,
-      streamCloseDelayMs: 60_000,
+      streamCloseDelayMs: 0,
     });
     const firstEvents: PiAnyClientEvent[] = [];
     const unsubscribeFirst = client.subscribe("t1", (event) =>

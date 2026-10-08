@@ -160,7 +160,7 @@ export interface PiHttpClientOptions {
   fetchImpl?: typeof fetch;
   /** Extra headers applied to every request (e.g. auth). */
   headers?: Record<string, string>;
-  /** Non-fatal SSE stream errors (reconnects follow). */
+  /** SSE stream errors. Reconnects follow, except after a decoder limit error, which ends the stream and sends its listeners an error event. */
   onStreamError?: (error: unknown) => void;
   /** Reconnect backoff for the event stream; injectable for tests. */
   reconnectDelay?: () => Promise<void>;
