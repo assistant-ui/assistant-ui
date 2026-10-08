@@ -186,8 +186,12 @@ export class LocalThreadRuntimeCore
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
   private _queueRunInFlight: object | null = null;
-  private _activeRun: { cancelled: boolean } | null = null;
-  private _runGeneration = 0;
+  private _activeRun: object | null = null;
+  // The queue hears busy and idle only when _isQueueBusy() changes;
+  // _queueBusy is what this controller was last told.
+  private _queueBusy = false;
+  // a Stop paused the queue while busy and its settle has not been spent
+  private _queueCancelReserved = false;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
@@ -455,6 +459,7 @@ export class LocalThreadRuntimeCore
       this._queue = null;
       this._queueRunInFlight = null;
       this._activeRun = null;
+      this._appendsBeforeRun = 0;
       // The draft was written under the previous scope, so sending it after
       // the switch would append one account's content through another's
       // adapter. Reset also invalidates a send still uploading attachments.
@@ -550,7 +555,6 @@ export class LocalThreadRuntimeCore
           // before reaching startRun's finally, so a failure can't deadlock it
           const dispatch = {};
           this._queueRunInFlight = dispatch;
-          const generation = this._runGeneration;
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
@@ -559,18 +563,16 @@ export class LocalThreadRuntimeCore
             ),
           })
             .finally(() => {
-              if (this._queueRunInFlight === dispatch) {
+              if (this._queueRunInFlight === dispatch)
                 this._queueRunInFlight = null;
-                // A dispatch that failed before starting a run settles here;
-                // runs that did start release from _runLoop.
-                if (this._runGeneration === generation)
-                  this._queue?.notifyIdle();
-              }
             })
             .catch(() => {});
         },
       });
       if (this.voice) this._queue.hold();
+      this._queueBusy = false;
+      this._queueCancelReserved = false;
+      this._syncQueue();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -813,16 +815,57 @@ export class LocalThreadRuntimeCore
     return this._pendingAppends > 0 || super._isRunActive();
   }
 
-  private async _runAppend(rawMessage: AppendMessage): Promise<void> {
-    this._pendingAppends += 1;
-    try {
-      await this._runAppendInner(rawMessage);
-    } finally {
-      this._pendingAppends -= 1;
+  // appends that have not reached their run yet
+  private _appendsBeforeRun = 0;
+
+  private _isQueueBusy(): boolean {
+    return this._appendsBeforeRun > 0 || this._activeRun !== null;
+  }
+
+  private _syncQueue() {
+    const queue = this._queue;
+    if (!queue) return;
+    const busy = this._isQueueBusy();
+    if (busy && !this._queueBusy) {
+      this._queueBusy = true;
+      queue.notifyBusy();
+    } else if (!busy && this._queueBusy) {
+      // deferred so the next send starts after this run's teardown, and a
+      // run started in the same tick keeps the queue busy
+      queueMicrotask(() => {
+        if (this._queue !== queue || !this._queueBusy) return;
+        if (this._isQueueBusy()) return;
+        this._queueBusy = false;
+        this._queueCancelReserved = false;
+        queue.notifyIdle();
+      });
     }
   }
 
-  private async _runAppendInner(rawMessage: AppendMessage): Promise<void> {
+  private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    const scopeGeneration = this._loadGeneration;
+    this._pendingAppends += 1;
+    this._appendsBeforeRun += 1;
+    let beforeRun = true;
+    const reachRun = () => {
+      if (!beforeRun) return;
+      beforeRun = false;
+      if (scopeGeneration === this._loadGeneration) this._appendsBeforeRun -= 1;
+    };
+    this._syncQueue();
+    try {
+      await this._runAppendInner(rawMessage, reachRun);
+    } finally {
+      this._pendingAppends -= 1;
+      reachRun();
+      this._syncQueue();
+    }
+  }
+
+  private async _runAppendInner(
+    rawMessage: AppendMessage,
+    reachRun: () => void,
+  ): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
@@ -896,6 +939,9 @@ export class LocalThreadRuntimeCore
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
+      // startRun reaches _runLoop synchronously, which marks the run active
+      // before the queue can see this append leave
+      reachRun();
       const [runResult, historyResult] = await Promise.allSettled([
         this.startRun({
           parentId: newMessage.id,
@@ -1052,16 +1098,21 @@ export class LocalThreadRuntimeCore
     this._notifyEventSubscribers("runStart", {});
 
     const run = {
-      cancelled: false,
       resumedFromPause: message.status.type === "requires-action",
     };
     this._activeRun = run;
-    this._runGeneration++;
 
     let active = false;
     try {
-      // mark busy for runs not started through the queue (regenerate, resume)
-      this._queue?.notifyBusy();
+      // A run start re-arms a queue a Stop paused. The Stop's reserved
+      // settle would otherwise be absorbed by notifyBusy and leave the queue
+      // busy, so it is spent here and the queue stays busy for this run.
+      if (this._queueCancelReserved && this._queue) {
+        this._queueCancelReserved = false;
+        this._queue.notifyBusy();
+        this._queue.notifyIdle();
+      }
+      this._syncQueue();
       this._suggestions = [];
       this._suggestionsController?.abort();
       this._suggestionsController = null;
@@ -1090,21 +1141,10 @@ export class LocalThreadRuntimeCore
     } finally {
       if (scopeGeneration === this._loadGeneration)
         this._notifyEventSubscribers("runEnd", {});
-      // the settle belongs to this run only while it is still the active run
-      // or was cancelled (the engine expects a cancelled run's settle); a run
-      // superseded by a newer one stays silent
       active =
         scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
-      if (
-        scopeGeneration === this._loadGeneration &&
-        (active || run.cancelled)
-      ) {
-        queueMicrotask(() => {
-          if (scopeGeneration === this._loadGeneration)
-            this._queue?.notifyIdle();
-        });
-      }
+      if (scopeGeneration === this._loadGeneration) this._syncQueue();
     }
 
     if (
@@ -1153,7 +1193,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
-    run: { cancelled: boolean; resumedFromPause: boolean },
+    run: { resumedFromPause: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const scopeGeneration = this._loadGeneration;
@@ -1538,7 +1578,7 @@ export class LocalThreadRuntimeCore
         this._queue.clear();
       } else {
         this._queue.notifyCancelled();
-        if (this._activeRun) this._activeRun.cancelled = true;
+        if (this._queueBusy) this._queueCancelReserved = true;
       }
     }
     const error = new AbortError(false);
