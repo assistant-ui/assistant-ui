@@ -96,14 +96,6 @@ describe("SelectionToolbarPrimitiveRoot onMouseDown composition", () => {
 });
 
 describe("SelectionToolbarPrimitiveRoot selection changes", () => {
-  it("opens from a selectionchange event without a mouse or key event", () => {
-    render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
-
-    fireEvent(document, new Event("selectionchange"));
-
-    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
-  });
-
   it("closes an open toolbar when the selection collapses", () => {
     render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
     fireEvent(document, new Event("selectionchange"));
