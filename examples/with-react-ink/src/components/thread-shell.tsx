@@ -3,6 +3,17 @@ import { Box, Text, useInput, useStdout } from "ink";
 import { TextInput, useAui, useAuiState } from "@assistant-ui/react-ink";
 
 type Mode = "chat" | "threads" | "search" | "rename" | "delete" | "help";
+type Stdout = ReturnType<typeof useStdout>["stdout"];
+
+const getTerminalDimensions = (stdout: Stdout) => {
+  const columns = "columns" in stdout ? stdout.columns : undefined;
+  const rows = "rows" in stdout ? stdout.rows : undefined;
+
+  return {
+    columns: typeof columns === "number" ? columns : 80,
+    rows: typeof rows === "number" ? rows : 24,
+  };
+};
 
 export function ThreadShell({
   children,
@@ -12,10 +23,9 @@ export function ThreadShell({
   const aui = useAui();
   const state = useAuiState((s) => s.threads);
   const { stdout } = useStdout();
-  const [{ columns, rows }, setDimensions] = useState(() => ({
-    columns: stdout.columns ?? 80,
-    rows: stdout.rows ?? 24,
-  }));
+  const [{ columns, rows }, setDimensions] = useState(() =>
+    getTerminalDimensions(stdout),
+  );
   const [mode, setMode] = useState<Mode>("chat");
   const [archived, setArchived] = useState(false);
   const [query, setQuery] = useState("");
@@ -27,11 +37,7 @@ export function ThreadShell({
   const pendingRef = useRef(false);
 
   useEffect(() => {
-    const resize = () =>
-      setDimensions({
-        columns: stdout.columns ?? 80,
-        rows: stdout.rows ?? 24,
-      });
+    const resize = () => setDimensions(getTerminalDimensions(stdout));
     stdout.on("resize", resize);
     return () => {
       stdout.off("resize", resize);

@@ -10,14 +10,19 @@ const people = {
   admins: ["admin"],
   teams: {
     [policy.teams.maintainers]: ["maintainer"],
-    [policy.teams.reviewers]: ["trusted"],
+    [policy.teams.reviewers]: ["trusted", "trusted2"],
   },
 };
 
-function mockGitHubFetch({ repository, teams, missingTeams }) {
+function mockGitHubFetch({ repository, teams, areas, missingTeams }) {
   const orgUrl = `https://api.github.com/orgs/${repository.split("/")[0]}`;
   const adminsUrl = `${orgUrl}/members?role=admin&per_page=100`;
-  const teamUrls = Object.values(teams).map(
+  const teamUrls = [
+    ...new Set([
+      ...Object.values(teams),
+      ...areas.map((area) => area.ownerTeam),
+    ]),
+  ].map(
     (slug) =>
       `${orgUrl}/teams/${encodeURIComponent(slug)}/members?per_page=100`,
   );
@@ -74,10 +79,11 @@ function mockGitHubFetch({ repository, teams, missingTeams }) {
 }
 
 for (const missingTeams of [false, true]) {
-  test(`CLI fetches organization owners and ${missingTeams ? "warns about missing" : "paginates both"} teams`, () => {
+  test(`CLI fetches organization owners and ${missingTeams ? "warns about missing" : "paginates all"} teams`, () => {
     const preload = `(${mockGitHubFetch.toString()})(${JSON.stringify({
       repository: policy.repository,
       teams: policy.teams,
+      areas: policy.areas,
       missingTeams,
     })})`;
     const result = spawnSync(
@@ -95,7 +101,10 @@ for (const missingTeams of [false, true]) {
     );
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /^# Review health, 2026-10-01 to 2026-10-07/m);
-    for (const slug of Object.values(policy.teams)) {
+    for (const slug of new Set([
+      ...Object.values(policy.teams),
+      ...policy.areas.map((area) => area.ownerTeam),
+    ])) {
       if (missingTeams)
         assert.match(result.stderr, new RegExp(`Team ${slug} does not exist`));
     }
@@ -220,9 +229,8 @@ test("computeReviewHealth counts tiers, approvals, bypasses, and response time",
   assert.deepEqual(result.tierCounts, { 0: 2, 1: 2, 2: 1, 3: 1, untiered: 1 });
   assert.deepEqual(result.missingApprovals, [
     { number: 102, tier: 0, approvals: 0, minimum: 1 },
-    { number: 104, tier: 1, approvals: 1, minimum: 2 },
-    { number: 105, tier: 2, approvals: 0, minimum: 2 },
-    { number: 106, tier: 3, approvals: 0, minimum: 2 },
+    { number: 105, tier: 2, approvals: 0, minimum: 1 },
+    { number: 106, tier: 3, approvals: 0, minimum: 1 },
   ]);
   assert.deepEqual(result.adminBypasses, [
     { id: 1, actorName: "admin", number: 102 },
@@ -231,7 +239,7 @@ test("computeReviewHealth counts tiers, approvals, bypasses, and response time",
     { id: 2, actorName: "outsider", number: 105 },
     { id: 4, actorName: "outsider", number: null },
   ]);
-  assert.deepEqual(result.adminMergesBelowMinimum, [102, 104]);
+  assert.deepEqual(result.adminMergesBelowMinimum, [102]);
   assert.deepEqual(result.singleReviewerMerges, [103, 104]);
   assert.deepEqual(result.t0SelfMerges, [101]);
   assert.deepEqual(result.overrideUses, [104]);
@@ -256,8 +264,22 @@ test("latest decisive review wins while comments do not change approval", () => 
     { pullRequests: [fixture], ruleSuites: [], people },
     policy,
   );
-  assert.deepEqual(result.missingApprovals, [
-    { number: 201, tier: 2, approvals: 1, minimum: 2 },
+  assert.deepEqual(result.missingApprovals, []);
+  const dismissed = computeReviewHealth(
+    {
+      pullRequests: [
+        {
+          ...fixture,
+          reviews: [...fixture.reviews, review("maintainer", "DISMISSED", 9)],
+        },
+      ],
+      ruleSuites: [],
+      people,
+    },
+    policy,
+  );
+  assert.deepEqual(dismissed.missingApprovals, [
+    { number: 201, tier: 2, approvals: 0, minimum: 1 },
   ]);
 });
 
@@ -265,18 +287,47 @@ test("reviewers-team members need one approval for T1", () => {
   const trusted = pr(202, {
     author: "Trusted",
     labels: ["tier/1"],
-    reviews: [review("maintainer", "APPROVED", 2)],
+    reviews: [review("trusted2", "APPROVED", 2)],
   });
   const outsider = pr(203, {
     labels: ["tier/1"],
-    reviews: [review("maintainer", "APPROVED", 2)],
+    reviews: [review("trusted", "APPROVED", 2)],
   });
+  const unreviewed = pr(205, { author: "trusted", labels: ["tier/1"] });
   const result = computeReviewHealth(
-    { pullRequests: [trusted, outsider], ruleSuites: [], people },
+    { pullRequests: [trusted, outsider, unreviewed], ruleSuites: [], people },
     policy,
   );
   assert.deepEqual(result.missingApprovals, [
-    { number: 203, tier: 1, approvals: 1, minimum: 2 },
+    { number: 203, tier: 1, approvals: 1, minimum: 1 },
+    { number: 205, tier: 1, approvals: 0, minimum: 1 },
+  ]);
+});
+
+test("a T2 merge with only an owner-team approval meets the approval floor", () => {
+  const fixture = pr(206, {
+    labels: ["tier/2"],
+    reviews: [review("owner-only", "APPROVED", 2)],
+  });
+  const ownerTeam = policy.areas[0].ownerTeam;
+  const withOwner = computeReviewHealth(
+    {
+      pullRequests: [fixture],
+      ruleSuites: [],
+      people: {
+        ...people,
+        teams: { ...people.teams, [ownerTeam]: ["owner-only"] },
+      },
+    },
+    policy,
+  );
+  assert.deepEqual(withOwner.missingApprovals, []);
+  const withoutOwner = computeReviewHealth(
+    { pullRequests: [fixture], ruleSuites: [], people },
+    policy,
+  );
+  assert.deepEqual(withoutOwner.missingApprovals, [
+    { number: 206, tier: 2, approvals: 0, minimum: 1 },
   ]);
 });
 
@@ -290,7 +341,7 @@ test("missing team membership counts as empty", () => {
     policy,
   );
   assert.deepEqual(result.missingApprovals, [
-    { number: 204, tier: 1, approvals: 0, minimum: 2 },
+    { number: 204, tier: 1, approvals: 0, minimum: 1 },
   ]);
 });
 
@@ -325,7 +376,7 @@ test("renderReviewHealth includes every measure and exception list", () => {
   });
   assert.match(markdown, /^# Review health, 2026-10-01 to 2026-10-07/m);
   for (const row of [
-    "| Merges missing their tier's approvals | 4 | 0 |",
+    "| Merges missing their tier's approvals | 3 | 0 |",
     "| Bypasses outside the organization owners | 2 | 0 |",
     "| Organization owner bypasses | 1 | Listed below |",
     "| Non-maintainer PRs approved and merged by one person | 2 | 0 |",
@@ -335,10 +386,10 @@ test("renderReviewHealth includes every measure and exception list", () => {
   ])
     assert.ok(markdown.includes(row), row);
   for (const line of [
-    "Merges missing their tier's approvals: #102, #104, #105, #106",
+    "Merges missing their tier's approvals: #102, #105, #106",
     "Bypasses outside the organization owners: #105, Unmatched rule suite 4",
     "Organization owner bypasses: #102",
-    "Organization owner merges of someone else's PR below the tier minimum: #102, #104",
+    "Organization owner merges of someone else's PR below the tier minimum: #102",
     "Non-maintainer PRs approved and merged by one person: #103, #104",
     "T0 self-merges with no approvals: #101",
     "Override uses: #104",

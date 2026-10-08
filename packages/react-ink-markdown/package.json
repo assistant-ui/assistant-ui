@@ -69,7 +69,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-performance": "workspace:*",
     "@types/react": "^19.3.0",
-    "ink": "^7.1.1",
+    "ink": "^8.0.0",
     "ink-testing-library": "^4.0.0",
     "react": "^19.3.0",
     "shiki": "^4.5.0",

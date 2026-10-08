@@ -116,8 +116,8 @@
   },
   "reviewTierCheck": {
     "name": "review-tier",
-    "integrationId": null,
-    "mode": "shadow"
+    "integrationId": 5235540,
+    "mode": "enforce"
   },
   "requiredChecks": [
     {
@@ -138,7 +138,7 @@
     }
   ],
   "mergeQueue": {
-    "enabled": false,
+    "enabled": true,
     "parameters": {
       "merge_method": "SQUASH",
       "grouping_strategy": "ALLGREEN",
