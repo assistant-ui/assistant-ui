@@ -1229,7 +1229,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     ) {
       triggerRef.current?.focus({ preventScroll: true });
     }
-  }, [approval, isRequiresAction]);
+  }, [approval, isRequiresAction, status?.type]);
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>

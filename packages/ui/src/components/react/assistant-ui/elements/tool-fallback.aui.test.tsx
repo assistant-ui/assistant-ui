@@ -345,6 +345,46 @@ describe("ToolFallback", () => {
     },
   );
 
+  it.each([
+    { type: "complete", reason: "unknown" },
+    { type: "incomplete", reason: "error" },
+  ] as const)(
+    "returns focus when an answered request finishes without a receipt: $type",
+    (terminalStatus) => {
+      const approval = { id: "request" };
+      const respondToApproval = vi.fn(async () => {});
+      const request = (status: ToolCallMessagePartProps["status"]) => (
+        <ToolFallback
+          {...({
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "test-tool",
+            args: {},
+            argsText: "{}",
+            approval,
+            status,
+            respondToApproval,
+            resume: vi.fn(),
+            addResult: vi.fn(),
+          } as ToolCallMessagePartProps)}
+        />
+      );
+      const view = render(
+        request({ type: "requires-action", reason: "tool-calls" }),
+      );
+      button("Allow").focus();
+      fireEvent.click(button("Allow"));
+      view.rerender(request({ type: "running" }));
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-approval"]'),
+      );
+      view.rerender(request(terminalStatus));
+      expect(document.activeElement).toBe(
+        view.container.querySelector('[data-slot="tool-fallback-trigger"]'),
+      );
+    },
+  );
+
   it("does not reclaim focus after it leaves the answer controls", () => {
     const resume = vi.fn();
     const addResult = vi.fn();
