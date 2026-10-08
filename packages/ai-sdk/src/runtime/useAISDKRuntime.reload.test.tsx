@@ -109,6 +109,48 @@ describe("useAISDKRuntime reload and edit of a joined response", () => {
     expect(sent[0]).toEqual(["u1"]);
   });
 
+  it("keeps an assistant parent when reloading the message after it", async () => {
+    const { result, sent } = setup(
+      [
+        text("u1", "user", "hi"),
+        text("a1", "assistant", "first"),
+        text("a2", "assistant", "second"),
+      ],
+      { joinStrategy: "none" },
+    );
+    await waitFor(() =>
+      expect(result.current.runtime.thread.getState().messages).toHaveLength(3),
+    );
+
+    act(() => {
+      result.current.runtime.thread.getMessageById("a2").reload();
+    });
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    await waitFor(() => expect(result.current.chat.status).toBe("ready"));
+    expect(sent[0]).toEqual(["u1", "a1"]);
+  });
+
+  it("keeps a voice reply when reloading the text reply after it", async () => {
+    const { result, sent } = setup([
+      text("u1", "user", "hi"),
+      { ...text("v1", "assistant", "spoken"), metadata: { modality: "voice" } },
+      text("a1", "assistant", "written"),
+    ]);
+    await waitFor(() =>
+      expect(result.current.runtime.thread.getState().messages).toHaveLength(3),
+    );
+    const reply = result.current.runtime.thread.getState().messages[2]!;
+
+    act(() => {
+      result.current.runtime.thread.getMessageById(reply.id).reload();
+    });
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    await waitFor(() => expect(result.current.chat.status).toBe("ready"));
+    expect(sent[0]).toEqual(["u1", "v1"]);
+  });
+
   it("replaces every part of a joined response when it is edited", async () => {
     const { result, sent } = setup([
       text("u1", "user", "hi"),
@@ -167,5 +209,11 @@ describe("useAISDKRuntime reload and edit of a joined response", () => {
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]!.slice(0, 3)).toEqual(["u1", "a1", "a2"]);
     expect(sent[0]).toHaveLength(4);
+    expect(result.current.chat.messages[3]).toEqual(
+      expect.objectContaining({
+        role: "user",
+        parts: [expect.objectContaining({ type: "text", text: "rewritten" })],
+      }),
+    );
   });
 });

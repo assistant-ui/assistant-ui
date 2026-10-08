@@ -1001,7 +1001,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       .messages.find((message) => message.id === threadMessageId);
     return (
       (threadMessage &&
-        getExternalStoreMessages<UI_MESSAGE>(threadMessage).at(-1)?.id) ??
+        getVercelAIMessages<UI_MESSAGE>(threadMessage).at(-1)?.id) ??
       threadMessageId
     );
   };
@@ -1215,6 +1215,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         chatHelpers.messages,
         lastAISDKMessageId(parentId),
       );
+      // regenerate drops a trailing assistant message, so the first message of
+      // the reloaded response stays for it to drop instead of the parent.
+      const reloaded = chatHelpers.messages[newMessages.length];
+      if (reloaded?.role === "assistant") newMessages.push(reloaded);
       chatHelpers.setMessages(newMessages);
 
       await chatHelpers.regenerate({ metadata: config.runConfig });

@@ -1314,7 +1314,7 @@ describe("useAISDKRuntime", () => {
       expect(chat.regenerate).toHaveBeenCalledTimes(1);
     });
 
-    expect(chat.messages.map((m: any) => m.id)).toEqual(["u1"]);
+    expect(chat.messages.map((m: any) => m.id)).toEqual(["u1", "a1"]);
     expect(chat.regenerate).toHaveBeenCalledWith({
       metadata: { custom: { maxTokens: 100 } },
     });
