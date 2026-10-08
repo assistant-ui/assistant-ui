@@ -3,7 +3,13 @@ import { defineConfig, mergeConfig } from "vitest/config";
 import base from "./vitest.config";
 
 export default mergeConfig(
-  base,
+  {
+    ...base,
+    test: {
+      ...base.test,
+      include: ["src/ai-sdk/**/*.test.ts"],
+    },
+  },
   defineConfig({
     test: { env: { AI_PEER_MAJOR: "6" } },
     resolve: {
