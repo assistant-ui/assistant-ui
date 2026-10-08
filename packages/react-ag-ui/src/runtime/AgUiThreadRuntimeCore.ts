@@ -195,6 +195,7 @@ export class AgUiThreadRuntimeCore {
   private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _historyImportPromise: Promise<void> | undefined;
+  private historyMutationGeneration = 0;
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
   private pendingResume: { owner: AbortController; messageId: string } | null =
@@ -293,8 +294,12 @@ export class AgUiThreadRuntimeCore {
 
     this._isLoading = true;
     this._historyImportPromise = promise.then(
-      () => undefined,
-      () => undefined,
+      () => {
+        this._historyImportPromise = undefined;
+      },
+      () => {
+        this._historyImportPromise = undefined;
+      },
     );
 
     this._loadPromise = promise
@@ -323,11 +328,48 @@ export class AgUiThreadRuntimeCore {
     return this._loadPromise;
   }
 
+  private waitForHistoryImport(): Promise<boolean> | undefined {
+    const historyImport = this._historyImportPromise;
+    if (!historyImport) return undefined;
+    const generation = this.historyMutationGeneration;
+    return historyImport.then(
+      () =>
+        generation === this.historyMutationGeneration &&
+        !this.isThreadSwitching?.(),
+    );
+  }
+
+  private deferUntilHistoryImported(callback: () => void): boolean {
+    const historyImport = this._historyImportPromise;
+    if (!historyImport) return false;
+    const generation = this.historyMutationGeneration;
+    void historyImport.then(() => {
+      if (
+        generation !== this.historyMutationGeneration ||
+        this.isThreadSwitching?.()
+      ) {
+        return;
+      }
+      try {
+        callback();
+      } catch (error) {
+        this.reportError(error);
+      }
+    });
+    return true;
+  }
+
   async append(message: AppendMessage): Promise<void> {
     const historyImport = this._historyImportPromise;
     if (historyImport) {
       const wasAtTail = message.parentId === this.session.headId;
+      const generation = this.historyMutationGeneration;
       await historyImport;
+      if (
+        generation !== this.historyMutationGeneration ||
+        this.isThreadSwitching?.()
+      )
+        return;
       if (wasAtTail) {
         message = { ...message, parentId: this.session.headId };
       }
@@ -349,21 +391,11 @@ export class AgUiThreadRuntimeCore {
   }
 
   appendVoiceTranscript(message: ThreadMessage): void {
-    const historyImport = this._isLoading
-      ? this._historyImportPromise
-      : undefined;
-    this.linkVoiceTranscript(message, !historyImport);
-    if (historyImport) {
-      void historyImport.then(() => this.linkVoiceTranscript(message, true));
-    }
-  }
-
-  private linkVoiceTranscript(message: ThreadMessage, persist: boolean): void {
     const parentId = this.session.headId;
     this.session.addOrUpdateMessage(parentId, message);
     this.session.switchToBranch(message.id);
     this.notifyUpdate();
-    if (persist) this.recordHistoryEntry(parentId, message);
+    this.recordHistoryEntry(parentId, message);
   }
 
   private maybeAutoCancelPendingToolCalls(): void {
@@ -397,12 +429,15 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     await this.startRun(parentId, config.runConfig);
   }
 
   async cancel(): Promise<void> {
+    this.historyMutationGeneration++;
     this.abortActiveRun();
   }
 
@@ -444,6 +479,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
     await this.startRun(
       config.parentId,
@@ -454,6 +491,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     // Without a resume stream startRun would re-run the agent from scratch.
     const resumeStream = this.history?.resume?.bind(this.history);
     if (!resumeStream) {
@@ -533,6 +572,8 @@ export class AgUiThreadRuntimeCore {
   async submitInterruptResponses(
     responses: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -628,6 +669,8 @@ export class AgUiThreadRuntimeCore {
   async respondToToolApproval(
     options: RespondToToolApprovalOptions,
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -701,6 +744,8 @@ export class AgUiThreadRuntimeCore {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       const pendingTools = this.getPendingToolCalls();
@@ -892,6 +937,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   addToolResult(options: AddToolResultOptions): void {
+    if (this.deferUntilHistoryImported(() => this.addToolResult(options)))
+      return;
     // Core's ToolInvocationTracker resolves a nested call to the nested
     // subagent message's id, which is not a session message; re-anchor on the
     // top-level message that owns the tree so the update can land.
@@ -933,6 +980,8 @@ export class AgUiThreadRuntimeCore {
     toolCallId: string;
     interaction: Unstable_ToolInteraction;
   }): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const sessionMessageId = this.session.tryGetMessage(options.messageId)
       ? options.messageId
       : this.findMessageIdForToolCall(options.toolCallId);
@@ -990,6 +1039,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {
+    if (this.deferUntilHistoryImported(() => this.sendA2uiAction(action)))
+      return;
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     const parentId = this.session.headId;
@@ -1163,6 +1214,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   resetThreadState(): void {
+    this.historyMutationGeneration++;
     const controller = this.abortController;
     const activeRunAgent = this.activeRunAgent;
 
