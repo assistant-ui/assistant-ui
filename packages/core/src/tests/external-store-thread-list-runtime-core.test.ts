@@ -75,6 +75,31 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     expect(core.mainThreadId).toBe("thread-alpha");
   });
 
+  it("lists only the adapter's threads and the main thread in threadItems", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({
+        threadId: "thread-alpha",
+        threads: [{ id: "thread-alpha", status: "regular" }],
+      }),
+      makeFactory(),
+    );
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("keeps the synthesized main entry when the adapter lists threads without a threadId", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({
+        threads: [{ id: "thread-alpha", status: "regular" }],
+      }),
+      makeFactory(),
+    );
+    expect(Object.keys(core.threadItems).sort()).toEqual([
+      "DEFAULT_THREAD_ID",
+      "thread-alpha",
+    ]);
+    expect(core.mainThreadId).toBe("DEFAULT_THREAD_ID");
+  });
+
   it("creates the main thread instance exactly once on construction", () => {
     const factory = makeFactory();
     new ExternalStoreThreadListRuntimeCore(
@@ -441,10 +466,8 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(core.getItemById("thread-alpha")).toBeUndefined();
     expect(core.getItemById("thread-beta")).toBeUndefined();
     expect(core.getItemById("thread-gamma")).toBeDefined();
-    expect(Object.keys(core.threadItems).sort()).toEqual([
-      "DEFAULT_THREAD_ID",
-      "thread-gamma",
-    ]);
+    expect(core.getItemById("DEFAULT_THREAD_ID")).toBeUndefined();
+    expect(Object.keys(core.threadItems)).toEqual(["thread-gamma"]);
   });
 
   it("dispatches an append before a thread switch", async () => {

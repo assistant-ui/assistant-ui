@@ -123,8 +123,7 @@ export class ExternalStoreThreadListRuntimeCore
       previousArchivedThreads !== newArchivedThreads ||
       previousThreadId !== newThreadId
     ) {
-      this._threadData = nullProtoRecord(
-        DEFAULT_THREAD_DATA,
+      this._threadData = nullProtoRecord<ThreadListItemCoreState>(
         Object.fromEntries(
           adapter.threads?.map((t) => [
             t.id,
