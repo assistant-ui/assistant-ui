@@ -2,8 +2,6 @@ import { ImageResponse } from "next/og";
 import type { ImageResponseOptions, NextRequest } from "next/server";
 import { loadOgFonts, OG_FONT_MONO, OG_FONT_SANS } from "@/lib/og-fonts";
 
-export const runtime = "nodejs";
-
 const size = {
   width: 1200,
   height: 630,

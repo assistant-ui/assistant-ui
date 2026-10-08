@@ -36,7 +36,6 @@
         "ENTELLIGENCE_*",
         "KV_*",
         "SENTRY_*",
-        "REDIS_*",
         "ASSISTANT_*",
         "AUIX_*",
         "WEBMCP_ORIGIN_TRIAL_TOKEN"
@@ -45,6 +44,10 @@
     "lint": {},
     "test": {
       "dependsOn": ["^build"]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
     },
     "typecheck": {
       "dependsOn": ["^build"]
@@ -64,6 +67,19 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "preview:build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/examples/bundle-shared/**",
+        "!$TURBO_ROOT$/examples/bundle-shared/node_modules/**",
+        "$TURBO_ROOT$/scripts/build-example-bundle.mjs",
+        "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/scripts/example-bundles.json",
+        "$TURBO_ROOT$/scripts/lib/script-options.mjs"
+      ],
+      "outputs": ["dist/**"]
     }
   }
 }

@@ -1,6 +1,5 @@
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
-import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
 import type {
   AssistantMessage,
   AssistantMessageStatus,
@@ -14,6 +13,7 @@ import type {
   DataPart,
 } from "../utils/types";
 import { GorpStreamAccumulator } from "../gorp/GorpStreamAccumulator";
+import { IncrementalJsonObjectParser } from "../../utils/json/incremental-json-object-parser";
 import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
@@ -101,6 +101,9 @@ const handlePartStart = (
       ...(partInit.type === "reasoning" &&
       partInit.unstable_summary !== undefined
         ? { unstable_summary: partInit.unstable_summary }
+        : undefined),
+      ...(partInit.type === "reasoning"
+        ? { timing: { startedAt: Date.now() } }
         : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
@@ -196,6 +199,16 @@ const handlePartFinish = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "tool-call" && part.isPreliminary) return part;
+    if (part.type === "reasoning" && part.timing !== undefined) {
+      return {
+        ...part,
+        status: { type: "complete", reason: "unknown" },
+        timing: {
+          ...part.timing,
+          completedAt: part.timing.completedAt ?? Date.now(),
+        },
+      };
+    }
     return {
       ...part,
       status: { type: "complete", reason: "unknown" },
@@ -207,6 +220,7 @@ const handleTextDelta = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "text-delta" },
   warnOnce: WarnOnce,
+  parserByPart: WeakMap<object, IncrementalJsonObjectParser>,
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "text" || part.type === "reasoning") {
@@ -214,10 +228,17 @@ const handleTextDelta = (
     } else if (part.type === "tool-call") {
       const newArgsText = part.argsText + chunk.textDelta;
 
-      // Fall back to existing args if parsing fails
-      const newArgs = parsePartialJsonObject(newArgsText) ?? part.args;
+      const existingParser = parserByPart.get(part);
+      const parser = existingParser
+        ? existingParser.append(chunk.textDelta)
+        : newArgsText.length === 0
+          ? IncrementalJsonObjectParser.from("")
+          : IncrementalJsonObjectParser.from(newArgsText, part.args);
+      const newArgs = parser.currentArgs;
 
-      return { ...part, argsText: newArgsText, args: newArgs };
+      const updatedPart = { ...part, argsText: newArgsText, args: newArgs };
+      parserByPart.set(updatedPart, parser);
+      return updatedPart;
     } else {
       warnOnce(
         "wrong-part:text-delta",
@@ -516,6 +537,7 @@ export class AssistantMessageAccumulator extends TransformStream<
     let stateAccumulator: GorpStreamAccumulator | undefined;
     let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
+    const parserByPart = new WeakMap<object, IncrementalJsonObjectParser>();
     const warnedKeys = new Set<string>();
     const warnOnce: WarnOnce = (key, warning) => {
       if (warnedKeys.has(key) || warnedKeys.size >= MAX_WARNED_KEYS) return;
@@ -556,7 +578,12 @@ export class AssistantMessageAccumulator extends TransformStream<
             break;
 
           case "text-delta": {
-            const next = handleTextDelta(message, chunk, warnOnce);
+            const next = handleTextDelta(
+              message,
+              chunk,
+              warnOnce,
+              parserByPart,
+            );
             if (next !== message) tracker.recordFirstToken();
             message = next;
             break;
