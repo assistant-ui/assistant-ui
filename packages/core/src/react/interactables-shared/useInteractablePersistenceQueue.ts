@@ -354,7 +354,11 @@ export const useInteractablePersistenceQueue = <State>({
       debounceTimerRef.current = undefined;
     }
     dirtyIdsRef.current.clear();
-    failedIdsRef.current.clear();
+    // A failure carried by a queued retry stays recorded, so an earlier
+    // snapshot that saves it can still drop that retry as redundant.
+    for (const id of failedIdsRef.current.keys()) {
+      if (!latestSyncByIdRef.current.has(id)) failedIdsRef.current.delete(id);
+    }
     if (
       inFlightPersistenceRef.current === 0 &&
       outgoingQueueRef.current.length === 0

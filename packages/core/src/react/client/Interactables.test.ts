@@ -2216,4 +2216,38 @@ describe("Interactables switching back to an adapter during its save", () => {
     expect(stateOf(root, "prefs")).toEqual({ v: 1 });
     expect(a.saves).toHaveLength(2);
   });
+
+  it("loads again once a saved snapshot makes a queued retry redundant after switching back", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("other", () => ({ v: 5 }));
+    void root.getValue().flush();
+    a.saves[0]!.reject(new Error("offline"));
+    await flushMicrotasks();
+    expect(a.saves).toHaveLength(2);
+    void root.getValue().flush();
+
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    expect(a.adapter.load).toHaveBeenCalledTimes(1);
+
+    a.saves[1]!.resolve();
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(a.saves).toHaveLength(2);
+    expect(stateOf(root, "prefs")).toEqual({ v: 1 });
+    expect(stateOf(root, "other")).toEqual({ v: 5 });
+    expect(root.getValue().getState().persistence.prefs).toBeUndefined();
+    expect(root.getValue().getState().persistence.other).toBeUndefined();
+  });
 });
