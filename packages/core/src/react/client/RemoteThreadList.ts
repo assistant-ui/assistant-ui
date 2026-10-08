@@ -1164,8 +1164,10 @@ const useRemoteThreadList = (
       // An adapter swap resets the optimistic layer, and a listed thread's slot
       // id is its remote id, so a replacement adapter can re-list this slot
       // while the deletion is in flight.
+      if (adapterGeneration === session.adapterGeneration) {
+        clearThreadTitleState(session.titleStates, data.id);
+      }
       if (getThreadData(store.value, data.id) !== undefined) return result;
-      clearThreadTitleState(session.titleStates, data.id);
       onDelete?.(data.id);
       return result;
     },

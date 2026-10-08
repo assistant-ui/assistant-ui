@@ -18,6 +18,7 @@ import type {
 import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
 import type { AppendMessage } from "../../types/message";
+import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -649,6 +650,78 @@ describe("RemoteThreadList", () => {
     await aui.threads.item({ id: "t2" }).generateTitle({ automatic: true });
     expect(adapter.generateTitle).toHaveBeenCalledOnce();
     handle.destroy();
+  });
+
+  it("clears title state when reload starts during deletion notification", async () => {
+    const deletion = deferred<void>();
+    let deletionReleased = false;
+    let reloadStarted = false;
+    let reload: (() => void) | undefined;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          { status: "regular" as const, remoteId: "t2", title: "Two" },
+        ],
+      })),
+      delete: vi.fn(() => deletion.promise),
+    });
+    const originalNotify = (
+      OptimisticState.prototype as unknown as {
+        _notifySubscribers: () => void;
+      }
+    )._notifySubscribers;
+    const notifySpy = vi
+      .spyOn(
+        OptimisticState.prototype as unknown as {
+          _notifySubscribers: () => void;
+        },
+        "_notifySubscribers",
+      )
+      .mockImplementation(function (this: OptimisticState<unknown>) {
+        originalNotify.call(this);
+        const state = this.value as { threadIds?: readonly string[] };
+        if (
+          deletionReleased &&
+          !reloadStarted &&
+          state.threadIds !== undefined &&
+          !state.threadIds.includes("t1")
+        ) {
+          reloadStarted = true;
+          reload?.();
+        }
+      });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    reload = () => void aui.threads.reload();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+    });
+
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    expect(adapter.rename).toHaveBeenCalledWith("t1", "Manual title");
+
+    try {
+      flushTapSync(() => aui.threads.item({ id: "t1" }).delete());
+      await vi.waitFor(() => expect(adapter.delete).toHaveBeenCalledOnce());
+      deletionReleased = true;
+      deletion.resolve();
+
+      await vi.waitFor(() => expect(reloadStarted).toBe(true));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+      });
+      flushTapSync(() => aui.threads.switchToThread("t1"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("t1");
+      });
+      await aui.threads.item({ id: "t1" }).generateTitle({ automatic: true });
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    } finally {
+      notifySpy.mockRestore();
+      handle.destroy();
+    }
   });
 
   it("preserves an existing title when generation returns no title", async () => {
