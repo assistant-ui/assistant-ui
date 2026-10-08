@@ -5,6 +5,7 @@ import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import { advise } from "./lib/review-tier-advice.mjs";
 import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
 import { hasOption, optionValues } from "./lib/script-options.mjs";
@@ -118,7 +119,14 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
         nodes { commit { oid author { user { login } } committer { user { login } } } }
         pageInfo { hasNextPage endCursor }
       }
-      closingIssuesReferences(first: 10) { nodes { number } }
+      closingIssuesReferences(first: 10) {
+        nodes {
+          number
+          closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+            nodes { number state }
+          }
+        }
+      }
     }
   }
 }`;
@@ -359,6 +367,13 @@ export async function gatherPullRequest(
       headSha: node.headRefOid,
       updatedAt: node.updatedAt,
     },
+    adviceInput: {
+      number,
+      closingIssues: node.closingIssuesReferences.nodes.map((issue) => ({
+        number: issue.number,
+        pullRequests: issue.closedByPullRequestsReferences.nodes,
+      })),
+    },
     signalsInput: {
       title: node.title,
       labels: labels.map(({ name: label }) => label),
@@ -441,6 +456,7 @@ export function evaluatePullRequest(gathered, policy) {
   return {
     tierResult,
     requirementResult,
+    advice: advise(gathered.adviceInput),
     context: {
       headSha: gathered.pr.headSha,
       readyForReviewAt: gathered.people.readyForReviewAt,
@@ -560,7 +576,7 @@ function requirementDetail(item, tier, context, policy, waivers) {
 }
 
 export function renderComment(
-  { tierResult, requirementResult, context },
+  { tierResult, requirementResult, advice, context },
   policy,
 ) {
   const { tier } = tierResult;
@@ -607,6 +623,14 @@ export function renderComment(
           ),
         ]),
       ),
+    );
+  }
+  if (advice.length) {
+    out.push(
+      "",
+      "**Worth a look** (never blocks a merge):",
+      "",
+      ...advice.map((line) => `- ${line}`),
     );
   }
   const signals = [];

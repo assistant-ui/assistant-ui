@@ -68,6 +68,11 @@ const file = (filename, overrides = {}) => ({
   ...overrides,
 });
 
+const closingIssue = (number, pullRequests = []) => ({
+  number,
+  closedByPullRequestsReferences: { nodes: pullRequests },
+});
+
 function tapPullRequest(overrides = {}) {
   return {
     title: "fix(tap): a flush owns its queued tasks and notifications",
@@ -710,7 +715,7 @@ test("unresolved Decision issue numbers are skipped while closing issues still r
   const recording = fakeClient({
     pr: tapPullRequest({
       body: "## Decision\nSee #9002.\n",
-      closingIssuesReferences: { nodes: [{ number: 42 }] },
+      closingIssuesReferences: { nodes: [closingIssue(42)] },
     }),
     issues: { 42: { labels: { nodes: [] }, timelineItems: { nodes: [] } } },
     issueErrors: { 9002: missing },
@@ -828,7 +833,7 @@ test("decision references include closing issues and only the Decision section, 
   const recording = fakeClient({
     pr: tapPullRequest({
       body: "## Summary\r\nMention #999.\r\n## Decision\r\nSee #42, #43 and #42.\r\n### Context\r\nAlso #44.\r\n## Tests\r\nIgnore #888.\r\n",
-      closingIssuesReferences: { nodes: [{ number: 42 }] },
+      closingIssuesReferences: { nodes: [closingIssue(42)] },
     }),
     issues: {
       42: issue([labelEvent("decision: accepted", "outsider")]),
@@ -1173,6 +1178,42 @@ test("hard policy failures stay failures", async () => {
     waivable,
     /\| ⏳ Waiting window \| \d+ hours after ready for review, until .+ UTC; an owner can waive it with `review-tier\/override: window` \|/,
   );
+});
+
+test("the comment names another pull request for the same issue without blocking", async () => {
+  const issues = {
+    42: { labels: { nodes: [] }, timelineItems: { nodes: [] } },
+  };
+  const parallel = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        closingIssuesReferences: {
+          nodes: [
+            closingIssue(42, [
+              { number: 12, state: "OPEN" },
+              { number: 15, state: "OPEN" },
+            ]),
+          ],
+        },
+      }),
+      issues,
+    }),
+  );
+  const alone = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        closingIssuesReferences: {
+          nodes: [closingIssue(42, [{ number: 12, state: "OPEN" }])],
+        },
+      }),
+      issues,
+    }),
+  );
+  assert.equal(parallel.conclusion, alone.conclusion);
+  assert.ok(
+    renderComment(parallel, policy).includes("- #15 is also open for #42"),
+  );
+  assert.ok(!renderComment(alone, policy).includes("Worth a look"));
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
