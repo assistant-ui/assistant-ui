@@ -50,6 +50,16 @@ describe("HeatGraph", () => {
     expect(scroller?.querySelector(".rounded-sm")).not.toBeNull();
   });
 
+  it("opens the scrollable grid on the newest weeks", () => {
+    const { container } = render(<HeatGraph data={DATA} />);
+
+    const scroller = container.querySelector(".overflow-x-auto");
+    expect(scroller?.classList.contains("flex-row-reverse")).toBe(true);
+    expect(
+      scroller?.querySelector('[style*="grid-template-columns"]'),
+    ).not.toBeNull();
+  });
+
   it("labels a month once a calendar week has passed, across a DST change", () => {
     const timeZone = process.env["TZ"];
     process.env["TZ"] = "America/New_York";

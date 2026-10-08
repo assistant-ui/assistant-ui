@@ -50,7 +50,9 @@ export function ToolError({
     >
       <div className="flex items-center gap-2.5">
         <AlertCircleIcon className="size-3.5 shrink-0 text-red-500" />
-        <span className={cn(mono, "text-muted-foreground shrink-0")}>
+        <span
+          className={cn(mono, "text-muted-foreground min-w-0 wrap-anywhere")}
+        >
           {name}
         </span>
         <span className="text-foreground/80 min-w-0 flex-1 truncate text-[13px]">
