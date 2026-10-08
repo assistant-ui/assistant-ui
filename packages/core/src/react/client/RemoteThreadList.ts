@@ -730,6 +730,7 @@ const useRemoteThreadList = (
   const startSwitch = useCallback(
     (run: (generation: number) => Promise<void>) => {
       const generation = ++session.switchGeneration;
+      session.controlledReloadPending = false;
       let settle!: (error?: unknown) => void;
       const task = new Promise<void>((resolve, reject) => {
         settle = (error) => {

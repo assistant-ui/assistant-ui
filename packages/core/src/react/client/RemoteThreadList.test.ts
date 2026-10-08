@@ -2150,6 +2150,23 @@ describe("RemoteThreadList", () => {
         );
         if (manualSwitch === "none")
           expect(onThreadIdChange).not.toHaveBeenCalled();
+        if (manualSwitch === "during reload") {
+          const fetched = deferred<RemoteThreadMetadata>();
+          const fetch = vi.mocked(adapter.fetch);
+          const previousCalls = fetch.mock.calls.length;
+          fetch.mockReturnValue(fetched.promise);
+          threadId = "not-listed";
+          flushTapSync(() => listeners.forEach((listener) => listener()));
+          await handle.getClient().threads.reload();
+          await microtasks(20);
+          expect(fetch).toHaveBeenCalledTimes(previousCalls + 1);
+          fetched.resolve({ status: "regular", remoteId: "not-listed" });
+          await vi.waitFor(() =>
+            expect(handle.getClient().threads.getState().mainThreadId).toBe(
+              "not-listed",
+            ),
+          );
+        }
       } finally {
         handle.destroy();
       }
