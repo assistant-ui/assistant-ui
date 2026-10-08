@@ -211,11 +211,6 @@ export const PACKAGES: PackageInfo[] = [
     category: "protocols",
   },
   {
-    name: "@assistant-ui/acp",
-    description: "ACP v1 agent-client protocol adapter.",
-    category: "protocols",
-  },
-  {
     name: "@assistant-ui/react-ag-ui",
     description: "AG-UI protocol adapter.",
     category: "protocols",
