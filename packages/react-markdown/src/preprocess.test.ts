@@ -721,6 +721,14 @@ describe("escapeCurrencyDollars", () => {
     ["a heading", "legacy ` syntax\n# Run `cost=$5`"],
     ["a blockquote", "legacy ` syntax\n> Run `cost=$5`"],
     ["a setext underline", "legacy ` syntax\n---\nRun `cost=$5`"],
+    [
+      "a heading in a nested list item",
+      "- outer\n  - legacy ` syntax\n    # Run `cost=$5`",
+    ],
+    [
+      "a thematic break in a nested list item",
+      "- outer\n  - legacy ` syntax\n    ***\n    Run `cost=$5`",
+    ],
   ])("does not pair a lone backtick with a code span after %s", (_, input) => {
     expect(escapeCurrencyDollars(input)).toBe(input);
   });
@@ -1106,6 +1114,11 @@ describe("HTML blocks", () => {
 
   it("preserves currency in a completed pre block", () => {
     const text = "<pre>\ncosts $5 and $10\n</pre>";
+    expect(escapeCurrencyDollars(text)).toBe(text);
+  });
+
+  it("preserves currency in an HTML block inside a nested list item", () => {
+    const text = "- a\n  - b\n    <div>\n    costs $5\n    </div>";
     expect(escapeCurrencyDollars(text)).toBe(text);
   });
 

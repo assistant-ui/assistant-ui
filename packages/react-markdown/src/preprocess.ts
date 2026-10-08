@@ -506,7 +506,7 @@ function htmlBlockRanges(text: string): {
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
     const outerListIndent = blockItemIndent;
     const outerListDepth = depth;
-    const shallow = !indentedMarker && indent < 4;
+    const shallow = !indentedMarker && indent - containerIndent < 4;
     const markersInProse: boolean =
       blockStart !== i &&
       inParagraph &&
