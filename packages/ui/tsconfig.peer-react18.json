@@ -1,0 +1,29 @@
+{
+  "extends": ["./tsconfig.json", "@assistant-ui/x-react18/tsconfig.json"],
+  "compilerOptions": {
+    "paths": {
+      "react": [
+        "./node_modules/@assistant-ui/x-react18/node_modules/@types/react-v18"
+      ],
+      "react/*": [
+        "./node_modules/@assistant-ui/x-react18/node_modules/@types/react-v18/*"
+      ],
+      "react-dom": [
+        "./node_modules/@assistant-ui/x-react18/node_modules/@types/react-dom-v18"
+      ],
+      "react-dom/*": [
+        "./node_modules/@assistant-ui/x-react18/node_modules/@types/react-dom-v18/*"
+      ],
+      "@assistant-ui/ui/*": ["./src/*"],
+      "@/components/assistant-ui/*": ["./src/components/react/assistant-ui/*"],
+      "@/components/icons/*": ["./src/components/react/icons/*"],
+      "@/components/ui/*": [
+        "./src/components/react/ui/base/*",
+        "./src/components/react/ui/radix/*"
+      ],
+      "@/components/ui/radix/*": ["./src/components/react/ui/radix/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

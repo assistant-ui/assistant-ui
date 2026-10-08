@@ -82,7 +82,11 @@ function WeatherToolChat() {
     },
     {
       initialMessages: [
-        { role: "user", content: "What's the weather in San Francisco?" },
+        {
+          role: "user",
+          content: "What's the weather in San Francisco?",
+          createdAt: new Date("2026-09-26T12:00:00Z"),
+        },
       ],
     },
   );

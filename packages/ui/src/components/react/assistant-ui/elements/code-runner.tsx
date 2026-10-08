@@ -49,22 +49,24 @@ export function CodeRunner({
             {durationMs}ms
           </span>
         )}
-        <button
-          type="button"
-          aria-label="Run this snippet"
-          onClick={onRun}
-          disabled={state === "running"}
-          className={cn(
-            ghostButton,
-            "size-7 shrink-0 disabled:pointer-events-none",
-          )}
-        >
-          {state === "running" ? (
-            <Loader2Icon className="size-3.5 animate-spin motion-reduce:animate-none" />
-          ) : (
-            <PlayIcon className="size-3.5 translate-x-px" />
-          )}
-        </button>
+        {onRun || state === "running" ? (
+          <button
+            type="button"
+            aria-label="Run this snippet"
+            onClick={onRun}
+            disabled={state === "running"}
+            className={cn(
+              ghostButton,
+              "size-7 shrink-0 disabled:pointer-events-none",
+            )}
+          >
+            {state === "running" ? (
+              <Loader2Icon className="size-3.5 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <PlayIcon className="size-3.5 translate-x-px" />
+            )}
+          </button>
+        ) : null}
       </div>
 
       <pre className="border-foreground/[0.07] overflow-x-auto border-t px-3.5 py-2.5 font-mono text-xs leading-relaxed">

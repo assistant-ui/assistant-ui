@@ -56,8 +56,8 @@ What each part of the old hook became:
 
 | Cloud AI SDK | assistant-ui runtime |
 |---|---|
-| `threads.create`, `selectThread`, `rename`, `archive`, `unarchive`, `delete` | The `ThreadList` component. From your own UI, `useAui().threadListItem().rename(title)` and the other thread list item actions; see [Threads](/docs/cloud/threads). |
-| `threads.generateTitle` | Automatic at the first message. `useAui().threadListItem().generateTitle()` on demand; see [Thread titles](/docs/cloud/thread-titles). |
+| `threads.create`, `selectThread`, `rename`, `archive`, `unarchive`, `delete` | The `ThreadList` component. From your own UI, `useAui().threadListItem.rename(title)` and the other thread list item actions; see [Threads](/docs/cloud/threads). |
+| `threads.generateTitle` | Automatic at the first message. `useAui().threadListItem.generateTitle()` on demand; see [Thread titles](/docs/cloud/thread-titles). |
 | `feedback(messageId, type)` | The thumbs in the `Thread` component. From your own UI, `cloud.threads.messages.feedback`; see [Feedback and scores](/docs/cloud/scores). |
 | `messages`, `sendMessage`, `status` | The `Thread` component and the primitives. `useAuiState((s) => s.thread.messages)` reads the messages. |
 | Run telemetry from the finish event | Reported when the stored assistant message settles, with the model and usage the route returns through `messageMetadata`; see [Run reports](/docs/cloud/run-reports#messagemetadata-values). |

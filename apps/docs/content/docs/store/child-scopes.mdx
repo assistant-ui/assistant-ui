@@ -3,9 +3,9 @@ title: Child Scopes
 description: Derive scopes from parent data with Derived, useClientResource, and useClientLookup.
 ---
 
-So far, every scope has been an independent unit of state — you create it, provide it, and consume it. But what happens when you have a list of items that each need their own scope?
+So far, every scope has been an independent unit of state: you create it, provide it, and consume it. This page covers lists of items that each need their own scope.
 
-A chat app doesn't have one message — it has dozens. A todo app doesn't have one todo — it has a dynamic list. You can't register a separate scope for each item in `ScopeRegistry`. Instead, a **parent scope** manages the collection, and **child scopes** point to individual items within it.
+A chat app has dozens of messages, and a todo app has a dynamic list of todos. You can't register a separate scope for each item in `ScopeRegistry`. Instead, a **parent scope** manages the collection, and **child scopes** point to individual items within it.
 
 ## The pattern
 
@@ -52,7 +52,7 @@ declare module "@assistant-ui/store" {
 }
 ```
 
-The `todo` scope declares `meta: { source: "todoList"; query: { index: number } }` — this tells TypeScript that `todo` is derived from `todoList` and is looked up by index.
+The `todo` scope declares `meta: { source: "todoList"; query: { index: number } }`. This tells TypeScript that `todo` is derived from `todoList` and is looked up by index.
 
 ### 2. Build the parent resource with useClientLookup
 
@@ -113,8 +113,8 @@ const TodoListResource = resource(useTodoListResource);
 ```
 
 `useClientLookup` returns `{ state, get }`:
-- `state` — an array of each child's `getState()` result
-- `get({ index })` or `get({ key })` — resolves a specific child's methods
+- `state`: an array of each child's `getState()` result
+- `get({ index })` or `get({ key })`: resolves a specific child's methods
 
 Each element must have a key via `withKey`. Keys let Store track identity across re-renders.
 
@@ -163,9 +163,9 @@ const TodoItem = ({ index }: { index: number }) => {
 ```
 
 `Derived` takes three fields:
-- `source` — the parent scope name
-- `query` — the lookup parameters (passed to meta, used for debugging and event scoping)
-- `get` — a function that resolves the child's methods from the parent. It receives the current `aui` store and must return the result of calling a parent method
+- `source`: the parent scope name
+- `query`: the lookup parameters, exposed as the accessor's `query` metadata
+- `get`: a function that resolves the child's methods from the parent. It receives the current `aui` store and must return the result of calling a parent method
 
 ### 4. Consume the child scope
 
@@ -189,7 +189,7 @@ const TodoDisplay = () => {
 };
 ```
 
-`TodoDisplay` doesn't know or care that `todo` is derived — it uses `useAuiState` and `useAui` the same way it would for any scope.
+`TodoDisplay` doesn't need to know that `todo` is derived: it uses `useAuiState` and `useAui` the same way it would for any scope.
 
 ## useClientResource
 
@@ -256,7 +256,7 @@ const TodoListResource = resource(useTodoListResource);
 ```
 
 `useClientList` extends `useClientLookup` with mutation:
-- `add(data)` — adds a new item to the list
+- `add(data)`: adds a new item to the list
 - Each child resource receives `{ key, getInitialData, remove }` as props
 - `getInitialData()` returns the item data (called once on mount)
 - `remove()` removes the item from the list

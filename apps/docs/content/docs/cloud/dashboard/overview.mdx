@@ -9,12 +9,12 @@ Overview is the dashboard's range summary. It answers how much the assistant ran
 
 ## What the page measures
 
-The date picker starts at 30 days. The eight tiles appear in two rows: **Runs**, **Incomplete**, **p95 duration** and **Cost**, then **Threads**, **Active users**, **Rated threads** and **Thumbs down**. Every tile compares its current reading with the immediately preceding range of equal length, and its sparkline shows the reading across the selected range. Open a tile to investigate the matching list or billing view.
+The date picker starts at 30 days. The eight tiles appear in two rows: **Runs**, **Incomplete**, **p95 duration** and **Cost**, then **Threads**, **Active users**, **Rated threads** and **Thumbs down**. Every tile compares its current reading with the immediately preceding range of equal length, and its sparkline shows the reading across the selected range. Open a tile to investigate the matching list or billing view with the selected range preserved.
 
 | Tile | Reading for the selected range | Comparison and sparkline | Opens |
 |---|---|---|---|
 | **Runs** | Total runs. | The total against the previous range, with runs in each bucket. | [Runs](/docs/cloud/dashboard/runs) |
-| **Incomplete** | The incomplete rate and the number of incomplete runs. | The rate against the previous range, with the share of incomplete runs in each bucket. | [Runs](/docs/cloud/dashboard/runs), filtered to incomplete |
+| **Incomplete** | The incomplete rate and the number of incomplete runs. | The rate against the previous range, with the share of incomplete runs in each bucket. | [Runs](/docs/cloud/dashboard/runs), filtered to `incomplete` or `error` |
 | **p95 duration** | The duration under which 95 percent of runs finished. The tile also prints p50. | The p95 against the previous range, with daily p95 duration. | [Runs](/docs/cloud/dashboard/runs) |
 | **Cost** | Total run cost. | The total against the previous range, with cost in each bucket. | [Billing usage](/docs/cloud/settings/billing) |
 | **Threads** | Threads with activity in the range. | The total against the previous range, with threads in each bucket. | [Threads](/docs/cloud/dashboard/threads) |

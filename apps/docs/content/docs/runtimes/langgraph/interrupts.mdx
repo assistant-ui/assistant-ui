@@ -3,7 +3,7 @@ title: Interrupts and message editing
 description: Interrupt persistence and checkpoint-based message editing.
 ---
 
-Both interrupt persistence and message editing rely on LangGraph's server-side checkpoints. Once you have one wired up, the other is mostly free.
+Both interrupt persistence and message editing rely on LangGraph's server-side checkpoints.
 
 ## Interrupt persistence
 
@@ -27,8 +27,6 @@ const runtime = useLangGraphRuntime({
   },
 });
 ```
-
-This is particularly useful for applications that require user approval flows, multi-step forms, or other interactive elements that span multiple thread switches.
 
 ## Message editing and regeneration
 
@@ -82,7 +80,7 @@ When `getCheckpointId` is provided:
 - **Edit buttons** appear on user messages, allowing users to edit and resend from that point.
 - **Regenerate buttons** appear on assistant messages, allowing users to regenerate the response.
 
-The resolved `checkpointId` is passed to your `stream` callback via `config.checkpointId`. Your `sendMessage` helper should map it to the LangGraph SDK's `checkpoint_id` parameter (see [quickstart](/docs/runtimes/langgraph/quickstart) for the helper).
+The resolved `checkpointId` is passed to your `stream` callback via `config.checkpointId`. `unstable_createLangGraphStream` forwards it to the LangGraph SDK as `checkpoint: { checkpoint_id }`; a custom `stream` callback must forward it itself.
 
 <Callout type="info">
 Without `getCheckpointId`, edit and regenerate buttons will not appear. This is intentional; truncating client-side messages without forking from the correct server-side checkpoint would produce incorrect state.

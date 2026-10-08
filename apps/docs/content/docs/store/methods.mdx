@@ -104,7 +104,7 @@ const Counter = () => {
 
 ## Checking if a scope exists
 
-Accessing `aui.counter` never throws, and the accessor is always truthy — `if (aui.counter)` does not tell you anything. When the scope hasn't been provided by any `AuiProvider` above, the accessor still answers `source` (`null`), `query`, and `name`; calling it or reading any other property throws. Read the scope through `aui.optional`, which resolves to the same accessor when available and `undefined` when not:
+Accessing `aui.counter` never throws, and the accessor is always truthy, so `if (aui.counter)` does not tell you anything. When the scope hasn't been provided by any `AuiProvider` above, the accessor still answers `source` (`null`), `query`, and `name`; calling it or reading any other property throws. Read the scope through `aui.optional`, which resolves to the same accessor when available and `undefined` when not:
 
 ```tsx
 const aui = useAui();
@@ -117,7 +117,7 @@ This mirrors `s.optional` on the state side. The accessor metadata keeps working
 ## Subscribing to scope identity
 
 <Callout type="info">
-This is an advanced pattern. In the entire assistant-ui codebase, there are only two use cases for this.
+This is an advanced pattern. assistant-ui itself uses it in only a few places.
 </Callout>
 
 Sometimes you need to know when the scope itself changes, for example to register/unregister with an external system when a derived scope switches to a different item.

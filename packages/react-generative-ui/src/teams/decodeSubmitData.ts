@@ -1,5 +1,11 @@
 import { resolveFieldReferences } from "../fieldReferences";
 import type { Action } from "../ir";
+import {
+  classifyTemporal,
+  fromOffsetDateTime,
+  mergeTemporalMinutes,
+} from "../temporal";
+import { decodeTemporalInputId, TEMPORAL_INPUT_PREFIX } from "./temporalId";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -48,16 +54,55 @@ export function decodeSubmitData(value: unknown): Action | undefined {
       ([key]) => key !== "$input",
     );
     const inputEntries = Object.entries(value).filter(([key]) => key !== "aui");
-    const input =
-      inputEntries.length > 0 ? Object.fromEntries(inputEntries) : undefined;
+    const input = Object.fromEntries(inputEntries);
+    const temporalFields = new Map<
+      string,
+      { date?: string; time?: string; previousValue?: string }
+    >();
+    for (const [id, submitted] of inputEntries) {
+      if (!id.startsWith(TEMPORAL_INPUT_PREFIX)) continue;
+      const metadata = decodeTemporalInputId(id);
+      if (
+        !metadata ||
+        Object.hasOwn(input, metadata.fieldId) ||
+        typeof submitted !== "string" ||
+        (submitted !== "" && classifyTemporal(submitted).kind !== metadata.role)
+      )
+        return undefined;
+      const field = temporalFields.get(metadata.fieldId) ?? {};
+      if (field[metadata.role] !== undefined) return undefined;
+      field[metadata.role] = submitted;
+      if (metadata.role === "time" && metadata.previousValue !== undefined)
+        field.previousValue = metadata.previousValue;
+      temporalFields.set(metadata.fieldId, field);
+      delete input[id];
+    }
+    for (const [fieldId, field] of temporalFields) {
+      Object.defineProperty(input, fieldId, {
+        value: fromOffsetDateTime(
+          mergeTemporalMinutes(field.date ?? "", field.time ?? ""),
+          field.previousValue,
+        ),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    const hasInput = inputEntries.length > 0;
 
     return {
       ...(resolveFieldReferences(
         Object.fromEntries(payloadEntries),
-        input ?? {},
+        Object.fromEntries(
+          Object.entries(input).flatMap(([id, submitted]) =>
+            /^_+aui:datetime:/.test(id)
+              ? [[id.slice(1), submitted]]
+              : [[id, submitted]],
+          ),
+        ),
       ) as Record<string, unknown>),
       type,
-      ...(input !== undefined ? { $input: input } : {}),
+      ...(hasInput ? { $input: input } : {}),
     };
   } catch {
     return undefined;

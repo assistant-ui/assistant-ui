@@ -1,5 +1,6 @@
 "use client";
 
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const REPLAY_CONTENT_LENGTH_HEADER = "Aui-Replay-Content-Length";
@@ -34,12 +35,12 @@ export const useReplayRenderWait = () => {
     resolveWaiters(renderTicket);
   }, [renderTicket, resolveWaiters]);
 
-  useEffect(
+  useReplaySafeEffect(
     () => () => {
       mountedRef.current = false;
       resolveWaiters();
     },
-    [resolveWaiters],
+    [],
   );
 
   return useCallback(

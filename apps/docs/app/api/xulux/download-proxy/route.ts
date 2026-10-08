@@ -6,7 +6,6 @@ import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
 import { resolveSandboxDownloadUrl } from "@/lib/xulux/sandbox-download-url";
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 
-export const runtime = "nodejs";
 // The platform default, stated so the ceiling is reviewable rather than
 // inherited. The archive streams for as long as the client takes to read it.
 export const maxDuration = 300;

@@ -160,9 +160,9 @@ test("native flavor content validation rejects web packages and accepts the kit"
 });
 
 test("native registry build emits the React Native kit", async () => {
-  const { nativeRegistry, registry, stagedVueRegistry } =
+  const { nativeRegistry, registry, vueRegistry } =
     await import("../src/registry.ts");
-  await buildRegistry(registry, stagedVueRegistry, nativeRegistry);
+  await buildRegistry(registry, vueRegistry, nativeRegistry);
 
   const [registryContent, threadContent] = await Promise.all([
     readFile("dist/native/registry.json", "utf8"),
@@ -225,9 +225,9 @@ test("native registry build emits the React Native kit", async () => {
   );
 });
 
-test("vue registry build emits self-contained staged items", async () => {
-  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, stagedVueRegistry);
+test("vue registry build emits self-contained items", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, vueRegistry);
 
   const [registryContent, threadContent, threadListContent] = await Promise.all(
     [
@@ -260,14 +260,15 @@ test("vue registry build emits self-contained staged items", async () => {
   );
   assert.deepEqual(thread.dependencies, [
     `@assistant-ui/core@^${workspaceVersions.get("@assistant-ui/core")}`,
-    "@assistant-ui/vue",
+    `@assistant-ui/vue@^${workspaceVersions.get("@assistant-ui/vue")}`,
     "@lucide/vue",
     "markdown-it",
+    "reka-ui",
   ]);
   assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
   assert.equal("target" in threadFile, false);
   assert.deepEqual(threadList.dependencies, [
-    "@assistant-ui/vue",
+    `@assistant-ui/vue@^${workspaceVersions.get("@assistant-ui/vue")}`,
     "reka-ui",
     "@lucide/vue",
   ]);
@@ -280,7 +281,7 @@ test("workspace dependencies are pinned to the caret range of the built version"
   const versions = new Map([
     ["@assistant-ui/react", "0.15.22"],
     ["tw-shimmer", "0.4.13"],
-    ["@assistant-ui/vue", null],
+    ["@assistant-ui/ui", null],
   ]);
   const item = pinWorkspaceDependencies(
     {
@@ -288,7 +289,7 @@ test("workspace dependencies are pinned to the caret range of the built version"
       type: "registry:component",
       dependencies: [
         "@assistant-ui/react",
-        "@assistant-ui/vue",
+        "@assistant-ui/ui",
         "tw-shimmer",
         "lucide-react",
       ],
@@ -299,7 +300,7 @@ test("workspace dependencies are pinned to the caret range of the built version"
 
   assert.deepEqual(item.dependencies, [
     "@assistant-ui/react@^0.15.22",
-    "@assistant-ui/vue",
+    "@assistant-ui/ui",
     "tw-shimmer@^0.4.13",
     "lucide-react",
   ]);
@@ -327,8 +328,8 @@ test("workspace dependencies are pinned to the caret range of the built version"
 });
 
 test("web registry build pins every published assistant-ui dependency", async () => {
-  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, stagedVueRegistry);
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, vueRegistry);
 
   const reactRange = `@assistant-ui/react@^${workspaceVersions.get("@assistant-ui/react")}`;
   for (const file of [
@@ -370,7 +371,9 @@ test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async
   assert.deepEqual(threadEmitted.map(([outputPath]) => outputPath).sort(), [
     "components/assistant-ui/markdown-text.vue",
     "components/assistant-ui/message.vue",
+    "components/assistant-ui/reasoning.vue",
     "components/assistant-ui/thread.vue",
+    "components/assistant-ui/tool-fallback.vue",
   ]);
   assert.deepEqual(
     threadListEmitted.map(([outputPath]) => outputPath),
@@ -391,14 +394,6 @@ test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async
     createBuilt("thread", threadEmitted),
     createBuilt("thread-list", threadListEmitted),
   ]);
-});
-
-test("the production vue registry stays empty until the publish flip", async () => {
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  assert.deepEqual(vueRegistry, []);
-  await buildRegistry(registry, vueRegistry);
-  const vueIndex = JSON.parse(await readFile("dist/vue/registry.json", "utf8"));
-  assert.deepEqual(vueIndex.items, []);
 });
 
 test("vue payload parsing fails on a malformed sfc", () => {
@@ -1626,6 +1621,34 @@ const GENERATIVE_UI_EXEMPT_ATTRIBUTES = new Map([
     "chart:color",
     "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
   ],
+  [
+    "chart-series:color",
+    "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
+  ],
+  [
+    "chart-legend-item:color",
+    "free string, not sourced from a shared enum; mirrors its series' color token for the swatch",
+  ],
+  [
+    "checkbox:variant",
+    "schema enum of checkbox or switch; the default checkbox renders unstyled, so only switch has rules",
+  ],
+  [
+    "table-col:align",
+    "schema enum of start or end; start is the default and needs no rule",
+  ],
+  [
+    "table:align",
+    "body cells repeat their column's start or end alignment; start is the default and needs no rule",
+  ],
+  [
+    "fact-delta:tone",
+    "derived by the renderer from trend and upIsGood, not a model prop; only good, bad, or neutral is emitted",
+  ],
+  [
+    "button:state",
+    "derived by the renderer during an undo countdown, not a model prop; only pending is emitted",
+  ],
 ]);
 
 test("every enum value of every attribute-mapped generative-ui prop is styled by at least one css rule", () => {
@@ -2671,8 +2694,8 @@ test("every emitted sourcePath exists at the repo root", async () => {
 
   // Build inside the test so it neither ENOENTs in isolation nor validates a
   // stale dist from an earlier run.
-  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, stagedVueRegistry);
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, vueRegistry);
 
   const repoRoot = resolve(process.cwd(), "../..");
   const jsonPaths = [];
@@ -2808,8 +2831,8 @@ test("the built dist serves every packaged file at the docs' URL convention", as
 
   // Build inside the test so it neither ENOENTs in isolation nor validates a
   // stale dist from an earlier run.
-  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, stagedVueRegistry);
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, vueRegistry);
 
   // The consumer half of the convention. Both sides derive the same key
   // independently, so the docs' own builder runs against the real dist here
