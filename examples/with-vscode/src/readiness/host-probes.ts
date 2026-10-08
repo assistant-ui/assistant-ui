@@ -1,11 +1,8 @@
 import * as vscode from "vscode";
-import { isImplemented, SWITCHBOARD } from "../switchboard";
 import type { SeededThread } from "../protocol";
-import { isAssistant, isGallery, type AttachedWebview } from "../webviews";
-import type { ProbeId, ProbeResult } from "./probes";
-import { scaffoldMatches } from "./scaffold";
+import type { AttachedWebview } from "../webviews";
+import type { ProbeId } from "./probes";
 import {
-  galleryProbeTimeoutMs,
   PROBE_TIMEOUT_MS,
   WEBVIEW_READY_TIMEOUT_MS,
   type HostProbe,
@@ -33,56 +30,6 @@ const settingScope = (config: vscode.WorkspaceConfiguration, key: string) => {
   };
 };
 
-/**
- * Runs bridge-roundtrip under every implemented `auiTest.runtime`, then
- * restores the setting. A runtime that is not implemented yet leaves the probe
- * not implemented rather than failed, so a regression in an implemented
- * runtime still fails it.
- */
-const everyRuntime: HostProbe = async (ctx) => {
-  const config = vscode.workspace.getConfiguration("auiTest");
-  const { target, value: original } = settingScope(config, "runtime");
-
-  const results: { runtime: string; result: ProbeResult }[] = [];
-  try {
-    for (const runtime of SWITCHBOARD.runtime.values) {
-      if (!isImplemented("runtime", runtime)) {
-        results.push({ runtime, result: { state: "not-implemented" } });
-        continue;
-      }
-      await config.update("runtime", runtime, target);
-      await ctx.showAssistant();
-      const webview = await ctx.webviews.waitForReady(WEBVIEW_READY_TIMEOUT_MS);
-      results.push({
-        runtime,
-        result: webview
-          ? await ctx.webviews.runProbe(
-              webview,
-              "bridge-roundtrip",
-              PROBE_TIMEOUT_MS,
-            )
-          : { state: "fail", detail: "webview was not ready" },
-      });
-    }
-  } finally {
-    await config.update("runtime", original, target);
-  }
-
-  const detail = results
-    .map(({ runtime, result }) =>
-      result.state === "fail"
-        ? `${runtime} fail (${result.detail})`
-        : `${runtime} ${result.state}`,
-    )
-    .join(", ");
-  const states = new Set(results.map(({ result }) => result.state));
-  if (states.has("fail")) return { state: "fail", detail };
-  if (states.has("not-implemented")) {
-    return { state: "not-implemented", detail };
-  }
-  return { state: "pass", detail };
-};
-
 const readyWebview = async (
   ctx: HostProbeContext,
   when: string,
@@ -90,7 +37,7 @@ const readyWebview = async (
 ) => {
   const webview = await ctx.webviews.waitForReady(
     WEBVIEW_READY_TIMEOUT_MS,
-    (entry) => isAssistant(entry) && (accept?.(entry) ?? true),
+    accept,
   );
   if (!webview) throw new Error(`The webview was not ready ${when}`);
   return webview;
@@ -149,28 +96,6 @@ const threadsPersist: HostProbe = async (ctx) => {
   };
 };
 
-/** Opens the component gallery and runs `id` in it. */
-const galleryProbe =
-  (id: ProbeId): HostProbe =>
-  async (ctx) => {
-    await ctx.openGallery();
-    const gallery = await ctx.webviews.waitForReady(
-      WEBVIEW_READY_TIMEOUT_MS,
-      isGallery,
-    );
-    if (!gallery) throw new Error("The component gallery was not ready");
-    return ctx.webviews.runProbe(
-      gallery,
-      id,
-      galleryProbeTimeoutMs(gallery.sections),
-    );
-  };
-
 export const HOST_PROBES: Partial<Record<ProbeId, HostProbe>> = {
-  "every-runtime": everyRuntime,
   "threads-persist": threadsPersist,
-  "scaffold-matches": scaffoldMatches,
-  "gallery-csp": galleryProbe("gallery-csp"),
-  "gallery-errors": galleryProbe("gallery-errors"),
-  "gallery-overflow": galleryProbe("gallery-overflow"),
 };

@@ -1,22 +1,12 @@
 import * as vscode from "vscode";
-import type { GalleryView } from "../protocol";
 import type { Switchboard } from "../switchboard";
 import type { AssistantWebviews } from "../webviews";
-import {
-  NOT_IMPLEMENTED,
-  PROBES,
-  type Probe,
-  type ProbeId,
-  type ProbeResult,
-} from "./probes";
+import { PROBES, type Probe, type ProbeId, type ProbeResult } from "./probes";
 
 export type HostProbeContext = {
-  extensionPath: string;
   switchboard: Switchboard;
   webviews: AssistantWebviews;
   showAssistant(): Promise<void>;
-  /** Opens (or reveals) the component gallery panel, optionally switching its view. */
-  openGallery(view?: GalleryView): Promise<void>;
 };
 
 export type HostProbe = (ctx: HostProbeContext) => Promise<ProbeResult>;
@@ -30,23 +20,18 @@ export type ProbeReport = {
 
 export const WEBVIEW_READY_TIMEOUT_MS = 20_000;
 export const PROBE_TIMEOUT_MS = 60_000;
-/**
- * The gallery probes sweep every section alone and then all at once, so their
- * timeout grows with the gallery.
- */
-export const galleryProbeTimeoutMs = (sections: number) =>
-  60_000 + sections * 1_500;
-
-const withTimeout = (promise: Promise<ProbeResult>, ms: number) =>
-  Promise.race([
+const withTimeout = (promise: Promise<ProbeResult>, ms: number) => {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
     promise,
-    new Promise<ProbeResult>((resolve) =>
-      setTimeout(
+    new Promise<ProbeResult>((resolve) => {
+      timer = setTimeout(
         () => resolve({ state: "fail", detail: `Timed out after ${ms} ms` }),
         ms,
-      ),
-    ),
-  ]);
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+};
 
 export class ProbeRunner implements vscode.Disposable {
   private readonly statuses = new Map<ProbeId, ProbeStatus>();
@@ -98,12 +83,7 @@ export class ProbeRunner implements vscode.Disposable {
   private async execute(id: ProbeId): Promise<ProbeResult> {
     const ctx = this.getContext();
     const hostProbe = this.hostProbes[id];
-    if (hostProbe) {
-      // A gallery probe bounds itself once the gallery reports its size.
-      return id.startsWith("gallery-")
-        ? hostProbe(ctx)
-        : withTimeout(hostProbe(ctx), PROBE_TIMEOUT_MS);
-    }
+    if (hostProbe) return withTimeout(hostProbe(ctx), PROBE_TIMEOUT_MS);
 
     await ctx.showAssistant();
     const webview = await ctx.webviews.waitForReady(WEBVIEW_READY_TIMEOUT_MS);
@@ -113,7 +93,6 @@ export class ProbeRunner implements vscode.Disposable {
         detail: `Assistant webview was not ready within ${WEBVIEW_READY_TIMEOUT_MS} ms`,
       };
     }
-    if (!webview.implementedProbes.has(id)) return NOT_IMPLEMENTED;
     return ctx.webviews.runProbe(webview, id, PROBE_TIMEOUT_MS);
   }
 }

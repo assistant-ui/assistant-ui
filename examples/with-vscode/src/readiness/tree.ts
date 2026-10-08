@@ -1,9 +1,5 @@
 import * as vscode from "vscode";
-import {
-  isImplemented,
-  SWITCHBOARD_KEYS,
-  type SwitchboardKey,
-} from "../switchboard";
+import { SWITCHBOARD_KEYS, type SwitchboardKey } from "../switchboard";
 import { readSwitchboard } from "../webviews";
 import { PROBES, type Probe } from "./probes";
 import type { ProbeRunner, ProbeStatus } from "./runner";
@@ -22,17 +18,12 @@ const STATUS_ICONS: Record<ProbeStatus["state"], vscode.ThemeIcon> = {
     "error",
     new vscode.ThemeColor("testing.iconFailed"),
   ),
-  "not-implemented": new vscode.ThemeIcon(
-    "circle-slash",
-    new vscode.ThemeColor("disabledForeground"),
-  ),
   running: new vscode.ThemeIcon("loading~spin"),
 };
 
 const STATUS_LABELS: Record<ProbeStatus["state"], string> = {
   pass: "pass",
   fail: "fail",
-  "not-implemented": "not implemented",
   running: "running",
 };
 
@@ -88,7 +79,7 @@ export class ReadinessTree implements vscode.TreeDataProvider<ReadinessNode> {
     item.tooltip = new vscode.MarkdownString(
       [
         `**${probe.id}**: ${probe.description}`,
-        `Green by phase ${probe.phase} · ${probe.workstream}`,
+        probe.workstream,
         ...(detail ? [detail] : []),
       ].join("\n\n"),
     );
@@ -98,15 +89,9 @@ export class ReadinessTree implements vscode.TreeDataProvider<ReadinessNode> {
 
   private settingItem(key: SwitchboardKey) {
     const value = readSwitchboard()[key];
-    const implemented = isImplemented(key, value);
     const item = new vscode.TreeItem(`auiTest.${key}`);
-    item.description = implemented ? value : `${value} · not implemented`;
-    item.iconPath = implemented
-      ? new vscode.ThemeIcon("check")
-      : new vscode.ThemeIcon(
-          "circle-slash",
-          new vscode.ThemeColor("list.warningForeground"),
-        );
+    item.description = value;
+    item.iconPath = new vscode.ThemeIcon("check");
     item.command = {
       command: "workbench.action.openSettings",
       title: "Open Setting",

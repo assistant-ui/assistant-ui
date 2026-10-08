@@ -1,10 +1,5 @@
 import type { AssistantClient } from "@assistant-ui/react";
-import {
-  NOT_IMPLEMENTED,
-  PROBES,
-  type ProbeId,
-  type ProbeResult,
-} from "../src/readiness/probes";
+import { type ProbeId, type ProbeResult } from "../src/readiness/probes";
 import { vscodeFetch } from "@assistant-ui/vscode/webview";
 import {
   CHAT_ROUTE,
@@ -99,10 +94,7 @@ const waitFor = async (
 
 const requireThread = (ctx: WebviewProbeContext) => {
   if (ctx.aui) return ctx.aui;
-  const reasons = ctx.boot.unimplemented
-    .map(({ key, value }) => `auiTest.${key}=${value}`)
-    .join(", ");
-  throw new Error(`Thread is not mounted (not implemented: ${reasons})`);
+  throw new Error("Thread is not mounted");
 };
 
 const textOf = (
@@ -130,19 +122,6 @@ const sendAndSettle = async (aui: AssistantClient, prompt: string) => {
   const last = aui.thread().getState().messages.at(-1);
   if (!last) throw new Error(`No reply to "${prompt}"`);
   return last;
-};
-
-const ROUTES: Partial<
-  Record<WebviewBootConfig["switchboard"]["runtime"], string>
-> = {
-  "ai-sdk": CHAT_ROUTE,
-};
-
-const routeOf = (ctx: WebviewProbeContext) => {
-  const { runtime } = ctx.boot.switchboard;
-  const route = ROUTES[runtime];
-  if (!route) throw new Error(`No bridge route for auiTest.runtime=${runtime}`);
-  return route;
 };
 
 const fetchServedRequests = async () => {
@@ -447,22 +426,21 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
         failures.push(`${fixture.name} (${problems.join("; ")})`);
       }
     }
-    const runtime = ctx.boot.switchboard.runtime;
     if (failures.length > 0) {
       return {
         state: "fail",
-        detail: `runtime=${runtime}: ${failures.join("; ")}`,
+        detail: failures.join("; "),
       };
     }
     return {
       state: "pass",
-      detail: `runtime=${runtime}: ${RICH_FIXTURES.map((f) => f.name).join(", ")}`,
+      detail: RICH_FIXTURES.map((f) => f.name).join(", "),
     };
   },
 
   "bridge-roundtrip": async (ctx) => {
     const aui = requireThread(ctx);
-    const route = routeOf(ctx);
+    const route = CHAT_ROUTE;
     const fixture = selectFixture("text");
     const expected = fixtureText(
       fixture.script({ prompt: fixture.prompt, toolResults: new Map() }),
@@ -514,13 +492,13 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
     }
     return {
       state: "pass",
-      detail: `runtime=${ctx.boot.switchboard.runtime} via ${route}: ${snapshots.length} updates, ${served?.bytes} bytes`,
+      detail: `${snapshots.length} updates via ${route}, ${served?.bytes} bytes`,
     };
   },
 
   abort: async (ctx) => {
     const aui = requireThread(ctx);
-    const route = routeOf(ctx);
+    const route = CHAT_ROUTE;
     const fixture = selectFixture("markdown");
     const since = await lastServedSeq();
     const index = aui.thread().getState().messages.length + 1;
@@ -561,7 +539,7 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
     }
     return {
       state: "pass",
-      detail: `runtime=${ctx.boot.switchboard.runtime}: req.signal fired after ${served?.bytes} bytes`,
+      detail: `req.signal fired after ${served?.bytes} bytes`,
     };
   },
 
@@ -704,7 +682,7 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
 
   "frontend-tool-hitl": async (ctx) => {
     const aui = requireThread(ctx);
-    const route = routeOf(ctx);
+    const route = CHAT_ROUTE;
     const since = await lastServedSeq();
     const pending = await sendAndSettle(aui, "approval");
     const index = aui.thread().getState().messages.length - 1;
@@ -743,7 +721,7 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
     );
     return {
       state: "pass",
-      detail: `runtime=${ctx.boot.switchboard.runtime}: approval continued over ${route}`,
+      detail: `approval continued over ${route}`,
     };
   },
 };
@@ -801,12 +779,6 @@ export const WEBVIEW_TASKS: Partial<
     );
     const seeded: SeededThread = { remoteId, prompt };
     return seeded;
-  },
-
-  "run-fixture": async (aui, arg) => {
-    await runFixtureInNewThread(aui, arg as string);
-    await sleep(300);
-    return { width: window.innerWidth, height: window.innerHeight };
   },
 
   "find-thread": async (aui, arg) => {
@@ -874,7 +846,7 @@ export const startProbeListener = (
     try {
       result = probe
         ? await probe({ ...getContext(), cspViolations })
-        : NOT_IMPLEMENTED;
+        : { state: "fail", detail: `No webview probe for ${probeId}` };
     } catch (error) {
       result = {
         state: "fail",
@@ -884,12 +856,5 @@ export const startProbeListener = (
     post({ channel: TESTBED_CHANNEL, type: "probe-result", requestId, result });
   };
   window.addEventListener("message", onMessage);
-  post({
-    channel: TESTBED_CHANNEL,
-    type: "ready",
-    implementedProbes: PROBES.map((p) => p.id).filter(
-      (id) => WEBVIEW_PROBES[id] !== undefined,
-    ),
-  });
-  return () => window.removeEventListener("message", onMessage);
+  return () => post({ channel: TESTBED_CHANNEL, type: "ready" });
 };

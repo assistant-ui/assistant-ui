@@ -17,11 +17,3 @@ declare module "virtual:fixture-uis" {
   }[];
   export default modules;
 }
-
-declare module "virtual:gallery-sections" {
-  const modules: readonly {
-    file: string;
-    value: readonly import("./gallery/types").GallerySection[];
-  }[];
-  export default modules;
-}

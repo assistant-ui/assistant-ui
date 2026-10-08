@@ -1,11 +1,9 @@
 import { renderWebviewHtml, serveWebviewHost } from "@assistant-ui/vscode/host";
-import { existsSync } from "node:fs";
 import * as vscode from "vscode";
 import {
   BOOT_ATTRIBUTE,
   isTestbedMessage,
   TESTBED_CHANNEL,
-  type GalleryView,
   type HostToWebviewMessage,
   type TaskResult,
   type WebviewBootConfig,
@@ -15,11 +13,7 @@ import {
 import type { ProbeId, ProbeResult } from "./readiness/probes";
 import { ExternalOpener } from "./open-external";
 import { createWebviewRoutes } from "./routes";
-import {
-  SWITCHBOARD_KEYS,
-  unimplementedSettings,
-  type Switchboard,
-} from "./switchboard";
+import { SWITCHBOARD_KEYS, type Switchboard } from "./switchboard";
 
 export const readSwitchboard = (): Switchboard => {
   const config = vscode.workspace.getConfiguration("auiTest");
@@ -35,37 +29,16 @@ const renderHtml = (
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
   switchboard: Switchboard,
-  gallery: GalleryView | undefined,
 ) => {
   const asset = (file: string) =>
     vscode.Uri.joinPath(extensionUri, "dist", "webview", file);
-  const boot: WebviewBootConfig = {
-    switchboard,
-    unimplemented: unimplementedSettings(switchboard),
-    ...(gallery && { gallery }),
-  };
-  if (gallery) {
-    // esbuild emits gallery.css only when a section imports CSS.
-    const galleryCss = asset("gallery.css");
-    return renderWebviewHtml(webview, {
-      scripts: [asset("gallery.js")],
-      styles: [
-        asset("app.css"),
-        asset("generative-ui.css"),
-        ...(existsSync(galleryCss.fsPath) ? [galleryCss] : []),
-      ],
-      title: "Component Gallery",
-      csp: switchboard.csp,
-      surface: "editor",
-      scriptType: "classic",
-      bodyAttributes: { [BOOT_ATTRIBUTE]: JSON.stringify(boot) },
-    });
-  }
+  const boot: WebviewBootConfig = { switchboard };
   return renderWebviewHtml(webview, {
     scripts: [asset("main.js")],
     styles: [asset("app.css"), asset("generative-ui.css"), asset("main.css")],
     title: "Assistant",
     csp: switchboard.csp,
+    imgSrc: ["https://icons.duckduckgo.com"],
     surface: switchboard.location,
     scriptType: "classic",
     bodyAttributes: { [BOOT_ATTRIBUTE]: JSON.stringify(boot) },
@@ -74,17 +47,9 @@ const renderHtml = (
 
 export type AttachedWebview = {
   webview: vscode.Webview;
-  /** Set for the component gallery panel. */
-  gallery: GalleryView | undefined;
   switchboard: Switchboard;
   ready: boolean;
-  implementedProbes: ReadonlySet<ProbeId>;
-  /** The gallery's section count; 0 for the Assistant view. */
-  sections: number;
 };
-
-export const isAssistant = (entry: AttachedWebview) => !entry.gallery;
-export const isGallery = (entry: AttachedWebview) => !!entry.gallery;
 
 export class AssistantWebviews implements vscode.Disposable {
   private readonly attached = new Set<AttachedWebview>();
@@ -99,10 +64,7 @@ export class AssistantWebviews implements vscode.Disposable {
     private readonly storage: vscode.Memento,
   ) {}
 
-  attach(
-    webview: vscode.Webview,
-    gallery?: GalleryView,
-  ): vscode.Disposable & { hidden(): void; show(view: GalleryView): void } {
+  attach(webview: vscode.Webview): vscode.Disposable & { hidden(): void } {
     webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -111,11 +73,8 @@ export class AssistantWebviews implements vscode.Disposable {
     };
     const entry: AttachedWebview = {
       webview,
-      gallery,
       switchboard: readSwitchboard(),
       ready: false,
-      implementedProbes: new Set(),
-      sections: 0,
     };
     this.attached.add(entry);
     const subscription = webview.onDidReceiveMessage((message: unknown) =>
@@ -131,10 +90,6 @@ export class AssistantWebviews implements vscode.Disposable {
       hidden: () => {
         entry.ready = false;
       },
-      show: (view) => {
-        entry.gallery = view;
-        this.render(entry);
-      },
       dispose: () => {
         subscription.dispose();
         server.dispose();
@@ -147,13 +102,9 @@ export class AssistantWebviews implements vscode.Disposable {
     for (const entry of this.attached) this.render(entry);
   }
 
-  /**
-   * Resolves with a webview that booted with the current switchboard: an
-   * Assistant view unless `accept` says otherwise.
-   */
   async waitForReady(
     timeoutMs: number,
-    accept: (entry: AttachedWebview) => boolean = isAssistant,
+    accept: (entry: AttachedWebview) => boolean = () => true,
   ) {
     const find = () => {
       const switchboard = readSwitchboard();
@@ -249,7 +200,6 @@ export class AssistantWebviews implements vscode.Disposable {
       entry.webview,
       this.extensionUri,
       entry.switchboard,
-      entry.gallery,
     );
   }
 
@@ -258,8 +208,6 @@ export class AssistantWebviews implements vscode.Disposable {
     const message = data as WebviewToHostMessage;
     if (message.type === "ready") {
       entry.ready = true;
-      entry.implementedProbes = new Set(message.implementedProbes);
-      entry.sections = message.sections ?? 0;
       this.readyEmitter.fire();
     } else {
       this.pending.get(message.requestId)?.(message.result);

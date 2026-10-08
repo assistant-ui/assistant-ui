@@ -13,7 +13,6 @@
     "build": "tsx scripts/build.mts",
     "dev": "tsx scripts/build.mts --watch",
     "probes": "tsx scripts/build.mts && tsx test/run.mts",
-    "screenshots": "tsx scripts/build.mts && tsx test/run.mts --screenshots",
     "typecheck": "tsc --noEmit"
   },
   "contributes": {
@@ -74,12 +73,6 @@
         "category": "AUI Test Bed"
       },
       {
-        "command": "auiTest.openGallery",
-        "title": "Open Component Gallery",
-        "category": "AUI Test Bed",
-        "icon": "$(symbol-color)"
-      },
-      {
         "command": "auiTest.reloadWebview",
         "title": "Reload Assistant Webview",
         "category": "AUI Test Bed",
@@ -108,11 +101,6 @@
           "command": "auiTest.openSettings",
           "when": "view == auiTest.readiness",
           "group": "navigation@3"
-        },
-        {
-          "command": "auiTest.openGallery",
-          "when": "view == auiTest.readiness",
-          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -132,49 +120,6 @@
     "configuration": {
       "title": "AUI Test Bed",
       "properties": {
-        "auiTest.runtime": {
-          "type": "string",
-          "enum": [
-            "ai-sdk",
-            "data-stream",
-            "assistant-transport"
-          ],
-          "enumDescriptions": [
-            "useChatRuntime with AssistantChatTransport",
-            "useDataStreamRuntime",
-            "useAssistantTransportRuntime"
-          ],
-          "default": "ai-sdk",
-          "description": "Runtime the webview mounts."
-        },
-        "auiTest.backend": {
-          "type": "string",
-          "enum": [
-            "fixture",
-            "anthropic",
-            "vscode-lm"
-          ],
-          "enumDescriptions": [
-            "Scripted fixture replies, no network or API key",
-            "Anthropic API called from the extension host",
-            "vscode.lm chat models"
-          ],
-          "default": "fixture",
-          "description": "Backend that answers the webview."
-        },
-        "auiTest.style": {
-          "type": "string",
-          "enum": [
-            "shadcn",
-            "vscode"
-          ],
-          "enumDescriptions": [
-            "Default shadcn components themed by @assistant-ui/vscode/theme.css",
-            "VS Code-native component style"
-          ],
-          "default": "shadcn",
-          "description": "Theme applied to the webview."
-        },
         "auiTest.csp": {
           "type": "string",
           "enum": [
@@ -211,17 +156,13 @@
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-generative-ui": "workspace:*",
-    "@assistant-ui/react-mcp": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/vscode": "workspace:*",
     "ai": "^7.0.101",
     "assistant-stream": "workspace:*",
-    "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
     "lucide-react": "^1.46.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-shiki": "^0.11.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -231,7 +172,6 @@
     "@types/react-dom": "^19.3.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^3.1.0",
-    "assistant-ui": "workspace:*",
     "esbuild": "^0.28.2",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",

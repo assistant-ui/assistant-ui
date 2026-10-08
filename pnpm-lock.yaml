@@ -3903,9 +3903,6 @@ importers:
       '@assistant-ui/react-generative-ui':
         specifier: workspace:*
         version: link:../../packages/react-generative-ui
-      '@assistant-ui/react-mcp':
-        specifier: workspace:*
-        version: link:../../packages/react-mcp
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -3918,12 +3915,6 @@ importers:
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      cn:
-        specifier: ^0.3.0
-        version: 0.3.3
       lucide-react:
         specifier: ^1.46.0
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
@@ -3933,9 +3924,6 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
-      react-shiki:
-        specifier: ^0.11.1
-        version: 0.11.2(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -3958,9 +3946,6 @@ importers:
       '@vscode/test-electron':
         specifier: ^3.1.0
         version: 3.1.0(supports-color@10.2.2)
-      assistant-ui:
-        specifier: workspace:*
-        version: link:../../packages/cli
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

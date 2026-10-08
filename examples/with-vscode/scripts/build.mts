@@ -44,12 +44,6 @@ const watchLog = (afterBuild?: () => Promise<void>): Plugin => ({
 const GLOB_MODULES: Record<string, string> = {
   "virtual:rich-fixtures": path.join(rootDir, "src", "fixtures", "rich"),
   "virtual:fixture-uis": path.join(rootDir, "webview", "fixture-ui"),
-  "virtual:gallery-sections": path.join(
-    rootDir,
-    "webview",
-    "gallery",
-    "sections",
-  ),
 };
 
 const globModules: Plugin = {
@@ -142,23 +136,10 @@ const webviewOptions: BuildOptions = {
       isWatch ? "development" : "production",
     ),
   },
-  plugins: [watchLog(buildCss)],
+  plugins: [watchLog(buildCss), globModules, generativeUiStyle],
 };
 
-// The Assistant view and the component gallery share one CSS entry and the
-// glob modules; each bundle emits its own `<entry>.css` for imported CSS.
-const testbedWebviewOptions: BuildOptions = {
-  ...webviewOptions,
-  entryPoints: {
-    main: path.join(rootDir, "webview", "main.tsx"),
-    gallery: path.join(rootDir, "webview", "gallery", "main.tsx"),
-  },
-  outfile: undefined,
-  outdir: path.join(distDir, "webview"),
-  plugins: [...(webviewOptions.plugins ?? []), globModules, generativeUiStyle],
-};
-
-const allOptions = [hostOptions, testOptions, testbedWebviewOptions];
+const allOptions = [hostOptions, testOptions, webviewOptions];
 
 await fs.rm(distDir, { recursive: true, force: true });
 

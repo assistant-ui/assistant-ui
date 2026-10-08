@@ -27,7 +27,6 @@ import {
   CHAT_ROUTE,
   type WebviewBootConfig,
 } from "../src/protocol";
-import type { SWITCHBOARD, Switchboard } from "../src/switchboard";
 import { FIXTURE_TOOLKIT, FixtureDataUIs } from "./fixture-uis";
 import { threadStorage, threadStoragePrefix } from "./thread-storage";
 import { toolkit } from "./tools";
@@ -39,11 +38,11 @@ const boot = JSON.parse(
 installLinkInterceptor();
 
 let client: AssistantClient | undefined;
-startProbeListener(() => ({ boot, aui: client }));
+const announceProbeReady = startProbeListener(() => ({ boot, aui: client }));
 
 const threadListAdapter = createLocalStorageAdapter({
   storage: threadStorage,
-  prefix: threadStoragePrefix(boot.switchboard.runtime),
+  prefix: threadStoragePrefix,
 });
 
 const config = AuiConfig({
@@ -61,6 +60,7 @@ function CaptureClient() {
   const aui = useAui();
   useEffect(() => {
     client = aui;
+    announceProbeReady();
     return () => {
       client = undefined;
     };
@@ -78,13 +78,6 @@ function useAiSdkThreadRuntime() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 }
-
-const RUNTIME_HOOKS: Record<
-  (typeof SWITCHBOARD.runtime.implemented)[number],
-  () => AssistantRuntime
-> = {
-  "ai-sdk": useAiSdkThreadRuntime,
-};
 
 function FixtureThreads({
   useThreadRuntime,
@@ -114,37 +107,11 @@ function FixtureThreads({
   );
 }
 
-function NotImplementedBanner() {
-  if (boot.unimplemented.length === 0) return null;
-  return (
-    <div
-      role="status"
-      className="bg-destructive/10 text-destructive border-b px-3 py-2 text-sm"
-    >
-      Not implemented:{" "}
-      {boot.unimplemented
-        .map(({ key, value }) => `auiTest.${key}=${value}`)
-        .join(", ")}
-    </div>
-  );
-}
-
 function App() {
-  const useThreadRuntime = (
-    RUNTIME_HOOKS as Partial<
-      Record<Switchboard["runtime"], () => AssistantRuntime>
-    >
-  )[boot.switchboard.runtime];
-  const canMountThread = !boot.unimplemented.some(
-    ({ key }) => key === "backend",
-  );
   return (
     <main className="flex h-screen flex-col">
-      <NotImplementedBanner />
       <div className="min-h-0 flex-1">
-        {canMountThread && useThreadRuntime && (
-          <FixtureThreads useThreadRuntime={useThreadRuntime} />
-        )}
+        <FixtureThreads useThreadRuntime={useAiSdkThreadRuntime} />
       </div>
     </main>
   );
