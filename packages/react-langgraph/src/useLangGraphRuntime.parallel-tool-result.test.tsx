@@ -212,6 +212,50 @@ describe("useLangGraphRuntime parallel tool results", () => {
       ).toBe(true);
     });
 
+  it("waits for every finished-run call when a result arrives before the final commit", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length !== 1) return;
+      yield aiWith(["c1"]);
+      await gate;
+      yield aiWith(["c1", "c2"]);
+    });
+    const runtime = mount(stream);
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c1");
+
+    await act(async () => {
+      finish();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === "c2",
+            ),
+          ),
+      ).toBe(false);
+      addResult(runtime, "c1");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(sent).toHaveLength(1);
+    });
+
+    await waitForCall(runtime, "c2");
+    act(() => addResult(runtime, "c2"));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(
+      sent[1]!.map(
+        (message) => (message as { tool_call_id: string }).tool_call_id,
+      ),
+    ).toEqual(["c1", "c2"]);
+  });
+
   it("releases a buffered client result when its server sibling has a result", async () => {
     let finish!: () => void;
     const gate = new Promise<void>((resolve) => {

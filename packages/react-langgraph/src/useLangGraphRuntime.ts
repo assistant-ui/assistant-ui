@@ -642,8 +642,8 @@ const useLangGraphRuntimeImpl = (
         .filter((group) => group.key === `run:${runId}`)
         .flatMap((group) => group.toolCalls.map((toolCall) => toolCall.id));
       if (expected.length === 0) return;
-      if (!expected.some((id) => toolResultBufferRef.current.has(id))) return;
       pendingToolCallIdsByRunRef.current.set(runId, expected);
+      if (!expected.some((id) => toolResultBufferRef.current.has(id))) return;
       if (failed) return;
       if (!expected.every((id) => toolResultBufferRef.current.has(id))) return;
       const batch = expected.map((id) => toolResultBufferRef.current.get(id)!);
@@ -1001,16 +1001,15 @@ const useLangGraphRuntimeImpl = (
       const savedGroup = producingRunId
         ? pendingToolCallIdsByRunRef.current.get(producingRunId)
         : undefined;
+      const savedCalls = savedGroup?.includes(toolCallId)
+        ? savedGroup
+        : undefined;
       const groupKey =
-        pendingGroup?.key ??
-        (savedGroup?.includes(toolCallId)
+        savedCalls !== undefined
           ? `run:${producingRunId}`
-          : `late:${toolCallId}`);
+          : (pendingGroup?.key ?? `late:${toolCallId}`);
       const pendingCalls =
-        pendingGroup?.toolCalls ??
-        (savedGroup?.includes(toolCallId)
-          ? savedGroup.map((id) => ({ id }))
-          : []);
+        savedCalls?.map((id) => ({ id })) ?? pendingGroup?.toolCalls ?? [];
       const queuedResume = pendingResumeRef.current.get(groupKey);
       const queuedIds = new Set(queuedResume?.map((m) => m.tool_call_id));
       const batch = bufferToolResult(
