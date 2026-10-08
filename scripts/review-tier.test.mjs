@@ -1146,6 +1146,18 @@ test("hard policy failures stay failures", async () => {
       ({ code }) => code === "open-pr-cap",
     ),
   );
+  const comment = renderComment(evaluation, policy);
+  assert.ok(comment.includes("❌ Needs a change"), comment);
+  assert.ok(!comment.includes("owner override"), comment);
+  evaluation.tierResult.failures.push({
+    code: "size-cap",
+    detail: "900 source lines exceed the 400 line cap",
+    override: "size",
+  });
+  evaluation.requirementResult.unmet.push({
+    code: "size-cap",
+    detail: "900 source lines exceed the 400 line cap",
+  });
   assert.ok(
     renderComment(evaluation, policy).includes(
       "❌ Needs a change or an owner override",

@@ -621,7 +621,13 @@ export function renderComment(
       ? "⏳ Waits on reviewers or time"
       : null,
     unmet.some((item) => !isWaiting(item.code))
-      ? "❌ Needs a change or an owner override"
+      ? tierResult.failures.some(
+          (failure) =>
+            failure.override !== null &&
+            unmet.some((item) => item.code === failure.code),
+        )
+        ? "❌ Needs a change or an owner override"
+        : "❌ Needs a change"
       : null,
   ].filter(Boolean);
   const render = (section) =>
