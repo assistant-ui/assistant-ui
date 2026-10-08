@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts",
     "test": "node --test scripts/build-registry.test.mjs",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vue/compiler-sfc": "^3.5.43",
     "ai": "^7.0.123",
+    "assistant-ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "lucide-react": "^1.49.0",
     "postcss": "^8.5.28",

@@ -3,7 +3,7 @@ import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { posixPath, readJson } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(

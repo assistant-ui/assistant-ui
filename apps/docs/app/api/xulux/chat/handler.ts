@@ -3,7 +3,10 @@ import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
-import { validateDocChatInput } from "@/lib/validate-input";
+import {
+  validateDocChatInput,
+  validateFrontendToolsInput,
+} from "@/lib/validate-input";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { NextResponse } from "next/server";
@@ -206,6 +209,9 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       if (JSON.stringify(messages).length > MAX_RAW_MESSAGES_CHARS) {
         return new Response("Input too long", { status: 400 });
       }
+
+      const toolsError = validateFrontendToolsInput(clientTools);
+      if (toolsError) return toolsError;
 
       const uiMessages = messages as UIMessage[];
       const preparedUiMessages = agent.prepareMessages

@@ -157,6 +157,25 @@ describe("useInteractablePersistenceQueue", () => {
     });
   });
 
+  it("reports an id as saving until its batch settles", async () => {
+    const pending = createDeferred();
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => pending.promise);
+    const queue = renderQueue(save);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+    expect(queue.result.current.isSaving("a")).toBe(false);
+
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    expect(queue.result.current.isSaving("a")).toBe(true);
+
+    pending.reject(new Error("save failed"));
+    await act(flushMicrotasks);
+    expect(queue.result.current.isSaving("a")).toBe(false);
+  });
+
   it("does not recreate a removed status when an in-flight save rejects", async () => {
     const pending = createDeferred();
     const save = vi

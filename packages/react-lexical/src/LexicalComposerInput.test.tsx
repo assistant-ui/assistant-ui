@@ -239,6 +239,61 @@ describe("LexicalComposerInput", () => {
     expect(pluginHandleKeyDown.mock.calls[0]![0].key).toBe("Tab");
   });
 
+  it("ignores Safari's post-compositionend Enter before plugin delegation", async () => {
+    pluginHandleKeyDown.mockReturnValue(true);
+    await act(async () => {
+      root.render(<LexicalComposerInput />);
+    });
+
+    const input = container.querySelector<HTMLElement>(".aui-lexical-input")!;
+    input.dispatchEvent(
+      new CompositionEvent("compositionstart", { bubbles: true }),
+    );
+    input.dispatchEvent(
+      new InputEvent("input", {
+        data: "日本語",
+        inputType: "insertFromComposition",
+        isComposing: true,
+        bubbles: true,
+      }),
+    );
+    input.dispatchEvent(
+      new CompositionEvent("compositionend", {
+        data: "日本語",
+        bubbles: true,
+      }),
+    );
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      input.dispatchEvent(event);
+    });
+
+    expect(pluginHandleKeyDown).not.toHaveBeenCalled();
+    expect(sendSpy).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+
+    pluginHandleKeyDown.mockReturnValue(false);
+    const plainEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 13,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      input.dispatchEvent(plainEnter);
+    });
+
+    expect(pluginHandleKeyDown).toHaveBeenCalledOnce();
+    expect(sendSpy).toHaveBeenCalledOnce();
+  });
+
   it.each([
     {
       name: "submits on Enter during a run when queueing is supported",

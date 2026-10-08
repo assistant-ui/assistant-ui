@@ -206,7 +206,7 @@ describe("SetupWizard", () => {
     );
     expect(
       screen.getByText(
-        "Setting up assistant-ui, Assistant Cloud, and Agent tools.",
+        "Setting up assistant-ui, Assistant Cloud, and Agent Tool.",
       ).className,
     ).toContain("text-muted-foreground");
   });

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import * as HeatGraph from "heat-graph";
 import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { CodeBlock } from "@/components/ui/code-block";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 function seededRandom(seed: number) {
@@ -612,7 +613,7 @@ const CODE_SNIPPETS: Record<ThemeName, string> = {
   "Mood Tracker": CODE_MOOD,
 };
 
-export function HeatGraphDemo() {
+function HeatGraphDemoContent() {
   const contributions = useMemo(() => generateContributions(), []);
   const steps = useMemo(() => generateSteps(), []);
   const gym = useMemo(() => generateGym(), []);
@@ -680,5 +681,20 @@ export function HeatGraphDemo() {
         />
       </CodeBlock>
     </div>
+  );
+}
+
+export function HeatGraphDemo() {
+  return (
+    <Suspense
+      fallback={
+        <Skeleton
+          aria-hidden
+          className="h-[636px] motion-reduce:animate-none sm:h-[607px]"
+        />
+      }
+    >
+      <HeatGraphDemoContent />
+    </Suspense>
   );
 }

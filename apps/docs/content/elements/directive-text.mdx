@@ -102,7 +102,7 @@ Each chip's icon comes from `iconMap[type]`, falling back to `fallbackIcon` when
 
 ### Assistant-ui's default directive format
 
-With no custom parser, both `DirectiveText` and a `createDirectiveText` call with `unstable_defaultDirectiveFormatter` understand `:type[label]{name=id}`; the `{name=…}` attribute is omitted when `id` equals `label`, so `:tool[Search]` and `:tool[Search]{name=web-search}` both parse, the second with a different `id`.
+With no custom parser, both `DirectiveText` and a `createDirectiveText` call with `defaultDirectiveFormatter` understand `:type[label]{name=id}`; the `{name=…}` attribute is omitted when `id` equals `label`, so `:tool[Search]` and `:tool[Search]{name=web-search}` both parse, the second with a different `id`.
 
 ```tsx
 "Ask :tool[Search]{name=web-search} to look this up."
@@ -116,7 +116,7 @@ With no custom parser, both `DirectiveText` and a `createDirectiveText` call wit
 ```tsx
 import { WrenchIcon, SlashIcon, SparklesIcon } from "lucide-react";
 
-createDirectiveText(unstable_defaultDirectiveFormatter, {
+createDirectiveText(defaultDirectiveFormatter, {
   iconMap: { tool: WrenchIcon, command: SlashIcon },
   fallbackIcon: SparklesIcon,
 });
@@ -163,6 +163,6 @@ Returns a component with a single prop, `text: string`.
 
 | Method | Type | Description |
 |--------|------|-------------|
-| `parse` | `(text: string) => readonly DirectiveTextSegment[]` | The only method the standalone renderer needs; write any syntax you want. `Unstable_DirectiveFormatter` (which also has `serialize`) satisfies this type, so `unstable_defaultDirectiveFormatter` works here too. |
+| `parse` | `(text: string) => readonly DirectiveTextSegment[]` | The only method the standalone renderer needs; write any syntax you want. `DirectiveFormatter` (which also has `serialize`) satisfies this type, so `defaultDirectiveFormatter` works here too. |
 
 </StandaloneMode>

@@ -3,6 +3,12 @@ import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   accounts: null as { resolveSession: ReturnType<typeof vi.fn> } | null,
+  connection: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: mocks.connection,
 }));
 
 // accounts-auth reaches Upstash and the accounts client behind a server-only
@@ -36,6 +42,16 @@ beforeEach(() => {
 });
 
 describe("GET /api/auth/session", () => {
+  it("waits for a request before answering, so a build cannot freeze its answer", async () => {
+    mocks.connection.mockReturnValueOnce(new Promise<void>(() => {}));
+    const answered = vi.fn();
+
+    void GET(request()).then(answered);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(answered).not.toHaveBeenCalled();
+  });
+
   it("offers nothing on a deployment that carries no accounts configuration", async () => {
     const response = await GET(request());
 
