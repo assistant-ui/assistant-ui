@@ -3190,6 +3190,27 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     expect(thread.messages).toEqual([]);
   });
 
+  it("drops a user transcript whose session an initialize subscriber replaced", () => {
+    const firstVoice = createVoiceAdapter();
+    const replacementVoice = createVoiceAdapter();
+    firstVoice.adapter.connect = vi
+      .fn()
+      .mockReturnValueOnce(firstVoice.session)
+      .mockReturnValueOnce(replacementVoice.session);
+    const runtime = new TestRuntime(firstVoice);
+    runtime.connectVoice();
+    runtime.unstable_on("initialize", () => runtime.connectVoice());
+
+    firstVoice.emitTranscript({ role: "user", text: "old", isFinal: true });
+
+    expect(firstVoice.adapter.connect).toHaveBeenCalledTimes(2);
+    expect(firstVoice.session.disconnect).toHaveBeenCalledOnce();
+    expect(replacementVoice.session.disconnect).not.toHaveBeenCalled();
+    expect(runtime.voice).toBeDefined();
+    expect(runtime.messages).toEqual([]);
+    runtime.disconnectVoice();
+  });
+
   it("keeps one live session when finishing a reply throws during connectVoice", async () => {
     const consoleError = vi
       .spyOn(console, "error")

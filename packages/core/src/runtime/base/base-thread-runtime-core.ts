@@ -648,10 +648,10 @@ export abstract class BaseThreadRuntimeCore
   private _handleVoiceTranscript(
     transcript: RealtimeVoiceAdapter.TranscriptItem,
   ) {
+    const session = this._voiceSession;
     this.ensureInitialized();
 
     if (transcript.role === "user") {
-      const session = this._voiceSession;
       this._finishVoiceAssistantMessage();
       if (this._voiceSession !== session) return;
       this._currentAssistantMsg = null;
