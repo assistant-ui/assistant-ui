@@ -66,19 +66,35 @@ export const useInteractablePersistenceQueue = <State>({
     () => {},
   );
 
-  const takeRetryIds = useCallback(() => {
-    const retryIds = new Set<string>();
-    for (const [id, failed] of failedIdsRef.current) {
-      if (failed.adapterGeneration === adapterGenerationRef.current)
-        retryIds.add(id);
-    }
-    failedIdsRef.current.clear();
-    return retryIds;
-  }, [adapterGenerationRef]);
+  /**
+   * A failure stays recorded until a save persists its value, so a snapshot
+   * that is already queued can still settle it. An id with a sync record is
+   * already part of a queued retry.
+   */
+  const takeRetryIds = useCallback(
+    (dirtyIds: Set<string>) => {
+      const retryIds = new Set<string>();
+      for (const [id, failed] of failedIdsRef.current) {
+        if (
+          dirtyIds.has(id) ||
+          failed.adapterGeneration !== adapterGenerationRef.current
+        ) {
+          failedIdsRef.current.delete(id);
+        } else if (!latestSyncByIdRef.current.has(id)) {
+          retryIds.add(id);
+        }
+      }
+      return retryIds;
+    },
+    [adapterGenerationRef],
+  );
 
   const hasRetryWork = useCallback(() => {
-    for (const failed of failedIdsRef.current.values()) {
-      if (failed.adapterGeneration === adapterGenerationRef.current)
+    for (const [id, failed] of failedIdsRef.current) {
+      if (
+        failed.adapterGeneration === adapterGenerationRef.current &&
+        !latestSyncByIdRef.current.has(id)
+      )
         return true;
     }
     return false;
@@ -100,6 +116,7 @@ export const useInteractablePersistenceQueue = <State>({
         )
           continue;
         failedIdsRef.current.delete(id);
+        latestSyncByIdRef.current.delete(id);
         persistedIds.push(id);
       }
       return persistedIds;
@@ -116,8 +133,7 @@ export const useInteractablePersistenceQueue = <State>({
         return;
       const dirtyIds = new Set(dirtyIdsRef.current);
       dirtyIdsRef.current.clear();
-      const retryIds = takeRetryIds();
-      for (const id of dirtyIds) retryIds.delete(id);
+      const retryIds = takeRetryIds(dirtyIds);
       const seq = ++syncSeqRef.current;
       const adapterGeneration = adapterGenerationRef.current;
       for (const id of [...dirtyIds, ...retryIds])
@@ -133,6 +149,28 @@ export const useInteractablePersistenceQueue = <State>({
     },
     [adapterGenerationRef, hasRetryWork, snapshot, takeRetryIds],
   );
+
+  /**
+   * A retry id loses its sync record once an earlier snapshot saved it, so a
+   * queued batch left with only such ids has nothing to save.
+   */
+  const takeQueuedBatch = useCallback((): PersistenceBatch | undefined => {
+    for (
+      let batch = outgoingQueueRef.current.shift();
+      batch;
+      batch = outgoingQueueRef.current.shift()
+    ) {
+      const { seq } = batch;
+      const retryIds = new Set(
+        [...batch.retryIds].filter(
+          (id) => latestSyncByIdRef.current.get(id)?.seq === seq,
+        ),
+      );
+      if (batch.dirtyIds.size > 0 || retryIds.size > 0)
+        return { ...batch, retryIds };
+    }
+    return undefined;
+  }, []);
 
   const enqueuePersistence = useCallback(
     (adapter: PersistenceAdapter<State>, retryFailed = false) => {
@@ -227,7 +265,7 @@ export const useInteractablePersistenceQueue = <State>({
       } finally {
         inFlightPersistenceRef.current -= 1;
         const next =
-          outgoingQueueRef.current.shift() ??
+          takeQueuedBatch() ??
           (adapterRef.current && dirtyIdsRef.current.size > 0
             ? takeDirtyBatch(adapterRef.current)
             : undefined);
@@ -248,6 +286,7 @@ export const useInteractablePersistenceQueue = <State>({
       adapterRef,
       takeDirtyBatch,
       takePersistedFailures,
+      takeQueuedBatch,
       updatePersistenceStatus,
     ],
   );

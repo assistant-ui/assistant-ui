@@ -74,6 +74,45 @@ const renderQueue = (
 
 const flushMicrotasks = () => vi.advanceTimersByTimeAsync(0);
 
+const startRetryBehindQueuedSnapshot = async () => {
+  const first = createDeferred();
+  const second = createDeferred();
+  const firstError = new Error("first save failed");
+  const save = vi
+    .fn<(state: TestState) => Promise<void>>()
+    .mockImplementationOnce(() => first.promise)
+    .mockImplementationOnce(() => second.promise)
+    .mockResolvedValue(undefined);
+  const queue = renderQueue(save);
+
+  queue.setState("a", 1);
+  queue.setState("b", 1);
+  act(() => {
+    queue.result.current.schedulePersistence("a");
+    queue.result.current.schedulePersistence("b");
+  });
+  await act(() => vi.advanceTimersByTimeAsync(500));
+
+  queue.setState("a", 2);
+  act(() => queue.result.current.schedulePersistence("a"));
+  let firstFlush!: Promise<void>;
+  act(() => {
+    firstFlush = queue.result.current.flush();
+  });
+  first.reject(firstError);
+  await act(flushMicrotasks);
+
+  const flush = () => {
+    let promise!: Promise<void>;
+    act(() => {
+      promise = queue.result.current.flush();
+    });
+    return promise;
+  };
+
+  return { queue, save, second, firstError, firstFlush, flush };
+};
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -526,6 +565,106 @@ describe("useInteractablePersistenceQueue", () => {
     await act(() => queue.result.current.flush());
 
     expect(save).toHaveBeenCalledTimes(2);
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("does not resend a failed id that the snapshot already in flight saves", async () => {
+    const { queue, save, second, firstFlush, flush } =
+      await startRetryBehindQueuedSnapshot();
+    save.mockRejectedValueOnce(new Error("redundant retry failed"));
+
+    const secondFlush = flush();
+    second.resolve();
+    await act(() => Promise.all([firstFlush, secondFlush]));
+
+    expect(queue.getStatus()).toEqual({});
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+
+    await act(() => queue.result.current.flush());
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("schedules one retry for concurrent flush callers", async () => {
+    const { queue, save, second, firstFlush, flush } =
+      await startRetryBehindQueuedSnapshot();
+    const secondError = new Error("second save failed");
+
+    const flushes = [firstFlush, flush(), flush(), flush()];
+    second.reject(secondError);
+    await act(() => Promise.all(flushes));
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("keeps both failures when the queued snapshot and the retry fail", async () => {
+    const { queue, save, second, firstFlush, flush } =
+      await startRetryBehindQueuedSnapshot();
+    const secondError = new Error("second save failed");
+    const retryError = new Error("retry failed");
+    save.mockRejectedValueOnce(retryError);
+
+    const secondFlush = flush();
+    second.reject(secondError);
+    await act(() => Promise.all([firstFlush, secondFlush]));
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(queue.getStatus()).toEqual({
+      a: { isPending: false, error: secondError },
+      b: { isPending: false, error: retryError },
+    });
+
+    await act(() => queue.result.current.flush());
+
+    expect(save).toHaveBeenCalledTimes(4);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1 });
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("still saves a newer edit that joined the retry the queued snapshot made redundant", async () => {
+    const { queue, save, second, firstFlush, flush } =
+      await startRetryBehindQueuedSnapshot();
+    const retryError = new Error("retry failed");
+    save.mockRejectedValueOnce(retryError);
+
+    queue.setState("c", 1);
+    act(() => queue.result.current.schedulePersistence("c"));
+    const secondFlush = flush();
+    second.resolve();
+    await act(() => Promise.all([firstFlush, secondFlush]));
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 1, c: 1 });
+    expect(queue.getStatus()).toEqual({
+      c: { isPending: false, error: retryError },
+    });
+  });
+
+  it("keeps a failed id's error when it changed after its retry was queued", async () => {
+    const { queue, save, second, firstError, firstFlush, flush } =
+      await startRetryBehindQueuedSnapshot();
+    const retry = createDeferred();
+    save.mockImplementationOnce(() => retry.promise);
+
+    const secondFlush = flush();
+    queue.setState("b", 2);
+    act(() => queue.result.current.schedulePersistence("b"));
+    second.resolve();
+    await act(flushMicrotasks);
+
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(queue.getStatus()).toEqual({
+      b: { isPending: true, error: firstError },
+    });
+
+    retry.resolve();
+    await act(() => Promise.all([firstFlush, secondFlush]));
+
+    expect(save).toHaveBeenCalledTimes(4);
+    expect(save).toHaveBeenLastCalledWith({ a: 2, b: 2 });
     expect(queue.getStatus()).toEqual({});
   });
 });
