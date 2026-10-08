@@ -462,6 +462,19 @@ describe("ComposerInput", () => {
       await act(async () => fireKeyDown(input, { key: "Enter" }));
       expect(h.sendSpy).not.toHaveBeenCalled();
     });
+
+    it("forwards caller key handlers while blocking submission", async () => {
+      const onKeyPress = vi.fn();
+      const input = await mount({ onKeyPress });
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Escape" });
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(onKeyPress).toHaveBeenCalledTimes(2);
+      expect(h.sendSpy).not.toHaveBeenCalled();
+    });
   });
 
   it("preserves a caller-provided non-editable setting", async () => {
