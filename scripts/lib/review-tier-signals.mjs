@@ -23,6 +23,16 @@ function majorOf(range) {
   return major === undefined ? null : Number(major);
 }
 
+function majorsOf(range) {
+  const majors = range
+    .split("||")
+    .map(majorOf)
+    .filter((major) => major !== null);
+  return majors.length === 0
+    ? null
+    : [...new Set(majors)].toSorted((a, b) => a - b).join(",");
+}
+
 export function computeTier(input, policy) {
   const type = parseTitleType(policy, input.title);
   const reasons = new Map();
@@ -113,7 +123,8 @@ export function computeTier(input, policy) {
     if (
       type === "refactor" &&
       isTestPath(policy, file.path) &&
-      removed.some((line) => /\b(expect|assert)\b/.test(line))
+      ((file.patch === null && file.deletions > 0) ||
+        removed.some((line) => /\b(expect|assert)\b/.test(line)))
     ) {
       failures.push({
         code: "refactor-changes-assertions",
@@ -208,8 +219,8 @@ export function computeTier(input, policy) {
     for (const field of ["dependencies", "peerDependencies"]) {
       for (const [name, range] of Object.entries(head[field] ?? {})) {
         if (!Object.hasOwn(base[field] ?? {}, name)) continue;
-        const baseMajor = majorOf(base[field][name]);
-        const headMajor = majorOf(range);
+        const baseMajor = majorsOf(base[field][name]);
+        const headMajor = majorsOf(range);
         if (
           baseMajor !== null &&
           headMajor !== null &&

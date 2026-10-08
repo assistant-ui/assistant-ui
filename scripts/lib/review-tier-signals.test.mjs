@@ -378,7 +378,7 @@ for (const [base, head] of [
   ["latest", "^2.0.0"],
   ["^1.0.0", "*"],
   ["^1.0.0", "^1.9.0"],
-  [">=1.0.0 || ^2.0.0", ">=1.2.0 || ^3.0.0"],
+  [">=1.0.0 || ^2.0.0", "^2.1.0 || >=1.2.0"],
 ]) {
   test(`runtime range ${base} to ${head} does not signal an upstream major`, () => {
     const result = computeTier(
@@ -394,6 +394,42 @@ for (const [base, head] of [
     );
   });
 }
+
+for (const [base, head] of [
+  [">=1.0.0 || ^2.0.0", ">=1.2.0 || ^3.0.0"],
+  ["^1.0.0 || ^2.0.0", "^1.0.0 || ^2.0.0 || ^3.0.0"],
+  ["^1.0.0 || ^2.0.0", "^2.0.0"],
+]) {
+  test(`peer range ${base} to ${head} signals an upstream major`, () => {
+    const result = computeTier(
+      manifestInput(
+        { peerDependencies: { library: base } },
+        { peerDependencies: { library: head } },
+      ),
+      policy,
+    );
+    assert.ok(
+      result.reasons.some((reason) => reason.code === "upstream-major"),
+    );
+  });
+}
+
+test("a refactor whose test patch is unavailable fails closed", () => {
+  const result = computeTier(
+    input({
+      title: "refactor(react): tidy",
+      files: [
+        file("packages/react/src/index.test.ts", { patch: null, deletions: 3 }),
+      ],
+    }),
+    policy,
+  );
+  assert.ok(
+    result.failures.some(
+      (failure) => failure.code === "refactor-changes-assertions",
+    ),
+  );
+});
 
 test("reordering manifest contract fields is not a contract change", () => {
   const result = computeTier(
