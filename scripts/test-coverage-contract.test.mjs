@@ -1,12 +1,145 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, globSync } from "node:fs";
+import {
+  existsSync,
+  globSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const coverageWorkflow = readFileSync(
+  path.join(root, ".github/workflows/test-coverage.yaml"),
+  "utf8",
+);
+const coverageSteps = coverageWorkflow.split(/^      - name: /m).slice(1);
+const detectorStep = coverageSteps.find((step) =>
+  step.startsWith("Detect coverage inputs\n"),
+);
+assert(detectorStep);
+const detectorScript = detectorStep
+  .split("        run: |\n")[1]
+  .replace(/^ {10}/gm, "");
+
+function coverageFixture(t) {
+  const cwd = mkdtempSync(path.join(tmpdir(), "coverage-routing-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  git("init", "-q");
+  git("config", "user.name", "Coverage Fixture");
+  git("config", "user.email", "coverage@example.test");
+  let revision = 0;
+  const commit = (file) => {
+    const destination = path.join(cwd, file);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    writeFileSync(destination, String(++revision));
+    git("add", file);
+    git("commit", "-qm", "fixture");
+    return git("rev-parse", "HEAD");
+  };
+  const base = commit("README.md");
+  return {
+    base,
+    commit,
+    run(event, mergeBase = base) {
+      const output = path.join(cwd, "output");
+      writeFileSync(output, "");
+      const script = detectorScript
+        .replaceAll("${{ github.event_name }}", event)
+        .replaceAll("${{ github.event.merge_group.base_sha }}", mergeBase);
+      execFileSync("bash", ["-c", script], {
+        cwd,
+        env: { ...process.env, GITHUB_OUTPUT: output },
+        stdio: "pipe",
+      });
+      return readFileSync(output, "utf8").trim();
+    },
+  };
+}
+
+for (const event of ["pull_request", "merge_group"]) {
+  test(`coverage skips root Markdown changes for ${event}`, (t) => {
+    const fixture = coverageFixture(t);
+    fixture.commit("README.md");
+    assert.equal(fixture.run(event), "run=false");
+  });
+  for (const file of [
+    "packages/core/src/index.ts",
+    "apps/docs/app/page.tsx",
+    "examples/minimal/app/page.tsx",
+    "templates/default/app/api/chat/route.ts",
+    "scripts/coverage-summary.mjs",
+    "scripts/coverage-summary.test.mjs",
+    "scripts/test-coverage-contract.test.mjs",
+    "scripts/lib/workspace.mjs",
+    "turbo.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    ".github/workflows/test-coverage.yaml",
+    ".github/workflows/code-quality.yaml",
+  ]) {
+    test(`coverage runs for ${file} in ${event}`, (t) => {
+      const fixture = coverageFixture(t);
+      fixture.commit(file);
+      assert.equal(fixture.run(event), "run=true");
+    });
+  }
+}
+
+test("coverage uses the full merge group range and the PR first parent", (t) => {
+  const fixture = coverageFixture(t);
+  fixture.commit("packages/core/src/index.ts");
+  fixture.commit("README.md");
+  assert.equal(fixture.run("pull_request"), "run=false");
+  assert.equal(fixture.run("merge_group"), "run=true");
+});
+
+test("coverage runs when the comparison base is unavailable", (t) => {
+  const fixture = coverageFixture(t);
+  assert.equal(fixture.run("pull_request"), "run=true");
+  assert.equal(fixture.run("merge_group", "f".repeat(40)), "run=true");
+  assert.equal(fixture.run("merge_group", ""), "run=true");
+  assert.equal(fixture.run("push"), "run=true");
+  assert.equal(fixture.run("workflow_dispatch"), "run=true");
+});
+
+test("coverage reports for all PRs and merge groups while gating expensive steps", () => {
+  const triggers = coverageWorkflow.split("\npermissions:")[0];
+  const prTrigger = triggers.match(
+    /^  pull_request:\n([\s\S]*?)(?=^  \w+:)/m,
+  )?.[1];
+  assert(prTrigger);
+  assert.doesNotMatch(prTrigger, /paths(?:-ignore)?:/);
+  assert.match(triggers, /merge_group:\s+types: \[checks_requested\]/);
+  assert.match(coverageSteps[0], /fetch-depth:.*merge_group.*&& '0' \|\| '2'/);
+  assert(coverageSteps.length > 2);
+  for (const step of coverageSteps.slice(2)) {
+    assert.match(
+      step,
+      /if: (?:always\(\) && )?steps\.inputs\.outputs\.run == 'true'/,
+      step.split("\n")[0],
+    );
+  }
+  assert.match(
+    coverageWorkflow,
+    /node --test scripts\/test-coverage-contract\.test\.mjs scripts\/coverage-summary\.test\.mjs/,
+  );
+});
+
 const { manifests } = readWorkspaceManifestEntries(root);
 const turbo = path.join(root, "node_modules/.bin/turbo");
 const turboReady =
