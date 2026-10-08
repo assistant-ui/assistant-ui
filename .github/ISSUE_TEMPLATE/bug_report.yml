@@ -42,15 +42,24 @@ body:
         - Cloud (assistant-cloud)
         - React / UI Components
         - React Native
+        - Terminal (Ink)
+        - Vue / Svelte
         - Store / Tap
         - Content Rendering (Markdown, Syntax Highlighting)
         - Rich Text / Composer (Lexical)
+        - Generative UI
+        - MCP
         - Provider Adapters
+        - Styles (tw-shimmer)
+        - Python
         - Performance
+        - Accessibility
         - CLI / Scaffolding
         - DevTools / Observability
         - Documentation
         - Unsure
+    validations:
+      required: true
 
   - type: dropdown
     attributes:
@@ -62,14 +71,20 @@ body:
         - useCloudRuntime
         - useAISDKRuntime / useChatRuntime
         - useLangGraphRuntime
+        - useStreamRuntime (LangChain)
         - useAgUiRuntime
         - useA2ARuntime
         - useAdkRuntime (Google ADK)
+        - useOpenCodeRuntime
+        - usePiRuntime
+        - useEveAgentRuntime
         - useDataStreamRuntime
         - useAssistantTransportRuntime
         - Other / Custom
         - Not applicable
         - Unsure
+    validations:
+      required: true
 
   - type: textarea
     attributes:
