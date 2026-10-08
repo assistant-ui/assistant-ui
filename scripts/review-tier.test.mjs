@@ -1,0 +1,1258 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import test from "node:test";
+import { loadReviewPolicy } from "./lib/review-policy.mjs";
+import {
+  createGitHubClient,
+  evaluatePullRequest,
+  gatherPullRequest,
+  main,
+  publish,
+  renderComment,
+} from "./review-tier.mjs";
+
+const policy = loadReviewPolicy(path.resolve(import.meta.dirname, ".."));
+const repo = `/repos/${policy.repository}`;
+const now = new Date("2026-10-08T12:00:00Z");
+const marker = "<!-- review-tier -->";
+const apiError = (status) =>
+  Object.assign(new Error(`Recorded HTTP ${status}`), { status });
+const user = (login, __typename = "User") => ({ login, __typename });
+const labelEvent = (name, login, createdAt = "2026-10-08T10:00:00Z") => ({
+  __typename: "LabeledEvent",
+  label: { name },
+  actor: login === null ? null : { login },
+  createdAt,
+});
+const readyEvent = (createdAt) => ({
+  __typename: "ReadyForReviewEvent",
+  createdAt,
+});
+const review = (login, overrides = {}) => ({
+  author: user(login),
+  state: "APPROVED",
+  submittedAt: "2026-10-08T11:00:00Z",
+  commit: { oid: "head" },
+  ...overrides,
+});
+const commit = (oid, author, committer = author) => ({
+  commit: {
+    oid,
+    author: { user: author ? { login: author } : null },
+    committer: { user: committer ? { login: committer } : null },
+  },
+});
+const file = (filename, overrides = {}) => ({
+  filename,
+  status: "modified",
+  additions: 10,
+  deletions: 5,
+  patch: "@@ -1 +1 @@\n-old\n+new",
+  ...overrides,
+});
+
+function tapPullRequest(overrides = {}) {
+  return {
+    title: "fix(tap): a flush owns its queued tasks and notifications",
+    body: "## Summary\nOwn queued work per flush.\n\n## Decision\nNone.\n",
+    isDraft: false,
+    state: "MERGED",
+    author: user("samdickson22"),
+    headRefOid: "head",
+    baseRefOid: "base-tip",
+    createdAt: "2026-10-01T08:00:00Z",
+    labels: { nodes: [{ name: "behavior-change" }] },
+    timelineItems: {
+      nodes: [
+        labelEvent("behavior-change", "okisdev"),
+        readyEvent("2026-10-08T08:00:00Z"),
+        readyEvent("2026-10-01T09:00:00Z"),
+      ],
+    },
+    reviews: { nodes: [review("Kinfe123")] },
+    commits: { nodes: [commit("head", "samdickson22")] },
+    closingIssuesReferences: { nodes: [] },
+    ...overrides,
+  };
+}
+
+function docsPullRequest(overrides = {}) {
+  return tapPullRequest({
+    title: "docs: clarify installation",
+    body: "Clarify installation.",
+    state: "OPEN",
+    author: user("Kinfe123"),
+    labels: { nodes: [] },
+    timelineItems: { nodes: [] },
+    reviews: { nodes: [] },
+    commits: { nodes: [commit("head", "Kinfe123")] },
+    ...overrides,
+  });
+}
+
+function fakeClient({
+  pr = tapPullRequest(),
+  files = [
+    file("packages/tap/src/core/scheduler.ts"),
+    file("packages/tap/src/core/scheduler.test.ts"),
+    file("apps/docs/content/docs/tap/scheduler.mdx"),
+  ],
+  admins = ["okisdev", "Yonom"],
+  teams = {
+    [policy.teams.maintainers]: ["okisdev", "Yonom", "Kinfe123", "bnb"],
+    [policy.teams.reviewers]: [],
+    owners: ["okisdev", "Yonom"],
+  },
+  adminStatus,
+  missingTeam = policy.teams.reviewers,
+  teamStatus = 404,
+  permission = "write",
+  permissionStatus,
+  openCount = 1,
+  issues = {},
+  contents = {},
+  labels = [{ name: "behavior-change" }],
+  comments = [],
+  pages = [{ nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }],
+  failures = [],
+} = {}) {
+  const calls = [];
+  const writes = [];
+  let currentLabels = structuredClone(labels);
+  let currentComments = structuredClone(comments);
+  const client = {
+    async graphql(query, variables) {
+      calls.push({ kind: "graphql", query, variables });
+      if (query.includes("query ReviewTierPullRequest(")) {
+        if (failures.includes(variables.number)) throw apiError(500);
+        return { repository: { pullRequest: structuredClone(pr) } };
+      }
+      if (query.includes("query ReviewTierDecision(")) {
+        assert.ok(
+          Object.hasOwn(issues, variables.number),
+          `Unrecorded decision issue ${variables.number}`,
+        );
+        return {
+          repository: { issue: structuredClone(issues[variables.number]) },
+        };
+      }
+      if (query.includes("query ReviewTierAuthorCount(")) {
+        assert.equal(
+          variables.query,
+          `repo:${policy.repository} is:pr is:open draft:false author:${pr.author.login}`,
+        );
+        return { search: { issueCount: openCount } };
+      }
+      if (query.includes("query ReviewTierOpenPullRequests(")) {
+        const index =
+          variables.after === null
+            ? 0
+            : pages.findIndex(
+                (page) => page.pageInfo.endCursor === variables.after,
+              ) + 1;
+        assert.ok(pages[index], `Unrecorded page ${variables.after}`);
+        return { repository: { pullRequests: structuredClone(pages[index]) } };
+      }
+      assert.fail(`Unrecorded GraphQL query: ${query}`);
+    },
+    async paginate(resource) {
+      calls.push({ kind: "paginate", resource });
+      if (new RegExp(`^${repo}/pulls/\\d+/files$`).test(resource))
+        return structuredClone(files);
+      if (resource === "/orgs/assistant-ui/members?role=admin") {
+        if (adminStatus) throw apiError(adminStatus);
+        return admins.map((login) => ({ login }));
+      }
+      const team = /^\/orgs\/assistant-ui\/teams\/([^/]+)\/members$/.exec(
+        resource,
+      )?.[1];
+      if (team) {
+        if (team === missingTeam) throw apiError(teamStatus);
+        assert.ok(Object.hasOwn(teams, team), `Unrecorded team ${team}`);
+        return teams[team].map((login) => ({ login }));
+      }
+      if (new RegExp(`^${repo}/issues/\\d+/labels$`).test(resource))
+        return structuredClone(currentLabels);
+      if (new RegExp(`^${repo}/issues/\\d+/comments$`).test(resource))
+        return structuredClone(currentComments);
+      assert.fail(`Unrecorded pagination: ${resource}`);
+    },
+    async rest(method, resource, body) {
+      calls.push({ kind: "rest", method, resource, body });
+      if (method === "GET") {
+        if (resource === `${repo}/compare/base-tip...head`)
+          return {
+            data: { merge_base_commit: { sha: "merge-base" } },
+            status: 200,
+          };
+        if (
+          resource === `${repo}/collaborators/${pr.author?.login}/permission`
+        ) {
+          if (permissionStatus) throw apiError(permissionStatus);
+          return { data: { permission }, status: 200 };
+        }
+        assert.fail(`Unrecorded GET: ${resource}`);
+      }
+      writes.push({ method, resource, body });
+      if (resource === `${repo}/check-runs` && method === "POST")
+        return { status: 201, data: { id: 1 } };
+      if (method === "POST" && resource.endsWith("/labels")) {
+        currentLabels.push(...body.labels.map((name) => ({ name })));
+      } else if (method === "DELETE" && resource.includes("/labels/")) {
+        const name = decodeURIComponent(resource.split("/labels/")[1]);
+        currentLabels = currentLabels.filter((label) => label.name !== name);
+      } else if (method === "POST" && resource.endsWith("/comments")) {
+        currentComments.push({ id: 91, body: body.body });
+      } else if (method === "PATCH" && resource.includes("/issues/comments/")) {
+        const id = Number(resource.split("/").at(-1));
+        currentComments.find((comment) => comment.id === id).body = body.body;
+      } else {
+        assert.fail(`Unrecorded write: ${method} ${resource}`);
+      }
+      return { status: 200, data: null };
+    },
+    async raw(resource) {
+      calls.push({ kind: "raw", resource });
+      assert.ok(
+        Object.hasOwn(contents, resource),
+        `Unrecorded content: ${resource}`,
+      );
+      return contents[resource];
+    },
+  };
+  return { client, calls, writes };
+}
+
+async function evaluationFor(recording = fakeClient()) {
+  return evaluatePullRequest(
+    await gatherPullRequest(recording.client, policy, 12, { now }),
+    policy,
+  );
+}
+
+function eventOptions(client, name, event = {}, overrides = {}) {
+  return {
+    client,
+    policy,
+    now,
+    args: [],
+    env: {
+      GITHUB_EVENT_NAME: name,
+      GITHUB_EVENT_PATH: "event.json",
+      REVIEW_TIER_MODE: "enforce",
+    },
+    readFile: (file, encoding) => {
+      assert.equal(file, "event.json");
+      assert.equal(encoding, "utf8");
+      return JSON.stringify(event);
+    },
+    ...overrides,
+  };
+}
+
+test("the GitHub client sends authenticated JSON, follows Link pages, and accepts empty responses", async () => {
+  const calls = [];
+  const responses = [
+    new Response(JSON.stringify([{ id: 1 }]), {
+      headers: {
+        link: '<https://api.test/items?page=2>; rel="next", <https://api.test/items?page=2>; rel="last"',
+      },
+    }),
+    new Response(JSON.stringify([{ id: 2 }]), {
+      headers: { link: '<https://api.test/items>; rel="prev"' },
+    }),
+    new Response(null, { status: 204 }),
+    new Response(JSON.stringify({ id: 3 }), {
+      status: 201,
+      headers: { "x-test": "present" },
+    }),
+  ];
+  const client = createGitHubClient({
+    token: "test-token",
+    apiRoot: "https://api.test/",
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return responses.shift();
+    },
+  });
+  assert.deepEqual(await client.paginate("/items"), [{ id: 1 }, { id: 2 }]);
+  assert.equal((await client.rest("DELETE", "/item/1")).data, null);
+  const response = await client.rest("POST", "/items", { name: "new" });
+  assert.equal(response.status, 201);
+  assert.equal(response.headers.get("x-test"), "present");
+  assert.deepEqual(response.data, { id: 3 });
+  assert.deepEqual(
+    calls.map(({ url }) => url),
+    [
+      "https://api.test/items",
+      "https://api.test/items?page=2",
+      "https://api.test/item/1",
+      "https://api.test/items",
+    ],
+  );
+  assert.equal(calls[0].options.headers.Authorization, "Bearer test-token");
+  assert.equal(calls[0].options.headers.Accept, "application/vnd.github+json");
+  assert.equal(calls[0].options.headers["X-GitHub-Api-Version"], "2022-11-28");
+  assert.equal(calls[3].options.headers["Content-Type"], "application/json");
+  assert.equal(calls[3].options.body, JSON.stringify({ name: "new" }));
+});
+
+test("the GitHub client returns raw text, handles only raw 404 as missing, and unwraps GraphQL", async () => {
+  const calls = [];
+  const responses = [
+    new Response("export const value = 1;"),
+    new Response("", { status: 404 }),
+    new Response("Denied", { status: 403 }),
+    new Response(JSON.stringify({ data: { repository: { name: "example" } } })),
+    new Response(
+      JSON.stringify({
+        errors: [{ message: "First error" }, { message: "Second error" }],
+      }),
+    ),
+  ];
+  const client = createGitHubClient({
+    token: "token",
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return responses.shift();
+    },
+  });
+  assert.equal(await client.raw("/contents/source"), "export const value = 1;");
+  assert.equal(calls[0].options.headers.Accept, "application/vnd.github.raw");
+  assert.equal(await client.raw("/contents/missing"), null);
+  await assert.rejects(client.raw("/contents/denied"), { status: 403 });
+  assert.deepEqual(await client.graphql("query Example", { n: 12 }), {
+    repository: { name: "example" },
+  });
+  assert.equal(calls[3].url, "https://api.github.com/graphql");
+  assert.deepEqual(JSON.parse(calls[3].options.body), {
+    query: "query Example",
+    variables: { n: 12 },
+  });
+  await assert.rejects(client.graphql("query Broken", {}), {
+    status: 200,
+    message: "First error; Second error",
+  });
+});
+
+test("HTTP, transport, and invalid JSON failures carry a status", async () => {
+  const client = createGitHubClient({
+    token: "token",
+    fetch: async () => new Response("Missing", { status: 404 }),
+  });
+  await assert.rejects(client.rest("GET", "/missing"), { status: 404 });
+  const offline = createGitHubClient({
+    token: "token",
+    fetch: async () => {
+      throw new Error("Offline");
+    },
+  });
+  await assert.rejects(offline.rest("GET", "/items"), {
+    status: 0,
+    message: "Offline",
+  });
+  const invalid = createGitHubClient({
+    token: "token",
+    fetch: async () => new Response("not json"),
+  });
+  await assert.rejects(invalid.rest("GET", "/items"), { status: 200 });
+});
+
+test("the merged tap fixture is T3 with approvals, owner, decision, and window still needed", async () => {
+  const { client, calls } = fakeClient();
+  const gathered = await gatherPullRequest(client, policy, 12, { now });
+  assert.deepEqual(gathered.pr, {
+    number: 12,
+    title: "fix(tap): a flush owns its queued tasks and notifications",
+    author: "samdickson22",
+    isDraft: false,
+    state: "MERGED",
+    headSha: "head",
+  });
+  assert.deepEqual(gathered.people.labels, [
+    { name: "behavior-change", addedBy: "okisdev" },
+  ]);
+  assert.equal(gathered.people.authorHasWriteAccess, true);
+  assert.equal(gathered.people.now, now.toISOString());
+  assert.equal(gathered.people.readyForReviewAt, "2026-10-08T08:00:00Z");
+  assert.equal(gathered.people.openPullRequestCount, 1);
+  assert.deepEqual(gathered.people.commits, [
+    { sha: "head", author: "samdickson22", committer: "samdickson22" },
+  ]);
+  assert.deepEqual(gathered.people.admins, ["okisdev", "Yonom"]);
+  assert.deepEqual(gathered.people.teams, {
+    [policy.teams.maintainers]: ["okisdev", "Yonom", "Kinfe123", "bnb"],
+    [policy.teams.reviewers]: [],
+    owners: ["okisdev", "Yonom"],
+  });
+  assert.ok(!Object.hasOwn(gathered.people, "maintainers"));
+  const before = structuredClone(gathered);
+  const evaluation = evaluatePullRequest(gathered, policy);
+  assert.deepEqual(gathered, before);
+  assert.equal(evaluation.tierResult.tier, 3);
+  assert.equal(evaluation.conclusion, "action_required");
+  assert.deepEqual(
+    evaluation.requirementResult.unmet.map(({ code }) => code),
+    ["approvals", "owner:reactivity", "decision", "window"],
+  );
+  assert.deepEqual(evaluation.requirementResult.approvals, {
+    counted: ["Kinfe123"],
+    ignored: [],
+  });
+  assert.equal(
+    calls.filter((call) => call.query?.includes("query ReviewTierPullRequest("))
+      .length,
+    1,
+  );
+  assert.ok(
+    calls.some((call) => call.resource === `${repo}/compare/base-tip...head`),
+  );
+  assert.deepEqual(
+    calls
+      .filter(
+        (call) =>
+          call.kind === "paginate" && call.resource.startsWith("/orgs/"),
+      )
+      .map(({ resource }) => resource),
+    [
+      "/orgs/assistant-ui/members?role=admin",
+      `/orgs/assistant-ui/teams/${policy.teams.maintainers}/members`,
+      `/orgs/assistant-ui/teams/${policy.teams.reviewers}/members`,
+      "/orgs/assistant-ui/teams/owners/members",
+    ],
+  );
+});
+
+test("a maintainer's T0 docs pull request succeeds without approvals", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [file("README.md")],
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.equal(gathered.people.readyForReviewAt, "2026-10-01T08:00:00Z");
+  const evaluation = evaluatePullRequest(gathered, policy);
+  assert.equal(evaluation.tierResult.tier, 0);
+  assert.equal(evaluation.conclusion, "success");
+  assert.deepEqual(evaluation.requirementResult.unmet, []);
+});
+
+test("gathering fetches every distinct area owner team once", async () => {
+  const expandedPolicy = {
+    ...policy,
+    areas: [
+      ...policy.areas,
+      { ...policy.areas[0], id: "release", ownerTeam: "release-owners" },
+    ],
+  };
+  const recording = fakeClient({
+    teams: {
+      [policy.teams.maintainers]: ["okisdev", "Yonom", "Kinfe123", "bnb"],
+      [policy.teams.reviewers]: [],
+      owners: ["okisdev", "Yonom"],
+      "release-owners": ["releaselead"],
+    },
+  });
+  const gathered = await gatherPullRequest(
+    recording.client,
+    expandedPolicy,
+    12,
+    { now },
+  );
+  assert.deepEqual(gathered.people.teams["release-owners"], ["releaselead"]);
+  assert.deepEqual(
+    recording.calls
+      .filter(
+        ({ kind, resource }) =>
+          kind === "paginate" && resource.includes("/teams/"),
+      )
+      .map(({ resource }) => resource),
+    [
+      `/orgs/assistant-ui/teams/${policy.teams.maintainers}/members`,
+      `/orgs/assistant-ui/teams/${policy.teams.reviewers}/members`,
+      "/orgs/assistant-ui/teams/owners/members",
+      "/orgs/assistant-ui/teams/release-owners/members",
+    ],
+  );
+});
+
+test("decision references include closing issues and only the Decision section, deduplicated", async () => {
+  const issue = (events) => ({
+    labels: { nodes: [{ name: "decision: accepted" }] },
+    timelineItems: { nodes: events },
+  });
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      body: "## Summary\r\nMention #999.\r\n## Decision\r\nSee #42, #43 and #42.\r\n### Context\r\nAlso #44.\r\n## Tests\r\nIgnore #888.\r\n",
+      closingIssuesReferences: { nodes: [{ number: 42 }] },
+    }),
+    issues: {
+      42: issue([labelEvent("decision: accepted", "outsider")]),
+      43: issue([
+        labelEvent("decision: accepted", "Yonom", "2026-10-08T11:00:00Z"),
+        labelEvent("decision: accepted", "outsider", "2026-10-08T10:00:00Z"),
+      ]),
+      44: issue([]),
+    },
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.linkedIssues, [
+    {
+      number: 42,
+      labels: [{ name: "decision: accepted", addedBy: "outsider" }],
+    },
+    {
+      number: 43,
+      labels: [{ name: "decision: accepted", addedBy: "Yonom" }],
+    },
+    { number: 44, labels: [{ name: "decision: accepted", addedBy: null }] },
+  ]);
+  assert.ok(
+    !evaluatePullRequest(gathered, policy).requirementResult.unmet.some(
+      ({ code }) => code === "decision",
+    ),
+  );
+  assert.equal(
+    recording.calls.filter((call) =>
+      call.query?.includes("query ReviewTierDecision("),
+    ).length,
+    3,
+  );
+});
+
+test("latest label actors, bot reviews, and missing commit identities reach requirements intact", async () => {
+  const recording = fakeClient({
+    pr: tapPullRequest({
+      labels: {
+        nodes: [
+          { name: "behavior-change" },
+          { name: "unknown" },
+          { name: "review-tier/override: window" },
+        ],
+      },
+      timelineItems: {
+        nodes: [
+          labelEvent("behavior-change", null),
+          labelEvent(
+            "review-tier/override: window",
+            "okisdev",
+            "2026-10-08T11:00:00Z",
+          ),
+          labelEvent(
+            "review-tier/override: window",
+            "outsider",
+            "2026-10-08T09:00:00Z",
+          ),
+          readyEvent("2026-10-08T08:00:00Z"),
+        ],
+      },
+      reviews: {
+        nodes: [
+          review("Kinfe123"),
+          review("automation", { author: user("automation", "Bot") }),
+        ],
+      },
+      commits: {
+        nodes: [
+          commit("old", null, null),
+          commit("head", "samdickson22", "web-flow"),
+        ],
+      },
+    }),
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.labels.slice(0, 2), [
+    { name: "behavior-change", addedBy: null },
+    { name: "unknown", addedBy: null },
+  ]);
+  assert.deepEqual(gathered.people.commits[0], {
+    sha: "old",
+    author: null,
+    committer: null,
+  });
+  const result = evaluatePullRequest(gathered, policy).requirementResult;
+  assert.deepEqual(result.waived, [
+    { code: "window", signal: "window", by: "okisdev" },
+  ]);
+  assert.deepEqual(result.approvals.ignored, [
+    { login: "automation", reason: "bot" },
+  ]);
+});
+
+test("API surfaces and manifests are diffed at the merge base and head, including missing and renamed files", async () => {
+  const surface = (type) =>
+    `declare const value: ${type};\ndeclare namespace api { export { value }; }\nexport { api as entry_main };`;
+  const baseManifest = { exports: { ".": "./old.js" }, dependencies: {} };
+  const headManifest = {
+    exports: { ".": "./new.js", "./extra": "./extra.js" },
+    dependencies: { added: "^1.0.0" },
+  };
+  const contents = {};
+  for (const [file, base, head] of [
+    ["api-surface/react.ts", surface("string"), surface("number")],
+    ["api-surface/old.ts", surface("string"), null],
+    [
+      "packages/react/package.json",
+      JSON.stringify(baseManifest),
+      JSON.stringify(headManifest),
+    ],
+    [
+      "packages/new/package.json",
+      null,
+      JSON.stringify({ exports: "./index.js" }),
+    ],
+    [
+      "packages/gone/package.json",
+      JSON.stringify({ exports: "./index.js" }),
+      null,
+    ],
+    [
+      "packages/unchanged/package.json",
+      JSON.stringify({ version: "1" }),
+      JSON.stringify({ version: "2" }),
+    ],
+  ]) {
+    contents[`${repo}/contents/${file}?ref=merge-base`] = base;
+    contents[`${repo}/contents/${file}?ref=head`] = head;
+  }
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [
+      file("api-surface/react.ts", { status: "changed" }),
+      file("archived/old.ts", {
+        status: "renamed",
+        previous_filename: "api-surface/old.ts",
+      }),
+      file("packages/react/package.json"),
+      file("packages/new/package.json", { status: "added" }),
+      file("packages/gone/package.json", { status: "removed" }),
+      file("packages/unchanged/package.json"),
+    ],
+    contents,
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(
+    signalsInput.files.map(({ status }) => status),
+    ["modified", "renamed", "modified", "added", "removed", "modified"],
+  );
+  assert.equal(signalsInput.files[1].previousPath, "api-surface/old.ts");
+  assert.equal(signalsInput.files[0].patch, "@@ -1 +1 @@\n-old\n+new");
+  assert.deepEqual(signalsInput.apiSurface[0].diff.declarationsChanged, [
+    { entry: "entry_main", name: "value" },
+  ]);
+  assert.deepEqual(signalsInput.apiSurface[1].diff.entriesRemoved, [
+    "entry_main",
+  ]);
+  assert.deepEqual(signalsInput.manifests[0], {
+    path: "packages/react/package.json",
+    base: baseManifest,
+    head: headManifest,
+  });
+  assert.equal(signalsInput.manifests[1].base, null);
+  assert.equal(signalsInput.manifests[2].head, null);
+  assert.deepEqual(signalsInput.exportsDiffs, [
+    {
+      path: "packages/react/package.json",
+      diff: { added: ["./extra"], removed: [], changed: ["."] },
+    },
+    {
+      path: "packages/new/package.json",
+      diff: { added: ["."], removed: [], changed: [] },
+    },
+    {
+      path: "packages/gone/package.json",
+      diff: { added: [], removed: ["."], changed: [] },
+    },
+  ]);
+  assert.equal(recording.calls.filter(({ kind }) => kind === "raw").length, 12);
+});
+
+test("a missing team is empty with a warning, while other team errors propagate", async (t) => {
+  const warnings = t.mock.method(console, "warn", () => {});
+  const missingReviewers = await gatherPullRequest(
+    fakeClient().client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(missingReviewers.people.teams[policy.teams.reviewers], []);
+  assert.equal(warnings.mock.callCount(), 1);
+  assert.match(warnings.mock.calls[0].arguments[0], /reviewers.*empty/);
+
+  const missingMaintainers = await gatherPullRequest(
+    fakeClient({ missingTeam: policy.teams.maintainers }).client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(missingMaintainers.people.admins, ["okisdev", "Yonom"]);
+  assert.deepEqual(
+    missingMaintainers.people.teams[policy.teams.maintainers],
+    [],
+  );
+  assert.equal(warnings.mock.callCount(), 2);
+  assert.match(warnings.mock.calls[1].arguments[0], /maintainers.*empty/);
+
+  const missingAreaOwners = await gatherPullRequest(
+    fakeClient({ missingTeam: "owners" }).client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(missingAreaOwners.people.teams.owners, []);
+  assert.equal(warnings.mock.callCount(), 3);
+  assert.match(warnings.mock.calls[2].arguments[0], /owners.*empty/);
+  await assert.rejects(
+    gatherPullRequest(
+      fakeClient({ missingTeam: "owners", teamStatus: 403 }).client,
+      policy,
+      12,
+      { now },
+    ),
+    { status: 403 },
+  );
+  const missingOwners = await gatherPullRequest(
+    fakeClient({ adminStatus: 404 }).client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(missingOwners.people.admins, []);
+  assert.deepEqual(missingOwners.people.teams[policy.teams.maintainers], [
+    "okisdev",
+    "Yonom",
+    "Kinfe123",
+    "bnb",
+  ]);
+  assert.equal(warnings.mock.callCount(), 5);
+  assert.match(warnings.mock.calls[3].arguments[0], /owners as empty/);
+  assert.match(warnings.mock.calls[4].arguments[0], /reviewers.*empty/);
+  await assert.rejects(
+    gatherPullRequest(fakeClient({ adminStatus: 403 }).client, policy, 12, {
+      now,
+    }),
+    { status: 403 },
+  );
+});
+
+test("write permissions are limited to admin, maintain, and write, with 403 and 404 treated as false", async () => {
+  for (const permission of ["admin", "maintain", "write", "triage", "read"]) {
+    const gathered = await gatherPullRequest(
+      fakeClient({ permission }).client,
+      policy,
+      12,
+      { now },
+    );
+    assert.equal(
+      gathered.people.authorHasWriteAccess,
+      ["admin", "maintain", "write"].includes(permission),
+    );
+  }
+  for (const permissionStatus of [403, 404]) {
+    const gathered = await gatherPullRequest(
+      fakeClient({ permissionStatus }).client,
+      policy,
+      12,
+      { now },
+    );
+    assert.equal(gathered.people.authorHasWriteAccess, false);
+  }
+  await assert.rejects(
+    gatherPullRequest(
+      fakeClient({ permissionStatus: 500 }).client,
+      policy,
+      12,
+      { now },
+    ),
+    { status: 500 },
+  );
+});
+
+test("a deleted author has no permission lookup or author search", async () => {
+  const recording = fakeClient({ pr: tapPullRequest({ author: null }) });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.equal(gathered.people.author, null);
+  assert.equal(gathered.people.authorHasWriteAccess, false);
+  assert.equal(gathered.people.openPullRequestCount, 0);
+  assert.ok(
+    !recording.calls.some(
+      (call) =>
+        call.resource?.includes("/collaborators/") ||
+        call.query?.includes("query ReviewTierAuthorCount("),
+    ),
+  );
+});
+
+test("hard policy failures stay failures", async () => {
+  const evaluation = await evaluationFor(
+    fakeClient({ openCount: policy.openPullRequestCap + 1 }),
+  );
+  assert.equal(evaluation.conclusion, "failure");
+  assert.ok(
+    evaluation.requirementResult.unmet.some(
+      ({ code }) => code === "open-pr-cap",
+    ),
+  );
+});
+
+test("the comment starts with its marker and strongest reason and bounds the reasons list", async () => {
+  const evaluation = await evaluationFor();
+  evaluation.tierResult.reasons.push(
+    ...Array.from({ length: 12 }, (_, index) => ({
+      tier: 0,
+      code: "low-risk-path",
+      detail: `docs/${index}.md`,
+    })),
+  );
+  evaluation.requirementResult.waived.push({
+    code: "size-cap",
+    signal: "size",
+    by: "okisdev",
+  });
+  evaluation.requirementResult.approvals.ignored.push({
+    login: "previous-reviewer",
+    reason: "stale",
+  });
+  const before = structuredClone(evaluation);
+  const comment = renderComment(evaluation, policy);
+  assert.deepEqual(evaluation, before);
+  assert.equal(comment.split("\n")[0], marker);
+  assert.match(comment.split("\n")[1], /^T3.*behavior-change-label/);
+  const reasons = comment
+    .split("Reasons:\n\n")[1]
+    .split("\n\nStill needed:")[0];
+  assert.equal(
+    reasons.split("\n").filter((line) => line.startsWith("- ")).length,
+    10,
+  );
+  assert.match(reasons, /and 6 more$/);
+  for (const expected of [
+    "owner:reactivity",
+    "decision:",
+    "window:",
+    "needs 2 maintainer approvals",
+    "size-cap: waived by okisdev with review-tier/override: size",
+    "Kinfe123: trusted, current approval",
+    "previous-reviewer: stale",
+  ]) {
+    assert.ok(comment.includes(expected), expected);
+  }
+});
+
+test("shadow mode changes pending and failure to neutral while success remains success", async () => {
+  for (const [recording, conclusion, title] of [
+    [fakeClient(), "neutral", /^T3: needs 2 maintainer approvals/],
+    [
+      fakeClient({ openCount: 6 }),
+      "neutral",
+      /^T3: needs 2 maintainer approvals/,
+    ],
+    [
+      fakeClient({ pr: docsPullRequest(), files: [file("README.md")] }),
+      "success",
+      /^T0: ready$/,
+    ],
+  ]) {
+    const evaluation = await evaluationFor(recording);
+    const before = structuredClone(evaluation);
+    await publish(recording.client, policy, {
+      number: 12,
+      headSha: "head",
+      evaluation,
+      mode: "shadow",
+      labelsAndComment: false,
+    });
+    assert.deepEqual(evaluation, before);
+    assert.equal(recording.writes.length, 1);
+    const { body } = recording.writes[0];
+    assert.equal(body.conclusion, conclusion);
+    assert.equal(body.head_sha, "head");
+    assert.equal(body.name, "review-tier");
+    assert.equal(body.status, "completed");
+    assert.match(body.output.title, title);
+    assert.equal(
+      body.output.summary,
+      renderComment(evaluation, policy).split("\n").slice(1).join("\n"),
+    );
+  }
+});
+
+test("publishing syncs tier labels and creates a sticky comment without repeating unchanged writes", async () => {
+  const recording = fakeClient({
+    labels: [
+      { name: "tier/1" },
+      { name: "tier/2" },
+      { name: "behavior-change" },
+      { name: "unrelated" },
+    ],
+    comments: [{ id: 2, body: "Regular comment" }],
+  });
+  const evaluation = await evaluationFor(recording);
+  const options = { number: 12, headSha: "head", evaluation, mode: "enforce" };
+  await publish(recording.client, policy, options);
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["POST", `${repo}/issues/12/labels`],
+      ["DELETE", `${repo}/issues/12/labels/tier%2F1`],
+      ["DELETE", `${repo}/issues/12/labels/tier%2F2`],
+      ["POST", `${repo}/issues/12/comments`],
+    ],
+  );
+  assert.equal(recording.writes[0].body.conclusion, "action_required");
+  assert.deepEqual(recording.writes[1].body, { labels: ["tier/3"] });
+  assert.deepEqual(recording.writes[4].body, {
+    body: renderComment(evaluation, policy),
+  });
+  const writeCount = recording.writes.length;
+  await publish(recording.client, policy, options);
+  assert.equal(recording.writes.length, writeCount + 1);
+  assert.equal(recording.writes.at(-1).resource, `${repo}/check-runs`);
+});
+
+test("an existing sticky comment is updated only when its body changes", async () => {
+  const recording = fakeClient({
+    labels: [{ name: "tier/3" }],
+    comments: [
+      { id: 81, body: `Leading text ${marker}` },
+      { id: 82, body: `${marker}\nOld result` },
+    ],
+  });
+  const evaluation = await evaluationFor(recording);
+  const options = { number: 12, headSha: "head", evaluation, mode: "enforce" };
+  await publish(recording.client, policy, options);
+  await publish(recording.client, policy, options);
+  assert.deepEqual(
+    recording.writes.filter(({ resource }) => resource.includes("comments")),
+    [
+      {
+        method: "PATCH",
+        resource: `${repo}/issues/comments/82`,
+        body: { body: renderComment(evaluation, policy) },
+      },
+    ],
+  );
+});
+
+test("merge groups parse branch refs, evaluate fresh data even for drafts, and publish only a check on the queue SHA", async () => {
+  for (const base of ["main", "release/next"]) {
+    const recording = fakeClient({ pr: tapPullRequest({ isDraft: true }) });
+    const code = await main(
+      eventOptions(recording.client, "merge_group", {
+        merge_group: {
+          head_ref: `refs/heads/gh-readonly-queue/${base}/pr-12-abcdef1234`,
+          head_sha: "queue-sha",
+        },
+      }),
+    );
+    assert.equal(code, 0);
+    assert.equal(recording.writes.length, 1);
+    assert.equal(recording.writes[0].resource, `${repo}/check-runs`);
+    assert.equal(recording.writes[0].body.head_sha, "queue-sha");
+    assert.equal(recording.writes[0].body.conclusion, "action_required");
+    assert.ok(
+      recording.calls.some(
+        (call) =>
+          call.query?.includes("query ReviewTierPullRequest(") &&
+          call.variables.number === 12,
+      ),
+    );
+    assert.ok(
+      !recording.calls.some((call) => call.resource?.includes("/issues/")),
+    );
+  }
+  for (const head_ref of [
+    "refs/heads/feature/pr-12-abcdef",
+    "refs/heads/gh-readonly-queue/main/pr-nope-abcdef",
+    "refs/heads/gh-readonly-queue/main/pr-12-abc/extra",
+  ]) {
+    const recording = fakeClient();
+    await assert.rejects(
+      main(
+        eventOptions(recording.client, "merge_group", {
+          merge_group: { head_ref, head_sha: "queue" },
+        }),
+      ),
+      /Merge group ref/,
+    );
+    assert.deepEqual(recording.calls, []);
+  }
+});
+
+test("issues events reevaluate only open T3 pull requests and only for the decision label", async () => {
+  for (const event of [{}, { label: { name: "bug" } }]) {
+    const recording = fakeClient();
+    assert.equal(
+      await main(eventOptions(recording.client, "issues", event)),
+      0,
+    );
+    assert.deepEqual(recording.calls, []);
+  }
+  const recording = fakeClient({
+    pages: [
+      {
+        nodes: [
+          { number: 12, isDraft: false },
+          { number: 13, isDraft: true },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "issues", {
+        label: { name: "decision: accepted" },
+      }),
+    ),
+    0,
+  );
+  assert.deepEqual(recording.calls[0].variables.labels, ["tier/3"]);
+  assert.match(recording.calls[0].query, /pullRequests\(states: OPEN/);
+  assert.deepEqual(
+    recording.calls
+      .filter((call) => call.query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12],
+  );
+});
+
+test("workflow relay files accept a number and reject shell text before making API calls", async () => {
+  for (const customPath of [undefined, "relay/number"]) {
+    const recording = fakeClient();
+    const options = eventOptions(
+      recording.client,
+      "workflow_run",
+      {},
+      {
+        env: {
+          GITHUB_EVENT_NAME: "workflow_run",
+          ...(customPath ? { REVIEW_TIER_RELAY_FILE: customPath } : {}),
+        },
+        readFile: (file, encoding) => {
+          assert.equal(file, customPath ?? "review-tier-pr/number");
+          assert.equal(encoding, "utf8");
+          return "12\n";
+        },
+      },
+    );
+    assert.equal(await main(options), 0);
+    assert.equal(recording.writes[0].body.conclusion, "neutral");
+  }
+  for (const text of [
+    "12; rm -rf /",
+    "12\n13",
+    "",
+    "0",
+    "-1",
+    "1.2",
+    "9007199254740992",
+  ]) {
+    const recording = fakeClient();
+    await assert.rejects(
+      main(
+        eventOptions(
+          recording.client,
+          "workflow_run",
+          {},
+          {
+            env: { GITHUB_EVENT_NAME: "workflow_run" },
+            readFile: () => text,
+          },
+        ),
+      ),
+      /only digits/,
+    );
+    assert.deepEqual(recording.calls, []);
+  }
+});
+
+test("schedule and dispatch page through open non-draft pull requests and continue after one fails", async (t) => {
+  const errors = t.mock.method(console, "error", () => {});
+  for (const eventName of ["schedule", "workflow_dispatch"]) {
+    const recording = fakeClient({
+      failures: [12],
+      pages: [
+        {
+          nodes: [
+            { number: 12, isDraft: false },
+            { number: 13, isDraft: true },
+          ],
+          pageInfo: { hasNextPage: true, endCursor: "next-page" },
+        },
+        {
+          nodes: [
+            { number: 14, isDraft: false },
+            { number: 15, isDraft: false },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: "last-page" },
+        },
+      ],
+    });
+    assert.equal(await main(eventOptions(recording.client, eventName)), 1);
+    assert.deepEqual(
+      recording.calls
+        .filter((call) =>
+          call.query?.includes("query ReviewTierOpenPullRequests("),
+        )
+        .map(({ variables }) => [variables.after, variables.labels]),
+      [
+        [null, null],
+        ["next-page", null],
+      ],
+    );
+    assert.deepEqual(
+      recording.calls
+        .filter((call) => call.query?.includes("query ReviewTierPullRequest("))
+        .map(({ variables }) => variables.number),
+      [12, 14, 15],
+    );
+    assert.equal(
+      recording.writes.filter(({ resource }) =>
+        resource.endsWith("/check-runs"),
+      ).length,
+      2,
+    );
+  }
+  assert.equal(errors.mock.callCount(), 2);
+  assert.match(
+    errors.mock.calls[0].arguments[0],
+    /Pull request #12: Recorded HTTP 500/,
+  );
+});
+
+test("explicit dispatch input and pull request events evaluate one PR", async () => {
+  for (const [name, event] of [
+    ["workflow_dispatch", { inputs: { pr: "12" } }],
+    ["pull_request_target", { pull_request: { number: 12, draft: false } }],
+  ]) {
+    const recording = fakeClient();
+    assert.equal(await main(eventOptions(recording.client, name, event)), 0);
+    assert.equal(recording.calls[0].variables.number, 12);
+    assert.equal(recording.writes[0].body.conclusion, "action_required");
+  }
+});
+
+test("draft pull requests are skipped outside merge groups, including fresh draft state", async () => {
+  const eventDraft = fakeClient();
+  assert.equal(
+    await main(
+      eventOptions(eventDraft.client, "pull_request_target", {
+        pull_request: { number: 12, draft: true },
+      }),
+    ),
+    0,
+  );
+  assert.deepEqual(eventDraft.calls, []);
+  const freshDraft = fakeClient({ pr: tapPullRequest({ isDraft: true }) });
+  assert.equal(
+    await main(
+      eventOptions(freshDraft.client, "pull_request_target", {
+        pull_request: { number: 12, draft: false },
+      }),
+    ),
+    0,
+  );
+  assert.deepEqual(freshDraft.writes, []);
+  assert.equal(
+    await main({
+      client: freshDraft.client,
+      policy,
+      now,
+      args: ["--pr", "12"],
+      env: {},
+    }),
+    0,
+  );
+  assert.deepEqual(freshDraft.writes, []);
+});
+
+test("--pr takes precedence over events and dry-run prints only the evaluation without publishing", async (t) => {
+  const logs = t.mock.method(console, "log", () => {});
+  const recording = fakeClient();
+  const code = await main({
+    args: ["--pr=12", "--dry-run"],
+    env: { GITHUB_EVENT_NAME: "merge_group", GITHUB_EVENT_PATH: "unread.json" },
+    client: recording.client,
+    policy,
+    now,
+    readFile: () => assert.fail("Event file must not be read"),
+  });
+  assert.equal(code, 0);
+  assert.deepEqual(recording.writes, []);
+  assert.equal(logs.mock.callCount(), 1);
+  const evaluation = JSON.parse(logs.mock.calls[0].arguments[0]);
+  assert.equal(evaluation.tierResult.tier, 3);
+  assert.equal(evaluation.conclusion, "action_required");
+});
+
+test("the CLI defaults every mode other than enforce to shadow", async () => {
+  for (const mode of [undefined, "shadow", "invalid", "enforce"]) {
+    const recording = fakeClient();
+    assert.equal(
+      await main({
+        args: ["--pr", "12"],
+        env: { REVIEW_TIER_MODE: mode },
+        client: recording.client,
+        policy,
+        now,
+      }),
+      0,
+    );
+    assert.equal(
+      recording.writes[0].body.conclusion,
+      mode === "enforce" ? "action_required" : "neutral",
+    );
+  }
+});
+
+test("invalid arguments and missing tokens fail before API calls, and unrelated events do nothing", async () => {
+  for (const args of [
+    ["--pr"],
+    ["--pr="],
+    ["--pr", "12", "--pr", "13"],
+    ["--pr", "12x"],
+  ]) {
+    const recording = fakeClient();
+    await assert.rejects(
+      main({ args, client: recording.client, policy, env: {}, now }),
+    );
+    assert.deepEqual(recording.calls, []);
+  }
+  await assert.rejects(
+    main({ args: ["--pr", "12"], policy, env: {}, now }),
+    /GITHUB_TOKEN is required/,
+  );
+  assert.equal(
+    await main({ args: [], policy, env: { GITHUB_EVENT_NAME: "push" }, now }),
+    0,
+  );
+});
+
+test("the executable guard reports invalid CLI input with exit status 1", () => {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(import.meta.dirname, "review-tier.mjs"), "--pr", "12; rm -rf /"],
+    {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_TOKEN: "" },
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /only digits/);
+  assert.equal(result.stdout, "");
+});
