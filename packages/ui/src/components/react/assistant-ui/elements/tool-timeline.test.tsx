@@ -108,6 +108,40 @@ describe("ToolTimeline", () => {
     }
   });
 
+  it("keys steps with a blank id by their position", () => {
+    const blankIds: TimelineStep[] = [
+      { id: "", verb: "Read", chip: "a.ts", icon: FileIcon },
+      { id: "", verb: "Read", chip: "b.ts", icon: FileIcon },
+    ];
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      render(
+        <ToolTimeline
+          steps={blankIds}
+          visibleSteps={blankIds.length}
+          streaming={false}
+          open
+          onOpenChange={() => {}}
+          restingLabel="Worked for 2s"
+          activeLabel="Working"
+          stats={[]}
+        />,
+      );
+
+      expect(screen.getByText("a.ts")).toBeTruthy();
+      expect(screen.getByText("b.ts")).toBeTruthy();
+      expect(
+        errorSpy.mock.calls.some((call) =>
+          String(call[0]).includes("same key"),
+        ),
+      ).toBe(false);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("preserves surviving rows and mounts the entering row when an identified window slides", () => {
     const steps: TimelineStep[] = Array.from({ length: 7 }, (_, index) => ({
       id: `s${index + 1}`,

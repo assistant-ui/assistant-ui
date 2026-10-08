@@ -76,7 +76,7 @@ export function ToolTimeline({
 
             return (
               <div
-                key={step.id === undefined ? index : `id:${step.id}`}
+                key={step.id ? `id:${step.id}` : index}
                 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-foreground/55 flex items-center gap-2 text-[13.5px] duration-300"
               >
                 <Icon className="text-foreground/35 size-3.5 shrink-0" />
