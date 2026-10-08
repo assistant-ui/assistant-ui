@@ -11,7 +11,7 @@ import {
   type CheckoutContextValue,
 } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
-import { useCart } from "@/lib/catalog/cart-store";
+import { useCart, useCartEntries } from "@/lib/catalog/cart-store";
 import { abandonCheckout, checkoutCart } from "@/lib/checkout/flow";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -24,32 +24,55 @@ function EmptyState() {
         Nothing here yet.
       </h1>
       <p className={cn("mt-4", typeDeck)}>
-        Add a product from the shop, then start setup to have your coding agent
-        install it.
+        Add a product from the Components page, then start setup to have your
+        coding agent install it.
       </p>
       <Button
         nativeButton={false}
         className="mt-8"
-        render={<Link href="/shop" />}
+        render={<Link href="/components" />}
       >
         <ArrowLeftIcon data-icon="inline-start" />
-        Browse the shop
+        Browse components
       </Button>
     </div>
   );
 }
 
-function StartState({ count }: { count: number }) {
+function StartState({
+  count,
+  needsConfiguration,
+}: {
+  count: number;
+  needsConfiguration: boolean;
+}) {
   return (
     <div className="max-w-xl">
       <h1 className={cn(typePage, "text-2xl md:text-2xl")}>Start setup</h1>
       <p className={cn("mt-4", typeDeck)}>
-        Your cart holds {count} {count === 1 ? "product" : "products"}. Starting
-        opens a session that your coding agent joins from your terminal.
+        {needsConfiguration ? (
+          "Choose what each agent tool should do in your cart before starting setup."
+        ) : (
+          <>
+            Your cart holds {count} {count === 1 ? "product" : "products"}.
+            Starting opens a session that your coding agent joins from your
+            terminal.
+          </>
+        )}
       </p>
-      <Button className="mt-8" onClick={() => checkoutCart()}>
-        Start setup
-      </Button>
+      {needsConfiguration ? (
+        <Button
+          nativeButton={false}
+          className="mt-8"
+          render={<Link href="/components/cart" />}
+        >
+          Configure tools
+        </Button>
+      ) : (
+        <Button className="mt-8" onClick={() => checkoutCart()}>
+          Start setup
+        </Button>
+      )}
     </div>
   );
 }
@@ -74,6 +97,7 @@ function UnreadableState() {
 export function CheckoutView() {
   const hydrated = useHydrated();
   const slugs = useCart();
+  const entries = useCartEntries();
   const session = useCheckoutSession();
   const checkout = useCheckout();
   const failed = useCheckoutFailed();
@@ -103,7 +127,10 @@ export function CheckoutView() {
       ) : slugs.length === 0 ? (
         <EmptyState />
       ) : (
-        <StartState count={slugs.length} />
+        <StartState
+          count={slugs.length}
+          needsConfiguration={entries.includes("agent-tools")}
+        />
       )}
     </div>
   );

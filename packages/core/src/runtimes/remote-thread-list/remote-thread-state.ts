@@ -1,5 +1,6 @@
 import type {
   RemoteThreadInitializeResponse,
+  RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "./types";
 import { generateId } from "../../utils/id";
@@ -133,6 +134,22 @@ export const classifyThreads = (
   return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
+// Merges a fetched thread into a state: a remote id that already resolves to
+// a slot refreshes that slot; an unknown one is appended, since it may live on
+// a page that has not loaded yet.
+export const mergeFetchedThread = (
+  state: RemoteThreadState,
+  thread: RemoteThreadMetadata,
+): RemoteThreadState => ({
+  ...state,
+  ...classifyThreads([thread], {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: state.threadIdMap,
+    threadData: state.threadData,
+  }),
+});
+
 export type RemoteThreadState = {
   readonly isLoading: boolean;
   readonly loadError: unknown;
@@ -159,11 +176,12 @@ export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
 
 export const seedNewThread = (
   state: RemoteThreadState,
+  initialThreadIdSeed?: string,
 ): { id: string; state: RemoteThreadState } => {
-  let id: string;
-  do {
+  let id = `${LOCAL_THREAD_ID_PREFIX}${initialThreadIdSeed ?? generateId()}`;
+  while (state.threadIdMap[id]) {
     id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
-  } while (state.threadIdMap[id]);
+  }
   const mappingId = createThreadMappingId(id);
   return {
     id,
@@ -260,6 +278,51 @@ export const statusSnapshot = (
   state: RemoteThreadState,
 ): ReadonlyMap<string, RemoteThreadData["status"]> =>
   new Map(Object.values(state.threadData).map((d) => [d.id, d.status]));
+
+export const applyInitialThreadPage = (
+  state: RemoteThreadState,
+  page: RemoteThreadListResponse,
+  statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
+): RemoteThreadState => {
+  const fresh = classifyThreads(page.threads, {
+    threadIds: [],
+    archivedThreadIds: [],
+    threadIdMap: { ...state.threadIdMap },
+    threadData: { ...state.threadData },
+  });
+  const merged = {
+    ...state,
+    isLoading: false,
+    loadError: undefined,
+    cursor: normalizeCursor(page.nextCursor),
+    threadIds: fresh.threadIds,
+    archivedThreadIds: fresh.archivedThreadIds,
+    threadIdMap: fresh.threadIdMap,
+    threadData: fresh.threadData,
+  };
+  return preserveMidLoadTransitions(merged, state, statusAtRequest);
+};
+
+export const appendThreadPage = (
+  state: RemoteThreadState,
+  page: RemoteThreadListResponse,
+): RemoteThreadState => {
+  const appended = classifyThreads(page.threads, {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: { ...state.threadIdMap },
+    threadData: { ...state.threadData },
+  });
+  return {
+    ...state,
+    isLoadingMore: false,
+    cursor: normalizeCursor(page.nextCursor),
+    threadIds: appended.threadIds,
+    archivedThreadIds: appended.archivedThreadIds,
+    threadIdMap: appended.threadIdMap,
+    threadData: appended.threadData,
+  };
+};
 
 export const getThreadData = (
   state: RemoteThreadState,
@@ -481,3 +544,20 @@ export const promoteNewThreadReducer = (
   threadIdOrRemoteId: string,
   initializeTask: Promise<RemoteThreadInitializeResponse>,
 ) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);
+
+/**
+ * Deletes a thread by its slot id and, once known, its remote id. Deleting a
+ * slot drops every id that resolved to it, so a list() response served before
+ * the deletion re-mints the thread under its remote id; replaying the deletion
+ * by slot id alone would no longer find it.
+ */
+export const deleteThreadReducer = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string | undefined,
+) => {
+  const deleted = updateStatusReducer(state, threadId, "deleted");
+  return remoteId === undefined
+    ? deleted
+    : updateStatusReducer(deleted, remoteId, "deleted");
+};

@@ -9,7 +9,7 @@ Nine cells cycle through a moving band while a label underneath names what is ha
 
 <RuntimeMode>
 
-Nothing in the runtime ticks a clock for you, and no selector hands you a status string. What the runtime does give you is the one fact that decides whether this belongs on screen at all: a run is active and the newest message has not produced a single part yet.
+The runtime does not tick a clock or provide a status string. It does tell you when the loader belongs on screen: a run is active and the newest message has no parts yet.
 
 <Steps>
   <Step>
@@ -98,7 +98,7 @@ export function Loader({ label }: { label: string }) {
 
 ### Stop the timer when it settles
 
-Unmount `Loader` once your own async work resolves; there is no `active` or `done` prop, the interval keeps advancing `tick` for as long as the component stays mounted.
+Unmount `Loader` once your own async work resolves; there is no `active` or `done` prop, so the interval keeps advancing `tick` for as long as the component stays mounted.
 
   </Step>
 </Steps>
@@ -117,7 +117,7 @@ Unmount `Loader` once your own async work resolves; there is no `active` or `don
 
 ### Restyle the grid
 
-The cells paint with a flat `bg-foreground` at two opacity levels (lit and dim); there is no color prop, so retinting the grid means overriding that utility through `className` or wrapping the element in a `text-*`/color scope your own CSS reads. The label alone uses the shared `ShimmerLabel` treatment from `surfaces.tsx`.
+The cells paint with a flat `bg-foreground` at two opacity levels (lit and dim); there is no color prop, so retinting the grid means overriding that utility through `className`. The label alone uses the shared `ShimmerLabel` treatment from `surfaces.tsx`.
 
 ```tsx
 <GenerationLoader

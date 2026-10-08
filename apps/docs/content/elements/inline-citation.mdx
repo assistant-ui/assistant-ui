@@ -3,7 +3,7 @@ title: "Inline citation"
 description: "A compact, numbered source marker you place beside any claim in prose."
 ---
 
-Inline citation keeps the sentence in your hands. Wrap the prose in `InlineCitation`, then place a `Citation` marker beside each claim it supports. Hovering or focusing a marker opens a compact preview with the source details.
+Wrap the prose in `InlineCitation`, then place a `Citation` marker beside each claim it supports. Hovering or focusing a marker opens a compact preview with the source details.
 
 ## Getting started
 
@@ -190,7 +190,7 @@ The default paragraph stays compact. Pass `className` or any other paragraph pro
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `children` | `ReactNode` | required | Prose and `Citation` markers to render inside the paragraph. |
+| `children` | `ReactNode` | | Prose and `Citation` markers to render inside the paragraph. |
 | `className` | `string` | | Merged onto the paragraph. |
 
 All other `p` props are forwarded to the root.
@@ -205,7 +205,7 @@ All other `p` props are forwarded to the root.
 | `onOpenChange` | `(open: boolean) => void` | | Receives preview state changes. |
 | `className` | `string` | | Merged onto the marker button. |
 
-Other sensible button props, such as `data-*`, `disabled`, and `onClick`, are forwarded to the marker button.
+Other button props, such as `data-*`, `disabled`, and `onClick`, are forwarded to the marker button. `aria-label`, `children`, and `type` are not accepted.
 
 ### Source
 

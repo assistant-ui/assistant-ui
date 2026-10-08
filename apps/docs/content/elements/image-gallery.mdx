@@ -85,7 +85,7 @@ export function Results() {
 </div>
 ```
 
-The grid uses two columns and grows to three when its container has room. It shows six images by default. When there are more, the final visible tile reads `+N` and opens at that image rather than hiding the rest of the gallery. The dialog keeps its place with previous and next controls, ArrowLeft and ArrowRight, and Escape.
+The grid uses two columns and grows to three when its container has room. It shows six images by default. When there are more, the final visible tile reads `+N` and opens at that image rather than hiding the rest of the gallery. The dialog keeps its place with previous and next controls, ArrowLeft and ArrowRight, and Escape. It takes focus itself when it opens, keeps focus on a navigation control when the first or last image disables the other one, and returns focus to the tile that opened it.
 
 ## Examples
 
@@ -141,7 +141,7 @@ An image can carry a caption and source. The source becomes an external link onl
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `images` | `GalleryImage[]` | required | Images in grid and lightbox order. An empty list renders nothing. |
+| `images` | `readonly GalleryImage[]` | required | Images in grid and lightbox order. An empty list renders nothing. |
 | `maxVisible` | `number` | `6` | Number of tiles before the final tile displays the remaining count. |
 | `onOpen` | `(id: string) => void` | | Receives the opened image id. |
 | `className` | `string` | | Merged onto the gallery root. |

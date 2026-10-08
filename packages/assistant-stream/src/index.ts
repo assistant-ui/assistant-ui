@@ -1,8 +1,8 @@
 export {
   createAssistantStream,
-  createAssistantStreamResponse,
   createAssistantStreamController,
 } from "./core/modules/assistant-stream";
+export { createAssistantStreamResponse } from "./core/modules/assistant-stream-response";
 export {
   AssistantMessageAccumulator,
   createInitialMessage as unstable_createInitialMessage,
@@ -13,6 +13,7 @@ export type { AssistantStreamChunk } from "./core/AssistantStreamChunk";
 export {
   DataStreamDecoder,
   DataStreamEncoder,
+  type DataStreamOptions,
 } from "./core/serialization/data-stream/DataStream";
 export {
   PlainTextDecoder,
@@ -33,6 +34,7 @@ export type {
   AssistantMessage,
   AssistantMessageTiming,
   DataPart,
+  MessagePartTiming,
   ToolCallTiming,
 } from "./core/utils/types";
 

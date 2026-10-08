@@ -3,7 +3,7 @@ title: Local runtime
 description: Give any backend Assistant Cloud threads, persistence, titles and run reports through useLocalRuntime, or compose the cloud thread list around a runtime of your own.
 ---
 
-`useLocalRuntime` runs your own chat model adapter, whatever protocol your backend speaks. Given a `cloud`, it gains the full Assistant Cloud integration: a remote thread list, persisted messages, automatic titles, run reports, engagement events, feedback and attachments. `useDataStreamRuntime` forwards the same local-runtime options, including `cloud`, so it uses the same thread list and adapters.
+`useLocalRuntime` runs your own chat model adapter, whatever protocol your backend speaks. Given a `cloud`, it gains the full Assistant Cloud integration: a remote thread list, persisted messages, automatic titles, run reports, engagement events, feedback and attachments. `useDataStreamRuntime` forwards the same local-runtime options, including `cloud` and `scopeId`, so it uses the same thread list and adapters.
 
 ## Setup
 
@@ -66,7 +66,7 @@ export default function ChatPage() {
 }
 ```
 
-On Next.js, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, like the AI SDK runtime. On Vite, React Router and TanStack Start construct the client from `import.meta.env.VITE_ASSISTANT_BASE_URL` and pass it; on React Native and Ink construct the client from `assistant-cloud` and pass it.
+On Next.js, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, like the AI SDK runtime. On Vite, React Router and TanStack Start construct the client from `import.meta.env.VITE_ASSISTANT_BASE_URL` and pass it; on React Native and Ink construct the client from `assistant-cloud` and pass it. If the mounted runtime can switch accounts or workspaces, pass their stable identity as `scopeId` from the first render; defer mounting the runtime until that identity is available.
 
 ## What the cloud adds
 
@@ -75,7 +75,7 @@ On Next.js, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set
 | Thread list | The local runtime uses the cloud thread-list adapter through a remote thread-list runtime. The adapter creates the remote thread, lists active and archived threads, and writes title, archive, rename and delete actions to the project. |
 | Persistence | The history adapter appends and updates assistant-ui `ThreadMessage` values in the `aui/v0` format, then loads only rows in that format for the local runtime. |
 | Titles | The cloud title action sends a thread's text and tool-call parts to the project title assistant. |
-| Run reports | Terminal assistant messages become reports with their status, outcome, error, timings, tool calls and metadata. |
+| Run reports | Terminal assistant messages become reports with their status, outcome, error, first-token time, tool calls and metadata. |
 | Engagement, feedback and attachments | The history adapter subscribes to runtime interactions, supplies the default feedback adapter, and shares the cloud file attachment adapter with the thread list. |
 
 `useDataStreamRuntime` first separates its data-stream options from local-runtime options, then passes the latter to `useLocalRuntime`. Supplying `cloud` therefore gives a data-stream runtime the same remote list, `aui/v0` history, reporting, engagement, feedback and attachment adapters.
@@ -101,7 +101,7 @@ See [Stored message formats](/docs/cloud/formats) for the complete `aui/v0` shap
 
 ## Report a local run
 
-Status and outcome come from the assistant message state. An incomplete message with an error becomes an error report; a complete message can use its finish reason for outcomes such as `aborted`, `length` or `content_filter`. The runtime measures duration, first-token timing and step timing as the run progresses.
+Status and outcome come from the assistant message state. An incomplete message with an error becomes an error report; a complete message can use its finish reason for outcomes such as `aborted`, `length` or `content_filter`. First-token time is reported when the message carries `metadata.timing`. This path sends no run duration or step timing.
 
 ```ts
 yield {
@@ -142,15 +142,20 @@ import { useCloudThreadListRuntime } from "@assistant-ui/react";
 
 const runtime = useCloudThreadListRuntime({
   cloud,
+  scopeId: workspace.id,
   runtimeHook: useMyThreadRuntime,
   create: async () => ({ externalId: await backend.createThread() }),
-  delete: async (threadId) => backend.deleteThread(threadId),
+  delete: async (cloudThreadId) => {
+    const { external_id } = await cloud.threads.get(cloudThreadId);
+    if (external_id) await backend.deleteThread(external_id);
+  },
 });
 ```
 
 | Option | Default | Meaning |
 |---|---|---|
 | `cloud` | Required | The client backing the remote list. |
+| `scopeId` | `undefined` | Stable account or workspace identity for cached attachments and message mappings. Changing it resets and reloads the thread list. |
 | `runtimeHook` | Required | The hook returning a runtime for each mounted thread. |
 | `create` | `undefined` | Runs before the cloud thread is created and receives the thread list item's `id`. Its `externalId` becomes the cloud thread's `external_id`. |
 | `delete` | `undefined` | Runs with the remote thread id before the cloud thread is deleted. |
