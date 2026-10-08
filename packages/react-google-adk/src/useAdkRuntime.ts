@@ -211,6 +211,22 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     loadRef.current = load;
   }, [load]);
   const [loadController] = useState(createAbortableThreadLoad);
+  const initialLoadRef = useRef<{
+    promise: Promise<void>;
+    active: boolean;
+    snapshot: AdkThreadSnapshot | undefined;
+  } | null>(null);
+  const waitForInitialLoad = () => {
+    const load = initialLoadRef.current;
+    if (!load) return undefined;
+    return load.promise.then(() => ({
+      active:
+        load.active &&
+        (!threadListItem ||
+          aui.threads.getState().mainThreadId === threadListItem.getState().id),
+      snapshot: load.snapshot,
+    }));
+  };
   const messagesRef = useRef(messages);
   useInsertionEffect(() => {
     messagesRef.current = messages;
@@ -417,6 +433,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             return;
           reloadLookupRef.current = null;
           applySnapshot(snapshot);
+          messagesRef.current = snapshot.messages;
+          adkMessagesRef.current = snapshot.messages;
+          longRunningToolIdsRef.current = snapshot.longRunningToolIds ?? [];
+          if (purpose === "initial" && initialLoadRef.current) {
+            initialLoadRef.current.snapshot = snapshot;
+          }
         },
         onSettled: () => {
           setIsLoadingThread(false);
@@ -430,11 +452,26 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   );
 
   useReplaySafeEffect(() => {
-    runLoad();
+    let release!: () => void;
+    const barrier = {
+      promise: new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+      active: true,
+      snapshot: undefined as AdkThreadSnapshot | undefined,
+    };
+    initialLoadRef.current = barrier;
+    const settle = () => {
+      if (initialLoadRef.current === barrier) initialLoadRef.current = null;
+      release();
+    };
+    void runLoad().then(settle, settle);
     return () => {
+      barrier.active = false;
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
       loadController.abort();
+      settle();
       setIsLoadingThread(false);
     };
   }, [threadListItem]);
@@ -457,9 +494,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       authRequests,
       escalated,
       messageMetadata,
-      send: handleSendMessage,
+      send: (messages, config) => {
+        const initialLoad = waitForInitialLoad();
+        if (!initialLoad) return handleSendMessage(messages, config);
+        return initialLoad.then(({ active }) =>
+          active ? handleSendMessage(messages, config) : undefined,
+        );
+      },
     }),
     onNew: async (msg) => {
+      const initialLoad = await waitForInitialLoad();
+      if (initialLoad && !initialLoad.active) return;
       if (!(msg.startRun ?? msg.role === "user")) {
         stageUserMessage(msg);
         return;
@@ -467,7 +512,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
       const cancellations =
         autoCancelPendingToolCalls !== false
-          ? getPendingCancellations(messages, longRunningToolIds)
+          ? getPendingCancellations(
+              initialLoad?.snapshot?.messages ?? messagesRef.current,
+              initialLoad?.snapshot?.longRunningToolIds ??
+                longRunningToolIdsRef.current,
+            )
           : [];
 
       return handleSendMessage(
@@ -484,6 +533,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onEdit: getCheckpointId
       ? async (msg) => {
+          const initialLoad = waitForInitialLoad();
+          if (initialLoad && !(await initialLoad).active) return;
           stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
@@ -520,6 +571,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
+            const initialLoad = waitForInitialLoad();
+            if (initialLoad && !(await initialLoad).active) return;
             const stagedRun = getStagedRun(parentId);
             if (stagedRun) {
               for (const message of stagedRun.messages) {
@@ -587,6 +640,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       isError,
       artifact,
     }) => {
+      const initialLoad = waitForInitialLoad();
+      if (initialLoad && !(await initialLoad).active) return;
       await handleSendMessage(
         [
           {
@@ -603,6 +658,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       );
     },
     onRespondToToolApproval: async (options) => {
+      const initialLoad = waitForInitialLoad();
+      if (initialLoad && !(await initialLoad).active) return;
       await handleSendMessage(
         [
           toAdkToolConfirmationReply(

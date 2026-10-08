@@ -7,13 +7,19 @@ import type {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { AdkMessage, AdkSendMessageConfig } from "./types";
+import type {
+  AdkMessage,
+  AdkSendMessageConfig,
+  AdkThreadSnapshot,
+} from "./types";
 
 const mocks = vi.hoisted(() => {
   const threadListItem = {
     source: null as object | null,
+    id: "thread-a",
     externalId: undefined as string | undefined,
     getState: () => ({
+      id: threadListItem.id,
       externalId: threadListItem.externalId,
     }),
     initialize: vi.fn(),
@@ -44,6 +50,9 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAui: () => ({
     threadListItem: mocks.threadListItem,
+    threads: {
+      getState: () => ({ mainThreadId: mocks.threadListItem.id }),
+    },
   }),
 }));
 
@@ -105,6 +114,10 @@ type RuntimeAdapter = {
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => Promise<void> | void;
+  onReload?: (
+    parentId: string | null,
+    config: { runConfig?: AppendMessage["runConfig"] },
+  ) => Promise<void> | void;
   onRefetchThread?: () => Promise<void> | void;
 };
 
@@ -161,6 +174,69 @@ afterEach(() => {
 });
 
 describe("useAdkRuntime tool approvals", () => {
+  it.each([
+    "reload",
+    "tool result",
+    "approval response",
+    "extras send",
+  ] as const)("waits for the initial load before %s", async (route) => {
+    let resolveLoad!: (snapshot: AdkThreadSnapshot) => void;
+    const pendingLoad = new Promise<AdkThreadSnapshot>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const load = vi.fn(() => pendingLoad);
+    mocks.threadListItem.source = {};
+    mocks.threadListItem.externalId = "thread-a";
+    renderHook(() =>
+      useAdkRuntime({
+        stream: vi.fn(),
+        load,
+        getCheckpointId: vi.fn(async () => null),
+      }),
+    );
+    expect(load).toHaveBeenCalledOnce();
+
+    let action: Promise<void>;
+    switch (route) {
+      case "reload":
+        action = Promise.resolve(latestAdapter().onReload!(null, {}));
+        break;
+      case "tool result":
+        action = Promise.resolve(
+          latestAdapter().onAddToolResult!({
+            messageId: "ai-1",
+            toolCallId: "tool-a",
+            toolName: "lookup",
+            result: { value: "done" },
+            isError: false,
+          }),
+        );
+        break;
+      case "approval response":
+        action = Promise.resolve(
+          latestAdapter().onRespondToToolApproval!({
+            approvalId: CONFIRMATION_CALL,
+            approved: true,
+          }),
+        );
+        break;
+      case "extras send":
+        action = latestAdapter().extras.send(
+          [{ id: "new-user", type: "human", content: "new question" }],
+          {},
+        );
+    }
+    void action.catch(() => {});
+    await Promise.resolve();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveLoad({ messages: [makeConfirmationRequest()] });
+      await action;
+    });
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+  });
+
   it("resumes a delayed tool result with its originating run config", async () => {
     const runConfigA = { custom: { model: "model-a" } };
     const runConfigB = { custom: { model: "model-b" } };
