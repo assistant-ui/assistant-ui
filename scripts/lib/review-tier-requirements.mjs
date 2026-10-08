@@ -9,6 +9,7 @@ export function evaluateRequirements(input, policy) {
   const trusted = new Set([
     ...maintainerSet,
     ...(input.teams[policy.teams.reviewers] ?? []),
+    ...policy.areas.flatMap((area) => input.teams[area.ownerTeam] ?? []),
   ]);
   const owners = input.areas.map((id) => ({
     id,

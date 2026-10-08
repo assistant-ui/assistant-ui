@@ -227,7 +227,7 @@ test("a trusted owner can sign off separately from a maintainer", () => {
   assert.equal(evaluateRequirements(request, custom).status, "success");
 });
 
-test("owner membership alone does not make an approval trusted", () => {
+test("owner membership alone makes an approval trusted", () => {
   const result = evaluateRequirements(
     input({
       tier: 2,
@@ -236,10 +236,27 @@ test("owner membership alone does not make an approval trusted", () => {
     }),
     policy,
   );
-  assert.deepEqual(codes(result), ["owner:reactivity"]);
-  assert.deepEqual(result.approvals.ignored, [
-    { login: "owner-only", reason: "untrusted" },
-  ]);
+  assert.equal(result.status, "success");
+  assert.deepEqual(codes(result), []);
+  assert.deepEqual(result.approvals.counted, ["admin", "bob", "owner-only"]);
+  assert.deepEqual(result.approvals.ignored, []);
+});
+
+test("a T2 contract area accepts its sole owner-team approval", () => {
+  const result = evaluateRequirements(
+    input({
+      tier: 2,
+      areas: ["reactivity"],
+      reviews: [review("owner-only")],
+    }),
+    policy,
+  );
+  assert.equal(result.status, "success");
+  assert.deepEqual(result.unmet, []);
+  assert.deepEqual(result.approvals, {
+    counted: ["owner-only"],
+    ignored: [],
+  });
 });
 
 test("lower tiers do not require area owners or a decision", () => {
@@ -259,7 +276,7 @@ test("lower tiers do not require area owners or a decision", () => {
   }
 });
 
-test("empty admin and maintainer teams remove maintainer trust", () => {
+test("empty admin and maintainer teams keep owner trust without maintainer trust", () => {
   const result = evaluateRequirements(
     input({
       tier: 3,
@@ -271,10 +288,24 @@ test("empty admin and maintainer teams remove maintainer trust", () => {
     policy,
   );
   assert.equal(result.status, "pending");
-  assert.deepEqual(codes(result), ["decision", "owner:reactivity"]);
-  assert.deepEqual(result.approvals.ignored, [
-    { login: "alice", reason: "untrusted" },
-  ]);
+  assert.deepEqual(codes(result), ["decision"]);
+  assert.deepEqual(result.approvals.counted, ["alice"]);
+  assert.deepEqual(result.approvals.ignored, []);
+  assert.deepEqual(
+    codes(
+      evaluateRequirements(
+        input({
+          tier: 2,
+          areas: [],
+          admins: [],
+          teams: { ...input().teams, maintainers: [] },
+          reviews: [review("alice")],
+        }),
+        policy,
+      ),
+    ),
+    ["approvals"],
+  );
   assert.equal(
     evaluateRequirements(
       input({

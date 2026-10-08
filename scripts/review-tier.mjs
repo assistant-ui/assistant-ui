@@ -572,7 +572,7 @@ export function renderComment(
       : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
     "",
     `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
-    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals") ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
+    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
     ...waived.map(
       ({ code, signal, by }) =>
         `- **Waived:** ${requirementLabel(code, policy)}, by ${by} with \`${policy.labels.overridePrefix}${signal}\``,

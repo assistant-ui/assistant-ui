@@ -14,10 +14,15 @@ const people = {
   },
 };
 
-function mockGitHubFetch({ repository, teams, missingTeams }) {
+function mockGitHubFetch({ repository, teams, areas, missingTeams }) {
   const orgUrl = `https://api.github.com/orgs/${repository.split("/")[0]}`;
   const adminsUrl = `${orgUrl}/members?role=admin&per_page=100`;
-  const teamUrls = Object.values(teams).map(
+  const teamUrls = [
+    ...new Set([
+      ...Object.values(teams),
+      ...areas.map((area) => area.ownerTeam),
+    ]),
+  ].map(
     (slug) =>
       `${orgUrl}/teams/${encodeURIComponent(slug)}/members?per_page=100`,
   );
@@ -74,10 +79,11 @@ function mockGitHubFetch({ repository, teams, missingTeams }) {
 }
 
 for (const missingTeams of [false, true]) {
-  test(`CLI fetches organization owners and ${missingTeams ? "warns about missing" : "paginates both"} teams`, () => {
+  test(`CLI fetches organization owners and ${missingTeams ? "warns about missing" : "paginates all"} teams`, () => {
     const preload = `(${mockGitHubFetch.toString()})(${JSON.stringify({
       repository: policy.repository,
       teams: policy.teams,
+      areas: policy.areas,
       missingTeams,
     })})`;
     const result = spawnSync(
@@ -95,7 +101,10 @@ for (const missingTeams of [false, true]) {
     );
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /^# Review health, 2026-10-01 to 2026-10-07/m);
-    for (const slug of Object.values(policy.teams)) {
+    for (const slug of new Set([
+      ...Object.values(policy.teams),
+      ...policy.areas.map((area) => area.ownerTeam),
+    ])) {
       if (missingTeams)
         assert.match(result.stderr, new RegExp(`Team ${slug} does not exist`));
     }
@@ -292,6 +301,33 @@ test("reviewers-team members need one approval for T1", () => {
   assert.deepEqual(result.missingApprovals, [
     { number: 203, tier: 1, approvals: 1, minimum: 1 },
     { number: 205, tier: 1, approvals: 0, minimum: 1 },
+  ]);
+});
+
+test("a T2 merge with only an owner-team approval meets the approval floor", () => {
+  const fixture = pr(206, {
+    labels: ["tier/2"],
+    reviews: [review("owner-only", "APPROVED", 2)],
+  });
+  const ownerTeam = policy.areas[0].ownerTeam;
+  const withOwner = computeReviewHealth(
+    {
+      pullRequests: [fixture],
+      ruleSuites: [],
+      people: {
+        ...people,
+        teams: { ...people.teams, [ownerTeam]: ["owner-only"] },
+      },
+    },
+    policy,
+  );
+  assert.deepEqual(withOwner.missingApprovals, []);
+  const withoutOwner = computeReviewHealth(
+    { pullRequests: [fixture], ruleSuites: [], people },
+    policy,
+  );
+  assert.deepEqual(withoutOwner.missingApprovals, [
+    { number: 206, tier: 2, approvals: 0, minimum: 1 },
   ]);
 });
 

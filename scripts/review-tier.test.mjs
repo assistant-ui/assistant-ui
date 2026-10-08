@@ -1867,7 +1867,10 @@ test("an updated pull request publishes only the second gather", async () => {
   assert.equal(rereads.length, 2);
   assert.equal(checks.length, 1);
   assert.ok(Date.parse(checks[0].body.started_at) > now.getTime());
-  assert.match(checks[0].body.output.summary, /\*\*Approvals:\*\* none needed/);
+  assert.match(
+    checks[0].body.output.summary,
+    /\*\*Approvals:\*\* none counted yet/,
+  );
   assert.ok(
     recording.calls.indexOf(rereads[0]) > recording.calls.indexOf(gathers[0]),
   );
