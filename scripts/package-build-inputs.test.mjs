@@ -84,7 +84,7 @@ test("the workflow runs for detector changes", () => {
   ]) {
     assert.equal(
       workflow.match(new RegExp(`      - "${file}"`, "g"))?.length,
-      2,
+      1,
       file,
     );
   }

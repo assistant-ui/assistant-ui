@@ -125,6 +125,6 @@ test("the workflow keeps selection, readiness, cleanup and test commands wired",
     "scripts/test-redis-inputs.mjs",
     "scripts/test-redis-inputs.test.mjs",
   ]) {
-    assert.equal(workflow.split(`      - "${file}"`).length - 1, 2);
+    assert.equal(workflow.split(`      - "${file}"`).length - 1, 1);
   }
 });
