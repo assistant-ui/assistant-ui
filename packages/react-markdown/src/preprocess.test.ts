@@ -735,6 +735,9 @@ describe("escapeCurrencyDollars", () => {
     ["an indented list marker", "see `cost=$5\n    - more` here"],
     ["a tab-indented list marker", "see `cost=$5\n\t- more` here"],
     ["a nested item's indented marker", "- see `cost=$5\n      - more` here"],
+    ["an indented quote marker", "see `cost=$5\n    > more` here"],
+    ["a lazy quote continuation", "> see `cost=$5\nmore` here"],
+    ["a CRLF line ending", "see `cost=$5\r\n    - more` here"],
   ])("keeps a code span open across %s", (_, input) => {
     expect(escapeCurrencyDollars(input)).toBe(input);
   });

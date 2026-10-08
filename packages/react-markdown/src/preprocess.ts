@@ -673,7 +673,7 @@ function htmlBlockRanges(text: string): {
       !(
         continued &&
         inParagraph &&
-        depth <= lastQuoteDepth &&
+        codeDepth <= lastQuoteDepth &&
         (blockStart === i || markersInProse || indent >= containerIndent + 4)
       )
     ) {
@@ -711,13 +711,16 @@ function rewriteOutsideBlocks(
   rewrite: (text: string, blockStarts: number[]) => string,
 ): string {
   const { ranges, blockStarts } = htmlBlockRanges(text);
-  const rewriteSlice = (from: number, to: number) =>
-    rewrite(
-      text.slice(from, to),
-      blockStarts
-        .filter((start) => start > from && start < to)
-        .map((start) => start - from),
-    );
+  let next = 0;
+  const rewriteSlice = (from: number, to: number) => {
+    while (next < blockStarts.length && blockStarts[next]! <= from) next += 1;
+    const sliceStarts: number[] = [];
+    while (next < blockStarts.length && blockStarts[next]! < to) {
+      sliceStarts.push(blockStarts[next]! - from);
+      next += 1;
+    }
+    return rewrite(text.slice(from, to), sliceStarts);
+  };
   let out = "";
   let cursor = 0;
   for (let i = 0; i < ranges.length; i += 2) {
