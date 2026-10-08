@@ -39,13 +39,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "^2.2.0",
-    "@modelcontextprotocol/server": "^2.2.0"
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@modelcontextprotocol/server": "~2.2.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@modelcontextprotocol/core": "^2.2.0",
-    "@types/node": "^26.6.3",
+    "@modelcontextprotocol/core": "^2.3.1",
+    "@types/node": "^26.6.4",
     "tsx": "^4.23.15",
     "vitest": "^5.0.3"
   },

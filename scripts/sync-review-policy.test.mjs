@@ -247,7 +247,11 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
 });
 
 test("ruleset updates replace only review floors and required checks", () => {
-  const updates = buildRulesets(policy, liveRulesets, teamIds);
+  const updates = buildRulesets(
+    rollout("shadow", false),
+    liveRulesets,
+    teamIds,
+  );
   assert.deepEqual(updates, [
     {
       id: 821084,
