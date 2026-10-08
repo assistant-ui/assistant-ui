@@ -24,11 +24,35 @@ test("the committed policy is valid", () => {
 
 test("an invalid policy lists every problem", () => {
   assert.throws(
-    () => validateReviewPolicy({ ...policy, areas: [], openPullRequestCap: 0 }),
+    () =>
+      validateReviewPolicy({
+        ...policy,
+        areas: [],
+        openPullRequestCap: { withWriteAccess: 5 },
+      }),
     (error) =>
       error.message.includes("areas must be a non-empty array") &&
-      error.message.includes("openPullRequestCap must be a positive integer"),
+      error.message.includes(
+        "openPullRequestCap.withoutWriteAccess must be a positive integer",
+      ),
   );
+});
+
+test("enforcing the review tier needs the check's integration id", () => {
+  const withMode = (mode, integrationId) => ({
+    ...policy,
+    reviewTierCheck: { name: "review-tier", integrationId, mode },
+  });
+  assert.throws(
+    () => validateReviewPolicy(withMode("enforce", null)),
+    /reviewTierCheck\.mode must be "shadow", or "enforce" with an integrationId/,
+  );
+  assert.throws(
+    () => validateReviewPolicy(withMode("off", 905)),
+    /reviewTierCheck\.mode/,
+  );
+  assert.doesNotThrow(() => validateReviewPolicy(withMode("enforce", 905)));
+  assert.doesNotThrow(() => validateReviewPolicy(withMode("shadow", null)));
 });
 
 test("a repeated area id is rejected", () => {
@@ -59,6 +83,8 @@ test("path classes follow the policy patterns", () => {
   assert.ok(!isDecisionPath(policy, ".github/workflows/code-quality.yaml"));
   assert.ok(isLowRiskPath(policy, "README.md"));
   assert.ok(isLowRiskPath(policy, "examples/with-ai-sdk-v7/app/page.tsx"));
+  assert.ok(isLowRiskPath(policy, ".changeset/quiet-owls-sing.md"));
+  assert.ok(!isLowRiskPath(policy, ".changeset/config.json"));
   assert.ok(isTestPath(policy, "packages/react/src/a.test.ts"));
   assert.ok(isTestPath(policy, "packages/tap/src/__tests__/scheduler.ts"));
   assert.ok(isGeneratedPath(policy, "api-surface/assistant-ui__react.ts"));

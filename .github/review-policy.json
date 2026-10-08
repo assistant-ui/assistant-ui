@@ -65,7 +65,7 @@
     "apps/**",
     "examples/**",
     "templates/**",
-    ".changeset/**",
+    ".changeset/*.md",
     "**/*.md",
     "**/*.mdx"
   ],
@@ -90,7 +90,10 @@
     "2": 24,
     "3": 72
   },
-  "openPullRequestCap": 5,
+  "openPullRequestCap": {
+    "withWriteAccess": 5,
+    "withoutWriteAccess": 3
+  },
   "types": [
     "fix",
     "feat",
@@ -110,10 +113,10 @@
     "overridePrefix": "review-tier/override: ",
     "overrideSignals": ["size", "type", "window"]
   },
-  "autofixLogins": ["autofix-ci[bot]", "autofix-ci"],
   "reviewTierCheck": {
     "name": "review-tier",
-    "integrationId": null
+    "integrationId": null,
+    "mode": "shadow"
   },
   "requiredChecks": [
     {
@@ -131,15 +134,22 @@
     {
       "context": "Typecheck Changed Packages",
       "integrationId": 15368
+    },
+    {
+      "context": "Review Policy Scripts",
+      "integrationId": 15368
     }
   ],
   "mergeQueue": {
-    "merge_method": "SQUASH",
-    "grouping_strategy": "ALLGREEN",
-    "max_entries_to_build": 5,
-    "max_entries_to_merge": 5,
-    "min_entries_to_merge": 1,
-    "min_entries_to_merge_wait_minutes": 5,
-    "check_response_timeout_minutes": 60
+    "enabled": false,
+    "parameters": {
+      "merge_method": "SQUASH",
+      "grouping_strategy": "ALLGREEN",
+      "max_entries_to_build": 5,
+      "max_entries_to_merge": 5,
+      "min_entries_to_merge": 1,
+      "min_entries_to_merge_wait_minutes": 5,
+      "check_response_timeout_minutes": 60
+    }
   }
 }

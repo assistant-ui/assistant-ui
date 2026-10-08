@@ -53,7 +53,6 @@ export function validateReviewPolicy(policy) {
     "testPaths",
     "generatedPaths",
     "types",
-    "autofixLogins",
   ]) {
     expect(isStringArray(policy?.[key]), `${key} must be a string array`);
   }
@@ -69,10 +68,12 @@ export function validateReviewPolicy(policy) {
       `windowHours.${tier} must be a positive integer`,
     );
   }
-  expect(
-    isPositiveInteger(policy?.openPullRequestCap),
-    "openPullRequestCap must be a positive integer",
-  );
+  for (const key of ["withWriteAccess", "withoutWriteAccess"]) {
+    expect(
+      isPositiveInteger(policy?.openPullRequestCap?.[key]),
+      `openPullRequestCap.${key} must be a positive integer`,
+    );
+  }
   for (const key of [
     "tierPrefix",
     "behaviorChange",
@@ -95,6 +96,12 @@ export function validateReviewPolicy(policy) {
     "reviewTierCheck needs a name and a null or integer integrationId",
   );
   expect(
+    policy?.reviewTierCheck?.mode === "shadow" ||
+      (policy?.reviewTierCheck?.mode === "enforce" &&
+        policy.reviewTierCheck.integrationId !== null),
+    'reviewTierCheck.mode must be "shadow", or "enforce" with an integrationId',
+  );
+  expect(
     Array.isArray(policy?.requiredChecks) &&
       policy.requiredChecks.every(
         (check) =>
@@ -104,8 +111,10 @@ export function validateReviewPolicy(policy) {
     "requiredChecks entries need a context and an integrationId",
   );
   expect(
-    typeof policy?.mergeQueue === "object" && policy.mergeQueue !== null,
-    "mergeQueue must be an object",
+    typeof policy?.mergeQueue?.enabled === "boolean" &&
+      typeof policy.mergeQueue.parameters === "object" &&
+      policy.mergeQueue.parameters !== null,
+    "mergeQueue needs a boolean enabled and a parameters object",
   );
 
   if (problems.length > 0) {
