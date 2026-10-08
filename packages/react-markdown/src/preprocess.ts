@@ -749,51 +749,32 @@ function indentPastQuote(prefix: string): number {
  * line continues a list item by indentation alone, which this walker does not
  * measure, so a fence opened in a list item does not end with it.
  */
-/**
- * Index where the next line starts at or after `from`, honoring LF, CRLF and
- * CR-only line endings, or undefined when the text runs on without another
- * line.
- */
-function nextLineStart(text: string, from: number): number | undefined {
-  for (let i = from; i < text.length; i++) {
-    const char = text[i];
-    if (char === "\n") return i + 1;
-    if (char === "\r") return i + (text[i + 1] === "\n" ? 2 : 1);
-  }
-  return undefined;
-}
-
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
   const opener = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
   const depth = quoteDepth(opener);
   const indent = indentPastQuote(opener);
-  // The returned index is the last character of the closing line's break, so
-  // lone-CR closers read the same as LF and CRLF ones.
-  const openerNext = nextLineStart(text, start);
-  if (openerNext === undefined) return text.length;
-  let prevNext = openerNext;
-  let lineStart = openerNext;
+  let lineStart = text.indexOf("\n", start);
 
-  for (;;) {
-    const next = nextLineStart(text, lineStart);
+  while (lineStart !== -1) {
+    const lineEnd = text.indexOf("\n", lineStart + 1);
     const line = text.slice(
-      lineStart,
-      next === undefined ? undefined : next - 1,
+      lineStart + 1,
+      lineEnd === -1 ? undefined : lineEnd,
     );
     const prefix = QUOTE_PREFIX.exec(line)![0];
     const lineDepth = quoteDepth(prefix);
-    if (lineDepth < depth) return prevNext - 1;
+    if (lineDepth < depth) return lineStart;
     if (lineDepth === depth && indentPastQuote(prefix) <= indent + 3) {
       const close = FENCE_CLOSE[marker].exec(line.slice(prefix.length));
       if (close && close[1]!.length >= fenceLength) {
-        return next === undefined ? text.length : next - 1;
+        return lineEnd === -1 ? text.length : lineEnd;
       }
     }
-    if (next === undefined) return text.length;
-    prevNext = next;
-    lineStart = next;
+    lineStart = lineEnd;
   }
+
+  return text.length;
 }
 
 /**
