@@ -58,6 +58,45 @@ describe("InMemoryThreadListAdapter", () => {
     });
   });
 
+  it("moves each newly archived thread to the front", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+    await adapter.initialize("first");
+    await adapter.initialize("second");
+    await adapter.initialize("third");
+
+    await adapter.archive("first");
+    await adapter.archive("third");
+    await adapter.archive("second");
+
+    const { threads } = await adapter.list();
+    expect(threads.map((thread) => thread.remoteId)).toEqual([
+      "second",
+      "third",
+      "first",
+    ]);
+  });
+
+  it("moves each newly unarchived thread to the front", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+    await adapter.initialize("first");
+    await adapter.initialize("second");
+    await adapter.initialize("third");
+    await adapter.archive("first");
+    await adapter.archive("third");
+    await adapter.archive("second");
+
+    await adapter.unarchive("first");
+    await adapter.unarchive("third");
+    await adapter.unarchive("second");
+
+    const { threads } = await adapter.list();
+    expect(threads.map((thread) => thread.remoteId)).toEqual([
+      "second",
+      "third",
+      "first",
+    ]);
+  });
+
   it("closes its title stream when title generation is unsupported", async () => {
     const adapter = new InMemoryThreadListAdapter();
     const stream = await adapter.generateTitle();

@@ -57,6 +57,23 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(core.threadIds).toEqual([threadId]);
   });
 
+  it("keeps newest-first in-memory thread order after reload", async () => {
+    const core = createCore(new InMemoryThreadListAdapter());
+
+    await core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const firstId = core.mainThreadId!;
+    await core.initialize(firstId);
+
+    await core.switchToNewThread();
+    const secondId = core.mainThreadId!;
+    await core.initialize(secondId);
+    expect(core.threadIds).toEqual([secondId, firstId]);
+
+    await core.reload();
+    expect(core.threadIds).toEqual([secondId, firstId]);
+  });
+
   it("returns the same cached promise from getLoadThreadsPromise when reload is not called", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({ threads: [] })),
