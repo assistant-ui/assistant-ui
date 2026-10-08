@@ -68,6 +68,17 @@ test("enforcing the review tier needs the check's integration id", () => {
   assert.doesNotThrow(() => validateReviewPolicy(withMode("shadow", null)));
 });
 
+test("merge queue parameters must be an object", () => {
+  assert.throws(
+    () =>
+      validateReviewPolicy({
+        ...policy,
+        mergeQueue: { enabled: true, parameters: [] },
+      }),
+    /mergeQueue needs a boolean enabled and a parameters object/,
+  );
+});
+
 test("a repeated area id is rejected", () => {
   assert.throws(
     () =>

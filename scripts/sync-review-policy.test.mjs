@@ -13,6 +13,22 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const policy = loadReviewPolicy(repoRoot);
+const defaultBranch = "main";
+const remotePolicyResponse = (endpoint, remotePolicy = policy) => {
+  if (endpoint === `repos/${policy.repository}`) {
+    return JSON.stringify({ default_branch: defaultBranch });
+  }
+  if (
+    endpoint ===
+    `repos/${policy.repository}/contents/.github/review-policy.json?ref=${defaultBranch}`
+  ) {
+    if (remotePolicy === null) throw new Error("gh: Not Found (HTTP 404)");
+    return JSON.stringify({
+      content: Buffer.from(JSON.stringify(remotePolicy)).toString("base64"),
+    });
+  }
+  return null;
+};
 const conditions = { ref_name: { exclude: [], include: ["~DEFAULT_BRANCH"] } };
 const basePullRequest = {
   allowed_merge_methods: ["squash"],
@@ -138,6 +154,40 @@ const liveRulesets = [
     ],
   },
 ];
+const repositoryRulesets = liveRulesets.filter(
+  ({ source_type }) => source_type === "Repository",
+);
+const syncGh = ({ remotePolicy = policy, labels = [], teamError } = {}) => {
+  const requests = [];
+  const gh = (args) => {
+    requests.push(args);
+    if (args[0] === "--method") return "{}";
+    if (args[0] === "--paginate") return JSON.stringify([labels]);
+    const endpoint = args[0];
+    const remote = remotePolicyResponse(endpoint, remotePolicy);
+    if (remote !== null) return remote;
+    if (
+      endpoint === `repos/${policy.repository}/rulesets?includes_parents=false`
+    ) {
+      return JSON.stringify(repositoryRulesets.map(({ id }) => ({ id })));
+    }
+    const ruleset = repositoryRulesets.find(
+      ({ id }) => endpoint === `repos/${policy.repository}/rulesets/${id}`,
+    );
+    if (ruleset) return JSON.stringify(ruleset);
+    if (endpoint === "orgs/assistant-ui/teams/owners" && teamError) {
+      throw teamError;
+    }
+    if (endpoint === `orgs/assistant-ui/teams/${policy.teams.maintainers}`) {
+      return JSON.stringify({ id: 15592476 });
+    }
+    if (endpoint === "orgs/assistant-ui/teams/owners") {
+      return JSON.stringify({ id: 1 });
+    }
+    assert.fail(`unexpected request ${args.join(" ")}`);
+  };
+  return { gh, requests };
+};
 const teamIds = {
   maintainers: 15592476,
 };
@@ -365,12 +415,14 @@ test("missing team ids and an unexpected ruleset layout fail clearly", () => {
 test("a missing owner team stops the sync before any write", () => {
   const gh = (args) => {
     const endpoint = args.find((arg) => !arg.startsWith("-"));
+    const remote = remotePolicyResponse(endpoint);
+    if (remote !== null) return remote;
     if (endpoint.endsWith("/teams/owners")) throw new Error("HTTP 404");
     if (endpoint.endsWith(`/teams/${policy.teams.maintainers}`)) {
       return JSON.stringify({ id: teamIds[policy.teams.maintainers] });
     }
     if (endpoint.includes("/rulesets?")) {
-      return JSON.stringify(liveRulesets.map(({ id }) => ({ id })));
+      return JSON.stringify(repositoryRulesets.map(({ id }) => ({ id })));
     }
     const ruleset = liveRulesets.find(({ id }) =>
       endpoint.endsWith(`/rulesets/${id}`),
@@ -383,6 +435,115 @@ test("a missing owner team stops the sync before any write", () => {
       runSyncReviewPolicy(["--apply"], { root: repoRoot, gh, log: () => {} }),
     /Owner team assistant-ui\/owners does not exist/,
   );
+});
+
+test("print and apply accept the merged policy and reject local drift before labels or writes", () => {
+  for (const action of ["--print", "--apply"]) {
+    const cwd = mkdtempSync(path.join(tmpdir(), "review-policy-"));
+    try {
+      const matching = syncGh();
+      assert.equal(
+        runSyncReviewPolicy([action], {
+          root: repoRoot,
+          cwd,
+          gh: matching.gh,
+          log: () => {},
+        }),
+        0,
+      );
+      assert.ok(
+        matching.requests.some(([endpoint]) => endpoint === "--paginate"),
+      );
+
+      for (const remotePolicy of [
+        { ...policy, repository: "assistant-ui/other" },
+        null,
+      ]) {
+        const differing = syncGh({ remotePolicy });
+        assert.throws(
+          () =>
+            runSyncReviewPolicy([action], {
+              root: repoRoot,
+              cwd,
+              gh: differing.gh,
+              log: () => assert.fail("no output expected"),
+            }),
+          /Local \.github\/review-policy\.json differs from main; merge the policy change before syncing\./,
+        );
+        assert.deepEqual(differing.requests, [
+          [`repos/${policy.repository}`],
+          [
+            `repos/${policy.repository}/contents/.github/review-policy.json?ref=main`,
+          ],
+        ]);
+      }
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  }
+});
+
+test("a non-404 owner team failure surfaces its original error", () => {
+  const failure = new Error("HTTP 403: forbidden");
+  const { gh, requests } = syncGh({ teamError: failure });
+  assert.throws(
+    () =>
+      runSyncReviewPolicy(["--print"], { root: repoRoot, gh, log: () => {} }),
+    (error) => error === failure,
+  );
+  assert.ok(!requests.some(([endpoint]) => endpoint === "--paginate"));
+});
+
+test("outdated label metadata is reported and patched while current labels are left alone", () => {
+  const [current, outdated] = requiredLabels(policy);
+  const labels = [current, { ...outdated, description: "old description" }];
+  const printed = [];
+  const printMock = syncGh({ labels });
+  assert.equal(
+    runSyncReviewPolicy(["--print"], {
+      root: repoRoot,
+      gh: printMock.gh,
+      log: (message) => printed.push(message),
+    }),
+    0,
+  );
+  assert.ok(printed.includes(`Labels to update: ${outdated.name}`));
+  assert.ok(printed.some((line) => line.startsWith("Missing labels: ")));
+  assert.ok(!printMock.requests.some(([endpoint]) => endpoint === "--method"));
+
+  const cwd = mkdtempSync(path.join(tmpdir(), "review-policy-"));
+  try {
+    const applied = [];
+    const applyMock = syncGh({ labels });
+    assert.equal(
+      runSyncReviewPolicy(["--apply"], {
+        root: repoRoot,
+        cwd,
+        gh: applyMock.gh,
+        log: (message) => applied.push(message),
+      }),
+      0,
+    );
+    assert.ok(applied.includes(`Labels to update: ${outdated.name}`));
+    assert.deepEqual(
+      applyMock.requests.filter(
+        (args) => args[0] === "--method" && args[1] === "PATCH",
+      ),
+      [
+        [
+          "--method",
+          "PATCH",
+          `repos/${policy.repository}/labels/${encodeURIComponent(outdated.name)}`,
+          "-f",
+          `color=${outdated.color}`,
+          "-f",
+          `description=${outdated.description}`,
+        ],
+      ],
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test("rollout state is read from the policy, not from options", () => {
@@ -429,8 +590,8 @@ test("apply saves every live ruleset before the first write", () => {
     if (args[0] === "--paginate") {
       assert.equal(args[2], `repos/${policy.repository}/labels?per_page=100`);
       return JSON.stringify([
-        [{ name: "tier/0" }, { name: "type/bugfix" }],
-        [{ name: "behavior-change" }],
+        [requiredLabels(policy)[0], { name: "type/bugfix" }],
+        [requiredLabels(policy).find(({ name }) => name === "behavior-change")],
       ]);
     }
     if (args[0] === "--method") {
@@ -443,20 +604,23 @@ test("apply saves every live ruleset before the first write", () => {
         labelPosts.push(args[4].slice("name=".length));
         return "{}";
       }
+      assert.equal(args[1], "PUT");
       assert.deepEqual(
         JSON.parse(readFileSync(path.join(cwd, backups[0]), "utf8")),
-        liveRulesets,
+        repositoryRulesets,
       );
       puts.push({ args, payload: JSON.parse(input) });
       return "{}";
     }
     const endpoint = args[0];
+    const remote = remotePolicyResponse(endpoint);
+    if (remote !== null) return remote;
     if (
       endpoint === `repos/${policy.repository}/rulesets?includes_parents=false`
     ) {
-      return JSON.stringify(liveRulesets.map(({ id }) => ({ id })));
+      return JSON.stringify(repositoryRulesets.map(({ id }) => ({ id })));
     }
-    const ruleset = liveRulesets.find(
+    const ruleset = repositoryRulesets.find(
       ({ id }) => endpoint === `repos/${policy.repository}/rulesets/${id}`,
     );
     if (ruleset) return JSON.stringify(ruleset);

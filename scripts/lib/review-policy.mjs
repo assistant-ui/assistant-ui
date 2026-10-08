@@ -118,7 +118,8 @@ export function validateReviewPolicy(policy) {
   expect(
     typeof policy?.mergeQueue?.enabled === "boolean" &&
       typeof policy.mergeQueue.parameters === "object" &&
-      policy.mergeQueue.parameters !== null,
+      policy.mergeQueue.parameters !== null &&
+      !Array.isArray(policy.mergeQueue.parameters),
     "mergeQueue needs a boolean enabled and a parameters object",
   );
 

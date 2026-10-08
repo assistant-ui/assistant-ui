@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import { hasOption } from "./lib/script-options.mjs";
@@ -229,7 +230,27 @@ export function runSyncReviewPolicy(
   }
 
   const api = (endpoint) => JSON.parse(gh([endpoint], { cwd }));
-  const rulesetPath = `repos/${policy.repository}/rulesets`;
+  const repositoryPath = `repos/${policy.repository}`;
+  const { default_branch: defaultBranch } = api(repositoryPath);
+  let remotePolicy = null;
+  try {
+    remotePolicy = JSON.parse(
+      Buffer.from(
+        api(
+          `${repositoryPath}/contents/.github/review-policy.json?ref=${encodeURIComponent(defaultBranch)}`,
+        ).content,
+        "base64",
+      ).toString("utf8"),
+    );
+  } catch (error) {
+    if (!error.message.includes("HTTP 404")) throw error;
+  }
+  if (!isDeepStrictEqual(remotePolicy, policy)) {
+    throw new Error(
+      `Local .github/review-policy.json differs from ${defaultBranch}; merge the policy change before syncing.`,
+    );
+  }
+  const rulesetPath = `${repositoryPath}/rulesets`;
   const summaries = api(`${rulesetPath}?includes_parents=false`);
   const liveRulesets = summaries.map(({ id }) => api(`${rulesetPath}/${id}`));
   const org = policy.repository.split("/")[0];
@@ -238,28 +259,42 @@ export function runSyncReviewPolicy(
   for (const ownerTeam of new Set(policy.areas.map((area) => area.ownerTeam))) {
     try {
       api(`orgs/${org}/teams/${ownerTeam}`);
-    } catch {
-      throw new Error(
-        `Owner team ${org}/${ownerTeam} does not exist; create it before syncing.`,
-      );
+    } catch (error) {
+      if (error.message.includes("HTTP 404")) {
+        throw new Error(
+          `Owner team ${org}/${ownerTeam} does not exist; create it before syncing.`,
+        );
+      }
+      throw error;
     }
   }
   const updates = buildRulesets(policy, liveRulesets, teamIds);
-  const labelPath = `repos/${policy.repository}/labels`;
-  const existingLabels = new Set(
+  const labelPath = `${repositoryPath}/labels`;
+  const existingLabels = new Map(
     JSON.parse(
       gh(["--paginate", "--slurp", `${labelPath}?per_page=100`], { cwd }),
     )
       .flat()
-      .map(({ name }) => name),
+      .map((label) => [label.name, label]),
   );
-  const missingLabels = requiredLabels(policy).filter(
-    ({ name }) => !existingLabels.has(name),
-  );
+  const labels = requiredLabels(policy);
+  const missingLabels = labels.filter(({ name }) => !existingLabels.has(name));
+  const outdatedLabels = labels.filter(({ name, color, description }) => {
+    const existing = existingLabels.get(name);
+    return (
+      existing &&
+      (existing.color !== color || existing.description !== description)
+    );
+  });
   log(
     missingLabels.length > 0
       ? `Missing labels: ${missingLabels.map(({ name }) => name).join(", ")}`
       : "Every policy label exists.",
+  );
+  log(
+    outdatedLabels.length > 0
+      ? `Labels to update: ${outdatedLabels.map(({ name }) => name).join(", ")}`
+      : "Every existing policy label is current.",
   );
   if (selected[0] === "--apply") {
     const backup = path.join(
@@ -276,6 +311,20 @@ export function runSyncReviewPolicy(
           labelPath,
           "-f",
           `name=${name}`,
+          "-f",
+          `color=${color}`,
+          "-f",
+          `description=${description}`,
+        ],
+        { cwd },
+      );
+    }
+    for (const { name, color, description } of outdatedLabels) {
+      gh(
+        [
+          "--method",
+          "PATCH",
+          `${labelPath}/${encodeURIComponent(name)}`,
           "-f",
           `color=${color}`,
           "-f",
