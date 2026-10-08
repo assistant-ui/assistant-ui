@@ -1333,4 +1333,50 @@ describe("user message projection", () => {
       },
     ]);
   });
+
+  it("resolves a media-less base64 file URL to the binary media type", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      pendingUserMessages: {
+        client_1: {
+          clientId: "client_1",
+          sessionId: "ses_1",
+          createdAt: 1,
+          parentId: null,
+          sourceId: null,
+          runConfig: undefined,
+          contentText: "",
+          parts: [
+            {
+              type: "file",
+              data: "data:;base64,AA==",
+              mimeType: "",
+              filename: "file.bin",
+            },
+          ],
+          status: "pending",
+        },
+      },
+    };
+
+    const [message] = projectOpenCodeThreadMessages(state);
+
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "file.bin",
+        contentType: "application/octet-stream",
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            data: "data:;base64,AA==",
+            mimeType: "",
+            filename: "file.bin",
+          },
+        ],
+      },
+    ]);
+  });
 });

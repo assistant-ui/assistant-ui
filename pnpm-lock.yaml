@@ -3205,6 +3205,9 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.3(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(@vitest/coverage-v8@5.0.3)(@vitest/ui@5.0.3)(jsdom@30.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   examples/with-react-hook-form:
     dependencies:
@@ -4081,6 +4084,9 @@ importers:
       react:
         specifier: ^19.3.0
         version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(@vitest/coverage-v8@5.0.3)(@vitest/ui@5.0.3)(jsdom@30.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -4103,6 +4109,12 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      ai:
+        specifier: ^7.0.101
+        version: 7.0.123(zod@4.6.5)
+      ai-v6:
+        specifier: npm:ai@^6.0.277
+        version: ai@6.0.297(zod@4.6.5)
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)
@@ -5278,6 +5290,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.1.1
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -5337,7 +5352,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.24
+        specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.17
@@ -5391,15 +5406,6 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: ^0.14.19
         version: link:../react-markdown
-      '@streamdown/cjk':
-        specifier: ^1.0.0
-        version: 1.0.4(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.3(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(unified@11.0.5)
-      '@streamdown/math':
-        specifier: ^1.0.0
-        version: 1.0.3(react@19.3.0)(supports-color@10.2.2)
-      '@streamdown/mermaid':
-        specifier: ^1.0.0
-        version: 1.0.3(react@19.3.0)
       '@types/hast':
         specifier: ^3.0.5
         version: 3.0.5
@@ -5434,9 +5440,18 @@ importers:
       '@assistant-ui/x-react18':
         specifier: workspace:*
         version: link:../x-react18
+      '@streamdown/cjk':
+        specifier: ^1.0.3
+        version: 1.0.4(@types/mdast@4.0.4)(micromark-util-types@2.0.3)(micromark@4.0.3(supports-color@10.2.2))(react@19.3.0)(supports-color@10.2.2)(unified@11.0.5)
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.3.0)
+      '@streamdown/math':
+        specifier: ^1.0.2
+        version: 1.0.3(react@19.3.0)(supports-color@10.2.2)
+      '@streamdown/mermaid':
+        specifier: ^1.0.2
+        version: 1.0.3(react@19.3.0)
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

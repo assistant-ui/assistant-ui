@@ -5,6 +5,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/tests/**"],
+      thresholds: {
+        lines: 88,
+        functions: 86,
+        branches: 81,
+        statements: 85,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "jsdom",
     pool: "threads",
