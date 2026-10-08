@@ -25,10 +25,14 @@ const converter: AssistantTransportStateConverter<unknown> = (
   isRunning: meta.isSending,
 });
 
-const createMessageCommand = (text: string): AssistantTransportCommand => ({
+const createMessageCommand = (
+  text: string,
+  id?: string,
+): AssistantTransportCommand => ({
   type: "add-message",
   message: {
     role: "user",
+    ...(id !== undefined && { id }),
     parts: [{ type: "text", text }],
   },
   parentId: null,
@@ -921,6 +925,112 @@ describe("useAssistantTransportRuntime", () => {
       (aui().thread.getState().extras as { state: unknown }).state,
     ).toEqual({ message: "Wrong" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ends a failed run on cancelRun while its onError is still pending", async () => {
+    const fetchMock = installFetch();
+    const onError = vi.fn(() => new Promise<void>(() => {}));
+    const onCancel = vi.fn();
+    const onFinish = vi.fn();
+    const onResponse = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error("boom");
+      })
+      .mockImplementation(() => {});
+    const { aui, sendCommand } = mountRuntime({
+      onError,
+      onCancel,
+      onFinish,
+      onResponse,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("a")));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    act(() => sendCommand(createMessageCommand("b", "b-id")));
+    expect(aui().thread.getState().isRunning).toBe(true);
+
+    act(() => aui().thread.cancelRun());
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCancel.mock.calls[0]![0].commands).toEqual([
+      createMessageCommand("b", "b-id"),
+    ]);
+
+    act(() => sendCommand(createMessageCommand("c", "c-id")));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
+    expect(fetchMock.requests[1]!.body["commands"]).toEqual([
+      createMessageCommand("c", "c-id"),
+    ]);
+  });
+
+  it("reports the commands queued before the failure once a cancelled run's onError settles", async () => {
+    const fetchMock = installFetch();
+    let failResponse!: (error: Error) => void;
+    const responseFailed = new Promise<void>((_, reject) => {
+      failResponse = reject;
+    });
+    const onResponse = vi
+      .fn()
+      .mockImplementationOnce(() => responseFailed)
+      .mockImplementation(() => {});
+    let settleOnError!: () => void;
+    const onError = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          settleOnError = resolve;
+        }),
+    );
+    const onCancel = vi.fn();
+    const { aui, sendCommand } = mountRuntime({
+      onError,
+      onCancel,
+      onResponse,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("a")));
+    await waitFor(() => expect(onResponse).toHaveBeenCalledTimes(1));
+    act(() => sendCommand(createMessageCommand("b", "b-id")));
+    const boom = new Error("boom");
+    await act(async () => failResponse(boom));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    act(() => sendCommand(createMessageCommand("c", "c-id")));
+
+    act(() => aui().thread.cancelRun());
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCancel.mock.calls[0]![0]).not.toHaveProperty("error");
+    expect(onCancel.mock.calls[0]![0].commands).toEqual([
+      createMessageCommand("c", "c-id"),
+    ]);
+
+    act(() => sendCommand(createMessageCommand("d", "d-id")));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
+
+    await act(async () => settleOnError());
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(2));
+    expect(onCancel.mock.calls[1]![0].error).toBe(boom);
+    expect(onCancel.mock.calls[1]![0].commands).toEqual([
+      createMessageCommand("b", "b-id"),
+    ]);
+    expect(fetchMock.requests[1]!.body["commands"]).toEqual([
+      createMessageCommand("d", "d-id"),
+    ]);
+    expect(aui().thread.getState().isRunning).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(2);
   });
 
   it("ends a resumed run on cancelRun while its replay waits for a suspended render", async () => {
