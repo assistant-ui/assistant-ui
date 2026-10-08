@@ -94,7 +94,7 @@ export function CommandPalette({
       {...props}
     >
       <div className="flex items-center gap-2.5 px-3.5 py-3">
-        <SearchIcon className="text-foreground/30 size-3.5 shrink-0" />
+        <SearchIcon className="text-muted-foreground size-3.5 shrink-0" />
         <input
           value={query}
           onChange={(event) => onQueryChange?.(event.target.value)}
@@ -110,13 +110,13 @@ export function CommandPalette({
               ? optionId(activeId)
               : undefined
           }
-          className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"
+          className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"
         />
         <span
           className={cn(
             field,
             mono,
-            "text-foreground/35 rounded px-1.5 py-0.5",
+            "text-muted-foreground rounded px-1.5 py-0.5",
           )}
         >
           esc
@@ -138,7 +138,7 @@ export function CommandPalette({
           >
             <span
               aria-hidden
-              className={cn(mono, "text-foreground/25 px-2 pt-2 pb-1")}
+              className={cn(mono, "text-muted-foreground px-2 pt-2 pb-1")}
             >
               {group}
             </span>
@@ -165,7 +165,7 @@ export function CommandPalette({
                           className={cn(
                             field,
                             mono,
-                            "text-foreground/40 rounded px-1.5 py-0.5",
+                            "text-muted-foreground rounded px-1.5 py-0.5",
                           )}
                         >
                           {key}
@@ -206,7 +206,7 @@ export function CommandPalette({
       </div>
       {matches.length === 0 && (
         <div className="border-foreground/[0.07] border-t p-1.5">
-          <span className="text-foreground/30 block px-2 py-4 text-center text-xs break-words">
+          <span className="text-muted-foreground block px-2 py-4 text-center text-xs break-words">
             No command matches “{query}”
           </span>
         </div>

@@ -41,7 +41,7 @@ export function SpecSheet({
       <div className="flex flex-col gap-0.5">
         <span className="text-[13.5px] font-medium">{title}</span>
         {subtitle && (
-          <span className="text-foreground/45 text-xs">{subtitle}</span>
+          <span className="text-muted-foreground text-xs">{subtitle}</span>
         )}
       </div>
 
@@ -51,7 +51,7 @@ export function SpecSheet({
             key={row.label}
             className="border-foreground/[0.06] fade-in animate-in fill-mode-both flex items-baseline gap-3 border-t py-1.5 duration-300 first:border-t-0 first:pt-0"
           >
-            <span className={cn(mono, "text-foreground/35 w-24 shrink-0")}>
+            <span className={cn(mono, "text-muted-foreground w-24 shrink-0")}>
               {row.label}
             </span>
             <span

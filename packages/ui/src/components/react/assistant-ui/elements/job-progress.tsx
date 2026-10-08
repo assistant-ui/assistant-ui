@@ -131,16 +131,18 @@ export function JobProgress({
         ) : outcome?.status === "failed" ? (
           <XIcon className="size-3.5 shrink-0 text-red-600 dark:text-red-400" />
         ) : outcome?.status === "cancelled" ? (
-          <CircleSlashIcon className="text-foreground/35 size-3.5 shrink-0" />
+          <CircleSlashIcon className="text-muted-foreground size-3.5 shrink-0" />
         ) : !running ? (
           <CheckIcon className="size-3.5 shrink-0 text-emerald-500" />
         ) : (
-          <Loader2Icon className="text-foreground/35 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
+          <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
         )}
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
           {title}
         </span>
-        <span className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {elapsed ? (
             <time dateTime={elapsed.dateTime}>{elapsed.label}</time>
           ) : !running ? (
@@ -167,11 +169,11 @@ export function JobProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={announced(progressPercent)}
-        className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full"
+        className="bg-foreground/[0.06] inset-ring-border h-1 w-full overflow-hidden rounded-full inset-ring forced-colors:border"
       >
         <span
           className={cn(
-            "block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+            "block h-full rounded-full transition-[width] duration-500 ease-out forced-color-adjust-none motion-reduce:transition-none",
             outcomeBar ??
               (finished ? "bg-emerald-500" : "bg-blue-500 dark:bg-blue-400"),
           )}
@@ -186,11 +188,7 @@ export function JobProgress({
               key={item.name}
               className={cn(
                 mono,
-                i < stage
-                  ? "text-foreground/35"
-                  : i === stage
-                    ? "text-foreground/90"
-                    : "text-foreground/20",
+                i === stage ? "text-foreground/90" : "text-muted-foreground",
               )}
             >
               {item.name}
@@ -198,7 +196,7 @@ export function JobProgress({
           ))}
         </div>
         {current?.description ? (
-          <p className="text-foreground/45 text-xs leading-4 break-words">
+          <p className="text-muted-foreground text-xs leading-4 break-words">
             {current.description}
           </p>
         ) : null}

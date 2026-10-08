@@ -123,6 +123,21 @@ const elementsRegistryItems: RegistryItem[] = [
     ],
   },
   {
+    name: "elements-tokens",
+    type: "registry:component",
+    title: "Elements Tokens",
+    description:
+      "Token count formatting for the elements family: a count in the unit that keeps it short, such as 48.2k or 912.5M.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/tokens.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/tokens.ts",
+      },
+    ],
+  },
+  {
     name: "elements-href",
     type: "registry:component",
     title: "Elements Href",
@@ -872,7 +887,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "What the run spent, split by model, against the session total.",
     file: "cost-meter.tsx",
-    usesElements: ["range"],
+    usesElements: ["range", "tokens"],
   }),
   createElementRegistryItem({
     slug: "quota-banner",
@@ -1191,6 +1206,7 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "tooltip",
+      "https://r.assistant-ui.com/elements-tokens.json",
       "https://r.assistant-ui.com/elements-context-usage.json",
     ],
   },
@@ -1198,8 +1214,7 @@ export const registry: RegistryItem[] = [
     name: "elements-context-usage",
     type: "registry:component",
     title: "Elements Context Usage",
-    description:
-      "Shared token formatting, usage colors, and segment labels for context displays.",
+    description: "Shared usage colors and segment labels for context displays.",
     files: [
       {
         type: "registry:component",
@@ -1683,6 +1698,7 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "react-shiki",
+      "shiki",
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
     ],
@@ -1701,7 +1717,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/elements/shiki-highlighter.tsx",
       },
     ],
-    dependencies: ["react-shiki"],
+    dependencies: ["react-shiki", "shiki"],
   },
   {
     name: "mermaid-diagram",
