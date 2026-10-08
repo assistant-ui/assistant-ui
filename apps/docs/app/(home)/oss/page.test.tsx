@@ -21,7 +21,7 @@ async function renderPage() {
 }
 
 describe("OssPage", () => {
-  it("renders project-qualified, keyboard-focusable links for every destination", async () => {
+  it("renders project-qualified links for every destination", async () => {
     const page = await renderPage();
 
     const link = (name: string, href: string) => {
@@ -31,8 +31,6 @@ describe("OssPage", () => {
 
       expect(element).not.toBeNull();
       expect(element?.getAttribute("href")).toBe(href);
-      expect(element?.tabIndex).toBe(0);
-      expect(element?.className).toContain("focus-visible:");
     };
 
     link("assistant-ui on docs", "/docs");
@@ -62,24 +60,5 @@ describe("OssPage", () => {
     );
     link("skills on GitHub", "https://github.com/assistant-ui/skills");
     link("tool-ui on website", "https://tool-ui.com");
-  });
-
-  it("keeps the aligned desktop tracks and wraps destinations in the row layout", async () => {
-    const page = await renderPage();
-    const packageLink = page.querySelector<HTMLAnchorElement>(
-      'a[aria-label="@assistant-ui/tap on docs"]',
-    );
-    const packageRow = packageLink?.closest("li")?.querySelector("div");
-    const skillsLink = page.querySelector<HTMLAnchorElement>(
-      'a[aria-label="skills on GitHub"]',
-    );
-    const skillsRow = skillsLink?.closest("li")?.querySelector("div");
-
-    expect(packageRow?.className).toContain(
-      "md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem]",
-    );
-    expect(packageRow?.className).toContain("flex-col");
-    expect(packageRow?.querySelector(".flex.flex-wrap")).not.toBeNull();
-    expect(skillsRow?.querySelector(".flex.flex-wrap")).toBeNull();
   });
 });

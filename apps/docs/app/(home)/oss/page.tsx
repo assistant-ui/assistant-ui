@@ -168,10 +168,10 @@ function ProjectRow({
   const supplementalDestinations = destinations.filter(
     (destination) => !destination.isPrimary,
   );
-  const href = ossPrimaryUrl(project);
+  const href = primary.href;
   const external = href.startsWith("http");
   const rowClassName =
-    "group/row relative hover:bg-foreground/[0.025] focus-within:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
+    "relative hover:bg-foreground/[0.025] focus-within:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
   const titleClassName =
     "group/title inline-flex items-center text-sm font-medium after:absolute after:inset-0 focus-visible:underline";
   const title = (
@@ -256,18 +256,13 @@ function ProjectDestinationLink({
   destination: OssDestination;
   className: string;
 }) {
-  const linkClassName = cn(
-    className,
-    destination.isPrimary && "text-foreground font-medium",
-  );
-
   return destination.href.startsWith("http") ? (
     <a
       href={destination.href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={destination.ariaLabel}
-      className={linkClassName}
+      className={className}
     >
       {destination.label}
     </a>
@@ -275,7 +270,7 @@ function ProjectDestinationLink({
     <Link
       href={destination.href}
       aria-label={destination.ariaLabel}
-      className={linkClassName}
+      className={className}
     >
       {destination.label}
     </Link>
