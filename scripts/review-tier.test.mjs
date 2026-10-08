@@ -1148,6 +1148,32 @@ test("hard policy failures stay failures", async () => {
   );
 });
 
+test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
+  const evaluation = await evaluationFor();
+  evaluation.tierResult.reasons.unshift({
+    tier: 3,
+    code: "new-package",
+    detail: "packages/a`b`@octocat/package.json",
+  });
+  const comment = renderComment(evaluation, policy);
+  assert.ok(
+    comment.includes("``packages/a`b`@octocat/package.json``"),
+    comment,
+  );
+  const large = await evaluationFor();
+  large.tierResult.reasons.push(
+    ...Array.from({ length: 25 }, (_, index) => ({
+      tier: 0,
+      code: "low-risk-path",
+      detail: `docs/${index}-${"x".repeat(3000)}.md`,
+    })),
+  );
+  const bounded = renderComment(large, policy);
+  assert.ok(bounded.length <= 60_000, String(bounded.length));
+  assert.match(bounded, /signals behind the tier, too long to list here\._/);
+  assert.match(bounded, /\| ⏳ Approvals \|/);
+});
+
 test("the comment starts with its marker and strongest reason and bounds the reasons list", async () => {
   const evaluation = await evaluationFor();
   evaluation.tierResult.reasons.push(

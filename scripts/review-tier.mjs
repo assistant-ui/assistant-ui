@@ -503,6 +503,14 @@ const cell = (value) =>
     .replace(/\|/g, "\\|")
     .replace(/\s+/g, " ")
     .trim();
+const code = (value) => {
+  const text = cell(value);
+  const fence = "`".repeat(
+    Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length)) + 1,
+  );
+  const pad = text.startsWith("`") || text.endsWith("`") ? " " : "";
+  return `${fence}${pad}${text}${pad}${fence}`;
+};
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const mdTable = (header, aligns, rows) =>
   [
@@ -523,19 +531,19 @@ const signalLabel = (code) => signalLabels[code] ?? code;
 
 const failureDetails = {
   "unknown-type": (_detail, policy) =>
-    `start the title with one of ${policy.types.map((type) => `\`${type}\``).join(", ")}, as in \`fix(react): keep the composer focused\``,
+    `start the title with one of ${policy.types.map(code).join(", ")}, as in ${code("fix(react): keep the composer focused")}`,
   "refactor-changes-api": (detail) =>
-    `a \`refactor\` must not change \`${detail}\`; retitle it or split the change`,
+    `a \`refactor\` must not change ${code(detail)}; retitle it or split the change`,
   "refactor-changes-exports": (detail) =>
-    `a \`refactor\` must not change the exports map in \`${detail}\``,
+    `a \`refactor\` must not change the exports map in ${code(detail)}`,
   "refactor-changes-assertions": (detail) =>
-    `a \`refactor\` must not change test assertions in \`${detail}\``,
-  "manifest-invalid": (detail) => `\`${detail}\` is not valid JSON`,
+    `a \`refactor\` must not change test assertions in ${code(detail)}`,
+  "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
 };
 
 function requirementDetail(item, tier, context, policy) {
   const failure = failureDetails[item.code];
-  if (failure) return cell(failure(item.detail, policy));
+  if (failure) return failure(item.detail, policy);
   const readyAt = Date.parse(context?.readyForReviewAt);
   if (item.code !== "window" || Number.isNaN(readyAt)) return cell(item.detail);
   const hours = policy.windowHours[tier];
@@ -563,7 +571,7 @@ export function renderComment(
       ? `_Required to merge. Rules in ${rules}._`
       : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
     "",
-    `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} \`${cell(top.detail)}\`${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
+    `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
     `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals") ? "none counted yet" : "none needed"}${approvals.ignored.length ? ` · ${approvals.ignored.map(({ login, reason }) => `${login} ignored (${ignoredLabels[reason] ?? reason})`).join(", ")}` : ""}`,
     ...waived.map(
       ({ code, signal, by }) =>
@@ -583,9 +591,10 @@ export function renderComment(
       ),
     );
   }
+  const signals = [];
   if (reasons.length) {
     const shown = reasons.slice(0, 25);
-    out.push(
+    signals.push(
       "",
       "<details>",
       `<summary>${plural(reasons.length, "signal")} behind the tier</summary>`,
@@ -596,7 +605,7 @@ export function renderComment(
         shown.map((reason) => [
           signalLabel(reason.code),
           `T${reason.tier}`,
-          `\`${cell(reason.detail)}\``,
+          code(reason.detail),
         ]),
       ),
       ...(reasons.length > shown.length
@@ -615,8 +624,19 @@ export function renderComment(
       ? "❌ needs a change or an owner override"
       : null,
   ].filter(Boolean);
-  if (footer.length) out.push("", footer.join(" · "));
-  return out.join("\n");
+  const render = (section) =>
+    [
+      ...out,
+      ...section,
+      ...(footer.length ? ["", footer.join(" · ")] : []),
+    ].join("\n");
+  const full = render(signals);
+  return full.length <= 60_000
+    ? full
+    : render([
+        "",
+        `_${plural(reasons.length, "signal")} behind the tier, too long to list here._`,
+      ]);
 }
 
 export async function publish(

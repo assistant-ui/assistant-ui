@@ -44,7 +44,7 @@ jobs:
         startsWith(github.event.label.name, 'tier/')) &&
       (github.event_name != 'issues' || github.event.label.name == 'decision: accepted')
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event.workflow_run.pull_requests[0].number && format('relay-{0}', github.event.workflow_run.pull_requests[0].number)) || github.event.merge_group.head_sha || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
