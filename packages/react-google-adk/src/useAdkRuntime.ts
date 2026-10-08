@@ -247,6 +247,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const runGenerationRef = useRef(0);
+  const reloadGenerationRef = useRef(0);
 
   const handleSendMessage = async (
     msgs: AdkMessage[],
@@ -520,15 +521,26 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
+            const reloadGeneration = ++reloadGenerationRef.current;
+            const messagesAtReloadStart = messagesRef.current;
+            const adkMessagesAtReloadStart = adkMessagesRef.current;
+            const runGeneration = runGenerationRef.current;
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
             );
-            replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
+            if (
+              reloadGenerationRef.current !== reloadGeneration ||
+              messagesRef.current !== messagesAtReloadStart ||
+              adkMessagesRef.current !== adkMessagesAtReloadStart ||
+              runGenerationRef.current !== runGeneration
+            )
+              return;
+            replaceMessages(truncated);
             return handleSendMessage([], {
               runConfig: config.runConfig,
               ...(checkpointId && { checkpointId }),
