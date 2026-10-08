@@ -55,7 +55,7 @@
     "@base-ui/react": "^1.8.0",
     "ai": "^7.0.101",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
+    "cn": "^0.4.0",
     "lucide-react": "^1.46.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
