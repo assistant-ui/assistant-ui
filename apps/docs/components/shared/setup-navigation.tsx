@@ -131,10 +131,9 @@ export const useBeginSetup = () => {
   return (
     slugs: readonly string[],
     instructions = "",
-    {
-      source,
-      location,
-    }: { source: SetupSource; location?: string } = { source: "bundle" },
+    { source, location }: { source: SetupSource; location?: string } = {
+      source: "bundle",
+    },
   ) => {
     const running = getCheckoutSession();
     const session = startCheckout(slugs, instructions);

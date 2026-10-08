@@ -45,13 +45,16 @@ describe("checkout flow", () => {
     s.addAgentTool("Web search", "Search support sources.");
     s.addAgentTool("Web search", "Search current news.");
     const configured = s.getCartEntries();
-    s.checkoutCart();
+    s.checkoutCart("cart_page");
     s.replaceCart(["cloud", "agent-tools"]);
     s.abandonCheckout();
     expect(s.getCartEntries()).toEqual(["cloud", ...configured]);
     s.mergeIntoCart(configured);
     expect(s.getCartEntries()).toEqual(["cloud", ...configured]);
-    expect(s.checkoutCart()?.products).toEqual(["cloud", "agent-tools"]);
+    expect(s.checkoutCart("cart_page")?.products).toEqual([
+      "cloud",
+      "agent-tools",
+    ]);
   });
 
   it("keeps multi-line tool behavior nested within its numbered setup item", async () => {
@@ -61,7 +64,7 @@ describe("checkout flow", () => {
       "Read inventory.\n1. Use the existing API.\n\n  Keep returned fields.";
     s.addAgentTool("Inventory", purpose);
     s.addAgentTool("Search", "Find support articles.");
-    const session = s.checkoutCart();
+    const session = s.checkoutCart("cart_page");
     expect(session?.instructions).toContain(
       "1. Inventory: Read inventory.\n   1. Use the existing API.\n   \n     Keep returned fields.\n2. Search: Find support articles.",
     );
@@ -76,7 +79,7 @@ describe("checkout flow", () => {
     s.addAgentTool("Web search", "Search current news.");
     s.setCartInstructions("Use our existing provider.");
     const entries = s.getCartEntries();
-    const session = s.checkoutCart();
+    const session = s.checkoutCart("cart_page");
     expect(session?.products).toEqual(["agent-tools"]);
     expect(session?.instructions).toContain(
       "1. Web search: Search support sources.",
@@ -90,24 +93,26 @@ describe("checkout flow", () => {
     restored.abandonCheckout();
     expect(restored.getCartEntries()).toEqual(entries);
     expect(restored.getCartInstructions()).toBe("Use our existing provider.");
-    expect(restored.checkoutCart()?.instructions).toBe(session?.instructions);
+    expect(restored.checkoutCart("cart_page")?.instructions).toBe(
+      session?.instructions,
+    );
   });
 
   it("requires legacy tool selections to be configured before setup", async () => {
     setupStorage();
     const s = await load();
     s.replaceCart(["agent-tools"]);
-    expect(s.checkoutCart()).toBeNull();
+    expect(s.checkoutCart("cart_page")).toBeNull();
     s.addAgentTool("Web search", "Find relevant sources.");
     expect(s.getCartEntries()).toHaveLength(1);
-    expect(s.checkoutCart()?.products).toEqual(["agent-tools"]);
+    expect(s.checkoutCart("cart_page")?.products).toEqual(["agent-tools"]);
   });
 
   it("restores configured tools alongside products that joined setup and tools queued afterwards", async () => {
     setupStorage();
     const s = await load();
     s.addAgentTool("Web search", "Search support sources.");
-    s.checkoutCart();
+    s.checkoutCart("cart_page");
     s.addCheckoutProducts(["cloud"]);
     s.addAgentTool("Web search", "Search current news.");
     s.abandonCheckout();
@@ -149,7 +154,7 @@ describe("checkout flow", () => {
       s.setCartInstructions(
         "Build a shared whiteboard. Preserve our existing authentication.",
       );
-      expect(s.checkoutCart()?.instructions).toBe(
+      expect(s.checkoutCart("cart_page")?.instructions).toBe(
         "Build a shared whiteboard. Preserve our existing authentication.",
       );
       const restored = await load();

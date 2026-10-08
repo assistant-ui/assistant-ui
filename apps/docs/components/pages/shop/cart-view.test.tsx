@@ -151,7 +151,7 @@ describe("CartView", () => {
     addAgentTool("Support search", "Search our support documents.");
     const configured = getCartEntries()[0];
     mocks.items = "items=agent-tools,guides/attachments";
-    mocks.session = checkoutCart();
+    mocks.session = checkoutCart("cart_page");
     const { rerender } = render(<CartView />);
     expect(getCart()).toEqual([]);
     act(() => abandonCheckout());
