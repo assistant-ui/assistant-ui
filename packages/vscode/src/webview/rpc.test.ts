@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { VSCODE_BRIDGE_CHANNEL } from "../protocol";
 import type { VSCodeBridgePort } from "./fetch";
 import { callHost } from "./rpc";
@@ -53,5 +53,41 @@ describe("callHost", () => {
     await expect(callHost(port, "storage.getItem", ["k"])).resolves.toBe(
       "valid",
     );
+  });
+
+  it("uses cryptographic randomness for RPC id prefixes", async () => {
+    const random = vi.spyOn(Math, "random").mockImplementation(() => {
+      throw new Error("Math.random must not be used for request ids");
+    });
+    try {
+      vi.resetModules();
+      const { callHost: freshCallHost } = await import("./rpc");
+      let id = "";
+      const port: VSCodeBridgePort = {
+        postMessage: (message) => {
+          id = message.id;
+          queueMicrotask(() =>
+            listener?.({
+              channel: VSCODE_BRIDGE_CHANNEL,
+              kind: "rpc:response",
+              id,
+              ok: true,
+              result: null,
+            }),
+          );
+        },
+        onMessage: (callback) => {
+          listener = callback;
+          return () => {
+            listener = undefined;
+          };
+        },
+      };
+      let listener: ((message: unknown) => void) | undefined;
+      await expect(freshCallHost(port, "test", [])).resolves.toBeNull();
+      expect(id).toMatch(/^rpc-[0-9a-f]{16}-1$/);
+    } finally {
+      random.mockRestore();
+    }
   });
 });

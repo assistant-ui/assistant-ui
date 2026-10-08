@@ -6,6 +6,7 @@ import {
   type WebviewToHostMessage,
 } from "../protocol";
 import { getVSCodeApi } from "./vscode-api";
+import { randomIdPrefix } from "./id";
 
 export type VSCodeBridgePort = {
   postMessage(message: WebviewToHostMessage): void;
@@ -19,7 +20,7 @@ export type VSCodeFetch = (
 
 const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 
-const idPrefix = Math.random().toString(36).slice(2, 10);
+const idPrefix = randomIdPrefix();
 let nextId = 0;
 
 export const webviewPort: VSCodeBridgePort = {
@@ -66,10 +67,20 @@ const readBody = async (
   }
 };
 
-const toRequest = (input: RequestInfo | URL, init?: RequestInit) =>
-  input instanceof Request
-    ? new Request(input, init)
-    : new Request(new URL(String(input), VSCODE_VIRTUAL_ORIGIN), init);
+const toRequest = (input: RequestInfo | URL, init?: RequestInit) => {
+  const request =
+    input instanceof Request
+      ? new Request(input, init)
+      : new Request(new URL(String(input), VSCODE_VIRTUAL_ORIGIN), init);
+  const url = new URL(request.url);
+  if (
+    (url.protocol === "http:" || url.protocol === "https:") &&
+    url.origin !== VSCODE_VIRTUAL_ORIGIN
+  ) {
+    throw new TypeError("vscodeFetch only reaches the extension host's routes");
+  }
+  return request;
+};
 
 /**
  * Creates a `fetch` that sends each request to `serveWebviewRoutes` in the
@@ -84,6 +95,7 @@ export function createVSCodeFetch(
     if (signal.aborted) throw abortReason(signal);
 
     const body = request.body ? await readBody(request.body, signal) : null;
+    if (signal.aborted) throw abortReason(signal);
 
     const id = `${idPrefix}-${++nextId}`;
 
@@ -106,17 +118,21 @@ export function createVSCodeFetch(
       };
 
       const sendAbort = () => {
-        port.postMessage({
-          channel: VSCODE_BRIDGE_CHANNEL,
-          kind: "fetch:abort",
-          id,
-        });
+        try {
+          port.postMessage({
+            channel: VSCODE_BRIDGE_CHANNEL,
+            kind: "fetch:abort",
+            id,
+          });
+        } catch {
+          return;
+        }
       };
 
       const onAbort = () => {
         if (finished) return;
-        sendAbort();
         fail(abortReason(signal));
+        sendAbort();
       };
 
       const onHead = (
@@ -131,8 +147,8 @@ export function createVSCodeFetch(
                 },
                 cancel: () => {
                   if (finished) return;
-                  sendAbort();
                   finish();
+                  sendAbort();
                 },
               });
         let response: Response;
@@ -143,9 +159,9 @@ export function createVSCodeFetch(
             headers: message.headers,
           });
         } catch (error) {
-          sendAbort();
           finish();
-          reject(error);
+          reject(new TypeError("Failed to fetch", { cause: error }));
+          sendAbort();
           return;
         }
         responded = true;

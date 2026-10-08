@@ -13,6 +13,7 @@ import {
   type WebviewRoutes,
 } from "./router";
 
+/** Matches `vscode.Memento`, whose `update(key, undefined)` removes the key. */
 export type MementoLike = {
   get(key: string): unknown;
   update(key: string, value: unknown): PromiseLike<void>;
@@ -98,14 +99,19 @@ export function serveWebviewHost(
     Promise.resolve(webview.postMessage(message)).catch(() => undefined);
   };
 
+  const pending = new Set<string>();
+
   const handle = async ({ id, method, params }: RpcRequestMessage) => {
+    pending.add(id);
     try {
       const handler = Object.hasOwn(handlers, method) ? handlers[method] : null;
       if (!handler) throw new Error(`${method} is not served by this host`);
       const result = await handler(...params);
-      respond({ id, ok: true, result });
+      if (pending.delete(id)) respond({ id, ok: true, result });
     } catch (error) {
-      respond({ id, ok: false, message: errorMessage(error) });
+      if (pending.delete(id)) {
+        respond({ id, ok: false, message: errorMessage(error) });
+      }
     }
   };
 
@@ -119,6 +125,10 @@ export function serveWebviewHost(
   return {
     dispose: () => {
       subscription.dispose();
+      for (const id of pending) {
+        respond({ id, ok: false, message: "Webview host disposed" });
+      }
+      pending.clear();
       server.dispose();
     },
   };

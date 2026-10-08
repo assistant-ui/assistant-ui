@@ -96,6 +96,27 @@ describe("serveWebviewHost", () => {
     ).rejects.toThrow("no browser");
   });
 
+  it("rejects host calls still in flight when disposed", async () => {
+    let finish: (opened: boolean) => void = () => {};
+    const { bridge, host } = setup({
+      openExternal: () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    });
+
+    const call = callHost(bridge.port, "openExternal", [
+      "https://example.com/",
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    host.dispose();
+    finish(true);
+
+    await expect(call).rejects.toThrow("Webview host disposed");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(bridge.hostToWebview).toHaveLength(1);
+  });
+
   it("stops answering after dispose", async () => {
     const openExternal = vi.fn();
     const { bridge, host } = setup({ openExternal });

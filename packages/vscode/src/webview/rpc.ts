@@ -1,7 +1,8 @@
 import { isHostToWebviewMessage, VSCODE_BRIDGE_CHANNEL } from "../protocol";
 import type { VSCodeBridgePort } from "./fetch";
+import { randomIdPrefix } from "./id";
 
-const idPrefix = `rpc-${Math.random().toString(36).slice(2, 10)}`;
+const idPrefix = `rpc-${randomIdPrefix()}`;
 let nextId = 0;
 
 export const callHost = (

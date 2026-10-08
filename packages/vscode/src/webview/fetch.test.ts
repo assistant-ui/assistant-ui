@@ -156,6 +156,38 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     expect(await response.json()).toEqual({ a: 1 });
   });
 
+  it("rejects absolute http URLs for another origin before posting", async () => {
+    const handler = vi.fn(() => new Response("local"));
+    const { fetch, bridge } = setup({ "/api/chat": { GET: handler } });
+
+    for (const input of [
+      "https://api.example.com/api/chat",
+      new URL("http://api.example.com/api/chat"),
+      new Request("https://api.example.com/api/chat"),
+    ]) {
+      await expect(fetch(input)).rejects.toThrow(
+        "vscodeFetch only reaches the extension host's routes",
+      );
+    }
+    expect(bridge.webviewToHost).toHaveLength(0);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("accepts virtual-origin URLs and non-http Request URLs", async () => {
+    const { fetch } = setup({
+      "/api/chat": { GET: () => new Response("local") },
+    });
+
+    expect(
+      await (await fetch(`${VSCODE_VIRTUAL_ORIGIN}/api/chat`)).text(),
+    ).toBe("local");
+    expect(
+      await (
+        await fetch(new Request("vscode-webview://panel/api/chat"))
+      ).text(),
+    ).toBe("local");
+  });
+
   it("answers 404 for an unknown route", async () => {
     const { fetch } = setup({});
 
@@ -299,6 +331,40 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     expect(cancelled).toBe(true);
     expect(body.locked).toBe(false);
     expect(bridge.webviewToHost).toHaveLength(0);
+  });
+
+  it("rejects an abort after reading the request body before posting", async () => {
+    const { fetch, bridge } = setup({
+      "/api/upload": { POST: () => new Response("ok") },
+    });
+    const controller = new AbortController();
+    const releaseLock = ReadableStreamDefaultReader.prototype.releaseLock;
+    const spy = vi
+      .spyOn(ReadableStreamDefaultReader.prototype, "releaseLock")
+      .mockImplementation(function (
+        this: ReadableStreamDefaultReader<unknown>,
+      ) {
+        releaseLock.call(this);
+        controller.abort();
+      });
+    try {
+      await expect(
+        fetch("/api/upload", {
+          method: "POST",
+          body: new ReadableStream({
+            start(stream) {
+              stream.enqueue(encoder.encode("payload"));
+              stream.close();
+            },
+          }),
+          duplex: "half",
+          signal: controller.signal,
+        } as RequestInit),
+      ).rejects.toMatchObject({ name: "AbortError" });
+      expect(bridge.webviewToHost).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("aborts the handler's request signal and ends the stream on abort", async () => {
@@ -740,15 +806,89 @@ describe("createVSCodeFetch against a misbehaving host", () => {
         channel: VSCODE_BRIDGE_CHANNEL,
         kind: "fetch:head",
         id,
-        status: 1000,
+        status: 0,
         statusText: "",
         headers: [],
       },
     ]);
 
-    await expect(createVSCodeFetch(port)("/api/x")).rejects.toBeInstanceOf(
-      RangeError,
-    );
+    await expect(createVSCodeFetch(port)("/api/x")).rejects.toMatchObject({
+      name: "TypeError",
+      cause: expect.any(RangeError),
+    });
     expect(sent.map((m) => m.kind)).toEqual(["fetch:request", "fetch:abort"]);
+  });
+
+  it("cleans up when posting a body cancellation throws", async () => {
+    const listeners = new Set<(message: unknown) => void>();
+    const port: VSCodeBridgePort = {
+      postMessage: (message) => {
+        if (message.kind === "fetch:abort") throw new Error("port closed");
+        queueMicrotask(() => {
+          for (const listener of listeners) {
+            listener({
+              channel: VSCODE_BRIDGE_CHANNEL,
+              kind: "fetch:head",
+              id: message.id,
+              status: 200,
+              statusText: "",
+              headers: [],
+            });
+          }
+        });
+      },
+      onMessage: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const response = await createVSCodeFetch(port)("/api/x");
+
+    await expect(response.body!.cancel()).resolves.toBeUndefined();
+    expect(listeners.size).toBe(0);
+  });
+
+  it("rejects and cleans up when posting an abort throws", async () => {
+    const listeners = new Set<(message: unknown) => void>();
+    const port: VSCodeBridgePort = {
+      postMessage: (message) => {
+        if (message.kind === "fetch:abort") throw new Error("port closed");
+      },
+      onMessage: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const controller = new AbortController();
+    const pending = createVSCodeFetch(port)("/api/x", {
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(listeners.size).toBe(0);
+  });
+
+  it("uses cryptographic randomness for fetch id prefixes", async () => {
+    const random = vi.spyOn(Math, "random").mockImplementation(() => {
+      throw new Error("Math.random must not be used for request ids");
+    });
+    try {
+      vi.resetModules();
+      const { createVSCodeFetch: freshFetch } = await import("./fetch");
+      const { port, sent } = respondWith((id) => [
+        { channel: VSCODE_BRIDGE_CHANNEL, kind: "fetch:end", id },
+      ]);
+      await expect(freshFetch(port)("/api/x")).rejects.toThrow(
+        "Response ended before its head",
+      );
+      expect(sent[0]?.id).toMatch(/^[0-9a-f]{16}-1$/);
+    } finally {
+      random.mockRestore();
+    }
   });
 });

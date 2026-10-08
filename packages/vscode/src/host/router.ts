@@ -78,7 +78,9 @@ export function serveRoutes(
   ): Promise<Response> => {
     const route = Object.hasOwn(routes, pathname) ? routes[pathname] : null;
     if (!route) return new Response("Not Found", { status: 404 });
-    const handler = route[request.method as HttpMethod];
+    const handler = Object.hasOwn(route, request.method)
+      ? route[request.method as HttpMethod]
+      : null;
     if (!handler) {
       return new Response("Method Not Allowed", {
         status: 405,
@@ -133,6 +135,9 @@ export function serveRoutes(
         else timer ??= setTimeout(flush, flushInterval);
       }
       flush();
+    } catch (error) {
+      flush();
+      throw error;
     } finally {
       if (timer !== undefined) clearTimeout(timer);
       signal.removeEventListener("abort", onAbort);
@@ -198,20 +203,37 @@ export function serveRoutes(
         controller,
       );
     } finally {
-      inflight.delete(id);
+      if (inflight.get(id) === controller) inflight.delete(id);
     }
   };
 
   const subscription = webview.onDidReceiveMessage((message: unknown) => {
     if (!isWebviewToHostMessage(message)) return;
     if (message.kind === "fetch:request") void handle(message);
-    else if (message.kind === "fetch:abort") inflight.get(message.id)?.abort();
+    else if (message.kind === "fetch:abort") {
+      const controller = inflight.get(message.id);
+      if (controller) {
+        inflight.delete(message.id);
+        controller.abort();
+      }
+    }
   });
 
   return {
     dispose: () => {
       subscription.dispose();
-      for (const controller of inflight.values()) controller.abort();
+      for (const [id, controller] of inflight) {
+        post(
+          {
+            channel: VSCODE_BRIDGE_CHANNEL,
+            kind: "fetch:error",
+            id,
+            message: "Webview routes disposed",
+          },
+          controller,
+        );
+        controller.abort();
+      }
       inflight.clear();
     },
   };
