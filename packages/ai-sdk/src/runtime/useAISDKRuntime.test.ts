@@ -953,10 +953,9 @@ describe("useAISDKRuntime", () => {
     expect(chat.sendMessage).not.toHaveBeenCalled();
     expect(chat.messages.map((m: any) => m.id)).toEqual([
       "u1",
-      "a1",
       expect.any(String),
     ]);
-    expect(chat.messages[2]).toEqual(
+    expect(chat.messages[1]).toEqual(
       expect.objectContaining({
         role: "user",
         parts: expect.arrayContaining([
@@ -1152,8 +1151,7 @@ describe("useAISDKRuntime", () => {
       expect(chat.sendMessage).toHaveBeenCalledTimes(1);
     });
 
-    // sliceMessagesUntil("u1") keeps u1 + following assistant messages (a1)
-    expect(chat.messages.map((m: any) => m.id)).toEqual(["u1", "a1"]);
+    expect(chat.messages.map((m: any) => m.id)).toEqual(["u1"]);
     expect(chat.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ role: "user" }),
       { metadata: { custom: { temperature: 0.2 } } },
