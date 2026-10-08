@@ -64,7 +64,12 @@ export default async function OssPage() {
           <section className="border-foreground/10 border-b py-10 md:py-14">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-baseline lg:justify-between lg:gap-16">
               <div className="min-w-0">
-                <h2 className={typeSection}>{flagship.name}</h2>
+                <Link href={ossPrimaryUrl(flagship)} className="group block">
+                  <h2 className={typeSection}>
+                    {flagship.name}
+                    <ArrowUpRight className="ms-1.5 mb-0.5 inline size-4 opacity-0 transition-opacity group-hover:opacity-50" />
+                  </h2>
+                </Link>
                 <p className="text-muted-foreground mt-3 max-w-[52ch] text-[15px] leading-relaxed">
                   {flagship.description}
                 </p>
@@ -166,9 +171,9 @@ function ProjectRow({
   const href = ossPrimaryUrl(project);
   const external = href.startsWith("http");
   const rowClassName =
-    "group/row hover:bg-foreground/[0.025] focus-within:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
+    "group/row relative hover:bg-foreground/[0.025] focus-within:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2.5 transition-colors md:grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_3.5rem_5.5rem] md:items-baseline md:gap-6";
   const titleClassName =
-    "group/title inline-flex items-center text-sm font-medium transition-colors hover:text-foreground/70 focus-visible:text-foreground focus-visible:underline";
+    "group/title inline-flex items-center text-sm font-medium after:absolute after:inset-0 focus-visible:underline";
   const title = (
     <>
       {project.name}
@@ -202,7 +207,7 @@ function ProjectRow({
           {project.description}
         </p>
         {supplementalDestinations.length > 0 ? (
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+          <div className="relative z-10 mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
             <ProjectDestinationLinks
               destinations={supplementalDestinations}
               className="text-muted-foreground hover:text-foreground focus-visible:text-foreground font-mono text-[11px] tracking-wide transition-colors focus-visible:underline"
