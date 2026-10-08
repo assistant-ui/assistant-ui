@@ -41,19 +41,19 @@ The **Topics** table is the compact comparison of the named conversation groups.
 | **Resolved** | The Resolved reading for the topic. |
 | **Thumbs down rate** | Opens Threads with `topic` set and `feedback=negative`. |
 
-A rate that stands out from the page's own mean is shown in its outcome's color, so the row that needs attention is found without a flag column. A blank Trend cell has no trend reading.
+A rate that stands out from the page's own mean is shown in its outcome's color. A blank Trend cell has no trend reading.
 
 ### Tasks, questions, and judged outcomes
 
-**Tasks** groups repeated requests. Its consistency reading is **Consistent**, **Mixed**, or **Inconsistent**. Open a task to inspect it in the current range. The **Tasks** table carries a **Thumbs down rate** that opens Threads with `task` set and `feedback=negative`.
+**Tasks** groups repeated requests. Its consistency reading is **Consistent**, **Mixed**, or **Inconsistent**. Open a task to inspect it in the current range. The **Tasks** table carries a **Thumbs down rate** that opens Threads with `task` set and `feedback=negative`. **View all** on Topics opens `/intelligence/topics`, and **View all** on Tasks opens `/intelligence/tasks`.
 
 **Unanswered questions** lists the questions identified by the classifier, with the selected range still in effect. **Sentiment by topic** compares the topic groups, while the judged mix below it separates **Sentiment**, **Resolution**, and **Languages**. Sentiment is positive, neutral, or negative. Resolution separates resolved and unresolved conversations. Languages is the language mix reported by analysis.
 
-**Evaluator verdicts** shows the evaluator results alongside the analysis. Any judged section that has not received a result reads **Not judged yet** and explains **After the next analysis run.**
+**Evaluator verdicts** shows the evaluator results alongside the analysis. With no evaluator rules, it reads **No evaluators yet** and offers **Configure evaluators**. A configured rule with no results reads **No verdicts yet**.
 
 ## Follow a figure to the conversations
 
-Every Intelligence figure is a route into Threads. The link keeps the page's date range and adds the matching filter, which makes the table the evidence behind the count.
+Every Intelligence figure is a route into Threads. The link keeps the page's date range and adds the matching filter.
 
 | Figure or detail | Threads filter |
 |---|---|
@@ -73,6 +73,8 @@ Threads can combine these with the other filters in its bar. In particular, **En
 ## Detail pages and runs
 
 Opening a topic uses the active date range to show that topic's reading and its related Threads. Opening a task does the same for the task, its consistency and its skill.
+
+Open a thread from a topic or task's conversation table and **Previous** and **Next** stay within that table's range, filters and sort. **Back to topic** or **Back to task** returns to the same table and page.
 
 ### What went wrong
 
@@ -102,4 +104,4 @@ Before the first completed analysis, the page reads: **No analysis yet. The anal
 |---|---|---|
 | A topic is missing | The conversation may be classified as junk, or the configured topic ceiling folded new conversations into Other. | Check the conversation in Threads with the Junk filter, then review the classifier settings. |
 | A topic has no trend | The table has no Trend reading for that topic. | Compare the topic after later analysis runs. |
-| Evaluator verdicts are empty | The section has not been judged yet. | Read the **After the next analysis run** state, then inspect the analysis-run ledger. |
+| Evaluator verdicts are empty | The project has no evaluator rules, or a configured rule has no verdicts in the last 28 days. | With **No evaluators yet**, select **Configure evaluators** to add a rule. A rule that reads **No verdicts yet** is judged only on the new conversations it samples: check in **Settings › Evaluators** that it is enabled and that its sampling rate lets conversations through, then wait for new conversations. |

@@ -41,10 +41,10 @@ describe("ModelContext", () => {
     try {
       sub
         .getValue()
-        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
+        .register(provider({ config: { modelName: "gpt-6-luna" } }));
       await tick();
 
-      expect(sub.getValue().getState().modelName).toBe("gpt-5.6-luna");
+      expect(sub.getValue().getState().modelName).toBe("gpt-6-luna");
     } finally {
       unmount();
     }
@@ -71,13 +71,13 @@ describe("ModelContext", () => {
     try {
       sub
         .getValue()
-        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
+        .register(provider({ config: { modelName: "gpt-6-luna" } }));
       await tick();
       const before = sub.getValue().getState();
 
       sub
         .getValue()
-        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
+        .register(provider({ config: { modelName: "gpt-6-luna" } }));
       await tick();
       const after = sub.getValue().getState();
 
@@ -92,9 +92,9 @@ describe("ModelContext", () => {
     try {
       const unsubscribe = sub
         .getValue()
-        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
+        .register(provider({ config: { modelName: "gpt-6-luna" } }));
       await tick();
-      expect(sub.getValue().getState().modelName).toBe("gpt-5.6-luna");
+      expect(sub.getValue().getState().modelName).toBe("gpt-6-luna");
 
       unsubscribe();
       await tick();
@@ -110,9 +110,9 @@ describe("ModelContext", () => {
     try {
       sub
         .getValue()
-        .register(provider({ config: { modelName: "gpt-5.6-luna" } }));
+        .register(provider({ config: { modelName: "gpt-6-luna" } }));
 
-      expect(sub.getValue().getState().modelName).toBe("gpt-5.6-luna");
+      expect(sub.getValue().getState().modelName).toBe("gpt-6-luna");
     } finally {
       unmount();
     }

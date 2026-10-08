@@ -50,3 +50,12 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/check-changesets.mjs --changed-packages
+
+      - name: Test the Python version checker
+        run: node --test scripts/check-python-versions.test.mjs
+
+      - name: Verify Python package versions change only in release PRs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-python-versions.mjs

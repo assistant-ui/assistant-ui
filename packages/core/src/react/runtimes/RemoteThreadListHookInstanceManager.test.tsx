@@ -255,6 +255,38 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     );
   });
 
+  it("disposes a same-generation replacement when a replaced subscriber throws", () => {
+    const { session, disconnect } = createVoiceSession();
+    const previousRuntime = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => session } },
+    });
+    const nextRuntime = createExternalStoreRuntime();
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const publishRuntime = (runtime: ThreadRuntimeCore) => {
+      const generation =
+        internalsOf(manager).instances.get("thread-1")!.generation;
+      (
+        manager as unknown as {
+          _publishThreadRuntime(
+            id: string,
+            runtime: ThreadRuntimeCore,
+            generation: number,
+          ): void;
+        }
+      )._publishThreadRuntime("thread-1", runtime, generation);
+    };
+    publishRuntime(previousRuntime);
+    previousRuntime.connectVoice();
+    const error = new Error("replaced subscriber failed");
+    manager.__internal_subscribeRuntimeReplaced(() => {
+      throw error;
+    });
+
+    expect(() => publishRuntime(nextRuntime)).toThrow(error);
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it("drops the unfinished transcript on a remote restart while history is still loading", async () => {
     const onVoiceTranscript = vi.fn();
     const { session, disconnect, emitTranscript } = createVoiceSession();

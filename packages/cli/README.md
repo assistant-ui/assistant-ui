@@ -58,7 +58,66 @@ npx assistant-ui info
 
 ## Templates
 
-`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langchain`, `mcp`, `eve`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v7`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
+`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `cloud-harness`, `langchain`, `mcp`, `eve`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v7`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
+
+## Shared cloud chat
+
+```bash
+npx assistant-ui@latest cloud setup multiplayer-chat
+cd multiplayer-chat
+npm run dev
+```
+
+Setup signs you in through your browser, selects or creates your organization
+and project, provisions a hosted harness, and installs the shared chat starter.
+Add your `OPENAI_API_KEY` to the generated `.env.local` before starting the app.
+Open `http://localhost:3000/#main` in two browsers. Both clients share the
+conversation and see replies as they stream. **Share this chat** copies the
+current conversation's URL.
+
+Select resources explicitly for a script or agent:
+
+```bash
+npx assistant-ui@latest cloud setup multiplayer-chat --org team --new-project hackathon-chat --backend-url http://localhost:3000/api/chat --yes
+```
+
+Use `--project <id-or-slug>` for an existing project. A hackathon access code
+can be supplied with `--access-code <code>` or `ASSISTANT_UI_ACCESS_CODE`.
+`--use-npm`, `--use-pnpm`, `--use-yarn`, and `--use-bun` select the installer;
+`--skip-install` leaves dependency installation to you. For a hosted app,
+pass its HTTPS chat endpoint as `--backend-url` during initial setup. If you
+deploy a chat first configured locally, update its backend allowlist in the
+Cloud dashboard and its `backendUrl` in `.assistant-ui/cloud.json`, then rerun
+setup with the same HTTPS `--backend-url`. Existing conversations keep their
+original backend; open the deployed app with a fresh thread fragment such as
+`#deployed-chat`, then use **Share this chat**.
+
+The project API key stays in `.env.local`, with owner-only permissions and a
+Git ignore entry. `.assistant-ui/cloud.json` stores the selected project and
+harness IDs. Browser clients receive short-lived credentials from the app's
+server and share the `hackathon` user. Add your application authentication to
+`/api/credential` when the chat needs individual users or private access.
+
+Run `npx assistant-ui@latest cloud setup .` from an existing cloud-harness starter to resume
+setup. Existing environment values are preserved; conflicting cloud settings
+produce an error. `npx assistant-ui@latest cloud login` signs in separately and
+`npx assistant-ui@latest cloud logout` revokes the saved CLI login.
+
+When an agent is installing from an active setup wizard, pass its setup-agent
+URL with `--setup-url <url>` to `cloud login` or `cloud setup`. The wizard shows
+the device approval code and sends you to Accounts for explicit consent, then
+returns to the same setup. The CLI polls Accounts directly and saves credentials
+locally with owner-only permissions; tokens never pass through the wizard or
+its generic secret inputs. Cancelling the sign-in question or setup cancels
+pending login. Returning from Accounts alone does not complete login.
+
+Before the npm patch is released, use the
+[verified wizard sign-in prerelease](https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz)
+with your active setup-agent connection URL:
+
+```bash
+npx --yes --package=https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz assistant-ui cloud login --setup-url "<active-setup-agent-url>"
+```
 
 ## Documentation
 

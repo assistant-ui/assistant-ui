@@ -893,6 +893,77 @@ describe("Interactables persistence save", () => {
     });
   });
 
+  it("shows an in-flight save failure on an interactable that remounted meanwhile", async () => {
+    let rejectSave!: (error: Error) => void;
+    const saveError = new Error("offline");
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    unregister();
+    root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: true,
+      error: undefined,
+    });
+
+    rejectSave(saveError);
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: false,
+      error: saveError,
+    });
+  });
+
+  it("shows no pending save on a remount after the adapter changed mid-save", async () => {
+    const save = vi.fn(() => new Promise<void>(() => {}));
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+
+    unregister();
+    root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
+  it("shows no pending save on a remount while a change waits for an adapter", async () => {
+    let resolveSave!: () => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+
+    unregister();
+    root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+
+    resolveSave();
+    await flushMicrotasks();
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
   it("keeps an imperative adapter attached across a soft unmount", async () => {
     const save = vi.fn();
     const softRoot = mountOnSubscribe();
@@ -1607,5 +1678,134 @@ describe("Interactables persistence load", () => {
     root.getValue().register(reg("n1"));
 
     expect(stateOf(root, "n1")).toEqual({ v: 2 });
+  });
+});
+
+describe("Interactables setState on an unregistered id", () => {
+  it("restores the stored value and keeps it in the next save when setState ran before registration", async () => {
+    const save = vi.fn();
+    let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
+    const load = () =>
+      new Promise<Unstable_InteractablePersistedState>((r) => {
+        resolveLoad = r;
+      });
+    root = mount({ persistence: { save, load } });
+    await flushMicrotasks();
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    resolveLoad({
+      prefs: { name: "note", state: { v: 42 } },
+      other: { name: "note", state: { v: 7 } },
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 42 });
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("other", () => ({ v: 8 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save).toHaveBeenCalled();
+    expect(save.mock.calls.at(-1)![0].prefs).toEqual({
+      name: "note",
+      state: { v: 42 },
+    });
+  });
+
+  it("does not drop the stored value from the first save after the load", async () => {
+    const save = vi.fn();
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register(reg("other"));
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    expect(stateOf(root, "prefs")).toBeUndefined();
+
+    root.getValue().setPersistenceAdapter({
+      save,
+      load: async () => ({ prefs: { name: "note", state: { v: 42 } } }),
+    });
+    await flushMicrotasks();
+    root.getValue().setState("other", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]![0]).toEqual({
+      prefs: { name: "note", state: { v: 42 } },
+      other: { name: "note", state: { v: 2 } },
+    });
+  });
+});
+
+describe("Interactables unmounted while the load is in flight", () => {
+  const setup = async (editBeforeUnmount = false) => {
+    const save = vi.fn();
+    let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
+    const load = () =>
+      new Promise<Unstable_InteractablePersistedState>((r) => {
+        resolveLoad = r;
+      });
+    root = mount({ persistence: { save, load } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("prefs"));
+    if (editBeforeUnmount) root.getValue().setState("prefs", () => ({ v: 7 }));
+    unregister();
+    resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
+    await flushMicrotasks();
+    return { save };
+  };
+
+  it("restores the loaded value on remount, not initialState", async () => {
+    await setup();
+    root!.getValue().register(reg("prefs"));
+    expect(stateOf(root!, "prefs")).toEqual({ v: 42 });
+  });
+
+  it("keeps the stored value in the next save", async () => {
+    const { save } = await setup();
+    root!.getValue().register(reg("other"));
+    root!.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]![0].prefs).toEqual({
+      name: "note",
+      state: { v: 42 },
+    });
+  });
+
+  it("keeps an edit made before the unmount over the late load", async () => {
+    const { save } = await setup(true);
+    root!.getValue().register(reg("prefs"));
+    expect(stateOf(root!, "prefs")).toEqual({ v: 7 });
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save.mock.lastCall![0].prefs).toEqual({
+      name: "note",
+      state: { v: 7 },
+    });
+  });
+
+  it("lets the late load replace a value imported while unmounted", async () => {
+    const save = vi.fn();
+    let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
+    const load = () =>
+      new Promise<Unstable_InteractablePersistedState>((r) => {
+        resolveLoad = r;
+      });
+    root = mount({ persistence: { save, load } });
+    await flushMicrotasks();
+    root.getValue().importState({ prefs: { name: "note", state: { v: 5 } } });
+    resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
+    await flushMicrotasks();
+
+    root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 42 });
+
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save.mock.lastCall![0].prefs).toEqual({
+      name: "note",
+      state: { v: 42 },
+    });
   });
 });

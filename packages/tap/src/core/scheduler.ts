@@ -5,16 +5,19 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  tasks: Task[];
+  notifies: (() => void)[];
   isScheduled: boolean;
 };
 
 const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
   schedulers: new Set(),
+  tasks: [],
+  notifies: [],
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
-const pendingNotifies: (() => void)[] = [];
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -58,9 +61,8 @@ export class UpdateScheduler {
   }
 }
 
-const scheduledTasks: Task[] = [];
 const taskScheduler = new UpdateScheduler(() => {
-  const tasks = scheduledTasks.splice(0);
+  const tasks = flushState.tasks.splice(0);
   const errors: unknown[] = [];
   for (const task of tasks) {
     try {
@@ -74,12 +76,12 @@ const taskScheduler = new UpdateScheduler(() => {
 
 export const scheduleTask = (task: Task): void => {
   taskScheduler.markDirty();
-  scheduledTasks.push(task);
+  flushState.tasks.push(task);
 };
 
 export const scheduleNotify = (notify: () => void): void => {
   if (activeDrainRuns !== null) {
-    pendingNotifies.push(notify);
+    flushState.notifies.push(notify);
     return;
   }
   notify();
@@ -113,9 +115,10 @@ const flushScheduled = () => {
     flushState.isScheduled = false;
 
     if (activeDrainRuns === null) {
-      while (pendingNotifies.length > 0) {
+      const notifies = flushState.notifies;
+      while (notifies.length > 0) {
         try {
-          pendingNotifies.shift()!();
+          notifies.shift()!();
         } catch (error) {
           errors.push(error);
         }
@@ -168,6 +171,8 @@ export const flushTapSync = <T>(callback: () => T): T => {
   const prev = flushState;
   flushState = {
     schedulers: new Set(),
+    tasks: [],
+    notifies: [],
     isScheduled: true,
   };
 
@@ -178,12 +183,18 @@ export const flushTapSync = <T>(callback: () => T): T => {
     return value;
   } finally {
     // The notify drain at the end of flushScheduled runs while flushState
-    // still points at the temporary state, so a markDirty from a notify
-    // lands there. Hand that work to the restored state or it is lost.
-    const stranded = flushState.schedulers;
+    // still points at the temporary state, so a markDirty or scheduleTask
+    // from a notify lands there. Hand that work to the restored state or it
+    // is lost.
+    const stranded = flushState;
     flushState = prev;
-    if (stranded.size > 0) {
-      for (const scheduler of stranded) flushState.schedulers.add(scheduler);
+    for (const task of stranded.tasks) flushState.tasks.push(task);
+    // taskScheduler is shared by every flush state, and running it here
+    // cleared the dirty bit the restored state relies on.
+    if (flushState.tasks.length > 0) taskScheduler.markDirty();
+    if (stranded.schedulers.size > 0) {
+      for (const scheduler of stranded.schedulers)
+        flushState.schedulers.add(scheduler);
       scheduleFlush();
     }
   }

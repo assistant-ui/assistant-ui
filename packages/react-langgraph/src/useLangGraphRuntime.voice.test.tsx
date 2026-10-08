@@ -10,6 +10,7 @@ import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { LangChainMessage } from "./types";
 import type { LangGraphStreamCallback } from "./useLangGraphMessages";
 
@@ -292,9 +293,9 @@ describe("useLangGraphRuntime voice transcripts", () => {
       voice,
       unstable_threadListAdapter: makeThreadListAdapter(),
     });
-    await act(async () => {
-      await result.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      result.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() =>
       expect(result.current.thread.getState().capabilities.voice).toBe(true),
     );
@@ -402,6 +403,54 @@ describe("useLangGraphRuntime voice transcripts", () => {
     ]);
   });
 
+  it("hands transcripts back when a regenerate is stopped during its checkpoint lookup", async () => {
+    const voice = createVoiceAdapter();
+    const stream = vi.fn<LangGraphStreamCallback<LangChainMessage>>(() =>
+      mockStreamCallbackFactory([])(),
+    );
+    const getCheckpointId = vi.fn(
+      (_threadId: string, _parentMessages: LangChainMessage[]) =>
+        new Promise<string | null>(() => {}),
+    );
+    const { result } = await renderVoiceRuntime({
+      stream,
+      getCheckpointId,
+      voice,
+      unstable_threadListAdapter: makeThreadListAdapter(),
+      unstable_allowCancellation: true,
+    });
+    await act(async () => {
+      await result.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().capabilities.voice).toBe(true),
+    );
+    const [user, assistant] = speak(result.current, voice, spokenTurns);
+
+    act(() => {
+      void result.current.thread.getMessageById(assistant!.id).reload();
+    });
+    await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(1));
+    act(() => result.current.thread.cancelRun());
+    await waitFor(() =>
+      expect(result.current.thread.getState().isRunning).toBe(false),
+    );
+    expect(
+      result.current.thread.getState().messages.map((message) => message.id),
+    ).toEqual([user!.id, assistant!.id]);
+    await act(async () => {
+      await result.current.thread.append("Next typed turn");
+    });
+
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(stream.mock.calls[0]![0].map((message) => message.id)).toEqual([
+      user!.id,
+      assistant!.id,
+      expect.any(String),
+    ]);
+    expect(stream.mock.calls[0]![1]).not.toHaveProperty("checkpointId");
+  });
+
   it("regenerates an unsent assistant transcript by forking before the user transcript", async () => {
     const voice = createVoiceAdapter();
     const stream = vi.fn<LangGraphStreamCallback<LangChainMessage>>(() =>
@@ -417,9 +466,9 @@ describe("useLangGraphRuntime voice transcripts", () => {
       voice,
       unstable_threadListAdapter: makeThreadListAdapter(),
     });
-    await act(async () => {
-      await result.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      result.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() =>
       expect(result.current.thread.getState().capabilities.voice).toBe(true),
     );

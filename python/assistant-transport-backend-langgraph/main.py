@@ -42,6 +42,7 @@ class MessagePart(BaseModel):
 class UserMessage(BaseModel):
     """A user message."""
     role: str = Field(default="user", description="Message role")
+    id: str | None = Field(None, description="Client message ID")
     parts: list[MessagePart] = Field(..., description="Message parts")
 
 
@@ -238,8 +239,7 @@ async def subagent_node(state: SubagentState) -> dict[str, Any]:
     if os.getenv("OPENAI_API_KEY"):
         # Initialize a simpler LLM for the subagent
         llm = ChatOpenAI(
-            model="gpt-5.6-luna",
-            temperature=0.7,
+            model="gpt-6-luna",
             streaming=True
         )
         response = await llm.ainvoke(subagent_messages)
@@ -276,8 +276,8 @@ async def agent_node(state: GraphState) -> dict[str, Any]:
     if os.getenv("OPENAI_API_KEY"):
         # Initialize the LLM with tool binding
         llm = ChatOpenAI(
-            model="gpt-5.6-luna",
-            temperature=0.7,
+            model="gpt-6-luna",
+            reasoning_effort="none",
             streaming=True,
         )
 
@@ -528,7 +528,9 @@ async def chat_endpoint(request: ChatRequest):
                     if part.type == "text" and part.text
                 ]
                 if text_parts:
-                    input_messages.append(HumanMessage(content=" ".join(text_parts)))
+                    input_messages.append(
+                        HumanMessage(content=" ".join(text_parts), id=command.message.id)
+                    )
             elif command.type == "add-tool-result":
                 # Handle tool results
                 input_messages.append(ToolMessage(

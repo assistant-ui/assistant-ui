@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   contextProvider,
   createCore,
+  deferred,
   makeAdapter,
   setStartThreadRuntime,
 } from "./remote-thread-list-test-helpers";
@@ -100,4 +101,36 @@ describe("RemoteThreadListThreadListRuntimeCore errors", () => {
       'Thread "missing-thread" not found in in-memory thread list.',
     );
   });
+
+  it.each(["archive", "delete", "detach"] as const)(
+    "rejects %s of the main thread when its initialize fails instead of looping",
+    async (operation) => {
+      const initialization = deferred<{
+        remoteId: string;
+        externalId: string;
+      }>();
+      const core = createCore(
+        makeAdapter({ initialize: vi.fn(() => initialization.promise) }),
+      );
+      await core.getLoadThreadsPromise();
+      const localId = core.newThreadId!;
+      const initializing = core.initialize(localId).catch(() => {});
+
+      let fallbackSwitches = 0;
+      const switchToNewThread = core.switchToNewThread.bind(core);
+      core.switchToNewThread = () => {
+        if (++fallbackSwitches > 50) throw new Error("livelock");
+        return switchToNewThread();
+      };
+
+      const operating = core[operation](localId);
+      initialization.reject(new Error("initialize failed"));
+      await initializing;
+
+      await expect(operating).rejects.toThrow(
+        "Cannot ensure new thread is not main",
+      );
+      expect(core.mainThreadId).toBe(localId);
+    },
+  );
 });

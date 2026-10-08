@@ -1,6 +1,6 @@
 ---
 title: Perplexity Clone
-description: Open-source Perplexity-style chat in React — theme-aware composer, functional Search and Model dropdowns, four-state primary action, and a Search-icon assistant avatar.
+description: Open-source Perplexity-style chat in React. Theme-aware composer, functional Search and Model dropdowns, four-state primary action, and a Search-icon assistant avatar.
 ---
 
 ## Overview
@@ -9,12 +9,12 @@ The Perplexity Clone demonstrates how to customize assistant-ui to match Perplex
 
 ## Features
 
-- **Theme-Aware Styling**: Cream `#f6f2ec` light, espresso `#171615` dark — no forced theme
+- **Theme-Aware Styling**: Cream `#f6f2ec` light, espresso `#171615` dark, following the site theme
 - **Hero Wordmark**: Large centered `perplexity` headline that scales down on mobile
 - **Multi-line Composer**: `rows={2}` with `min-h-20` so the input feels as tall as Perplexity's hero
 - **Functional Search Dropdown**: Search / Research / Labs modes, each with an icon and description
-- **Functional Model Dropdown**: Best / Sonar / Claude 4.5 Sonnet / GPT-5 / Gemini 3 Pro (hidden on small screens)
-- **Four-State Primary Action**: Cancel, StopDictation, Send, Dictate — mutually exclusive via priority
+- **Functional Model Dropdown**: Best / Sonar / Claude Sonnet 5 / GPT-6 / Gemini 3.1 Pro (hidden on small screens)
+- **Four-State Primary Action**: Cancel, StopDictation, Send, Dictate, mutually exclusive by priority
 - **Inline Attachment Chips**: Compact previews render above the input
 - **Sticky Follow-up**: Once a chat starts, the composer becomes a pinned footer with a fade-out gradient over the cream background
 
@@ -39,7 +39,7 @@ import {
 export const Perplexity = () => (
   <ThreadPrimitive.Root
     className="bg-[#f6f2ec] dark:bg-[#171615]"
-    style={{ ["--thread-max-width"]: "40rem" }}
+    style={{ ["--thread-max-width" as string]: "40rem" }}
   >
     <AuiIf condition={(s) => s.thread.isEmpty}>
       <EmptyState />
@@ -106,13 +106,13 @@ The Model picker uses `hidden sm:flex` so it collapses on mobile and the Search 
 <AuiIf condition={(s) => s.thread.isRunning}>
   <ComposerPrimitive.Cancel />
 </AuiIf>
-<AuiIf condition={(s) => s.composer.dictation != null}>
+<AuiIf condition={(s) => !s.thread.isRunning && s.composer.dictation != null}>
   <ComposerPrimitive.StopDictation />
 </AuiIf>
-<AuiIf condition={(s) => s.composer.dictation == null && !s.composer.isEmpty}>
+<AuiIf condition={(s) => !s.thread.isRunning && s.composer.dictation == null && !s.composer.isEmpty}>
   <ComposerPrimitive.Send />
 </AuiIf>
-<AuiIf condition={(s) => s.composer.dictation == null && s.composer.isEmpty}>
+<AuiIf condition={(s) => !s.thread.isRunning && s.composer.dictation == null && s.composer.isEmpty}>
   <ComposerPrimitive.Dictate />
 </AuiIf>
 ```
@@ -133,7 +133,7 @@ The conditions are mutually exclusive in priority order so dictation can be paus
 
 ### Styling Details
 
-- **Composer Shell**: `rounded-3xl` card with a soft layered shadow and explicit light/dark borders
+- **Composer Shell**: `rounded-3xl` card with explicit light/dark borders
 - **Multi-line Input**: `rows={2}` and `min-h-20` keep the composer tall like Perplexity's hero input
 - **Wordmark**: `text-5xl sm:text-[3.1rem]` so it stays readable on mobile
 - **User Bubble**: `rounded-3xl rounded-tr-md` (chopped top-right corner) with a subtle border

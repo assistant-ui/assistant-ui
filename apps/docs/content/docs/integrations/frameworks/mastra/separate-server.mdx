@@ -50,7 +50,7 @@ export const chefAgent = new Agent({
   instructions:
     "You are Michel, a practical and experienced home chef. " +
     "You help people cook with whatever ingredients they have available.",
-  model: "openai/gpt-5.6-luna",
+  model: "openai/gpt-6-luna",
 });
 ```
 
@@ -75,7 +75,7 @@ export const mastra = new Mastra({
       credentials: true,
     },
     apiRoutes: [
-      chatRoute({ path: "/chat/:agentId" }),
+      chatRoute({ path: "/chat/:agentId", version: "v7" }),
     ],
   },
 });
@@ -180,7 +180,8 @@ Open `http://localhost:3000`, send a message, and confirm:
 ## Notes
 
 - **Auth between frontend and Mastra**: the example above is open. In production, gate the Mastra route with a header or cookie check and forward credentials from the frontend (`AssistantChatTransport` accepts `headers` and `credentials` options).
-- **Single agent vs router**: `chatRoute({ path: "/chat/:agentId" })` works for any agent registered on the `Mastra` instance. Switching agents from the frontend is a matter of pointing `NEXT_PUBLIC_MASTRA_URL` at a different agent ID.
+- **Single agent vs router**: `chatRoute({ path: "/chat/:agentId", version: "v7" })` works for any agent registered on the `Mastra` instance. Switching agents from the frontend is a matter of pointing `NEXT_PUBLIC_MASTRA_URL` at a different agent ID.
+- **Match the AI SDK version**: `chatRoute` defaults to v5. Set `version: "v7"` when the frontend uses `ai@7`.
 - **Advanced Mastra features** (memory, tools, workflows, evals) live in the agent definition. The frontend sees only the resulting stream. See the [Mastra docs](https://mastra.ai/docs).
 
 ## Related

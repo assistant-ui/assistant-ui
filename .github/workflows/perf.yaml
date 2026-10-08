@@ -12,6 +12,9 @@ on:
       - "packages/assistant-stream/**"
       - "packages/react/**"
       - "packages/react-markdown/**"
+      - "packages/ai-sdk/**"
+      - "packages/react-langgraph/**"
+      - "packages/react-pi/**"
       - "packages/tw-shimmer/**"
       - ".github/workflows/perf.yaml"
 
@@ -26,16 +29,12 @@ jobs:
       github.event.pull_request.draft == false
       && github.event.pull_request.head.repo.full_name == github.repository
       && github.head_ref != 'changeset-release/main'
-      && (github.event.action != 'synchronize'
-        || contains(github.event.pull_request.labels.*.name, 'type/perf')
-        || github.actor == 'autofix-ci[bot]')
+      && (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'type/perf'))
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 40
-    env:
-      REPORT_MARKER: "<!-- aui-perf-report -->"
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -48,26 +47,13 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          # autofix.ci cancels every run on the commit it fixes, the run this PR's open or ready event started included, so its fix commit measures the PR once more while no report exists.
-          AUTOFIX_COMMIT: ${{ github.actor == 'autofix-ci[bot]' && !contains(github.event.pull_request.labels.*.name, 'type/perf') }}
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          changed=$(git diff --name-only "$BASE_SHA...HEAD")
           bench=false
           trace=false
-          reported=""
-          if [ "$AUTOFIX_COMMIT" = true ]; then
-            reported=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
-          fi
-          if [ -n "$reported" ]; then
-            echo "the PR already has a report; an autofix.ci commit does not measure it again"
-          else
-            changed=$(git diff --name-only "$BASE_SHA...HEAD")
-            if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
-            if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
-          fi
+          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown|ai-sdk|react-langgraph|react-pi)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
+          if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
           echo "bench=$bench" >> "$GITHUB_OUTPUT"
           echo "trace=$trace" >> "$GITHUB_OUTPUT"
           echo "bench=$bench trace=$trace"
@@ -77,19 +63,19 @@ jobs:
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
         if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/react-devtools... --filter @assistant-ui/x-performance...
 
       - name: Build measured packages
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         if: steps.lanes.outputs.bench == 'true'
-        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
+        run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/react-langgraph --filter=@assistant-ui/react-pi
 
       - name: Bench PR head against the base commit
         if: steps.lanes.outputs.bench == 'true'
@@ -146,6 +132,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_MARKER: "<!-- aui-perf-report -->"
         run: |
           set -euo pipefail
           existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
