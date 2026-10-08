@@ -547,8 +547,13 @@ const useLangGraphRuntimeImpl = (
   const cancelActiveRun = useCallback(
     (reason?: typeof STOPPED) => {
       pendingResumeRef.current.clear();
-      toolResultBufferRef.current.clear();
-      pendingToolCallIdsByRunRef.current.clear();
+      for (const toolCallId of toolResultBufferRef.current.keys()) {
+        const runId = runIdByToolCallIdRef.current.get(toolCallId);
+        if (runId && activeRunIdsRef.current.has(runId))
+          toolResultBufferRef.current.delete(toolCallId);
+      }
+      for (const runId of activeRunIdsRef.current)
+        pendingToolCallIdsByRunRef.current.delete(runId);
       activeRunIdsRef.current.clear();
       runQueue.drop();
       queueRef.current?.clear();

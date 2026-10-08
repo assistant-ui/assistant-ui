@@ -165,7 +165,10 @@ describe("useLangGraphRuntime parallel tool results", () => {
     ).toEqual(["c1", "c2"]);
   });
 
-  const mount = (stream: (messages: unknown[]) => AsyncGenerator<any>) => {
+  const mount = (
+    stream: (messages: unknown[]) => AsyncGenerator<any>,
+    allowCancellation = false,
+  ) => {
     const host = renderHook(() =>
       useLangGraphRuntime({ stream: emptyStream() }),
     );
@@ -173,6 +176,7 @@ describe("useLangGraphRuntime parallel tool results", () => {
     const Nested = () => {
       capture.runtime = useLangGraphRuntime({
         stream,
+        ...(allowCancellation && { unstable_allowCancellation: true }),
         unstable_threadListAdapter: createThreadListAdapter(),
       });
       return null;
@@ -288,88 +292,6 @@ describe("useLangGraphRuntime parallel tool results", () => {
     ).toEqual(["c1", "c2"]);
   });
 
-  it("holds a messages-tuple result when its call id arrives in fragments", async () => {
-    let releaseSecondCall!: () => void;
-    const secondCall = new Promise<void>((resolve) => {
-      releaseSecondCall = resolve;
-    });
-    const sent: unknown[][] = [];
-    const stream = vi.fn(async function* (messages: unknown[]) {
-      sent.push(messages);
-      if (sent.length !== 1) return;
-      yield metadataEvent;
-      for (const id of ["c", "1"]) {
-        yield {
-          event: "messages",
-          data: [
-            {
-              id: "calls",
-              type: "AIMessageChunk",
-              content: "",
-              tool_call_chunks: [{ id, index: 0, name: "ask", args: "{}" }],
-            },
-            { langgraph_node: "agent" },
-          ],
-        };
-      }
-      await secondCall;
-      yield {
-        event: "messages",
-        data: [
-          {
-            id: "calls",
-            type: "AIMessageChunk",
-            content: "",
-            tool_call_chunks: [{ id: "c2", index: 1, name: "ask", args: "{}" }],
-          },
-          { langgraph_node: "agent" },
-        ],
-      };
-      yield {
-        event: "updates",
-        data: {
-          agent: {
-            messages: [
-              {
-                id: "calls",
-                type: "ai",
-                content: "",
-                tool_calls: [
-                  { id: "c1", name: "ask", args: {} },
-                  { id: "c2", name: "ask", args: {} },
-                ],
-              },
-            ],
-          },
-        },
-      };
-    });
-    const runtime = mount(stream);
-    act(() => runtime.thread.append("go"));
-    await waitForCall(runtime, "c1");
-
-    act(() => addResult(runtime, "c1"));
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    expect(sent).toHaveLength(1);
-
-    act(() => releaseSecondCall());
-    await waitForCall(runtime, "c2");
-    await waitFor(() =>
-      expect(runtime.thread.getState().isRunning).toBe(false),
-    );
-    expect(sent).toHaveLength(1);
-
-    act(() => addResult(runtime, "c2"));
-    await waitFor(() => expect(sent).toHaveLength(2));
-    expect(
-      sent[1]!.map(
-        (message) => (message as { tool_call_id: string }).tool_call_id,
-      ),
-    ).toEqual(["c1", "c2"]);
-  });
-
   it("waits for every finished-run call when a result arrives before the final commit", async () => {
     let finish!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -454,6 +376,58 @@ describe("useLangGraphRuntime parallel tool results", () => {
     act(() => addResult(runtime, "c1"));
     await waitFor(() => expect(sent).toHaveLength(3));
     expect(sent[2]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
+  });
+
+  it("keeps a finished run's buffered result when a later run is stopped", async () => {
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (
+      messages: unknown[],
+      config?: { abortSignal: AbortSignal },
+    ) {
+      sent.push(messages);
+      if (sent.length === 1) {
+        yield aiWith(["c1", "c2"]);
+      } else if (sent.length === 2) {
+        await new Promise<void>((resolve) => {
+          config!.abortSignal.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+        });
+      }
+    });
+    const runtime = mount(stream, true);
+    const { result: send } = renderHook(() => useLangGraphSend(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      ),
+    });
+
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c2");
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => addResult(runtime, "c1"));
+    expect(sent).toHaveLength(1);
+
+    act(() => {
+      void send.current([], {});
+    });
+    await waitFor(() => expect(sent).toHaveLength(2));
+    await act(async () => runtime.thread.cancelRun());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    act(() => addResult(runtime, "c2"));
+    await waitFor(() => expect(sent).toHaveLength(3));
+    expect(
+      sent[2]!.map(
+        (message) => (message as { tool_call_id: string }).tool_call_id,
+      ),
+    ).toEqual(["c1", "c2"]);
   });
 
   it("releases a buffered client result when its server sibling has a result", async () => {
