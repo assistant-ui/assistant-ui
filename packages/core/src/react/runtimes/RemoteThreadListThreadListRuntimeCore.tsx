@@ -1371,10 +1371,12 @@ export class RemoteThreadListThreadListRuntimeCore
               ),
       });
     } catch (error) {
-      if (
-        adapterGeneration !== this._adapterGeneration &&
-        this._replaceListOnNextLoad
-      ) {
+      const hideDeletedThread = () => {
+        if (
+          adapterGeneration === this._adapterGeneration ||
+          !this._replaceListOnNextLoad
+        )
+          return;
         const current = getThreadData(this._state.baseValue, data.id);
         if (
           current !== undefined &&
@@ -1389,6 +1391,15 @@ export class RemoteThreadListThreadListRuntimeCore
           this._hookManager.stopThreadRuntime(data.id);
           clearThreadTitleState(this._titleStates, data.id);
         }
+      };
+      if (
+        adapterGeneration !== this._adapterGeneration &&
+        this._replaceListOnNextLoad &&
+        getThreadData(this._state.baseValue, data.id)?.status === "new"
+      ) {
+        void data.initializeTask.then(hideDeletedThread, () => {});
+      } else {
+        hideDeletedThread();
       }
 
       const controlledThreadId = this._options.threadId;

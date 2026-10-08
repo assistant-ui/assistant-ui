@@ -210,6 +210,59 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
     expect(core.getItemById(localId)?.status).toBe("new");
   });
 
+  it("hides a deleted draft when initialization resolves before the replacement list", async () => {
+    const initializing = deferred<InitializeResult>();
+    const leavingMain = deferred<void>();
+    const replacementList = deferred<ListResult>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "anchor",
+            externalId: "anchor",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const newAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const core = createCore(oldAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+    (
+      core as unknown as { _ensureThreadIsNotMain: () => Promise<void> }
+    )._ensureThreadIsNotMain = () => leavingMain.promise;
+    const deleteTask = core.delete(localId);
+    core.__internal_setOptions({
+      adapter: newAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+
+    leavingMain.resolve();
+    await expect(deleteTask).rejects.toThrow("adapter changed");
+    expect(core.threadIds).toContain(localId);
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+
+    expect(core.isLoading).toBe(true);
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.getItemById(localId)).toBeUndefined();
+
+    replacementList.resolve({ threads: [] });
+    await loadTask;
+  });
+
   it("preserves a replacement adapter draft that reuses the deleted slot id", async () => {
     const initializing = deferred<InitializeResult>();
     const switching = deferred<void>();
