@@ -1,6 +1,6 @@
 /// <reference types="node" />
 
-import { act, Activity } from "react";
+import { act, Activity, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   afterEach,
@@ -13,6 +13,8 @@ import {
 } from "vitest";
 import { MarkedLexer } from "react-native-marked";
 import { MarkdownText, TaskListTokenizer } from "./markdown-text";
+
+const onReact18 = version.startsWith("18.");
 
 const h = vi.hoisted(() => ({
   setClipboardString: vi.fn(),
@@ -291,50 +293,60 @@ describe("MarkdownText", () => {
     expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
   });
 
-  it("returns a copied code block to idle when hidden and shown by Activity", async () => {
-    vi.useFakeTimers();
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "returns a copied code block to idle when hidden and shown by Activity",
+    async () => {
+      vi.useFakeTimers();
 
-    await renderCodeIn("visible");
-    await act(async () => {
-      click(container.querySelector('[aria-label="Copy code"]') as Element);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
+      await renderCodeIn("visible");
+      await act(async () => {
+        click(container.querySelector('[aria-label="Copy code"]') as Element);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(
+        container.querySelector('[data-testid="CheckIcon"]'),
+      ).not.toBeNull();
 
-    await renderCodeIn("hidden");
-    await act(async () => {
-      vi.advanceTimersByTime(5000);
-    });
-    await renderCodeIn("visible");
+      await renderCodeIn("hidden");
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+      await renderCodeIn("visible");
 
-    expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
-  });
+      expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
+    },
+  );
 
-  it("starts no confirmation for a copy that settles while hidden by Activity", async () => {
-    vi.useFakeTimers();
-    let settle!: () => void;
-    h.setClipboardString.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          settle = resolve;
-        }),
-    );
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "starts no confirmation for a copy that settles while hidden by Activity",
+    async () => {
+      vi.useFakeTimers();
+      let settle!: () => void;
+      h.setClipboardString.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      );
 
-    await renderCodeIn("visible");
-    await act(async () => {
-      click(container.querySelector('[aria-label="Copy code"]') as Element);
-    });
-    await renderCodeIn("hidden");
-    await act(async () => {
-      settle();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    await renderCodeIn("visible");
+      await renderCodeIn("visible");
+      await act(async () => {
+        click(container.querySelector('[aria-label="Copy code"]') as Element);
+      });
+      await renderCodeIn("hidden");
+      await act(async () => {
+        settle();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      await renderCodeIn("visible");
 
-    expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
-  });
+      expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
+    },
+  );
 
   it("keys sibling code blocks apart and keeps their state across re-parses", async () => {
     vi.useFakeTimers();

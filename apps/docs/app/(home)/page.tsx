@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { HomeDemo } from "@/components/pages/home/demo";
@@ -35,6 +36,12 @@ async function getReactVersion(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+async function getHomeStats() {
+  "use cache";
+  cacheLife("hours");
+  return Promise.all([getRepo(), getWeeklyDownloads(), getReactVersion()]);
 }
 
 const SETUP_SNIPPETS = [
@@ -152,7 +159,7 @@ export default function App() {
 
 export default async function HomePage() {
   const [[repo, downloads, reactVersion], setupHtml] = await Promise.all([
-    Promise.all([getRepo(), getWeeklyDownloads(), getReactVersion()]),
+    getHomeStats(),
     Promise.all(
       SETUP_SNIPPETS.map((snippet) =>
         highlightElementSource(snippet.code, "tsx"),

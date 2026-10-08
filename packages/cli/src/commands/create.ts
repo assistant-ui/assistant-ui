@@ -6,10 +6,8 @@ import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
   cleanupPendingProjectDownloads,
-  dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
-  resolvePackageManager,
   scaffoldProject,
   transformProject,
   type TransformResult,
@@ -20,7 +18,11 @@ import {
   SpawnExitError,
   SpawnSignalError,
 } from "../lib/run-spawn";
-import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
+import {
+  dlxCommand,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
+} from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
   resolveSkillsInstall,
@@ -68,6 +70,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     category: "template",
     path: "templates/cloud-clerk",
     hasLocalComponents: false,
+  },
+  {
+    name: "cloud-harness",
+    label: "Shared cloud chat",
+    description: "A hosted harness with a shared conversation across browsers",
+    category: "template",
+    path: "templates/cloud-harness",
+    hasLocalComponents: true,
   },
   {
     name: "langchain",

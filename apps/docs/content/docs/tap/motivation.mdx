@@ -13,10 +13,8 @@ Because it is a value, it can be passed, swapped, and nested before it runs.
 
 ```ts
 AuiConfig({
-  cloud: AssistantCloud({ apiKey: "..." }),
-  threads: CloudThreadList({
-    thread: () => AISDKThread({ transport: /* ... */ }),
-  }),
+  threads: AISDKChat({ transport: /* ... */ }),
+  tools: Tools({ toolkit }),
 });
 ```
 
@@ -35,6 +33,6 @@ components:
 - On **mount**, effects connect that state to the outside world. They rerun when
   dependencies change and clean up when the resource unmounts.
 
-This makes lifecycle part of the state model itself. State and effects stay
+State and effects stay
 together, while resources remain independent of the component tree that presents
 them.
