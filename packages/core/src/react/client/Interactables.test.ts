@@ -1900,6 +1900,98 @@ describe("Interactables switching back to an adapter during its save", () => {
     });
   });
 
+  it("recovers a save that rejects while another adapter is active", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(a.saves).toHaveLength(1);
+
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    await flushMicrotasks();
+    a.saves[0]!.reject(new Error("save failed"));
+    await flushMicrotasks();
+
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root, "prefs")).toEqual({ v: 1 });
+    expect(a.saves).toHaveLength(2);
+    expect(a.saves[1]!.state.prefs).toEqual({
+      name: "note",
+      state: { v: 1 },
+    });
+  });
+
+  it("keeps a newer saved edit when returning to an adapter with an older rejected batch", async () => {
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    a.saves[0]!.reject(new Error("first save failed"));
+    await flushMicrotasks();
+
+    root.getValue().setState("prefs", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(a.saves).toHaveLength(2);
+    a.saves[1]!.resolve();
+    await flushMicrotasks();
+
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root, "prefs")).toEqual({ v: 2 });
+    expect(a.saves).toHaveLength(2);
+  });
+
+  it("does not wait for or restore a hung batch after handing it back", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let stored: Unstable_InteractablePersistedState = {
+      prefs: { name: "note", state: { v: 42 } },
+    };
+    const a = {
+      save: vi.fn(() => new Promise<void>(() => {})),
+      load: vi.fn(async () => stored),
+    };
+    root = mount();
+    root.getValue().setPersistenceAdapter(a);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(a.save).toHaveBeenCalledOnce();
+
+    const b = otherAdapter();
+    root.getValue().setPersistenceAdapter(b);
+    root.getValue().setPersistenceAdapter(a);
+    root.getValue().setPersistenceAdapter(b);
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    stored = { prefs: { name: "note", state: { v: 2 } } };
+    root.getValue().setPersistenceAdapter(a);
+    await flushMicrotasks();
+    expect(a.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root, "prefs")).toEqual({ v: 2 });
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(stateOf(root, "prefs")).toEqual({ v: 2 });
+    expect(a.save).toHaveBeenCalledOnce();
+  });
+
   it("stops waiting on a hung save and queues the edit behind it", async () => {
     const a = await startSaveThenSwitchBack();
     await vi.advanceTimersByTimeAsync(4_999);
