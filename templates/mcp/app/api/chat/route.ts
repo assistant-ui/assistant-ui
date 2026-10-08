@@ -32,16 +32,17 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const mcpTools = await getMCPTools();
+  const aiSDKTools = {
+    ...mcpTools,
+    ...frontendTools(tools ?? {}),
+  };
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai.responses("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: {
-      ...mcpTools,
-      ...frontendTools(tools ?? {}),
-      // add backend tools here
-    },
+    tools: aiSDKTools,
     providerOptions: {
       openai: {
         reasoningEffort: "low",
