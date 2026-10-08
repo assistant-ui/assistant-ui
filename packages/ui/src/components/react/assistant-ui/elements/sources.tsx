@@ -146,7 +146,7 @@ export function Sources({
                       <span
                         className={cn(
                           mono,
-                          "text-muted-foreground max-w-24 min-w-0 truncate",
+                          "text-muted-foreground max-w-[40%] min-w-0 truncate",
                         )}
                       >
                         {domain}
