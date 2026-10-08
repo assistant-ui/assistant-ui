@@ -419,7 +419,9 @@ const useLangGraphRuntimeImpl = (
   const pendingResumeRef = useRef(
     new Map<string, (LangChainMessage & { type: "tool" })[]>(),
   );
-  const autoCancelledToolCallTokensRef = useRef(new Map<string, symbol>());
+  const autoCancelledToolCallTokensRef = useRef(
+    new Map<string, readonly LangChainMessage[]>(),
+  );
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
@@ -759,12 +761,8 @@ const useLangGraphRuntimeImpl = (
                 },
             )
         : [];
-    const cancellationToken = Symbol();
-    const cancelledToolCallIds = cancellations.map(
-      (message) => message.tool_call_id,
-    );
-    for (const toolCallId of cancelledToolCallIds) {
-      autoCancelledToolCallTokensRef.current.set(toolCallId, cancellationToken);
+    for (const { tool_call_id: toolCallId } of cancellations) {
+      autoCancelledToolCallTokensRef.current.set(toolCallId, cancellations);
     }
 
     const humanMessage = toLangGraphUserMessage(msg);
@@ -773,10 +771,10 @@ const useLangGraphRuntimeImpl = (
       [...cancellations, ...getUnsentTranscripts(), humanMessage],
       { runConfig: msg.runConfig },
     ).catch((error: unknown) => {
-      for (const toolCallId of cancelledToolCallIds) {
+      for (const { tool_call_id: toolCallId } of cancellations) {
         if (
           autoCancelledToolCallTokensRef.current.get(toolCallId) ===
-          cancellationToken
+          cancellations
         ) {
           autoCancelledToolCallTokensRef.current.delete(toolCallId);
         }
