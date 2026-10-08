@@ -486,7 +486,11 @@ export type PiHostUiResponse =
 export type PiClientEventBody =
   | { type: "snapshot"; snapshot: PiThreadSnapshot }
   | { type: "agent_start" }
-  | { type: "agent_end"; willRetry?: boolean }
+  | {
+      type: "agent_end";
+      willRetry?: boolean;
+      cancelledBeforeStart?: boolean;
+    }
   | { type: "agent_settled" }
   | { type: "turn_start"; turnIndex: number }
   | { type: "turn_end"; turnIndex: number }
@@ -610,6 +614,7 @@ export interface PiClient {
   renameThread(threadId: string, title: string): Promise<void>;
   archiveThread(threadId: string): Promise<void>;
   unarchiveThread(threadId: string): Promise<void>;
+  /** Resolves once the thread no longer exists, also when it was already gone. */
   deleteThread(threadId: string): Promise<void>;
 
   /** Answer a blocking extension UI request (the approval/permission surface). */

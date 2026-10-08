@@ -24,7 +24,7 @@ export const API_CATALOG_CONTENT_TYPE = `application/linkset+json; profile="${AP
 const absoluteUrl = (path: string) => `${BASE_URL}${path}`;
 
 const AGENT_SKILL_DESCRIPTION =
-  "Use assistant-ui documentation to implement and troubleshoot AI chat interfaces across React, React Native, and terminal applications.";
+  "Use assistant-ui documentation to implement and troubleshoot AI chat interfaces across React, Vue, React Native, and terminal applications.";
 
 export const SITE_SKILL_DOCUMENT = `---
 name: assistant-ui-docs
@@ -222,17 +222,8 @@ export type SitemapPage = {
   data: {
     title: string;
     description?: string | undefined;
-    lastModified?: Date | string | undefined;
   };
 };
-
-function formatDate(value: Date | string | undefined) {
-  if (!value) return undefined;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime())
-    ? undefined
-    : date.toISOString().slice(0, 10);
-}
 
 export function buildMarkdownSitemap(
   sections: Array<{ title: string; pages: SitemapPage[] }>,
@@ -256,8 +247,6 @@ export function buildMarkdownSitemap(
       if (page.data.description) {
         lines.push(`  Description: ${page.data.description}`);
       }
-      const lastModified = formatDate(page.data.lastModified);
-      if (lastModified) lines.push(`  Last updated: ${lastModified}`);
       lines.push("");
     }
   }

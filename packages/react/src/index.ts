@@ -333,6 +333,11 @@ export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
 
 export { groupPartByType, type GroupByContext } from "@assistant-ui/core/react";
+export {
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
+} from "@assistant-ui/core/react";
 export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";
@@ -375,8 +380,12 @@ export type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
+  ToolApprovalAnswer,
+  ToolApprovalQuestion,
+  ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   ToolModelContentPart,
   MessageStatus,
@@ -494,16 +503,32 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
-  type TriggerMatch as Unstable_TriggerMatch,
-  type TriggerMatcher as Unstable_TriggerMatcher,
+  type TriggerMatch,
+  type TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
+import type {
+  TriggerMatch,
+  TriggerMatcher,
+} from "./primitives/composer/trigger";
+/** @deprecated Use `TriggerMatch` instead. */
+export type Unstable_TriggerMatch = TriggerMatch;
+/** @deprecated Use `TriggerMatcher` instead. */
+export type Unstable_TriggerMatcher = TriggerMatcher;
 export type {
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
-export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "@assistant-ui/core";
 
 // Unstable - composer input history (terminal-style ArrowUp/ArrowDown recall)
 export {
@@ -523,6 +548,11 @@ export {
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
+export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
 export {
   McpAppRenderer,
   McpAppsRemoteHost,

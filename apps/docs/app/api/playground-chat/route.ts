@@ -1,7 +1,10 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { validateGeneralChatInput } from "@/lib/validate-input";
-import { getModel } from "@/lib/ai/provider";
+import {
+  validateFrontendToolsInput,
+  validateGeneralChatInput,
+} from "@/lib/validate-input";
+import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
@@ -150,13 +153,16 @@ export async function POST(req: Request) {
     const inputError = validateGeneralChatInput(messages);
     if (inputError) return inputError;
 
+    const toolsError = validateFrontendToolsInput(tools);
+    if (toolsError) return toolsError;
+
     // Guard against oversized configs (token inflation / DoS)
     const configStr = JSON.stringify(builderConfig ?? {});
     if (configStr.length > 10_000) {
       return new Response("Config too large", { status: 400 });
     }
 
-    const model = getModel();
+    const { model, providerOptions } = resolveChatModel();
     const distinctId = getDistinctId(req);
 
     const prunedMessages = pruneMessages({
@@ -166,6 +172,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
+      ...(providerOptions ? { providerOptions } : {}),
       system:
         SYSTEM_PROMPT +
         `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,

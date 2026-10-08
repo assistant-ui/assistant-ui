@@ -42,6 +42,9 @@ export class AssistantCloudFiles {
     this.cloud = cloud;
   }
 
+  /**
+   * @deprecated Assistant Cloud has no PDF conversion endpoint, so this request always rejects with a `CloudAPIError` whose `status` is 404.
+   */
   public async pdfToImages(
     body: PdfToImagesRequestBody,
   ): Promise<PdfToImagesResponse> {

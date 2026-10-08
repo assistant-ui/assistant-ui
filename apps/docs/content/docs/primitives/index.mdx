@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: Unstyled, accessible building blocks for AI chat interfaces — Thread, Composer, Message, and more, ready to compose with assistant-ui.
+description: Unstyled, accessible building blocks for AI chat interfaces, such as Thread, Composer, and Message.
 platforms: ["react"]
 ---
 
@@ -22,7 +22,7 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 </ComposerPrimitive.Root>
 ```
 
-This renders an unstyled `<form>` with a `<textarea>` and a `<button>`. No styles, no opinions, but it already handles submit-on-enter, focus management, empty-state disabling, and streaming state.
+This renders an unstyled `<form>` with a `<textarea>` and a `<button>`. It has no styles, and it already handles submit on Enter, focus management, empty-state disabling, and streaming state.
 
 ## How they work
 
@@ -80,8 +80,6 @@ Primitives read from the nearest runtime context. Place them inside an `Assistan
 
 ## Related primitive references
 
-Additional primitive references:
-
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part)
 - [ThreadListItemPrimitive](/docs/api-reference/primitives/thread-list-item)
 - [ThreadListItemMorePrimitive](/docs/api-reference/primitives/thread-list-item-more)
@@ -91,7 +89,7 @@ Additional primitive references:
 ## Common mistakes
 
 - Forgetting to wrap primitives with runtime context (`AssistantRuntimeProvider` + runtime hook)
-- Mixing deprecated props with current APIs (`submitOnEnter`, `autoSend`, legacy `Suggestion`)
+- Mixing deprecated props with current APIs (`submitOnEnter`, `autoSend`, `components` on iterators such as `ThreadPrimitive.Messages`)
 - Mounting primitives in the wrong context (`ActionBarPrimitive` / `BranchPickerPrimitive` outside `MessagePrimitive.Root`)
 - Using unstable props unintentionally (`unstable_*` APIs)
 

@@ -21,7 +21,7 @@ const weatherTool = new FunctionTool({
 
 const agent = new LlmAgent({
   name: "assistant",
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   instruction:
     "You are a helpful assistant. You can check the weather for any city using the get_weather tool.",
   tools: [weatherTool],
@@ -29,22 +29,11 @@ const agent = new LlmAgent({
 
 const runner = new InMemoryRunner({ agent, appName: "adk-example" });
 
-const sessions = new Map<string, string>();
-
 export const POST = createAdkApiRoute({
   runner,
   userId: "user_1",
-  sessionId: async () => {
-    const userId = "user_1";
-    let sessionId = sessions.get(userId);
-    if (!sessionId) {
-      const session = await runner.sessionService.createSession({
-        appName: "adk-example",
-        userId,
-      });
-      sessionId = session.id;
-      sessions.set(userId, sessionId);
-    }
-    return sessionId;
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
   },
 });

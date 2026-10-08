@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAssistantStreamController } from "./assistant-stream";
+import {
+  createAssistantStream,
+  createAssistantStreamController,
+} from "./assistant-stream";
 import { createToolCallStreamController } from "./tool-call";
 import { ToolResponse } from "../tool/ToolResponse";
 import { toolResultStream } from "../tool/toolResultStream";
@@ -121,6 +124,37 @@ describe("ToolCallStreamController", () => {
       isError: false,
       messages: [{ role: "assistant", content: [] }],
     });
+  });
+
+  it("keeps a backend result authoritative when the args close in the same tick", async () => {
+    const execute = vi.fn(async () => "frontend result");
+    const output = createAssistantStream((controller) => {
+      const toolCall = controller.addToolCallPart({
+        toolCallId: "tool-1",
+        toolName: "weatherSearch",
+      });
+      toolCall.argsText.append('{"query":"Paris"}');
+      toolCall.argsText.close();
+      toolCall.setResponse({ result: { source: "backend" } });
+    }).pipeThrough(
+      toolResultStream(
+        {
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+        new AbortController().signal,
+        async () => undefined,
+      ),
+    );
+
+    const chunks = await collectChunks(output);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(chunks.filter((c) => c.type === "result")).toEqual([
+      expect.objectContaining({ result: { source: "backend" } }),
+    ]);
   });
 
   it("resolves the reader with the final response after preliminary ones", async () => {

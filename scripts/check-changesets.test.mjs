@@ -11,13 +11,13 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { parseBumpLine } from "./lib/changesets.mjs";
+import { parseWorkspaceGlobs } from "./lib/workspace.mjs";
 import {
   findMissingPackageChangesets,
   findUnreleasablePackages,
   findChangedManifestFields,
   isReleaseRelevantPackageFile,
-  parseBumpLine,
-  parseWorkspaceGlobs,
   readSkipRules,
   readWorkspacePackages,
   runChangedPackageCheck,
@@ -133,9 +133,9 @@ test("findUnreleasablePackages flags private and unknown names", () => {
       },
     ],
     [
-      "@assistant-ui/vue",
+      "@assistant-ui/ui",
       {
-        manifest: "packages/vue/package.json",
+        manifest: "packages/ui/package.json",
         isPrivate: true,
         hasVersion: false,
       },
@@ -156,7 +156,7 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   const problems = findUnreleasablePackages(
     packages,
     [
-      { file: "a.md", name: "@assistant-ui/vue" },
+      { file: "a.md", name: "@assistant-ui/ui" },
       { file: "a.md", name: "@assistant-ui/nope" },
     ],
     rules,
@@ -164,7 +164,7 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   assert.equal(problems.length, 2);
   assert.match(
     problems[0].reason,
-    /is private \(packages\/vue\/package\.json\)/,
+    /is private \(packages\/ui\/package\.json\)/,
   );
   assert.match(problems[1].reason, /is not a workspace package/);
 });

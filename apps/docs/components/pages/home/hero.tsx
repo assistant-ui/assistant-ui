@@ -3,7 +3,6 @@
 import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
@@ -70,21 +69,20 @@ export function Hero({
           style={{ animationDelay: "700ms" }}
         >
           {checkoutEnabled ? (
-            <StartSetupDialog location="hero">Start setup</StartSetupDialog>
-          ) : null}
-          <Button
-            variant={checkoutEnabled ? "outline" : "default"}
-            nativeButton={false}
-            render={
-              <Link
-                href="/docs"
-                onClick={() => analytics.cta.clicked("get_started", "hero")}
-              />
-            }
-          >
-            Read the docs
-          </Button>
-          <CopyCommandButton withPromptOption />
+            <StartSetupDialog location="hero">Quick Start</StartSetupDialog>
+          ) : (
+            <Button
+              nativeButton={false}
+              render={
+                <Link
+                  href="/docs/installation"
+                  onClick={() => analytics.cta.clicked("get_started", "hero")}
+                />
+              }
+            >
+              Quick Start
+            </Button>
+          )}
         </div>
 
         <div
@@ -109,12 +107,7 @@ export function Hero({
             <NpmDownloads downloads={downloads} />
           </a>
           <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
-          <a
-            href="https://www.ycombinator.com/companies/assistant-ui"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground inline-flex w-full items-center gap-1.5 transition-colors sm:w-auto"
-          >
+          <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
             Backed by
             <Image
               src="/icons/yc_logo.png"
@@ -123,7 +116,7 @@ export function Hero({
               width={18}
             />
             Combinator
-          </a>
+          </span>
         </div>
       </div>
     </section>

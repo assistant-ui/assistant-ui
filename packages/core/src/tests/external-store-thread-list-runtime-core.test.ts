@@ -6,6 +6,8 @@ import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-st
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
+import type { ThreadAssistantMessage, ThreadMessage } from "../types/message";
+import type { AttachmentAdapter } from "../adapters/attachment";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
 const makeFactory = (overrides: Record<string, unknown> = {}) =>
@@ -14,6 +16,8 @@ const makeFactory = (overrides: Record<string, unknown> = {}) =>
       ({
         subscribe: () => () => {},
         capabilities: { cancel: false },
+        composer: { dictation: undefined },
+        messages: [],
         ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
@@ -128,6 +132,136 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
 });
 
 describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
+  it("drops a pending attachment send when the external thread id changes", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn<AttachmentAdapter["send"]>(
+      (attachment) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            });
+        }),
+    );
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send,
+    };
+    const onNew = vi.fn(async () => {});
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew,
+      adapters: { attachments, threadList: { threadId: "old" } },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const oldComposer = core.threads.getMainThreadRuntimeCore().composer;
+    oldComposer.setText("hello");
+    await oldComposer.addAttachment(
+      new File(["hello"], "notes.txt", { type: "text/plain" }),
+    );
+
+    const pending = oldComposer.send();
+    expect(send).toHaveBeenCalledOnce();
+    const signal = send.mock.lastCall?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    core.setAdapter({
+      ...adapter,
+      adapters: { attachments, threadList: { threadId: "new" } },
+    });
+    expect(signal?.aborted).toBe(true);
+    resolveSend();
+    await pending;
+
+    expect(onNew).not.toHaveBeenCalled();
+    expect(oldComposer.submission).toBeUndefined();
+    expect(oldComposer.text).toBe("");
+    expect(oldComposer.attachments).toEqual([]);
+  });
+
+  it("does not restore an attachment still being added when its thread changes", async () => {
+    let finishAdd!: () => void;
+    const adding = new Promise<void>((resolve) => {
+      finishAdd = resolve;
+    });
+    const send = vi.fn<AttachmentAdapter["send"]>(async (attachment) => ({
+      ...attachment,
+      status: { type: "complete" },
+      content: [],
+    }));
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      async *add({ file }) {
+        const attachment = {
+          id: "attachment-1",
+          type: "document" as const,
+          name: file.name,
+          contentType: file.type,
+          file,
+        };
+        yield {
+          ...attachment,
+          status: {
+            type: "running" as const,
+            reason: "uploading" as const,
+            progress: 0,
+          },
+        };
+        await adding;
+        yield {
+          ...attachment,
+          status: {
+            type: "requires-action" as const,
+            reason: "composer-send" as const,
+          },
+        };
+      },
+      remove: async () => {},
+      send,
+    };
+    const onNew = vi.fn(async () => {});
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew,
+      adapters: { attachments, threadList: { threadId: "old" } },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const oldComposer = core.threads.getMainThreadRuntimeCore().composer;
+    oldComposer.setText("hello");
+    const added = oldComposer.addAttachment(
+      new File(["hello"], "notes.txt", { type: "text/plain" }),
+    );
+    await vi.waitFor(() =>
+      expect(oldComposer.attachments[0]?.status.type).toBe("running"),
+    );
+    const pending = oldComposer.send();
+
+    core.setAdapter({
+      ...adapter,
+      adapters: { attachments, threadList: { threadId: "new" } },
+    });
+    finishAdd();
+    await added;
+    await pending;
+
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+    expect(oldComposer.submission).toBeUndefined();
+    expect(oldComposer.text).toBe("");
+    expect(oldComposer.attachments).toEqual([]);
+  });
+
   it("updates subscribed loading state when thread ids and arrays stay unchanged", () => {
     const threadList = makeAdapter({
       threadId: "thread-alpha",
@@ -480,5 +614,99 @@ describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
     );
 
     await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
+  });
+});
+
+describe("ExternalStoreRuntimeCore - thread switch", () => {
+  const userMessage = (id: string): ThreadMessage => ({
+    id,
+    role: "user",
+    createdAt: new Date(0),
+    content: [{ type: "text", text: "hi" }],
+    attachments: [],
+    metadata: { custom: {} },
+  });
+
+  const assistantMessage = (
+    id: string,
+    content: ThreadAssistantMessage["content"] = [{ type: "text", text: "yo" }],
+  ): ThreadAssistantMessage => ({
+    id,
+    role: "assistant",
+    createdAt: new Date(0),
+    content,
+    status: { type: "complete", reason: "stop" },
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  });
+
+  it("builds the switched-to thread from the current store's messages", () => {
+    const runtime = new ExternalStoreRuntimeCore({
+      messages: [userMessage("A"), assistantMessage("B")],
+      onNew: async () => {},
+      adapters: { threadList: { threadId: "thread-alpha" } },
+    });
+
+    runtime.setAdapter({
+      messages: [userMessage("X"), assistantMessage("Y")],
+      onNew: async () => {},
+      adapters: { threadList: { threadId: "thread-beta" } },
+    });
+
+    const main = runtime.threads.getMainThreadRuntimeCore();
+    expect(main.messages.map((m) => m.id)).toEqual(["X", "Y"]);
+    expect(main.getBranches("X")).toEqual(["X"]);
+  });
+
+  it("does not execute a tool call from the switched-to thread's history", async () => {
+    const execute = vi.fn(async () => "sunny");
+    const store = (
+      threadId: string,
+      messages: readonly ThreadMessage[],
+    ): ExternalStoreAdapter => ({
+      messages,
+      isRunning: false,
+      onNew: async () => {},
+      unstable_enableToolInvocations: true,
+      onAddToolResult: vi.fn(),
+      adapters: { threadList: { threadId } },
+    });
+    const runtime = new ExternalStoreRuntimeCore(store("thread-alpha", []));
+    runtime.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+      }),
+    });
+
+    runtime.setAdapter(
+      store("thread-beta", [
+        userMessage("u1"),
+        {
+          ...assistantMessage("a1", [
+            {
+              type: "tool-call",
+              toolCallId: "tc1",
+              toolName: "weatherSearch",
+              args: {},
+              argsText: "{}",
+            },
+          ]),
+          status: { type: "requires-action", reason: "tool-calls" },
+        },
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(execute).not.toHaveBeenCalled();
   });
 });

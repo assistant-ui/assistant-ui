@@ -1,4 +1,5 @@
 import type { ToolModelContentPart } from "assistant-stream";
+import type { AssistantCloud } from "assistant-cloud";
 import type { ThreadMessage } from "../../../types/message";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
@@ -25,6 +26,7 @@ export type UserMessagePart = TextPart | ImagePart;
 
 export type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 
@@ -111,6 +113,11 @@ export type SendCommandsRequestBody = {
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
+  /**
+   * Backs the thread list with Assistant Cloud; requests carry the cloud thread id.
+   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud on Next.js, as for `useLocalRuntime`.
+   */
+  cloud?: AssistantCloud | undefined;
   resumeApi?: string;
   /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
   resumeStateApi?: string;
@@ -164,6 +171,7 @@ export type AssistantTransportOptions<T> = {
   };
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
+    /** @deprecated This runtime never reads it; pass `cloud` to keep threads in Assistant Cloud. */
     history?: ThreadHistoryAdapter | undefined;
   };
 };

@@ -1,12 +1,12 @@
 import {
   useState,
   useCallback,
-  useEffect,
   useInsertionEffect,
   useRef,
   useMemo,
 } from "react";
 import { generateId } from "@assistant-ui/core";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import {
   type EventType,
@@ -729,7 +729,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     }
   }, []);
 
-  useEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     interrupt,

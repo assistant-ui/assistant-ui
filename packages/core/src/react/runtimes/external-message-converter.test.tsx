@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useExternalMessageConverter } from "./external-message-converter";
 
 type TestMessage = {
@@ -12,6 +12,7 @@ type TestMessage = {
 
 type TestMetadata = useExternalMessageConverter.Metadata & {
   optimisticMessageId?: string;
+  revisionById?: Record<string, number>;
 };
 
 const convert: useExternalMessageConverter.Callback<TestMessage> = (
@@ -39,16 +40,20 @@ const EMPTY: TestMetadata = {};
 type Props = {
   callback?: useExternalMessageConverter.Callback<TestMessage>;
   metadata?: TestMetadata;
+  getMetadataKey?:
+    | useExternalMessageConverter.GetMetadataKey<TestMessage>
+    | undefined;
 };
 
 const renderConverter = (initialProps: Props = {}) =>
   renderHook(
-    ({ callback = convert, metadata = EMPTY }: Props) =>
+    ({ callback = convert, metadata = EMPTY, getMetadataKey }: Props) =>
       useExternalMessageConverter<TestMessage>({
         callback,
         messages: MESSAGES,
         isRunning: false,
         metadata,
+        getMetadataKey,
       }),
     { initialProps },
   );
@@ -151,6 +156,80 @@ describe("useExternalMessageConverter", () => {
     rerender({ metadata: {} });
 
     expect(result.current.at(-1)?.metadata.isOptimistic).toBeUndefined();
+  });
+
+  it("re-converts only messages whose metadata key changes", () => {
+    const callback = vi.fn(convert);
+    const getMetadataKey: useExternalMessageConverter.GetMetadataKey<
+      TestMessage
+    > = (message, metadata) =>
+      (metadata as TestMetadata).revisionById?.[message.id];
+    const { rerender } = renderConverter({
+      callback,
+      getMetadataKey,
+      metadata: { revisionById: { u1: 0, a1: 0 } },
+    });
+    callback.mockClear();
+
+    rerender({
+      callback,
+      getMetadataKey,
+      metadata: { revisionById: { u1: 0, a1: 1 } },
+    });
+
+    expect(callback).toHaveBeenCalledOnce();
+    expect(callback).toHaveBeenCalledWith(
+      MESSAGES[1],
+      expect.objectContaining({ revisionById: { u1: 0, a1: 1 } }),
+    );
+  });
+
+  it("still re-converts every message when the callback changes with metadata keys", () => {
+    const first = vi.fn(convert);
+    const second = vi.fn(convert);
+    const getMetadataKey: useExternalMessageConverter.GetMetadataKey<
+      TestMessage
+    > = (message) => message.id;
+    const { rerender } = renderConverter({ callback: first, getMetadataKey });
+
+    rerender({ callback: second, getMetadataKey });
+
+    expect(second).toHaveBeenCalledTimes(MESSAGES.length);
+  });
+
+  it("updates error and cancellation status without invalidating callback output", () => {
+    const callback = vi.fn(convert);
+    const getMetadataKey = () => 0;
+    const { result, rerender } = renderConverter({
+      callback,
+      getMetadataKey,
+    });
+    callback.mockClear();
+
+    rerender({
+      callback,
+      getMetadataKey,
+      metadata: { error: "request failed" },
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(result.current.at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "request failed",
+    });
+
+    rerender({
+      callback,
+      getMetadataKey,
+      metadata: { cancelledMessageIds: new Set(["a1"]) },
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(result.current.at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
   });
 
   it("re-converts cached messages when the callback changes", () => {
