@@ -6,12 +6,7 @@ on:
       - .github/workflows/vscode-test-bed.yaml
       - examples/with-vscode/**
       - templates/vscode/**
-      - templates/default/app/api/chat/route.ts
-      - package.json
-      - packages/**
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - turbo.json
+      - packages/vscode/**
   push:
     branches:
       - main
@@ -19,12 +14,7 @@ on:
       - .github/workflows/vscode-test-bed.yaml
       - examples/with-vscode/**
       - templates/vscode/**
-      - templates/default/app/api/chat/route.ts
-      - package.json
-      - packages/**
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - turbo.json
+      - packages/vscode/**
   workflow_dispatch:
 
 permissions:
@@ -40,13 +30,9 @@ env:
 
 jobs:
   probes:
-    name: Phase 1 probes (${{ matrix.runtime }})
+    name: Probes
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        runtime: [ai-sdk]
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -81,16 +67,13 @@ jobs:
           key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ env.AUI_TESTBED_VSCODE_VERSION }}
 
       - name: Run probes in VS Code
-        env:
-          AUI_TESTBED_PHASE: 1
-          AUI_TESTBED_RUNTIMES: ${{ matrix.runtime }}
         run: xvfb-run -a pnpm --filter with-vscode probes
 
       - name: Upload probe report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
         with:
-          name: vscode-test-bed-probes-${{ matrix.runtime }}
+          name: vscode-test-bed-probes
           path: examples/with-vscode/test-results/
           retention-days: 14
           if-no-files-found: warn
