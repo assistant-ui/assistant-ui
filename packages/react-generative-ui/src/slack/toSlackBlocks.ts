@@ -6,6 +6,7 @@ import {
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
+import { classifyTemporal, splitTemporalMinutes } from "../temporal";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -53,6 +54,7 @@ import {
   buildDataTableBlock,
 } from "./constants";
 import type {
+  FieldMapping,
   SlackActionElement,
   SlackBlock,
   SlackButtonElement,
@@ -73,15 +75,11 @@ type ConversionContext = {
   readonly warnings: SlackConversionWarning[];
   readonly omittedPasswordNames: Set<string>;
   fieldBlockIdSequence: number;
+  dateTimePairSequence: number;
   markdownCharacters: number;
   markdownExhausted: boolean;
   dataTableCharacters: number;
-};
-
-type FieldMapping = {
-  readonly actionId: string;
-  readonly name: string;
-  readonly component: string;
+  inForm: boolean;
 };
 
 const SLACK_BLOCK_ID_CAP = 255;
@@ -170,10 +168,21 @@ const serializeFieldBlockId = (
   fields: readonly FieldMapping[],
 ): string =>
   `aui:${sequence}:${JSON.stringify(
-    fields.map(({ actionId, name, component }) =>
-      component === "Checkbox"
-        ? [actionId, name, "Checkbox"]
-        : [actionId, name],
+    fields.map(
+      ({ actionId, name, component, inputType, offset, part, pairId }) =>
+        inputType !== undefined
+          ? [
+              actionId,
+              name,
+              component,
+              inputType,
+              offset ?? null,
+              part ?? null,
+              pairId ?? null,
+            ]
+          : component === "Checkbox"
+            ? [actionId, name, "Checkbox"]
+            : [actionId, name],
     ),
   )}`;
 
@@ -365,7 +374,7 @@ const warnDroppedOptions = (
 const toActionElement = (
   element: NormalizedUIElement,
   context: ConversionContext,
-): SlackActionElement | undefined => {
+): SlackActionElement | SlackActionElement[] | undefined => {
   const { props, action } = element;
   switch (element.type) {
     case "Button":
@@ -425,6 +434,69 @@ const toActionElement = (
     }
     case "DatePicker": {
       const rawDate = asString(props["value"]);
+      const inputType = props["inputType"];
+      if (inputType === "time" || inputType === "datetime") {
+        const actionId = asActionId(action, "DatePicker", context);
+        const temporal = classifyTemporal(rawDate);
+        const parts = splitTemporalMinutes(rawDate);
+        if (
+          (inputType === "time" && temporal.kind === "time") ||
+          (inputType === "datetime" && temporal.kind === "floating")
+        ) {
+          if (parts?.droppedPrecision) {
+            warn(
+              context,
+              "dropped",
+              "DatePicker",
+              "Seconds were dropped because Slack timepickers only support minute precision.",
+            );
+          }
+          const timePicker: SlackActionElement = {
+            type: "timepicker",
+            action_id: actionId,
+            initial_time: parts!.time,
+          };
+          return inputType === "time"
+            ? timePicker
+            : [
+                {
+                  type: "datepicker",
+                  action_id: actionId,
+                  initial_date: parts!.date!,
+                },
+                timePicker,
+              ];
+        }
+        if (inputType === "datetime" && temporal.kind === "instant") {
+          if (
+            temporal.epochMs % 1000 !== 0 ||
+            /[1-9]/.test(temporal.subMillisecondDigits ?? "")
+          ) {
+            warn(
+              context,
+              "dropped",
+              "DatePicker",
+              "Fractional seconds were dropped because Slack datetimepickers only support second precision.",
+            );
+          }
+          return {
+            type: "datetimepicker",
+            action_id: actionId,
+            initial_date_time: Math.floor(temporal.epochMs / 1000),
+          };
+        }
+        if (rawDate)
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            `value did not match the ${inputType} format and was dropped.`,
+          );
+        return {
+          type: inputType === "time" ? "timepicker" : "datetimepicker",
+          action_id: actionId,
+        };
+      }
       const initialDate = DATE_PATTERN.test(rawDate) ? rawDate : undefined;
       if (rawDate && initialDate === undefined) {
         warn(
@@ -593,42 +665,57 @@ const convertActions = (
   elements: readonly NormalizedUIElement[],
   context: ConversionContext,
 ): SlackBlock[] => {
-  const converted = elements
-    .map((source) => ({
-      source,
-      element: toActionElement(source, context),
-    }))
-    .filter(
-      (
-        entry,
-      ): entry is {
-        readonly source: NormalizedUIElement;
-        readonly element: SlackActionElement;
-      } => entry.element !== undefined,
-    );
+  const converted = elements.flatMap((source) => {
+    const result = toActionElement(source, context);
+    if (result === undefined) return [];
+    const controls = Array.isArray(result) ? result : [result];
+    const inputType =
+      source.type === "DatePicker" ? source.props["inputType"] : undefined;
+    const temporal =
+      inputType === "datetime"
+        ? classifyTemporal(asString(source.props["value"]))
+        : undefined;
+    const pairId =
+      controls.length > 1 ? context.dateTimePairSequence++ : undefined;
+    return controls.map((element) => {
+      const name = asString(source.props["name"]);
+      const field: FieldMapping | undefined =
+        inputType === "time" || inputType === "datetime"
+          ? {
+              actionId: element.action_id,
+              name,
+              component: source.type,
+              inputType,
+              ...(temporal?.kind === "instant"
+                ? { offset: temporal.offset }
+                : {}),
+              ...(pairId !== undefined
+                ? ({
+                    part: element.type === "datepicker" ? "date" : "time",
+                    pairId,
+                  } as const)
+                : {}),
+            }
+          : name
+            ? { actionId: element.action_id, name, component: source.type }
+            : undefined;
+      return { element, field };
+    });
+  });
   const blocks: SlackBlock[] = [];
   const groups: (typeof converted)[] = [];
   let group: typeof converted = [];
   let actionIds = new Set<string>();
-  const hasFieldName = (entry: (typeof converted)[number]): boolean => {
-    const name = entry.source.props["name"];
-    return typeof name === "string" && name.length > 0;
-  };
   const fieldsFor = (entries: typeof converted): FieldMapping[] =>
-    entries.flatMap(({ source, element }) => {
-      const name = source.props["name"];
-      return typeof name === "string" && name.length > 0
-        ? [{ actionId: element.action_id, name, component: source.type }]
-        : [];
-    });
+    entries.flatMap(({ field }) => (field === undefined ? [] : [field]));
   for (const entry of converted) {
     const repeatedMappedActionId =
       actionIds.has(entry.element.action_id) &&
-      (hasFieldName(entry) ||
+      (entry.field !== undefined ||
         group.some(
           (candidate) =>
             candidate.element.action_id === entry.element.action_id &&
-            hasFieldName(candidate),
+            candidate.field !== undefined,
         ));
     if (group.length === ACTIONS_ELEMENT_CAP || repeatedMappedActionId) {
       groups.push(group);
@@ -851,6 +938,20 @@ const isEmptyCard = (card: SlackCardBlock): boolean =>
   card.body === undefined &&
   (card.actions === undefined || card.actions.length === 0);
 
+const convertFormChildren = (
+  element: NormalizedUIElement,
+  context: ConversionContext,
+  depth: number,
+): SlackBlock[] => {
+  const wasInForm = context.inForm;
+  context.inForm = true;
+  try {
+    return convertSequence(element.children, context, depth + 1);
+  } finally {
+    context.inForm = wasInForm;
+  }
+};
+
 const convertCard = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -871,7 +972,9 @@ const convertCard = (
       ...(titleText
         ? [{ type: "header" as const, text: plainText(titleText) }]
         : []),
-      ...convertSequence(element.children, context, depth + 1),
+      ...(element.props["asForm"] === true
+        ? convertFormChildren(element, context, depth)
+        : convertSequence(element.children, context, depth + 1)),
       ...(buttons.length > 0
         ? [{ type: "actions" as const, elements: buttons }]
         : []),
@@ -1473,18 +1576,31 @@ const convertElement = (
         context,
       );
       const defaultValue = props["defaultValue"];
+      const multiline =
+        props["multiline"] === true &&
+        (props["inputType"] === undefined || props["inputType"] === "text");
+      const dispatchAction =
+        !context.inForm &&
+        !multiline &&
+        typeof element.action?.type === "string" &&
+        element.action.type.length > 0;
       return [
         {
           type: "input",
           ...(blockId !== undefined ? { block_id: blockId } : {}),
           label: plainText(label),
+          ...(dispatchAction ? { dispatch_action: true } : {}),
           element: {
             type: "plain_text_input",
             action_id: actionId,
-            ...(props["multiline"] === true &&
-            (props["inputType"] === undefined || props["inputType"] === "text")
-              ? { multiline: true }
+            ...(dispatchAction
+              ? {
+                  dispatch_action_config: {
+                    trigger_actions_on: ["on_enter_pressed" as const],
+                  },
+                }
               : {}),
+            ...(multiline ? { multiline: true } : {}),
             ...(typeof defaultValue === "string" && defaultValue
               ? { initial_value: defaultValue }
               : {}),
@@ -1599,7 +1715,7 @@ const convertElement = (
       return [convertListItem(element, context, depth)];
     case "Form":
       return [
-        ...convertSequence(element.children, context, depth + 1),
+        ...convertFormChildren(element, context, depth),
         {
           type: "actions",
           elements: [
@@ -1690,9 +1806,11 @@ export function toSlackBlocks(
     warnings: [],
     omittedPasswordNames: new Set(),
     fieldBlockIdSequence: 0,
+    dateTimePairSequence: 0,
     markdownCharacters: 0,
     markdownExhausted: false,
     dataTableCharacters: 0,
+    inForm: false,
   };
   try {
     const bounded = boundSpec(node, (reason) =>

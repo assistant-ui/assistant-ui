@@ -43,10 +43,37 @@ const findQuoteMarker = (
   return marker;
 };
 
-const intersectsExcluded = (scope: Element, selection: Selection): boolean => {
-  const ranges = Array.from({ length: selection.rangeCount }, (_, i) =>
-    selection.getRangeAt(i),
+const normalizeRangeEnd = (range: Range): Range => {
+  if (range.endOffset !== 0 || range.collapsed) return range;
+
+  const walker = range.endContainer.ownerDocument?.createTreeWalker(
+    range.commonAncestorContainer,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
   );
+  if (!walker) return range;
+  walker.currentNode = range.endContainer;
+
+  while (walker.previousNode()) {
+    const node = walker.currentNode;
+    const offset = node instanceof Text ? node.length : node.childNodes.length;
+    if (range.comparePoint(node, offset) < 0) return range;
+    const element = node instanceof Element ? node : node.parentElement;
+    const marker = element?.closest(QUOTE_SELECTABLE_SELECTOR);
+    if (marker && isExcluded(marker) && !node.contains(range.endContainer))
+      return range;
+    if (!(node instanceof Text) || !node.data.trim()) continue;
+
+    const normalized = range.cloneRange();
+    normalized.setEnd(node, offset);
+    return normalized.collapsed ? range : normalized;
+  }
+  return range;
+};
+
+const intersectsExcluded = (
+  scope: Element,
+  ranges: readonly Range[],
+): boolean => {
   for (const marker of scope.querySelectorAll(QUOTE_SELECTABLE_SELECTOR)) {
     if (!isExcluded(marker)) continue;
     if (ranges.some((range) => range.intersectsNode(marker))) return true;
@@ -58,8 +85,20 @@ export const getSelectionMessageId = (
   selection: Selection,
   root?: Element | null,
 ): string | null => {
-  const { anchorNode, focusNode } = selection;
+  let { anchorNode, focusNode } = selection;
   if (!anchorNode || !focusNode) return null;
+
+  const ranges = Array.from({ length: selection.rangeCount }, (_, i) =>
+    selection.getRangeAt(i),
+  );
+  if (ranges.length === 1) {
+    const range = normalizeRangeEnd(ranges[0]!);
+    if (range !== ranges[0]) {
+      ranges[0] = range;
+      anchorNode = range.startContainer;
+      focusNode = range.endContainer;
+    }
+  }
 
   const anchorMessageElement = findMessageElement(anchorNode);
   const focusMessageElement = findMessageElement(focusNode);
@@ -86,10 +125,9 @@ export const getSelectionMessageId = (
 
   const scope = anchorMarker ?? anchorMessageElement;
 
-  for (let i = 0; i < selection.rangeCount; i++) {
-    const { commonAncestorContainer } = selection.getRangeAt(i);
+  for (const { commonAncestorContainer } of ranges) {
     if (!scope.contains(commonAncestorContainer)) return null;
   }
 
-  return intersectsExcluded(scope, selection) ? null : messageId;
+  return intersectsExcluded(scope, ranges) ? null : messageId;
 };

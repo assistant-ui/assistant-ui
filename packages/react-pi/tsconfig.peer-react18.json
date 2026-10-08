@@ -1,0 +1,7 @@
+{
+  "extends": ["./tsconfig.json", "@assistant-ui/x-react18/tsconfig.json"],
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["dist/**/*.d.ts"]
+}

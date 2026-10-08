@@ -24,17 +24,17 @@ import {
 } from "../../store/clients/thread-selection-events";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
-  classifyThreads,
+  applyInitialThreadPage,
+  appendThreadPage,
   createEmptyRemoteThreadState,
-  createThreadMappingId,
+  deleteThreadReducer,
   getThreadData,
-  normalizeCursor,
+  mergeFetchedThread,
   reconcileInitializedThread,
   promoteNewThreadReducer,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
-  preserveMidLoadTransitions,
   seedNewThread,
   statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
@@ -45,6 +45,7 @@ import type {
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
+import { useAfterStateCommit } from "../../store/runtime-clients/useAfterStateCommit";
 import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
@@ -520,6 +521,7 @@ const useRemoteThreadList = (
         loadMorePromise: undefined as Promise<void> | undefined,
         lastNotifiedRemoteId: undefined as string | undefined,
         lastControlledThreadId: undefined as string | undefined,
+        controlledSwitchGeneration: undefined as number | undefined,
         switchTask: undefined as Promise<void> | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
@@ -535,12 +537,15 @@ const useRemoteThreadList = (
     () => store.value,
     () => store.value,
   );
+  const getListState = useCallback(() => store.value, [store]);
+  const afterStateCommit = useAfterStateCommit(listState, getListState);
 
   const [mainThreadId, setMainThreadId] = useState(initialMainId);
   const [startedIds, setStartedIds] = useState<readonly string[]>([
     initialMainId,
   ]);
   const [backgroundThreads] = useState(props.backgroundThreads === true);
+  const [settledLoads, setSettledLoads] = useState(0);
   const assignMainThreadId = useCallback(
     (id: string) => {
       session.mainThreadId = id;
@@ -597,23 +602,7 @@ const useRemoteThreadList = (
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
-          const fresh = classifyThreads(page.threads, {
-            threadIds: [],
-            archivedThreadIds: [],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-          const merged = {
-            ...state,
-            isLoading: false,
-            loadError: undefined,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: fresh.threadIds,
-            archivedThreadIds: fresh.archivedThreadIds,
-            threadIdMap: fresh.threadIdMap,
-            threadData: fresh.threadData,
-          };
-          return preserveMidLoadTransitions(merged, state, statusAtRequest);
+          return applyInitialThreadPage(state, page, statusAtRequest);
         },
       })
       .catch((error: unknown) => {
@@ -626,7 +615,7 @@ const useRemoteThreadList = (
           loadError: error,
         });
       })
-      .then(() => {});
+      .then(() => setSettledLoads((count) => count + 1));
     return session.loadPromise;
   }, [session, store]);
 
@@ -713,21 +702,7 @@ const useRemoteThreadList = (
         },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
-          const appended = classifyThreads(page.threads, {
-            threadIds: [...state.threadIds],
-            archivedThreadIds: [...state.archivedThreadIds],
-            threadIdMap: { ...state.threadIdMap },
-            threadData: { ...state.threadData },
-          });
-          return {
-            ...state,
-            isLoadingMore: false,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: appended.threadIds,
-            archivedThreadIds: appended.archivedThreadIds,
-            threadIdMap: appended.threadIdMap,
-            threadData: appended.threadData,
-          };
+          return appendThreadPage(state, page);
         },
       })
       .catch((error: unknown) => {
@@ -738,6 +713,7 @@ const useRemoteThreadList = (
         if (session.loadMorePromise === task) {
           session.loadMorePromise = undefined;
         }
+        setSettledLoads((count) => count + 1);
       });
     session.loadMorePromise = task;
     return task;
@@ -772,56 +748,17 @@ const useRemoteThreadList = (
       startSwitch(async (generation) => {
         let data = getThreadData(store.value, threadIdOrRemoteId);
         if (!data) {
-          const remoteMetadata =
-            await session.adapter.fetch(threadIdOrRemoteId);
-          if (generation !== session.switchGeneration) return;
-          const state = store.value;
-          const mappingId = createThreadMappingId(remoteMetadata.remoteId);
-          const wasInTarget =
-            remoteMetadata.status === "regular"
-              ? state.threadIds.includes(remoteMetadata.remoteId)
-              : state.archivedThreadIds.includes(remoteMetadata.remoteId);
-          const threadIdsWithoutRemote = state.threadIds.filter(
-            (id) => id !== remoteMetadata.remoteId,
-          );
-          const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-            (id) => id !== remoteMetadata.remoteId,
-          );
-          store.update({
-            ...state,
-            threadIds:
-              remoteMetadata.status === "regular"
-                ? wasInTarget
-                  ? state.threadIds
-                  : [...threadIdsWithoutRemote, remoteMetadata.remoteId]
-                : threadIdsWithoutRemote,
-            archivedThreadIds:
-              remoteMetadata.status === "archived"
-                ? wasInTarget
-                  ? state.archivedThreadIds
-                  : [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
-                : archivedThreadIdsWithoutRemote,
-            threadIdMap: {
-              ...state.threadIdMap,
-              [remoteMetadata.remoteId]: mappingId,
-            },
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                id: mappingId,
-                initializeTask: Promise.resolve({
-                  remoteId: remoteMetadata.remoteId,
-                  externalId: remoteMetadata.externalId,
-                }),
-                remoteId: remoteMetadata.remoteId,
-                externalId: remoteMetadata.externalId,
-                status: remoteMetadata.status,
-                title: remoteMetadata.title,
-                lastMessageAt: remoteMetadata.lastMessageAt,
-                custom: remoteMetadata.custom,
-              },
-            },
+          const currentAdapter = session.adapter;
+          // Merging as an optimistic transform replays operations that
+          // completed while fetch() was in flight over the fetched snapshot.
+          await store.optimisticUpdate({
+            execute: () => currentAdapter.fetch(threadIdOrRemoteId),
+            then: (state, remoteMetadata) =>
+              generation === session.switchGeneration
+                ? mergeFetchedThread(state, remoteMetadata)
+                : state,
           });
+          if (generation !== session.switchGeneration) return;
           data = getThreadData(store.value, threadIdOrRemoteId);
         }
         if (!data) {
@@ -888,6 +825,9 @@ const useRemoteThreadList = (
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
 
+  // A switch can land on the thread before the caller resumes, so callers
+  // that act on the thread afterwards repeat this until it is still not main
+  // in their own continuation.
   const ensureNotMain = useCallback(
     async (threadId: string) => {
       if (threadId === store.value.newThreadId) {
@@ -917,6 +857,42 @@ const useRemoteThreadList = (
       }
     },
     [session, store, switchToNewThread],
+  );
+
+  // Replaying an operation keyed by a listed duplicate can land on the thread
+  // initialize() collapses it into, which may be the main thread.
+  const leaveRemovedMainThread = useCallback(
+    async (settledThreadId: string) => {
+      const data = getThreadData(store.value, session.mainThreadId);
+      if (
+        data !== undefined &&
+        (data.status !== "archived" ||
+          !isSameThread(store.value, settledThreadId, session.mainThreadId))
+      )
+        return;
+      // A removed main thread cannot render, so it moves to the draft now
+      // instead of waiting on a switch that may still be loading another thread.
+      const initializing =
+        store.baseValue.newThreadId !== undefined &&
+        store.value.newThreadId === undefined;
+      if (data === undefined && !initializing) {
+        const draftId = store.value.newThreadId;
+        let id: string;
+        if (draftId !== undefined) {
+          id = getThreadData(store.value, draftId)?.id ?? draftId;
+        } else {
+          const seeded = seedNewThread(store.baseValue);
+          store.update(seeded.state);
+          id = seeded.id;
+        }
+        assignMainThreadId(id);
+        notifyRemoteId(undefined, true);
+        session.onSwitchToNewThread?.();
+        return;
+      }
+      await ensureNotMain(session.mainThreadId);
+    },
+    [assignMainThreadId, ensureNotMain, notifyRemoteId, session, store],
   );
 
   const requireAdapterGeneration = useCallback(
@@ -986,11 +962,13 @@ const useRemoteThreadList = (
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
+      leaveRemovedMainThread(threadId).catch(() => {});
       return toInitializeResult(result);
     },
     [
       assignMainThreadId,
       backgroundThreads,
+      leaveRemovedMainThread,
       notifyRemoteId,
       requireAdapterGeneration,
       session,
@@ -1113,9 +1091,11 @@ const useRemoteThreadList = (
       if (data.status !== "regular") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
       }
-      await ensureNotMain(data.id);
+      do {
+        await ensureNotMain(data.id);
+      } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
-      return store.optimisticUpdate({
+      await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1123,8 +1103,15 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "archived"),
       });
+      await leaveRemovedMainThread(data.id);
     },
-    [ensureNotMain, requireAdapterGeneration, session, store],
+    [
+      ensureNotMain,
+      leaveRemovedMainThread,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const unarchive = useCallback(
@@ -1169,16 +1156,20 @@ const useRemoteThreadList = (
       if (data.status !== "regular" && data.status !== "archived") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
       }
-      await ensureNotMain(data.id);
+      do {
+        await ensureNotMain(data.id);
+      } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
+      let remoteId: string | undefined;
       const result = await store.optimisticUpdate({
         execute: async () => {
-          const { remoteId } = await data.initializeTask;
+          ({ remoteId } = await data.initializeTask);
           requireAdapterGeneration(adapterGeneration);
           return currentAdapter.delete(remoteId);
         },
-        optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
+        optimistic: (state) => deleteThreadReducer(state, data.id, remoteId),
       });
+      await leaveRemovedMainThread(data.id);
       // An adapter swap resets the optimistic layer, and a listed thread's slot
       // id is its remote id, so a replacement adapter can re-list this slot
       // while the deletion is in flight.
@@ -1187,7 +1178,14 @@ const useRemoteThreadList = (
       onDelete?.(data.id);
       return result;
     },
-    [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
+    [
+      ensureNotMain,
+      leaveRemovedMainThread,
+      onDelete,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const generateTitle = useCallback(
@@ -1218,17 +1216,21 @@ const useRemoteThreadList = (
         return;
       }
       if (!messages) return;
+      const isRemoved = () =>
+        getThreadData(store.baseValue, data.id) === undefined;
       await runThreadTitleGeneration({
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
         generate: async (onTitle) => {
+          if (isRemoved()) return;
           const stream = await currentAdapter.generateTitle(remoteId, messages);
           requireAdapterGeneration(adapterGeneration);
           await applyTitleStream(stream, onTitle);
         },
         rename: async (title) => {
           requireAdapterGeneration(adapterGeneration);
+          if (isRemoved()) return;
           await currentAdapter.rename(remoteId, title);
         },
         applyTitle: async (title) => {
@@ -1258,10 +1260,12 @@ const useRemoteThreadList = (
 
   const detach = useCallback(
     async (threadId: string) => {
-      await ensureNotMain(threadId);
+      do {
+        await ensureNotMain(threadId);
+      } while (isSameThread(store.value, threadId, session.mainThreadId));
       setStartedIds((prev) => prev.filter((id) => id !== threadId));
     },
-    [ensureNotMain],
+    [ensureNotMain, session, store],
   );
 
   const { mainThreadClient, itemOrder, threadListItems } =
@@ -1302,9 +1306,11 @@ const useRemoteThreadList = (
       session.isFirstThreadIdEffect = false;
       session.lastControlledThreadId = threadId;
       if (threadId === undefined) return;
-      handleThreadListAction("switch", () =>
-        switchToThread(threadId, undefined, false),
-      );
+      handleThreadListAction("switch", () => {
+        const task = switchToThread(threadId, undefined, false);
+        session.controlledSwitchGeneration = session.switchGeneration;
+        return task;
+      });
       return;
     }
     if (Object.is(session.lastControlledThreadId, threadId)) return;
@@ -1313,10 +1319,29 @@ const useRemoteThreadList = (
       handleThreadListAction("create", () => switchToNewThread(false));
       return;
     }
-    handleThreadListAction("switch", () =>
-      switchToThread(threadId, undefined, false),
-    );
+    handleThreadListAction("switch", () => {
+      const task = switchToThread(threadId, undefined, false);
+      session.controlledSwitchGeneration = session.switchGeneration;
+      return task;
+    });
   }, [session, switchToNewThread, switchToThread, threadId]);
+
+  // A controlled switch can fail before the list knows its thread; apply it
+  // again once a load lands, unless another switch has started since.
+  useEffect(() => {
+    const controlledId = session.lastControlledThreadId;
+    if (listState.isLoading || listState.isLoadingMore) return;
+    if (controlledId === undefined) return;
+    if (session.controlledSwitchGeneration !== session.switchGeneration) return;
+    if (getThreadData(listState, controlledId) === undefined) return;
+    if (isSameThread(listState, controlledId, session.mainThreadId)) return;
+    handleThreadListAction("switch", () => {
+      const task = switchToThread(controlledId, undefined, false);
+      session.controlledSwitchGeneration = session.switchGeneration;
+      return task;
+    });
+    // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
+  }, [settledLoads]);
 
   const state = useMemo(
     () => ({
@@ -1353,8 +1378,8 @@ const useRemoteThreadList = (
     switchToNewThread: () => {
       handleThreadListAction("create", () => switchToNewThread());
     },
-    getLoadThreadsPromise,
-    reload,
+    getLoadThreadsPromise: () => afterStateCommit(getLoadThreadsPromise()),
+    reload: () => afterStateCommit(reload()),
     reloadMainThread: () => {
       if (getThreadData(store.value, mainThreadId)?.status === "new") {
         return RESOLVED_PROMISE;
@@ -1363,7 +1388,7 @@ const useRemoteThreadList = (
         mainThreadClient.methods.unstable_refetchThread?.() ?? RESOLVED_PROMISE
       );
     },
-    loadMore,
+    loadMore: () => afterStateCommit(loadMore()),
     item: (selector) => {
       if (selector === "main") {
         const index = itemOrder.findIndex((item) =>

@@ -14,6 +14,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { LangChainMessage } from "./types";
 import type {
   LangGraphInterruptState,
@@ -313,6 +314,81 @@ describe("useLangGraphRuntime", () => {
           { type: "data", name: "chart", data: { series: [1, 2, 3] } },
         ],
       });
+    });
+  });
+
+  it("updates and removes UI data on the affected parent message", async () => {
+    const releaseUpdate = deferred<void>();
+    const releaseRemoval = deferred<void>();
+    const streamMock = vi.fn().mockImplementation(async function* () {
+      yield {
+        event: "messages",
+        data: [{ type: "ai", id: "ai-1", content: "Chart" }, {}],
+      };
+      yield {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { value: 1 },
+          metadata: { message_id: "ai-1" },
+        },
+      };
+      await releaseUpdate.promise;
+      yield {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { value: 2 },
+          metadata: { message_id: "ai-1" },
+        },
+      };
+      await releaseRemoval.promise;
+      yield {
+        event: "custom",
+        data: { type: "remove-ui", id: "ui-1" },
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({ stream: streamMock }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    act(() => {
+      auiResult.current.composer.setText("show a chart");
+      void auiResult.current.composer.send();
+    });
+
+    const getAssistantContent = () =>
+      runtimeResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === "ai-1")?.content;
+
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+        { type: "data", name: "chart", data: { value: 1 } },
+      ]);
+    });
+
+    act(() => releaseUpdate.resolve());
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+        { type: "data", name: "chart", data: { value: 2 } },
+      ]);
+    });
+
+    act(() => releaseRemoval.resolve());
+    await waitFor(() => {
+      expect(getAssistantContent()).toMatchObject([
+        { type: "text", text: "Chart" },
+      ]);
     });
   });
 
@@ -668,9 +744,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -684,6 +760,65 @@ describe("useLangGraphRuntime", () => {
     });
 
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
+  });
+
+  it("resumes the graph with a frontend tool result on loaded history whose tool_calls hold a null entry", async () => {
+    const load = vi.fn(async () => ({
+      messages: [
+        { id: "human-1", type: "human" as const, content: "weather?" },
+        {
+          id: "ai-1",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            null,
+            { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+          ],
+        } as unknown as LangChainMessage,
+      ],
+    }));
+    const streamMock = vi.fn(async function* (
+      _messages: LangChainMessage[],
+    ) {});
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
+    await waitFor(() =>
+      expect(
+        auiResult.current.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content),
+      ).toContainEqual(
+        expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+      ),
+    );
+
+    act(() => {
+      runtimeResult.current.thread
+        .getMessageById("ai-1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temperature: 72 });
+    });
+
+    await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+    expect(streamMock.mock.calls[0]?.[0]).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        content: JSON.stringify({ temperature: 72 }),
+      },
+    ]);
   });
 
   it("keeps the streamed version when the load returns the same message id", async () => {
@@ -706,9 +841,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -753,9 +888,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -796,9 +931,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalled());
 
     await act(async () => {
@@ -916,9 +1051,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -967,9 +1102,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(auiResult.current.thread.getState().isLoading).toBe(false),
@@ -1018,9 +1153,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
 
@@ -1087,9 +1222,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1152,9 +1287,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // start a run and let it stream its first chunk
@@ -1203,9 +1338,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // stage state for the next send
@@ -1274,9 +1409,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1328,9 +1463,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     act(() => {
@@ -1343,6 +1478,7 @@ describe("useLangGraphRuntime", () => {
     expect(reloadSignal.aborted).toBe(false);
 
     unmount();
+    await act(async () => {});
 
     expect(reloadSignal.aborted).toBe(true);
     reloadPending.resolve({ messages: [] });
@@ -1370,9 +1506,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1408,9 +1544,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // establish graph state via a run's values event
@@ -1470,9 +1606,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     let firstReload!: Promise<void>;
@@ -1528,9 +1664,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // the initial load is already fetching what a refetch would ask for, and
@@ -1585,9 +1721,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     expect(runtimeResult.current.thread.getState().isLoading).toBe(true);
 
@@ -1633,9 +1769,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -1648,6 +1784,7 @@ describe("useLangGraphRuntime", () => {
     expect(signal?.aborted).toBe(false);
 
     unmount();
+    await act(async () => {});
 
     expect(signal?.aborted).toBe(true);
   });
@@ -1669,9 +1806,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.threads.mainThreadId), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(onThreadIdChange).toHaveBeenLastCalledWith("lg-thread-1"),
@@ -2897,9 +3034,9 @@ describe("useLangGraphRuntime", () => {
           { wrapper },
         );
 
-        await act(async () => {
-          await runtimeResult.current.threads.switchToThread("lg-thread-1");
-        });
+        await settleOutsideAct(() =>
+          runtimeResult.current.threads.switchToThread("lg-thread-1"),
+        );
         await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
         await act(async () => {
@@ -3225,9 +3362,9 @@ describe("useLangGraphRuntime", () => {
       const wrapper = wrapperFactory(runtimeResult.current);
       renderHook(() => useAui(), { wrapper });
 
-      await act(async () => {
-        await runtimeResult.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        runtimeResult.current.threads.switchToThread("lg-thread-1"),
+      );
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
       await waitFor(() => {
         const parts = runtimeResult.current.thread
@@ -3378,6 +3515,59 @@ describe("useLangGraphRuntime", () => {
       });
     });
 
+    it("cancels only the pending tool calls that carry an id", async () => {
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { name: "lookup", args: {} },
+                  { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+                ],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setText("never mind");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toEqual([
+        {
+          id: expect.any(String),
+          type: "tool",
+          name: "get_weather",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { id: expect.any(String), type: "human", content: "never mind" },
+      ]);
+    });
+
     it("drops a late tool result for a call already answered by a new turn's auto-cancellation instead of resuming the graph", async () => {
       const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
         if (streamMock.mock.calls.length === 1) {
@@ -3424,6 +3614,582 @@ describe("useLangGraphRuntime", () => {
         await new Promise((r) => setTimeout(r, 10));
       });
       expect(streamMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("edit while a run is active", () => {
+    const renderWithCheckpoint = async (
+      stream: LangGraphStreamCallback<LangChainMessage>,
+      getCheckpointId: () => Promise<string | null>,
+    ) => {
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream,
+          getCheckpointId,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      return result;
+    };
+
+    it("starts the edit from the truncated thread", async () => {
+      const releaseStale = deferred<void>();
+      const checkpoint = deferred<string | null>();
+      let calls = 0;
+      const stream = vi.fn(() => {
+        const call = calls++;
+        return (async function* () {
+          if (call === 0) {
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-1", content: "stale partial" }],
+            };
+            await releaseStale.promise;
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-2", content: "stale late" }],
+            };
+            return;
+          }
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "fresh", content: "fresh answer" }],
+          };
+        })();
+      });
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        () => checkpoint.promise,
+      );
+
+      await act(async () => {
+        result.current.thread.append("original question");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("stale partial"),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      await act(async () => {
+        releaseStale.resolve();
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("fresh answer"),
+      );
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual([
+        "edited question",
+        "fresh answer",
+      ]);
+    });
+
+    it("stops the active stream for a staged edit without starting another run", async () => {
+      const releaseStale = deferred<void>();
+      const stream = vi.fn(
+        (
+          _messages: LangChainMessage[],
+          _config: { abortSignal: AbortSignal },
+        ) =>
+          (async function* () {
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-1", content: "stale partial" }],
+            };
+            await releaseStale.promise;
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-2", content: "stale late" }],
+            };
+          })(),
+      );
+      const getCheckpointId = vi.fn(async () => "cp-1");
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        getCheckpointId,
+      );
+
+      await act(async () => {
+        result.current.thread.append("original question");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("stale partial"),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((message) => message.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[0]![1].abortSignal.aborted).toBe(true);
+      expect(stream).toHaveBeenCalledTimes(1);
+      expect(getCheckpointId).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseStale.resolve();
+      });
+      expect(textsOf(result.current)).toEqual(["staged question"]);
+    });
+
+    it("restores an edit stopped during checkpoint lookup before the next send", async () => {
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `answer-${call}`, content: "answer" }],
+          };
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      expect(result.current.thread.getState().isRunning).toBe(true);
+
+      await act(async () => {
+        result.current.thread.cancelRun();
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      expect(stream).toHaveBeenCalledTimes(1);
+      expect(textsOf(result.current)).toEqual(["question", "answer"]);
+
+      await act(async () => {
+        result.current.thread.append("next");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream).toHaveBeenCalledTimes(2);
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "next" },
+      ]);
+      expect(stream.mock.calls[1]![1]).not.toHaveProperty("checkpointId");
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "answer",
+        "next",
+        "answer",
+      ]);
+    });
+
+    it("shows the edited message once while its checkpoint is looked up and after it is sent", async () => {
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: `answer ${call}` }],
+          };
+        })();
+      });
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        () => checkpoint.promise,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      const shown = result.current.thread
+        .getState()
+        .messages.filter((m) => m.role === "user");
+      expect(shown.map(getThreadMessageText)).toEqual(["edited question"]);
+
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", id: shown[0]!.id, content: "edited question" },
+      ]);
+      expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(textsOf(result.current)).toEqual(["edited question", "answer 2"]);
+    });
+
+    const stopReloadDuringLookup = async () => {
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: `answer ${call}` }],
+          };
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const answer = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "assistant")!;
+
+      act(() => {
+        void result.current.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(true),
+      );
+      expect(
+        result.current.thread
+          .getState()
+          .messages.filter((m) => m.role === "user")
+          .map(getThreadMessageText),
+      ).toEqual(["question"]);
+      expect(textsOf(result.current)).not.toContain("answer 1");
+
+      await act(async () => {
+        result.current.thread.cancelRun();
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      return { result, stream };
+    };
+
+    it("restores the thread when a reload is stopped while it looks up its checkpoint", async () => {
+      const { result, stream } = await stopReloadDuringLookup();
+
+      expect(stream).toHaveBeenCalledTimes(1);
+      expect(textsOf(result.current)).toEqual(["question", "answer 1"]);
+    });
+
+    it("sends the next message after a stopped reload without a checkpoint", async () => {
+      const { result, stream } = await stopReloadDuringLookup();
+
+      await act(async () => {
+        result.current.thread.append("next");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream).toHaveBeenCalledTimes(2);
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "next" },
+      ]);
+      expect(stream.mock.calls[1]![1]).not.toHaveProperty("checkpointId");
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "answer 1",
+        "next",
+        "answer 2",
+      ]);
+    });
+
+    it("keeps a history load that lands while a reload looks up its checkpoint when Stop follows", async () => {
+      const pendingLoad = deferred<LoadResult>();
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: `answer ${call}` }],
+          };
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          load: () => pendingLoad.promise,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("answer 1"),
+      );
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const answer = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "assistant")!;
+
+      act(() => {
+        void result.current.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(true),
+      );
+      await act(async () => {
+        pendingLoad.resolve({
+          messages: [{ id: "h-1", type: "human", content: "history" }],
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      await act(async () => {
+        result.current.thread.cancelRun();
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+
+      expect(stream).toHaveBeenCalledTimes(1);
+      expect(textsOf(result.current)).toEqual([
+        "history",
+        "question",
+        "answer 1",
+      ]);
+    });
+
+    it("keeps an edit made while a reload looks up its checkpoint", async () => {
+      const checkpoints: ReturnType<typeof deferred<string | null>>[] = [];
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: `answer ${call}` }],
+          };
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => {
+            const checkpoint = deferred<string | null>();
+            checkpoints.push(checkpoint);
+            return checkpoint.promise;
+          },
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_enableMessageQueue: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const [question, answer] = result.current.thread.getState().messages;
+
+      act(() => {
+        void result.current.thread.getMessageById(answer!.id).reload();
+      });
+      await waitFor(() => expect(checkpoints).toHaveLength(1));
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question!.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      await act(async () => {
+        checkpoints[0]!.resolve("cp-reload");
+      });
+      await waitFor(() => expect(checkpoints).toHaveLength(2));
+      await act(async () => {
+        checkpoints[1]!.resolve("cp-edit");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(stream).toHaveBeenCalledTimes(2);
+      expect(stream.mock.calls[1]![1]).toMatchObject({
+        checkpointId: "cp-edit",
+      });
+      expect(textsOf(result.current)).toEqual(["edited question", "answer 2"]);
+    });
+
+    it("runs a message queued during the checkpoint lookup after the edit", async () => {
+      const checkpoint = deferred<string | null>();
+      const events: string[] = [];
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          events.push(`start ${call}`);
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: "answer" }],
+          };
+          events.push(`end ${call}`);
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_enableMessageQueue: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      expect(result.current.thread.getState().isRunning).toBe(true);
+
+      await act(async () => {
+        auiResult.current.composer.setText("follow-up");
+        auiResult.current.composer.send();
+      });
+      expect(stream).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(3));
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "edited question" },
+      ]);
+      expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(stream.mock.calls[2]![0]).toMatchObject([
+        { type: "human", content: "follow-up" },
+      ]);
+      expect(events).toEqual([
+        "start 1",
+        "end 1",
+        "start 2",
+        "end 2",
+        "start 3",
+        "end 3",
+      ]);
     });
   });
 });

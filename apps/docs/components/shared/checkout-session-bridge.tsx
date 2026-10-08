@@ -9,12 +9,14 @@ import {
   useSyncExternalStore,
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
+import { toast } from "sonner";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { isProductSlug, resolveProducts } from "@/lib/catalog";
+import { getCatalogItem, isProductSlug, resolveProducts } from "@/lib/catalog";
 import { installGuideUrl } from "@/lib/catalog/install-guide";
 import {
   currentPlan,
   isAgentPresent,
+  isClosed,
   openInputs,
   planNeedsReview,
   stepProgress,
@@ -90,7 +92,7 @@ function CheckoutSessionBridge({
   const creating = useRef(false);
   const [refocusCount, setRefocusCount] = useState(0);
   const degraded = useDegradedAfterGrace(connection.degraded);
-  useTick();
+  const tick = useTick();
 
   const products = useMemo(
     () => resolveProducts(session.products),
@@ -131,7 +133,53 @@ function CheckoutSessionBridge({
     commands,
   ]);
 
-  const open = useMemo(() => (state ? openInputs(state) : []), [state]);
+  const open = useMemo(
+    () =>
+      state
+        ? openInputs(state).filter((input) => input.kind !== "product")
+        : [],
+    [state],
+  );
+  const proposals = useMemo(
+    () =>
+      state && !isClosed(state)
+        ? openInputs(state).filter((input) => input.kind === "product")
+        : [],
+    [state],
+  );
+  const settling = useRef(new Set<string>());
+  const rejected = useRef(new Set<string>());
+  const warned = useRef(new Set<string>());
+  useEffect(() => {
+    for (const input of proposals) {
+      if (settling.current.has(input.id)) continue;
+      settling.current.add(input.id);
+      const product = getCatalogItem(input.product ?? "");
+      // Another tab on the same session may have won the add, so only a proposal still open at the next tick was refused.
+      if (rejected.current.has(input.id) && !warned.current.has(input.id)) {
+        warned.current.add(input.id);
+        toast.error(
+          product
+            ? `Could not add ${product.name} to this setup. Trying again.`
+            : "Could not decline the agent's product proposal. Trying again.",
+        );
+      }
+      const settled = product
+        ? commands["checkout/add-product"]({
+            inputId: input.id,
+            product: {
+              slug: product.slug,
+              name: product.name,
+              guide: `${window.location.origin}${installGuideUrl([product.slug])}`,
+            },
+          })
+        : commands["checkout/dismiss"]({ inputId: input.id });
+      settled.catch(() => {
+        settling.current.delete(input.id);
+        rejected.current.add(input.id);
+      });
+    }
+  }, [proposals, commands, tick]);
   const planPending = state ? planNeedsReview(state) : false;
   const wanted = open.length > 0 || planPending;
 

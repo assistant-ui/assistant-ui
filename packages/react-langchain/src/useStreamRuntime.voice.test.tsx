@@ -13,6 +13,7 @@ import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type { LangChainBaseMessage } from "./types";
 import { useStreamRuntime } from "./useStreamRuntime";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const { mockUseStream, streamController } = vi.hoisted(() => ({
   mockUseStream: vi.fn(),
@@ -477,9 +478,9 @@ const renderThreadRuntime = async (
       {null}
     </AssistantRuntimeProvider>,
   );
-  await act(async () => {
-    await rendered.result.current.threads.switchToThread("thread-a");
-  });
+  await settleOutsideAct(() =>
+    rendered.result.current.threads.switchToThread("thread-a"),
+  );
   await waitFor(() =>
     expect(rendered.result.current.thread.getState().capabilities.voice).toBe(
       true,

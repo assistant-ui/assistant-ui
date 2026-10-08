@@ -100,7 +100,7 @@ function KeyboardPlugin({
         KEY_ENTER_COMMAND,
         (event) => {
           if (!event) return false;
-          if (event.isComposing) return false;
+          if (event.isComposing || event.keyCode === 229) return false;
           if (event.shiftKey) return false;
 
           // Let registered plugins (mention, slash command, etc.) handle Enter first

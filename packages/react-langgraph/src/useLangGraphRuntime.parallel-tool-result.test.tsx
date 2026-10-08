@@ -1,15 +1,4 @@
 // @vitest-environment jsdom
-// Regression test for https://github.com/assistant-ui/assistant-ui/issues/8270
-//
-// LangGraph streams an AI message's tool calls chunk by chunk. A run can have
-// emitted call `c1` but not yet `c2`. If the client answers `c1` inside that
-// window, the previous implementation released `c1`'s result as its own
-// resume: after the run ended, the graph was resumed with an AI message that
-// had two tool calls and only one tool message (rejected by providers such as
-// OpenAI), and `c2`'s answer later went out as a second, separate resume.
-//
-// Expected: no resume is sent while `c2` is still unanswered on the client.
-// Once both calls have results, one resume carries both tool messages.
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -92,7 +81,7 @@ describe("useLangGraphRuntime parallel tool results", () => {
       if (call++ === 0) {
         yield metadataEvent;
         yield aiWith(["c1"]);
-        await secondCall; // c2 has not streamed yet
+        await secondCall;
         yield aiWith(["c1", "c2"]);
       }
     });
@@ -116,18 +105,12 @@ describe("useLangGraphRuntime parallel tool results", () => {
 
     const runtime = capture.runtime!;
 
-    // Do NOT await append: the mocked stream is parked on `secondCall` until
-    // the test resolves it below, so append would hang forever.
+    let firstAppend!: Promise<void>;
     act(() => {
-      void runtime.thread.append("go");
+      firstAppend = runtime.thread.append("go");
     });
 
-    // Wait until `c1`'s tool-call part is live on the client.
-    await waitFor(() => {
-      expect(
-        runtime.thread.getState().messages.some((m) => m.role === "assistant"),
-      ).toBe(true);
-    });
+    await waitForCall(runtime, "c1");
 
     const assistantIndex = runtime.thread
       .getState()
@@ -140,21 +123,13 @@ describe("useLangGraphRuntime parallel tool results", () => {
         .addToolResult({ ok: 1 });
     });
 
-    // Let the first run finish streaming (c2 arrives in the graph), but do NOT
-    // answer c2 yet. The first run must not be resumed with c1 alone: the
-    // stream callback stays at exactly one invocation while c2 is unanswered.
-    act(() => {
+    await act(async () => {
       resolveSecondCall();
+      await firstAppend;
     });
-
-    // Poll briefly: a premature resume (the bug) fires within a few ticks.
-    let attempts = 0;
-    while (sent.length !== 1 && attempts++ < 50) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(sent.length).toBe(1);
 
-    // Now answer c2. One resume must carry both tool messages.
     await waitFor(() => {
       expect(
         runtime.thread
@@ -188,5 +163,170 @@ describe("useLangGraphRuntime parallel tool results", () => {
     expect(
       toolMessages.map((m) => (m as { tool_call_id: string }).tool_call_id),
     ).toEqual(["c1", "c2"]);
+  });
+
+  const mount = (stream: (messages: unknown[]) => AsyncGenerator<any>) => {
+    const host = renderHook(() =>
+      useLangGraphRuntime({ stream: emptyStream() }),
+    );
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const Nested = () => {
+      capture.runtime = useLangGraphRuntime({
+        stream,
+        unstable_threadListAdapter: createThreadListAdapter(),
+      });
+      return null;
+    };
+    render(
+      <AssistantRuntimeProvider runtime={host.result.current}>
+        <Nested />
+      </AssistantRuntimeProvider>,
+    );
+    return capture.runtime!;
+  };
+
+  const addResult = (runtime: AssistantRuntime, id: string) => {
+    const index = runtime.thread
+      .getState()
+      .messages.findIndex((message) =>
+        message.content.some(
+          (part) => part.type === "tool-call" && part.toolCallId === id,
+        ),
+      );
+    runtime.thread
+      .getMessageByIndex(index)
+      .getMessagePartByToolCallId(id)
+      .addToolResult({ ok: true });
+  };
+
+  const waitForCall = (runtime: AssistantRuntime, id: string) =>
+    waitFor(() => {
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === id,
+            ),
+          ),
+      ).toBe(true);
+    });
+
+  it("releases a buffered client result when its server sibling has a result", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length !== 1) return;
+      yield metadataEvent;
+      yield aiWith(["s1", "c1"]);
+      await gate;
+      yield {
+        event: "messages/complete",
+        data: [
+          {
+            id: "server-result",
+            type: "tool",
+            tool_call_id: "s1",
+            content: "done",
+          },
+        ],
+      };
+    });
+    const runtime = mount(stream);
+    let firstAppend!: Promise<void>;
+    act(() => {
+      firstAppend = runtime.thread.append("go");
+    });
+    await waitForCall(runtime, "c1");
+    act(() => addResult(runtime, "c1"));
+    await act(async () => {
+      finish();
+      await firstAppend;
+    });
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
+  });
+
+  it("releases a buffered result when a sibling call has no id", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length !== 1) return;
+      yield metadataEvent;
+      yield aiWith(["c1"]);
+      await gate;
+      yield {
+        event: "messages/complete",
+        data: [
+          {
+            id: "calls",
+            type: "ai",
+            content: [],
+            tool_calls: [
+              { name: "ask", args: {} },
+              { id: "c1", name: "ask", args: {} },
+            ],
+          },
+        ],
+      };
+    });
+    const runtime = mount(stream);
+    let firstAppend!: Promise<void>;
+    act(() => {
+      firstAppend = runtime.thread.append("go");
+    });
+    await waitForCall(runtime, "c1");
+    act(() => addResult(runtime, "c1"));
+    await act(async () => {
+      finish();
+      await firstAppend;
+    });
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toMatchObject([{ type: "tool", tool_call_id: "c1" }]);
+  });
+
+  it("reports a rejected resume started by run completion", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const failure = new Error("resume failed");
+    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      let calls = 0;
+      const stream = vi.fn(async function* (_messages: unknown[]) {
+        if (calls++ > 0) throw failure;
+        yield metadataEvent;
+        yield aiWith(["c1"]);
+        await gate;
+      });
+      const runtime = mount(stream);
+      let firstAppend!: Promise<void>;
+      act(() => {
+        firstAppend = runtime.thread.append("go");
+      });
+      await waitForCall(runtime, "c1");
+      act(() => addResult(runtime, "c1"));
+      await act(async () => {
+        finish();
+        await firstAppend;
+      });
+      await waitFor(() =>
+        expect(reported).toHaveBeenCalledWith(
+          "useLangGraphRuntime: tool result resume failed",
+          failure,
+        ),
+      );
+    } finally {
+      reported.mockRestore();
+    }
   });
 });

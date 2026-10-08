@@ -357,7 +357,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     async (
       newMessages: TMessage[],
       config: LangGraphSendMessageConfig,
-      onComplete?: () => void,
+      onComplete?: (finalMessages: TMessage[]) => void,
     ) => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -618,7 +618,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
         if (activeAccumulatorRef.current === accumulator) {
           activeAccumulatorRef.current = undefined;
         }
-        onComplete?.();
+        onComplete?.(accumulator?.getMessages() ?? messagesRef.current);
       }
     },
     [
