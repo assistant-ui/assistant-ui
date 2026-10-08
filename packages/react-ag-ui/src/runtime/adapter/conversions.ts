@@ -6,26 +6,26 @@ import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
   ReasoningMessagePart,
-  ThreadMessage,
-  ToolCallMessagePartMcpMetadata,
-  ToolModelContentPart,
 } from "@assistant-ui/core";
 import {
   getAutoStatus,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
+  walkToolCallTree,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
   A2UI_SURFACE_ACTIVITY_TYPE,
+  MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
-} from "./run-aggregator";
+} from "../types";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
@@ -97,27 +97,16 @@ export type AgUiMessage =
       error?: string;
     };
 
-type ToolCallPart = {
-  type: "tool-call";
-  toolCallId?: string;
-  toolName: string;
-  argsText?: string;
-  args?: ReadonlyJSONObject;
-  result?: unknown;
-  isError?: boolean;
-  modelContent?: readonly ToolModelContentPart[];
-  unstable_toolMessageId?: string;
-  mcp?: ToolCallMessagePartMcpMetadata;
-  messages?: readonly ThreadMessage[];
-  approval?: CoreToolCallPartApproval;
-};
-
-type CoreToolCallPartApproval = NonNullable<
-  Extract<
-    Exclude<CoreThreadMessageLike["content"], string>[number],
-    { type: "tool-call" }
-  >["approval"]
+type CoreToolCallPart = Extract<
+  Exclude<CoreThreadMessageLike["content"], string>[number],
+  { type: "tool-call" }
 >;
+
+type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
+  result?: unknown;
+  isError?: boolean | undefined;
+  unstable_toolMessageId?: string;
+};
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -212,6 +201,9 @@ function normalizeToolCall(part: ToolCallPart): {
   };
 }
 
+const isExportableNestedToolCall = (part: { readonly toolCallId?: unknown }) =>
+  typeof part.toolCallId === "string" && !part.toolCallId.startsWith("a2ui:");
+
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
@@ -241,7 +233,9 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 // Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
 // http(s) URL. A `url` source may omit the mime type; a `data` source always
 // resolves one (falling back to application/octet-stream). An explicit
-// `sourceType: "url"` on the part forces the url leg for non-http references.
+// `sourceType: "url"` on the part forces the url leg for non-http references,
+// and a data URL that is not base64 takes it too, since a `data` source
+// carries base64 bytes.
 function buildInputSource(
   value: string,
   declaredMimeType: string | undefined,
@@ -250,7 +244,8 @@ function buildInputSource(
   const source = resolveFilePartSource({
     data: value,
     mimeType: declaredMimeType ?? "application/octet-stream",
-    sourceType,
+    sourceType:
+      /^data:/i.test(value) && !parseDataUrl(value) ? "url" : sourceType,
   });
   if (source.kind === "url") {
     return declaredMimeType !== undefined
@@ -281,9 +276,16 @@ function toInputContent(
     const image = getString(part, "image");
     if (image === undefined) return null;
     const metadata = buildInputMetadata(part, getString(part, "filename"));
+    const source = buildInputSource(image, fallbackMimeType);
     return {
       type: "image",
-      source: buildInputSource(image, fallbackMimeType),
+      source:
+        source.type === "data"
+          ? {
+              ...source,
+              mimeType: resolveImageMediaType(image, fallbackMimeType),
+            }
+          : source,
       ...(metadata && { metadata }),
     };
   }
@@ -698,26 +700,17 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
-// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
-// assistant message from a bucket of rebuilt surface state, mirroring the
-// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
-// other tool calls) are preserved; existing a2ui parts are replaced wholesale
-// so create/update/delete within the bucket all converge on the rebuilt set.
 function attachA2uiSurfaces(
   message: CoreThreadMessageLike,
   state: A2uiState,
 ): CoreThreadMessageLike {
   const a2uiParts: ToolCallPart[] = [];
   for (const [surfaceId, surface] of state) {
-    const { spec } = convertSurfaceToUISpec(surface);
-    if (!spec) continue;
+    const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+    if (!toolCall) continue;
     a2uiParts.push({
       type: "tool-call",
-      toolCallId: `a2ui:${surfaceId}`,
-      toolName: "present",
-      args: spec as unknown as ReadonlyJSONObject,
-      argsText: JSON.stringify(spec),
-      result: {},
+      ...toolCall,
     });
   }
 
@@ -872,6 +865,10 @@ export function fromAgUiMessages(
   const converted: CoreThreadMessageLike[] = [];
   const a2uiBuckets = new Map<string, A2uiState>();
   const a2uiBucketOwnerIndices = new Map<string, number>();
+  const activityParts = new Map<
+    string,
+    { ownerIndex: number; part: { type: "data"; name: string; data: unknown } }
+  >();
   // A zero-data-retention run carries its payload in encryptedValue with no
   // readable content, so the record has no part to become and rides on the
   // neighbouring message instead of being dropped. The anchor is the index the
@@ -1020,15 +1017,9 @@ export function fromAgUiMessages(
     }
 
     if (role === "activity") {
-      // Only a2ui-surface activity messages have an assistant-part equivalent
-      // to rehydrate; other activity types still have no surface to repaint.
       const activityType = getString(rawMessage, "activityType");
-      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) continue;
-      const activityContent = isObject(rawMessage.content)
-        ? (rawMessage.content as Record<string, unknown>)
-        : null;
-      const operations = activityContent?.["a2ui_operations"];
-      if (!Array.isArray(operations)) continue;
+      if (activityType === undefined || activityType === MCP_APPS_ACTIVITY_TYPE)
+        continue;
 
       // A surface belongs to the turn that painted it, and held reasoning is a
       // nearer antecedent than the previous turn's assistant record, so it is
@@ -1046,6 +1037,48 @@ export function fromAgUiMessages(
       if (ownerIndex === -1) continue;
 
       const owner = converted[ownerIndex]!;
+      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) {
+        const bucketKey =
+          getString(rawMessage, "id") ?? `agui-activity:${activityType}`;
+        const part = {
+          type: "data" as const,
+          name: `agui-activity/${activityType}`,
+          data: rawMessage.content,
+        };
+        const existing = activityParts.get(bucketKey);
+        const existingOwner = existing && converted[existing.ownerIndex];
+        const existingIndex =
+          existingOwner && Array.isArray(existingOwner.content)
+            ? existingOwner.content.indexOf(existing.part)
+            : -1;
+        if (existing && existingOwner && existingIndex !== -1) {
+          const content = [...(existingOwner.content as unknown[])];
+          content[existingIndex] = part;
+          converted[existing.ownerIndex] = {
+            ...existingOwner,
+            content: content as typeof existingOwner.content,
+          };
+          activityParts.set(bucketKey, {
+            ownerIndex: existing.ownerIndex,
+            part,
+          });
+          continue;
+        }
+
+        const content = Array.isArray(owner.content) ? owner.content : [];
+        activityParts.set(bucketKey, { ownerIndex, part });
+        converted[ownerIndex] = {
+          ...owner,
+          content: [...content, part],
+        };
+        continue;
+      }
+
+      const activityContent = isObject(rawMessage.content)
+        ? (rawMessage.content as Record<string, unknown>)
+        : null;
+      const operations = activityContent?.["a2ui_operations"];
+      if (!Array.isArray(operations)) continue;
       const bucketKey = getString(rawMessage, "id") ?? "a2ui:anonymous";
       const { state } = applyA2uiOperations(new Map(), operations);
       a2uiBuckets.delete(bucketKey);
@@ -1269,7 +1302,16 @@ function convertAssistantMessage(
     part: ToolCallPart;
   }[] = [];
   for (const { part } of toolCalls) {
-    collectNestedToolCalls(part, nestedToolCalls);
+    for (const { part: nestedToolCall } of walkToolCallTree(
+      part.messages ?? [],
+      { shouldDescend: isExportableNestedToolCall },
+    )) {
+      if (!isExportableNestedToolCall(nestedToolCall)) continue;
+      nestedToolCalls.push({
+        ...normalizeToolCall(nestedToolCall),
+        part: nestedToolCall,
+      });
+    }
   }
 
   converted.push({
@@ -1298,28 +1340,6 @@ function convertAssistantMessage(
       part.approval.resolution === undefined;
     if (gateOpen) continue;
     emitToolResult(toolCallId, part, converted);
-  }
-}
-
-function collectNestedToolCalls(
-  part: ToolCallPart,
-  out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
-): void {
-  for (const nested of part.messages ?? []) {
-    if (!isObject(nested) || nested.role !== "assistant") continue;
-    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
-    for (const nestedPart of nestedContent) {
-      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
-      const nestedToolCall = nestedPart as ToolCallPart;
-      if (
-        typeof nestedToolCall.toolCallId !== "string" ||
-        nestedToolCall.toolCallId.startsWith("a2ui:")
-      ) {
-        continue;
-      }
-      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
-      collectNestedToolCalls(nestedToolCall, out);
-    }
   }
 }
 

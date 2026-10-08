@@ -19,7 +19,7 @@ A single tool call renders through that tool's own `render` field, but a timelin
 ```tsx title="components/assistant-ui/elements/session-timeline.tsx"
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FileSearchIcon,
   PenLineIcon,
@@ -60,10 +60,13 @@ function toStats(parts: readonly ToolCallMessagePart[]): TimelineStat[] {
 
 export function SessionTimeline() {
   const [open, setOpen] = useState(false);
-  const toolCalls = useAuiState((s) =>
-    s.message.parts.filter(
-      (part): part is ToolCallMessagePart => part.type === "tool-call",
-    ),
+  const parts = useAuiState((s) => s.message.parts);
+  const toolCalls = useMemo(
+    () =>
+      parts.filter(
+        (part): part is ToolCallMessagePart => part.type === "tool-call",
+      ),
+    [parts],
   );
   const streaming = useAuiState((s) => s.message.status?.type === "running");
   const steps = toolCalls.map(toStep);
@@ -187,7 +190,7 @@ useEffect(() => {
 </div>
 ```
 
-`visibleSteps` clamps to the length of `steps` and floors a fractional or negative value to zero, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero. Each step row's own React key is its position in `steps`, not its `chip` text, so two steps in the same render that happen to carry an identical chip (two reads reported with the same label, say) still render as separate rows and animate independently.
+`visibleSteps` is floored and clamped into `0…steps.length`, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero. Two steps that carry the same `chip` still render as separate rows.
 
 ## Examples
 

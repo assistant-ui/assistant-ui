@@ -100,7 +100,7 @@ function KeyboardPlugin({
         KEY_ENTER_COMMAND,
         (event) => {
           if (!event) return false;
-          if (event.isComposing) return false;
+          if (event.isComposing || event.keyCode === 229) return false;
           if (event.shiftKey) return false;
 
           // Let registered plugins (mention, slash command, etc.) handle Enter first
@@ -108,8 +108,13 @@ function KeyboardPlugin({
 
           if (submitMode === "none") return false;
 
-          const isRunning = aui.thread.getState().isRunning;
-          if (isRunning) return false;
+          const threadState = aui.thread.getState();
+          if (
+            threadState.isRunning &&
+            !threadState.capabilities.queue &&
+            threadState.voice === undefined
+          )
+            return false;
 
           let shouldSubmit = false;
           if (submitMode === "ctrlEnter") {

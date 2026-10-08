@@ -1,4 +1,4 @@
-import { act, type ReactElement } from "react";
+import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageContent } from "./MessageContent";
@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   addToolResult: vi.fn(),
   resumeToolCall: vi.fn(),
   respondToToolApproval: vi.fn(),
+  unstable_recordInteraction: vi.fn(),
   state: {
     message: {
       content: [] as AnyPart[],
@@ -16,7 +17,10 @@ const h = vi.hoisted(() => ({
         return this.content;
       },
     },
-    tools: { toolUIs: {} as Record<string, unknown> },
+    tools: {
+      toolUIs: {} as Record<string, unknown>,
+      mcpApp: undefined as { render: unknown } | undefined,
+    },
     dataRenderers: {
       renderers: {} as Record<string, unknown>,
       fallbacks: [] as unknown[],
@@ -31,6 +35,8 @@ vi.mock("@assistant-ui/store", () => {
       resumeToolCall: (...args: unknown[]) => h.resumeToolCall(index, ...args),
       respondToToolApproval: (...args: unknown[]) =>
         h.respondToToolApproval(index, ...args),
+      unstable_recordInteraction: (...args: unknown[]) =>
+        h.unstable_recordInteraction(index, ...args),
     }),
   });
   const aui = { message };
@@ -50,8 +56,10 @@ describe("MessageContent", () => {
     h.addToolResult.mockReset();
     h.resumeToolCall.mockReset();
     h.respondToToolApproval.mockReset();
+    h.unstable_recordInteraction.mockReset();
     h.state.message.content = [];
     h.state.tools.toolUIs = {};
+    h.state.tools.mcpApp = undefined;
     h.state.dataRenderers.renderers = {};
     h.state.dataRenderers.fallbacks = [];
 
@@ -74,6 +82,51 @@ describe("MessageContent", () => {
       root.render(<MessageContent {...props} />);
     });
   };
+
+  it("keeps a text seed while streaming and resets it for a replacement id", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+
+    h.state.message.content = [{ type: "text", id: "p1", text: "old" }];
+    await mount({ renderText });
+    h.state.message.content = [
+      { type: "text", id: "p1", text: "old streamed" },
+    ];
+    await mount({ renderText });
+    expect(container.textContent).toBe("old:old streamed");
+
+    h.state.message.content = [{ type: "text", id: "p2", text: "new" }];
+    await mount({ renderText });
+    expect(container.textContent).toBe("new:new");
+  });
+
+  it("keeps each seed with its id when identified parts swap", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    h.state.message.content = [
+      { type: "text", id: "p1", text: "first" },
+      { type: "text", id: "p2", text: "second" },
+    ];
+    await mount({ renderText });
+    h.state.message.content = [
+      { type: "text", id: "p2", text: "second updated" },
+      { type: "text", id: "p1", text: "first updated" },
+    ];
+    await mount({ renderText });
+    expect(
+      Array.from(container.querySelectorAll("span"), (el) => el.textContent),
+    ).toEqual(["second:second updated", "first:first updated"]);
+  });
 
   it("renders a text part through the default text renderer", async () => {
     h.state.message.content = [{ type: "text", text: "hello world" }];
@@ -156,6 +209,10 @@ describe("MessageContent", () => {
         (props.addResult as () => void)();
         (props.resume as () => void)();
         (props.respondToApproval as () => void)();
+        (props.unstable_recordInteraction as (input: unknown) => void)({
+          type: "action",
+          payload: { choice: "retry" },
+        });
         return <span data-testid="tool">tool:{String(props.toolName)}</span>;
       });
       h.state.tools.toolUIs = { search: [{ render: ToolRender }] };
@@ -167,6 +224,10 @@ describe("MessageContent", () => {
       expect(h.addToolResult).toHaveBeenCalledWith(0);
       expect(h.resumeToolCall).toHaveBeenCalledWith(0);
       expect(h.respondToToolApproval).toHaveBeenCalledWith(0);
+      expect(h.unstable_recordInteraction).toHaveBeenCalledWith(0, {
+        type: "action",
+        payload: { choice: "retry" },
+      });
     });
 
     it("picks the first registration when multiple are registered", async () => {
@@ -203,6 +264,64 @@ describe("MessageContent", () => {
         part: h.state.message.content[0],
         index: 0,
       });
+    });
+
+    it("renders tools.mcpApp for a tool call with a ui:// resource", async () => {
+      const Mcp = vi.fn(() => <span data-testid="mcp">mcp</span>);
+      h.state.message.content = [
+        {
+          type: "tool-call",
+          toolName: "show_chart",
+          toolCallId: "c1",
+          mcp: { app: { resourceUri: "ui://chart" } },
+        },
+      ];
+      h.state.tools.mcpApp = { render: Mcp };
+      await mount();
+      expect(container.querySelector('[data-testid="mcp"]')?.textContent).toBe(
+        "mcp",
+      );
+    });
+
+    it("prefers a named tool UI over tools.mcpApp", async () => {
+      const NamedTool = vi.fn(() => <span data-testid="named">named</span>);
+      const Mcp = vi.fn(() => <span data-testid="mcp">mcp</span>);
+      h.state.message.content = [
+        {
+          type: "tool-call",
+          toolName: "show_chart",
+          toolCallId: "c1",
+          mcp: { app: { resourceUri: "ui://chart" } },
+        },
+      ];
+      h.state.tools.toolUIs = { show_chart: [{ render: NamedTool }] };
+      h.state.tools.mcpApp = { render: Mcp };
+      await mount();
+      expect(container.querySelector('[data-testid="named"]')).not.toBeNull();
+      expect(Mcp).not.toHaveBeenCalled();
+    });
+
+    it("does not use tools.mcpApp when the resource URI is not ui://", async () => {
+      const Mcp = vi.fn(() => <span data-testid="mcp">mcp</span>);
+      h.state.message.content = [
+        {
+          type: "tool-call",
+          toolName: "show_chart",
+          toolCallId: "c1",
+          mcp: { app: { resourceUri: "https://example.com/chart" } },
+        },
+      ];
+      h.state.tools.mcpApp = { render: Mcp };
+      const renderToolCall = vi.fn(({ part, index }): ReactElement => (
+        <span data-testid="fallback">
+          fallback:{String(part.toolName)}:{index}
+        </span>
+      ));
+      await mount({ renderToolCall });
+      expect(
+        container.querySelector('[data-testid="fallback"]'),
+      ).not.toBeNull();
+      expect(Mcp).not.toHaveBeenCalled();
     });
 
     it("renders null when no renderer is registered and no fallback is given", async () => {

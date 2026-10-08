@@ -1,5 +1,6 @@
 import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { UnauthorizedError } from "@modelcontextprotocol/client";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
@@ -156,6 +157,7 @@ const mount = (
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
     kind?: "connector" | "custom" | undefined;
+    url?: string | undefined;
     onRemove?: (() => Promise<void>) | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
@@ -169,7 +171,7 @@ const mount = (
         id: "docs",
         kind: props?.kind ?? "connector",
         name: "Docs",
-        url: "https://example.com/mcp",
+        url: props?.url ?? "https://example.com/mcp",
         auth: props?.auth ?? { type: "none" },
         storage: props?.storage ?? createStorage(),
         redirectUri: "https://example.com/callback",
@@ -192,8 +194,86 @@ const mount = (
 const unboundAuthMessage =
   'MCP server "docs" has saved authentication for a different URL. Authenticate again to connect to https://example.com/mcp.';
 
+const getOAuthProvider = (index: number) => {
+  const provider =
+    mocks.StreamableHTTPClientTransport.mock.calls[index]?.[1]?.authProvider;
+  if (!provider) throw new Error("Expected OAuth provider");
+  return provider as {
+    redirectToAuthorization: (url: URL) => Promise<void>;
+  };
+};
+
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
+
+  it.each(["bearer", "oauth"] as const)(
+    "rejects %s authentication over remote HTTP",
+    async (type) => {
+      const root = mount({
+        auth: type === "bearer" ? { type, token: "secret" } : { type },
+        url: "http://mcp.example.com/mcp",
+      });
+
+      try {
+        await root.getValue().connect();
+        await waitForResourceUpdate(
+          () => root.getValue().getState().connectionState === "error",
+        );
+
+        expect(root.getValue().getState()).toMatchObject({
+          connectionState: "error",
+          lastError: {
+            message:
+              'Authenticated MCP server "docs" must use HTTPS or loopback HTTP.',
+          },
+        });
+        expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+      } finally {
+        root.unmount();
+      }
+    },
+  );
+
+  it.each([
+    "http://localhost:3000/mcp",
+    "http://dev.localhost:3000/mcp",
+    "http://127.0.0.1:3000/mcp",
+    "http://127.0.0.2:3000/mcp",
+    "http://[::1]:3000/mcp",
+    "http://localhost.:3000/mcp",
+    "http://dev.localhost.:3000/mcp",
+    "http://[::ffff:127.0.0.1]:3000/mcp",
+  ])("allows bearer authentication over loopback HTTP at %s", async (url) => {
+    const root = mount({
+      auth: { type: "bearer", token: "secret" },
+      url,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => mocks.transports.length > 0);
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledWith(
+        new URL(url),
+        { requestInit: { headers: { Authorization: "Bearer secret" } } },
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("allows unauthenticated MCP servers over remote HTTP", async () => {
+    const url = "http://mcp.example.com/mcp";
+    const root = mount({ auth: { type: "none" }, url, autoConnect: true });
+
+    try {
+      await waitFor(() => mocks.transports.length > 0);
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledWith(
+        new URL(url),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("does not auto-connect with authentication from another server URL", async () => {
     const storage = createStorage();
@@ -632,6 +712,92 @@ describe("McpServerResource connectionTimeout", () => {
 describe("McpServerResource connection lifecycle", () => {
   beforeEach(resetMocks);
 
+  it("publishes authorization URLs from the current connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      await getOAuthProvider(0).redirectToAuthorization(
+        new URL("https://auth.example.com/current"),
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().authorizationUrl !== null,
+      );
+
+      expect(root.getValue().getState().authorizationUrl).toBe(
+        "https://auth.example.com/current",
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it.each(["javascript:", "data:", "file:"])(
+    "rejects %s OAuth authorization URLs from the current connection",
+    async (protocol) => {
+      const root = mount({ auth: { type: "oauth" } });
+
+      try {
+        await root.getValue().connect();
+
+        await expect(
+          getOAuthProvider(0).redirectToAuthorization(
+            new URL(`${protocol}unsafe`),
+          ),
+        ).rejects.toThrow(
+          `Unsupported MCP OAuth authorization URL protocol: ${protocol}`,
+        );
+        expect(root.getValue().getState().authorizationUrl).toBeNull();
+      } finally {
+        root.unmount();
+      }
+    },
+  );
+
+  it("ignores authorization URLs after disconnect", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const provider = getOAuthProvider(0);
+      await root.getValue().disconnect();
+
+      await provider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores authorization URLs from a superseded connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const staleProvider = getOAuthProvider(0);
+      await root.getValue().connect();
+
+      await staleProvider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("replaces direct resource connections when the server id changes", async () => {
     const storage = createStorage();
     let updateId = (_id: string) => {};
@@ -746,6 +912,44 @@ describe("McpServerResource connection lifecycle", () => {
 
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
+
+  it("transfers authorization URL ownership when reusing the auth transport", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
+    mocks.connectResults.push(() =>
+      Promise.reject(new UnauthorizedError("authorization required")),
+    );
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "authRequired",
+      );
+      const provider = getOAuthProvider(0);
+
+      await root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await provider.redirectToAuthorization(
+        new URL("https://auth.example.com/reauthorize"),
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().authorizationUrl !== null,
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        authorizationUrl: "https://auth.example.com/reauthorize",
+      });
+      expect(mocks.transports).toHaveLength(1);
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("lets callback validation win over mount-time auto-connect", async () => {
     const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =

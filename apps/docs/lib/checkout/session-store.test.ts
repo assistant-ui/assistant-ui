@@ -48,6 +48,34 @@ describe("checkout session store", () => {
     }
   });
 
+  it("permits a login round trip only when both the session and agent link can be restored", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    const session = store.startCheckout(["cloud"])!;
+    const url = store.agentLinkUrl();
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(true);
+    expect(store.canRestoreCheckoutSession("another", url)).toBe(false);
+    values.delete("aui-agent-link");
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+    values.set("aui-agent-link", "another");
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+    values.delete(storageKey);
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+  });
+
+  it("refuses a login round trip when browser local storage is blocked", async () => {
+    setupStorage();
+    const store = await loadStore();
+    const session = store.startCheckout(["cloud"])!;
+    const url = store.agentLinkUrl();
+    vi.stubGlobal("window", {
+      get localStorage() {
+        throw new Error("blocked");
+      },
+    });
+    expect(store.canRestoreCheckoutSession(session.id, url)).toBe(false);
+  });
+
   it("starts one session for the given products and keeps it until ended", async () => {
     const values = setupStorage();
     const store = await loadStore();
@@ -60,6 +88,20 @@ describe("checkout session store", () => {
     store.endCheckout();
     expect(store.getCheckoutSession()).toBeNull();
     expect(values.has(storageKey)).toBe(false);
+  });
+
+  it("remembers that the intro was read across a reload", async () => {
+    setupStorage();
+    let store = await loadStore();
+    store.startCheckout(["assistant-ui"]);
+    expect(store.getCheckoutSession()?.introSeen).toBeUndefined();
+    store.acknowledgeSetupIntro();
+    expect(store.getCheckoutSession()?.introSeen).toBe(true);
+    const values = (globalThis as { window?: unknown }).window;
+    vi.resetModules();
+    vi.stubGlobal("window", values);
+    store = await import("./session-store");
+    expect(store.getCheckoutSession()?.introSeen).toBe(true);
   });
 
   it("restores a stored session and drops a malformed one", async () => {
@@ -83,6 +125,25 @@ describe("checkout session store", () => {
     setupStorage();
     const store = await loadStore();
     expect(store.checkoutUrl("a b")).toBe("https://checkout.test/a%20b");
+  });
+
+  it("keeps one agent link across setups and reloads", async () => {
+    const values = setupStorage();
+    let store = await loadStore();
+    const link = store.getAgentLinkId();
+    expect(link).toMatch(/^[A-Za-z0-9]{12}$/);
+    expect(values.get("aui-agent-link")).toBe(link);
+    expect(store.agentLinkUrl()).toBe(`https://checkout.test/${link}`);
+    store.startCheckout(["assistant-ui"]);
+    expect(store.getCheckoutSession()?.id).not.toBe(link);
+    store.endCheckout();
+    expect(store.getAgentLinkId()).toBe(link);
+    expect(values.get("aui-agent-link")).toBe(link);
+    const window = (globalThis as { window?: unknown }).window;
+    vi.resetModules();
+    vi.stubGlobal("window", window);
+    store = await import("./session-store");
+    expect(store.getAgentLinkId()).toBe(link);
   });
 
   it("picks up a session another tab wrote before the first subscription", async () => {

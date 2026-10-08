@@ -1,27 +1,57 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  invalidateThreadRuntime,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
+import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import { useIsRemoteThreadRuntimeHosted } from "./RemoteThreadRuntimeHostContext";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
 ): AssistantRuntime => {
-  const { modelContext, feedback } = useRuntimeAdapters() ?? {};
+  const { modelContext, feedback, history } = useRuntimeAdapters() ?? {};
+  const [historyCopy] = useState(() => new ExternalStoreHistoryCopy());
+  const copiesHistory =
+    !!history?.unstable_copy &&
+    !store.unstable_persistsHistory &&
+    !store.adapters?.threadList;
   const adaptedStore = useMemo(() => {
-    if (!feedback || store.adapters?.feedback) return store;
+    const withFeedback =
+      feedback && !store.adapters?.feedback
+        ? { ...store, adapters: { ...store.adapters, feedback } }
+        : store;
+    if (!copiesHistory || store.unstable_onRecordToolInteraction) {
+      return withFeedback;
+    }
     return {
-      ...store,
-      adapters: { ...store.adapters, feedback },
+      ...withFeedback,
+      unstable_onRecordToolInteraction: historyCopy.recordInteraction,
     };
-  }, [feedback, store]);
+  }, [copiesHistory, feedback, historyCopy, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
+  const isHosted = useIsRemoteThreadRuntimeHosted();
+  const [lifetime] = useState(() => ({ generation: 0 }));
 
-  useEffect(() => {
+  useInsertionEffect(() => {
+    if (isHosted) return;
+    const generation = ++lifetime.generation;
+    return () =>
+      queueMicrotask(() => {
+        if (lifetime.generation === generation) {
+          disposeThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
+        }
+      });
+  }, [isHosted, lifetime, runtime]);
+
+  useReplaySafeEffect(() => {
     return () => {
       invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
@@ -31,10 +61,19 @@ export const useExternalStoreRuntime = <T>(
     runtime.setAdapter(adaptedStore);
   });
 
+  useReplaySafeEffect(() => {
+    if (!copiesHistory || !history) return;
+    return historyCopy.attach(
+      runtime.threads.getMainThreadRuntimeCore(),
+      history,
+    );
+  }, [copiesHistory, history, historyCopy, runtime]);
+
   useEffect(() => {
     if (!modelContext) return undefined;
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };

@@ -1,6 +1,6 @@
 import "server-only";
 
-const needsRuntime = `This guide assumes assistant-ui is already installed and an AssistantRuntimeProvider renders a thread. If it is not, stop and tell the user to set up assistant-ui first; do not scaffold a runtime as a side effect.`;
+const needsRuntime = `This guide assumes assistant-ui is already installed and an AssistantRuntimeProvider renders a thread. If it is not, do not scaffold it as a side effect. In a setup session, add it (\`ask "<why>" --product assistant-ui --wait\`; the browser accepts the product and answers at once) and install it first; outside one, stop and tell the user to set up assistant-ui first.`;
 
 const needsAiSdkRoute = `This guide changes the server route that calls the AI SDK (usually app/api/chat/route.ts). Find it first. If the backend is not an AI SDK route handler (LangGraph, Mastra server, custom API), stop and tell the user this guide covers the AI SDK path only.`;
 
@@ -82,11 +82,11 @@ Verify: open a new thread, confirm the prompts show on the empty state, click on
   ],
   [
     "guides/mentions",
-    `${needsRuntime} The mention APIs are prefixed \`unstable_\`; tell the user.
+    `${needsRuntime} The trigger popover primitives and types are stable. The \`unstable_useMentionAdapter\`, \`unstable_useLiveCompletionAdapter\`, and trigger popover context helper hooks remain unstable; tell the user.
 
 1. ${registryStep}
 2. Run \`npx shadcn@latest add @assistant-ui/composer-trigger-popover @assistant-ui/directive-text --yes\`.
-3. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.Unstable_TriggerPopoverRoot\`. If a slash-command trigger already added that wrapper, reuse it.
+3. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.TriggerPopoverRoot\`. If a slash-command trigger already added that wrapper, reuse it.
 4. Inside the composer root, render a trigger: \`const mention = unstable_useMentionAdapter(); return <ComposerTriggerPopover char="@" {...mention} />;\`. With no options it lists the tools registered in model context. If the user wants to mention users, documents, or other items, pass \`items\` or \`categories\` as "Built-in Mention Adapter" on the docs page above shows; for a server search use \`unstable_useLiveCompletionAdapter\`. Use the project's real data source and ask the user when none is obvious.
 5. Render sent mentions as chips: follow /elements/directive-text to register \`DirectiveText\` as the \`Text\` component for user messages.
 6. The backend receives \`:type[label]{name=id}\` text. If the user wants the server to act on mentions, add \`parseMentions\` from "Processing Mentions on the Backend" to the chat route.
@@ -95,16 +95,16 @@ Verify: type @ in the composer, confirm the popover lists items, pick one with E
   ],
   [
     "guides/slash-commands",
-    `${needsRuntime} The slash-command APIs are prefixed \`unstable_\`; tell the user.
+    `${needsRuntime} The trigger popover primitives and types are stable. The \`unstable_useSlashCommandAdapter\` and trigger popover context helper hooks remain unstable; tell the user.
 
 1. Ask the user which commands they want and what each should do, if they have not said. Do not ship the docs' \`console.log\` placeholders as the final commands.
 2. ${registryStep}
 3. Run \`npx shadcn@latest add @assistant-ui/composer-trigger-popover --yes\`.
-4. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.Unstable_TriggerPopoverRoot\`. If a mention trigger already added that wrapper, reuse it.
+4. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.TriggerPopoverRoot\`. If a mention trigger already added that wrapper, reuse it.
 5. Define \`const SLASH_COMMANDS: readonly Unstable_SlashCommand[]\` at module scope with \`id\`, \`description\`, optional \`icon\`, and \`execute\`. Inside the composer root, render \`const slash = unstable_useSlashCommandAdapter({ commands: SLASH_COMMANDS }); return <ComposerTriggerPopover char="/" {...slash} />;\`. Both names come from @assistant-ui/react.
 6. Pass \`removeOnExecute: true\` for commands that act immediately and should not leave a chip in the message. Pass \`iconMap\` and \`fallbackIcon\` with lucide-react icons if commands set \`icon\`.
 
-Verify: type / in the composer, confirm the popover lists the commands, pick one with Enter, and confirm its \`execute\` effect happens. If nothing opens, the composer is not inside \`Unstable_TriggerPopoverRoot\`.`,
+Verify: type / in the composer, confirm the popover lists the commands, pick one with Enter, and confirm its \`execute\` effect happens. If nothing opens, the composer is not inside \`TriggerPopoverRoot\`.`,
   ],
   [
     "guides/chain-of-thought",
@@ -153,17 +153,6 @@ Verify: start the dev server, open the chat page, and confirm the DevTools launc
 6. Restart the dev server so instrumentation.ts and the new environment variables load.
 
 Verify: send a message and confirm a trace named after \`traceName\` appears in the Langfuse project within seconds, with a span per LLM call. Nothing appearing usually means the keys are not loaded in the server runtime or the region URL is wrong.`,
-  ],
-  [
-    "guides/helicone",
-    `This guide changes the server code that creates the LLM provider client. Find it first (usually app/api/chat/route.ts). It assumes the provider is OpenAI through the AI SDK or the OpenAI SDK; for Anthropic, Gemini, or others, the base URL differs, so follow Helicone's provider docs linked under "Notes" on the docs page above and tell the user.
-
-1. Ask the user for their Helicone API key and write HELICONE_API_KEY=<key> to .env.local next to the existing provider key. Never invent one, and never expose it to client code.
-2. AI SDK: replace the \`openai\` import with \`const openai = createOpenAI({ baseURL: "https://oai.helicone.ai/v1", headers: { "Helicone-Auth": \`Bearer \${process.env.HELICONE_API_KEY}\` } })\` from @ai-sdk/openai, and leave the \`streamText\` call unchanged. OpenAI SDK: set the same \`baseURL\` and put the header in \`defaultHeaders\`.
-3. If several routes create provider clients (chat, titles, suggestions), move the proxied client into one shared module and import it everywhere, so no call bypasses the proxy.
-4. Restart the dev server so the new environment variable loads.
-
-Verify: send a message and confirm the request appears in the Helicone dashboard within seconds with token counts and latency. If nothing appears, the server is still calling api.openai.com, or HELICONE_API_KEY is not loaded.`,
   ],
   [
     "guides/langsmith",

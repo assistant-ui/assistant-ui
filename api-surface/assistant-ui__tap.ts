@@ -23,11 +23,17 @@ declare namespace entry_root_exports {
   export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useMemoCache, useResource, useResources, useTapHost, useTapRoot, withKey };
 }
 
+declare namespace entry_internal_exports {
+  export { useRefreshScope };
+}
+
 declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
 
 declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
 
 declare const useMemoCache: (size: number) => unknown[];
+
+declare function useRefreshScope<T>(token: unknown, fn: () => T): T;
 
 declare function useResource<E extends ResourceElement<any>>(element: E): ExtractResourceReturnType<E>;
 
@@ -56,4 +62,4 @@ declare function withKey<E extends ResourceElement<any>>(key: string | number, e
 
 declare function withKey<F extends Resource<any, any[]>>(key: string | number, resource: F): F;
 
-export { entry_root_exports as entry_root };
+export { entry_internal_exports as entry_internal, entry_root_exports as entry_root };

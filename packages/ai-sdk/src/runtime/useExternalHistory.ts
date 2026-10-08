@@ -8,6 +8,8 @@ import type {
   MessageFormatItem,
   MessageFormatRepository,
   ExportedMessageRepository,
+  RespondToToolApprovalOptions,
+  Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
@@ -20,6 +22,14 @@ import {
   useCallback,
   useMemo,
 } from "react";
+import {
+  addToolData,
+  collectToolApprovalResponses,
+  collectToolArtifacts,
+  collectToolInteractions,
+  restoreToolData,
+  type StoredToolApprovalResponse,
+} from "./toolHistoryCodec";
 
 export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
@@ -46,9 +56,20 @@ export const toExportedMessageRepository = <TMessage>(
   };
 };
 
+const hasUnansweredApproval = (message: ThreadMessage) =>
+  message.content.some(
+    (part) =>
+      part.type === "tool-call" &&
+      part.approval != null &&
+      part.approval.approved === undefined &&
+      part.approval.resolution === undefined,
+  );
+
+// Core reports a run paused on an unanswered approval as an interrupt, not as tool calls.
 const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
-  message.status.reason === "tool-calls";
+  (message.status.reason === "tool-calls" ||
+    (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
 
 const isTerminalMessage = (message: ThreadMessage) =>
   message.status === undefined ||
@@ -66,6 +87,12 @@ export const useExternalHistory = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
+  toolArtifacts?: Map<string, unknown>,
+  onToolArtifactsRestored?: () => void,
+  toolInteractions?: Map<string, Unstable_ToolInteractionLog>,
+  onToolInteractionsRestored?: () => void,
+  toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>,
+  onToolApprovalResponsesRestored?: () => void,
 ) => {
   const loadedRef = useRef(false);
   const [itemEpoch, setItemEpoch] = useState(0);
@@ -108,17 +135,37 @@ export const useExternalHistory = <TMessage>(
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
-        if (repo && repo.messages.length > 0) {
-          for (const m of repo.messages) {
+        toolArtifacts?.clear();
+        toolInteractions?.clear();
+        toolApprovalResponses?.clear();
+        const restoredMessages =
+          repo?.messages.map((item) => ({
+            ...item,
+            message: restoreToolData(
+              item.message,
+              toolArtifacts,
+              toolInteractions,
+              toolApprovalResponses,
+            ),
+          })) ?? [];
+        onToolArtifactsRestored?.();
+        onToolInteractionsRestored?.();
+        onToolApprovalResponsesRestored?.();
+        if (repo && restoredMessages.length > 0) {
+          const restoredRepo = { ...repo, messages: restoredMessages };
+          for (const [index, m] of repo.messages.entries()) {
             persistedInnerMessages.current.set(
               storageFormatAdapter.getId(m.message),
               {
-                source: m.message,
+                source: restoredMessages[index]!.message,
                 content: encodeContent(storageFormatAdapter, m),
               },
             );
           }
-          const converted = toExportedMessageRepository(toThreadMessages, repo);
+          const converted = toExportedMessageRepository(
+            toThreadMessages,
+            restoredRepo,
+          );
           runtimeRef.current.thread.import(converted);
 
           const tempRepo = new MessageRepository();
@@ -148,8 +195,6 @@ export const useExternalHistory = <TMessage>(
 
     const remoteId = optionalThreadListItem()?.getState().remoteId;
     if (!remoteId) {
-      // History loads asynchronously against the thread list item; without a
-      // remote id there is nothing to await, so the flag settles here.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLoaded(true);
       return aui.subscribe(() => {
@@ -167,6 +212,7 @@ export const useExternalHistory = <TMessage>(
     }
 
     loadedRef.current = true;
+    setHasLoaded(false);
     void loadHistory();
     return undefined;
   }, [
@@ -177,6 +223,12 @@ export const useExternalHistory = <TMessage>(
     aui,
     itemEpoch,
     storageFormatAdapter,
+    toolArtifacts,
+    onToolArtifactsRestored,
+    toolInteractions,
+    onToolInteractionsRestored,
+    toolApprovalResponses,
+    onToolApprovalResponsesRestored,
   ]);
 
   const runStartRef = useRef<number | null>(null);
@@ -185,6 +237,84 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
+
+  const persistToolInteractions = useCallback(
+    (messageId: string) => {
+      const persistence = persistInFlightRef.current.then(async () => {
+        if (!formatAdapter?.update) return;
+        const messages = runtimeRef.current.thread.getState().messages;
+        const message = messages.find(
+          (item) =>
+            item.id === messageId ||
+            getExternalStoreMessages<TMessage>(item).some(
+              (innerMessage) =>
+                storageFormatAdapter.getId(innerMessage) === messageId,
+            ),
+        );
+        if (!message) return;
+
+        const previousMessages = messages
+          .slice(0, messages.indexOf(message))
+          .flatMap(getExternalStoreMessages<TMessage>);
+        let parentId = previousMessages.at(-1)
+          ? storageFormatAdapter.getId(previousMessages.at(-1)!)
+          : null;
+        const storedToolArtifacts = collectToolArtifacts(
+          message,
+          toolArtifacts,
+        );
+        const storedToolInteractions = collectToolInteractions(
+          message,
+          toolInteractions,
+        );
+        const storedToolApprovalResponses = collectToolApprovalResponses(
+          message,
+          toolApprovalResponses,
+        );
+
+        for (const innerMessage of getExternalStoreMessages<TMessage>(
+          message,
+        )) {
+          const item = {
+            parentId,
+            message: addToolData(
+              innerMessage,
+              storedToolArtifacts,
+              storedToolInteractions,
+              storedToolApprovalResponses,
+            ),
+          };
+          const innerId = storageFormatAdapter.getId(item.message);
+          const persisted = persistedInnerMessages.current.get(innerId);
+          if (persisted) {
+            const content = encodeContent(storageFormatAdapter, item);
+            if (content === persisted.content) {
+              persisted.source = item.message;
+            } else {
+              await formatAdapter.update(item, innerId);
+              persistedInnerMessages.current.set(innerId, {
+                source: item.message,
+                content,
+              });
+            }
+          }
+          parentId = innerId;
+        }
+      });
+      persistInFlightRef.current = persistence.catch(() => {});
+      return persistence.catch((error) => {
+        console.error("Failed to persist tool data:", error);
+      });
+    },
+    [
+      formatAdapter,
+      runtimeRef,
+      storageFormatAdapter,
+      toolArtifacts,
+      toolInteractions,
+      toolApprovalResponses,
+    ],
+  );
 
   useEffect(() => {
     if (!formatAdapter) return;
@@ -318,13 +448,27 @@ export const useExternalHistory = <TMessage>(
           const getLastInnerId = (msgs: TMessage[]): string | null =>
             msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
 
-          const toBatchItems = (msgs: TMessage[]) =>
+          const toBatchItems = (
+            msgs: TMessage[],
+            toolArtifacts: Record<string, unknown> | undefined,
+            toolInteractions:
+              | Record<string, Unstable_ToolInteractionLog>
+              | undefined,
+            toolApprovalResponses:
+              | Record<string, StoredToolApprovalResponse>
+              | undefined,
+          ) =>
             msgs.map((msg, idx) => ({
               parentId:
                 idx === 0
                   ? lastInnerMessageId
                   : storageFormatAdapter.getId(msgs[idx - 1]!),
-              message: msg,
+              message: addToolData(
+                msg,
+                toolArtifacts,
+                toolInteractions,
+                toolApprovalResponses,
+              ),
             }));
 
           for (const message of messages) {
@@ -348,7 +492,12 @@ export const useExternalHistory = <TMessage>(
               deferredTelemetryIds.current.add(message.id);
             }
 
-            const batchItems = toBatchItems(innerMessages);
+            const batchItems = toBatchItems(
+              innerMessages,
+              collectToolArtifacts(message, toolArtifacts),
+              collectToolInteractions(message, toolInteractions),
+              collectToolApprovalResponses(message, toolApprovalResponses),
+            );
             for (const item of batchItems) {
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);
@@ -385,10 +534,16 @@ export const useExternalHistory = <TMessage>(
 
             if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
               deferredTelemetryIds.current.delete(message.id);
-              adapter.reportTelemetry?.(batchItems, {
-                ...telemetryOptions,
-                message,
-              });
+              adapter.reportTelemetry?.(
+                batchItems.map((item, index) => ({
+                  ...item,
+                  message: innerMessages[index]!,
+                })),
+                {
+                  ...telemetryOptions,
+                  message,
+                },
+              );
             }
           }
         })
@@ -405,7 +560,14 @@ export const useExternalHistory = <TMessage>(
         persistSettled(false);
       }
     };
-  }, [formatAdapter, storageFormatAdapter, runtimeRef]);
+  }, [
+    formatAdapter,
+    storageFormatAdapter,
+    runtimeRef,
+    toolArtifacts,
+    toolInteractions,
+    toolApprovalResponses,
+  ]);
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
@@ -448,5 +610,10 @@ export const useExternalHistory = <TMessage>(
     [formatAdapter, runtimeRef, storageFormatAdapter],
   );
 
-  return { isLoading, deleteMessage };
+  return {
+    isLoading,
+    deleteMessage,
+    persistToolInteractions,
+    persistToolApprovalResponses: persistToolInteractions,
+  };
 };

@@ -13,11 +13,100 @@ import type {
   CodeHeaderProps,
 } from "../types";
 
+const remendSpy = vi.hoisted(() => ({
+  tailBoundedRemend: vi.fn<typeof import("../remend").tailBoundedRemend>(),
+}));
+
+vi.mock("../remend", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../remend")>();
+  remendSpy.tailBoundedRemend.mockImplementation(original.tailBoundedRemend);
+  return { ...original, tailBoundedRemend: remendSpy.tailBoundedRemend };
+});
+
+const smoothStatus = vi.hoisted(() => ({
+  value: undefined as { type: "incomplete"; reason: "cancelled" } | undefined,
+}));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@assistant-ui/react")>();
+  return {
+    ...original,
+    useSmooth: (...args: Parameters<typeof original.useSmooth>) => {
+      const result = original.useSmooth(...args);
+      return smoothStatus.value
+        ? { ...result, status: smoothStatus.value }
+        : result;
+    },
+  };
+});
+
 Element.prototype.scrollTo ??= function scrollTo() {};
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  smoothStatus.value = undefined;
+});
 
 describe("StreamdownTextPrimitive", () => {
+  it("stops repairing the markdown tail when a message finishes", () => {
+    const text = "The shell PID is $$.\n\nKill it with kill $$.";
+    const { container, rerender } = render(
+      <TextMessagePartProvider text={text} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+    expect(container.querySelectorAll("p")[1]?.textContent).toBe(
+      "Kill it with kill $$.$$",
+    );
+
+    rerender(
+      <TextMessagePartProvider text={text} isRunning={false}>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(container.querySelectorAll("p")).toHaveLength(2);
+    expect(container.querySelectorAll("p")[0]?.textContent).toBe(
+      "The shell PID is $$.",
+    );
+    expect(container.querySelectorAll("p")[1]?.textContent).toBe(
+      "Kill it with kill $$.",
+    );
+  });
+
+  it("does not remend a completed message with an unmatched math delimiter", () => {
+    const text = "Price: $$$ tier **b";
+    const { container, rerender } = render(
+      <TextMessagePartProvider text={text} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    rerender(
+      <TextMessagePartProvider text={text} isRunning={false}>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(container.textContent).toBe(text);
+  });
+
+  it("keeps repairing the tail of an interrupted message", () => {
+    smoothStatus.value = { type: "incomplete", reason: "cancelled" };
+
+    const { container } = render(
+      <TextMessagePartProvider text="Hello **b">
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+    expect(
+      container.querySelector("[data-status]")?.getAttribute("data-status"),
+    ).toBe("incomplete");
+    expect(
+      container.querySelector('[data-streamdown="strong"]')?.textContent,
+    ).toBe("b");
+  });
+
   it("renders without a SmoothContextProvider", () => {
     expect(() =>
       render(
@@ -519,6 +608,25 @@ describe("StreamdownTextPrimitive", () => {
       );
 
       expect(screen.getByTestId("user-pre")).toBe(first);
+    });
+
+    it("keeps the memoized body when remend is a fresh inline object", () => {
+      smoothStatus.value = { type: "incomplete", reason: "cancelled" };
+      const view = () => (
+        <TextMessagePartProvider text="**bold" isRunning={false}>
+          <StreamdownTextPrimitive
+            defer={false}
+            remend={{ linkMode: "text-only" }}
+          />
+        </TextMessagePartProvider>
+      );
+      const { rerender } = render(view());
+      const calls = remendSpy.tailBoundedRemend.mock.calls.length;
+      expect(calls).toBeGreaterThan(0);
+
+      rerender(view());
+
+      expect(remendSpy.tailBoundedRemend).toHaveBeenCalledTimes(calls);
     });
 
     it("keeps a fenced block mounted while the text grows", () => {

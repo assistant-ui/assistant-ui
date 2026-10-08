@@ -16,8 +16,69 @@ export const captureThreadRuntimeGeneration = (
   return generation.signal;
 };
 
+const disposals = new WeakMap<ThreadRuntimeCore, AbortController>();
+
+const disposalOf = (runtime: ThreadRuntimeCore) => {
+  let disposal = disposals.get(runtime);
+  if (!disposal) {
+    disposal = new AbortController();
+    disposals.set(runtime, disposal);
+  }
+  return disposal;
+};
+
+/** Aborts only when the runtime is disposed for good, never on invalidation. */
+export const captureThreadRuntimeDisposal = (
+  runtime: ThreadRuntimeCore,
+): AbortSignal => disposalOf(runtime).signal;
+
 export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime);
+  if (generation?.signal.aborted) return;
   generations.delete(runtime);
   generation?.abort();
+};
+
+const endMediaSession = (end: () => void, what: string) => {
+  try {
+    end();
+  } catch (error) {
+    console.error(
+      `[assistant-ui] ${what} cleanup threw while discarding a thread runtime`,
+      error,
+    );
+  }
+};
+
+// Nothing reaches a discarded runtime's controls, so its microphone and
+// playback end with it.
+const endMediaSessions = (runtime: ThreadRuntimeCore) => {
+  if (runtime.voice) endMediaSession(() => runtime.disconnectVoice(), "Voice");
+  if (runtime.composer.dictation)
+    endMediaSession(() => runtime.composer.stopDictation(), "Dictation");
+  const edits =
+    runtime.__internal_getEditComposers?.() ??
+    runtime.messages.map((message) => runtime.getEditComposer(message.id));
+  for (const edit of edits) {
+    if (edit?.dictation)
+      endMediaSession(() => edit.stopDictation(), "Dictation");
+  }
+  if (runtime.speech) endMediaSession(() => runtime.stopSpeaking(), "Speech");
+};
+
+// A successor keeps the same thread: the call ends as if hung up, in-flight work
+// (a commit waiting on a load included) is fenced, and later sends still land.
+export const supersedeThreadRuntime = (runtime: ThreadRuntimeCore) => {
+  endMediaSessions(runtime);
+  invalidateThreadRuntime(runtime);
+};
+
+// Disposal is that permanent mark, so only an owner that drops the runtime for
+// good may call it; tap runs every effect cleanup on a soft unmount as well.
+export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
+  const generation = generations.get(runtime) ?? new AbortController();
+  generations.set(runtime, generation);
+  generation.abort();
+  disposalOf(runtime).abort();
+  endMediaSessions(runtime);
 };

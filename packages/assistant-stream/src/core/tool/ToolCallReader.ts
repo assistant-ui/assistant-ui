@@ -1,8 +1,6 @@
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
-import {
-  parsePartialJsonObject,
-  getPartialJsonObjectFieldState,
-} from "../../utils/json/parse-partial-json-object";
+import { getPartialJsonObjectFieldState } from "../../utils/json/parse-partial-json-object";
+import { IncrementalJsonObjectParser } from "../../utils/json/incremental-json-object-parser";
 import type {
   ToolCallArgsReader,
   ToolCallReader,
@@ -16,7 +14,6 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils";
-
 // TODO: remove dispose
 
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
@@ -38,6 +35,7 @@ interface Handle {
   readonly isDisposed: boolean;
   update(args: unknown): void;
   end(args: unknown): void;
+  error(reason: unknown): void;
   dispose(): void;
 }
 
@@ -97,6 +95,13 @@ class GetHandle<T, TValue> implements Handle {
     }
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+
+    this.reject(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -148,6 +153,12 @@ class StreamValuesHandle<T> implements Handle {
   end(): void {
     if (this.disposed) return;
     this.controller.close();
+    this.dispose();
+  }
+
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
     this.dispose();
   }
 
@@ -205,6 +216,12 @@ class StreamTextHandle<T> implements Handle {
   end(): void {
     if (this.disposed) return;
     this.controller.close();
+    this.dispose();
+  }
+
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
     this.dispose();
   }
 
@@ -276,6 +293,12 @@ class ForEachHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -288,9 +311,10 @@ export class ToolCallArgsReaderImpl<
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
   private accumulatedText = "";
-  private parsedTextLength = -1;
+  private parser: IncrementalJsonObjectParser | undefined;
   private args: unknown = undefined;
   private finished = false;
+  private failure: { reason: unknown } | undefined = undefined;
 
   constructor(argTextDeltas: ReadableStream<string>) {
     this.argTextDeltas = argTextDeltas;
@@ -308,31 +332,53 @@ export class ToolCallArgsReaderImpl<
         this.accumulatedText += value;
         if (this.handles.size === 0) continue;
 
-        if (this.parseCurrentArgs()) this.updateHandles();
+        if (this.parseCurrentArgs(value)) this.updateHandles();
       }
     } catch (error) {
-      console.error("Error processing argument stream:", error);
+      this.failure = { reason: error };
     } finally {
       this.finished = true;
       for (const handle of this.handles) {
-        handle.end(this.args);
+        this.settleHandle(handle);
       }
       this.handles.clear();
     }
   }
 
-  private parseCurrentArgs(): boolean {
-    if (this.parsedTextLength === this.accumulatedText.length) return false;
+  private settleHandle(handle: Handle): void {
+    if (this.failure) {
+      handle.error(this.failure.reason);
+    } else {
+      handle.end(this.args);
+    }
+  }
 
-    const parsedArgs = parsePartialJsonObject(this.accumulatedText);
-    this.parsedTextLength = this.accumulatedText.length;
-    if (parsedArgs === undefined) {
-      this.args ??= parsePartialJsonObject("");
+  private parseCurrentArgs(delta?: string): boolean {
+    if (this.parser?.currentTextLength === this.accumulatedText.length) {
       return false;
     }
 
-    this.args = parsedArgs;
-    return true;
+    const previousArgs = this.args;
+    if (!this.parser) {
+      this.parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText,
+        this.args as ReadonlyJSONObject | undefined,
+      );
+    } else if (
+      delta !== undefined &&
+      this.parser.currentTextLength + delta.length ===
+        this.accumulatedText.length
+    ) {
+      this.parser = this.parser.append(delta);
+    } else {
+      this.parser = IncrementalJsonObjectParser.from(
+        this.accumulatedText,
+        this.args as ReadonlyJSONObject | undefined,
+      );
+    }
+
+    this.args = this.parser.currentArgs;
+    return this.args !== previousArgs;
   }
 
   private updateHandles(): void {
@@ -348,7 +394,7 @@ export class ToolCallArgsReaderImpl<
     if (handle.isDisposed) return;
 
     if (this.finished) {
-      handle.end(this.args);
+      this.settleHandle(handle);
       return;
     }
 

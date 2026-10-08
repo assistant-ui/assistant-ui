@@ -5,7 +5,12 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $createParagraphNode, $getRoot, type LexicalEditor } from "lexical";
+import {
+  $createParagraphNode,
+  $getRoot,
+  KEY_ENTER_COMMAND,
+  type LexicalEditor,
+} from "lexical";
 import { LexicalComposerInput } from "./LexicalComposerInput";
 import {
   $createDirectiveNode,
@@ -32,6 +37,8 @@ const composerState = {
 const threadState = {
   isDisabled: false,
   isRunning: false,
+  capabilities: { queue: false },
+  voice: undefined as undefined | { status: { type: "running" } },
 };
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -100,6 +107,8 @@ describe("LexicalComposerInput", () => {
     composerState.dictation = undefined;
     threadState.isDisabled = false;
     threadState.isRunning = false;
+    threadState.capabilities.queue = false;
+    threadState.voice = undefined;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -228,5 +237,113 @@ describe("LexicalComposerInput", () => {
 
     expect(pluginHandleKeyDown).toHaveBeenCalledOnce();
     expect(pluginHandleKeyDown.mock.calls[0]![0].key).toBe("Tab");
+  });
+
+  it("ignores Safari's post-compositionend Enter before plugin delegation", async () => {
+    pluginHandleKeyDown.mockReturnValue(true);
+    await act(async () => {
+      root.render(<LexicalComposerInput />);
+    });
+
+    const input = container.querySelector<HTMLElement>(".aui-lexical-input")!;
+    input.dispatchEvent(
+      new CompositionEvent("compositionstart", { bubbles: true }),
+    );
+    input.dispatchEvent(
+      new InputEvent("input", {
+        data: "日本語",
+        inputType: "insertFromComposition",
+        isComposing: true,
+        bubbles: true,
+      }),
+    );
+    input.dispatchEvent(
+      new CompositionEvent("compositionend", {
+        data: "日本語",
+        bubbles: true,
+      }),
+    );
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      input.dispatchEvent(event);
+    });
+
+    expect(pluginHandleKeyDown).not.toHaveBeenCalled();
+    expect(sendSpy).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+
+    pluginHandleKeyDown.mockReturnValue(false);
+    const plainEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 13,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      input.dispatchEvent(plainEnter);
+    });
+
+    expect(pluginHandleKeyDown).toHaveBeenCalledOnce();
+    expect(sendSpy).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {
+      name: "submits on Enter during a run when queueing is supported",
+      queue: true,
+      voice: false,
+      prevented: true,
+      sends: 1,
+    },
+    {
+      name: "does not submit on Enter during a run without queue support",
+      queue: false,
+      voice: false,
+      prevented: false,
+      sends: 0,
+    },
+    {
+      name: "submits on Enter during a voice run without queue support",
+      queue: false,
+      voice: true,
+      prevented: true,
+      sends: 1,
+    },
+  ])("$name", async ({ queue, voice, prevented, sends }) => {
+    let editor: LexicalEditor | null = null;
+    function ProbePlugin() {
+      [editor] = useLexicalComposerContext();
+      return null;
+    }
+
+    threadState.isRunning = true;
+    threadState.capabilities.queue = queue;
+    threadState.voice = voice ? { status: { type: "running" } } : undefined;
+    await act(async () => {
+      root.render(
+        <LexicalComposerInput>
+          <ProbePlugin />
+        </LexicalComposerInput>,
+      );
+    });
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      editor!.dispatchCommand(KEY_ENTER_COMMAND, event);
+    });
+
+    expect(event.defaultPrevented).toBe(prevented);
+    expect(sendSpy).toHaveBeenCalledTimes(sends);
   });
 });

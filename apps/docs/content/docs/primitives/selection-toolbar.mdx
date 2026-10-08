@@ -6,7 +6,7 @@ platforms: ["react"]
 
 import { SelectionToolbarPrimitiveSample } from "@/components/pages/docs/samples/selection-toolbar-primitive";
 
-The SelectionToolbar primitive is a floating toolbar that appears when the user selects text within a message. It lets users quote selected text into the composer. Styling and action layout are fully customizable.
+The SelectionToolbar primitive is a floating toolbar that appears when the user selects text within a message. It lets users quote selected text into the composer.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -55,7 +55,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Automatic Positioning
 
-`Root` renders via a portal to `document.body`. In the current implementation, it positions itself with `position: fixed`, `top: rect.top - 8px`, `left: rect.left + rect.width / 2`, `transform: translate(-50%, -100%)` (placing it centered above the selection), and `z-index: 50`.
+`Root` renders via a portal to `document.body`. It positions itself with `position: fixed`, `top: rect.top - 8px`, `left: rect.left + rect.width / 2`, `transform: translate(-50%, -100%)` (placing it centered above the selection), and `z-index: 50`.
 
 ### Single-Message Validation
 
@@ -111,7 +111,7 @@ Clicking the toolbar itself does not dismiss the selection. `Root` calls `preven
 
 ### Placement in Thread
 
-The SelectionToolbar must be placed inside `ThreadPrimitive.Root` but **outside** `ThreadPrimitive.Viewport`. It positions itself via a portal based on the browser selection, independent of the scroll container:
+Place the SelectionToolbar inside `ThreadPrimitive.Root`, which limits it to selections made in that thread. It renders through a portal and positions itself from the browser selection, independent of the scroll container, so it does not need to sit inside `ThreadPrimitive.Viewport`:
 
 ```tsx
 <ThreadPrimitive.Root>
@@ -182,7 +182,7 @@ You can add custom buttons alongside `Quote` for additional actions:
 
 ## Relationship to Components
 
-There is no pre-built shadcn component for SelectionToolbar. See the [Quoting guide](/docs/guides/quoting) for the full workflow including composer quote display and dismiss.
+The [Quote](/elements/quote) element ships a styled `SelectionToolbar` built on this primitive, along with the composer quote preview. See the [Quoting guide](/docs/guides/quoting) for the full workflow, including composer quote display and dismiss.
 
 ## API Reference
 

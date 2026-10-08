@@ -1,4 +1,5 @@
 import type { ToolModelContentPart } from "assistant-stream";
+import type { AssistantCloud } from "assistant-cloud";
 import type { ThreadMessage } from "../../../types/message";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
@@ -25,6 +26,7 @@ export type UserMessagePart = TextPart | ImagePart;
 
 export type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 
@@ -99,7 +101,8 @@ export type SendCommandsRequestBody = {
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
   config: LanguageModelConfig | undefined;
-  threadId: string | null;
+  /** Remote id of the thread; absent only when resuming a thread that has none. */
+  threadId?: string;
   parentId?: string | null;
   // `callSettings` and `config` fields are also spread at the top level for
   // backward compatibility (e.g. `body.modelName`). Use the nested objects
@@ -110,6 +113,11 @@ export type SendCommandsRequestBody = {
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
+  /**
+   * Backs the thread list with Assistant Cloud; requests carry the cloud thread id.
+   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud on Next.js, as for `useLocalRuntime`.
+   */
+  cloud?: AssistantCloud | undefined;
   resumeApi?: string;
   /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
   resumeStateApi?: string;
@@ -152,6 +160,11 @@ export type AssistantTransportOptions<T> = {
    *
    * When an error occurs, queued commands are automatically cancelled after `onError` settles.
    * In this case, the `error` parameter contains the error that caused the cancellation.
+   *
+   * A cancel while `onError` is still pending ends the run without waiting for it, so one
+   * failed run can call `onCancel` twice: first without `error`, for the commands queued
+   * since the failure, then with `error`, for the commands queued before it, once `onError`
+   * settles. The second call can arrive after a later run has started.
    */
   onCancel?: (params: {
     commands: AssistantTransportCommand[];
@@ -163,6 +176,7 @@ export type AssistantTransportOptions<T> = {
   };
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
+    /** @deprecated This runtime never reads it; pass `cloud` to keep threads in Assistant Cloud. */
     history?: ThreadHistoryAdapter | undefined;
   };
 };

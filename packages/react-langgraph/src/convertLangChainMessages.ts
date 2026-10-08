@@ -10,7 +10,9 @@ import type {
 } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
+  createExternalMessageMetadataKey,
   parseDataUrl,
+  shallowArrayEqual,
   stableStringifyToolArgs,
   trackToolArgsKeyOrder,
 } from "@assistant-ui/core/internal";
@@ -18,6 +20,7 @@ import {
   convertLangChainContentBlock,
   getCustomMetadata,
   getMessageModality,
+  normalizeToolCallArgs,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "@assistant-ui/react-langchain/converter";
@@ -31,14 +34,52 @@ import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
+import { getIncrementalToolCallArgs } from "./incrementalToolCallArgs";
 
-type LangGraphMessageConverterMetadata =
+export type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
   };
+
+export const createLangGraphMetadataKey =
+  (): useExternalMessageConverter.GetMetadataKey<LangChainMessage> =>
+    createExternalMessageMetadataKey<LangChainMessage>([
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "ai"
+            ? (
+                metadata as LangGraphMessageConverterMetadata
+              ).uiMessagesByParent?.get(message.id)
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly UIMessage[],
+              current as readonly UIMessage[],
+            )),
+      },
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "ai"
+            ? (metadata as LangGraphMessageConverterMetadata).messageTiming?.[
+                message.id
+              ]
+            : undefined,
+      },
+      {
+        select: (message, metadata) =>
+          message.id && message.type === "human"
+            ? (
+                metadata as LangGraphMessageConverterMetadata
+              ).attachmentsByMessageId?.get(message.id)
+            : undefined,
+      },
+    ]);
 
 type LangChainMessageContentBlock = Exclude<
   LangChainMessage["content"],
@@ -51,10 +92,25 @@ const getToolArgsCacheKey = (
   toolCallId: string,
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
 
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  return typeof args === "object" && args !== null && !Array.isArray(args)
-    ? (args as ReadonlyJSONObject)
-    : {};
+const serializeToolCallArgs = (
+  args: unknown,
+  toolArgsKeyOrderCache: Map<string, Map<string, string[]>> | undefined,
+  cacheKey: string,
+): Pick<ToolCallMessagePart, "args" | "argsText"> => {
+  const normalizedArgs = normalizeToolCallArgs(args);
+  try {
+    return {
+      args: normalizedArgs,
+      argsText: stableStringifyToolArgs(
+        toolArgsKeyOrderCache,
+        cacheKey,
+        normalizedArgs,
+      ),
+    };
+  } catch {
+    toolArgsKeyOrderCache?.delete(cacheKey);
+    return { args: {}, argsText: "{}" };
+  }
 };
 
 const resolveToolCallArgs = ({
@@ -84,20 +140,19 @@ const resolveToolCallArgs = ({
     (isStreamingArglessChunk ? "" : undefined);
   let argsText = providedArgsText;
   if (argsText === undefined) {
-    try {
-      argsText = stableStringifyToolArgs(
-        toolArgsKeyOrderCache,
-        cacheKey,
-        normalizedArgs,
-      );
-    } catch {
-      toolArgsKeyOrderCache?.delete(cacheKey);
-      normalizedArgs = {};
-      argsText = "{}";
-    }
+    const serialized = serializeToolCallArgs(
+      normalizedArgs,
+      toolArgsKeyOrderCache,
+      cacheKey,
+    );
+    normalizedArgs = serialized.args;
+    argsText = serialized.argsText;
   }
 
-  const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
+  const parsedPartialArgs = argsText
+    ? (getIncrementalToolCallArgs(chunk, argsText) ??
+      parsePartialJsonObject(argsText))
+    : null;
   let args = (
     argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
@@ -132,7 +187,9 @@ const warnOnceInDevelopment = (message: string) => {
 };
 
 const warnForUnknownMessagePartType = (type: string) =>
-  warnOnceInDevelopment(`Unknown message part type: ${type}`);
+  warnOnceInDevelopment(
+    `Dropped an unrepresentable message part of type: ${type}`,
+  );
 
 const warnForUnknownMessageType = (type: string) =>
   warnOnceInDevelopment(`Unknown message type: ${type}`);
@@ -168,21 +225,26 @@ const contentToParts = (
     .map(
       (
         part,
+        partIndex,
       ):
         | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
         | null => {
         if (part.type === "computer_call") {
-          const args = part.action as ReadonlyJSONObject;
+          const toolCallId =
+            part.call_id ||
+            part.id ||
+            `lc-toolcall-${messageId ?? "unknown"}-computer-${part.index ?? partIndex}`;
+          const { args, argsText } = serializeToolCallArgs(
+            part.action,
+            metadata.toolArgsKeyOrderCache,
+            getToolArgsCacheKey(messageId, "computer", toolCallId),
+          );
           return {
             type: "tool-call",
-            toolCallId: part.call_id,
+            toolCallId,
             toolName: "computer_call",
             args,
-            argsText: stableStringifyToolArgs(
-              metadata.toolArgsKeyOrderCache,
-              getToolArgsCacheKey(messageId, "computer", part.call_id),
-              args,
-            ),
+            argsText,
           };
         }
 
@@ -296,6 +358,8 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const toolCallChunksByIndex = new Map<number, LangChainToolCallChunk>();
       if (message.tool_calls?.length) {
         for (const toolCallChunk of message.tool_call_chunks ?? []) {
+          if (typeof toolCallChunk !== "object" || toolCallChunk === null)
+            continue;
           const { id, index } = toolCallChunk;
           if (!toolCallChunksById.has(id)) {
             toolCallChunksById.set(id, toolCallChunk);
@@ -307,30 +371,38 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       }
 
       const toolCallParts =
-        message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
-          const fallbackIndex = chunk.index ?? idx;
-          const toolCallId = chunk.id
-            ? chunk.id
-            : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
-          const matchingToolCallChunk = chunk.id
-            ? toolCallChunksById.get(chunk.id)
-            : toolCallChunksByIndex.get(fallbackIndex);
-          const { args, argsText } = resolveToolCallArgs({
-            chunk,
-            matchingToolCallChunk,
-            messageId: message.id,
-            toolArgsKeyOrderCache: metadata.toolArgsKeyOrderCache,
-            toolCallId,
-          });
+        message.tool_calls
+          ?.map((chunk, idx): ToolCallMessagePart | null => {
+            if (typeof chunk?.name !== "string") {
+              warnOnceInDevelopment(
+                "Skipping a tool call without a name; its result is not shown either",
+              );
+              return null;
+            }
+            const fallbackIndex = chunk.index ?? idx;
+            const toolCallId = chunk.id
+              ? chunk.id
+              : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
+            const matchingToolCallChunk = chunk.id
+              ? toolCallChunksById.get(chunk.id)
+              : toolCallChunksByIndex.get(fallbackIndex);
+            const { args, argsText } = resolveToolCallArgs({
+              chunk,
+              matchingToolCallChunk,
+              messageId: message.id,
+              toolArgsKeyOrderCache: metadata.toolArgsKeyOrderCache,
+              toolCallId,
+            });
 
-          return {
-            type: "tool-call",
-            toolCallId,
-            toolName: chunk.name,
-            args,
-            argsText,
-          };
-        }) ?? [];
+            return {
+              type: "tool-call",
+              toolCallId,
+              toolName: chunk.name,
+              args,
+              argsText,
+            };
+          })
+          .filter((part) => part !== null) ?? [];
 
       const normalizedContent =
         typeof message.content === "string"

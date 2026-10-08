@@ -1,9 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  CompleteAttachment,
+  MessageTiming,
+} from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
+  createLangGraphMetadataKey,
   getMessageContent,
+  type LangGraphMessageConverterMetadata,
 } from "./convertLangChainMessages";
 import type { LangChainMessage, UIMessage } from "./types";
 
@@ -26,6 +33,133 @@ const convertLangChainMessages = (
       metadata: Record<string, unknown>,
     ) => ConvertResult
   )(message, metadata);
+
+describe("createLangGraphMetadataKey", () => {
+  const assistant = (id: string): LangChainMessage => ({
+    id,
+    type: "ai",
+    content: "",
+  });
+  const ui = (id: string, parentId: string, value: number): UIMessage => ({
+    type: "ui",
+    id,
+    name: "chart",
+    props: { value },
+    metadata: { message_id: parentId },
+  });
+
+  it("changes only the parent key when UI data is added, updated, or removed", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const first = assistant("a1");
+    const second = assistant("a2");
+    const third = assistant("a3");
+    const firstUI = ui("ui-1", "a1", 1);
+    const secondUI = ui("ui-2", "a2", 1);
+    const initial: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [secondUI]],
+      ]),
+    };
+    const firstKey = getMetadataKey(first, initial);
+    const secondKey = getMetadataKey(second, initial);
+    const thirdKey = getMetadataKey(third, initial);
+
+    const updated: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ["a1", [firstUI]],
+        ["a2", [ui("ui-2", "a2", 2)]],
+      ]),
+    };
+    expect(getMetadataKey(first, updated)).toBe(firstKey);
+    const updatedSecondKey = getMetadataKey(second, updated);
+    expect(updatedSecondKey).not.toBe(secondKey);
+    expect(getMetadataKey(third, updated)).toBe(thirdKey);
+
+    const added: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([
+        ...updated.uiMessagesByParent!,
+        ["a3", [ui("ui-3", "a3", 1)]] as const,
+      ]),
+    };
+    expect(getMetadataKey(first, added)).toBe(firstKey);
+    expect(getMetadataKey(third, added)).not.toBe(thirdKey);
+
+    const removed: LangGraphMessageConverterMetadata = {
+      uiMessagesByParent: new Map([["a1", [firstUI]]]),
+    };
+    expect(getMetadataKey(second, removed)).not.toBe(updatedSecondKey);
+    expect(getMetadataKey(first, removed)).toBe(firstKey);
+  });
+
+  it("tracks timing and attachments only for the roles that consume them", () => {
+    const getMetadataKey = createLangGraphMetadataKey();
+    const aiMessage = assistant("a1");
+    const userMessage: LangChainMessage = {
+      id: "u1",
+      type: "human",
+      content: "hello",
+    };
+    const toolMessage: LangChainMessage = {
+      id: "t1",
+      type: "tool",
+      content: "done",
+      tool_call_id: "call-1",
+      name: "search",
+      status: "success",
+    };
+    const initialTiming: MessageTiming = {
+      streamStartTime: 1,
+      totalChunks: 1,
+      toolCallCount: 0,
+    };
+    const initialAttachments: readonly CompleteAttachment[] = [
+      {
+        id: "attachment-1",
+        type: "file",
+        name: "notes.txt",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "notes" }],
+      },
+    ];
+    const initial: LangGraphMessageConverterMetadata = {
+      messageTiming: { a1: initialTiming },
+      attachmentsByMessageId: new Map([["u1", initialAttachments]]),
+    };
+    const aiKey = getMetadataKey(aiMessage, initial);
+    const userKey = getMetadataKey(userMessage, initial);
+    const toolKey = getMetadataKey(toolMessage, initial);
+
+    const nextTiming: MessageTiming = {
+      ...initialTiming,
+      totalChunks: 2,
+    };
+    const timingUpdated: LangGraphMessageConverterMetadata = {
+      ...initial,
+      messageTiming: { a1: nextTiming },
+    };
+    const nextAiKey = getMetadataKey(aiMessage, timingUpdated);
+    expect(nextAiKey).not.toBe(aiKey);
+    expect(getMetadataKey(userMessage, timingUpdated)).toBe(userKey);
+    expect(getMetadataKey(toolMessage, timingUpdated)).toBe(toolKey);
+
+    const attachmentsUpdated: LangGraphMessageConverterMetadata = {
+      ...timingUpdated,
+      attachmentsByMessageId: new Map([
+        [
+          "u1",
+          [
+            ...initialAttachments,
+            { ...initialAttachments[0]!, id: "attachment-2" },
+          ],
+        ],
+      ]),
+    };
+    expect(getMetadataKey(aiMessage, attachmentsUpdated)).toBe(nextAiKey);
+    expect(getMetadataKey(userMessage, attachmentsUpdated)).not.toBe(userKey);
+    expect(getMetadataKey(toolMessage, attachmentsUpdated)).toBe(toolKey);
+  });
+});
 
 describe("convertLangChainMessages tool result names", () => {
   const assistant: LangChainMessage = {
@@ -76,6 +210,75 @@ describe("convertLangChainMessages tool result names", () => {
         {},
       ),
     ).toThrow(/does not match existing tool call/);
+  });
+
+  it("skips a tool call without a name and leaves its result unattached", () => {
+    const messages = convertExternalMessages(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: "",
+          tool_calls: [
+            { id: "call-1", args: {} },
+            { id: "call-2", name: "search", args: {} },
+          ],
+        } as unknown as LangChainMessage,
+        { ...tool, name: "search" },
+      ],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "call-2", toolName: "search" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps a tool call whose name is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "", args: {} }],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "",
+      }),
+    ]);
+  });
+
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -139,6 +342,27 @@ describe("convertLangChainMessages content-less messages", () => {
     });
   });
 
+  it("skips a null tool_call_chunks entry", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-null-chunk",
+      tool_calls: [{ id: "call-1", name: "search", args: { q: "x" } }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q": "x"}' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        args: { q: "x" },
+        argsText: '{"q": "x"}',
+      },
+    ]);
+  });
+
   it("falls back when object argument serialization throws", () => {
     const cyclicArgs: Record<string, unknown> = {};
     cyclicArgs.self = cyclicArgs;
@@ -156,17 +380,69 @@ describe("convertLangChainMessages content-less messages", () => {
       },
     };
 
-    for (const args of [cyclicArgs, accessorArgs, customSerializationArgs]) {
+    const bigintArgs = { limit: BigInt(1) };
+    class CustomToolArgs {
+      query = "docs";
+    }
+
+    for (const args of [
+      cyclicArgs,
+      accessorArgs,
+      customSerializationArgs,
+      new CustomToolArgs(),
+      bigintArgs,
+    ]) {
       const result = convertLangChainMessages({
         type: "ai",
         id: "ai-unsafe-args",
         tool_calls: [{ id: "call-1", name: "search", args }],
       } as unknown as LangChainMessage);
 
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+      expect(toolCallPart?.argsText).toBe("{}");
       expect(
-        result.content.find((part) => part.type === "tool-call"),
-      ).toMatchObject({ args: {}, argsText: "{}" });
+        getPartialJsonObjectMeta(
+          toolCallPart?.args as unknown as Record<symbol, unknown>,
+        ),
+      ).toEqual({ state: "complete", partialPath: [] });
     }
+  });
+
+  it("keeps generated final args and completion metadata in sync", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-final-args",
+      status: { type: "running" },
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: {
+            nested: { omitted: undefined, query: "docs" },
+            score: Number.POSITIVE_INFINITY,
+          },
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.argsText).toBe(
+      '{"nested":{"query":"docs"},"score":null}',
+    );
+    expect(toolCallPart?.args).toMatchObject({
+      nested: { query: "docs" },
+      score: null,
+    });
+    expect(
+      getPartialJsonObjectMeta(
+        toolCallPart?.args as unknown as Record<symbol, unknown>,
+      ),
+    ).toEqual({ state: "complete", partialPath: [] });
   });
 
   it("clears partial key-order state after unsafe argument tracking", () => {
@@ -374,14 +650,14 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        metadata: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        custom: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
   });
@@ -600,7 +876,7 @@ describe("convertLangChainMessages metadata", () => {
               '"filters":{"region":"us","sector":"tech"}',
           },
         ],
-      },
+      } as unknown as LangChainMessage,
       metadata,
     );
 
@@ -724,6 +1000,129 @@ describe("convertLangChainMessages metadata", () => {
       argsText: '{"kind":"click","target":{"x":10,"y":20}}',
     });
   });
+
+  it.each([
+    { name: "primitive", action: "click" },
+    {
+      name: "cyclic object",
+      action: (() => {
+        const action: Record<string, unknown> = {};
+        action.self = action;
+        return action;
+      })(),
+    },
+    { name: "BigInt", action: { x: BigInt(1) } },
+  ])("normalizes a malformed computer_call $name action", ({ action }) => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "computer_call",
+            call_id: "call-1",
+            id: "computer-1",
+            action,
+            pending_safety_checks: [],
+            index: 0,
+          },
+        ],
+      } as unknown as LangChainMessage,
+      { toolArgsKeyOrderCache },
+    );
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.args).toEqual({});
+    expect(toolCallPart?.argsText).toBe("{}");
+    if (typeof action === "object") {
+      expect(toolArgsKeyOrderCache.size).toBe(0);
+    }
+  });
+
+  it("synthesizes a computer_call id when call_id is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: [
+        {
+          type: "computer_call",
+          call_id: "",
+          id: "computer-1",
+          action: { kind: "click" },
+          pending_safety_checks: [],
+          index: 0,
+        },
+      ],
+    });
+
+    if (!("content" in result)) {
+      throw new Error("Expected assistant message content");
+    }
+
+    expect(
+      result.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({
+      type: "tool-call",
+      toolCallId: "computer-1",
+      toolName: "computer_call",
+    });
+  });
+
+  it("keeps missing computer_call ids and argument caches distinct per block", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+    };
+    const convert = (actions: readonly Record<string, unknown>[]) =>
+      convertLangChainMessages(
+        {
+          type: "ai",
+          id: "ai-1",
+          content: actions.map((action, index) => ({
+            type: "computer_call",
+            ...(index === 0 ? { call_id: "" } : {}),
+            id: index === 0 ? null : "stable-computer",
+            action,
+            pending_safety_checks: [],
+            index,
+          })),
+        } as unknown as LangChainMessage,
+        metadata,
+      );
+
+    const first = convert([
+      { kind: "click", target: { x: 1, y: 2 } },
+      { kind: "type", target: { x: 3, y: 4 } },
+    ]);
+
+    if (!("content" in first)) {
+      throw new Error("Expected assistant message content");
+    }
+
+    expect(first.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "lc-toolcall-ai-1-computer-0",
+        argsText: '{"kind":"click","target":{"x":1,"y":2}}',
+      },
+      {
+        type: "tool-call",
+        toolCallId: "stable-computer",
+        argsText: '{"kind":"type","target":{"x":3,"y":4}}',
+      },
+    ]);
+
+    const second = convert([
+      { target: { y: 2, x: 1 }, kind: "click" },
+      { target: { y: 4, x: 3 }, kind: "type" },
+    ]);
+    if (!("content" in second)) {
+      throw new Error("Expected assistant message content");
+    }
+    expect(second.content).toMatchObject(first.content);
+  });
 });
 
 describe("convertLangChainMessages file content", () => {
@@ -840,183 +1239,100 @@ describe("convertLangChainMessages file content", () => {
   });
 });
 
-describe("getMessageContent file blocks", () => {
-  const appendMessage = (part: Record<string, unknown>) =>
-    ({ content: [part] }) as unknown as AppendMessage;
+describe("convertLangChainMessages standard content blocks", () => {
+  it("converts a base64 image block to an image part", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-image",
+      content: [{ type: "image", mimeType: "image/png", data: "ZmFrZQ==" }],
+    } as unknown as LangChainMessage);
 
-  it("emits a base64 source block for raw base64 data", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "ZmFrZQ==",
-        mimeType: "application/pdf",
-        filename: "a.pdf",
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "file",
-        data: "ZmFrZQ==",
-        mime_type: "application/pdf",
-        filename: "a.pdf",
-        metadata: { filename: "a.pdf" },
-        source_type: "base64",
-      },
-    ]);
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "image", image: "data:image/png;base64,ZmFrZQ==" }],
+    });
   });
 
-  it("emits a url source block with the value in the url key for http(s) data", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "https://r2.example/u/abc/file.pdf",
-        mimeType: "application/pdf",
-        filename: "file.pdf",
-      }),
-    );
+  it("reads the camelCase mime type of a base64 file block", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-file",
+      content: [
+        { type: "file", mimeType: "application/pdf", data: "JVBERi0=" },
+      ],
+    } as unknown as LangChainMessage);
 
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "file",
-        url: "https://r2.example/u/abc/file.pdf",
-        mime_type: "application/pdf",
-        filename: "file.pdf",
-        metadata: { filename: "file.pdf" },
-        source_type: "url",
-      },
-    ]);
-    expect(content[1]).not.toHaveProperty("data");
-  });
-
-  it("normalizes a base64 data URL to a raw base64 block", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "data:application/pdf;base64,ZmFrZQ==",
-        mimeType: "application/octet-stream",
-        filename: "a.pdf",
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "file",
-        data: "ZmFrZQ==",
-        mime_type: "application/pdf",
-        filename: "a.pdf",
-        metadata: { filename: "a.pdf" },
-        source_type: "base64",
-      },
-    ]);
-  });
-
-  it("keeps non-http schemes on the base64 path", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "blob:https://app.example/123",
-        mimeType: "application/pdf",
-        filename: "a.pdf",
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "file",
-        data: "blob:https://app.example/123",
-        mime_type: "application/pdf",
-        filename: "a.pdf",
-        metadata: { filename: "a.pdf" },
-        source_type: "base64",
-      },
-    ]);
-  });
-
-  it("emits an id source block with the value in the id key for sourceType id", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "flx::storage:file_object:abc",
-        mimeType: "application/pdf",
-        filename: "invoice.pdf",
-        sourceType: "id",
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "file",
-        id: "flx::storage:file_object:abc",
-        mime_type: "application/pdf",
-        filename: "invoice.pdf",
-        metadata: { filename: "invoice.pdf" },
-        source_type: "id",
-      },
-    ]);
-    expect(content[1]).not.toHaveProperty("data");
-  });
-
-  it("lets sourceType url override sniffing for non-http data", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "s3://bucket/key.pdf",
-        mimeType: "application/pdf",
-        filename: "key.pdf",
-        sourceType: "url",
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "file",
-        url: "s3://bucket/key.pdf",
-        mime_type: "application/pdf",
-        filename: "key.pdf",
-        metadata: { filename: "key.pdf" },
-        source_type: "url",
-      },
-    ]);
-  });
-
-  it("emits an id source block for attachment content parts", () => {
-    const content = getMessageContent({
-      content: [{ type: "text", text: "see attached" }],
-      attachments: [
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
         {
-          content: [
-            {
-              type: "file",
-              data: "file-abc123",
-              mimeType: "application/pdf",
-              filename: "a.pdf",
-              sourceType: "id",
-            },
-          ],
+          type: "file",
+          filename: "file",
+          data: "JVBERi0=",
+          mimeType: "application/pdf",
         },
       ],
-    } as unknown as AppendMessage);
-
-    expect(content).toEqual([
-      { type: "text", text: "see attached" },
-      {
-        type: "file",
-        id: "file-abc123",
-        mime_type: "application/pdf",
-        filename: "a.pdf",
-        metadata: { filename: "a.pdf" },
-        source_type: "id",
-      },
-    ]);
+    });
   });
 
+  it("resolves the url of a file block that carries no source_type", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-file-url",
+      content: [
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          url: "https://cdn.example/a.pdf",
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "file",
+          data: "https://cdn.example/a.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+
+  it("converts Python standard media fields", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-python-media",
+      content: [
+        { type: "image", mime_type: "image/png", base64: "ZmFrZQ==" },
+        {
+          type: "file",
+          mime_type: "application/pdf",
+          file_id: "file-python-123",
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        { type: "image", image: "data:image/png;base64,ZmFrZQ==" },
+        {
+          type: "file",
+          filename: "file",
+          data: "file-python-123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+        },
+      ],
+    });
+  });
+});
+
+describe("convertLangChainMessages file round-trips", () => {
   it("round-trips an id source block through both converters", () => {
     const converted = convertLangChainMessages({
       type: "human",
@@ -1045,136 +1361,6 @@ describe("getMessageContent file blocks", () => {
         source_type: "id",
       },
     ]);
-  });
-
-  it("emits an audio block for a base64 file part with an audio mime type", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "c291bmQ=",
-        mimeType: "audio/mp3",
-        filename: "memo.mp3",
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "audio",
-        data: "c291bmQ=",
-        mime_type: "audio/mp3",
-        source_type: "base64",
-      },
-    ]);
-  });
-
-  it("normalizes audio/mpeg and audio/x-wav to the accepted spellings", () => {
-    expect(
-      getMessageContent(
-        appendMessage({
-          type: "file",
-          data: "c291bmQ=",
-          mimeType: "audio/mpeg",
-        }),
-      )[1],
-    ).toMatchObject({ type: "audio", mime_type: "audio/mp3" });
-
-    expect(
-      getMessageContent(
-        appendMessage({
-          type: "file",
-          data: "c291bmQ=",
-          mimeType: "audio/x-wav",
-        }),
-      )[1],
-    ).toMatchObject({ type: "audio", mime_type: "audio/wav" });
-  });
-
-  it("strips the data URL envelope from an audio file part", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "file",
-        data: "data:audio/mpeg;base64,c291bmQ=",
-        mimeType: "audio/mp3",
-      }),
-    );
-
-    expect(content[1]).toEqual({
-      type: "audio",
-      data: "c291bmQ=",
-      mime_type: "audio/mp3",
-      source_type: "base64",
-    });
-  });
-
-  it("keeps url and id audio references as file blocks", () => {
-    expect(
-      getMessageContent(
-        appendMessage({
-          type: "file",
-          data: "https://cdn.example.com/memo.mp3",
-          mimeType: "audio/mp3",
-          filename: "memo.mp3",
-        }),
-      )[1],
-    ).toMatchObject({ type: "file", source_type: "url" });
-
-    expect(
-      getMessageContent(
-        appendMessage({
-          type: "file",
-          data: "file-abc123",
-          mimeType: "audio/mp3",
-          filename: "memo.mp3",
-          sourceType: "id",
-        }),
-      )[1],
-    ).toMatchObject({ type: "file", source_type: "id" });
-  });
-
-  it("does not treat inherited object keys as audio media types", () => {
-    for (const mimeType of ["__proto__", "constructor"]) {
-      expect(
-        getMessageContent(
-          appendMessage({
-            type: "file",
-            data: "ZmFrZQ==",
-            mimeType,
-            filename: "a.bin",
-          }),
-        )[1],
-      ).toMatchObject({ type: "file", mime_type: mimeType });
-    }
-  });
-
-  it("detects audio from the data URL envelope when the declared type is generic", () => {
-    expect(
-      getMessageContent(
-        appendMessage({
-          type: "file",
-          data: "data:audio/mpeg;base64,c291bmQ=",
-          mimeType: "application/octet-stream",
-        }),
-      )[1],
-    ).toEqual({
-      type: "audio",
-      data: "c291bmQ=",
-      mime_type: "audio/mp3",
-      source_type: "base64",
-    });
-  });
-
-  it("leaves non-audio file parts as file blocks", () => {
-    expect(
-      getMessageContent(
-        appendMessage({
-          type: "file",
-          data: "ZmFrZQ==",
-          mimeType: "application/pdf",
-          filename: "a.pdf",
-        }),
-      )[1],
-    ).toMatchObject({ type: "file", mime_type: "application/pdf" });
   });
 });
 
@@ -1612,111 +1798,43 @@ describe("convertLangChainMessages tool call id stability", () => {
       expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
     );
   });
-});
 
-describe("getMessageContent audio and data parts", () => {
-  const appendMessage = (...parts: Record<string, unknown>[]) =>
-    ({ content: parts }) as unknown as AppendMessage;
+  it("skips null tool_calls entries and keeps the index-based id of the rest", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [null, { id: "", name: "search", args: {} }],
+    } as unknown as LangChainMessage);
 
-  it("emits a base64 audio block with the format MIME type for audio parts", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "audio",
-        audio: { data: "c291bmQ=", format: "mp3" },
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "lc-toolcall-ai-1-1",
+        toolName: "search",
       }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "audio",
-        data: "c291bmQ=",
-        mime_type: "audio/mp3",
-        source_type: "base64",
-      },
     ]);
   });
 
-  it("strips a data URL envelope from audio data", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "audio",
-        audio: { data: "data:audio/wav;base64,d2F2", format: "wav" },
+  it("skips null tool_call_chunks entries", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "search", args: {} }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q":"x' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        argsText: '{"q":"x',
       }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "audio",
-        data: "d2F2",
-        mime_type: "audio/wav",
-        source_type: "base64",
-      },
     ]);
-  });
-
-  it("keeps the format-derived MIME when a data URL carries a divergent one", () => {
-    const content = getMessageContent(
-      appendMessage({
-        type: "audio",
-        audio: { data: "data:audio/mpeg;base64,c291bmQ=", format: "mp3" },
-      }),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: " " },
-      {
-        type: "audio",
-        data: "c291bmQ=",
-        mime_type: "audio/mp3",
-        source_type: "base64",
-      },
-    ]);
-  });
-
-  it("does not prepend a second placeholder when text accompanies audio", () => {
-    const content = getMessageContent(
-      appendMessage(
-        { type: "text", text: "listen" },
-        { type: "audio", audio: { data: "d2F2", format: "wav" } },
-      ),
-    );
-
-    expect(content).toEqual([
-      { type: "text", text: "listen" },
-      {
-        type: "audio",
-        data: "d2F2",
-        mime_type: "audio/wav",
-        source_type: "base64",
-      },
-    ]);
-  });
-
-  it("drops data parts while keeping the rest of the message", () => {
-    const content = getMessageContent(
-      appendMessage(
-        { type: "text", text: "hi" },
-        { type: "data", name: "chart", data: { values: [1, 2] } },
-      ),
-    );
-
-    expect(content).toBe("hi");
-  });
-
-  it("returns empty content for a data-only message", () => {
-    const content = getMessageContent(
-      appendMessage({ type: "data", name: "chart", data: { values: [1, 2] } }),
-    );
-
-    expect(content).toEqual([]);
-  });
-
-  it("still throws on assistant-only part types", () => {
-    expect(() =>
-      getMessageContent(appendMessage({ type: "reasoning", text: "hmm" })),
-    ).toThrow("Unsupported append message part type: reasoning");
   });
 });
 

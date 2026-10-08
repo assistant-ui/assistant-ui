@@ -173,9 +173,14 @@ jobs:
 
               const publishJob = jobs.find((job) => job.name === "Publish to npm");
 
-              if (publishJob?.status === "in_progress") {
+              // Once publish has run, an open run is either publishing or
+              // deploying the registry for that release.
+              if (
+                publishJob?.status === "in_progress" ||
+                publishJob?.status === "completed"
+              ) {
                 core.info(
-                  `Keeping run ${run.id} because Publish to npm is in progress`,
+                  `Keeping run ${run.id} because Publish to npm is ${publishJob.status}`,
                 );
                 continue;
               }
@@ -707,3 +712,18 @@ jobs:
         run: |
           echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
           echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  registry-deploy:
+    name: Deploy registry
+    needs:
+      - approve
+      - publish
+    permissions:
+      contents: read
+    uses: ./.github/workflows/registry.yaml
+    with:
+      releaseSha: ${{ needs.approve.outputs.release_sha }}
+    secrets:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_REGISTRY_PROJECT_ID: ${{ secrets.VERCEL_REGISTRY_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

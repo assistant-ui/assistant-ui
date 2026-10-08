@@ -276,4 +276,234 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     expect(titledMessages).toHaveLength(1);
     expect(titledMessages[0]).toMatchObject({ role: "user" });
   });
+
+  it("titles a new thread that another caller initialized first", async () => {
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
+    const adapter = makeAdapter({ generateTitle });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          return useLocalRuntime({ run: async () => ({ content: [] }) });
+        },
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+
+    await act(async () => {
+      await runtimeRef.current!.threads.mainItem.initialize();
+    });
+    void getThreadCore(runtimeRef.current!).append(userMessage("hello"));
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    expect(adapter.initialize).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports title generation failures", async () => {
+    const error = new Error("title unavailable");
+    const adapter = makeAdapter({
+      generateTitle: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          return useLocalRuntime({ run: async () => ({ content: [] }) });
+        },
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+
+    void getThreadCore(runtimeRef.current!).append(userMessage("hello"));
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Thread title generation failed",
+        error,
+      );
+    });
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+  });
+
+  it("titles a new thread whose runtime restarts while it initializes", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialization.promise),
+      generateTitle,
+    });
+    const store = {
+      messages: [] as readonly ThreadMessageLike[],
+      listeners: new Set<() => void>(),
+      subscribe(callback: () => void) {
+        store.listeners.add(callback);
+        return () => store.listeners.delete(callback);
+      },
+    };
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          const messages = useSyncExternalStore(
+            store.subscribe,
+            () => store.messages,
+          );
+          return useExternalStoreRuntime({
+            messages,
+            convertMessage: (message: ThreadMessageLike) => message,
+            onNew: async () => {
+              store.messages = [
+                { role: "user", content: [{ type: "text", text: "hello" }] },
+              ];
+              for (const listener of store.listeners) listener();
+            },
+          });
+        },
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(capture.runtime?.threads.mainItem.getState().id).toBeDefined();
+    });
+    const localId = capture.runtime!.threads.mainItem.getState().id;
+
+    await act(async () => {
+      void getThreadCore(capture.runtime!).append(userMessage("hello"));
+    });
+    await waitFor(() => {
+      expect(adapter.initialize).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await capture.runtime!.threads.reloadMainThread();
+    });
+
+    await act(async () => {
+      initialization.resolve({
+        remoteId: `remote-${localId}`,
+        externalId: `external-${localId}`,
+      });
+    });
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    expect(generateTitle).toHaveBeenCalledWith(`remote-${localId}`, [
+      expect.objectContaining({ role: "user" }),
+    ]);
+    await act(async () => {});
+    expect(generateTitle).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains the first title source through a runtime restart", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialization.promise),
+      generateTitle,
+    });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          return useLocalRuntime({ run: async () => ({ content: [] }) });
+        },
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+    const localId = runtimeRef.current!.threads.mainItem.getState().id;
+
+    await act(async () => {
+      void getThreadCore(runtimeRef.current!).append(userMessage("hello"));
+    });
+    await waitFor(() => {
+      expect(adapter.initialize).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await runtimeRef.current!.threads.reloadMainThread();
+    });
+    await act(async () => {
+      initialization.resolve({
+        remoteId: `remote-${localId}`,
+        externalId: `external-${localId}`,
+      });
+    });
+    expect(runtimeRef.current!.thread.getState().messages).toHaveLength(0);
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    expect(generateTitle).toHaveBeenCalledWith(`remote-${localId}`, [
+      expect.objectContaining({
+        role: "user",
+        content: [expect.objectContaining({ type: "text", text: "hello" })],
+      }),
+    ]);
+  });
 });

@@ -99,6 +99,11 @@ const isHistoryLoadingView = (s: AssistantState) =>
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
+const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
+  timing?.completedAt === undefined
+    ? undefined
+    : Math.round((timing.completedAt - timing.startedAt) / 1000);
+
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
@@ -122,7 +127,7 @@ export type ThreadHistory = {
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
-  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. */
+  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. Omit it to page through the runtime's `thread.hasEarlier` and `loadEarlier()`. */
   history?: ThreadHistory | undefined;
 };
 
@@ -396,7 +401,13 @@ export const Thread: FC<ThreadProps> = ({
                 <ThreadHistorySkeleton />
               </AuiIf>
               <AuiIf condition={(s) => s.thread.messages.length > 0}>
-                {history?.isLoadingMore && <HistoryEdge />}
+                <AuiIf
+                  condition={(s) =>
+                    history ? history.isLoadingMore : s.thread.isLoadingEarlier
+                  }
+                >
+                  <HistoryEdge />
+                </AuiIf>
                 <ThreadPrimitive.MessagesFlatList
                   // Viewability props cannot change once a FlatList is mounted.
                   key={Rail ? "tracked" : "plain"}
@@ -678,38 +689,55 @@ const Composer: FC = () => {
   );
 };
 
-const ComposerAction: FC = () => (
-  <View className="aui-composer-action-wrapper flex-row items-center justify-between">
-    <ComposerAddAttachment />
-    <View className="flex-row items-center gap-1.5">
-      <AuiIf
-        condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
-      >
-        <ComposerPrimitive.Send
-          className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
-          hitSlop={iconButtonHitSlop}
-          accessibilityLabel="Send message"
+const ComposerAction: FC = () => {
+  // The stop control only cancels the send while no run it could stop is going.
+  const isSending = useAuiState(
+    (s) =>
+      s.composer.submission !== undefined &&
+      !(s.thread.isRunning && s.thread.capabilities.cancel),
+  );
+
+  return (
+    <View className="aui-composer-action-wrapper flex-row items-center justify-between">
+      <ComposerAddAttachment />
+      <View className="flex-row items-center gap-1.5">
+        <AuiIf
+          condition={(s) =>
+            s.composer.submission === undefined &&
+            (!s.thread.isRunning || s.thread.voice !== undefined)
+          }
         >
-          <Icon
-            as={ArrowUpIcon}
-            className="aui-composer-send-icon text-primary-foreground size-4"
-          />
-        </ComposerPrimitive.Send>
-      </AuiIf>
-      <AuiIf
-        condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
-      >
-        <ComposerPrimitive.Cancel
-          className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"
-          hitSlop={iconButtonHitSlop}
-          accessibilityLabel="Stop generating"
+          <ComposerPrimitive.Send
+            className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
+            hitSlop={iconButtonHitSlop}
+            accessibilityLabel="Send message"
+          >
+            <Icon
+              as={ArrowUpIcon}
+              className="aui-composer-send-icon text-primary-foreground size-4"
+            />
+          </ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf
+          condition={(s) =>
+            s.composer.submission !== undefined ||
+            (s.thread.isRunning && s.thread.voice === undefined)
+          }
         >
-          <View className="aui-composer-cancel-icon bg-primary-foreground size-3 rounded-[2px]" />
-        </ComposerPrimitive.Cancel>
-      </AuiIf>
+          <ComposerPrimitive.Cancel
+            className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"
+            hitSlop={iconButtonHitSlop}
+            accessibilityLabel={
+              isSending ? "Cancel sending" : "Stop generating"
+            }
+          >
+            <View className="aui-composer-cancel-icon bg-primary-foreground size-3 rounded-[2px]" />
+          </ComposerPrimitive.Cancel>
+        </AuiIf>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 const MessageError: FC = () => (
   <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 dark:bg-destructive/5 mt-2 rounded-md border p-3">
@@ -796,7 +824,10 @@ const AssistantMessage: FC = () => {
                 const streaming = part.status.type === "running";
                 return (
                   <ReasoningRoot streaming={streaming}>
-                    <ReasoningTrigger active={streaming} />
+                    <ReasoningTrigger
+                      active={streaming}
+                      duration={reasoningDuration(part.timing)}
+                    />
                     <ReasoningContent>
                       <ReasoningText>{children}</ReasoningText>
                     </ReasoningContent>

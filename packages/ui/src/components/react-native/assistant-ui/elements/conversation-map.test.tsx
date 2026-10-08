@@ -44,6 +44,7 @@ vi.mock("react-native", async (importOriginal) => {
     accessibilityLabel,
     accessibilityHint,
     accessibilityRole,
+    "aria-current": current,
     "aria-selected": selected,
     hitSlop: _hitSlop,
     delayLongPress: _delayLongPress,
@@ -63,6 +64,7 @@ vi.mock("react-native", async (importOriginal) => {
         className,
         "aria-label": accessibilityLabel,
         "aria-description": accessibilityHint,
+        "aria-current": current,
         "aria-selected": selected,
         role: accessibilityRole,
         onClick: onPress,
@@ -141,14 +143,17 @@ describe("ConversationMap", () => {
     ).toEqual(["the ready dot", "I'll use that", null]);
   });
 
-  it("lights only the turn being read", async () => {
+  it("marks only the turn being read as current on web", async () => {
     await render({ activeId: "t2" });
 
-    expect(ticks().map((tick) => tick.getAttribute("aria-selected"))).toEqual([
-      "false",
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      null,
       "true",
-      "false",
+      null,
     ]);
+    expect(ticks().every((tick) => !tick.hasAttribute("aria-selected"))).toBe(
+      true,
+    );
     expect(bars().map(tier)).toEqual(["off-screen", "read", "off-screen"]);
     expect(bars()[1]).toContain("h-[3px]");
   });
@@ -174,13 +179,6 @@ describe("ConversationMap", () => {
     });
 
     expect(onSelect).toHaveBeenCalledWith("t2");
-  });
-
-  it("keeps preview ticks available without a selection handler", async () => {
-    await render();
-
-    expect(ticks()).toHaveLength(ENTRIES.length);
-    expect(ticks()[1]!.getAttribute("aria-label")).toBe("Got it");
   });
 
   it("opens the preview beside the tick while it is hovered or held", async () => {

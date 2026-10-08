@@ -2,7 +2,10 @@ export {
   ThreadListItemRoot as Root,
   type ThreadListItemRootProps as RootProps,
 } from "./threadListItem/ThreadListItemRoot";
-export { ThreadListItemPrimitiveTitle as Title } from "@assistant-ui/core/react";
+export {
+  ThreadListItemTitle as Title,
+  type ThreadListItemTitleProps as TitleProps,
+} from "./threadListItem/ThreadListItemTitle";
 export {
   ThreadListItemTrigger as Trigger,
   type ThreadListItemTriggerProps as TriggerProps,

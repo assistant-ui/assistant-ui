@@ -15,9 +15,15 @@ export class AttachmentSendOperations {
   // either leaves the draft or is replaced via transfer with a fresh unmarked
   // object, so a mark cannot leak into a later send's batch.
   private readonly removed = new WeakSet<Attachment>();
+  // An attachment whose removal failed while its message was being prepared
+  // is held out of that message only; the draft it returns to gets it back.
+  // Removing it again makes that removal the pending one, so it is no longer
+  // held out.
+  private readonly heldOut = new WeakSet<Attachment>();
 
   markRemoved(attachment: Attachment) {
     this.removed.add(attachment);
+    this.heldOut.delete(attachment);
   }
 
   unmarkRemoved(attachment: Attachment) {
@@ -28,16 +34,34 @@ export class AttachmentSendOperations {
     return this.removed.has(attachment);
   }
 
+  holdOut(attachment: Attachment) {
+    this.removed.add(attachment);
+    this.heldOut.add(attachment);
+  }
+
+  isRemovalPending(attachment: Attachment) {
+    return this.removed.has(attachment) && !this.heldOut.has(attachment);
+  }
+
+  restore(attachment: Attachment) {
+    if (!this.heldOut.has(attachment)) return attachment;
+    return this.transfer(attachment, { ...attachment });
+  }
+
   async send(
     attachment: Attachment,
     adapter: AttachmentAdapter | undefined,
+    signal?: AbortSignal,
   ): Promise<CompleteAttachment> {
     if (isAttachmentComplete(attachment)) return attachment;
     const entry = this.entries.get(attachment) ?? {};
     if (entry.result) return entry.result;
     if (!adapter) throw new Error("Attachments are not supported");
     this.entries.set(attachment, entry);
-    const result = await adapter.send(attachment);
+    const result = await adapter.send(
+      attachment,
+      signal ? { signal } : undefined,
+    );
     entry.result = result;
     return result;
   }
