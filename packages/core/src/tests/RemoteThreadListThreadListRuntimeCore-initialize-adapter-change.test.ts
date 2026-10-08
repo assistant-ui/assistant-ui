@@ -69,6 +69,61 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
     expect(core.getItemById(localId)?.remoteId).toBeUndefined();
   });
 
+  it("keeps a stale initialization from promoting a draft after a second adapter swap", async () => {
+    const initializing = deferred<InitializeResult>();
+    const thirdList = deferred<ListResult>();
+    const anchor = {
+      status: "regular" as const,
+      remoteId: "anchor",
+      externalId: "anchor",
+    };
+    const firstAdapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [anchor] })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const secondAdapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [anchor] })),
+    });
+    const thirdAdapter = makeAdapter({
+      list: vi.fn(() => thirdList.promise),
+    });
+    const core = createCore(firstAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+
+    core.__internal_setOptions({
+      adapter: secondAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    core.__internal_setOptions({
+      adapter: thirdAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+
+    expect(core.threadIds).not.toContain(localId);
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.getItemById(localId)?.status).toBe("new");
+
+    thirdList.resolve({ threads: [anchor] });
+    await loadTask;
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.newThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.remoteId).toBeUndefined();
+  });
+
   it("keeps a deleted draft hidden when the replacement list resolves before initialization", async () => {
     const initializing = deferred<InitializeResult>();
     const replacementList = deferred<ListResult>();

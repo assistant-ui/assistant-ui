@@ -94,6 +94,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
   private _adapterGeneration = 0;
+  private _listedAdapterGeneration = 0;
   private _replaceListOnNextLoad = false;
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
@@ -216,6 +217,7 @@ export class RemoteThreadListThreadListRuntimeCore
             appliedList = true;
             if (replaceList) {
               this._replaceListOnNextLoad = false;
+              this._listedAdapterGeneration = this._adapterGeneration;
               replacedList = true;
               return this._replaceWithThreads(
                 { ...state, loadError: undefined },
@@ -240,6 +242,7 @@ export class RemoteThreadListThreadListRuntimeCore
             return;
           }
           this._replaceListOnNextLoad = false;
+          this._listedAdapterGeneration = this._adapterGeneration;
           replacedList = true;
           this._state.update(
             this._replaceWithThreads(
@@ -909,14 +912,10 @@ export class RemoteThreadListThreadListRuntimeCore
     let removedMappingId: string | undefined;
     const initialization = this._state.optimisticUpdate({
       execute: () => initializeTask,
-      optimistic: (state) => {
-        if (
-          adapterGeneration !== this._adapterGeneration &&
-          !this._replaceListOnNextLoad
-        )
-          return state;
-        return promoteNewThreadReducer(state, threadId, initializeTask);
-      },
+      optimistic: (state) =>
+        this._listedAdapterGeneration > adapterGeneration
+          ? state
+          : promoteNewThreadReducer(state, threadId, initializeTask),
       then: (state, { remoteId, externalId }) => {
         if (adapterGeneration !== this._adapterGeneration) return state;
         const reconciliation = reconcileInitializedThread(
