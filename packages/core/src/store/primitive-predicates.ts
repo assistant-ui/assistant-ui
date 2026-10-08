@@ -58,6 +58,7 @@ export const branchPickerNextDisabled = (s: AssistantState): boolean =>
 export const suggestionSendMode = (
   thread: AssistantState["thread"],
 ): "now" | "queued" | "blocked" => {
+  if (thread.isSendDisabled) return "blocked";
   if (thread.voice !== undefined)
     return thread.voice.canSendText ? "now" : "blocked";
   if (!thread.isRunning) return "now";

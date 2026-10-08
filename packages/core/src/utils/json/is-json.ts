@@ -1,8 +1,4 @@
-import type {
-  ReadonlyJSONArray,
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "assistant-stream/utils";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value);
@@ -42,17 +38,4 @@ export function isJSONValue(
   }
 
   return false;
-}
-
-export function isJSONArray(value: unknown): value is ReadonlyJSONArray {
-  return Array.isArray(value) && value.every((item) => isJSONValue(item));
-}
-
-export function isJSONObject(value: unknown): value is ReadonlyJSONObject {
-  return (
-    isRecord(value) &&
-    Object.entries(value).every(
-      ([key, val]) => typeof key === "string" && isJSONValue(val),
-    )
-  );
 }

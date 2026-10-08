@@ -23,6 +23,7 @@ import {
   type RuntimeAdapters,
 } from "../runtimes/RuntimeAdapterProvider";
 import { RemoteThreadList } from "./RemoteThreadList";
+import { createLocalStorageAdapter } from "../adapters/LocalStorageThreadListAdapter";
 
 const stubComposer = { getState: () => ({}) };
 const stubSuggestions = { getState: () => ({ suggestions: [] }) };
@@ -1079,6 +1080,62 @@ describe("RemoteThreadList", () => {
     expect(aui.threads.getState().threadIds).toContain("t1");
     expect(onDelete).not.toHaveBeenCalled();
     handle.destroy();
+  });
+
+  it("keeps a local thread deleted when history cleanup fails", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const messagesKey = "@assistant-ui:messages:t1";
+    const values = new Map([
+      [threadsKey, JSON.stringify([{ remoteId: "t1", status: "regular" }])],
+      [messagesKey, JSON.stringify({ messages: [] })],
+    ]);
+    const cleanupError = new Error("Storage unavailable");
+    const removeItem = vi.fn(async () => {
+      throw cleanupError;
+    });
+    const adapter = createLocalStorageAdapter({
+      storage: {
+        getItem: async (key) => values.get(key) ?? null,
+        setItem: async (key, value) => {
+          values.set(key, value);
+        },
+        removeItem,
+      },
+    });
+    const onDelete = vi.fn();
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      undefined,
+      onDelete,
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const aui = handle.getClient();
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).toContain("t1");
+      });
+
+      await expect(
+        aui.threads.item({ id: "t1" }).delete(),
+      ).resolves.toBeUndefined();
+
+      expect(removeItem).toHaveBeenCalledWith(messagesKey);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("local history cleanup failed"),
+        cleanupError,
+      );
+      expect((await adapter.list()).threads).toEqual([]);
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).not.toContain("t1");
+        expect(onDelete).toHaveBeenCalledWith("t1");
+      });
+    } finally {
+      handle.destroy();
+      warn.mockRestore();
+    }
   });
 
   const deleteDuringAdapterSwap = async (
