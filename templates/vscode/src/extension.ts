@@ -39,8 +39,9 @@ export async function activate(context: vscode.ExtensionContext) {
       };
       const host = serveWebviewHost(view.webview, {
         routes: { "/api/chat": { POST } },
-        openExternal: (url) => vscode.env.openExternal(vscode.Uri.parse(url)),
-        storage: context.globalState,
+        // VS Code opens a string as is but re-encodes a Uri, which corrupts escaped characters.
+        openExternal: (url) =>
+          vscode.env.openExternal(url as unknown as vscode.Uri),
       });
       view.onDidDispose(() => host.dispose());
       view.webview.html = renderWebviewHtml(view.webview, {

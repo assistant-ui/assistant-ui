@@ -17,7 +17,8 @@ export class ExternalOpener {
     this.opened.push({ seq: ++this.seq, url, stubbed: this.stub });
     if (this.opened.length > MAX_OPENED) this.opened.shift();
     if (this.stub) return true;
-    return vscode.env.openExternal(vscode.Uri.parse(url));
+    // VS Code opens a string as is but re-encodes a Uri, which corrupts escaped characters.
+    return vscode.env.openExternal(url as unknown as vscode.Uri);
   };
 
   state(): OpenExternalState {
