@@ -110,10 +110,10 @@ export function Sources({
               .join(" · ");
             const cardClassName =
               layout === "list"
-                ? "focus-visible:ring-foreground/20 hover:bg-foreground/[0.03] -mx-2.5 flex flex-col gap-1 rounded-xl px-2.5 py-1.5 transition-colors duration-300 outline-none focus-visible:ring-1 motion-reduce:transition-none"
+                ? "focus-visible:ring-foreground/20 hover:bg-foreground/[0.03] flex flex-col gap-1 rounded-xl px-2.5 py-1.5 transition-colors duration-300 outline-none focus-visible:ring-1 focus-visible:ring-inset motion-reduce:transition-none"
                 : cn(
                     paper,
-                    "focus-visible:ring-foreground/20 flex flex-col gap-1.5 rounded-2xl p-3 transition-transform duration-150 outline-none hover:-translate-y-px focus-visible:ring-1 motion-reduce:transition-none",
+                    "focus-visible:ring-foreground/20 flex flex-col gap-1.5 rounded-2xl p-3 transition-transform duration-150 outline-none hover:-translate-y-px focus-visible:ring-1 focus-visible:ring-inset motion-reduce:transition-none",
                   );
             const glyph = domain ? (
               <span className="bg-foreground/[0.06] text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
