@@ -22,6 +22,7 @@
     "esbuild": "^0.28.2"
   },
   "scripts": {
-    "test": "node --test transport.test.mjs"
+    "test": "node --test transport.test.mjs",
+    "test:coverage": "pnpm run test"
   }
 }

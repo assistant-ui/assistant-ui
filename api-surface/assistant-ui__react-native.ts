@@ -4072,6 +4072,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4194,6 +4195,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe$1;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4273,6 +4275,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -4289,6 +4292,7 @@ type ThreadRuntimeState = {
 type ThreadState = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -4441,6 +4445,7 @@ type ToolApprovalResponse = {
 
 type ToolArgsStatus<TArgs extends Record<string, unknown> = Record<string, unknown>> = {
   status: "complete" | "incomplete" | "requires-action" | "running";
+  argsStatus: PropFieldStatus;
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 

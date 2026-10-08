@@ -123,21 +123,26 @@ function toSnapshotNestedMessages(
     if (role !== "assistant" && role !== "user" && role !== "system") {
       return [];
     }
-    if (!Array.isArray(rawMessage.content)) return [];
+    const rawContent = rawMessage.content;
+    if (!Array.isArray(rawContent) && typeof rawContent !== "string") return [];
 
-    const content = rawMessage.content
-      .filter(
-        (part): part is Record<string, unknown> =>
-          isObject(part) && typeof part.type === "string",
-      )
-      .map((part) => {
-        if (part.type !== "tool-call" || !Array.isArray(part.messages))
-          return part;
-        return {
-          ...part,
-          messages: toSnapshotNestedMessages(part.messages, depth + 1) ?? [],
-        };
-      });
+    const content =
+      typeof rawContent === "string"
+        ? rawContent
+        : rawContent
+            .filter(
+              (part): part is Record<string, unknown> =>
+                isObject(part) && typeof part.type === "string",
+            )
+            .map((part) => {
+              if (part.type !== "tool-call" || !Array.isArray(part.messages))
+                return part;
+              return {
+                ...part,
+                messages:
+                  toSnapshotNestedMessages(part.messages, depth + 1) ?? [],
+              };
+            });
     const createdAt =
       rawMessage.createdAt instanceof Date
         ? rawMessage.createdAt

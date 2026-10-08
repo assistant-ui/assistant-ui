@@ -725,25 +725,6 @@ export function auiV0DecodeSafely(
   }
 }
 
-export function auiV0Decode(
-  cloudMessage: CloudMessage & { format: "aui/v0" },
-): ExportedMessageRepositoryItem {
-  const payload = cloudMessage.content as unknown as AuiV0Message;
-  const message = decodeAuiV0Message(
-    {
-      ...payload,
-      id: cloudMessage.id,
-      createdAt: cloudMessage.created_at,
-    },
-    cloudMessage.id,
-  );
-
-  return {
-    parentId: cloudMessage.parent_id,
-    message,
-  };
-}
-
 const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({
   ...auiV0Encode(message),
   id: message.id,

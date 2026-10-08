@@ -13,6 +13,7 @@ export type { AssistantStreamChunk } from "./core/AssistantStreamChunk";
 export {
   DataStreamDecoder,
   DataStreamEncoder,
+  type DataStreamOptions,
 } from "./core/serialization/data-stream/DataStream";
 export {
   PlainTextDecoder,

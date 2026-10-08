@@ -136,6 +136,7 @@ type CoreOptions = {
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
   notifyUpdate: () => void;
+  isThreadSwitching?: () => boolean;
 };
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
@@ -180,6 +181,7 @@ export class AgUiThreadRuntimeCore {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
+  private readonly isThreadSwitching: (() => boolean) | undefined;
   private readonly reportedErrors = new WeakSet<object>();
 
   private runtime: AssistantRuntime | undefined;
@@ -229,6 +231,7 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
+    this.isThreadSwitching = options.isThreadSwitching;
   }
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
@@ -1184,6 +1187,7 @@ export class AgUiThreadRuntimeCore {
     resume?: ResumeDispatch,
     resumeStream?: ResumeStream,
   ): Promise<void> {
+    if (this.isThreadSwitching?.()) return;
     // A default AG-UI run supersedes the active run; the hook's opt-in message
     // queue serializes sends instead. append supersedes earlier, before it links
     // its message; this covers the entry points that start a run without one.
@@ -1782,12 +1786,79 @@ export class AgUiThreadRuntimeCore {
     return changed ? content : next;
   }
 
+  // A snapshot built from user, assistant, and tool records alone carries no
+  // reasoning or activity of its own, so the parts streamed locally would be
+  // lost on every refresh; keep the local ones where they streamed when the
+  // snapshot has none of that kind, matching the merge rule of @ag-ui/client.
+  private mergeSnapshotAssistantContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+    snapshotHasReasoning: boolean,
+    snapshotHasActivity: boolean,
+    nestedSnapshotHasReasoning = snapshotHasReasoning,
+    nestedSnapshotHasActivity = snapshotHasActivity,
+  ): ThreadAssistantMessage["content"] {
+    const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
+      part.type === "reasoning"
+        ? this.showThinking && !snapshotHasReasoning
+        : isActivityPart(part) && !snapshotHasActivity;
+    const kept = previous.filter(shouldKeep);
+    const merged = this.reconcileSnapshotNestedContent(
+      previous,
+      this.preserveToolInteractions(previous, next),
+      nestedSnapshotHasReasoning,
+      nestedSnapshotHasActivity,
+    );
+    if (kept.length === 0) return merged;
+
+    const mergedByType = new Map<string, number[]>();
+    const mergedTools = new Map<string, number>();
+    for (const [index, part] of merged.entries()) {
+      if (part.type === "tool-call") {
+        mergedTools.set(part.toolCallId, index);
+      } else {
+        const indexes = mergedByType.get(part.type) ?? [];
+        indexes.push(index);
+        mergedByType.set(part.type, indexes);
+      }
+    }
+
+    const previousOrdinals = new Map<string, number>();
+    const insertions: (typeof kept)[] = Array.from(
+      { length: merged.length + 1 },
+      () => [],
+    );
+    let predecessorIndex = -1;
+    for (const part of previous) {
+      if (shouldKeep(part)) {
+        insertions[predecessorIndex + 1]!.push(part);
+        continue;
+      }
+
+      let matchedIndex: number | undefined;
+      if (part.type === "tool-call") {
+        matchedIndex = mergedTools.get(part.toolCallId);
+      } else {
+        const ordinal = previousOrdinals.get(part.type) ?? 0;
+        matchedIndex = mergedByType.get(part.type)?.[ordinal];
+        previousOrdinals.set(part.type, ordinal + 1);
+      }
+      if (matchedIndex !== undefined) predecessorIndex = matchedIndex;
+    }
+
+    const result: ThreadAssistantMessage["content"][number][] = [];
+    for (const [index, part] of merged.entries()) {
+      result.push(...insertions[index]!, part);
+    }
+    result.push(...insertions[merged.length]!);
+    return result;
+  }
+
   private reconcileSnapshotNestedContent(
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
     snapshotHasReasoning: boolean,
     snapshotHasActivity: boolean,
-    retainAssistantParts: boolean,
   ): ThreadAssistantMessage["content"] {
     const previousCalls = new Map<string, ToolCallMessagePart[]>();
     for (const part of previous) {
@@ -1798,7 +1869,7 @@ export class AgUiThreadRuntimeCore {
     }
 
     const callOrdinals = new Map<string, number>();
-    const merged = next.map((part) => {
+    return next.map((part) => {
       if (part.type !== "tool-call") return part;
       const ordinal = callOrdinals.get(part.toolCallId) ?? 0;
       callOrdinals.set(part.toolCallId, ordinal + 1);
@@ -1818,57 +1889,6 @@ export class AgUiThreadRuntimeCore {
         ),
       };
     });
-
-    if (!retainAssistantParts) return merged;
-
-    const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
-      part.type === "reasoning"
-        ? this.showThinking && !snapshotHasReasoning
-        : isActivityPart(part) && !snapshotHasActivity;
-    if (!previous.some(shouldKeep)) return merged;
-
-    const mergedByType = new Map<string, number[]>();
-    const mergedTools = new Map<string, number[]>();
-    for (const [index, part] of merged.entries()) {
-      const indexes =
-        part.type === "tool-call"
-          ? (mergedTools.get(part.toolCallId) ?? [])
-          : (mergedByType.get(part.type) ?? []);
-      indexes.push(index);
-      if (part.type === "tool-call") mergedTools.set(part.toolCallId, indexes);
-      else mergedByType.set(part.type, indexes);
-    }
-
-    const previousOrdinals = new Map<string, number>();
-    const previousToolOrdinals = new Map<string, number>();
-    const insertions: ThreadAssistantMessage["content"][number][][] =
-      Array.from({ length: merged.length + 1 }, () => []);
-    let predecessorIndex = -1;
-    for (const part of previous) {
-      if (shouldKeep(part)) {
-        insertions[predecessorIndex + 1]!.push(part);
-        continue;
-      }
-
-      let matchedIndex: number | undefined;
-      if (part.type === "tool-call") {
-        const ordinal = previousToolOrdinals.get(part.toolCallId) ?? 0;
-        matchedIndex = mergedTools.get(part.toolCallId)?.[ordinal];
-        previousToolOrdinals.set(part.toolCallId, ordinal + 1);
-      } else {
-        const ordinal = previousOrdinals.get(part.type) ?? 0;
-        matchedIndex = mergedByType.get(part.type)?.[ordinal];
-        previousOrdinals.set(part.type, ordinal + 1);
-      }
-      if (matchedIndex !== undefined) predecessorIndex = matchedIndex;
-    }
-
-    const result: ThreadAssistantMessage["content"][number][] = [];
-    for (const [index, part] of merged.entries()) {
-      result.push(...insertions[index]!, part);
-    }
-    result.push(...insertions[merged.length]!);
-    return result;
   }
 
   private reconcileSnapshotNestedMessages(
@@ -1895,12 +1915,11 @@ export class AgUiThreadRuntimeCore {
         return message;
       return {
         ...message,
-        content: this.reconcileSnapshotNestedContent(
+        content: this.mergeSnapshotAssistantContent(
           prior.content,
           message.content,
           snapshotHasReasoning,
           snapshotHasActivity,
-          true,
         ),
       };
     });
@@ -2196,12 +2215,9 @@ export class AgUiThreadRuntimeCore {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
-          const convertedMessage = fromThreadMessageLike(
-            message,
-            generateId(),
-            FALLBACK_USER_STATUS,
+          converted.push(
+            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
           );
-          converted.push(convertedMessage);
         } catch (error) {
           this.logger.error?.(
             "[agui] failed to import message from snapshot",
@@ -2209,11 +2225,20 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
-      const snapshotHasReasoning = hasSnapshotAssistantPart(
+      const snapshotHasReasoning = converted.some(
+        (message) =>
+          message.role === "assistant" &&
+          message.content.some((part) => part.type === "reasoning"),
+      );
+      const snapshotHasActivity = converted.some(
+        (message) =>
+          message.role === "assistant" && message.content.some(isActivityPart),
+      );
+      const nestedSnapshotHasReasoning = hasSnapshotAssistantPart(
         converted,
         (part) => part.type === "reasoning",
       );
-      const snapshotHasActivity = hasSnapshotAssistantPart(
+      const nestedSnapshotHasActivity = hasSnapshotAssistantPart(
         converted,
         isActivityPart,
       );
@@ -2223,24 +2248,21 @@ export class AgUiThreadRuntimeCore {
           convertedMessage.id,
         )?.message;
         if (
-          convertedMessage.role !== "assistant" ||
-          existing?.role !== "assistant"
+          convertedMessage.role === "assistant" &&
+          existing?.role === "assistant"
         ) {
-          continue;
-        }
-        converted[index] = {
-          ...convertedMessage,
-          content: this.reconcileSnapshotNestedContent(
-            existing.content,
-            this.preserveToolInteractions(
+          converted[index] = {
+            ...convertedMessage,
+            content: this.mergeSnapshotAssistantContent(
               existing.content,
               convertedMessage.content,
+              snapshotHasReasoning,
+              snapshotHasActivity,
+              nestedSnapshotHasReasoning,
+              nestedSnapshotHasActivity,
             ),
-            snapshotHasReasoning,
-            snapshotHasActivity,
-            false,
-          ),
-        };
+          };
+        }
       }
       const snapshotContainsActiveAssistant = converted.some(
         (message) => message.id === activeAssistant?.id,

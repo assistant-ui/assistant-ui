@@ -52,7 +52,6 @@ let contentLayers: {
 let markerInstances: { setIcon: ReturnType<typeof vi.fn> }[];
 
 beforeEach(() => {
-  vi.clearAllMocks();
   contentLayers = [];
   markerInstances = [];
   mapInstance = {

@@ -30,6 +30,10 @@ export type ThreadState = {
    */
   readonly isDisabled: boolean;
   /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
+  /**
    * Whether the thread is loading its history.
    */
   readonly isLoading: boolean;
