@@ -118,7 +118,7 @@ After the probes, `pnpm screenshots` lays the window out at 1600x2000 and captur
 | `auiTest.csp` | `strict`, `relaxed` |
 | `auiTest.location` | `sidebar`, `panel`, `editor` |
 
-Changing a setting re-creates the webview. The Readiness view marks every value that is not implemented yet, and the webview shows the same notice instead of falling back. `ai-sdk` and `local` are implemented; `data-stream` and `assistant-transport` are not.
+Changing a setting re-creates the webview. The Readiness view marks every value that is not implemented yet, and the webview shows the same notice instead of falling back. `ai-sdk` is implemented; `data-stream` and `assistant-transport` are not.
 
 ## Probes
 

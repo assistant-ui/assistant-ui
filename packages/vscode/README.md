@@ -33,7 +33,7 @@ Unknown paths answer `404`, unsupported methods `405`, and a handler that throws
 Pass `vscodeFetch` to any runtime that takes a `fetch`:
 
 ```tsx
-import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { vscodeFetch } from "@assistant-ui/vscode/webview";
 
 const runtime = useChatRuntime({
@@ -73,7 +73,7 @@ installLinkInterceptor();
 ```tsx
 import { createLocalStorageAdapter } from "@assistant-ui/core/react";
 import { useRemoteThreadListRuntime } from "@assistant-ui/react";
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { createVSCodeStorage, vscodeFetch } from "@assistant-ui/vscode/webview";
 
 const threads = createLocalStorageAdapter({ storage: createVSCodeStorage() });

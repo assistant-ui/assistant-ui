@@ -17,6 +17,10 @@ export const threadStorage: AsyncStorageLike = {
     await storage.setItem(key, value);
     storedThreadValues.set(key, value);
   },
+  removeItem: async (key) => {
+    await storage.removeItem(key);
+    storedThreadValues.delete(key);
+  },
 };
 
 /** Each runtime stores its own threads, since their message formats differ. */
