@@ -504,9 +504,8 @@ export abstract class BaseThreadRuntimeCore
         error,
       );
     }
-    // A session is still installed when a subscriber notified by the disconnect
-    // connected one, or when the disconnect threw before releasing the previous
-    // session; connecting over either would leave it live with no owner.
+    // A subscriber notified by the disconnect may have connected a session;
+    // connecting over it would leave it live with no owner.
     if (this._voiceSession !== undefined) return;
 
     let session: RealtimeVoiceAdapter.Session;
