@@ -125,14 +125,18 @@ function fakeClient({
   comments = [],
   checkRuns = [],
   pages = [{ nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }],
+  authorPages = [
+    { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+  ],
   reviewPages,
   commitPages,
   failures = [],
 } = {}) {
   const calls = [];
   const writes = [];
-  let currentLabels = structuredClone(labels);
-  let currentComments = structuredClone(comments);
+  const currentLabels = new Map([[12, structuredClone(labels)]]);
+  const currentComments = new Map([[12, structuredClone(comments)]]);
+  let nextCommentId = Math.max(90, ...comments.map(({ id }) => id ?? 0)) + 1;
   let currentCheckRuns = structuredClone(checkRuns);
   const historyPage = (history, after) => {
     const index = history.findIndex(
@@ -197,6 +201,20 @@ function fakeClient({
         );
         return { search: { issueCount: openCount } };
       }
+      if (query.includes("query ReviewTierAuthorPullRequests(")) {
+        assert.equal(
+          variables.query,
+          `repo:${policy.repository} is:pr is:open draft:false author:${pr.author.login}`,
+        );
+        const index =
+          variables.after === null
+            ? 0
+            : authorPages.findIndex(
+                (page) => page.pageInfo.endCursor === variables.after,
+              ) + 1;
+        assert.ok(authorPages[index], `Unrecorded page ${variables.after}`);
+        return { search: structuredClone(authorPages[index]) };
+      }
       if (query.includes("query ReviewTierOpenPullRequests(")) {
         const index =
           variables.after === null
@@ -225,10 +243,15 @@ function fakeClient({
         assert.ok(Object.hasOwn(teams, team), `Unrecorded team ${team}`);
         return teams[team].map((login) => ({ login }));
       }
-      if (new RegExp(`^${repo}/issues/\\d+/labels$`).test(resource))
-        return structuredClone(currentLabels);
-      if (new RegExp(`^${repo}/issues/\\d+/comments$`).test(resource))
-        return structuredClone(currentComments);
+      const issue = new RegExp(
+        `^${repo}/issues/(\\d+)/(labels|comments)$`,
+      ).exec(resource);
+      if (issue)
+        return structuredClone(
+          (issue[2] === "labels" ? currentLabels : currentComments).get(
+            Number(issue[1]),
+          ) ?? [],
+        );
       assert.fail(`Unrecorded pagination: ${resource}`);
     },
     async rest(method, resource, body) {
@@ -263,19 +286,42 @@ function fakeClient({
         return { status: 201, data: { id: 1 } };
       }
       if (method === "POST" && resource.endsWith("/labels")) {
-        currentLabels.push(...body.labels.map((name) => ({ name })));
+        const number = Number(resource.split("/issues/")[1].split("/")[0]);
+        currentLabels.set(number, [
+          ...(currentLabels.get(number) ?? []),
+          ...body.labels.map((name) => ({ name })),
+        ]);
       } else if (method === "DELETE" && resource.includes("/labels/")) {
+        const number = Number(resource.split("/issues/")[1].split("/")[0]);
         const name = decodeURIComponent(resource.split("/labels/")[1]);
-        currentLabels = currentLabels.filter((label) => label.name !== name);
+        currentLabels.set(
+          number,
+          (currentLabels.get(number) ?? []).filter(
+            (label) => label.name !== name,
+          ),
+        );
       } else if (method === "POST" && resource.endsWith("/comments")) {
-        currentComments.push({
-          id: 91,
-          body: body.body,
-          user: { type: "Bot" },
-        });
+        const number = Number(resource.split("/issues/")[1].split("/")[0]);
+        currentComments.set(number, [
+          ...(currentComments.get(number) ?? []),
+          {
+            id: nextCommentId++,
+            body: body.body,
+            user: { type: "Bot" },
+          },
+        ]);
       } else if (method === "PATCH" && resource.includes("/issues/comments/")) {
         const id = Number(resource.split("/").at(-1));
-        currentComments.find((comment) => comment.id === id).body = body.body;
+        let found = false;
+        for (const comments of currentComments.values()) {
+          const comment = comments.find((item) => item.id === id);
+          if (comment) {
+            comment.body = body.body;
+            found = true;
+            break;
+          }
+        }
+        assert.ok(found, `Unrecorded comment ${id}`);
       } else {
         assert.fail(`Unrecorded write: ${method} ${resource}`);
       }
@@ -995,7 +1041,7 @@ test("a missing team is empty with a warning, while other team errors propagate"
   );
 });
 
-test("write permissions are limited to admin, maintain, and write, with 403 and 404 treated as false", async () => {
+test("write permissions are limited to admin, maintain, and write, with 404 treated as false", async () => {
   for (const permission of ["admin", "maintain", "write", "triage", "read"]) {
     const gathered = await gatherPullRequest(
       fakeClient({ permission }).client,
@@ -1008,24 +1054,21 @@ test("write permissions are limited to admin, maintain, and write, with 403 and 
       ["admin", "maintain", "write"].includes(permission),
     );
   }
-  for (const permissionStatus of [403, 404]) {
-    const gathered = await gatherPullRequest(
-      fakeClient({ permissionStatus }).client,
-      policy,
-      12,
-      { now },
-    );
-    assert.equal(gathered.people.authorHasWriteAccess, false);
-  }
-  await assert.rejects(
-    gatherPullRequest(
-      fakeClient({ permissionStatus: 500 }).client,
-      policy,
-      12,
-      { now },
-    ),
-    { status: 500 },
+  const gathered = await gatherPullRequest(
+    fakeClient({ permissionStatus: 404 }).client,
+    policy,
+    12,
+    { now },
   );
+  assert.equal(gathered.people.authorHasWriteAccess, false);
+  for (const permissionStatus of [403, 500]) {
+    await assert.rejects(
+      gatherPullRequest(fakeClient({ permissionStatus }).client, policy, 12, {
+        now,
+      }),
+      { status: permissionStatus },
+    );
+  }
 });
 
 test("a deleted author has no permission lookup or author search", async () => {
@@ -1220,7 +1263,7 @@ test("a human marker comment is ignored when publishing the sticky bot comment",
   );
 });
 
-test("identical checks from the pinned app skip all writes and issue sync", async () => {
+test("identical checks from the pinned app still sync each pull request", async () => {
   const baseline = fakeClient();
   const evaluation = await evaluationFor(baseline);
   await publish(baseline.client, enforcePolicy, {
@@ -1268,7 +1311,7 @@ test("identical checks from the pinned app skip all writes and issue sync", asyn
     assert.equal(
       recording.calls.filter(({ resource }) => resource?.includes("/issues/"))
         .length,
-      expectedWrites === 0 ? 0 : 2,
+      2,
     );
     assert.ok(
       recording.calls.some(
@@ -1279,6 +1322,94 @@ test("identical checks from the pinned app skip all writes and issue sync", asyn
       ),
     );
   }
+  const recording = fakeClient({
+    checkRuns: [{ ...intended, app: { id: 42 } }],
+    labels: [{ name: "tier/3" }],
+    comments: [
+      {
+        id: 81,
+        body: renderComment(evaluation, pinnedPolicy),
+        user: { type: "Bot" },
+      },
+    ],
+  });
+  await publish(recording.client, pinnedPolicy, {
+    number: 12,
+    headSha: "head",
+    evaluation,
+  });
+  await publish(recording.client, pinnedPolicy, {
+    number: 13,
+    headSha: "head",
+    evaluation,
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/issues/13/labels`],
+      ["POST", `${repo}/issues/13/comments`],
+    ],
+  );
+  assert.deepEqual(recording.writes[0].body, { labels: ["tier/3"] });
+  assert.deepEqual(recording.writes[1].body, {
+    body: renderComment(evaluation, pinnedPolicy),
+  });
+});
+
+test("newer check runs block stale publishes while older runs allow them", async () => {
+  const evaluation = await evaluationFor();
+  for (const integrationId of [42, null]) {
+    const recording = fakeClient({
+      checkRuns: [
+        {
+          started_at: "2026-10-08T12:01:00Z",
+          app: { id: integrationId === null ? 99 : 42 },
+        },
+      ],
+    });
+    const checkPolicy = {
+      ...enforcePolicy,
+      reviewTierCheck: { ...enforcePolicy.reviewTierCheck, integrationId },
+    };
+    await publish(recording.client, checkPolicy, {
+      number: 12,
+      headSha: "head",
+      evaluation,
+      startedAt: now.toISOString(),
+    });
+    assert.deepEqual(recording.writes, []);
+    assert.ok(
+      !recording.calls.some(({ resource }) => resource?.includes("/issues/")),
+    );
+  }
+  const recording = fakeClient({
+    checkRuns: [{ started_at: "2026-10-08T11:59:00Z", app: { id: 42 } }],
+  });
+  const beforePublish = Date.now();
+  await publish(recording.client, enforcePolicy, {
+    number: 12,
+    headSha: "head",
+    evaluation,
+    startedAt: now.toISOString(),
+  });
+  const afterPublish = Date.now();
+  const check = recording.writes.find(
+    ({ method, resource }) =>
+      method === "POST" && resource === `${repo}/check-runs`,
+  ).body;
+  assert.equal(check.started_at, now.toISOString());
+  assert.ok(Date.parse(check.completed_at) >= beforePublish);
+  assert.ok(Date.parse(check.completed_at) <= afterPublish);
+  assert.ok(
+    recording.writes.some(
+      ({ resource }) => resource === `${repo}/issues/12/labels`,
+    ),
+  );
+  assert.ok(
+    recording.writes.some(
+      ({ resource }) => resource === `${repo}/issues/12/comments`,
+    ),
+  );
 });
 
 test("merge groups parse branch refs, evaluate fresh data even for drafts, and publish only a check on the queue SHA", async () => {
@@ -1527,6 +1658,108 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
       ),
     );
     assert.equal(recording.writes[0].body.conclusion, "action_required");
+    assert.equal(recording.writes[0].body.started_at, now.toISOString());
+  }
+});
+
+test("closing or drafting a pull request re-evaluates the author's open siblings", async () => {
+  for (const [action, draft] of [
+    ["closed", false],
+    ["converted_to_draft", true],
+    ["edited", true],
+  ]) {
+    const recording = fakeClient({
+      authorPages: [
+        {
+          nodes: [{ number: 12 }, { number: 13 }],
+          pageInfo: { hasNextPage: true, endCursor: "next-page" },
+        },
+        {
+          nodes: [{ number: 14 }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      ],
+    });
+    assert.equal(
+      await main(
+        eventOptions(recording.client, "pull_request_target", {
+          action,
+          pull_request: {
+            number: 12,
+            draft,
+            user: { login: "samdickson22" },
+          },
+        }),
+      ),
+      0,
+    );
+    assert.deepEqual(
+      recording.calls
+        .filter(({ query }) =>
+          query?.includes("query ReviewTierAuthorPullRequests("),
+        )
+        .map(({ variables }) => [variables.query, variables.after]),
+      [
+        [
+          `repo:${policy.repository} is:pr is:open draft:false author:samdickson22`,
+          null,
+        ],
+        [
+          `repo:${policy.repository} is:pr is:open draft:false author:samdickson22`,
+          "next-page",
+        ],
+      ],
+    );
+    assert.deepEqual(
+      recording.calls
+        .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+        .map(({ variables }) => variables.number),
+      [13, 14],
+    );
+    assert.deepEqual(
+      recording.writes
+        .filter(({ resource }) => resource.endsWith("/check-runs"))
+        .map(({ body }) => body.started_at),
+      [now.toISOString()],
+    );
+    assert.ok(
+      recording.writes.some(
+        ({ resource }) => resource === `${repo}/issues/13/comments`,
+      ),
+    );
+    assert.ok(
+      recording.writes.some(
+        ({ resource }) => resource === `${repo}/issues/14/comments`,
+      ),
+    );
+    assert.ok(
+      !recording.writes.some(({ resource }) =>
+        resource.includes("/issues/12/"),
+      ),
+    );
+  }
+});
+
+test("maintainer authors do not trigger sibling evaluation", async () => {
+  for (const login of ["okisdev", "Kinfe123"]) {
+    const recording = fakeClient();
+    assert.equal(
+      await main(
+        eventOptions(recording.client, "pull_request_target", {
+          action: "closed",
+          pull_request: { number: 12, draft: false, user: { login } },
+        }),
+      ),
+      0,
+    );
+    assert.ok(
+      !recording.calls.some(
+        ({ query }) =>
+          query?.includes("query ReviewTierAuthorPullRequests(") ||
+          query?.includes("query ReviewTierPullRequest("),
+      ),
+    );
+    assert.deepEqual(recording.writes, []);
   }
 });
 

@@ -12,6 +12,7 @@ on:
         unlabeled,
         ready_for_review,
         converted_to_draft,
+        closed,
       ]
   issues:
     types: [labeled, unlabeled]
@@ -39,11 +40,11 @@ jobs:
     if: >-
       vars.REVIEW_POLICY_APP_ID != '' &&
       !(github.event_name == 'pull_request_target' &&
-        (github.event.action == 'labeled' || github.event.action == 'unlabeled') &&
+        github.event.action == 'labeled' &&
         startsWith(github.event.label.name, 'tier/')) &&
       (github.event_name != 'issues' || github.event.label.name == 'decision: accepted')
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.run_id }}
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.merge_group.head_sha || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -76,7 +77,7 @@ jobs:
           permission-issues: write
           permission-members: read
           permission-metadata: read
-          permission-pull-requests: read
+          permission-pull-requests: write
 
       - name: Download the relayed pull request number
         if: github.event_name == 'workflow_run'

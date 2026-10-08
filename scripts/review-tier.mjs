@@ -196,6 +196,7 @@ export async function gatherPullRequest(
   number,
   { now = new Date(), people } = {},
 ) {
+  const startedAt = now.toISOString();
   const [owner, name] = policy.repository.split("/");
   const repo = `/repos/${policy.repository}`;
   const data = await client.graphql(pullRequestQuery, { owner, name, number });
@@ -329,7 +330,7 @@ export async function gatherPullRequest(
         permission.data.permission,
       );
     } catch (error) {
-      if (error.status !== 403 && error.status !== 404) throw error;
+      if (error.status !== 404) throw error;
     }
     const search = await client.graphql(
       `query ReviewTierAuthorCount($query: String!) {
@@ -342,6 +343,7 @@ export async function gatherPullRequest(
     openPullRequestCount = search.search.issueCount;
   }
   return {
+    startedAt,
     pr: {
       number,
       title: node.title,
@@ -488,7 +490,14 @@ export function renderComment({ tierResult, requirementResult }, policy) {
 export async function publish(
   client,
   policy,
-  { number, headSha, checkSha, evaluation, labelsAndComment = true },
+  {
+    number,
+    headSha,
+    checkSha,
+    evaluation,
+    startedAt = new Date().toISOString(),
+    labelsAndComment = true,
+  },
 ) {
   const repo = `/repos/${policy.repository}`;
   const body = renderComment(evaluation, policy);
@@ -498,6 +507,7 @@ export async function publish(
   const check = {
     name: policy.reviewTierCheck.name,
     head_sha: targetSha,
+    started_at: startedAt,
     status: "completed",
     conclusion:
       policy.reviewTierCheck.mode === "shadow" && !ready
@@ -521,13 +531,17 @@ export async function publish(
       policy.reviewTierCheck.integrationId === null ||
       run.app?.id === policy.reviewTierCheck.integrationId,
   );
+  if (Date.parse(latest?.started_at) > Date.parse(startedAt)) return;
   if (
-    latest?.conclusion === check.conclusion &&
-    latest.output?.title === check.output.title &&
-    latest.output?.summary === check.output.summary
-  )
-    return;
-  await client.rest("POST", `${repo}/check-runs`, check);
+    latest?.conclusion !== check.conclusion ||
+    latest.output?.title !== check.output.title ||
+    latest.output?.summary !== check.output.summary
+  ) {
+    await client.rest("POST", `${repo}/check-runs`, {
+      ...check,
+      completed_at: new Date().toISOString(),
+    });
+  }
   if (!labelsAndComment) return;
   const label = tierLabel(policy, tier);
   const labels = await client.paginate(`${repo}/issues/${number}/labels`);
@@ -567,6 +581,13 @@ const openPullRequestsQuery = `query ReviewTierOpenPullRequests($owner: String!,
   }
 }`;
 
+const authorPullRequestsQuery = `query ReviewTierAuthorPullRequests($query: String!, $after: String) {
+  search(query: $query, type: ISSUE, first: 100, after: $after) {
+    nodes { ... on PullRequest { number } }
+    pageInfo { hasNextPage endCursor }
+  }
+}`;
+
 function pullRequestNumber(value) {
   if (
     !/^\d+$/.test(String(value)) ||
@@ -586,7 +607,7 @@ export async function main({
   client,
   policy = loadReviewPolicy(path.resolve(import.meta.dirname, "..")),
   readFile = readFileSync,
-  now = new Date(),
+  now,
 } = {}) {
   const values = optionValues(args, "--pr");
   if (values.length > 1) throw new Error("--pr may be specified only once.");
@@ -595,6 +616,8 @@ export async function main({
   let listOpen = false;
   let checkSha;
   let mergeGroup = false;
+  let siblingAuthor = null;
+  let excludedNumber;
   if (values.length) {
     numbers = [pullRequestNumber(values[0])];
   } else {
@@ -603,8 +626,17 @@ export async function main({
       : {};
     switch (env.GITHUB_EVENT_NAME) {
       case "pull_request_target":
-        if (event.pull_request.draft) return 0;
-        numbers = [pullRequestNumber(event.pull_request.number)];
+        if (
+          event.action === "closed" ||
+          event.action === "converted_to_draft" ||
+          event.pull_request.draft
+        ) {
+          siblingAuthor = event.pull_request.user?.login ?? null;
+          if (siblingAuthor === null) return 0;
+          excludedNumber = pullRequestNumber(event.pull_request.number);
+        } else {
+          numbers = [pullRequestNumber(event.pull_request.number)];
+        }
         break;
       case "merge_group": {
         const match =
@@ -655,6 +687,31 @@ export async function main({
     if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is required.");
     client = createGitHubClient({ token: env.GITHUB_TOKEN });
   }
+  let people;
+  if (siblingAuthor !== null) {
+    people = await gatherPeople(client, policy);
+    if (
+      people.admins.includes(siblingAuthor) ||
+      (people.teams[policy.teams.maintainers] ?? []).includes(siblingAuthor)
+    )
+      return 0;
+    let after = null;
+    do {
+      const data = await client.graphql(authorPullRequestsQuery, {
+        query: `repo:${policy.repository} is:pr is:open draft:false author:${siblingAuthor}`,
+        after,
+      });
+      const connection = data.search;
+      numbers.push(
+        ...connection.nodes
+          .filter((node) => node.number && node.number !== excludedNumber)
+          .map(({ number }) => number),
+      );
+      after = connection.pageInfo.hasNextPage
+        ? connection.pageInfo.endCursor
+        : null;
+    } while (after !== null);
+  }
   if (listOpen) {
     const [owner, name] = policy.repository.split("/");
     let after = null;
@@ -677,12 +734,11 @@ export async function main({
     } while (after !== null);
   }
   let exitCode = 0;
-  let people;
   for (const number of new Set(numbers)) {
     try {
       people ??= await gatherPeople(client, policy);
       const gathered = await gatherPullRequest(client, policy, number, {
-        now,
+        now: now ?? new Date(),
         people,
       });
       if (gathered.pr.isDraft && !mergeGroup) continue;
@@ -695,6 +751,7 @@ export async function main({
           headSha: gathered.pr.headSha,
           checkSha,
           evaluation,
+          startedAt: gathered.startedAt,
           labelsAndComment: !mergeGroup,
         });
       }
