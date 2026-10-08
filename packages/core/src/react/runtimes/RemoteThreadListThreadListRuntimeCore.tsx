@@ -1378,7 +1378,9 @@ export class RemoteThreadListThreadListRuntimeCore
         const current = getThreadData(this._state.baseValue, data.id);
         if (
           current !== undefined &&
+          current.status !== "new" &&
           current.remoteId === undefined &&
+          this._mainThreadId !== current.id &&
           !this._isOtherAdaptersThread(this._state.baseValue, adapter, data.id)
         ) {
           this._state.update(

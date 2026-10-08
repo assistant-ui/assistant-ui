@@ -97,7 +97,7 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
     expect(core.getItemById(localId)).toBeUndefined();
   });
 
-  it("hides the deleted draft when switching away rejects during adapter replacement", async () => {
+  it("keeps the selected draft and its runtime when switching away rejects during adapter replacement", async () => {
     const initializing = deferred<InitializeResult>();
     const switching = deferred<void>();
     const replacementList = deferred<ListResult>();
@@ -111,6 +111,24 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
     await core.getLoadThreadsPromise();
     const localId = core.newThreadId!;
     const initializingTask = core.initialize(localId);
+    const runtime = {};
+    let running = true;
+    const hookManager = (
+      core as unknown as {
+        _hookManager: {
+          getThreadRuntimeCore: (id: string) => unknown;
+          stopThreadRuntime: (id: string) => void;
+        };
+      }
+    )._hookManager;
+    vi.spyOn(hookManager, "getThreadRuntimeCore").mockImplementation((id) =>
+      id === localId && running ? runtime : undefined,
+    );
+    const stop = vi
+      .spyOn(hookManager, "stopThreadRuntime")
+      .mockImplementation((id) => {
+        if (id === localId) running = false;
+      });
     (
       core as unknown as { _ensureThreadIsNotMain: () => Promise<void> }
     )._ensureThreadIsNotMain = () => switching.promise;
@@ -130,12 +148,66 @@ describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
     await expect(deleteTask).rejects.toThrow("switch failed");
 
     expect(core.isLoading).toBe(true);
-    expect(core.threadIds).not.toContain(localId);
-    expect(core.getItemById(localId)).toBeUndefined();
+    expect(core.mainThreadId).toBe(localId);
+    expect(core.threadIds).toContain(localId);
+    expect(core.getItemById(localId)?.status).toBe("regular");
+    expect(core.getMainThreadRuntimeCore()).toBe(runtime);
+    expect(stop).not.toHaveBeenCalledWith(localId);
 
     replacementList.resolve({ threads: [] });
     await loadTask;
     expect(core.getItemById(localId)).toBeUndefined();
+  });
+
+  it("preserves a draft when its initialization rejects after an adapter swap", async () => {
+    const initializing = deferred<InitializeResult>();
+    const leavingMain = deferred<void>();
+    const replacementList = deferred<ListResult>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "anchor",
+            externalId: "anchor",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const newAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const core = createCore(oldAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+    (
+      core as unknown as { _ensureThreadIsNotMain: () => Promise<void> }
+    )._ensureThreadIsNotMain = () => leavingMain.promise;
+    const deleteTask = core.delete(localId);
+    core.__internal_setOptions({
+      adapter: newAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+
+    initializing.reject(new Error("initialize failed"));
+    await expect(initializingTask).rejects.toThrow("initialize failed");
+    leavingMain.resolve();
+    await expect(deleteTask).rejects.toThrow("adapter changed");
+
+    expect(core.isLoading).toBe(true);
+    expect(core.mainThreadId).toBe("anchor");
+    expect(core.newThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.status).toBe("new");
+
+    replacementList.resolve({ threads: [] });
+    await loadTask;
+    expect(core.newThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.status).toBe("new");
   });
 
   it("preserves a replacement adapter draft that reuses the deleted slot id", async () => {
