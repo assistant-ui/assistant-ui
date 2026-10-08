@@ -233,8 +233,8 @@ importers:
         specifier: ^2.3.1
         version: 2.3.1
       '@modelcontextprotocol/server':
-        specifier: ~2.2.0
-        version: 2.2.0
+        specifier: ^2.3.1
+        version: 2.3.1
       '@opencode-ai/sdk':
         specifier: ^1.18.35
         version: 1.18.35
@@ -423,8 +423,8 @@ importers:
         specifier: ^0.52.0
         version: 0.52.0(typescript@7.0.2)
       '@modelcontextprotocol/server':
-        specifier: ~2.2.0
-        version: 2.2.0
+        specifier: ^2.3.1
+        version: 2.3.1
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
@@ -502,10 +502,10 @@ importers:
         version: 0.8.3
       fumadocs-core:
         specifier: ^16.16.2
-        version: 16.16.2(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.2.0)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.4.0(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)(zod@4.6.5)
+        version: 16.16.2(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.3.1)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.4.0(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)(zod@4.6.5)
       fumadocs-mdx:
         specifier: ^15.4.6
-        version: 15.4.6(16d9cede7cdc23551e173676bfc6533f)
+        version: 15.4.6(4a6fabcd07ba37ea61c00394c8dbc6ba)
       heat-graph:
         specifier: workspace:*
         version: link:../../packages/heat-graph
@@ -2829,14 +2829,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@modelcontextprotocol/express':
-        specifier: 2.0.1
-        version: 2.0.1(@modelcontextprotocol/server@2.2.0)(express@5.2.1(supports-color@10.2.2))
+        specifier: ^2.0.2
+        version: 2.0.2(@modelcontextprotocol/server@2.3.1)(express@5.2.1(supports-color@10.2.2))
       '@modelcontextprotocol/node':
-        specifier: 2.1.0
-        version: 2.1.0(@modelcontextprotocol/server@2.2.0)(hono@4.13.13)
+        specifier: ^2.1.1
+        version: 2.1.1(@modelcontextprotocol/server@2.3.1)
       '@modelcontextprotocol/server':
-        specifier: ~2.2.0
-        version: 2.2.0
+        specifier: ^2.3.1
+        version: 2.3.1
       '@modelcontextprotocol/server-legacy':
         specifier: ^2.0.0
         version: 2.3.1(express@5.2.1(supports-color@10.2.2))(supports-color@10.2.2)
@@ -4383,8 +4383,8 @@ importers:
         specifier: ^2.3.1
         version: 2.3.1
       '@modelcontextprotocol/server':
-        specifier: ~2.2.0
-        version: 2.2.0
+        specifier: ^2.3.1
+        version: 2.3.1
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -9061,30 +9061,22 @@ packages:
     resolution: {integrity: sha512-mIGZXpHsjnZ6lD+gD/WCMpR5k8yVQQ8nNFH1N0Srf7AvnwTUMYD6pvTY8ng2+He5FfV7YMZLmrjL7cLa/cc3dQ==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/core@2.2.0':
-    resolution: {integrity: sha512-iLhmprRmWI8EcosOA3wVvww22z02NkgqhV4fBH6f/odQBsi7xnJc0HGmi21yWO+/iKw2yzqVE127Zhna5/+JXw==}
-    engines: {node: '>=20'}
-
   '@modelcontextprotocol/core@2.3.1':
     resolution: {integrity: sha512-laVmIhPGpWi7rG9q+0UigblRN0Hws/Yjlb6qLFtVqryXVLkc4h+yN8z731POD2LnAGQlFe7/tXhUm7Bi0YB91g==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/express@2.0.1':
-    resolution: {integrity: sha512-ufZbY2kxdJH5sJqMMG+trJOKhob7qDzoh9elVu/TYaKIMBChm9GfF8aee/zj1yOb3yXHiP0qYDcuauVvNGyB6A==}
+  '@modelcontextprotocol/express@2.0.2':
+    resolution: {integrity: sha512-lUvfV7gT/tgP8nLRs0ajUtgL+MlMNWWHAls5c9cf4PyBexq3EgmhWWrS4irQOC9OoKuUsHHcNjUw9urhHz542g==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@modelcontextprotocol/server': ^2.1.0
+      '@modelcontextprotocol/server': ^2.3.0
       express: ^4.18.0 || ^5.0.0
 
-  '@modelcontextprotocol/node@2.1.0':
-    resolution: {integrity: sha512-6xg3iWVcOfiL8Y7rI6xUqXD0lI2AY5q3djsa/cOi1IJUSwx06t0gvhSwU/6mIIohrFlt40/ANUG56DQ0HLhILQ==}
+  '@modelcontextprotocol/node@2.1.1':
+    resolution: {integrity: sha512-EY92OAXN2xYL7tNS/MVsWJW1v8VHAPwl9B4Ca3pCrjmvqyC+S1C/6UHsMxF2GoFPraS5Yyg56vFz9brVpFojMA==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@modelcontextprotocol/server': ^2.1.0
-      hono: ^4.11.4
-    peerDependenciesMeta:
-      hono:
-        optional: true
+      '@modelcontextprotocol/server': ^2.3.0
 
   '@modelcontextprotocol/server-legacy@2.3.1':
     resolution: {integrity: sha512-+cuB+hl7s8DiFXIt13le3cD2wZPOeDYwlycAkRMPljqqNbOLekGRiyslx8WXfqaXSCveS1eDD8/B8rmxz9BZFQ==}
@@ -9096,8 +9088,8 @@ packages:
       express:
         optional: true
 
-  '@modelcontextprotocol/server@2.2.0':
-    resolution: {integrity: sha512-qFnltjus6Gk8Lx6J1w2RXmr3YPN22MNT6qD6zjAkaiWIlFIFxWClz0rXHNuJF/KSUyn5YGhkSvXkWDbQHVLFEQ==}
+  '@modelcontextprotocol/server@2.3.1':
+    resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
     engines: {node: '>=20'}
 
   '@mongodb-js/zstd@7.0.0':
@@ -24521,25 +24513,20 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 4.6.5
 
-  '@modelcontextprotocol/core@2.2.0':
-    dependencies:
-      zod: 4.6.5
-
   '@modelcontextprotocol/core@2.3.1':
     dependencies:
       zod: 4.6.5
 
-  '@modelcontextprotocol/express@2.0.1(@modelcontextprotocol/server@2.2.0)(express@5.2.1(supports-color@10.2.2))':
+  '@modelcontextprotocol/express@2.0.2(@modelcontextprotocol/server@2.3.1)(express@5.2.1(supports-color@10.2.2))':
     dependencies:
-      '@modelcontextprotocol/server': 2.2.0
+      '@modelcontextprotocol/server': 2.3.1
       cors: 2.8.6
       express: 5.2.1(supports-color@10.2.2)
 
-  '@modelcontextprotocol/node@2.1.0(@modelcontextprotocol/server@2.2.0)(hono@4.13.13)':
+  '@modelcontextprotocol/node@2.1.1(@modelcontextprotocol/server@2.3.1)':
     dependencies:
       '@hono/node-server': 1.19.17(hono@4.13.13)
-      '@modelcontextprotocol/server': 2.2.0
-    optionalDependencies:
+      '@modelcontextprotocol/server': 2.3.1
       hono: 4.13.13
 
   '@modelcontextprotocol/server-legacy@2.3.1(express@5.2.1(supports-color@10.2.2))(supports-color@10.2.2)':
@@ -24556,9 +24543,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/server@2.2.0':
+  '@modelcontextprotocol/server@2.3.1':
     dependencies:
-      '@modelcontextprotocol/core': 2.2.0
+      '@modelcontextprotocol/core': 2.3.1
       zod: 4.6.5
 
   '@mongodb-js/zstd@7.0.0':
@@ -32342,7 +32329,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  fumadocs-core@16.16.2(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.2.0)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.4.0(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)(zod@4.6.5):
+  fumadocs-core@16.16.2(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.3.1)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.4.0(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)(zod@4.6.5):
     dependencies:
       '@fumari/image-size': 0.1.1
       estree-util-value-to-estree: 3.5.0
@@ -32365,7 +32352,7 @@ snapshots:
       zbsearch: 4.0.1
     optionalDependencies:
       '@mdx-js/mdx': 3.1.1(supports-color@10.2.2)
-      '@modelcontextprotocol/server': 2.2.0
+      '@modelcontextprotocol/server': 2.3.1
       '@tanstack/react-router': 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/estree-jsx': 1.0.5
       '@types/hast': 3.0.5
@@ -32380,14 +32367,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-mdx@15.4.6(16d9cede7cdc23551e173676bfc6533f):
+  fumadocs-mdx@15.4.6(4a6fabcd07ba37ea61c00394c8dbc6ba):
     dependencies:
       '@mdx-js/mdx': 3.1.1(supports-color@10.2.2)
       '@standard-schema/spec': 1.1.0
       chokidar: 5.0.0
       esbuild: 0.28.2
       estree-util-value-to-estree: 3.5.0
-      fumadocs-core: 16.16.2(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.2.0)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.4.0(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)(zod@4.6.5)
+      fumadocs-core: 16.16.2(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.3.1)(@tanstack/react-router@1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.4.0(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)(zod@4.6.5)
       github-slugger: 2.0.0
       magic-string: 1.4.3
       mdast-util-mdx: 3.0.0(supports-color@10.2.2)
