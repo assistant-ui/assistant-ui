@@ -30,7 +30,10 @@ const roundTripFirstPart = async <T>(
   return last!.parts[0] as T;
 };
 
-const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
+const decodeLines = async (
+  lines: string[],
+  options?: { strict?: boolean; maxLineLength?: number },
+) => {
   const bytes = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder();
@@ -48,6 +51,14 @@ const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   );
   return chunks;
 };
+
+describe("DataStreamDecoder line limits", () => {
+  it("forwards a custom line limit to the protocol decoder", async () => {
+    await expect(
+      decodeLines(['0:"hello"'], { maxLineLength: 4 }),
+    ).rejects.toThrow("Stream line exceeds maxLineLength");
+  });
+});
 
 const encodeChunks = async (chunks: AssistantStreamChunk[]) => {
   const input = new ReadableStream<AssistantStreamChunk>({

@@ -14,8 +14,10 @@ import {
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 import { createToolCallPartRegistry } from "../tool-call-part-registry";
 
-type DataStreamOptions = {
+export type DataStreamOptions = {
   strict?: boolean | undefined;
+  /** Maximum UTF-16 code units accepted in one protocol line. */
+  maxLineLength?: number | undefined;
 };
 
 type ValueRule = (value: unknown) => boolean;
@@ -780,7 +782,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
       return readable
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new LineDecoderStream())
+        .pipeThrough(
+          new LineDecoderStream({ maxLineLength: options.maxLineLength }),
+        )
         .pipeThrough(new DataStreamChunkDecoder())
         .pipeThrough(transform);
     });

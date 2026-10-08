@@ -292,8 +292,15 @@ const useAssistantTransportThreadRuntime = <T>(
       const strict = isResume ? false : (options.strict ?? true);
       const decoder =
         protocol === "assistant-transport"
-          ? new AssistantTransportDecoder({ strict })
-          : new DataStreamDecoder({ strict });
+          ? new AssistantTransportDecoder({
+              strict,
+              maxLineLength: options.maxStreamLineLength,
+              maxEventLength: options.maxStreamEventLength,
+            })
+          : new DataStreamDecoder({
+              strict,
+              maxLineLength: options.maxStreamLineLength,
+            });
 
       let err: string | undefined;
       const stream = body.pipeThrough(decoder).pipeThrough(
