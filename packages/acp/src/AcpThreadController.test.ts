@@ -1412,6 +1412,38 @@ describe("AcpThreadController", () => {
     );
   });
 
+  it("starts nothing for an append on a detached controller", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+    await c.detach();
+
+    await c.append(userAppend("after unmount"));
+    await flush();
+
+    expect(client.prompts).toHaveLength(0);
+    expect(c.getState().run).toEqual({ type: "idle" });
+  });
+
+  it("releases a start waiting on a turn that never settles once stopped", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    void c.append(userAppend("1"));
+    await flush();
+    const waiting = c.append(userAppend("2"));
+    await flush();
+
+    await c.cancel();
+    await waiting;
+
+    expect(client.prompts).toHaveLength(1);
+    expect(c.getState().run).toEqual({ type: "idle" });
+  });
+
   it("resolves an approval on the turn that asked for it", async () => {
     const c = controller(client);
     await c.attach();

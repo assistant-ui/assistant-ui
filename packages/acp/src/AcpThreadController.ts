@@ -61,15 +61,13 @@ type InflightPrompt = {
 
 type ClaimedRun = InflightPrompt & { readonly token: number };
 
-type ThreadEpoch = { readonly ended: Promise<void>; end(): void };
+/**
+ * What a start belongs to. Stop, detach and a new thread end the current
+ * generation, which withholds every start that has not sent its prompt yet.
+ */
+type StartGeneration = { readonly ended: Promise<void>; end(): void };
 
-type StartOwner = {
-  readonly attached: number;
-  readonly stops: number;
-  readonly epoch: ThreadEpoch;
-};
-
-const createEpoch = (): ThreadEpoch => {
+const createGeneration = (): StartGeneration => {
   let end = noop;
   const ended = new Promise<void>((resolve) => {
     end = resolve;
@@ -93,14 +91,12 @@ export class AcpThreadController {
   private loadPromise: Promise<void> | undefined;
   private hasLoaded = false;
   private runToken = 0;
-  private detachToken = 0;
   private permissionCounter = 0;
   private attached = false;
   private inflight: InflightPrompt | undefined;
   private runAbort: AbortController | undefined;
   private startLock: Promise<void> = Promise.resolve();
-  private stops = 0;
-  private epoch = createEpoch();
+  private generation = createGeneration();
   private detachFromClient: (() => void) | undefined;
 
   private readonly boundOnSessionUpdate = (
@@ -159,7 +155,7 @@ export class AcpThreadController {
     this.attached = false;
     this.detachFromClient?.();
     this.detachFromClient = undefined;
-    this.detachToken += 1;
+    this.endGeneration();
     this.hasLoaded = false;
     await this.stopRun();
   }
@@ -190,7 +186,7 @@ export class AcpThreadController {
   }
 
   async cancel(): Promise<void> {
-    this.stops += 1;
+    this.endGeneration();
     if (!(await this.stopRun())) return;
     invokeUserCallback("acp", "onCancel", this.onCancel);
   }
@@ -226,14 +222,18 @@ export class AcpThreadController {
    * a dropped connection could not restore.
    */
   async startNewThread(): Promise<void> {
-    this.epoch.end();
-    this.epoch = createEpoch();
+    this.endGeneration();
     const stopping = this.stopRun();
     this.runToken += 1;
     this.inflight = undefined;
     this.client.resetSession();
     this.dispatch({ type: "reset", threadId: generateId() });
     await stopping;
+  }
+
+  private endGeneration(): void {
+    this.generation.end();
+    this.generation = createGeneration();
   }
 
   private dispatch(event: AcpThreadEvent): void {
@@ -357,13 +357,9 @@ export class AcpThreadController {
    * behind it: an agent must never run a turn the user already stopped.
    */
   private async run(userMessageId: string): Promise<void> {
-    const owner: StartOwner = {
-      attached: this.detachToken,
-      stops: this.stops,
-      epoch: this.epoch,
-    };
+    const generation = this.generation;
     const start = this.startLock.then(() =>
-      this.claimRun(userMessageId, owner),
+      this.claimRun(userMessageId, generation),
     );
     this.startLock = start.then(noop, noop);
     const claimed = await start;
@@ -393,14 +389,15 @@ export class AcpThreadController {
    * therefore waits for the superseded one to settle. There is no deadline: ACP
    * requires an agent to answer a cancelled `session/prompt` with
    * `stopReason: "cancelled"`, and the client rejects every pending request when
-   * the socket drops. Only a new thread, whose session the old turn cannot
-   * reach, stops waiting early.
+   * the socket drops. A stop, detach or new thread ends the wait early, since it
+   * withholds this start anyway.
    */
   private async claimRun(
     userMessageId: string,
-    owner: StartOwner,
+    generation: StartGeneration,
   ): Promise<ClaimedRun | undefined> {
-    if (!this.owns(owner)) return undefined;
+    const current = () => generation === this.generation && this.attached;
+    if (!current()) return undefined;
     const user = this.state.messagesById[userMessageId];
     if (user?.role !== "user") return undefined;
     const superseded = this.inflight;
@@ -419,20 +416,19 @@ export class AcpThreadController {
     const abort = new AbortController();
     this.runAbort = abort;
     this.dispatch({ type: "run-start", message: assistant });
+    const owned = () => token === this.runToken && current();
+    const unlessEnded = <T>(promise: Promise<T>) =>
+      Promise.race([promise, generation.ended.then(() => undefined)]);
 
     if (superseded) {
-      await Promise.race([
-        superseded.prompt.then(noop, noop),
-        owner.epoch.ended,
-      ]);
+      await unlessEnded(superseded.prompt.then(noop, noop));
       if (this.inflight === superseded) this.inflight = undefined;
       this.dispatch({
         type: "run-settled",
         assistantId: superseded.assistantId,
       });
     }
-    const current = () => token === this.runToken && this.owns(owner);
-    if (!current()) return undefined;
+    if (!owned()) return undefined;
 
     const blocks = threadContentToAcpBlocks([
       ...user.content,
@@ -442,9 +438,9 @@ export class AcpThreadController {
     try {
       // the start lock is held until the prompt is on the wire, so the session
       // is opened here and promptCapabilities exist once the handshake ran
-      const initialized = await this.client.connect();
-      await this.client.ensureSession();
-      if (!current()) return undefined;
+      const initialized = await unlessEnded(this.client.connect());
+      if (initialized) await unlessEnded(this.client.ensureSession());
+      if (!initialized || !owned()) return undefined;
       const filtered = filterPromptBlocks(
         blocks,
         initialized.agentCapabilities?.promptCapabilities,
@@ -463,14 +459,6 @@ export class AcpThreadController {
     }
     this.inflight = { assistantId: assistant.id, prompt };
     return { token, assistantId: assistant.id, prompt };
-  }
-
-  private owns(owner: StartOwner): boolean {
-    return (
-      owner.attached === this.detachToken &&
-      owner.stops === this.stops &&
-      owner.epoch === this.epoch
-    );
   }
 
   private toUserMessage(message: AppendMessage): AcpUserMessage {

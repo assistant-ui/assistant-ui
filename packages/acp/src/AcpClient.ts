@@ -3,7 +3,7 @@ import type {
   NewSessionResponse,
 } from "@agentclientprotocol/sdk";
 import { invokeUserCallback, isRecord } from "@assistant-ui/core/internal";
-import { isAllowKind } from "./conversions";
+import { preferredPermissionOption } from "./conversions";
 import {
   ACP_PROTOCOL_VERSION,
   type AcpAgentCapabilities,
@@ -58,7 +58,8 @@ export type AcpClientOptions = {
   webSocketFactory?: AcpWebSocketFactory;
   /**
    * Reply deadline for lifecycle requests, in milliseconds. `session/prompt`
-   * has none, because a turn has no bounded duration.
+   * has none, because a turn has no bounded duration, and every frame of a
+   * `session/load` replay restarts the deadline of that request.
    */
   requestTimeoutMs?: number;
   /**
@@ -82,6 +83,8 @@ type PendingRequest = {
   timer: ReturnType<typeof setTimeout> | undefined;
 };
 
+type DeadlineWatcher = (restart: () => void) => void;
+
 export class AcpError extends Error {
   readonly code: number;
   readonly data: unknown;
@@ -95,7 +98,7 @@ export class AcpError extends Error {
 }
 
 export const autoAllowPermissionHandler: AcpPermissionHandler = (request) => {
-  const option = request.options.find((o) => isAllowKind(o.kind));
+  const option = preferredPermissionOption(request.options, true);
   return option
     ? { outcome: "selected", optionId: option.optionId }
     : { outcome: "cancelled" };
@@ -155,6 +158,7 @@ export class AcpClient {
   private cancelSent = false;
   private lostSessionId: string | undefined;
   private readonly retiredSessionIds = new Set<string>();
+  private restartLoadDeadline: (() => void) | undefined;
   private sessionModes: AcpSessionModeState | undefined;
   private sessionConfigOptions: readonly AcpSessionConfigOption[] | undefined;
   private readonly sessionUpdateListeners = new Set<AcpSessionUpdateListener>();
@@ -474,7 +478,9 @@ export class AcpClient {
    * The agent answers `session/load` only after replaying the whole transcript
    * as `session/update` notifications. That replay is history the thread state
    * already holds, so updates for the lost session are dropped until the load
-   * succeeds, and after a load that failed or timed out.
+   * succeeds, and after a load that failed or timed out. Each replayed frame
+   * restarts the request's deadline, so a long transcript can finish replaying
+   * while an agent that goes quiet still fails the load.
    */
   private async loadSession(sessionId: string): Promise<AcpSession> {
     const unusable = (reason: string) =>
@@ -488,9 +494,18 @@ export class AcpClient {
     const params = { sessionId, ...this.sessionParams() };
     let loaded: LoadSessionResponse;
     try {
-      loaded = await this.request<LoadSessionResponse>("session/load", params);
+      loaded = await this.request<LoadSessionResponse>(
+        "session/load",
+        params,
+        this.lifecycleTimeoutMs(),
+        (restart) => {
+          this.restartLoadDeadline = restart;
+        },
+      );
     } catch (error) {
       throw unusable(`session/load failed: ${toError(error).message}`);
+    } finally {
+      this.restartLoadDeadline = undefined;
     }
     return { ...loaded, sessionId };
   }
@@ -641,6 +656,7 @@ export class AcpClient {
     if (typeof params?.sessionId !== "string" || !isRecord(params.update))
       return;
     const { sessionId, update } = params;
+    if (sessionId === this.lostSessionId) this.restartLoadDeadline?.();
     if (!this.acceptsUpdatesFor(sessionId)) return;
     for (const listener of [...this.sessionUpdateListeners]) {
       invokeUserCallback("acp", "onSessionUpdate", listener, sessionId, update);
@@ -661,11 +677,15 @@ export class AcpClient {
     );
   }
 
+  private lifecycleTimeoutMs(): number {
+    return this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
   private request<TResult>(
     method: string,
     params: unknown,
-    timeoutMs: number | null = this.options.requestTimeoutMs ??
-      DEFAULT_REQUEST_TIMEOUT_MS,
+    timeoutMs: number | null = this.lifecycleTimeoutMs(),
+    watchDeadline?: DeadlineWatcher,
   ): Promise<TResult> {
     if (this._connectionState !== "connected" && method !== "initialize") {
       return Promise.reject(
@@ -674,23 +694,28 @@ export class AcpClient {
     }
     const id = this.nextId++;
     return new Promise<TResult>((resolve, reject) => {
-      const timer =
-        timeoutMs === null
-          ? undefined
-          : setTimeout(() => {
-              if (!this.pending.has(id)) return;
-              this.pending.delete(id);
-              reject(new Error(`ACP ${method} timed out after ${timeoutMs}ms`));
-            }, timeoutMs);
-      if (timer !== undefined) {
+      const arm = () => {
+        if (timeoutMs === null) return undefined;
+        const timer = setTimeout(() => {
+          if (!this.pending.has(id)) return;
+          this.pending.delete(id);
+          reject(new Error(`ACP ${method} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
         (timer as unknown as { unref?: () => void }).unref?.();
-      }
-      this.pending.set(id, { resolve, reject, timer });
+        return timer;
+      };
+      const entry: PendingRequest = { resolve, reject, timer: arm() };
+      this.pending.set(id, entry);
+      watchDeadline?.(() => {
+        if (!this.pending.has(id)) return;
+        if (entry.timer !== undefined) clearTimeout(entry.timer);
+        entry.timer = arm();
+      });
       try {
         this.sendRaw({ jsonrpc: "2.0", id, method, params });
       } catch (error) {
         this.pending.delete(id);
-        if (timer !== undefined) clearTimeout(timer);
+        if (entry.timer !== undefined) clearTimeout(entry.timer);
         reject(toError(error));
       }
     });

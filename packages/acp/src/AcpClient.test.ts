@@ -1270,6 +1270,60 @@ describe("AcpClient", () => {
     expect(seen).toEqual(["s1"]);
   });
 
+  it("auto-allows with the one-time option before the standing one", async () => {
+    expect(
+      await autoAllowPermissionHandler({
+        sessionId: "s1",
+        toolCall: { toolCallId: "t1" },
+        options: [
+          { optionId: "always", name: "Always allow", kind: "allow_always" },
+          { optionId: "once", name: "Allow", kind: "allow_once" },
+        ],
+      }),
+    ).toEqual({ outcome: "selected", optionId: "once" });
+  });
+
+  it("restarts the session/load deadline on every replayed frame", async () => {
+    const client = mockClient({ requestTimeoutMs: 40 });
+    const ws = await withSession(client);
+    ws.close();
+
+    const restored = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    for (let frame = 0; frame < 4; frame++) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId: "s1",
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: `replay ${frame}` },
+          },
+        },
+      });
+    }
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+
+    await expect(restored).resolves.toBe("s1");
+  });
+
+  it("still times out a session/load that goes quiet", async () => {
+    const client = mockClient({ requestTimeoutMs: 20 });
+    const ws = await withSession(client);
+    ws.close();
+
+    const restored = client.ensureSession();
+    await completeHandshake(lastWs());
+
+    await expect(restored).rejects.toThrow("timed out");
+  });
+
   it("rejects permission requests missing options without calling the handler", async () => {
     const handler = vi.fn(cancelPermissionHandler);
     const client = mockClient({ permissionHandler: handler });

@@ -68,23 +68,23 @@ import {
 
 ## How ACP maps onto assistant-ui
 
-| ACP                                        | assistant-ui                                               |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| WebSocket connection and `initialize`      | runtime connection state (`useAcpConnectionState`)         |
-| a session from `session/new`               | the thread (`useAcpSessionId`); New Thread opens a new one |
-| `session/prompt` and `session/cancel`      | run and cancel                                             |
-| `agent_message_chunk`                      | text part (streamed)                                       |
-| `agent_thought_chunk`                      | reasoning part (streamed)                                  |
-| `tool_call` and `tool_call_update`         | tool-call part                                             |
-| `session/request_permission`               | tool-call approval (`requires-action` until answered)      |
-| stop reason                                | message status                                             |
-| `plan`                                     | `useAcpPlan`                                               |
-| `session_info_update`                      | `useAcpSessionTitle`                                       |
-| `modes` and `current_mode_update`          | `useAcpCurrentModeId`                                      |
-| `available_commands_update`                | `useAcpAvailableCommands`                                  |
-| `configOptions` and `config_option_update` | `useAcpConfigOptions`                                      |
-| `usage_update`                             | `useAcpUsage`                                              |
-| `agentInfo` and `agentCapabilities`        | `useAcpAgentInfo` and `useAcpAgentCapabilities`            |
+| ACP                                        | assistant-ui                                                |
+| ------------------------------------------ | ----------------------------------------------------------- |
+| WebSocket connection and `initialize`      | runtime connection state (`useAcpConnectionState`)          |
+| a session from `session/new`               | the thread (`useAcpSessionId`); New Thread starts a new one |
+| `session/prompt` and `session/cancel`      | run and cancel                                              |
+| `agent_message_chunk`                      | text part (streamed)                                        |
+| `agent_thought_chunk`                      | reasoning part (streamed)                                   |
+| `tool_call` and `tool_call_update`         | tool-call part                                              |
+| `session/request_permission`               | tool-call approval (`requires-action` until answered)       |
+| stop reason                                | message status                                              |
+| `plan`                                     | `useAcpPlan`                                                |
+| `session_info_update`                      | `useAcpSessionTitle`                                        |
+| `modes` and `current_mode_update`          | `useAcpCurrentModeId`                                       |
+| `available_commands_update`                | `useAcpAvailableCommands`                                   |
+| `configOptions` and `config_option_update` | `useAcpConfigOptions`                                       |
+| `usage_update`                             | `useAcpUsage`                                               |
+| `agentInfo` and `agentCapabilities`        | `useAcpAgentInfo` and `useAcpAgentCapabilities`             |
 
 A tool call's `toolName` is the key apps register tool UIs against, so it stays stable for the life of the call: the protocol's programmatic `name` when the agent sends one, then its `kind` (`read`, `edit`, `execute` and so on), and only then the human-readable `title`. A `tool_call_update` carries only what changed, so the call's `name`, `kind`, `title`, `status` and `locations` accumulate on the part as `providerMetadata.acp`, where a renderer can read the label and the agent's own status. The result is the call's `rawOutput`, or the text of its `content`, and stays preliminary until the agent reports `completed` or `failed`.
 
@@ -96,9 +96,9 @@ Browser clients advertise no filesystem or terminal capabilities, so a conformin
 
 **The agent owns the transcript.** An ACP v1 session's history lives on the agent and can only be appended to, so the runtime offers no edit, reload, delete or branch switching, takes no `adapters.history`, and ignores one a thread list provides through `RuntimeAdapterProvider`. Each of those would change what the thread shows without changing what the agent holds. Persisting the ACP session id with a thread and restoring it with `session/load` is what would make restored threads real.
 
-**A dropped connection cannot silently continue the thread.** On reconnect the client restores the lost session with `session/load` when `agentCapabilities.loadSession` advertises it, dropping the replay because the thread already shows it. Otherwise every prompt is rejected with an error naming the session, until New Thread (`switchToNewThread`) clears the transcript and opens a new session.
+**A dropped connection cannot silently continue the thread.** On reconnect the client restores the lost session with `session/load` when `agentCapabilities.loadSession` advertises it, dropping the replay because the thread already shows it. Otherwise every prompt is rejected with an error naming the session, until New Thread (`switchToNewThread`) clears the transcript and the session, so the next prompt opens a new one.
 
-**Stopping a turn.** Stop sends `session/cancel`, ends the turn as cancelled, cancels the permission requests it still sends, and keeps applying its tool call updates until the agent answers the cancelled prompt. A message sent while another turn runs reaches the agent only after that turn settles. A turn stopped before its prompt went out, like every message queued behind it, never reaches the agent, while its message stays in the thread.
+**Stopping a turn.** Stop ends the turn as cancelled. Once its prompt is on the wire, Stop also sends `session/cancel`, cancels the permission requests the turn still sends, and keeps applying its tool call updates until the agent answers the cancelled prompt. A message sent while another turn runs reaches the agent only after that turn settles. A turn stopped before its prompt went out, like every message queued behind it, never reaches the agent, while its message stays in the thread.
 
 **Attachments the agent did not opt into are withheld.** ACP's baseline prompt content is text and resource links; `image`, `audio` and embedded `resource` blocks need `agentCapabilities.promptCapabilities`. An embedded resource keeps what survives (its text as a text block, or a URI the agent can fetch as a resource link), so only inline bytes behind a client-local `file:` URI are dropped, and `onError` reports every dropped block.
 

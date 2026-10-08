@@ -265,19 +265,36 @@ export type AcpApprovalDecision = {
 };
 
 /**
- * An explicit `optionId` wins; otherwise the decision picks the first option
- * of the matching family. Never cross families: the agent supplies `options`,
- * so an `options[0]` fallback could turn a denial into a grant.
+ * The one-time option of a family before its standing one, whatever order the
+ * agent listed them in: a plain approve or deny consents to this call only.
+ */
+export function preferredPermissionOption(
+  options: readonly AcpPermissionOption[],
+  approved: boolean,
+): AcpPermissionOption | undefined {
+  const [once, always] = approved
+    ? (["allow_once", "allow_always"] as const)
+    : (["reject_once", "reject_always"] as const);
+  return (
+    options.find((o) => o.kind === once) ??
+    options.find((o) => o.kind === always)
+  );
+}
+
+/**
+ * An explicit `optionId` wins; otherwise the decision picks within its own
+ * family. Never cross families: the agent supplies `options`, so an
+ * `options[0]` fallback could turn a denial into a grant.
  */
 export function resolvePermissionOutcome(
   request: AcpPermissionRequest,
   decision: AcpApprovalDecision,
 ): AcpPermissionOutcome {
-  const matchesFamily = decision.approved ? isAllowKind : isRejectKind;
   const chosen =
     (decision.optionId
       ? request.options.find((o) => o.optionId === decision.optionId)
-      : undefined) ?? request.options.find((o) => matchesFamily(o.kind));
+      : undefined) ??
+    preferredPermissionOption(request.options, decision.approved);
   return chosen
     ? { outcome: "selected", optionId: chosen.optionId }
     : { outcome: "cancelled" };

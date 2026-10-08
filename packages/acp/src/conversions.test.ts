@@ -118,6 +118,37 @@ describe("resolvePermissionOutcome", () => {
     ],
   };
 
+  it("answers a plain decision with the one-time option before the standing one", () => {
+    const standingFirst: AcpPermissionRequest = {
+      sessionId: "s1",
+      toolCall: { toolCallId: "t1" },
+      options: [
+        { optionId: "always", name: "Always allow", kind: "allow_always" },
+        { optionId: "once", name: "Allow", kind: "allow_once" },
+        { optionId: "never", name: "Always reject", kind: "reject_always" },
+        { optionId: "no", name: "Reject", kind: "reject_once" },
+      ],
+    };
+    expect(
+      resolvePermissionOutcome(standingFirst, {
+        approvalId: "a",
+        approved: true,
+      }),
+    ).toEqual({ outcome: "selected", optionId: "once" });
+    expect(
+      resolvePermissionOutcome(standingFirst, {
+        approvalId: "a",
+        approved: false,
+      }),
+    ).toEqual({ outcome: "selected", optionId: "no" });
+    expect(
+      resolvePermissionOutcome(
+        { ...standingFirst, options: standingFirst.options.slice(0, 1) },
+        { approvalId: "a", approved: true },
+      ),
+    ).toEqual({ outcome: "selected", optionId: "always" });
+  });
+
   it("honours an explicit optionId", () => {
     expect(
       resolvePermissionOutcome(request, {
