@@ -70,7 +70,7 @@ jobs:
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             git status --porcelain
-            echo "autofix would change the files above; run pnpm lint:fix and pnpm api-surface on the pull request before it enters the queue"
+            echo "autofix would change the files above; run pnpm lint:fix, pnpm api-surface and pnpm -C apps/docs generate:api-reference on the pull request before it enters the queue"
             exit 1
           fi
 
