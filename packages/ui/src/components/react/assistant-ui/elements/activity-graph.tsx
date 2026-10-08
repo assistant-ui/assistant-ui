@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
 const LEVEL_TINT = [
-  "bg-foreground/[0.06]",
-  "bg-blue-500/25 dark:bg-blue-400/25",
-  "bg-blue-500/45 dark:bg-blue-400/45",
-  "bg-blue-500/70 dark:bg-blue-400/70",
-  "bg-blue-500 dark:bg-blue-400",
+  "bg-foreground/[0.06] inset-ring inset-ring-border forced-colors:border",
+  "bg-blue-500/25 dark:bg-blue-400/25 forced-color-adjust-none",
+  "bg-blue-500/45 dark:bg-blue-400/45 forced-color-adjust-none",
+  "bg-blue-500/70 dark:bg-blue-400/70 forced-color-adjust-none",
+  "bg-blue-500 dark:bg-blue-400 forced-color-adjust-none",
 ] as const;
 
 export function ActivityGraph({
@@ -44,7 +44,7 @@ export function ActivityGraph({
     >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">{title}</span>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {total}
         </span>
       </div>
@@ -56,14 +56,14 @@ export function ActivityGraph({
         weekStart="monday"
         className="flex flex-col gap-2"
       >
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2">
           <div className="flex shrink-0 flex-col gap-[3px]">
             <HeatGraph.DayLabels>
               {({ label }) => (
                 <span
                   className={cn(
                     mono,
-                    "text-foreground/25 flex h-[9px] items-center leading-none",
+                    "text-muted-foreground flex h-[9px] items-center leading-none",
                   )}
                 >
                   {label.row % 2 === 1
@@ -74,20 +74,23 @@ export function ActivityGraph({
             </HeatGraph.DayLabels>
           </div>
 
-          <HeatGraph.Grid className="gap-[3px]">
-            {({ cell }) => (
-              <HeatGraph.Cell
-                className={cn(
-                  "size-[9px] rounded-[2px]",
-                  LEVEL_TINT[cell.level] ?? LEVEL_TINT[0],
-                )}
-              />
-            )}
-          </HeatGraph.Grid>
+          {/* A reversed row starts scrolled to its end, so a narrow graph opens on the newest weeks. */}
+          <div className="flex min-w-0 flex-row-reverse overflow-x-auto">
+            <HeatGraph.Grid className="shrink-0 gap-[3px]">
+              {({ cell }) => (
+                <HeatGraph.Cell
+                  className={cn(
+                    "size-[9px] rounded-[2px]",
+                    LEVEL_TINT[cell.level] ?? LEVEL_TINT[0],
+                  )}
+                />
+              )}
+            </HeatGraph.Grid>
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 self-end">
-          <span className={cn(mono, "text-foreground/25")}>less</span>
+          <span className={cn(mono, "text-muted-foreground")}>less</span>
           {LEVEL_TINT.map((tint, level) => (
             <span
               key={level}
@@ -95,7 +98,7 @@ export function ActivityGraph({
               className={cn("size-[9px] rounded-[2px]", tint)}
             />
           ))}
-          <span className={cn(mono, "text-foreground/25")}>more</span>
+          <span className={cn(mono, "text-muted-foreground")}>more</span>
         </div>
       </HeatGraph.Root>
     </div>

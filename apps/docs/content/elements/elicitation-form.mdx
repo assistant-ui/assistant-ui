@@ -38,7 +38,7 @@ export function McpElicitationForm({ serverName }: { serverName: string }) {
           className={cn(paper, "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4")}
         >
           <div className="flex items-center gap-2.5">
-            <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 items-center justify-center rounded-lg">
+            <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 items-center justify-center rounded-lg">
               <PlugIcon className="size-3.5" />
             </span>
             <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
@@ -46,14 +46,14 @@ export function McpElicitationForm({ serverName }: { serverName: string }) {
             </span>
           </div>
 
-          <McpElicitationPrimitive.Message className="text-foreground/55 text-xs leading-relaxed" />
+          <McpElicitationPrimitive.Message className="text-muted-foreground text-xs leading-relaxed" />
           <McpElicitationPrimitive.Error className="text-xs text-red-600 dark:text-red-400" />
 
           <div className="flex flex-col gap-2.5">
             <McpElicitationPrimitive.Fields>
               {({ name, schema, value, setValue }) => (
                 <div className="flex flex-col gap-1">
-                  <span className={cn(mono, "text-foreground/35")}>{name}</span>
+                  <span className={cn(mono, "text-muted-foreground")}>{name}</span>
                   {fieldKind(schema) === "toggle" ? (
                     <input
                       type="checkbox"
@@ -73,7 +73,7 @@ export function McpElicitationForm({ serverName }: { serverName: string }) {
           </div>
 
           <div className="flex h-8 items-center justify-end gap-2">
-            <McpElicitationPrimitive.Decline className="text-foreground/55 h-8 rounded-full px-3.5 text-xs font-medium">
+            <McpElicitationPrimitive.Decline className="text-muted-foreground h-8 rounded-full px-3.5 text-xs font-medium">
               Decline
             </McpElicitationPrimitive.Decline>
             <McpElicitationPrimitive.Accept
@@ -131,20 +131,26 @@ import {
   type ElicitationState,
 } from "@/components/assistant-ui/elements/elicitation-form";
 
-const FIELDS: readonly ElicitationField[] = [
+const INITIAL_FIELDS: readonly ElicitationField[] = [
   { name: "repo", label: "Repository", value: "assistant-ui/assistant-ui", kind: "text", required: true },
   { name: "notify", label: "Notify watchers", value: "true", kind: "toggle" },
 ];
 
 export function PublishRequest() {
   const [state, setState] = useState<ElicitationState>("request");
+  const [fields, setFields] = useState(INITIAL_FIELDS);
 
   return (
     <ElicitationForm
       server="github-mcp"
       message="Confirm where the release notes should be published."
-      fields={FIELDS}
+      fields={fields}
       state={state}
+      onFieldChange={(name, value) =>
+        setFields((current) =>
+          current.map((item) => (item.name === name ? { ...item, value } : item)),
+        )
+      }
       onAccept={() => setState("accepted")}
       onDecline={() => setState("declined")}
     />
@@ -182,12 +188,12 @@ function toElicitationField(
 <div data-slot="elicitation-form">
   <div>{/* plug icon, server name, "needs input" tag */}</div>
   <p>{/* message */}</p>
-  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, or a static value chip depending on kind */}</div>
+  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, a text input, or a static value chip depending on kind and state */}</div>
   <div>{/* Decline / Send while state is "request"; a settled "Sent to {server}" or "Declined" row otherwise */}</div>
 </div>
 ```
 
-Once `state` leaves `"request"`, a settled row replaces the Decline and Send controls; they are removed, not disabled. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
+Once `state` leaves `"request"`, a settled row replaces the Decline and Send controls; they are removed, not disabled. While state is `"request"`, supplying `onFieldChange` makes text, choice, and toggle fields editable; keep `fields` in controlled state and write each reported value back by name. Without the callback, or after the request settles, fields remain display-only. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
 
 ## Examples
 
@@ -220,6 +226,8 @@ const required = new Set(
 { name: "repo", label: "Repository", value: "", kind: "text", required: true }
 ```
 
+While the request is editable, Send is disabled while any required text or choice field is blank. In read-only mode, Send stays enabled even when a required field is blank.
+
 </StandaloneMode>
 
 ### Declining vs canceling
@@ -229,7 +237,7 @@ const required = new Set(
 The protocol has three terminal actions: `McpElicitationPrimitive.Cancel` submits `{ action: "cancel" }` alongside Accept's `"accept"` and Decline's `"decline"`. Add it as a third control when your host distinguishes "explicitly declined" from "dismissed without answering":
 
 ```tsx
-<McpElicitationPrimitive.Cancel className="text-foreground/45 h-8 rounded-full px-3.5 text-xs">
+<McpElicitationPrimitive.Cancel className="text-muted-foreground h-8 rounded-full px-3.5 text-xs">
   Dismiss
 </McpElicitationPrimitive.Cancel>
 ```
@@ -284,6 +292,7 @@ Requires `@assistant-ui/react-mcp` and a connected server whose `elicitation` ca
 | `message` | `string` | required | The request text. |
 | `fields` | `readonly ElicitationField[]` | required | The requested fields, in order. |
 | `state` | `ElicitationState` | required | `"request"` shows the form; `"accepted"` or `"declined"` replace the footer with a settled message. |
+| `onFieldChange` | `(name: string, value: string) => void` | | Makes request-state fields editable and reports each controlled value change. |
 | `onAccept` | `() => void` | | Called when Send is pressed. |
 | `onDecline` | `() => void` | | Called when Decline is pressed. |
 | `className` | `string` | | Merged onto the root. |

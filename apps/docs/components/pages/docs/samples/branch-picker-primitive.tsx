@@ -24,9 +24,11 @@ const adapter: ChatModelAdapter = {
   },
 };
 
+const CREATED_AT = new Date("2026-09-26T12:00:00Z");
+
 const initialMessages: ThreadMessageLike[] = [
-  { role: "user", content: "What is assistant-ui?" },
-  { role: "assistant", content: responses[0]! },
+  { role: "user", content: "What is assistant-ui?", createdAt: CREATED_AT },
+  { role: "assistant", content: responses[0]!, createdAt: CREATED_AT },
 ];
 
 export function BranchPickerPrimitiveSample() {

@@ -43,10 +43,13 @@ const suggestions = [
   { prompt: "Compare a guided tour vs. suggested prompts" },
 ];
 
+const CREATED_AT = new Date("2026-09-26T12:00:00Z");
+
 const convertMessage = (message: DemoMessage): ThreadMessageLike => ({
   id: message.id,
   role: message.role,
   content: [{ type: "text", text: message.text }],
+  createdAt: CREATED_AT,
 });
 
 const FollowUpSuggestionsRuntimeProvider: FC<PropsWithChildren> = ({

@@ -53,7 +53,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const bytesToBase64 = (bytes: Uint8Array): string => {
+export const bytesToBase64 = (bytes: Uint8Array): string => {
   const nodeBuffer = (
     globalThis as {
       Buffer?: {
@@ -217,17 +217,6 @@ export function fileMatchesAccept(
   }
 
   return false;
-}
-
-export function attachmentsEqual(
-  a: readonly CompleteAttachment[],
-  b: readonly CompleteAttachment[],
-): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i]?.id !== b[i]?.id) return false;
-  }
-  return true;
 }
 
 export function partToCompleteAttachment(

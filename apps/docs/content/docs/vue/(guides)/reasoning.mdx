@@ -1,0 +1,84 @@
+---
+title: Reasoning
+description: Stream the model's reasoning into a collapsible block next to the answer.
+---
+
+Reasoning arrives as a separate message part with `type: "reasoning"` and text. The Vue part scope also exposes its stream status. Render it through the `#reasoning` slot of `MessagePrimitiveParts` to show it beside the answer text. The registry message component supplies a collapsible renderer for that slot.
+
+## Send reasoning from the route
+
+For an AI SDK route, `toUIMessageStreamResponse` sends reasoning parts when `sendReasoning` is true. The installed `ai` types declare `true` as its default. Set it explicitly here to show where the option belongs:
+
+```ts title="server/api/chat.post.ts"
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+
+export default defineEventHandler(async (event) => {
+  const { messages } = await readBody<{ messages: UIMessage[] }>(event);
+  const result = streamText({
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse({ sendReasoning: true });
+});
+```
+
+The model must produce reasoning for the route to send any reasoning parts. The [AI SDK runtime](/docs/vue/ai-sdk) connects this route to a Vue thread.
+
+## The registry reasoning block
+
+The registry's `reasoning.vue` renders consecutive reasoning parts in one block from the first part in the run. It renders each part's text as Markdown. A text part between reasoning parts starts a new block.
+
+The block opens while a reasoning part is running and collapses when reasoning stops streaming, unless the user has toggled it. Its text area is capped by `max-h-64` and scrolls during a long response; while streaming, it follows new content until the user scrolls up. The content carries `aria-busy` while streaming. On an open or close animation, `useScrollLock` holds the scrollable ancestor's position for the animation's 200 milliseconds.
+
+## Render reasoning yourself
+
+`MessagePrimitiveParts` scopes `s.part` to the current reasoning part in its `#reasoning` slot. This component reads its text and status and uses the status to control a small disclosure:
+
+```vue title="app/components/ReasoningPart.vue"
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useAuiState } from "@assistant-ui/vue";
+
+const text = useAuiState((s) =>
+  s.part.type === "reasoning" ? s.part.text : "",
+);
+const running = useAuiState(
+  (s) => s.part.type === "reasoning" && s.part.status.type === "running",
+);
+const userOpen = ref<boolean | null>(null);
+const open = computed(() => userOpen.value ?? running.value);
+</script>
+
+<template>
+  <section>
+    <button
+      type="button"
+      :aria-expanded="open"
+      @click="userOpen = !open"
+    >
+      Reasoning
+    </button>
+    <p v-if="open" class="whitespace-pre-wrap" :aria-busy="running">
+      {{ text }}
+    </p>
+  </section>
+</template>
+```
+
+Use it in the reasoning slot:
+
+```vue
+<MessagePrimitiveParts>
+  <template #reasoning>
+    <ReasoningPart />
+  </template>
+</MessagePrimitiveParts>
+```
+
+This renderer shows one disclosure per part. Use the registry block when adjacent reasoning parts should share a disclosure.
+
+## Group reasoning with tool calls
+
+The registry block groups reasoning parts only. To put reasoning and tool calls in one disclosure, use the [chain of thought primitives](/docs/vue/primitives/chain-of-thought).

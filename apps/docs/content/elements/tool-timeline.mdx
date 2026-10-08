@@ -192,7 +192,7 @@ useEffect(() => {
 </div>
 ```
 
-`visibleSteps` is floored and clamped into `0…steps.length`, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero.
+`visibleSteps` is floored and clamped into `0…steps.length`, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero. Two steps that carry the same `chip` still render as separate rows.
 
 ## Examples
 
@@ -209,8 +209,14 @@ Both lanes take `className` on the root. Rows, chips, and the shimmering label a
 The panel reveals steps from the start of the array, so cap the array itself, not just `visibleSteps`, to show only the most recent steps of a long run:
 
 ```tsx
+const steps = toolCalls.map((part) => ({
+  ...toStep(part),
+  id: part.toolCallId,
+}));
 <ToolTimeline steps={steps.slice(-6)} visibleSteps={6} /* ... */ />
 ```
+
+Give each step a stable `id` when the window can slide. Surviving steps keep their rows, and a newly entering step mounts a row that can run its entry animation.
 
 ## API reference
 
@@ -234,6 +240,7 @@ There is no dedicated timeline primitive: you write the mapping from `parts` to 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `steps` | `readonly TimelineStep[]` | required | The full step list, in order. |
+| `steps[].id` | `string` | | Stable identity for a step. Rows without an ID use their index. |
 | `visibleSteps` | `number` | required | How many steps from the start of `steps` to render. |
 | `streaming` | `boolean` | required | Shimmers the trigger label and the last visible step while true. |
 | `open` | `boolean` | required | Whether the disclosure panel is expanded. |
@@ -243,6 +250,6 @@ There is no dedicated timeline primitive: you write the mapping from `parts` to 
 | `stats` | `TimelineStat[]` | required | File-change chips rendered below the steps. Pass `[]` to omit the row. |
 | `className` | `string` | | Merged onto the root. |
 
-`TimelineStep` is `{ verb: string; chip: string; icon: LucideIcon }`. `TimelineStat` is `{ file: string; added?: number; removed?: number }`.
+`TimelineStep` is `{ id?: string; verb: string; chip: string; icon: LucideIcon }`. `TimelineStat` is `{ file: string; added?: number; removed?: number }`.
 
 </StandaloneMode>

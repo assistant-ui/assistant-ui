@@ -155,7 +155,7 @@ export function CustomMediaFile() {
 | `File` | `div` | The `File` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.File`. |
 | `File.Root` | `div` | Row with `variant` and `size`. |
 | `File.Icon` | `span` | Icon chosen from `mimeType`. |
-| `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. |
+| `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. `File`'s own row passes it the `mimeType` label instead. |
 | `File.Size` | `span` | Formatted byte size; you supply `bytes`. |
 | `File.Download` | `a` | Download link; `null` when `data` can't produce a safe `href`. |
 | `File.Player` | `div` | Routes playable audio and video files to the matching inline player; `null` otherwise. |
@@ -164,7 +164,7 @@ export function CustomMediaFile() {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `filename` | `string` | Optional display name. |
+| `filename` | `string` | Optional display name; without one, the icon row of a non-media file shows a label derived from `mimeType`, such as "PDF file". |
 | `data` | `string` | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
 | `mimeType` | `string` | Drives the icon and, for base64/`data:` payloads, the download `href`. |
 | `sourceType` | `"url" \| "id"` | Optional. States how to interpret `data`; omitted infers from its shape. |
@@ -178,7 +178,7 @@ export function CustomMediaFile() {
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `type` | `"file"` | required | Required by the part type. |
-| `filename` | `string` | | Display name; falls back to "Unnamed file". |
+| `filename` | `string` | | Display name; the icon row of a non-media file falls back to a label derived from `mimeType`, such as "PDF file". |
 | `data` | `string` | required | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
 | `mimeType` | `string` | required | Drives the icon and, for base64/`data:` payloads, the download `href`. |
 | `sourceType` | `"url" \| "id"` | | States how to interpret `data`; omitted infers from its shape. |

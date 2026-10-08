@@ -7,34 +7,87 @@ import type {
 } from "../types";
 
 export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
+  private readonly threads = new Map<string, RemoteThreadMetadata>();
+
   list(): Promise<RemoteThreadListResponse> {
     return Promise.resolve({
-      threads: [],
+      threads: [...this.threads.values()].reverse(),
     });
   }
 
-  rename(): Promise<void> {
+  rename(): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
+  rename(remoteId?: string, newTitle?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
+    const thread = this.threads.get(remoteId);
+    if (thread) this.threads.set(remoteId, { ...thread, title: newTitle });
     return Promise.resolve();
   }
 
-  updateCustom(): Promise<void> {
+  updateCustom(): Promise<void>;
+  updateCustom(
+    remoteId: string,
+    custom: Record<string, unknown> | undefined,
+  ): Promise<void>;
+  updateCustom(
+    remoteId?: string,
+    custom?: Record<string, unknown>,
+  ): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
+    const thread = this.threads.get(remoteId);
+    if (thread) this.threads.set(remoteId, { ...thread, custom });
     return Promise.resolve();
   }
 
-  archive(): Promise<void> {
+  archive(): Promise<void>;
+  archive(remoteId: string): Promise<void>;
+  archive(remoteId?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
+    const thread = this.threads.get(remoteId);
+    if (thread && thread.status !== "archived") {
+      this.threads.delete(remoteId);
+      this.threads.set(remoteId, { ...thread, status: "archived" });
+    }
     return Promise.resolve();
   }
 
-  unarchive(): Promise<void> {
+  unarchive(): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
+  unarchive(remoteId?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
+    const thread = this.threads.get(remoteId);
+    if (thread && thread.status !== "regular") {
+      this.threads.delete(remoteId);
+      this.threads.set(remoteId, { ...thread, status: "regular" });
+    }
     return Promise.resolve();
   }
 
-  delete(): Promise<void> {
+  delete(): Promise<void>;
+  delete(remoteId: string): Promise<void>;
+  delete(remoteId?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
+    this.threads.delete(remoteId);
     return Promise.resolve();
   }
 
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse> {
-    return Promise.resolve({ remoteId: threadId, externalId: undefined });
+    return Promise.resolve(this.register(threadId));
+  }
+
+  /** @internal */
+  register(
+    threadId: string,
+    externalId?: string | undefined,
+  ): RemoteThreadInitializeResponse {
+    const current = this.threads.get(threadId);
+    const thread = current
+      ? externalId === undefined || current.externalId === externalId
+        ? current
+        : { ...current, externalId }
+      : { status: "regular" as const, remoteId: threadId, externalId };
+    this.threads.set(threadId, thread);
+    return { remoteId: threadId, externalId: thread.externalId };
   }
 
   generateTitle(): Promise<AssistantStream> {
@@ -48,6 +101,8 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
   }
 
   fetch(threadId: string): Promise<RemoteThreadMetadata> {
+    const thread = this.threads.get(threadId);
+    if (thread) return Promise.resolve(thread);
     return Promise.reject(
       new Error(`Thread "${threadId}" not found in in-memory thread list.`),
     );
