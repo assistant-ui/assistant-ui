@@ -16,6 +16,7 @@ const TEXT_ENTRY_SELECTOR = [
     ":not([type='range']):not([type='file']):not([type='color'])",
 ].join(", ");
 const SCROLL_KEYS = new Set([
+  " ",
   "ArrowUp",
   "ArrowDown",
   "PageUp",
@@ -111,6 +112,11 @@ export const createThreadViewportAutoScroll = (input: {
     if (!element) return;
 
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
+    if (
+      !newIsAtBottom &&
+      (!input.getOptions().autoScroll || (intent === null && !followPaused))
+    )
+      followBottom = false;
     const inFlightDownward =
       !newIsAtBottom && lastScrollTop < element.scrollTop;
     if (!inFlightDownward) {

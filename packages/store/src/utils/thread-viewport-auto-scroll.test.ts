@@ -155,6 +155,60 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("keeps the reader in place when autoScroll is enabled after unfollowed growth", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    let autoScroll = false;
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({
+        ...options(),
+        autoScroll,
+        scrollToBottomOnInitialize: false,
+      }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.grow(1500);
+    observers[0]!.trigger();
+    expect(controller.isAtBottom).toBe(false);
+
+    autoScroll = true;
+    view.grow(1600);
+    observers[0]!.trigger();
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(400);
+
+    view.setTop(1500);
+    view.grow(1700);
+    observers[0]!.trigger();
+    expect(view.element.scrollTop).toBe(1600);
+    controller.dispose();
+  });
+
+  it("stays unpinned when the reader scrolls upward during content growth", () => {
+    const view = geometry(500, 100);
+    view.setTop(400);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    view.setTop(300);
+    expect(controller.isAtBottom).toBe(false);
+    observers[0]!.trigger();
+    view.grow(700);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    expect(view.element.scrollTop).toBe(300);
+    controller.dispose();
+  });
+
   it.each([undefined, "false"])(
     "pauses bottom follow after opening a collapsed disclosure with aria-haspopup=%s",
     (popup) => {
@@ -343,40 +397,47 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("resumes after a scroll gesture reaches the overflowing bottom", () => {
-    const view = geometry(500, 100);
-    view.setTop(400);
-    const message = document.createElement("div");
-    message.setAttribute("data-message-id", "m1");
-    const disclosure = document.createElement("button");
-    disclosure.setAttribute("aria-expanded", "false");
-    message.append(disclosure);
-    view.element.append(message);
+  it.each(["wheel", " ", "End"])(
+    "resumes after %s reaches the overflowing bottom",
+    (gesture) => {
+      const view = geometry(500, 100);
+      view.setTop(400);
+      const message = document.createElement("div");
+      message.setAttribute("data-message-id", "m1");
+      const disclosure = document.createElement("button");
+      disclosure.setAttribute("aria-expanded", "false");
+      message.append(disclosure);
+      view.element.append(message);
 
-    const controller = createThreadViewportAutoScroll({
-      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
-      onAtBottomChange: vi.fn(),
-    });
-    controller.attach(view.element);
-    observers[0]!.trigger();
-    view.scrollTo.mockClear();
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      observers[0]!.trigger();
+      view.scrollTo.mockClear();
 
-    disclosure.click();
-    view.grow(600);
-    observers[0]!.trigger();
-    expect(view.scrollTo).not.toHaveBeenCalled();
+      disclosure.click();
+      view.grow(600);
+      observers[0]!.trigger();
+      expect(view.scrollTo).not.toHaveBeenCalled();
 
-    view.element.dispatchEvent(new WheelEvent("wheel"));
-    view.setTop(500);
-    view.grow(700);
-    observers[0]!.trigger();
+      view.element.dispatchEvent(
+        gesture === "wheel"
+          ? new WheelEvent("wheel")
+          : new KeyboardEvent("keydown", { key: gesture }),
+      );
+      view.setTop(500);
+      view.grow(700);
+      observers[0]!.trigger();
 
-    expect(view.scrollTo).toHaveBeenCalledWith({
-      top: 700,
-      behavior: "instant",
-    });
-    controller.dispose();
-  });
+      expect(view.scrollTo).toHaveBeenCalledWith({
+        top: 700,
+        behavior: "instant",
+      });
+      controller.dispose();
+    },
+  );
 
   it("resumes when the reader explicitly scrolls to the bottom", () => {
     const view = geometry(500, 100);
