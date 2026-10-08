@@ -59,6 +59,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -76,6 +77,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -84,6 +86,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -1529,6 +1532,7 @@ type PiClientEventBody = {
 } | {
   type: "agent_end";
   willRetry?: boolean;
+  cancelledBeforeStart?: boolean;
 } | {
   type: "agent_settled";
 } | {
@@ -1640,6 +1644,8 @@ interface PiEventStreamOptions {
   expectedThreadId?: string;
   snapshotRecoveryUrl?: string;
   reconnectDelay?: () => Promise<void>;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 }
 
 type PiHostUiRequest = {
@@ -1692,6 +1698,8 @@ interface PiHttpClientOptions {
   onStreamError?: (error: unknown) => void;
   reconnectDelay?: () => Promise<void>;
   streamCloseDelayMs?: number;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 }
 
 interface PiImageContent {
@@ -2620,6 +2628,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -2979,7 +2988,10 @@ declare const createPiNodeClient: (options?: PiNodeClientOptions) => PiClient;
 
 declare const createPiThreadState: (threadId: string) => PiThreadState;
 
-declare const createSseDecoder: () => {
+declare const createSseDecoder: (options?: {
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
+}) => {
   push(chunk: string): SseFrame[];
 };
 

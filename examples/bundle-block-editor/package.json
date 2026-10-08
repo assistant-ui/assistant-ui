@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
     "test": "node --test history.test.mjs",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit",
     "preview:build": "node ../../scripts/build-example-bundle.mjs"
   },
@@ -15,7 +16,7 @@
     "@lexical/react": "^0.52.0",
     "@lexical/rich-text": "^0.52.0",
     "@lexical/selection": "^0.52.0",
-    "ai": "^7.0.127",
+    "ai": "^7.0.130",
     "bundle-shared": "workspace:*",
     "lexical": "^0.52.0",
     "react": "^19.3.0",

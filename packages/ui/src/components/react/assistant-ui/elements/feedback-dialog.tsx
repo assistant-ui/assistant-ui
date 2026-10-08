@@ -70,11 +70,11 @@ export function FeedbackDialog({
       {sent ? null : (
         <>
           <div className="flex items-center gap-2.5">
-            <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">
+            <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-lg">
               <ThumbsDownIcon className="size-3.5" />
             </span>
             <span className="text-[13.5px] font-medium">What went wrong?</span>
-            <span className={cn(mono, "text-foreground/30 ms-auto")}>
+            <span className={cn(mono, "text-muted-foreground ms-auto")}>
               optional
             </span>
           </div>
@@ -89,7 +89,7 @@ export function FeedbackDialog({
                   ? "bg-foreground text-background"
                   : cn(
                       field,
-                      "text-foreground/55",
+                      "text-muted-foreground",
                       onToggleReason && "hover:text-foreground/90",
                     ),
               );
@@ -125,7 +125,7 @@ export function FeedbackDialog({
             aria-label="Anything else?"
             className={cn(
               field,
-              "text-foreground/80 placeholder:text-foreground/30 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs outline-none focus-visible:ring-1",
+              "text-foreground/80 placeholder:text-muted-foreground focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs outline-none focus-visible:ring-1",
             )}
           />
 

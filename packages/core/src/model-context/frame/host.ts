@@ -3,6 +3,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { generateId } from "../../utils/id";
+import { getAbortReason } from "../../utils/abortable-promise";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -52,13 +53,6 @@ const deserializeModelContext = (
   }),
 });
 
-const getAbortReason = (signal: AbortSignal): unknown => {
-  if (signal.reason !== undefined) return signal.reason;
-  const error = new Error("Tool call was aborted");
-  error.name = "AbortError";
-  return error;
-};
-
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
   private _subscribers = new Set<() => void>();
@@ -72,6 +66,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _iframeWindow: Window;
   private _targetOrigin: string;
   private _disposed = false;
+  private _providerDisposed = false;
 
   constructor(
     iframeWindow: Window,
@@ -98,7 +93,19 @@ export class AssistantFrameHost implements ModelContextProvider {
 
     switch (message.type) {
       case "model-context-update": {
+        this._providerDisposed = false;
         this.updateContext(message.context);
+        break;
+      }
+
+      case "provider-disposed": {
+        this._providerDisposed = true;
+        const error = new Error("AssistantFrameProvider has been disposed");
+        for (const [id, pending] of this._pendingRequests) {
+          this._pendingRequests.delete(id);
+          this.cancelToolCall(id);
+          pending.reject(error);
+        }
         break;
       }
 
@@ -164,8 +171,15 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (this._disposed) {
       return Promise.reject(new Error("AssistantFrameHost has been disposed"));
     }
+    if (this._providerDisposed) {
+      return Promise.reject(
+        new Error("AssistantFrameProvider has been disposed"),
+      );
+    }
     if (abortSignal?.aborted) {
-      return Promise.reject(getAbortReason(abortSignal));
+      return Promise.reject(
+        getAbortReason(abortSignal, "Tool call was aborted"),
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -175,7 +189,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
           this.cancelToolCall(message.id);
-          pending.reject(getAbortReason(abortSignal));
+          pending.reject(getAbortReason(abortSignal, "Tool call was aborted"));
           this._pendingRequests.delete(message.id);
         }
       };

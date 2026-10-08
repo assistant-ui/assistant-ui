@@ -34,16 +34,17 @@
     "build": "aui-build",
     "dev": "tsx src/stdio.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "^2.3.0",
+    "@modelcontextprotocol/client": "^2.3.1",
     "@modelcontextprotocol/server": "~2.2.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@modelcontextprotocol/core": "^2.3.0",
+    "@modelcontextprotocol/core": "^2.3.1",
     "@types/node": "^26.6.4",
     "tsx": "^4.23.15",
     "vitest": "^5.0.3"

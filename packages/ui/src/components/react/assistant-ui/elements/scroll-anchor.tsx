@@ -110,7 +110,7 @@ export function ScrollAnchor({
               "fade-in slide-in-from-bottom-1 animate-in max-w-[85%] text-xs leading-relaxed duration-300 motion-reduce:animate-none",
               message.role === "user"
                 ? cn(field, "self-end rounded-2xl px-3 py-1.5")
-                : "text-foreground/55 self-start",
+                : "text-muted-foreground self-start",
             )}
           >
             {message.text}

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.2.40",
+  "version": "0.2.41",
   "description": "A2A (Agent-to-Agent) v1.0 protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
@@ -31,16 +31,17 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.23",
-    "@assistant-ui/react-generative-ui": "^0.0.23",
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/react-generative-ui": "^0.0.24",
     "@assistant-ui/store": "^0.3.17",
-    "assistant-stream": "^0.3.47"
+    "assistant-stream": "^0.3.48"
   },
   "peerDependencies": {
     "@types/react": "*",

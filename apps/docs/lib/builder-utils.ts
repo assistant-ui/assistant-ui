@@ -5,25 +5,11 @@ import type {
   StylesConfig,
 } from "@/components/pages/playground/types";
 
-export const BORDER_RADIUS_CLASS: Record<BorderRadius, string> = {
-  none: "rounded-none",
-  sm: "rounded-lg",
-  md: "rounded-xl",
-  lg: "rounded-2xl",
-  full: "rounded-3xl",
-};
-
 export const FONT_SIZE_CLASS: Record<FontSize, string> = {
   "13px": "text-[13px]",
   "14px": "text-sm",
   "15px": "text-[15px]",
   "16px": "text-base",
-};
-
-export const MESSAGE_SPACING_CLASS: Record<MessageSpacing, string> = {
-  compact: "py-2",
-  comfortable: "py-3",
-  spacious: "py-5",
 };
 
 export const MESSAGE_GAP_CLASS: Record<MessageSpacing, string> = {

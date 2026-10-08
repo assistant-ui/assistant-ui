@@ -239,6 +239,19 @@ type AdkRunConfig = {
 };
 
 type AdkRunner = {
+  readonly appName?: string;
+  readonly sessionService?: {
+    getSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown | undefined>;
+    createSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown>;
+  };
   runAsync(options: Record<string, unknown>): AsyncGenerator<any, void, undefined>;
 };
 
@@ -392,6 +405,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -409,6 +423,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -417,6 +432,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -1041,7 +1057,9 @@ type ComposerSubmission = {
 type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
   userId: string | ((req: Request) => string | Promise<string>);
-  sessionId: string | ((req: Request) => string | Promise<string>);
+  sessionId: string | ((req: Request, clientSessionId: string | undefined) => string | Promise<string>);
+  resolveRunConfig?: ((req: Request, runConfig: unknown) => unknown | Promise<unknown>) | undefined;
+  resolveStateDelta?: ((req: Request, stateDelta: Record<string, unknown> | undefined) => Record<string, unknown> | undefined | Promise<Record<string, unknown> | undefined>) | undefined;
   onError?: AdkEventStreamOptions["onError"];
 };
 
@@ -1050,6 +1068,8 @@ type CreateAdkStreamOptions = {
   appName?: string | undefined;
   userId?: string | undefined;
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) | undefined;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 };
 
 type CreateAppendMessage = string | {
@@ -1672,6 +1692,7 @@ type ParsedAdkRequest = {
   type: "message";
   text: string;
   parts?: Array<Record<string, unknown>> | undefined;
+  sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
 } | {
@@ -1680,6 +1701,7 @@ type ParsedAdkRequest = {
   toolName: string;
   result: unknown;
   isError: boolean;
+  sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
 };
@@ -2060,6 +2082,7 @@ type ThreadComposerState = BaseComposerState & {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
@@ -2292,6 +2315,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -2652,6 +2676,7 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
     onAgentTransfer?: OnAdkAgentTransferCallback;
   } | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   sessionAdapter?: RemoteThreadListAdapter | undefined;
 };
 
@@ -2755,6 +2780,7 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param5: {
@@ -2763,6 +2789,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param5: {
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 export { entry_root_exports as entry_root, entry_server_exports as entry_server };

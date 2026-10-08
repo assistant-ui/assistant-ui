@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseWorkspaceGlobs } from "./check-changesets.mjs";
-import { readJson } from "./lib/workspace.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
+import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -30,23 +28,18 @@ const HOST_SUPPLIED_PEERS = new Set([
 ]);
 
 function readWorkspaceManifests(root) {
-  const globs = parseWorkspaceGlobs(
-    readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-  );
+  const { globs, manifests: entries } = readWorkspaceManifestEntries(root);
   if (globs.length === 0) {
     throw new Error("pnpm-workspace.yaml declares no `packages:` entries.");
   }
   const manifests = [];
   const seen = new Set();
-  for (const glob of globs) {
-    for (const manifest of globSync(`${glob}/package.json`, { cwd: root })) {
-      const posix = manifest.replaceAll("\\", "/");
-      if (seen.has(posix)) continue;
-      seen.add(posix);
-      const pkg = readJson(path.join(root, manifest));
-      if (typeof pkg.name !== "string") continue;
-      manifests.push({ manifest: posix, pkg });
-    }
+  for (const { manifest, pkg } of entries) {
+    const posix = manifest.replaceAll("\\", "/");
+    if (seen.has(posix)) continue;
+    seen.add(posix);
+    if (typeof pkg.name !== "string") continue;
+    manifests.push({ manifest: posix, pkg });
   }
   return manifests.sort((a, b) => a.manifest.localeCompare(b.manifest));
 }

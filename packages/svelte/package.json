@@ -30,11 +30,12 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/core": "^0.3.24",
     "@assistant-ui/store": "^0.3.17",
     "@assistant-ui/tap": "^0.9.21"
   },
@@ -47,7 +48,7 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "jsdom": "^30.1.2",
-    "svelte": "^5.57.1",
+    "svelte": "^5.57.2",
     "vitest": "^5.0.3"
   },
   "homepage": "https://www.assistant-ui.com/",

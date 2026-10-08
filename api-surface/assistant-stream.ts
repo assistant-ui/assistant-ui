@@ -1,8 +1,15 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { ToolSet } from "ai";
+
 import { Cluster, Redis } from "ioredis";
 
 import { JSONSchema7 } from "json-schema";
+
+type AISDKTextPart = {
+  type: "text";
+  text: string;
+};
 
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
@@ -207,6 +214,8 @@ type AssistantTransformerTransformCallback<I> = (chunk: I, controller: Assistant
 declare class AssistantTransportDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
   constructor(options?: {
     strict?: boolean | undefined;
+    maxLineLength?: number | undefined;
+    maxEventLength?: number | undefined;
   });
 }
 
@@ -228,6 +237,7 @@ type AssistantTransportStateOperation = {
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -287,6 +297,7 @@ declare class DataStreamEncoder extends PipeableTransformStream<AssistantStreamC
 
 type DataStreamOptions = {
   strict?: boolean | undefined;
+  maxLineLength?: number | undefined;
 };
 
 type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
@@ -294,6 +305,8 @@ type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>
 } ? {
   readonly [K in keyof T]?: DeepPartial<T[K]>;
 } : T;
+
+declare const ENVELOPE_KEY = "__aui_modelContent";
 
 type FieldState = "complete" | "partial";
 
@@ -317,9 +330,11 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   providerOptions?: ProviderOptions;
 };
 
+type FrontendTools = Record<string, ToolJSONSchema>;
+
 type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 type GenericFilePart = {
@@ -407,7 +422,32 @@ type InMemoryResumableStreamStoreOptions = {
   readonly gcIntervalMs?: number;
 };
 
+declare class IncrementalJsonObjectParser {
+  #private;
+  private constructor();
+  static from(text?: string, fallback?: ReadonlyJSONObject): IncrementalJsonObjectParser;
+  get currentTextLength(): number;
+  get currentArgs(): ReadonlyJSONObject;
+  append(delta: string): IncrementalJsonObjectParser;
+}
+
 type IoRedisLike = Redis | Cluster;
+
+type JSONValue = null | string | number | boolean | {
+  [key: string]: JSONValue | undefined;
+} | JSONValue[];
+
+type LegacyAISDKContent = {
+  type: "content";
+  value: (AISDKTextPart | LegacyFilePart)[];
+};
+
+type LegacyFilePart = {
+  type: "file-data";
+  data: string;
+  mediaType: string;
+  filename?: string;
+};
 
 type McpServerConfig = {
   type: "http" | "sse";
@@ -461,6 +501,11 @@ type MessagePartLike = {
 type MessagePartTiming = {
   readonly startedAt: number;
   readonly completedAt?: number;
+};
+
+type ModelContentEnvelope<TResult = unknown> = {
+  readonly [ENVELOPE_KEY]: readonly ToolModelContentPart[];
+  readonly value: TResult;
 };
 
 type NodeRedisFields = Record<string, string | Buffer>;
@@ -706,12 +751,21 @@ type SSEEvent = {
 
 declare class SSEEventDecoder {
   #private;
-  constructor(options?: {
-    trailing?: "dispatch" | "drop";
-  });
+  constructor(options?: SSEEventDecoderOptions);
   push(text: string): SSEEvent[];
   flush(): SSEEvent | null;
 }
+
+declare class SSEEventDecoderError extends Error {
+  readonly code: "event-too-long" | "invalid-limit" | "line-too-long";
+  constructor(code: "event-too-long" | "invalid-limit" | "line-too-long", message: string);
+}
+
+type SSEEventDecoderOptions = {
+  trailing?: "dispatch" | "drop";
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
+};
 
 type SourcePart = {
   type: "source";
@@ -723,6 +777,21 @@ type SourcePart = {
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
+
+type TaggedAISDKContent = {
+  type: "content";
+  value: (AISDKTextPart | TaggedFilePart)[];
+};
+
+type TaggedFilePart = {
+  type: "file";
+  data: {
+    type: "data";
+    data: string;
+  };
+  mediaType: string;
+  filename?: string;
+};
 
 type TextPart = {
   type: "text";
@@ -753,6 +822,10 @@ type ThreadMessageLike = {
   status?: {
     type: string;
   };
+};
+
+type ToAISDKContentOptions = {
+  taggedFileData: boolean;
 };
 
 type ToToolsJSONSchemaOptions = {
@@ -1057,6 +1130,8 @@ type UIMessageStreamDecoderOptions = {
     data: unknown;
     transient?: boolean;
   }) => void;
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
 };
 
 type Usage = {
@@ -1103,21 +1178,33 @@ declare function createResumeAssistantStreamResponse(options: CreateResumeAssist
 
 declare const fromObjectStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
 
+declare const frontendTools: (tools: FrontendTools) => ToolSet;
+
 declare const getPartialJsonObjectFieldState: (obj: Record<string, unknown>, fieldPath: (string | number)[]) => FieldState;
 
 declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => PartialJsonObjectMeta | undefined;
+
+declare namespace entry_ai_sdk_exports {
+  export { FrontendTools, frontendTools };
+}
 
 declare namespace entry_resumable_exports {
   export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisAppendOptions, RedisDeleteOptions, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamAcquisition, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamLease, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, DataStreamOptions, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, MessagePartTiming, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+}
+
+declare namespace entry_internal_exports {
+  export { ModelContentEnvelope, markPartialJsonObjectComplete, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
 }
 
 declare namespace entry_resumable_ioredis_exports {
   export { IoRedisLike, createIoredisResumableStreamStore };
 }
+
+declare const markPartialJsonObjectComplete: <T extends ReadonlyJSONObject>(obj: T) => T;
 
 declare const parsePartialJsonObject: (json: string) => (ReadonlyJSONObject & {
   [PARTIAL_JSON_OBJECT_META_SYMBOL]: PartialJsonObjectMeta;
@@ -1126,6 +1213,24 @@ declare const parsePartialJsonObject: (json: string) => (ReadonlyJSONObject & {
 declare namespace entry_resumable_redis_exports {
   export { NodeRedisLike, createRedisResumableStreamStore };
 }
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
+  taggedFileData: true;
+}): TaggedAISDKContent;
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
+  taggedFileData: false;
+}): LegacyAISDKContent;
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: ToAISDKContentOptions): TaggedAISDKContent | LegacyAISDKContent;
+
+declare const toAISDKDefaultOutput: (output: unknown) => {
+  type: "text";
+  value: string;
+} | {
+  type: "json";
+  value: JSONValue;
+};
 
 declare function toGenericMessages(messages: readonly ThreadMessageLike[]): GenericMessage[];
 
@@ -1139,8 +1244,15 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
+declare function unwrapModelContentEnvelope<TResult>(output: TResult | ModelContentEnvelope<TResult>): {
+  result: TResult;
+  modelContent?: readonly ToolModelContentPart[];
+};
+
 declare namespace entry_utils_exports {
-  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, IncrementalJsonObjectParser, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, SSEEventDecoderError, SSEEventDecoderOptions, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
-export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };
+declare function wrapModelContentEnvelope<TResult>(result: TResult, modelContent: readonly ToolModelContentPart[]): ModelContentEnvelope<TResult>;
+
+export { entry_ai_sdk_exports as entry_ai_sdk, entry_internal_exports as entry_internal, entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

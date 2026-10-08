@@ -4,22 +4,21 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.83",
-    "@ai-sdk/react": "^4.0.130",
+    "@ai-sdk/openai": "^4.0.86",
+    "@ai-sdk/react": "^4.0.133",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:^",
     "@assistant-ui/react-markdown": "workspace:^",
     "@assistant-ui/ui": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
-    "ai": "^7.0.127",
+    "ai": "^7.0.130",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "livekit-client": "^2.22.3",
     "livekit-server-sdk": "^2.19.1",
     "lucide-react": "^1.52.0",
-    "motion": "^14.0.0",
-    "next": "^16.3.8",
-    "postcss": "^8.5.28",
+    "next": "^16.4.0",
+    "postcss": "^8.5.29",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
@@ -39,6 +38,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   }
 }

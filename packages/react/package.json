@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.15.24",
+  "version": "0.15.25",
   "description": "Open-source TypeScript/React library for building production-grade AI chat experiences",
   "keywords": [
     "ai",
@@ -59,20 +59,21 @@
     "postpack": "rm -f ./README.md && ln -s ../../README.md ./README.md",
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:watch": "vitest",
     "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/core": "^0.3.24",
     "@assistant-ui/store": "^0.3.17",
     "@assistant-ui/tap": "^0.9.21",
     "assistant-cloud": "^0.2.5",
-    "assistant-stream": "^0.3.47",
-    "radix-ui": "^1.6.7",
+    "assistant-stream": "^0.3.48",
+    "radix-ui": "^1.7.0",
     "react-textarea-autosize": "^8.5.9",
-    "safe-content-frame": "^0.0.32",
+    "safe-content-frame": "^0.0.33",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
