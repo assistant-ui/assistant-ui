@@ -64,12 +64,10 @@ export default function TwShimmerPage() {
               <div className="shimmer shimmer-bg bg-muted h-4 w-11/12 rounded [--shimmer-x:0] [--shimmer-y:74]" />
               <div className="shimmer shimmer-bg bg-muted h-4 w-3/5 rounded [--shimmer-x:0] [--shimmer-y:98]" />
             </div>
-            <p className="shimmer text-foreground/45 font-mono text-[12px] tracking-wide">
-              &gt; thinking
-            </p>
+            <p className="shimmer text-foreground/45 text-xs">&gt; thinking</p>
           </div>
         </div>
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. 01</span>
           <span>what loading looks like in assistant-ui</span>
         </figcaption>
@@ -271,7 +269,7 @@ export default function TwShimmerPage() {
           >
             <div className="grid gap-8 sm:grid-cols-2">
               <div className="flex flex-col gap-3">
-                <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                <p className="text-muted-foreground/70 text-xs">
                   uncoordinated
                 </p>
                 <div className="shimmer-container flex gap-3">
@@ -284,7 +282,7 @@ export default function TwShimmerPage() {
                 </div>
               </div>
               <div className="flex flex-col gap-3">
-                <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                <p className="text-muted-foreground/70 text-xs">
                   synchronized with x/y
                 </p>
                 <div className="shimmer-container flex gap-3">
@@ -373,7 +371,7 @@ function Example({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h3 className="font-mono text-[14px] font-medium">{title}</h3>
+        <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-muted-foreground mt-1 max-w-[60ch] text-sm leading-relaxed text-pretty">
           {description}
         </p>

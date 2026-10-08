@@ -135,9 +135,7 @@ function Figure({ value, label }: { value: number; label: string }) {
       <p className="font-display text-4xl font-[550] tracking-[-0.01em] tabular-nums">
         {formatCompact(value)}
       </p>
-      <p className="text-muted-foreground mt-1.5 font-mono text-[11px] tracking-wide">
-        {label}
-      </p>
+      <p className="text-muted-foreground mt-1.5 text-xs">{label}</p>
     </div>
   );
 }
@@ -210,18 +208,18 @@ function ProjectRow({
           <div className="pointer-events-none relative z-10 mt-1 flex flex-wrap items-baseline gap-x-4">
             <ProjectDestinationLinks
               destinations={supplementalDestinations}
-              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground pointer-events-auto py-1 font-mono text-[11px] tracking-wide transition-colors focus-visible:underline"
+              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground pointer-events-auto py-1 text-xs transition-colors focus-visible:underline"
             />
           </div>
         ) : null}
       </div>
-      <span className="text-muted-foreground/70 hidden font-mono text-[11px] tracking-wide md:block">
+      <span className="text-muted-foreground/70 hidden text-xs md:block">
         {license}
       </span>
-      <span className="text-muted-foreground/70 hidden text-right font-mono text-[11px] tracking-wide tabular-nums md:block">
+      <span className="text-muted-foreground/70 hidden text-right text-xs tabular-nums md:block">
         {stat ?? "—"}
       </span>
-      <span className="text-muted-foreground/60 mt-0.5 font-mono text-[10px] tracking-wide md:hidden">
+      <span className="text-muted-foreground/60 mt-0.5 text-xs md:hidden">
         {license}
         {stat ? ` · ${stat}` : ""}
       </span>

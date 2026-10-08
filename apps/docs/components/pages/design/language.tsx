@@ -15,7 +15,7 @@ export function Register({
   return (
     <section className="border-foreground/10 scroll-mt-24 border-t pt-6">
       <div className="flex items-baseline gap-3">
-        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
         <h2 className="text-sm font-medium">{label}</h2>
@@ -47,7 +47,7 @@ export function Plate({
       >
         {children}
       </div>
-      <figcaption className="text-muted-foreground mt-2.5 font-mono text-[11px]">
+      <figcaption className="text-muted-foreground mt-2.5 text-xs">
         {caption}
       </figcaption>
     </figure>
@@ -75,7 +75,7 @@ export function Row({
       <dt className="flex min-w-0 shrink-0 items-baseline gap-2 md:w-72">
         <span className="font-mono text-[12.5px] font-medium">{name}</span>
         {value ? (
-          <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+          <span className="text-muted-foreground text-xs tabular-nums">
             {value}
           </span>
         ) : null}

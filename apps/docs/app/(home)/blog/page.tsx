@@ -204,7 +204,7 @@ function PlateFigure({
   return (
     <span className={cn("block", className)}>
       <GlyphPlate scene={scene} live={live} />
-      <span className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+      <span className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
         <span>fig. {figNumber(fig)}</span>
         <span>{scene.name}</span>
       </span>
