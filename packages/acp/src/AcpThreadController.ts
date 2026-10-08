@@ -63,6 +63,12 @@ type ClaimedRun = InflightPrompt & { readonly token: number };
 
 type ThreadEpoch = { readonly ended: Promise<void>; end(): void };
 
+type StartOwner = {
+  readonly attached: number;
+  readonly stops: number;
+  readonly epoch: ThreadEpoch;
+};
+
 const createEpoch = (): ThreadEpoch => {
   let end = noop;
   const ended = new Promise<void>((resolve) => {
@@ -93,6 +99,7 @@ export class AcpThreadController {
   private inflight: InflightPrompt | undefined;
   private runAbort: AbortController | undefined;
   private startLock: Promise<void> = Promise.resolve();
+  private stops = 0;
   private epoch = createEpoch();
   private detachFromClient: (() => void) | undefined;
 
@@ -183,6 +190,7 @@ export class AcpThreadController {
   }
 
   async cancel(): Promise<void> {
+    this.stops += 1;
     if (!(await this.stopRun())) return;
     invokeUserCallback("acp", "onCancel", this.onCancel);
   }
@@ -218,12 +226,14 @@ export class AcpThreadController {
    * a dropped connection could not restore.
    */
   async startNewThread(): Promise<void> {
-    await this.stopRun();
     this.epoch.end();
     this.epoch = createEpoch();
+    const stopping = this.stopRun();
+    this.runToken += 1;
     this.inflight = undefined;
     this.client.resetSession();
-    this.dispatch({ type: "reset" });
+    this.dispatch({ type: "reset", threadId: generateId() });
+    await stopping;
   }
 
   private dispatch(event: AcpThreadEvent): void {
@@ -310,14 +320,27 @@ export class AcpThreadController {
     return true;
   }
 
+  /**
+   * Only the running turn's prompt can ask. While a stopped turn is settling,
+   * or before the running turn's prompt went out, a request belongs to a turn
+   * the user already stopped and is cancelled, as ACP requires.
+   */
   private handlePermissionRequest(
     request: AcpPermissionRequest,
   ): Promise<AcpPermissionOutcome> {
+    const running =
+      this.state.run.type === "running"
+        ? this.state.run.assistantId
+        : undefined;
+    if (
+      running === undefined ||
+      this.state.settlingAssistantId !== undefined ||
+      this.inflight?.assistantId !== running
+    ) {
+      return Promise.resolve({ outcome: "cancelled" });
+    }
     if (this.permissionsMode === "auto-allow") {
       return Promise.resolve(autoAllowPermissionHandler(request));
-    }
-    if (this.state.run.type !== "running") {
-      return Promise.resolve({ outcome: "cancelled" });
     }
     const approvalId = `acp-permission-${(this.permissionCounter += 1)}`;
     return new Promise<AcpPermissionOutcome>((resolve) => {
@@ -329,15 +352,18 @@ export class AcpThreadController {
   /**
    * Starts a turn for `userMessageId` once every earlier start has sent its
    * prompt or given up, so each message the thread shows reaches the agent
-   * before a later one supersedes it. A stop or detach that lands before the
-   * prompt is sent withholds it: an agent must never run a turn the user
-   * already stopped.
+   * before a later one supersedes it. A stop, detach or new thread that lands
+   * before the prompt is sent withholds it, along with every start queued
+   * behind it: an agent must never run a turn the user already stopped.
    */
   private async run(userMessageId: string): Promise<void> {
-    const attached = this.detachToken;
-    const epoch = this.epoch;
+    const owner: StartOwner = {
+      attached: this.detachToken,
+      stops: this.stops,
+      epoch: this.epoch,
+    };
     const start = this.startLock.then(() =>
-      this.claimRun(userMessageId, attached, epoch),
+      this.claimRun(userMessageId, owner),
     );
     this.startLock = start.then(noop, noop);
     const claimed = await start;
@@ -372,10 +398,9 @@ export class AcpThreadController {
    */
   private async claimRun(
     userMessageId: string,
-    attached: number,
-    epoch: ThreadEpoch,
+    owner: StartOwner,
   ): Promise<ClaimedRun | undefined> {
-    if (attached !== this.detachToken || epoch !== this.epoch) return undefined;
+    if (!this.owns(owner)) return undefined;
     const user = this.state.messagesById[userMessageId];
     if (user?.role !== "user") return undefined;
     const superseded = this.inflight;
@@ -396,24 +421,30 @@ export class AcpThreadController {
     this.dispatch({ type: "run-start", message: assistant });
 
     if (superseded) {
-      await Promise.race([superseded.prompt.then(noop, noop), epoch.ended]);
+      await Promise.race([
+        superseded.prompt.then(noop, noop),
+        owner.epoch.ended,
+      ]);
       if (this.inflight === superseded) this.inflight = undefined;
       this.dispatch({
         type: "run-settled",
         assistantId: superseded.assistantId,
       });
     }
-    if (token !== this.runToken || attached !== this.detachToken) {
-      return undefined;
-    }
+    const current = () => token === this.runToken && this.owns(owner);
+    if (!current()) return undefined;
 
     const blocks = threadContentToAcpBlocks([
       ...user.content,
       ...user.attachments.flatMap((attachment) => attachment.content ?? []),
     ]);
-    // filtered after the handshake, because promptCapabilities only exist once it ran
-    const prompt = this.client.connect().then((initialized) => {
-      if (abort.signal.aborted) return "cancelled" as const;
+    let prompt: Promise<AcpStopReason>;
+    try {
+      // the start lock is held until the prompt is on the wire, so the session
+      // is opened here and promptCapabilities exist once the handshake ran
+      const initialized = await this.client.connect();
+      await this.client.ensureSession();
+      if (!current()) return undefined;
       const filtered = filterPromptBlocks(
         blocks,
         initialized.agentCapabilities?.promptCapabilities,
@@ -426,10 +457,20 @@ export class AcpThreadController {
       if (filtered.dropped.length > 0) {
         this.reportError(this.droppedBlocksError(filtered.dropped));
       }
-      return this.client.prompt(filtered.blocks, abort.signal);
-    });
+      prompt = this.client.prompt(filtered.blocks, abort.signal);
+    } catch (error) {
+      prompt = Promise.reject(toError(error));
+    }
     this.inflight = { assistantId: assistant.id, prompt };
     return { token, assistantId: assistant.id, prompt };
+  }
+
+  private owns(owner: StartOwner): boolean {
+    return (
+      owner.attached === this.detachToken &&
+      owner.stops === this.stops &&
+      owner.epoch === this.epoch
+    );
   }
 
   private toUserMessage(message: AppendMessage): AcpUserMessage {

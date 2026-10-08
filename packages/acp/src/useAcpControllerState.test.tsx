@@ -43,6 +43,9 @@ class StubClient {
   async connect() {
     return { protocolVersion: 1, agentCapabilities: {} };
   }
+  async ensureSession() {
+    return "s1";
+  }
   async prompt() {
     return "end_turn";
   }

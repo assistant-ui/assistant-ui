@@ -207,7 +207,8 @@ describe("reduceAcpThreadState", () => {
       update({ sessionUpdate: "session_info_update", title: "old" }),
     );
 
-    state = reduceAcpThreadState(state, { type: "reset" });
+    state = reduceAcpThreadState(state, { type: "reset", threadId: "t2" });
+    expect(state.threadId).toBe("t2");
     expect(state.messageOrder).toEqual([]);
     expect(state.headId).toBeNull();
     expect(state.run).toEqual({ type: "idle" });

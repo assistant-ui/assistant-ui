@@ -253,9 +253,11 @@ describe("useAcpRuntime against an ACP agent", () => {
       expect.stringContaining("could not be restored"),
     ]);
 
+    const before = runtime().threads.getState().mainThreadId;
     await act(async () => runtime().threads.switchToNewThread());
     await settle();
     expect(runtime().thread.getState().messages).toEqual([]);
+    expect(runtime().threads.getState().mainThreadId).not.toBe(before);
 
     await send(runtime(), "fresh");
     expect(agent.prompts().at(-1)).toEqual({ sessionId: "s2", text: "fresh" });

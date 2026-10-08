@@ -65,6 +65,8 @@ export type AcpPendingPermission = {
 };
 
 export type AcpThreadState = {
+  /** Identifies the thread; a new thread gets a new id. */
+  readonly threadId: string;
   readonly loadState: AcpLoadState;
   readonly connectionState: AcpConnectionState;
   readonly sessionId: string | undefined;
@@ -125,9 +127,10 @@ export type AcpThreadEvent =
       readonly settling?: boolean | undefined;
     }
   | { readonly type: "run-settled"; readonly assistantId: string }
-  | { readonly type: "reset" };
+  | { readonly type: "reset"; readonly threadId: string };
 
 export const EMPTY_ACP_THREAD_STATE: AcpThreadState = {
+  threadId: "acp-thread",
   loadState: { type: "idle" },
   connectionState: "disconnected",
   sessionId: undefined,
@@ -413,6 +416,7 @@ export const reduceAcpThreadState = (
     case "reset":
       return {
         ...EMPTY_ACP_THREAD_STATE,
+        threadId: event.threadId,
         loadState: state.loadState,
         connectionState: state.connectionState,
         agentInfo: state.agentInfo,

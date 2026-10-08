@@ -98,10 +98,10 @@ Browser clients advertise no filesystem or terminal capabilities, so a conformin
 
 **A dropped connection cannot silently continue the thread.** On reconnect the client restores the lost session with `session/load` when `agentCapabilities.loadSession` advertises it, dropping the replay because the thread already shows it. Otherwise every prompt is rejected with an error naming the session, until New Thread (`switchToNewThread`) clears the transcript and opens a new session.
 
-**Stopping a turn.** Stop sends `session/cancel`, ends the turn as cancelled, and keeps applying the tool call updates the agent sends until it answers the cancelled prompt. A message sent while another turn runs reaches the agent only after that turn settles. A turn stopped before its prompt went out never reaches the agent, while its message stays in the thread.
+**Stopping a turn.** Stop sends `session/cancel`, ends the turn as cancelled, cancels the permission requests it still sends, and keeps applying its tool call updates until the agent answers the cancelled prompt. A message sent while another turn runs reaches the agent only after that turn settles. A turn stopped before its prompt went out, like every message queued behind it, never reaches the agent, while its message stays in the thread.
 
 **Attachments the agent did not opt into are withheld.** ACP's baseline prompt content is text and resource links; `image`, `audio` and embedded `resource` blocks need `agentCapabilities.promptCapabilities`. An embedded resource keeps what survives (its text as a text block, or a URI the agent can fetch as a resource link), so only inline bytes behind a client-local `file:` URI are dropped, and `onError` reports every dropped block.
 
-**MCP servers need the agent's support.** HTTP, SSE and ACP MCP servers are only sent to an agent whose `mcpCapabilities` advertise that transport; otherwise opening the session fails with an error naming the server.
+**MCP servers need the agent's support.** HTTP and SSE MCP servers are only sent to an agent whose `mcpCapabilities` advertise that transport, and ACP-transport servers, which would route MCP traffic through this client, are not supported; otherwise opening the session fails with an error naming the server.
 
 **Not implemented yet.** `authenticate` (an agent that requires it fails `session/new` with its own error), `session/set_mode` and `session/set_config_option` (modes and config options are read-only), the ACP v1 updates the schema marks unstable, and the draft ACP v2 wire.

@@ -115,6 +115,13 @@ class FakeClient {
     };
   }
 
+  ensureSessionCalls = 0;
+
+  async ensureSession() {
+    this.ensureSessionCalls += 1;
+    return this.sessionId ?? "s1";
+  }
+
   async prompt(blocks: unknown[], signal?: AbortSignal) {
     if (signal?.aborted) {
       this.log?.push("prompt:aborted");
@@ -494,6 +501,7 @@ describe("AcpThreadController", () => {
 
     client.promptGate = () => {};
     const done = c.append(userAppend("x"));
+    await flush();
     await expect(client.ask(permissionRequest())).resolves.toEqual({
       outcome: "selected",
       optionId: "allow",
@@ -1316,6 +1324,92 @@ describe("AcpThreadController", () => {
       rawOutput: "ignored",
     });
     expect(toolStatus(c)).toMatchObject({ result: "edited" });
+  });
+
+  it("sends nothing for an append that a new thread followed in the same task", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    const appended = c.append(userAppend("old thread"));
+    const reset = c.startNewThread();
+    await Promise.all([appended, reset]);
+    await flush();
+
+    expect(client.prompts).toHaveLength(0);
+    expect(c.getState().messageOrder).toEqual([]);
+  });
+
+  it("withholds every start queued behind a turn the user stopped", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    const first = c.append(userAppend("1"));
+    await flush();
+    const second = c.append(userAppend("2"));
+    const third = c.append(userAppend("3"));
+    await flush();
+
+    await c.cancel();
+    client.promptGate = undefined;
+    client.unblock();
+    await Promise.all([first, second, third]);
+    await flush();
+
+    expect(client.prompts).toHaveLength(1);
+  });
+
+  it("cancels a permission request that a stopped turn sends while it settles", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    const first = c.append(userAppend("1"));
+    await flush();
+    const second = c.append(userAppend("2"));
+    await flush();
+    expect(c.getState().settlingAssistantId).toBeDefined();
+
+    await expect(client.ask(permissionRequest())).resolves.toEqual({
+      outcome: "cancelled",
+    });
+    expect(c.getState().permissions).toEqual({});
+
+    client.promptGate = undefined;
+    client.unblock();
+    await Promise.all([first, second]);
+  });
+
+  it("sends a message superseded during the handshake before the one that superseded it", async () => {
+    const c = controller(client, { autoConnect: false });
+    await c.attach();
+    await c.load();
+
+    client.connectGate = true;
+    const order: string[] = [];
+    client.log = order;
+    const first = c.append(userAppend("1"));
+    await flush();
+    const second = c.append(userAppend("2"));
+    await flush();
+    expect(client.prompts).toHaveLength(0);
+
+    client.connectGate = false;
+    client.unblockConnect();
+    await Promise.all([first, second]);
+
+    expect(client.prompts).toEqual([
+      [{ type: "text", text: "1" }],
+      [{ type: "text", text: "2" }],
+    ]);
+    expect(order.indexOf("client.cancel")).toBeGreaterThan(
+      order.indexOf("prompt:send"),
+    );
   });
 
   it("resolves an approval on the turn that asked for it", async () => {

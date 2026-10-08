@@ -118,12 +118,19 @@ const defaultWebSocketFactory: AcpWebSocketFactory = (url) =>
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
+const isPermissionOption = (option: unknown) =>
+  isRecord(option) &&
+  typeof option.optionId === "string" &&
+  typeof option.name === "string" &&
+  typeof option.kind === "string";
+
 const isPermissionRequest = (params: unknown): params is AcpPermissionRequest =>
   isRecord(params) &&
   typeof params.sessionId === "string" &&
   isRecord(params.toolCall) &&
   typeof params.toolCall.toolCallId === "string" &&
-  Array.isArray(params.options);
+  Array.isArray(params.options) &&
+  params.options.every(isPermissionOption);
 
 export class AcpClient {
   private readonly options: AcpClientOptions;
@@ -134,7 +141,9 @@ export class AcpClient {
     JsonRpcId,
     (outcome: AcpPermissionOutcome) => void
   >();
-  private readonly permissionHandlers: AcpPermissionHandler[] = [];
+  private readonly permissionHandlers: {
+    readonly handler: AcpPermissionHandler;
+  }[] = [];
   private connectPromise: Promise<AcpInitializeResponse> | undefined;
   private failHandshake: ((error: Error) => void) | undefined;
   private sessionPromise: Promise<string> | undefined;
@@ -175,9 +184,10 @@ export class AcpClient {
    * the returned function unregisters this one.
    */
   registerPermissionHandler(handler: AcpPermissionHandler): () => void {
-    this.permissionHandlers.push(handler);
+    const registration = { handler };
+    this.permissionHandlers.push(registration);
     return () => {
-      const index = this.permissionHandlers.lastIndexOf(handler);
+      const index = this.permissionHandlers.indexOf(registration);
       if (index !== -1) this.permissionHandlers.splice(index, 1);
     };
   }
@@ -263,7 +273,7 @@ export class AcpClient {
     signal?: AbortSignal,
   ): Promise<AcpStopReason> {
     if (signal?.aborted) return "cancelled";
-    const sessionId = await this.ensureSession();
+    const sessionId = this._sessionId ?? (await this.ensureSession());
     if (signal?.aborted) return "cancelled";
     this.cancelSent = false;
     const result = await this.request<{ stopReason?: AcpStopReason }>(
@@ -485,11 +495,17 @@ export class AcpClient {
     return { ...loaded, sessionId };
   }
 
+  /**
+   * HTTP and SSE servers need the agent to advertise the transport. ACP-transport
+   * servers route MCP traffic through the client over `mcp/message`, which this
+   * client does not implement, so they are never sent.
+   */
   private sessionParams() {
     const mcpServers = this.options.mcpServers ?? [];
     const accepted = this.agentCapabilities?.mcpCapabilities;
     const unsupported = mcpServers.filter(
-      (server) => "type" in server && !accepted?.[server.type],
+      (server) =>
+        "type" in server && (server.type === "acp" || !accepted?.[server.type]),
     );
     if (unsupported.length > 0) {
       throw new Error(
@@ -572,6 +588,14 @@ export class AcpClient {
       });
       return;
     }
+    if (msg.params.sessionId !== this._sessionId) {
+      this.sendRaw({
+        jsonrpc: "2.0",
+        id: msg.id,
+        result: { outcome: { outcome: "cancelled" } },
+      });
+      return;
+    }
     this.handlePermissionRequest(msg.id as JsonRpcId, msg.params);
   }
 
@@ -594,7 +618,7 @@ export class AcpClient {
 
     const handler =
       this.options.permissionHandler ??
-      this.permissionHandlers.at(-1) ??
+      this.permissionHandlers.at(-1)?.handler ??
       cancelPermissionHandler;
     let handled: Promise<AcpPermissionOutcome>;
     try {
@@ -617,11 +641,24 @@ export class AcpClient {
     if (typeof params?.sessionId !== "string" || !isRecord(params.update))
       return;
     const { sessionId, update } = params;
-    if (sessionId === this.lostSessionId) return;
-    if (this.retiredSessionIds.has(sessionId)) return;
+    if (!this.acceptsUpdatesFor(sessionId)) return;
     for (const listener of [...this.sessionUpdateListeners]) {
       invokeUserCallback("acp", "onSessionUpdate", listener, sessionId, update);
     }
+  }
+
+  /**
+   * Only the current session's updates are delivered. Before one is current, an
+   * opening session may report itself ahead of its `session/new` response, so
+   * updates pass while an opening is pending, except for a lost or retired id.
+   */
+  private acceptsUpdatesFor(sessionId: string): boolean {
+    if (this._sessionId !== undefined) return sessionId === this._sessionId;
+    return (
+      this.sessionPromise !== undefined &&
+      sessionId !== this.lostSessionId &&
+      !this.retiredSessionIds.has(sessionId)
+    );
   }
 
   private request<TResult>(

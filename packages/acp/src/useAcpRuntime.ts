@@ -214,6 +214,8 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
     });
   }, [autoConnect, controller, onCancel, onError, permissions]);
 
+  const state = useAcpControllerState(controller);
+
   const adapters = options.adapters;
   const storeAdapters = useMemo(
     () => ({
@@ -223,13 +225,12 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
       voice: adapters?.voice,
       feedback: adapters?.feedback,
       threadList: {
+        threadId: state.threadId,
         onSwitchToNewThread: () => controller.startNewThread(),
       },
     }),
-    [adapters, controller, runtimeAdapters],
+    [adapters, controller, runtimeAdapters, state.threadId],
   );
-
-  const state = useAcpControllerState(controller);
 
   const messageRepository = useMemo(
     () => projectAcpThreadRepository(state),
