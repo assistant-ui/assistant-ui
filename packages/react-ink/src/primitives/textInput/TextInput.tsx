@@ -36,7 +36,7 @@ const TextInputInternal = ({
   isDisabled,
   ...boxProps
 }: TextInputInternalProps) => {
-  const { isFocused } = useFocus({ autoFocus, isActive: !isDisabled });
+  const { isFocused } = useFocus({ autoFocus });
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
@@ -217,7 +217,7 @@ const TextInputInternal = ({
         if (insertText) commitAction({ type: "insert", text: insertText });
       }
     },
-    { isActive: isFocused && !isDisabled },
+    { isActive: isFocused },
   );
 
   const hasText = text.length > 0;
@@ -237,7 +237,7 @@ const TextInputInternal = ({
 
   return (
     <Box {...boxProps}>
-      {!isFocused ? (
+      {!isFocused || isDisabled ? (
         <Text dimColor={isShowingPlaceholder}>
           {hasText ? text : placeholder}
         </Text>

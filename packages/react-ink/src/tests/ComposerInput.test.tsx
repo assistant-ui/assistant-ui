@@ -197,7 +197,7 @@ describe("ComposerInput", () => {
       textChanges: setText.mock.calls.length,
       sends: send.mock.calls.length,
       inputActive: inputOptions?.isActive,
-    }).toEqual({ textChanges: 0, sends: 0, inputActive: false });
+    }).toEqual({ textChanges: 0, sends: 0, inputActive: true });
   });
 
   it("does not send on enter while the thread is running without queue support", async () => {
