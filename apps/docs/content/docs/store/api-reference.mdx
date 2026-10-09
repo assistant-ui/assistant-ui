@@ -33,7 +33,7 @@ The `useAui(scopes)` extension overload is deprecated; hoist `const aui = useAui
 function useAuiState<T>(selector: (state: AssistantState) => T): T;
 ```
 
-Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector runs again when a client whose state it read, or a list whose items it looked up, changes; a selector that reads nothing through the store runs on every store update. The selector must return a specific value, not the entire state object. Scopes that may be unavailable can be read via `s.optional.<scope>`, which resolves to `undefined` instead of throwing.
+Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector runs again when a client whose state it read, or a list whose items it looked up, changes; a selector whose reads the store cannot follow, such as one that reads nothing through it, runs on every store update. The selector must return a specific value, not the entire state object. Scopes that may be unavailable can be read via `s.optional.<scope>`, which resolves to `undefined` instead of throwing.
 
 ### useAuiEvent
 

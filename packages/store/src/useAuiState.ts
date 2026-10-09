@@ -9,15 +9,15 @@ import { useTrackedSyncExternalStore } from "./utils/scoped-signal";
  * component whenever that slice changes.
  *
  * The `selector` runs again when a client whose state it read, or a list
- * whose items it looked up, changes; a selector that reads nothing through
- * the store runs on every store update. Its return value is compared by
- * `Object.is`, and the component re-renders only when the selected slice
- * changes. Returning the entire state object is not
- * supported and throws at runtime — select a specific field instead, or
- * compose multiple `useAuiState` calls. Returning a new object or array
- * literal, including spreading `s.thread` into a new object, causes a
- * re-render on every store update; either select primitives or return a
- * memoized reference.
+ * whose items it looked up, changes; a selector whose reads the store cannot
+ * follow, such as one that reads nothing through it, runs on every store
+ * update. Its return value is compared by `Object.is`, and the component
+ * re-renders only when the selected slice changes. Returning the entire
+ * state object is not supported and throws at runtime — select a specific
+ * field instead, or compose multiple `useAuiState` calls. Returning a new
+ * object or array literal, including spreading `s.thread` into a new object,
+ * re-renders the component every time the selector runs; either select
+ * primitives or return a memoized reference.
  *
  * Scopes that may be unavailable can be read via `s.optional.<scope>`,
  * which resolves to `undefined` instead of throwing.
