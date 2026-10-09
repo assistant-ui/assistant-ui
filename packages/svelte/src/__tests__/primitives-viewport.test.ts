@@ -333,24 +333,35 @@ describe("threadViewportFooter", () => {
   });
 
   it("follows a footer's growth while pinned", async () => {
-    let triggerResize: (() => void) | undefined;
+    let triggerResize: ((target: Element) => void) | undefined;
     class FooterResizeObserver {
+      private readonly observedTargets = new Set<Element>();
+
       constructor(callback: ResizeObserverCallback) {
-        triggerResize = () => callback([], this as unknown as ResizeObserver);
+        triggerResize = (target) => {
+          if (this.observedTargets.has(target)) {
+            callback([], this as unknown as ResizeObserver);
+          }
+        };
       }
-      observe() {}
-      disconnect() {}
+      observe(target: Element) {
+        this.observedTargets.add(target);
+      }
+      disconnect() {
+        this.observedTargets.clear();
+      }
     }
     vi.stubGlobal("ResizeObserver", FooterResizeObserver);
     try {
       const { app, viewport, controls } = await mountOverflowingViewport();
       let height = 50;
       const footer = sveltePrimitives.threadViewportFooter({ viewport });
-      const detachFooter = footer.attach(makeFooter(() => height));
+      const footerElement = makeFooter(() => height);
+      const detachFooter = footer.attach(footerElement);
 
       controls.scrollTo.mockClear();
       height = 80;
-      triggerResize?.();
+      triggerResize?.(footerElement);
       expect(controls.scrollTo).toHaveBeenCalledWith({
         top: 1000,
         behavior: "instant",
