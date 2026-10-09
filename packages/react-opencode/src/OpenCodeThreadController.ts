@@ -1127,7 +1127,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
     } catch (error) {
-      if (runGeneration === this.runGeneration) {
+      if (
+        runGeneration === this.runGeneration &&
+        this.state.runState.type !== "idle" &&
+        this.state.runState.type !== "error"
+      ) {
         this.dispatch({ type: "run.failed", error });
       }
       throw error;
@@ -1135,6 +1139,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async revert(messageId: string) {
+    const runGeneration = this.runGeneration;
     // Reverting a finished turn leaves the session idle, so the server sends no
     // busy-to-idle transition and the transient state would never be left.
     if (isOpenCodeStateRunning(this.state)) {
@@ -1149,7 +1154,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
     } catch (error) {
-      this.dispatch({ type: "run.failed", error });
+      if (
+        runGeneration === this.runGeneration &&
+        this.state.runState.type !== "idle" &&
+        this.state.runState.type !== "error"
+      ) {
+        this.dispatch({ type: "run.failed", error });
+      }
       throw error;
     }
   }

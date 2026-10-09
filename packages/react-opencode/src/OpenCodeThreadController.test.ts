@@ -5725,6 +5725,47 @@ describe("OpenCodeThreadController", () => {
         }
       },
     );
+
+    it("keeps the run idle when abort fails after an idle status", async () => {
+      const abort = createDeferred<unknown>();
+      const error = new Error("abort failed");
+      const eventSource = createEventSource();
+      const client = {
+        session: {
+          promptAsync: vi.fn().mockResolvedValue({}),
+          abort: vi.fn(() => abort.promise),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+
+      await controller.sendMessage({
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "run A" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      });
+      const cancellation = controller.cancel();
+      eventSource.emit({
+        type: "session.status",
+        sessionId: "ses_1",
+        properties: { status: { type: "idle" } },
+        raw: {},
+      });
+      expect(controller.getState().runState.type).toBe("idle");
+
+      abort.reject(error);
+      await expect(cancellation).rejects.toBe(error);
+      expect(controller.getState().runState.type).toBe("idle");
+    });
   });
 
   describe("revert", () => {
@@ -5778,9 +5819,42 @@ describe("OpenCodeThreadController", () => {
         "ses_1",
       );
 
+      (
+        controller as unknown as { dispatch: (event: unknown) => void }
+      ).dispatch({ type: "run.started" });
+
       await expect(controller.revert("msg_1")).rejects.toThrow("revert failed");
 
       expect(controller.getState().runState).toMatchObject({ type: "error" });
+    });
+
+    it("keeps the run idle when revert fails after an idle status", async () => {
+      const revert = createDeferred<unknown>();
+      const error = new Error("revert failed");
+      const eventSource = createEventSource();
+      const client = { session: { revert: vi.fn(() => revert.promise) } };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      (
+        controller as unknown as { dispatch: (event: unknown) => void }
+      ).dispatch({ type: "run.started" });
+
+      const reverting = controller.revert("msg_1");
+      eventSource.emit({
+        type: "session.status",
+        sessionId: "ses_1",
+        properties: { status: { type: "idle" } },
+        raw: {},
+      });
+      expect(controller.getState().runState.type).toBe("idle");
+
+      revert.reject(error);
+      await expect(reverting).rejects.toBe(error);
+      expect(controller.getState().runState.type).toBe("idle");
     });
   });
 });
