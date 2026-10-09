@@ -187,6 +187,35 @@ describe("agent link", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it("buffers only the latest early event per request", async () => {
+    let answer!: (response: Response) => void;
+    const events = [
+      ...Array.from({ length: 500 }, (_, i) => ({
+        id: `o-${i}`,
+        re: "r-1",
+        type: "status",
+        text: `step ${i}`,
+      })),
+      { id: "o-done", re: "r-1", type: "done", ok: true },
+      { id: "o-late", re: "r-1", type: "status", text: "late" },
+    ];
+    const fetcher = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "POST")
+          return new Promise<Response>((resolve) => (answer = resolve));
+        return json({ connected: true, events });
+      },
+    );
+    const link = createAgentLink(store, fetcher as typeof fetch, vi.fn());
+    const sending = link.send("choose");
+    await link.poll();
+    answer(json({ id: "r-1" }, 201));
+    await sending;
+    expect(store.getSnapshot().agent.status["demo-cta"]).toMatchObject({
+      type: "done",
+    });
+  });
+
   it("describes failed and plain status events", async () => {
     const events = [
       { id: "o-1", re: "r-1", type: "status" },

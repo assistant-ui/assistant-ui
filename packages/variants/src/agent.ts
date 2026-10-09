@@ -36,8 +36,8 @@ export const createAgentLink = (
   let after: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const pending = new Map<string, string[]>();
-  // Events can arrive before `send` learns its request id; they wait here.
-  const unmatched = new Map<string, AgentEvent[]>();
+  // Events can arrive before `send` learns its request id; the latest one per id waits here, and a `done` is never replaced.
+  const unmatched = new Map<string, AgentEvent>();
 
   const apply = (events: readonly AgentEvent[], connected: boolean) => {
     const status: Record<string, AgentStatus> = {
@@ -47,7 +47,8 @@ export const createAgentLink = (
     for (const event of events) {
       const groups = pending.get(event.re);
       if (!groups) {
-        unmatched.set(event.re, [...(unmatched.get(event.re) ?? []), event]);
+        if (unmatched.get(event.re)?.type !== "done")
+          unmatched.set(event.re, event);
         if (unmatched.size > 50)
           unmatched.delete(unmatched.keys().next().value!);
         continue;
@@ -139,7 +140,7 @@ export const createAgentLink = (
     store.setAgent({ connected: true, status });
     const early = unmatched.get(body.id);
     unmatched.delete(body.id);
-    if (early) apply(early, true);
+    if (early) apply([early], true);
     return undefined;
   };
 
