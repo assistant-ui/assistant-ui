@@ -44,6 +44,7 @@ export async function POST(req: Request) {
   const aiSDKTools = await aiToolkit.tools({ frontend: tools });
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
   };
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
@@ -122,6 +124,7 @@ When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-to
 const aiSDKTools = { ...frontendTools(tools ?? {}) };
 
 const result = streamText({
+  abortSignal: req.signal,
   model,
   // Pass tools to BOTH calls so prior results are projected via toModelOutput.
   messages: await convertToModelMessages(messages, { tools: aiSDKTools }),

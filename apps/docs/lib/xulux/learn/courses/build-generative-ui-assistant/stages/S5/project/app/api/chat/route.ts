@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     tools ? { frontend: tools } : undefined,
   );
   const result = streamText({
+    abortSignal: request.signal,
     model: openai("gpt-6-luna"),
     system:
       "You are a concise, helpful assistant. Use the weather tools for weather questions.",

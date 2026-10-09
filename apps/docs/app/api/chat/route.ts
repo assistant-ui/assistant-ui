@@ -154,6 +154,7 @@ export async function POST(req: Request) {
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const result = streamText({
+          abortSignal: req.signal,
           model,
           ...(providerOptions ? { providerOptions } : {}),
           ...(system ? { system } : {}),

@@ -172,6 +172,7 @@ export async function POST(req: Request) {
     });
 
     const result = streamText({
+      abortSignal: req.signal,
       model,
       ...(providerOptions ? { providerOptions } : {}),
       system:
