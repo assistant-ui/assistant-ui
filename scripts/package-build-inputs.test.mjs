@@ -215,7 +215,7 @@ test("the typecheck install excludes API snapshots without weakening the build c
   )?.[0];
   assert.ok(install, job);
   assert.match(install, /--filter="!@assistant-ui\/api-surface"/);
-  assert.match(install, /--filter="\.\.\.\[\$BASE\]\.\.\."/);
+  assert.match(install, /--filter="\.\.\.\[\$CI_BASE\]\.\.\."/);
   assert.match(install, /--filter="@assistant-ui\/react-devtools\.\.\."/);
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
   assert.doesNotMatch(
