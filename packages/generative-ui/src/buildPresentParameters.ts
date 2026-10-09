@@ -41,7 +41,7 @@ export function buildPresentParameters(
     );
     if (propsSchema.type !== "object") {
       throw new Error(
-        `[@assistant-ui/react-generative-ui] Component "${name}": ` +
+        `[@assistant-ui/generative-ui] Component "${name}": ` +
           "`properties` must be an object schema (e.g. `z.object({ ... })`).",
       );
     }
@@ -71,7 +71,7 @@ export function buildPresentParameters(
       if (owners.length < 2) continue;
       // eslint-disable-next-line no-console
       console.warn(
-        `[@assistant-ui/react-generative-ui] Prop "${key}" is declared by ` +
+        `[@assistant-ui/generative-ui] Prop "${key}" is declared by ` +
           `${formatComponentList(owners)}; keeping "${owners[0]}"'s schema. ` +
           "Rename or align the prop type to avoid an ambiguous schema.",
       );

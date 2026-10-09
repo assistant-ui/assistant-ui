@@ -3,7 +3,7 @@ title: "Generative UI"
 description: "A styled component library for rendering structured generative UI output."
 ---
 
-`styledGenerativeUILibrary` is `@assistant-ui/react-generative-ui`'s default component vocabulary (headings, text, cards, lists, and more) with one entry swapped: its `Markdown` component renders with `react-markdown` and GitHub-flavored markdown instead of dumping the raw source as plain text. With a runtime the library backs a tool the model calls to render structured UI; standalone you call `renderGenerativeUI` yourself with any spec built against the same library.
+`styledGenerativeUILibrary` is `@assistant-ui/generative-ui`'s default component vocabulary (headings, text, cards, lists, and more) with one entry swapped: its `Markdown` component renders with `react-markdown` and GitHub-flavored markdown instead of dumping the raw source as plain text. With a runtime the library backs a tool the model calls to render structured UI; standalone you call `renderGenerativeUI` yourself with any spec built against the same library.
 
 ## Getting started
 
@@ -18,7 +18,7 @@ The library only supplies components; something still has to expose them to the 
 
 ```tsx title="app/toolkit.ts"
 import { defineToolkit } from "@assistant-ui/react";
-import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const generative = new JSONGenerativeUI({ library: styledGenerativeUILibrary });
@@ -62,7 +62,7 @@ Standalone, skip the tool: call `renderGenerativeUI` with any spec built against
 ### Render a spec directly
 
 ```tsx
-import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { renderGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 function Report() {
@@ -87,7 +87,7 @@ Each node selects a component by `$type` and passes its other keys as props; nes
 `defaultGenerativeUILibrary.Markdown` renders `value` as plain text; `styledGenerativeUILibrary.Markdown` parses the same string as GitHub-flavored markdown. Both wrap the result in the same `<div data-aui="markdown">`, so any styling already targeting that attribute keeps applying.
 
 ```tsx
-import { defaultGenerativeUILibrary, renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { defaultGenerativeUILibrary, renderGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 renderGenerativeUI({ $type: "Markdown", value: "**bold**" }, defaultGenerativeUILibrary); // <div data-aui="markdown">**bold**</div>
@@ -99,7 +99,7 @@ renderGenerativeUI({ $type: "Markdown", value: "**bold**" }, styledGenerativeUIL
 Add to it with a plain object spread. No special wrapper is required for a library that is not split across a client and a server build.
 
 ```tsx title="app/toolkit.ts"
-import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { z } from "zod";
 

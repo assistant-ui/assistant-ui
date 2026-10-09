@@ -20,7 +20,7 @@ import {
   CORE_PKG,
   DOCS_ROOT,
   INTEGRATION_PACKAGES,
-  REACT_GENERATIVE_UI_PKG,
+  GENERATIVE_UI_PKG,
   REACT_PKG,
   REPO_ROOT,
 } from "./paths.mts";
@@ -36,7 +36,7 @@ import { parseDeprecatedTag } from "../../../../scripts/lib/experimental-annotat
 const PACKAGE_SOURCE_ROOTS = [
   CORE_PKG,
   REACT_PKG,
-  REACT_GENERATIVE_UI_PKG,
+  GENERATIVE_UI_PKG,
   ...INTEGRATION_PACKAGES.map((p) => path.dirname(p.entry)),
 ];
 
