@@ -63,7 +63,6 @@ export type A2AThreadRuntimeCoreOptions = {
   onCancel?: (() => void) | undefined;
   onArtifactComplete?: ((artifact: A2AArtifact) => void) | undefined;
   history?: ThreadHistoryAdapter | undefined;
-  notifyUpdate: () => void;
 };
 
 const FALLBACK_USER_STATUS = {
@@ -96,7 +95,17 @@ export class A2AThreadRuntimeCore {
   private onCancel: (() => void) | undefined;
   private onArtifactComplete: ((artifact: A2AArtifact) => void) | undefined;
   private history: ThreadHistoryAdapter | undefined;
-  private readonly notifyUpdate: () => void;
+  private readonly listeners = new Set<() => void>();
+  private snapshot:
+    | {
+        isLoading: boolean;
+        isRunning: boolean;
+        messageRepository: ExportedMessageRepository;
+        task: A2ATask | undefined;
+        artifacts: readonly A2AArtifact[];
+        agentCard: A2AAgentCard | undefined;
+      }
+    | undefined;
 
   private runtime: AssistantRuntime | undefined;
   private readonly session = createMessageRepositorySession();
@@ -136,15 +145,32 @@ export class A2AThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
     this.history = options.history;
-    this.notifyUpdate = options.notifyUpdate;
   }
 
-  updateOptions(options: Omit<A2AThreadRuntimeCoreOptions, "notifyUpdate">) {
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  getSnapshot = () =>
+    (this.snapshot ??= {
+      isLoading: this._isLoading,
+      isRunning: this.isRunningFlag,
+      messageRepository: this.session.export(),
+      task: this.currentTask,
+      artifacts: this.currentArtifacts,
+      agentCard: this.agentCardValue,
+    });
+
+  private publishUpdate(): void {
+    this.snapshot = undefined;
+    for (const listener of this.listeners) listener();
+  }
+
+  updateOptions(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
-    // The hook re-applies options on every render, including renders caused
-    // by this core's own notifyUpdate. The option only seeds the context: a
-    // re-render with the same value must not clobber a server-assigned
-    // contextId learned from the stream.
+    // The option only seeds the context; a re-render with the same value must
+    // not clobber a server-assigned contextId learned from the stream.
     if (options.contextId !== this.lastOptionsContextId) {
       this.contextId = options.contextId;
       this.lastOptionsContextId = options.contextId;
@@ -171,6 +197,7 @@ export class A2AThreadRuntimeCore {
    * switches, deletes, and cancel resyncs, which must keep the live context. */
   resetContext(): void {
     this._historyLoadGeneration++;
+    const wasLoading = this._isLoading;
     this._isLoading = false;
     // Restore the seed before aborting: an onCancel callback that starts a
     // new run must not pick up the old thread's context, and its controller
@@ -183,6 +210,7 @@ export class A2AThreadRuntimeCore {
         this.abortController = null;
       }
     }
+    if (wasLoading) this.publishUpdate();
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -256,7 +284,7 @@ export class A2AThreadRuntimeCore {
       };
     });
     if (touched) {
-      this.notifyUpdate();
+      this.publishUpdate();
       this.persistAssistantHistory(messageId);
     }
   }
@@ -290,7 +318,7 @@ export class A2AThreadRuntimeCore {
         this._agentCardRetryAfter = 0;
         this._agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
         this._agentCardDiscoveryFailed = false;
-        this.notifyUpdate();
+        this.publishUpdate();
       },
       () => {
         this._agentCardDiscoveryFailed = true;
@@ -356,10 +384,10 @@ export class A2AThreadRuntimeCore {
       .finally(() => {
         if (generation !== this._historyLoadGeneration) return;
         this._isLoading = false;
-        this.notifyUpdate();
+        this.publishUpdate();
       });
 
-    this.notifyUpdate();
+    this.publishUpdate();
     return this._loadPromise;
   }
 
@@ -379,7 +407,7 @@ export class A2AThreadRuntimeCore {
           : this.session.headId;
     this.session.addOrUpdateMessage(parentId, threadMessage);
     this.session.switchToBranch(threadMessage.id);
-    this.notifyUpdate();
+    this.publishUpdate();
     this.recordHistoryEntry(parentId, threadMessage);
 
     if (!startRun) return;
@@ -390,7 +418,7 @@ export class A2AThreadRuntimeCore {
     const parentId = this.session.headId;
     this.session.addOrUpdateMessage(parentId, message);
     this.session.switchToBranch(message.id);
-    this.notifyUpdate();
+    this.publishUpdate();
     this.recordHistoryEntry(parentId, message);
   }
 
@@ -436,7 +464,7 @@ export class A2AThreadRuntimeCore {
         // that case out.
         if (this.currentTask === task && lease.isCurrent()) {
           this.currentTask = updated;
-          this.notifyUpdate();
+          this.publishUpdate();
         }
       } catch {
         // Server cancel failed; local abort already handled
@@ -470,7 +498,7 @@ export class A2AThreadRuntimeCore {
     this.currentArtifacts = [];
     this.a2uiState = new Map();
     this.a2uiMessageIds.clear();
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
@@ -713,7 +741,7 @@ export class A2AThreadRuntimeCore {
     const status = taskStateToMessageStatus(event.status.state);
     this.updateAssistantStatus(assistantId, status);
 
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   private handleArtifactUpdate(
@@ -762,7 +790,7 @@ export class A2AThreadRuntimeCore {
       );
     }
 
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   private handleMessage(assistantId: string, message: A2AMessage) {
@@ -771,7 +799,7 @@ export class A2AThreadRuntimeCore {
     this.applyA2uiMessage(message);
     const content = a2aMessageToContent(message);
     this.updateAssistantContent(assistantId, content);
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   private handleTaskSnapshot(assistantId: string, task: A2ATask) {
@@ -838,7 +866,7 @@ export class A2AThreadRuntimeCore {
     const status = taskStateToMessageStatus(task.status.state);
     this.updateAssistantStatus(assistantId, status);
 
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   // --- Message helpers ---
@@ -861,7 +889,7 @@ export class A2AThreadRuntimeCore {
     };
     this.session.addOrUpdateMessage(parentId, assistant);
     this.session.switchToBranch(id);
-    this.notifyUpdate();
+    this.publishUpdate();
     return id;
   }
 
@@ -959,7 +987,7 @@ export class A2AThreadRuntimeCore {
         content: this.withA2uiSurfaces(message.content),
       };
     });
-    if (touched) this.notifyUpdate();
+    if (touched) this.publishUpdate();
   }
 
   private updateAssistantArtifacts(messageId: string) {
@@ -981,7 +1009,7 @@ export class A2AThreadRuntimeCore {
         },
       };
     });
-    if (touched) this.notifyUpdate();
+    if (touched) this.publishUpdate();
   }
 
   private updateAssistantStatus(messageId: string, status: MessageStatus) {
@@ -990,7 +1018,7 @@ export class A2AThreadRuntimeCore {
       return { ...message, status };
     });
     if (touched) {
-      this.notifyUpdate();
+      this.publishUpdate();
       if (this.isPersistableAssistantStatus(status)) {
         this.persistAssistantHistory(messageId);
       }
@@ -1015,7 +1043,7 @@ export class A2AThreadRuntimeCore {
 
   private setRunning(running: boolean) {
     this.isRunningFlag = running;
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   private finishRun(controller: AbortController | null) {
