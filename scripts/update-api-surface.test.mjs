@@ -20,6 +20,7 @@ test("shared generator and build inputs require every API surface", () => {
     "scripts/autofix-install.mjs",
     "scripts/update-api-surface.mjs",
     "scripts/lib/changed-files.mjs",
+    "scripts/lib/main.mjs",
     "scripts/check-api-surface.mjs",
     "scripts/lib/workspace.mjs",
     "package.json",
