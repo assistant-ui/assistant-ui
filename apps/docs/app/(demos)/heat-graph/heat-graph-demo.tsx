@@ -622,7 +622,7 @@ function HeatGraphDemoContent() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-1 font-mono text-[11px] tracking-wide">
+      <div className="flex flex-wrap items-center gap-1 text-xs">
         {THEME_NAMES.map((name) => {
           const shapes = SWATCH_STYLES[name];
           const colors = THEME_SWATCHES[name];
@@ -667,7 +667,7 @@ function HeatGraphDemoContent() {
             {activeTheme === "Mood Tracker" && <MoodGraph data={mood} />}
           </div>
         </div>
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. 01 · {activeTheme.toLowerCase()}</span>
           <span>hover a cell</span>
         </figcaption>

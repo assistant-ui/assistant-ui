@@ -466,6 +466,7 @@ export const createPiHttpClient = (
                   threadId,
                   seq: 0,
                   error: error.message,
+                  terminal: true,
                 };
                 void invokeUserCallback(
                   "react-pi",

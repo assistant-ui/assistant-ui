@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, version } from "react";
+import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
@@ -71,25 +71,6 @@ vi.mock("./OpenCodeThreadController", async (importOriginal) => {
 import { createOpenCodeThreadState } from "./openCodeThreadState";
 import { useOpenCodeRuntime } from "./useOpenCodeRuntime";
 
-const onReact18 = version.startsWith("18.");
-
-// Fails on React 18: TypeError: useEffectEvent is not a function (useOpenCodeRuntime imports useEffectEvent from react, which React 18 does not export). Shipped React 18 incompatibility, so on React 18 these tests assert that error, and fail once it's fixed.
-const itBrokenOnReact18 = (
-  name: string,
-  fn: () => void | Promise<void>,
-  timeout?: number,
-) =>
-  onReact18
-    ? it(
-        name,
-        () =>
-          expect(Promise.resolve().then(fn)).rejects.toThrow(
-            /useEffectEvent\)? is not a function/,
-          ),
-        timeout,
-      )
-    : it(name, fn, timeout);
-
 let root: Root | undefined;
 
 afterEach(() => {
@@ -105,63 +86,57 @@ afterEach(() => {
 });
 
 describe("useOpenCodeRuntime under Cloud", () => {
-  itBrokenOnReact18(
-    "opens the OpenCode session a cloud thread names, not the cloud thread id",
-    async () => {
-      mocks.state = createOpenCodeThreadState("session-1");
-      const cloud = {} as AssistantCloud;
-      const client = { session: {} } as never;
+  it("opens the OpenCode session a cloud thread names, not the cloud thread id", async () => {
+    mocks.state = createOpenCodeThreadState("session-1");
+    const cloud = {} as AssistantCloud;
+    const client = { session: {} } as never;
 
-      const App = () => {
-        useOpenCodeRuntime({ client, cloud, initialSessionId: "session-9" });
-        return null;
-      };
+    const App = () => {
+      useOpenCodeRuntime({ client, cloud, initialSessionId: "session-9" });
+      return null;
+    };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
 
-      expect(mocks.sessions).toContain("session-1");
-      expect(mocks.sessions).not.toContain("cloud-thread-1");
-      expect(mocks.remoteOptions?.initialThreadId).toBeUndefined();
-    },
-  );
-  itBrokenOnReact18(
-    "opens no session for a cloud thread without one, and rejects a send to it",
-    async () => {
-      mocks.state = createOpenCodeThreadState("unused");
-      mocks.threadListItem.externalId = undefined;
-      mocks.threadListItem.initialize.mockResolvedValue({
-        remoteId: "cloud-thread-1",
-        externalId: undefined,
-      });
-      const onError = vi.fn();
-      const cloud = {} as AssistantCloud;
-      const client = { session: {} } as never;
+    expect(mocks.sessions).toContain("session-1");
+    expect(mocks.sessions).not.toContain("cloud-thread-1");
+    expect(mocks.remoteOptions?.initialThreadId).toBeUndefined();
+  });
+  it("opens no session for a cloud thread without one, and rejects a send to it", async () => {
+    mocks.state = createOpenCodeThreadState("unused");
+    mocks.threadListItem.externalId = undefined;
+    mocks.threadListItem.initialize.mockResolvedValue({
+      remoteId: "cloud-thread-1",
+      externalId: undefined,
+    });
+    const onError = vi.fn();
+    const cloud = {} as AssistantCloud;
+    const client = { session: {} } as never;
 
-      const App = () => {
-        useOpenCodeRuntime({ client, cloud, onError });
-        return null;
-      };
+    const App = () => {
+      useOpenCodeRuntime({ client, cloud, onError });
+      return null;
+    };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
 
-      const store = mocks.stores.at(-1) as {
-        onNew: (message: unknown) => Promise<void>;
-      };
-      await expect(
-        store.onNew({
-          role: "user",
-          content: [{ type: "text", text: "hi" }],
-          attachments: [],
-          parentId: null,
-          sourceId: null,
-          runConfig: {},
-          metadata: { custom: {} },
-        }),
-      ).rejects.toThrow("This thread has no OpenCode session to send to.");
-      expect(mocks.sessions).not.toContain("cloud-thread-1");
-      expect(onError).toHaveBeenCalledOnce();
-    },
-  );
+    const store = mocks.stores.at(-1) as {
+      onNew: (message: unknown) => Promise<void>;
+    };
+    await expect(
+      store.onNew({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [],
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      }),
+    ).rejects.toThrow("This thread has no OpenCode session to send to.");
+    expect(mocks.sessions).not.toContain("cloud-thread-1");
+    expect(onError).toHaveBeenCalledOnce();
+  });
 });

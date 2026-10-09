@@ -1,0 +1,79 @@
+---
+title: How Safe Content Frame works
+description: How safe-content-frame gives every render its own domain, and what that changes compared with an iframe sandbox.
+---
+
+import {
+  PslFigure,
+  UrlAnatomyFigure,
+  SequenceFigure,
+  ProcessFigure,
+} from "@/components/pages/docs/samples/safe-content-frame/diagrams";
+
+`safe-content-frame` renders untrusted HTML in a sandboxed iframe that runs on its own domain. This page explains how that domain is chosen, how content reaches the frame, and what it changes compared with a plain `sandbox="allow-scripts"` iframe. For the API, see the [package README](https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame).
+
+The design follows the one Google published for [SafeContentFrame](https://bughunters.google.com/blog/beyond-sandbox-domains-rendering-untrusted-web-content-with-safecontentframe).
+
+## Why not a plain iframe sandbox
+
+An iframe with `sandbox="allow-scripts"` and without `allow-same-origin` runs its document on a null origin. The content can't reach your page, but a null origin also blocks every API that needs a real origin:
+
+- `document.cookie`, `localStorage`, `sessionStorage`, `indexedDB`, `caches`, and `navigator.storage` throw or reject.
+- `navigator.serviceWorker`, `SharedWorker`, and `navigator.locks` are unavailable.
+- Messages from the frame arrive with `event.origin === "null"`, and the host can't target the frame by origin, so `postMessage` falls back to `"*"` in both directions.
+- Requests from the frame send `Origin: null`. The only safe CORS response to that is `*`, which rules out credentials.
+
+Adding `allow-same-origin` restores the document's origin. If that origin is your app's own, the content can reach your app and remove its own sandbox. A classic sandbox domain, such as a single `usercontent` domain shared by every document, avoids that but puts every document on the same site, so they share cookies and storage with each other.
+
+## Every render gets its own domain
+
+`scf.auiusercontent.com` is on the [Public Suffix List](https://publicsuffix.org/), so browsers treat it the way they treat `.com`: every subdomain is its own domain, with its own cookies and storage.
+
+<PslFigure n="01" />
+
+The list entry is the wildcard `*.auiusercontent.com`, which makes `scf.auiusercontent.com` itself a public suffix.
+
+## Anatomy of the URL
+
+Each render loads a small shim page from a hostname derived from a hash:
+
+<UrlAnatomyFigure n="02" />
+
+- **hash**: SHA-256 over your product name, a salt, and your page's origin.
+- **shim version**: the version of the shim the frame loads.
+- **product**: the identifier you pass to `new SafeContentFrame(product)`. It scopes the hash, so two products on the same page never share a domain.
+- **parent origin**: the origin of your page. The shim only accepts content from it.
+
+By default the salt is random for every render, so every render lands on a new domain. With `enableBrowserCaching`, the salt is derived from the content and the page's path, so the same content reuses the same domain and its HTTP cache. Pass `salt` to choose the value yourself.
+
+## One render, step by step
+
+<SequenceFigure n="03" />
+
+1. `renderHtml()` hashes the product, salt, and your origin into the frame's hostname.
+2. It creates an iframe with `sandbox="allow-same-origin allow-scripts"` plus any flags you add, and loads `shim.html` from that hostname.
+3. When the shim loads, your page posts the content and the salt to it, addressed to that exact origin, together with a private `MessageChannel` port. The content is passed in the browser and is not uploaded.
+4. The shim checks that the message came from the origin in its URL, recomputes the hash from the salt, and compares it with its own hostname.
+5. If both checks pass, the shim renders the content from a Blob URL and reports back on the port. If either fails, it reports an error, and `fullyLoadedPromiseWithTimeout()` rejects.
+
+`allow-same-origin` is safe here because the frame's origin is never your app's origin.
+
+## Process isolation
+
+Browsers with site isolation keep different sites in different renderer processes. Each Safe Content Frame render is its own site, so on desktop Chrome and Firefox it gets a process of its own.
+
+Desktop Chrome has also isolated null-origin sandboxed iframes since version 127, but it groups them by the origin that created them. Every sandboxed frame your app creates in a tab shares one process with the others, though not with your app.
+
+<ProcessFigure n="04" />
+
+Site isolation varies by platform. Chrome on Android applies it only to some sites on devices with enough memory, and Chrome on iOS uses WebKit, which doesn't yet run iframes in separate processes.
+
+## What it doesn't do
+
+- **Network access.** Code in the frame can still make requests to any server. Don't pass data into a frame that the frame shouldn't be able to send elsewhere.
+- **Browser storage rules.** The frame is cross-site from your app, so storage partitioning and third-party cookie rules apply to it.
+- **Permissions.** Features gated by the iframe's `allow` attribute, such as clipboard or camera access, need the same setup as any other iframe.
+
+## The isolation domain
+
+assistant-ui operates `scf.auiusercontent.com` as a public utility for anyone rendering untrusted HTML.

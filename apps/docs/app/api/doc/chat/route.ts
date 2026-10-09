@@ -8,6 +8,7 @@ import {
   validateFrontendToolsInput,
 } from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
+import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
@@ -23,7 +24,7 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UIMessage, UIMessageChunk } from "ai";
+import type { ToolSet, UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
 
 function normalizeSegment(name: string): string {
@@ -117,7 +118,8 @@ function resolveDocPage(slugs: string[]) {
   if (slugs[0] === "examples") {
     return examplesSource.getPage(slugs.slice(1));
   }
-  return source.getPage(slugs);
+  const path = slugs.join("/");
+  return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
 }
 
 export const maxDuration = 300;
@@ -130,9 +132,13 @@ export const DOC_CHAT_PRUNE_OPTIONS = {
   emptyMessages: "remove",
 } as const;
 
-export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
+export async function prepareDocChatMessages(
+  messages: readonly UIMessage[],
+  tools: ToolSet,
+) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
+    { tools },
   );
 
   return pruneMessages({
@@ -323,7 +329,8 @@ export async function POST(req: Request): Promise<Response> {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
 
-    const prunedMessages = await prepareDocChatMessages(messages);
+    const clientTools = frontendTools(tools ?? {});
+    const prunedMessages = await prepareDocChatMessages(messages, clientTools);
 
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
@@ -336,6 +343,7 @@ export async function POST(req: Request): Promise<Response> {
     const repoTools = createRepoTools();
 
     const result = streamText({
+      abortSignal: req.signal,
       model,
       ...(providerOptions ? { providerOptions } : {}),
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
@@ -348,7 +356,7 @@ export async function POST(req: Request): Promise<Response> {
         source: "docs_assistant",
       }),
       tools: {
-        ...frontendTools(tools),
+        ...clientTools,
         ...repoTools,
         listDocs: tool({
           description:

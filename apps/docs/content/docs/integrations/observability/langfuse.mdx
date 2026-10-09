@@ -102,6 +102,7 @@ export async function POST(req: Request) {
     { traceName: "chat-completion", userId, sessionId },
     async () =>
       streamText({
+        abortSignal: req.signal,
         model: openai("gpt-6-luna"),
         messages: await convertToModelMessages(messages),
         experimental_telemetry: { isEnabled: true },

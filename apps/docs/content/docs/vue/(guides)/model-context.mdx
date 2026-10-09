@@ -71,17 +71,27 @@ import { frontendTools, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
 export default defineEventHandler(async (event) => {
+  const abortController = new AbortController();
+  event.node.res.on("close", () => {
+    if (!event.node.res.writableFinished) {
+      abortController.abort();
+    }
+  });
+
   const { messages, system, tools } = await readBody<{
     messages: UIMessage[];
     system?: string;
     tools?: FrontendTools;
   }>(event);
 
+  const aiSDKTools = frontendTools(tools ?? {});
+
   const result = streamText({
+    abortSignal: abortController.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: frontendTools(tools ?? {}),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

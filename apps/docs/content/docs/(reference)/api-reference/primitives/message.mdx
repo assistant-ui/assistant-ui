@@ -117,11 +117,9 @@ const AssistantMessage = () => (
 
 ### If
 
-{MessagePrimitiveDocs.If?.deprecated && (
-  <Callout type="warn">
-    <strong>Deprecated.</strong> {MessagePrimitiveDocs.If.deprecated}
-  </Callout>
-)}
+<Callout type="warn">
+  <strong>Deprecated.</strong> Use `<AuiIf condition={(s) => s.message...} />` instead.
+</Callout>
 
 {MessagePrimitiveDocs.If?.description}
 
@@ -258,11 +256,13 @@ const AssistantMessage = () => (
 
 ### Unstable_PartsGrouped
 
-{MessagePrimitiveDocs.Unstable_PartsGrouped?.deprecated && (
-  <Callout type="warn">
-    <strong>Deprecated.</strong> {MessagePrimitiveDocs.Unstable_PartsGrouped.deprecated}
-  </Callout>
-)}
+<Callout type="warn">
+  <strong>Deprecated.</strong> Prefer `<MessagePrimitive.GroupedParts>` for adjacent
+grouping — it dispatches all rendering through one `switch (part.type)`
+and supports nested group paths. Keep this primitive only for
+non-adjacent clustering (e.g., gathering parts with the same parent-id
+across the message).
+</Callout>
 
 {MessagePrimitiveDocs.Unstable_PartsGrouped?.description}
 
@@ -293,11 +293,9 @@ const AssistantMessage = () => (
 
 ### Unstable_PartsGroupedByParentId
 
-{MessagePrimitiveDocs.Unstable_PartsGroupedByParentId?.deprecated && (
-  <Callout type="warn">
-    <strong>Deprecated.</strong> {MessagePrimitiveDocs.Unstable_PartsGroupedByParentId.deprecated}
-  </Callout>
-)}
+<Callout type="warn">
+  <strong>Deprecated.</strong> Use MessagePrimitive.Unstable_PartsGrouped instead for more flexibility
+</Callout>
 
 {MessagePrimitiveDocs.Unstable_PartsGroupedByParentId?.description}
 

@@ -313,9 +313,49 @@ describe("useInteractablePersistenceQueue", () => {
       const wait = queue.result.current.waitForAdapterSaves(adapter);
       pending.reject(new Error("save failed"));
 
-      await expect(wait).resolves.toEqual([
+      const recovered = await wait;
+      expect(recovered).toEqual([
         { payload: { a: 1 }, dirtyIds: new Set(["a"]) },
       ]);
+      await expect(
+        queue.result.current.waitForAdapterSaves(adapter),
+      ).resolves.toEqual(recovered);
+      const restore = vi.fn();
+      queue.result.current.restoreAdapterRecovery(
+        adapter,
+        recovered[0]!,
+        restore,
+      );
+      expect(restore).toHaveBeenCalledTimes(1);
+      await expect(
+        queue.result.current.waitForAdapterSaves(adapter),
+      ).resolves.toEqual(recovered);
+    });
+
+    it("lets a later successful full snapshot supersede an earlier failed batch", async () => {
+      const first = createDeferred();
+      const second = createDeferred();
+      const save = vi
+        .fn<(state: TestState) => Promise<void>>()
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise);
+      const queue = renderQueue(save);
+      const adapter = queue.adapterRef.current!;
+      await startSave(queue, "a", 1);
+      queue.setState("b", 2);
+      act(() => {
+        queue.result.current.schedulePersistence("b");
+        queue.result.current.flushIfPending();
+      });
+
+      const wait = queue.result.current.waitForAdapterSaves(adapter);
+      first.reject(new Error("first save failed"));
+      await act(flushMicrotasks);
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(save.mock.lastCall![0]).toEqual({ a: 1, b: 2 });
+      second.resolve();
+
+      await expect(wait).resolves.toEqual([]);
     });
 
     it("does not recover an older failed edit after a newer save succeeds", async () => {
@@ -342,27 +382,41 @@ describe("useInteractablePersistenceQueue", () => {
       await expect(wait).resolves.toEqual([]);
     });
 
-    it("hands back a retry-only batch whose save rejected", async () => {
-      const retry = createDeferred();
-      const save = vi
-        .fn<(state: TestState) => Promise<void>>()
-        .mockRejectedValueOnce(new Error("offline"))
-        .mockImplementationOnce(() => retry.promise);
-      const queue = renderQueue(save);
-      const adapter = queue.adapterRef.current!;
-      await startSave(queue, "a", 1);
-      act(() => {
-        void queue.result.current.flush();
-      });
-      expect(save).toHaveBeenCalledTimes(2);
+    it.each([false, true])(
+      "hands back a rejected retry after prior recovery restored=%s",
+      async (restoreRecovery) => {
+        const retry = createDeferred();
+        const save = vi
+          .fn<(state: TestState) => Promise<void>>()
+          .mockRejectedValueOnce(new Error("offline"))
+          .mockImplementationOnce(() => retry.promise);
+        const queue = renderQueue(save);
+        const adapter = queue.adapterRef.current!;
+        await startSave(queue, "a", 1);
+        if (restoreRecovery) {
+          const [recovery] =
+            await queue.result.current.waitForAdapterSaves(adapter);
+          const restore = vi.fn();
+          queue.result.current.restoreAdapterRecovery(
+            adapter,
+            recovery!,
+            restore,
+          );
+          expect(restore).toHaveBeenCalledTimes(1);
+        }
+        act(() => {
+          void queue.result.current.flush();
+        });
+        expect(save).toHaveBeenCalledTimes(2);
 
-      const wait = queue.result.current.waitForAdapterSaves(adapter);
-      retry.reject(new Error("retry failed"));
+        const wait = queue.result.current.waitForAdapterSaves(adapter);
+        retry.reject(new Error("retry failed"));
 
-      await expect(wait).resolves.toEqual([
-        { payload: { a: 1 }, dirtyIds: new Set(["a"]) },
-      ]);
-    });
+        await expect(wait).resolves.toEqual([
+          { payload: { a: 1 }, dirtyIds: new Set(["a"]) },
+        ]);
+      },
+    );
 
     it("does not hand back a failed retry that a newer saved snapshot covers", async () => {
       const retry = createDeferred();
@@ -425,6 +479,74 @@ describe("useInteractablePersistenceQueue", () => {
 
       await act(() => vi.advanceTimersByTimeAsync(1));
       expect(result).toEqual([{ payload: { a: 1 }, dirtyIds: new Set(["a"]) }]);
+
+      await expect(
+        queue.result.current.waitForAdapterSaves(adapter),
+      ).resolves.toEqual(result);
+    });
+
+    it("skips snapshots queued behind a timed-out save", async () => {
+      const queue = renderQueue(() => new Promise<void>(() => {}));
+      const adapter = queue.adapterRef.current!;
+      await startSave(queue, "a", 1);
+      const firstWait = queue.result.current.waitForAdapterSaves(adapter);
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_WAIT_TIMEOUT_MS));
+      const recovered = await firstWait;
+
+      queue.setState("b", 2);
+      act(() => {
+        queue.result.current.schedulePersistence("b");
+        queue.result.current.flushIfPending();
+      });
+
+      await expect(
+        queue.result.current.waitForAdapterSaves(adapter),
+      ).resolves.toEqual([
+        { payload: { a: 1, b: 2 }, dirtyIds: new Set(["a", "b"]) },
+      ]);
+      expect(recovered).toEqual([
+        { payload: { a: 1 }, dirtyIds: new Set(["a"]) },
+      ]);
+    });
+
+    it("keeps waiting for another adapter queued behind a timed-out save", async () => {
+      const first = createDeferred();
+      const second = createDeferred();
+      const saveB = vi.fn(() => second.promise);
+      const queue = renderQueue(() => first.promise);
+      const adapterA = queue.adapterRef.current!;
+      const adapterB = { save: saveB };
+      await startSave(queue, "a", 1);
+
+      queue.adapterRef.current = adapterB;
+      queue.setState("b", 2);
+      act(() => {
+        queue.result.current.schedulePersistence("b");
+        queue.result.current.flushIfPending();
+      });
+
+      const waitA = queue.result.current.waitForAdapterSaves(adapterA);
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_WAIT_TIMEOUT_MS));
+      await expect(waitA).resolves.toEqual([
+        { payload: { a: 1 }, dirtyIds: new Set(["a"]) },
+      ]);
+
+      let result: unknown;
+      void queue.result.current.waitForAdapterSaves(adapterB).then((value) => {
+        result = value;
+      });
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_WAIT_TIMEOUT_MS - 1));
+      expect(result).toBeUndefined();
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(result).toEqual([
+        { payload: { a: 1, b: 2 }, dirtyIds: new Set(["b"]) },
+      ]);
+
+      first.resolve();
+      await act(flushMicrotasks);
+      expect(saveB).toHaveBeenCalledOnce();
+      second.resolve();
+      await act(flushMicrotasks);
     });
   });
   it("retries a failed save on flush and keeps its error until a save succeeds", async () => {

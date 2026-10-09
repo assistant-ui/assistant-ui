@@ -188,16 +188,16 @@ const CustomServersSection: FC = () => {
         </McpManagerPrimitive.CustomServers>
       </div>
       {!showForm && (
-        <McpManagerPrimitive.AddCustomTrigger asChild>
-          <Button
-            ref={addTriggerRef}
-            variant="outline"
-            className="aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm"
-            onClick={() => setShowForm(true)}
-          >
-            <PlusIcon className="size-4" />
-            Add server
-          </Button>
+        <McpManagerPrimitive.AddCustomTrigger
+          ref={addTriggerRef}
+          className={cn(
+            buttonVariants({ variant: "outline" }),
+            "aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm",
+          )}
+          onClick={() => setShowForm(true)}
+        >
+          <PlusIcon className="size-4" />
+          Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
       {showForm && <AddServerForm onClose={handleClose} />}
@@ -356,16 +356,15 @@ const ServerActions: FC = () => {
         focusedRef.current = e.target;
       }}
     >
-      <McpServerPrimitive.ConnectButton asChild>
-        <Button
-          ref={actionRef}
-          size="sm"
-          variant="default"
-          className="aui-mcp-server-connect h-8 gap-2 text-xs"
-        >
-          <PlugZapIcon className="size-3.5" />
-          Connect
-        </Button>
+      <McpServerPrimitive.ConnectButton
+        ref={actionRef}
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "aui-mcp-server-connect h-8 gap-2 text-xs",
+        )}
+      >
+        <PlugZapIcon className="size-3.5" />
+        Connect
       </McpServerPrimitive.ConnectButton>
       <McpServerPrimitive.OAuthLink
         className={cn(
@@ -375,15 +374,14 @@ const ServerActions: FC = () => {
       >
         Authorize
       </McpServerPrimitive.OAuthLink>
-      <McpServerPrimitive.DisconnectButton asChild>
-        <Button
-          ref={actionRef}
-          size="sm"
-          variant="outline"
-          className="aui-mcp-server-disconnect h-8 text-xs"
-        >
-          Disconnect
-        </Button>
+      <McpServerPrimitive.DisconnectButton
+        ref={actionRef}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "aui-mcp-server-disconnect h-8 text-xs",
+        )}
+      >
+        Disconnect
       </McpServerPrimitive.DisconnectButton>
     </div>
   );

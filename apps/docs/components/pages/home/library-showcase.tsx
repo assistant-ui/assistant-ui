@@ -209,7 +209,7 @@ function Stage() {
                 type="button"
                 onClick={() => cycle.jump(index)}
                 className={cn(
-                  "relative flex items-baseline gap-2.5 pb-1.5 font-mono text-[11px] font-medium transition-colors",
+                  "relative flex items-baseline gap-2.5 pb-1.5 text-xs font-medium transition-colors",
                   current
                     ? "text-foreground"
                     : "text-foreground/35 hover:text-foreground/70",
@@ -243,7 +243,7 @@ function Stage() {
             </div>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-xs">
           {act.docs ? (
             <Link
               key={`act-docs-${cycle.index}`}
@@ -302,7 +302,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
                 aria-selected={current}
                 onClick={() => cycle.jump(index)}
                 className={cn(
-                  "relative pb-1.5 font-mono text-[11px] font-medium transition-colors",
+                  "relative pb-1.5 text-xs font-medium transition-colors",
                   current
                     ? "text-foreground"
                     : "text-foreground/35 hover:text-foreground/70",
@@ -320,7 +320,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
           })}
           <Link
             href="/docs/runtimes/pick-a-runtime"
-            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground pb-1.5 text-xs font-medium transition-colors"
           >
             All runtimes →
           </Link>
@@ -346,7 +346,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
         />
         <div
           key={`caption-${activeTab?.id ?? "none"}`}
-          className="animate-in fade-in-0 relative flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-4 pb-6 font-mono text-[11px] duration-500 md:px-10"
+          className="animate-in fade-in-0 relative flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-4 pb-6 text-xs duration-500 md:px-10"
         >
           <p className="text-muted-foreground">{activeTab?.caption}</p>
           {activeTab ? (
@@ -388,7 +388,7 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
           </div>
           <Link
             href="/elements/thread"
-            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground pb-1.5 text-xs font-medium transition-colors"
           >
             Customize the thread →
           </Link>

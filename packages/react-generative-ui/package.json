@@ -59,8 +59,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.3.48"
+    "@assistant-ui/generative-ui": "^0.0.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",

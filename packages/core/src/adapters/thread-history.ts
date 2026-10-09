@@ -75,6 +75,8 @@ export type ThreadHistoryAdapter = {
    * yet, keyed by each message's own id. It is undefined while the adapter
    * keeps no copies, so the runtime then neither copies nor records tool
    * interactions.
+   *
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_copy?:
     | ((
@@ -85,6 +87,7 @@ export type ThreadHistoryAdapter = {
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;
+      /** @deprecated Experimental since 2025-03-31. Not scheduled for removal; the API may change in any release. */
       unstable_resume?: boolean;
     }
   >;

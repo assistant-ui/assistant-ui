@@ -41,11 +41,14 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -82,17 +85,20 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
+  const aiSDKTools = {
+    ...frontendTools(tools ?? {}),
+    query_database: tool({
+      description: "Query the application database.",
+      inputSchema: zodSchema(z.object({ query: z.string() })),
+      execute: async ({ query }) => db.query(query),
+    }),
+  };
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      ...frontendTools(tools ?? {}),
-      query_database: tool({
-        description: "Query the application database.",
-        inputSchema: zodSchema(z.object({ query: z.string() })),
-        execute: async ({ query }) => db.query(query),
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -118,6 +124,7 @@ When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-to
 const aiSDKTools = { ...frontendTools(tools ?? {}) };
 
 const result = streamText({
+  abortSignal: req.signal,
   model,
   // Pass tools to BOTH calls so prior results are projected via toModelOutput.
   messages: await convertToModelMessages(messages, { tools: aiSDKTools }),

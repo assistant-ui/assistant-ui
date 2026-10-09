@@ -90,7 +90,7 @@ export default async function ProductPage({
               <preview.Component />
             </DemoStage>
           </div>
-          <figcaption className="text-muted-foreground mt-2.5 font-mono text-[11px]">
+          <figcaption className="text-muted-foreground mt-2.5 text-xs">
             fig. 01 · {preview.title}, live
           </figcaption>
         </figure>

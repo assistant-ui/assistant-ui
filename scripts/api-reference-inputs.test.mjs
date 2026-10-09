@@ -24,6 +24,7 @@ test("detects API reference source and generator changes", () => {
     "apps/docs/content/docs/(reference)/api-reference/meta.json",
     "apps/docs/package.json",
     "scripts/api-reference-inputs.mjs",
+    "scripts/lib/experimental-annotations.mjs",
     ".github/workflows/autofix.yaml",
     ".github/workflows/code-quality.yaml",
   ]) {

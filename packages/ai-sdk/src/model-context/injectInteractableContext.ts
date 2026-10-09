@@ -20,6 +20,8 @@ import {
  * `format` must also handle entries with `partial: true`, whose `state` carries
  * only the fields that changed since the model's last known state.
  *
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
+ *
  * @example
  * ```ts
  * import { convertToModelMessages, streamText } from "ai";
@@ -28,6 +30,7 @@ import {
  * export async function POST(req: Request) {
  *   const { messages } = await req.json();
  *   const result = streamText({
+ *     abortSignal: req.signal,
  *     model: myModel,
  *     messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
  *   });

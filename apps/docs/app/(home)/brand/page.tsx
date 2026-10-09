@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Fragment } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { Download, FileArchive } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
@@ -8,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const title = "Brand";
 const description =
-  "The assistant-ui name, mark, ink, and voice, and the files to use them.";
+  "How to use the assistant-ui name, logo, colors, and typography, with files to download.";
 
 export const metadata: Metadata = {
   title,
@@ -16,31 +15,15 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-const HEADLINE_WORDS = ["Paper,", "ink,", "one", "blue."];
-
 const markMask =
   "[mask-image:url(/favicon/icon.svg)] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]";
 
-const SWATCHES = [
-  { name: "paper", value: "oklch(0.992 0.002 106)" },
-  { name: "ink", value: "oklch(0.145 0.006 106)" },
-  { name: "sand", value: "oklch(0.97 0.004 106)" },
-  { name: "paper, dark", value: "oklch(0.17 0.003 106)" },
-  { name: "ink, dark", value: "oklch(0.985 0.002 106)" },
-  { name: "live", value: "oklch(0.623 0.214 259.8)", note: "blue means live" },
-  {
-    name: "glint",
-    value: "oklch(0.82 0.14 82)",
-    note: "specular, never an accent",
-  },
-];
-
 const RULES = [
   "The name is always lowercase: assistant-ui.",
-  "Use the original files. Do not redraw, recolor, stretch, or rotate the mark.",
-  "The mark carries one color: ink on paper, or paper on ink.",
-  "Give the mark room. Do not crowd it with other elements.",
-  "Do not use the mark to imply endorsement or affiliation without permission.",
+  "Use the original files. Do not redraw, recolor, stretch, or rotate the logo.",
+  "Use the logo in one color: dark on light backgrounds, light on dark backgrounds.",
+  "Leave space around the logo. Do not crowd it with other elements.",
+  "Do not use the logo to imply endorsement or affiliation without permission.",
 ];
 
 const ASSETS = [
@@ -82,41 +65,11 @@ function Section({
 export default function BrandPage() {
   return (
     <PageFrame pad="sub">
-      <header className="max-w-2xl">
-        <h1 className={typePage}>
-          {HEADLINE_WORDS.map((word, index) => (
-            <Fragment key={index}>
-              <span
-                className="hero-word"
-                style={{ animationDelay: `${index * 90}ms` }}
-              >
-                <span
-                  className="hero-word-ink"
-                  style={{ animationDelay: `${index * 90}ms` }}
-                >
-                  {word}
-                </span>
-              </span>{" "}
-            </Fragment>
-          ))}
-          <span
-            aria-hidden
-            className="hero-caret ml-1 inline-block h-[0.72em] w-[3px] bg-blue-500 align-baseline"
-          />
-        </h1>
-        <p
-          className={cn(typeDeck, "hero-rise mt-4 max-w-[52ch]")}
-          style={{ animationDelay: "500ms" }}
-        >
-          The assistant-ui name, mark, ink, and voice, and the files to use
-          them.
-        </p>
-      </header>
-
+      <BrandHero />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
-        <Section label="The name">
+        <Section label="Name">
           <span className="bg-foreground mt-8 block h-10 w-60 [mask-image:url(/brand/logotype.svg)] [mask-size:contain] [mask-position:left_center] [mask-repeat:no-repeat] md:h-14 md:w-[21rem]" />
-          <p className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 font-mono text-[13px]">
+          <p className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 text-[13px]">
             <span>assistant-ui</span>
             <span className="text-muted-foreground/60 line-through">
               Assistant UI
@@ -130,66 +83,51 @@ export default function BrandPage() {
           </p>
         </Section>
 
-        <Section label="The mark">
-          <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-center lg:gap-20">
-            <div>
-              <div className="bg-foreground/75 relative aspect-square w-full max-w-[20rem] overflow-hidden [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat]">
+        <Section label="Logo">
+          <div className="mt-10">
+            <div className="flex flex-wrap items-end gap-x-8 gap-y-6">
+              {[144, 96, 48, 24, 16].map((size) => (
                 <span
-                  aria-hidden
-                  className="hero-glint absolute inset-0 block"
+                  key={size}
+                  className={cn("bg-foreground block shrink-0", markMask)}
+                  style={{ width: size, height: size }}
                 />
-              </div>
-              <p className="text-muted-foreground/70 mt-3 max-w-[20rem] font-mono text-[11px] tracking-wide">
-                halftone, with the glint
-              </p>
+              ))}
             </div>
-            <div>
-              <div className="flex flex-wrap items-end gap-x-8 gap-y-6">
-                {[144, 96, 48, 24, 16].map((size) => (
+            <p className="text-muted-foreground/70 mt-3 text-xs">
+              The logo at 144, 96, 48, 24, and 16 px.
+            </p>
+            <div className="mt-10 grid max-w-2xl gap-6 sm:grid-cols-2">
+              <div>
+                <div className="border-foreground/10 flex items-center gap-2 border px-5 py-4">
                   <span
-                    key={size}
-                    className={cn("bg-foreground block shrink-0", markMask)}
-                    style={{ width: size, height: size }}
+                    className={cn("bg-foreground block", markMask)}
+                    style={{ width: 18, height: 18 }}
                   />
-                ))}
+                  <span className="font-medium tracking-tight">
+                    assistant-ui
+                  </span>
+                </div>
+                <p className="text-muted-foreground/70 mt-2 text-xs">
+                  On light
+                </p>
               </div>
-              <p className="text-muted-foreground/70 mt-3 font-mono text-[11px] tracking-wide">
-                144 · 96 · 48 · 24 · 16. The mark holds at favicon size
-              </p>
-              <div className="mt-10 grid gap-6 sm:grid-cols-2">
-                <div>
-                  <div className="border-foreground/10 flex items-center gap-2 border px-5 py-4">
-                    <span
-                      className={cn("bg-foreground block", markMask)}
-                      style={{ width: 18, height: 18 }}
-                    />
-                    <span className="font-medium tracking-tight">
-                      assistant-ui
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
-                    ink on paper
-                  </p>
+              <div>
+                <div className="bg-foreground flex items-center gap-2 px-5 py-4">
+                  <span
+                    className={cn("bg-background block", markMask)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <span className="text-background font-medium tracking-tight">
+                    assistant-ui
+                  </span>
                 </div>
-                <div>
-                  <div className="bg-foreground flex items-center gap-2 px-5 py-4">
-                    <span
-                      className={cn("bg-background block", markMask)}
-                      style={{ width: 18, height: 18 }}
-                    />
-                    <span className="text-background font-medium tracking-tight">
-                      assistant-ui
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
-                    paper on ink
-                  </p>
-                </div>
+                <p className="text-muted-foreground/70 mt-2 text-xs">On dark</p>
               </div>
             </div>
           </div>
           <p className="text-muted-foreground mt-10 text-xs leading-relaxed">
-            The mark is based on the{" "}
+            The logo is based on the{" "}
             <a
               href="https://lucide.dev"
               target="_blank"
@@ -211,48 +149,28 @@ export default function BrandPage() {
           </p>
         </Section>
 
-        <Section label="The ink">
-          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 lg:grid-cols-7">
-            {SWATCHES.map((swatch) => (
-              <div key={swatch.name}>
-                <span
-                  className="border-foreground/10 block aspect-square border"
-                  style={{ backgroundColor: swatch.value }}
-                />
-                <p className="mt-2.5 text-[13px] font-medium">{swatch.name}</p>
-                <p className="text-muted-foreground mt-0.5 font-mono text-[10px] tracking-wide">
-                  {swatch.value}
-                </p>
-                {swatch.note ? (
-                  <p className="text-muted-foreground/60 mt-0.5 font-mono text-[10px] tracking-wide">
-                    {swatch.note}
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </div>
+        <Section label="Colors">
+          <ColorTable />
           <p className="text-muted-foreground mt-8 max-w-[60ch] text-sm leading-relaxed">
-            One knob turns the paper:{" "}
-            <span className="font-mono text-[12px]">--tint: 106</span>. Blue
-            always means something is live. Gold is light catching the print,
-            never a second accent.
+            Blue is the only accent color. Neutrals share one warm hue, set by{" "}
+            <span className="font-mono text-[12px]">--tint: 106</span>.
           </p>
         </Section>
 
-        <Section label="The voice">
+        <Section label="Typography">
           <div className="divide-foreground/10 mt-4 flex flex-col divide-y">
-            <VoiceRow name="Display" face="System sans · 500–550">
+            <TypeRow name="Headings" face="Public Sans · 500–550">
               <p className={typeSection}>The frontend library for AI agents.</p>
-            </VoiceRow>
-            <VoiceRow name="Text" face="Public Sans · 400–500">
+            </TypeRow>
+            <TypeRow name="Body" face="Public Sans · 400–500">
               <p className="text-[15px] leading-relaxed">
                 Any backend, through adapters. Production chat, shipped as code
                 you own.
               </p>
-            </VoiceRow>
-            <VoiceRow name="Machine" face="JetBrains Mono · 400–500">
+            </TypeRow>
+            <TypeRow name="Code" face="JetBrains Mono · 400–500">
               <p className="font-mono text-[13px]">npx assistant-ui init</p>
-            </VoiceRow>
+            </TypeRow>
           </div>
         </Section>
 
@@ -263,7 +181,7 @@ export default function BrandPage() {
                 key={index}
                 className="border-foreground/10 flex items-baseline gap-6 border-b py-3 last:border-b-0"
               >
-                <span className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                <span className="text-muted-foreground/70 text-xs">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="text-sm">{rule}</span>
@@ -273,28 +191,7 @@ export default function BrandPage() {
         </Section>
 
         <Section label="Assets">
-          <div className="divide-foreground/10 mt-4 grid gap-2 md:grid-cols-3 md:gap-0 md:divide-x">
-            {ASSETS.map((asset) => (
-              <a
-                key={asset.href}
-                href={asset.href}
-                download
-                className="group flex flex-col py-4 md:px-8 md:py-2 md:first:ps-0 md:last:pe-0"
-              >
-                <span className="text-sm font-medium">
-                  {asset.name}
-                  <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
-                </span>
-                <span className="text-muted-foreground mt-1 font-mono text-[11px] tracking-wide">
-                  {asset.file}
-                  <span className="text-muted-foreground/50">
-                    {" "}
-                    · {asset.size}
-                  </span>
-                </span>
-              </a>
-            ))}
-          </div>
+          <AssetCards />
         </Section>
       </div>
 
@@ -313,7 +210,7 @@ export default function BrandPage() {
   );
 }
 
-function VoiceRow({
+function TypeRow({
   name,
   face,
   children,
@@ -326,11 +223,138 @@ function VoiceRow({
     <div className="grid gap-3 py-6 md:grid-cols-[220px_minmax(0,1fr)] md:gap-8">
       <div>
         <p className="text-sm font-medium">{name}</p>
-        <p className="text-muted-foreground mt-0.5 font-mono text-[11px] tracking-wide">
-          {face}
-        </p>
+        <p className="text-muted-foreground mt-0.5 text-xs">{face}</p>
       </div>
       <div className="self-center">{children}</div>
+    </div>
+  );
+}
+
+const kitButtonClass =
+  "bg-foreground text-background hover:bg-foreground/85 rounded-control inline-flex h-9 items-center gap-2 px-4 text-sm font-medium transition-colors";
+
+function BrandHero() {
+  return (
+    <header className="max-w-2xl">
+      <h1 className={typePage}>Brand guidelines</h1>
+      <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>{description}</p>
+      <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <a href="/assistant-ui-brand.zip" download className={kitButtonClass}>
+          <Download className="size-4" />
+          Download brand kit
+        </a>
+        <span className="text-muted-foreground text-xs">
+          ZIP · 36.6 KB · logo and logotype, SVG and PNG
+        </span>
+      </div>
+    </header>
+  );
+}
+
+const COLOR_ROWS = [
+  {
+    name: "Background",
+    light: "oklch(0.992 0.002 106)",
+    dark: "oklch(0.17 0.003 106)",
+  },
+  {
+    name: "Muted",
+    light: "oklch(0.97 0.004 106)",
+    dark: "oklch(0.275 0.004 106)",
+  },
+  {
+    name: "Foreground",
+    light: "oklch(0.145 0.006 106)",
+    dark: "oklch(0.985 0.002 106)",
+  },
+  {
+    name: "Accent",
+    light: "oklch(0.623 0.214 259.8)",
+    dark: "oklch(0.623 0.214 259.8)",
+  },
+];
+
+function Chip({ value }: { value: string }) {
+  return (
+    <span
+      className="border-foreground/10 rounded-document block size-8 shrink-0 border"
+      style={{ backgroundColor: value }}
+    />
+  );
+}
+
+function ColorTable() {
+  return (
+    <div className="mt-6 max-w-3xl">
+      <div className="text-muted-foreground grid grid-cols-[8rem_1fr_1fr] gap-4 pb-2 text-xs">
+        <span />
+        <span>Light</span>
+        <span>Dark</span>
+      </div>
+      {COLOR_ROWS.map((row) => (
+        <div
+          key={row.name}
+          className="border-foreground/10 grid grid-cols-[8rem_1fr_1fr] items-center gap-4 border-t py-3"
+        >
+          <span className="text-[13px] font-medium">{row.name}</span>
+          {[row.light, row.dark].map((value, index) => (
+            <span key={index} className="flex min-w-0 items-center gap-3">
+              <Chip value={value} />
+              <span className="text-muted-foreground truncate font-mono text-xs">
+                {value}
+              </span>
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const ASSET_PREVIEWS: Record<string, string> = {
+  "/favicon/icon.svg": "size-12 [mask-image:url(/favicon/icon.svg)]",
+  "/brand/logotype.svg": "h-8 w-40 [mask-image:url(/brand/logotype.svg)]",
+};
+
+function AssetCards() {
+  return (
+    <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      {ASSETS.map((asset) => {
+        const preview = ASSET_PREVIEWS[asset.href];
+        return (
+          <a
+            key={asset.href}
+            href={asset.href}
+            download
+            className="group border-foreground/10 hover:border-foreground/25 rounded-document flex flex-col border transition-colors"
+          >
+            <span className="bg-muted/50 flex h-36 items-center justify-center">
+              {preview ? (
+                <span
+                  className={cn(
+                    "bg-foreground block [mask-size:contain] [mask-position:center] [mask-repeat:no-repeat]",
+                    preview,
+                  )}
+                />
+              ) : (
+                <FileArchive
+                  className="text-muted-foreground size-10"
+                  strokeWidth={1.25}
+                />
+              )}
+            </span>
+            <span className="border-foreground/10 flex items-center justify-between border-t px-4 py-3">
+              <span>
+                <span className="block text-sm font-medium">{asset.name}</span>
+                <span className="text-muted-foreground mt-0.5 block font-mono text-xs">
+                  {asset.file} · {asset.size}
+                </span>
+              </span>
+              <Download className="text-muted-foreground group-hover:text-foreground size-4 transition-colors" />
+            </span>
+          </a>
+        );
+      })}
     </div>
   );
 }

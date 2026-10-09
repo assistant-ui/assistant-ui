@@ -220,7 +220,7 @@ export function PrimitivesAnatomy() {
 
       <p
         key={active}
-        className="animate-in fade-in-0 text-muted-foreground font-mono text-[11px] duration-500 motion-reduce:animate-none"
+        className="animate-in fade-in-0 text-muted-foreground text-xs duration-500 motion-reduce:animate-none"
       >
         {activePart.label} · {activePart.caption}
       </p>

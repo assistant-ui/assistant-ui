@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, version } from "react";
 import { isDevelopment } from "../../core/helpers/env";
 import {
   getCurrentResourceFiber,
@@ -14,19 +14,29 @@ const getTapDevMode = () => {
   return null;
 };
 
-const child = () => "child" as const;
 const notDevMode = () => null;
 
+/* oxlint-disable react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is fixed per build. */
 const useDevStrictModeReact = () => {
   if (!isDevelopment) return notDevMode;
 
-  // oxlint-disable-next-line react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   const count = useRef(0);
-  // oxlint-disable-next-line react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   useState(() => count.current++);
-  if (count.current !== 2) return notDevMode;
-  return child;
+  const detectedOnRender = count.current === 2;
+  const strictMode = useRef(false);
+  const renderedSinceEffect = useRef(true);
+  renderedSinceEffect.current = true;
+
+  useEffect(() => {
+    if (!version.startsWith("18.")) return;
+    if (!renderedSinceEffect.current) strictMode.current = true;
+    renderedSinceEffect.current = false;
+  }, []);
+
+  return () =>
+    detectedOnRender || strictMode.current ? ("child" as const) : null;
 };
+/* oxlint-enable react/rules-of-hooks */
 
 export const useDevStrictMode = () => {
   // oxlint-disable-next-line react-hooks/rules-of-hooks

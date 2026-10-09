@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     clearMocks: true,
     environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
