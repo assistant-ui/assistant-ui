@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultGenerativeUILibrary } from "@assistant-ui/react-generative-ui";
+import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
 import {
   COMPONENT_CATEGORIES,
   COMPONENT_EXAMPLES,

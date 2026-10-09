@@ -1,4 +1,4 @@
-import type { UISpec } from "@assistant-ui/react-generative-ui";
+import type { UISpec } from "@assistant-ui/generative-ui";
 
 export type GalleryCategory =
   | "Data"
