@@ -9,7 +9,6 @@ import {
 import type { MessageRole, AppendMessage } from "../../types/message";
 import { isMessageNotSentError } from "../../types/error";
 import type { QuoteInfo } from "../../types/quote";
-import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 import {
@@ -36,6 +35,7 @@ import {
   drainAttachmentAdd,
 } from "../utils/attachment-add-operations";
 import { AttachmentSendOperations } from "../utils/attachment-send-operations";
+import { DictationSessionController } from "./dictation-session";
 
 type InTransit = {
   readonly submission: ComposerSubmission;
@@ -86,6 +86,16 @@ export abstract class BaseComposerRuntimeCore
   }
 
   private _text = "";
+  private readonly _dictationSessionController = new DictationSessionController(
+    {
+      getAdapter: () => this.getDictationAdapter(),
+      getText: () => this._text,
+      setText: (value) => {
+        this._text = value;
+      },
+      notify: () => this._notifySubscribers(),
+    },
+  );
 
   get text() {
     return this._text;
@@ -124,16 +134,8 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  // A live dictation session appends to the text it last saw, so any write
-  // that bypasses `setText` has to move that baseline or the next transcript
-  // overwrites what was just written.
   private _rebaseDictation(value: string) {
-    if (!this._dictation) return;
-
-    this._dictationBaseText = value;
-    this._currentInterimText = "";
-    const { status, inputDisabled } = this._dictation;
-    this._dictation = inputDisabled ? { status, inputDisabled } : { status };
+    this._dictationSessionController.rebase(value);
   }
 
   public setRole(role: MessageRole) {
@@ -317,16 +319,7 @@ export abstract class BaseComposerRuntimeCore
   public async send(options?: SendOptions) {
     if (!this.canSend || this.isSubmitting) return;
 
-    if (this._dictationSession) {
-      const sessionId = this._activeDictationSessionId;
-      try {
-        this._dictationSession.cancel();
-      } catch (error) {
-        console.error("[assistant-ui] Dictation session cancel threw", error);
-      } finally {
-        this._cleanupDictation({ sessionId });
-      }
-    }
+    this._dictationSessionController.cancel();
 
     // An attachment whose removal is still awaiting the adapter is excluded
     // up front, or a send started mid-removal would upload and dispatch it.
@@ -1010,247 +1003,16 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  private _dictation: DictationState | undefined;
-  private _dictationSession: DictationAdapter.Session | undefined;
-  private _stoppingDictationSession: DictationAdapter.Session | undefined;
-  private _dictationUnsubscribes: Unsubscribe[] = [];
-  private _dictationBaseText = "";
-  private _currentInterimText = "";
-  private _dictationSessionIdCounter = 0;
-  private _activeDictationSessionId: number | undefined;
-  private _isCleaningDictation = false;
-
   public get dictation(): DictationState | undefined {
-    return this._dictation;
-  }
-
-  private _isActiveSession(
-    sessionId: number,
-    session: DictationAdapter.Session,
-  ): boolean {
-    return (
-      this._activeDictationSessionId === sessionId &&
-      this._dictationSession === session
-    );
+    return this._dictationSessionController.dictation;
   }
 
   public startDictation(): void {
-    const adapter = this.getDictationAdapter();
-    if (!adapter) {
-      throw new Error("Dictation adapter not configured");
-    }
-
-    const isReplacing = this._dictationSession !== undefined;
-    if (this._dictationSession) {
-      const oldSession = this._dictationSession;
-      this._cleanupDictation({ notify: false });
-      this._stopDictationSession(oldSession);
-    }
-
-    const inputDisabled = adapter.disableInputDuringDictation ?? false;
-
-    this._dictationBaseText = this._text;
-    this._currentInterimText = "";
-
-    let session: DictationAdapter.Session;
-    try {
-      session = adapter.listen();
-    } catch (error) {
-      if (isReplacing) {
-        try {
-          this._notifySubscribers();
-        } catch (notifyError) {
-          console.error(
-            "[assistant-ui] Dictation replacement rollback notification threw",
-            notifyError,
-          );
-        }
-      }
-      throw error;
-    }
-    this._dictationSession = session;
-    const sessionId = ++this._dictationSessionIdCounter;
-    this._activeDictationSessionId = sessionId;
-    this._dictation = { status: session.status, inputDisabled };
-    try {
-      this._notifySubscribers();
-    } catch (notifyError) {
-      console.error(
-        "[assistant-ui] Dictation start notification threw",
-        notifyError,
-      );
-    }
-
-    if (!this._isActiveSession(sessionId, session)) return;
-
-    // Handles stay local because cleanup can run synchronously during setup
-    // and would drain the shared list before the remaining handles exist.
-    const setupUnsubscribes: Unsubscribe[] = [];
-    const releaseSetup = () => {
-      for (const unsubscribe of setupUnsubscribes.splice(0)) {
-        try {
-          unsubscribe();
-        } catch (cleanupError) {
-          console.error("[assistant-ui] Dictation cleanup threw", cleanupError);
-        }
-      }
-    };
-    const keepUnsubscribe = (unsubscribe: Unsubscribe) => {
-      setupUnsubscribes.push(unsubscribe);
-      if (this._isActiveSession(sessionId, session)) return true;
-      releaseSetup();
-      return false;
-    };
-
-    try {
-      const unsubSpeech = session.onSpeech((result) => {
-        if (!this._isActiveSession(sessionId, session)) return;
-        const isFinal = result.isFinal !== false;
-
-        const needsSeparator =
-          this._dictationBaseText &&
-          !this._dictationBaseText.endsWith(" ") &&
-          result.transcript;
-        const separator = needsSeparator ? " " : "";
-
-        if (isFinal) {
-          this._dictationBaseText =
-            this._dictationBaseText + separator + result.transcript;
-          this._currentInterimText = "";
-          this._text = this._dictationBaseText;
-
-          if (this._dictation) {
-            const { transcript: _, ...rest } = this._dictation;
-            this._dictation = rest;
-          }
-          this._notifySubscribers();
-        } else {
-          this._currentInterimText = separator + result.transcript;
-          this._text = this._dictationBaseText + this._currentInterimText;
-
-          if (this._dictation) {
-            this._dictation = {
-              ...this._dictation,
-              transcript: result.transcript,
-            };
-          }
-          this._notifySubscribers();
-        }
-      });
-      if (!keepUnsubscribe(unsubSpeech)) return;
-
-      const unsubStart = session.onSpeechStart(() => {
-        if (!this._isActiveSession(sessionId, session)) return;
-
-        this._dictation = {
-          status: { type: "running" },
-          inputDisabled,
-          ...(this._dictation?.transcript && {
-            transcript: this._dictation.transcript,
-          }),
-        };
-        this._notifySubscribers();
-      });
-      if (!keepUnsubscribe(unsubStart)) return;
-
-      const unsubEnd = session.onSpeechEnd(() => {
-        this._cleanupDictation({ sessionId });
-      });
-      if (!keepUnsubscribe(unsubEnd)) return;
-
-      const statusInterval = setInterval(() => {
-        if (!this._isActiveSession(sessionId, session)) return;
-
-        if (session.status.type === "ended") {
-          this._cleanupDictation({ sessionId });
-        }
-      }, 100);
-      if (!keepUnsubscribe(() => clearInterval(statusInterval))) return;
-
-      this._dictationUnsubscribes.push(...setupUnsubscribes.splice(0));
-    } catch (error) {
-      releaseSetup();
-      if (this._isActiveSession(sessionId, session)) {
-        try {
-          session.cancel();
-        } catch (cancelError) {
-          console.error(
-            "[assistant-ui] Dictation session cancel threw",
-            cancelError,
-          );
-        } finally {
-          this._cleanupDictation({ sessionId });
-        }
-      }
-      throw error;
-    }
+    this._dictationSessionController.startDictation();
   }
 
   public stopDictation(): void {
-    if (!this._dictationSession) return;
-
-    const session = this._dictationSession;
-    if (this._stoppingDictationSession === session) return;
-    this._stoppingDictationSession = session;
-    const sessionId = this._activeDictationSessionId;
-    const cleanup = () => this._cleanupDictation({ sessionId });
-    this._stopDictationSession(session, cleanup);
-  }
-
-  private _stopDictationSession(
-    session: DictationAdapter.Session,
-    onSettled: () => void = () => {},
-  ): void {
-    let task: Promise<void>;
-    try {
-      task = session.stop();
-    } catch (error) {
-      console.error("[assistant-ui] Dictation session stop threw", error);
-      onSettled();
-      return;
-    }
-
-    void task.then(onSettled, (error) => {
-      console.error("[assistant-ui] Dictation session stop rejected", error);
-      onSettled();
-    });
-  }
-
-  private _cleanupDictation(options?: {
-    sessionId?: number | undefined;
-    notify?: boolean | undefined;
-  }): void {
-    const isStaleSession =
-      options?.sessionId !== undefined &&
-      options.sessionId !== this._activeDictationSessionId;
-    if (isStaleSession || this._isCleaningDictation) return;
-
-    this._isCleaningDictation = true;
-    const runCleanup = (cleanup: () => void) => {
-      try {
-        cleanup();
-      } catch (error) {
-        console.error("[assistant-ui] Dictation cleanup threw", error);
-      }
-    };
-
-    try {
-      const unsubscribes = this._dictationUnsubscribes;
-      this._dictationUnsubscribes = [];
-      this._dictationSession = undefined;
-      this._stoppingDictationSession = undefined;
-      this._activeDictationSessionId = undefined;
-      this._dictation = undefined;
-      this._dictationBaseText = "";
-      this._currentInterimText = "";
-
-      for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
-      if (options?.notify !== false) {
-        runCleanup(() => this._notifySubscribers());
-      }
-    } finally {
-      this._isCleaningDictation = false;
-    }
+    this._dictationSessionController.stopDictation();
   }
 
   private _eventSubscribers = new Map<
