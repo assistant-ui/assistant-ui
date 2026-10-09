@@ -1,14 +1,14 @@
-# @assistant-ui/react-generative-ui
+# @assistant-ui/generative-ui
 
-This package re-exports [`@assistant-ui/generative-ui`](https://www.npmjs.com/package/@assistant-ui/generative-ui), the framework-neutral home of assistant-ui's generative UI. Existing imports keep working unchanged; new code should depend on `@assistant-ui/generative-ui` directly and import the React renderer from `@assistant-ui/generative-ui/react`.
-
-Generative UI tools for assistant-ui.
+Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, and the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces.
 
 ## Installation
 
 ```bash
-npm install @assistant-ui/react-generative-ui
+npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
+
+`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
 
 ## Usage
 
@@ -18,7 +18,7 @@ them through the `present` tool. The model emits a `{ $type, ...props }` tree
 renders it against the library.
 
 ```tsx
-import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { Thread, Tools } from "@assistant-ui/react";
 import { z } from "zod";
 
@@ -113,7 +113,7 @@ import { defineToolkit } from "@assistant-ui/react";
 import {
   JSONGenerativeUI,
   defineGenerativeComponents,
-} from "@assistant-ui/react-generative-ui";
+} from "@assistant-ui/generative-ui/react";
 
 const generative = new JSONGenerativeUI({
   library: defineGenerativeComponents({
@@ -141,12 +141,12 @@ surface instead of inline. See the
 
 The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
 
-### `@assistant-ui/react-generative-ui/slack`
+### `@assistant-ui/generative-ui/slack`
 
 Converts a tree to Slack Block Kit JSON (`toSlackBlocks`), decodes `block_actions` webhooks back into `$action` payloads (`decodeBlockAction`), and maps Block Kit back into vocabulary nodes (`fromSlackBlocks`).
 
 ```ts
-import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+import { toSlackBlocks } from "@assistant-ui/generative-ui/slack";
 
 const { blocks, warnings } = toSlackBlocks({
   $type: "Card",
@@ -155,12 +155,12 @@ const { blocks, warnings } = toSlackBlocks({
 });
 ```
 
-### `@assistant-ui/react-generative-ui/teams`
+### `@assistant-ui/generative-ui/teams`
 
 Converts a tree to a Microsoft Teams Adaptive Card (`toAdaptiveCard`) or bot-framework attachments with root-carousel support (`toTeamsAttachments`), and decodes an incoming `activity.value` (`decodeSubmitData`).
 
 ```ts
-import { toAdaptiveCard } from "@assistant-ui/react-generative-ui/teams";
+import { toAdaptiveCard } from "@assistant-ui/generative-ui/teams";
 
 const { card, warnings } = toAdaptiveCard({
   $type: "Card",
@@ -169,7 +169,7 @@ const { card, warnings } = toAdaptiveCard({
 });
 ```
 
-### `@assistant-ui/react-generative-ui/a2ui`
+### `@assistant-ui/generative-ui/a2ui`
 
 The inbound direction: applies A2UI surface operations (`applyA2uiOperations`) and converts a surface into a vocabulary tree (`convertSurfaceToUISpec`) that renders through the same `present` path.
 
@@ -177,7 +177,7 @@ The inbound direction: applies A2UI surface operations (`applyA2uiOperations`) a
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 
 const { state } = applyA2uiOperations(new Map(), operations);
 for (const surface of state.values()) {
