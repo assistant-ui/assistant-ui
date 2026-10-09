@@ -115,7 +115,13 @@ export function SubProjectHeader({
         )}
       >
         <div className="flex min-w-0 items-center">
-          <HeaderBrandLink showLabel={false} />
+          <HeaderBrandLink
+            showLabel={false}
+            href={docsActive ? (current?.href ?? `/${name}`) : "/"}
+            homeLabel={
+              docsActive ? `${current?.label ?? name} home` : "assistant-ui home"
+            }
+          />
           <span className="text-muted-foreground/40 ml-2 sm:ml-3">/</span>
           {docsHref && docsActive ? (
             <>
