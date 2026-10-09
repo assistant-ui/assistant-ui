@@ -209,6 +209,26 @@ const collectItemOrder = (
   return items;
 };
 
+const getExposedThreadData = (
+  state: RemoteThreadState,
+  mainThreadId: string,
+  threadIdOrRemoteId: string,
+): RemoteThreadData | undefined => {
+  const data = getThreadData(state, threadIdOrRemoteId);
+  if (data === undefined) return undefined;
+  const ids = [
+    state.newThreadId,
+    ...state.threadIds,
+    ...state.archivedThreadIds,
+    mainThreadId,
+  ];
+  return ids.some(
+    (id) => id !== undefined && getThreadData(state, id)?.id === data.id,
+  )
+    ? data
+    : undefined;
+};
+
 const itemMatchesId = (
   item: RemoteThreadData,
   listState: RemoteThreadState,
@@ -922,7 +942,11 @@ const useRemoteThreadList = (
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
       if (store.value.newThreadId !== threadId) {
-        const data = getThreadData(store.value, threadId);
+        const data = getExposedThreadData(
+          store.value,
+          session.mainThreadId,
+          threadId,
+        );
         if (!data) throw threadNotFoundError(threadId, "initializing it");
         if (data.status === "new") {
           throw threadStatusError(threadId, data.status, "be initialized here");
@@ -990,10 +1014,14 @@ const useRemoteThreadList = (
   );
 
   const rename = useCallback(
-    (threadIdOrRemoteId: string, newTitle: string) => {
+    async (threadIdOrRemoteId: string, newTitle: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "renaming it");
       if (data.status === "new") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
@@ -1040,13 +1068,17 @@ const useRemoteThreadList = (
   );
 
   const updateCustom = useCallback(
-    (
+    async (
       threadIdOrRemoteId: string,
       custom: Record<string, unknown> | undefined,
     ) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) {
         throw threadNotFoundError(
           threadIdOrRemoteId,
@@ -1099,7 +1131,11 @@ const useRemoteThreadList = (
     async (threadIdOrRemoteId: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "archiving it");
       if (data.status !== "regular") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
@@ -1128,10 +1164,14 @@ const useRemoteThreadList = (
   );
 
   const unarchive = useCallback(
-    (threadIdOrRemoteId: string) => {
+    async (threadIdOrRemoteId: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data)
         throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
       if (data.status !== "archived") {
@@ -1164,7 +1204,11 @@ const useRemoteThreadList = (
     async (threadIdOrRemoteId: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
       if (data.status !== "regular" && data.status !== "archived") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
