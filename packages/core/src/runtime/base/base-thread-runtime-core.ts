@@ -115,7 +115,7 @@ export abstract class BaseThreadRuntimeCore
     this._voiceController.voiceMessages = messages;
   }
 
-  protected get _voiceGeneration() {
+  protected get _voiceGeneration(): number {
     return this._voiceController.voiceGeneration;
   }
 
@@ -123,7 +123,7 @@ export abstract class BaseThreadRuntimeCore
     this._voiceController.voiceGeneration = generation;
   }
 
-  protected _markVoiceMessagesDirty() {
+  protected _markVoiceMessagesDirty(): void {
     this._voiceController.markMessagesDirty();
   }
 
@@ -140,7 +140,7 @@ export abstract class BaseThreadRuntimeCore
     _message: ThreadAssistantMessage,
   ): void {}
 
-  protected _dropVoiceMessage(messageId: string, notify: boolean) {
+  protected _dropVoiceMessage(messageId: string, notify: boolean): void {
     this._voiceController.dropMessage(messageId, notify);
   }
 
@@ -220,7 +220,7 @@ export abstract class BaseThreadRuntimeCore
   public __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore> {
     return this._editComposers.values();
   }
-  protected _isVoiceMessage(messageId: string | null) {
+  protected _isVoiceMessage(messageId: string | null): boolean {
     return this._voiceController.isVoiceMessage(messageId);
   }
 
@@ -434,7 +434,7 @@ export abstract class BaseThreadRuntimeCore
     this._voiceController.voice = value;
   }
 
-  public getVoiceVolume = () => this._voiceController.getVoiceVolume();
+  public getVoiceVolume = (): number => this._voiceController.getVoiceVolume();
 
   public subscribeVoiceVolume = (callback: () => void): Unsubscribe =>
     this._voiceController.subscribeVoiceVolume(callback);
@@ -451,23 +451,23 @@ export abstract class BaseThreadRuntimeCore
     return this._voiceController.getVoiceCommitBarrier();
   }
 
-  public connectVoice() {
+  public connectVoice(): void {
     this._voiceController.connectVoice();
   }
 
-  protected async _appendToVoiceSession(message: AppendMessage) {
+  protected async _appendToVoiceSession(message: AppendMessage): Promise<void> {
     return this._voiceController.appendToVoiceSession(message);
   }
 
-  public disconnectVoice() {
+  public disconnectVoice(): void {
     this._voiceController.disconnectVoice();
   }
 
-  public muteVoice() {
+  public muteVoice(): void {
     this._voiceController.muteVoice();
   }
 
-  public unmuteVoice() {
+  public unmuteVoice(): void {
     this._voiceController.unmuteVoice();
   }
 
