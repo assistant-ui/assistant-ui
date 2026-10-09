@@ -2,8 +2,6 @@ import { equalData, isRecord } from "../equalData";
 import { decodeScopeRelativePointer } from "./pointer";
 import { setAtPointer } from "./reducer";
 
-export { equalData } from "../equalData";
-
 export const resolvePath = (
   source: unknown,
   segments: readonly string[],
