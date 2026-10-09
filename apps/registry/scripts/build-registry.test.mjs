@@ -2928,6 +2928,12 @@ test("disclosure registry items install their ref-owning root in both flavors", 
     assert.ok(root.files[0].path.endsWith("/collapsible-root.tsx"));
     assert.ok(root.files[0].content.includes(`from "${dependency}`));
     assert.ok(root.dependencies.includes(dependency));
+    for (const part of ["CollapsibleTrigger", "CollapsibleContent"]) {
+      assert.ok(
+        root.files[0].content.includes(`export const ${part}`) ||
+          root.files[0].content.includes(`export function ${part}`),
+      );
+    }
     for (const name of ["elements-reasoning", "tool-fallback", "tool-group"]) {
       const item = registry.find((entry) => entry.name === name);
       const built = createRegistryPayload(createVariant(item), radix).payload;
@@ -2936,7 +2942,7 @@ test("disclosure registry items install their ref-owning root in both flavors", 
           `https://r.assistant-ui.com/${prefix}elements-collapsible-root.json`,
         ),
       );
-      assert.ok(built.registryDependencies.includes("collapsible"));
+      assert.ok(!built.registryDependencies.includes("collapsible"));
     }
   }
 });

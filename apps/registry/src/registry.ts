@@ -49,7 +49,6 @@ type ElementRegistryEntry = {
   file: string;
   dependencies?: string[];
   devDependencies?: string[];
-  usesCollapsible?: boolean;
   usesElements?: string[];
   usesHooks?: string[];
   usesSurfaces?: boolean;
@@ -80,7 +79,6 @@ const createElementRegistryItem = (
     ...(entry.usesHooks ?? []).map(
       (name) => `https://r.assistant-ui.com/${name}.json`,
     ),
-    ...(entry.usesCollapsible ? ["collapsible"] : []),
     ...(entry.usesUi ?? []),
   ],
   ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
@@ -205,8 +203,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
     file: "reasoning-panel.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["range"],
+    usesElements: ["range", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "streaming-text",
@@ -271,7 +268,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "One tool invocation with its request and result tucked behind a disclosure.",
     file: "tool-call.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
+    usesElements: ["collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "tool-timeline",
@@ -280,8 +277,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A whole working session summarized as verbs, targets, and file stats.",
     file: "tool-timeline.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["range"],
+    usesElements: ["range", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "terminal-block",
@@ -316,8 +312,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Citations collapsed into a pill, expanding into scannable source cards.",
     file: "sources.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["href"],
+    usesElements: ["href", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "inline-citation",
@@ -1417,7 +1412,6 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/elements-collapsible-root.json",
-      "collapsible",
     ],
     dependencies: ["lucide-react", "class-variance-authority", "tw-shimmer"],
     css: {
@@ -1671,7 +1665,6 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/elements-collapsible-root.json",
       "button",
-      "collapsible",
       "textarea",
     ],
     css: {
@@ -1700,7 +1693,6 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/elements-collapsible-root.json",
-      "collapsible",
     ],
     css: {
       '@import "tw-shimmer"': {},
