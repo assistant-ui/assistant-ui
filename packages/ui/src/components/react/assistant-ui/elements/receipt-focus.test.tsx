@@ -115,6 +115,8 @@ describe("useReceiptFocus", () => {
 
     elsewhere.blur();
     expect(document.activeElement).toBe(document.body);
+    // Re-runs the layout effect with focus on the body, where a stale target
+    // would pull focus back to the receipt.
     rerender(
       <>
         <Harness settled onSettle={focusElsewhere} />
