@@ -25,12 +25,17 @@ export function useClientLookup<TMethods extends ClientMethods>(
     ),
   );
 
-  const keyToIndex = useMemo(() => {
-    const map = new Map<ElementKey, number>();
+  const { keyToIndex, numericKeyToIndex } = useMemo(() => {
+    const keyToIndex = new Map<ElementKey, number>();
+    const numericKeyToIndex = new Map<string, number>();
     elements.forEach((element, index) => {
-      map.set(getElementKey(element), index);
+      const key = getElementKey(element);
+      keyToIndex.set(key, index);
+      if (typeof key === "number") {
+        numericKeyToIndex.set(String(key), index);
+      }
     });
-    return map;
+    return { keyToIndex, numericKeyToIndex };
   }, [elements]);
 
   const state = useMemo(() => {
@@ -49,7 +54,11 @@ export function useClientLookup<TMethods extends ClientMethods>(
         return resources[lookup.index]!.methods;
       }
 
-      const index = keyToIndex.get(lookup.key);
+      const index =
+        keyToIndex.get(lookup.key) ??
+        (typeof lookup.key === "string"
+          ? numericKeyToIndex.get(lookup.key)
+          : undefined);
       if (index === undefined) {
         throw new Error(
           `useClientLookup: key "${lookup.key}" not found (ignore if recovered)`,
