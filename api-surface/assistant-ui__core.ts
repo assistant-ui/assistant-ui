@@ -1047,13 +1047,13 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _dropVoiceMessage(messageId: string, notify: boolean): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
-  readonly composer: any;
+  readonly composer: DefaultThreadComposerRuntimeCore;
   constructor(_contextProvider: ModelContextProvider);
   getModelContext(): ModelContext$1;
   protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
   __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore>;
-  protected _isVoiceMessage(messageId: string | null): any;
+  protected _isVoiceMessage(messageId: string | null): boolean;
   protected _resolveAppendParent(parentId: string | null): string | null;
   beginEdit(messageId: string): void;
   getMessageById(messageId: string): {
@@ -1071,14 +1071,14 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   stopSpeaking(): void;
   get voice(): VoiceSessionState | undefined;
   set voice(value: VoiceSessionState | undefined);
-  getVoiceVolume: () => any;
+  getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   protected _onVoiceConnected(): void;
   protected _onVoiceDisconnected(): void;
   protected _isRunActive(): boolean;
   protected _getVoiceCommitBarrier(): Promise<void> | undefined;
   connectVoice(): void;
-  protected _appendToVoiceSession(message: AppendMessage): Promise<any>;
+  protected _appendToVoiceSession(message: AppendMessage): Promise<void>;
   disconnectVoice(): void;
   muteVoice(): void;
   unmuteVoice(): void;
