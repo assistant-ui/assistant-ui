@@ -69,6 +69,7 @@ import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 export async function POST(request: Request) {
   const { messages } = await request.json();
   const result = streamText({
+    abortSignal: request.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     telemetry: { integrations: [new OpenTelemetry()] },
@@ -202,6 +203,7 @@ export async function POST(req: Request) {
   const samplingCalls: Record<string, SamplingCallData[]> = {};
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {

@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   const { messages, tools }: { messages: UIMessage[]; tools?: FrontendTools } =
     await request.json();
   const result = streamText({
+    abortSignal: request.signal,
     model: openai("gpt-6-luna"),
     system:
       "You are a concise, helpful assistant. Use the weather tools for weather questions.",

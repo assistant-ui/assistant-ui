@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         await streamFallback(writer, messages);
         return;
       }
-      await streamModel(writer, messages, tools);
+      await streamModel(writer, messages, tools, req.signal);
     },
   });
 
@@ -101,6 +101,7 @@ async function streamModel(
   writer: UIMessageStreamWriter,
   messages: UIMessage[],
   frontendToolDefs: Record<string, any>,
+  abortSignal: AbortSignal,
 ) {
   const toolNameByCall = new Map<string, string>();
   const openai = createOpenAI({
@@ -113,6 +114,7 @@ async function streamModel(
   const toolkitTools = await aiToolkit.tools({ frontend: frontendToolDefs });
 
   const result = streamText({
+    abortSignal,
     // Reasoning model so the chain-of-thought group has real content.
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),

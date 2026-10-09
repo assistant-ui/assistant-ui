@@ -90,6 +90,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages), // async in v7
     tools: {
@@ -245,6 +246,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     system,
     messages: await convertToModelMessages(messages),
@@ -280,6 +282,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
@@ -311,6 +314,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
@@ -445,6 +449,7 @@ import { openai } from "@ai-sdk/openai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
@@ -467,6 +472,7 @@ import { frontendTools } from "@assistant-ui/ai-sdk";
 export async function POST(req: Request) {
   const { messages, tools, config } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: getModel(config?.modelName),
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),

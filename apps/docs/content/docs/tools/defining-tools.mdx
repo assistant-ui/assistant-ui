@@ -172,6 +172,7 @@ export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: await aiToolkit.tools({ frontend: tools }),

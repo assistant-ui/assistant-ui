@@ -179,10 +179,14 @@ export async function POST(req: Request) {
   const aiToolkit = new AISDKToolkit({ toolkit });
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: await aiToolkit.tools({ frontend: tools }),
     onFinish: async () => {
+      await aiToolkit.close();
+    },
+    onAbort: async () => {
       await aiToolkit.close();
     },
   });
@@ -222,10 +226,14 @@ export async function POST(req: Request) {
   const tools = await mcpClient.tools();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools,
     onFinish: async () => {
+      await mcpClient.close();
+    },
+    onAbort: async () => {
       await mcpClient.close();
     },
   });
@@ -404,6 +412,7 @@ MCP tools execute on the server, so approval is a server-side tool gate, not a `
 const tools = await mcpClient.tools();
 
 const result = streamText({
+  abortSignal: req.signal,
   model: openai("gpt-6-luna"),
   messages: await convertToModelMessages(messages),
   tools,
@@ -411,6 +420,9 @@ const result = streamText({
     github_delete_repository: "user-approval",
   },
   onFinish: async () => {
+    await mcpClient.close();
+  },
+  onAbort: async () => {
     await mcpClient.close();
   },
 });

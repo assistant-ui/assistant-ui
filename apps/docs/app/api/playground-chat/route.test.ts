@@ -65,10 +65,12 @@ describe("POST /api/playground-chat telemetry", () => {
       toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
     });
 
-    const response = await POST(request());
+    const req = request();
+    const response = await POST(req);
 
     expect(response.status).toBe(200);
     const options = mocks.streamText.mock.calls[0]?.[0];
+    expect(options.abortSignal).toBe(req.signal);
     expect(options.telemetry.functionId).toBe("playground_chat");
     expect(options.runtimeContext.$ai_span_name).toBe("playground_chat");
     expect(options.runtimeContext.posthog_distinct_id).toBe(
