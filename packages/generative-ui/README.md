@@ -5,8 +5,10 @@ Framework-neutral generative UI for assistant-ui. The root entry holds the React
 ## Installation
 
 ```bash
-npm install @assistant-ui/generative-ui
+npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
+
+`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
 
 ## Usage
 
