@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowRight,
   ArrowUpRight,
   Blocks,
   Bot,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
+import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { AddToCartButton } from "@/components/shared/shop-entry";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
@@ -210,15 +212,73 @@ export default function GenerativeFramePage() {
         </div>
       </section>
 
-      <footer className="mt-24 flex justify-center">
-        <Link
-          href="/generative-frame/docs/api-reference"
-          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          View reference
-          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-        </Link>
-      </footer>
+      <FooterPaths />
     </PageFrame>
+  );
+}
+
+const QUICKSTART = "/generative-frame/docs/quickstart";
+const PATHS = [
+  {
+    id: "javascript",
+    title: "Plain JavaScript",
+    body: "createWidget, write, and end.",
+    products: ["generative-frame"],
+    manualHref: QUICKSTART,
+  },
+  {
+    id: "assistant-ui",
+    title: "With assistant-ui",
+    body: "Tool calls render in the thread as they stream.",
+    products: ["assistant-ui", "generative-frame"],
+    instructions:
+      "Render generative-frame widgets in the assistant-ui thread with createWidgetToolkit from generative-frame/assistant-ui.",
+    manualHref: "/generative-frame/docs/assistant-ui",
+  },
+  {
+    id: "spec",
+    title: "Spec mode",
+    body: "The model fills in your own components.",
+    products: ["generative-frame"],
+    instructions:
+      "Use spec mode: define a catalog of the app's components with defineCatalog and render the model's spec with SpecRenderer from generative-frame/react.",
+    manualHref: "/generative-frame/docs/spec-mode",
+  },
+];
+
+function FooterPaths() {
+  return (
+    <footer className="mx-auto mt-32 max-w-5xl">
+      <h2 className={cn(typeSection, "text-center")}>Pick a starting point</h2>
+      <div className="divide-foreground/10 border-foreground/10 mt-8 grid border-y md:grid-cols-3 md:divide-x">
+        {PATHS.map((path) => (
+          <StartSetupDialog
+            key={path.id}
+            location={`generative_frame_footer_${path.id}`}
+            name="Generative Frame"
+            products={path.products}
+            {...(path.instructions && { instructions: path.instructions })}
+            manualHref={path.manualHref}
+            trigger={
+              <button
+                type="button"
+                className="group hover:bg-foreground/[0.025] focus-visible:ring-ring flex cursor-pointer items-start justify-between gap-4 px-6 py-6 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset"
+              />
+            }
+          >
+            <span>
+              <span className="block font-medium">{path.title}</span>
+              <span className="text-muted-foreground mt-1 block text-sm">
+                {path.body}
+              </span>
+            </span>
+            <ArrowRight
+              aria-hidden
+              className="text-muted-foreground group-hover:text-foreground mt-1 size-4 shrink-0 transition-all group-hover:translate-x-0.5"
+            />
+          </StartSetupDialog>
+        ))}
+      </div>
+    </footer>
   );
 }
