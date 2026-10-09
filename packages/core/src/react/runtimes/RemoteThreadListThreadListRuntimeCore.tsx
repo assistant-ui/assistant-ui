@@ -728,7 +728,8 @@ export class RemoteThreadListThreadListRuntimeCore
     const data = getThreadData(this._state.value, threadIdOrRemoteId);
     if (data === undefined) return undefined;
     // A mounted thread runtime reads, titles and detaches its own item whether
-    // or not it is listed. The other item actions use the exposed lookup.
+    // or not it is listed, and initialize accepts any known thread. The other
+    // item actions use the exposed lookup.
     if (
       this._getExposedItems().ids.has(data.id) ||
       this._hookManager.__internal_hasThreadRuntime(data.id)
