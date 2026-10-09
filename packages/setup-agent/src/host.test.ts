@@ -961,6 +961,18 @@ describe("choice option ids", () => {
         { id: "a", label: "Again" },
       ],
     ],
+    [
+      [
+        {
+          id: "a",
+          label: "A",
+          variants: [
+            { id: "x", label: "X" },
+            { id: "x", label: "Again" },
+          ],
+        },
+      ],
+    ],
   ])("refuses option ids an answer cannot name: %j", async (options) => {
     expect(await reason(ask(options))).toEqual({ reason: "invalid-input" });
   });
@@ -980,6 +992,14 @@ describe("choice option ids", () => {
     expect(
       classifyChoiceAnswer(host.state.inputs[0]!, "langgraph:python:other"),
     ).toBe("custom");
+  });
+
+  it("locks a preset to --only even when the agent found its own options", () => {
+    const locked = presetInput("project", {
+      only: ["new"],
+      found: [{ id: "apps/web" }],
+    });
+    expect(locked.options?.map((option) => option.id)).toEqual(["new"]);
   });
 
   it("knows only its own presets", () => {

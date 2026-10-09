@@ -10,7 +10,7 @@ export type PresetId = "framework" | "llm-provider" | "project";
 export type PresetOverrides = {
   /** Restrict the options to these ids, in this order; one id locks the choice in. */
   only?: readonly string[];
-  /** Options the agent found itself, listed before the preset's own. */
+  /** Options the agent found itself, listed before the preset's own; `only` leaves them out. */
   found?: readonly { id: string; description?: string }[];
   default?: string;
   optional?: boolean;
@@ -165,7 +165,7 @@ export const presetInput = (
     }
     return { ...option, label: option.id };
   });
-  const options = [...found, ...listed];
+  const options = overrides.only ? listed : [...found, ...listed];
   const fallback = options.some((o) => o.id === preset.default)
     ? preset.default
     : undefined;

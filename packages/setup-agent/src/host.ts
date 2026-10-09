@@ -119,9 +119,15 @@ const useCheckoutHost = (restored: unknown) => {
         "only a choice whose options have no variants accepts several answers",
       );
     }
-    const ids = seed.options?.map((option) => option.id) ?? [];
-    if (new Set(ids).size !== ids.length) {
-      throw reject("invalid-input", "option ids must be unique");
+    const unique = (ids: readonly string[]) => new Set(ids).size === ids.length;
+    if (
+      !unique(seed.options?.map((option) => option.id) ?? []) ||
+      seed.options?.some(
+        (option) =>
+          !unique(option.variants?.map((variant) => variant.id) ?? []),
+      )
+    ) {
+      throw reject("invalid-input", "option and variant ids must be unique");
     }
     if (
       seed.options?.some(
