@@ -1,0 +1,25 @@
+{
+  "name": "checkout-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
+  },
+  "dependencies": {
+    "@assistant-ui/tap": "^0.9.7",
+    "setup-agent": "workspace:*",
+    "statewire": "^0.19.4",
+    "@statewire/cloudflare": "^0.2.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260112.0",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.134.0",
+    "vitest": "^5.0.3",
+    "@assistant-ui/x-buildutils": "workspace:*"
+  }
+}

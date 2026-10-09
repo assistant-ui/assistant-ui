@@ -219,9 +219,11 @@ export const useInputActions = (
       answer,
       ...withNote(note),
     });
-  const deposit = async (secret: string) => {
+  const deposit = async (secret: string, answer: string) => {
+    const setupId = checkout.state?.id;
+    if (!setupId) throw new Error("setup not created");
     const response = await fetch(
-      `${checkout.url}/secret/${encodeURIComponent(input.id)}`,
+      `${checkout.url}/secret/${encodeURIComponent(input.id)}?setup=${encodeURIComponent(setupId)}&answer=${encodeURIComponent(answer)}`,
       { method: "PUT", body: secret },
     );
     if (!response.ok) throw new Error(`secret rejected: ${response.status}`);
@@ -233,7 +235,7 @@ export const useInputActions = (
     /** Deposits a secret with the checkout for the agent to take, then answers. */
     answerWithSecret: (answer: string, secret: string, note = "") =>
       run(async () => {
-        await deposit(secret);
+        await deposit(secret, answer);
         await send(answer, note);
       }, "Could not send the answer"),
     dismiss: () =>
