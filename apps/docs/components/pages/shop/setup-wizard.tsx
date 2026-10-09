@@ -146,9 +146,12 @@ function EndSetupDialog({
   const fromCart = checkout.session.fromCart === true;
   const end = async () => {
     analytics.setup.cancelled();
-    try {
-      await checkout.commands["checkout/cancel"]();
-    } catch {
+    const reached = checkout.commands["checkout/cancel"]().then(
+      () => true,
+      () => false,
+    );
+    // The client holds a command until it reconnects, so only a live connection is worth waiting on.
+    if (checkout.connection.status !== "connected" || !(await reached)) {
       toast.warning(
         "Could not reach the session. Your agent may keep working until it times out.",
       );

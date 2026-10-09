@@ -96,7 +96,7 @@ const context = (
   planPending: planNeedsReview(state),
   progress: stepProgress(state),
   attentionKey: "",
-  connection: {} as CheckoutContextValue["connection"],
+  connection: { status: "connected", degraded: false, reconnect: () => {} },
   commands,
 });
 
@@ -1186,6 +1186,36 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
     expect(finishCheckout).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/components/cart");
+  });
+
+  it("ends the setup without waiting on the session while the page has lost the connection to it", async () => {
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    cancel.mockClear();
+    abandonCheckout.mockClear();
+    push.mockClear();
+    cancel.mockReturnValueOnce(new Promise<never>(() => {}));
+    const onExit = vi.fn();
+    render(
+      <SetupWizard
+        checkout={{
+          ...context(connected({ status: "planning" }), true, true),
+          degraded: true,
+          connection: {
+            status: "retrying",
+            degraded: true,
+            attempt: 3,
+            reconnect: () => {},
+          },
+        }}
+        onExit={onExit}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+    expect(cancel).toHaveBeenCalled();
+    expect(onExit).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
