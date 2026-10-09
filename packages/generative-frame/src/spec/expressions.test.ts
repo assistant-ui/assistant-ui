@@ -59,6 +59,13 @@ describe("resolveValue", () => {
     );
   });
 
+  it("leaves unclosed placeholders as text", () => {
+    expect(renderTemplate("a ${/user/name} ${b", { state })).toBe("a Ada ${b");
+    expect(renderTemplate("${{".repeat(5000), { state })).toBe(
+      "${{".repeat(5000),
+    );
+  });
+
   it("detects expressions", () => {
     expect(isExpression({ $state: "/a" })).toBe(true);
     expect(isExpression({ $template: "" })).toBe(true);

@@ -150,5 +150,7 @@ describe("detectWidgetKind", () => {
     expect(detectWidgetKind("<style></style><svg>")).toBe("html");
     expect(detectWidgetKind("<svgx>")).toBe("html");
     expect(detectWidgetKind("<sv")).toBe("html");
+    expect(detectWidgetKind("<!-- a --><!-- b -->\n<svg/>")).toBe("svg");
+    expect(detectWidgetKind("<!--" + "--><!--".repeat(5000))).toBe("html");
   });
 });

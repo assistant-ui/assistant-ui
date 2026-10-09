@@ -62,8 +62,6 @@ const readSource = (
   return undefined;
 };
 
-const TEMPLATE = /\$\{([^}]*)\}/g;
-
 const formatTemplateValue = (value: unknown) =>
   value === undefined || value === null
     ? ""
@@ -79,7 +77,7 @@ export function renderTemplate(
   template: string,
   ctx: ExpressionContext,
 ): string {
-  return template.replace(TEMPLATE, (_, raw: string) => {
+  const fill = (raw: string) => {
     const ref = raw.trim();
     if (ref === "$index") return formatTemplateValue(ctx.index);
     if (ref === "$item") return formatTemplateValue(ctx.item);
@@ -87,7 +85,18 @@ export function renderTemplate(
       return formatTemplateValue(readPath(ctx.item, ref.slice(5)));
     }
     return formatTemplateValue(readPath(ctx.state, ref));
-  });
+  };
+  let out = "";
+  let from = 0;
+  for (;;) {
+    const start = template.indexOf("${", from);
+    if (start === -1) break;
+    const end = template.indexOf("}", start + 2);
+    if (end === -1) break;
+    out += template.slice(from, start) + fill(template.slice(start + 2, end));
+    from = end + 1;
+  }
+  return out + template.slice(from);
 }
 
 /** Resolves expressions anywhere inside a value; plain values pass through. */

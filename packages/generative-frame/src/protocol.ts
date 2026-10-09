@@ -106,9 +106,20 @@ export type ScreenshotOptions = {
   background?: string;
 };
 
-const SVG_START = /^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s>/]/i;
+const SVG_TAG = /^<svg[\s>/]/i;
 
 /** Classifies widget code: SVG when it starts with an `<svg` element, otherwise HTML. */
 export function detectWidgetKind(code: string): WidgetKind {
-  return SVG_START.test(code) ? "svg" : "html";
+  let rest = code.trimStart();
+  if (rest.startsWith("<?xml")) {
+    const end = rest.indexOf(">");
+    if (end === -1) return "html";
+    rest = rest.slice(end + 1).trimStart();
+  }
+  while (rest.startsWith("<!--")) {
+    const end = rest.indexOf("-->", 4);
+    if (end === -1) return "html";
+    rest = rest.slice(end + 3).trimStart();
+  }
+  return SVG_TAG.test(rest) ? "svg" : "html";
 }

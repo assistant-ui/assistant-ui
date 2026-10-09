@@ -64,9 +64,10 @@ const list = (items: readonly string[]) =>
   items.map((item) => `- ${item}`).join("\n");
 
 const cdnExample = (cdn: readonly string[]) => (path: string) => {
-  if (cdn.includes("https://cdn.jsdelivr.net"))
+  const origins = new Set(cdn);
+  if (origins.has("https://cdn.jsdelivr.net"))
     return `https://cdn.jsdelivr.net/npm/${path}`;
-  if (cdn.includes("https://unpkg.com")) return `https://unpkg.com/${path}`;
+  if (origins.has("https://unpkg.com")) return `https://unpkg.com/${path}`;
   const host = cdn[0];
   return host
     ? `${host}/…/${path}`
