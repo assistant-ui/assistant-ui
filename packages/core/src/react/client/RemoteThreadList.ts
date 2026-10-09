@@ -403,8 +403,7 @@ const useRemoteThreadListView = ({
     ThreadListItemClient({
       data,
       isMain:
-        reportsSelection &&
-        isSelectedThread(listState, data.id, mainThreadId, true),
+        reportsSelection && isSelectedThread(listState, data.id, mainThreadId),
       isInitialMain: data.id === initialMainId,
       isRunning,
       onSwitchTo: (options) =>
@@ -473,7 +472,7 @@ const useRemoteThreadListView = ({
     const direct = bodyIds.indexOf(id);
     if (direct !== -1) return direct;
     return bodyIds.findIndex((bodyId) =>
-      isSelectedThread(listState, bodyId, id, true),
+      isSelectedThread(listState, bodyId, id),
     );
   };
   const bodyStateOf = (id: string) => {
@@ -497,7 +496,7 @@ const useRemoteThreadListView = ({
           data,
           backgroundThreads
             ? (bodyStateOf(data.id)?.isRunning ?? false)
-            : isSelectedThread(listState, data.id, mainThreadId, true) &&
+            : isSelectedThread(listState, data.id, mainThreadId) &&
                 mainThreadClient.state.isRunning,
           true,
         ),
@@ -794,7 +793,7 @@ const useRemoteThreadList = (
         if (!data) {
           throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
         }
-        if (isSelectedThread(store.value, data.id, session.mainThreadId, true))
+        if (isSelectedThread(store.value, data.id, session.mainThreadId))
           return;
 
         const targetId = data.id;
@@ -846,14 +845,7 @@ const useRemoteThreadList = (
         if (existing !== undefined) {
           const existingId =
             getThreadData(store.value, existing)?.id ?? existing;
-          if (
-            isSelectedThread(
-              store.value,
-              existingId,
-              session.mainThreadId,
-              true,
-            )
-          ) {
+          if (isSelectedThread(store.value, existingId, session.mainThreadId)) {
             return;
           }
           assignMainThreadId(existingId);
@@ -880,9 +872,7 @@ const useRemoteThreadList = (
         throw new Error("Cannot ensure new thread is not main");
       }
       let lastAwaitedTask: Promise<void> | undefined;
-      while (
-        isSelectedThread(store.value, threadId, session.mainThreadId, true)
-      ) {
+      while (isSelectedThread(store.value, threadId, session.mainThreadId)) {
         // Rechecked each pass: the draft can become the new thread again
         // mid-loop when its failed first save rolls it back, and switching to
         // a new thread then re-adopts it, so no switch can move main off it.
@@ -918,12 +908,7 @@ const useRemoteThreadList = (
         store.value,
         store.baseValue,
         session.mainThreadId,
-        isSelectedThread(
-          store.value,
-          settledThreadId,
-          session.mainThreadId,
-          true,
-        ),
+        isSelectedThread(store.value, settledThreadId, session.mainThreadId),
       );
       if (fallback === "none") return;
       if (fallback === "draft") {
@@ -1157,9 +1142,7 @@ const useRemoteThreadList = (
       }
       do {
         await ensureNotMain(data.id);
-      } while (
-        isSelectedThread(store.value, data.id, session.mainThreadId, true)
-      );
+      } while (isSelectedThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
       await store.optimisticUpdate({
         execute: async () => {
@@ -1232,9 +1215,7 @@ const useRemoteThreadList = (
       }
       do {
         await ensureNotMain(data.id);
-      } while (
-        isSelectedThread(store.value, data.id, session.mainThreadId, true)
-      );
+      } while (isSelectedThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
       let remoteId: string | undefined;
       const result = await store.optimisticUpdate({
@@ -1288,7 +1269,7 @@ const useRemoteThreadList = (
       requireAdapterGeneration(adapterGeneration);
       if (
         !backgroundThreads &&
-        !isSelectedThread(store.value, data.id, session.mainThreadId, true)
+        !isSelectedThread(store.value, data.id, session.mainThreadId)
       ) {
         return;
       }
@@ -1339,9 +1320,7 @@ const useRemoteThreadList = (
     async (threadId: string) => {
       do {
         await ensureNotMain(threadId);
-      } while (
-        isSelectedThread(store.value, threadId, session.mainThreadId, true)
-      );
+      } while (isSelectedThread(store.value, threadId, session.mainThreadId));
       setStartedIds((prev) => prev.filter((id) => id !== threadId));
     },
     [ensureNotMain, session, store],
@@ -1423,8 +1402,7 @@ const useRemoteThreadList = (
     )
       return;
     session.controlledReloadPending = false;
-    if (isSelectedThread(listState, controlledId, session.mainThreadId, true))
-      return;
+    if (isSelectedThread(listState, controlledId, session.mainThreadId)) return;
     handleThreadListAction("switch", () => {
       const task = switchToThread(controlledId, undefined, false);
       session.controlledSwitchGeneration = session.switchGeneration;
@@ -1483,13 +1461,13 @@ const useRemoteThreadList = (
     item: (selector) => {
       if (selector === "main") {
         const index = itemOrder.findIndex((item) =>
-          isSelectedThread(listState, item.id, mainThreadId, true),
+          isSelectedThread(listState, item.id, mainThreadId),
         );
         return threadListItems.get({ index });
       }
       if ("id" in selector) {
         const index = itemOrder.findIndex((item) =>
-          isSelectedThread(listState, item.id, selector.id, true),
+          isSelectedThread(listState, item.id, selector.id),
         );
         return threadListItems.get({ index });
       }
@@ -1501,7 +1479,7 @@ const useRemoteThreadList = (
         return threadListItems.get({ index: -1 });
       }
       const index = itemOrder.findIndex((item) =>
-        isSelectedThread(listState, item.id, id, true),
+        isSelectedThread(listState, item.id, id),
       );
       return threadListItems.get({ index });
     },

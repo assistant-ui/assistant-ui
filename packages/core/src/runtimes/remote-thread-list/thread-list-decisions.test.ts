@@ -39,8 +39,7 @@ describe("thread list decisions", () => {
         },
       },
     };
-    expect(isSelectedThread(duplicate, "first", "second")).toBe(false);
-    expect(isSelectedThread(duplicate, "first", "second", true)).toBe(true);
+    expect(isSelectedThread(duplicate, "first", "second")).toBe(true);
   });
 
   it("starts a fallback only without a switch task or after awaiting that task", () => {

@@ -9,7 +9,6 @@ export const isSelectedThread = (
   state: RemoteThreadState,
   left: string,
   right: string,
-  matchRemoteIdentity = false,
 ): boolean => {
   if (left === right) return true;
   const data = getThreadData(state, left);
@@ -18,8 +17,7 @@ export const isSelectedThread = (
   return (
     data.id === right ||
     data.id === other?.id ||
-    (matchRemoteIdentity &&
-      other?.remoteId !== undefined &&
+    (other?.remoteId !== undefined &&
       (data.id === other.remoteId || data.remoteId === other.remoteId))
   );
 };
