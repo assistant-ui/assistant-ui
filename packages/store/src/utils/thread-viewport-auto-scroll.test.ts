@@ -570,6 +570,73 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it.each([
+    "Enter",
+    " ",
+    "ArrowUp",
+    "ArrowDown",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+  ])("cancels a queued bottom scroll on %s outside text entry", (key) => {
+    const view = geometry();
+    const button = document.createElement("button");
+    view.element.append(button);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.runStarted();
+    expect(frames.size).toBe(1);
+
+    button.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    expect(frames.size).toBe(0);
+    view.grow(1000);
+    observers[0]!.trigger();
+    flushFrames();
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it.each([
+    ["input", "Enter"],
+    ["contenteditable", "Enter"],
+    ["input", " "],
+    ["contenteditable", "ArrowDown"],
+  ] as const)("keeps a queued bottom scroll inside %s on %s", (entry, key) => {
+    const view = geometry();
+    const editable = document.createElement(
+      entry === "input" ? "input" : "div",
+    );
+    if (entry === "contenteditable")
+      editable.setAttribute("contenteditable", "true");
+    const target =
+      entry === "input"
+        ? editable
+        : editable.appendChild(document.createElement("span"));
+    view.element.append(editable);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.runStarted();
+    expect(frames.size).toBe(1);
+
+    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    expect(frames.size).toBe(1);
+    view.grow(1000);
+    observers[0]!.trigger();
+    flushFrames();
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 1000,
+      behavior: "auto",
+    });
+    controller.dispose();
+  });
+
   it("keeps a scheduled run-start behavior pending through content resize", () => {
     const view = geometry(500, 100);
     const controller = createThreadViewportAutoScroll({
