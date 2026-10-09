@@ -470,6 +470,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
   }
 
+  /** @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release. */
   get unstable_copy() {
     const telemetry = this.cloudRef.current?.telemetry;
     return telemetry?.enabled === false || telemetry?.messages === false

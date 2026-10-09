@@ -40,6 +40,7 @@ const appendPart = (
 export const createInitialMessage = ({
   unstable_state = null,
 }: {
+  /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
   unstable_state?: ReadonlyJSONValue;
 } = {}): AssistantMessage => ({
   role: "assistant",

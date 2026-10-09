@@ -28,6 +28,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-data-stream": "workspace:*",
     "@assistant-ui/react-devtools": "workspace:*",
+    "@assistant-ui/generative-ui": "workspace:*",
     "@assistant-ui/react-generative-ui": "workspace:*",
     "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-lexical": "workspace:*",

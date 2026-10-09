@@ -6,7 +6,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { CartButton } from "./shop-entry";
 import { HeaderBrandLink } from "./header-brand-link";
-import { headerBarClassName } from "./header-chrome";
+import { headerBarClassName, headerSlashClassName } from "./header-chrome";
 import { ThemeToggle } from "./theme-toggle";
 
 /** The open-source index uses the same chrome as the projects it lists. */
@@ -22,10 +22,10 @@ export function OssHeader(): React.ReactElement {
       >
         <div className="flex min-w-0 items-center">
           <HeaderBrandLink showLabel={false} />
-          <span className="text-muted-foreground/40 ml-2 sm:ml-3">/</span>
+          <span className={headerSlashClassName}>/</span>
           <Link
             href="/oss"
-            className="text-foreground hover:text-foreground/80 ml-2 text-sm font-medium transition-colors"
+            className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
           >
             oss
           </Link>

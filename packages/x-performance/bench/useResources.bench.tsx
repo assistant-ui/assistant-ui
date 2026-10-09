@@ -38,8 +38,7 @@ const useLeafBody = (id: number): number => {
 const Leaf = resource((props: { id: number }) => useLeafBody(props.id));
 
 const ids = Array.from({ length: N }, (_, i) => i);
-// `deps: false` -> no bailout deps (every child re-renders); `true` -> stable
-// per-id deps so unchanged children bail.
+// `deps: false` -> no dependency bailout; `true` -> stable per-id deps.
 const buildElements = (deps: boolean) =>
   ids.map((id) =>
     deps ? withKey(id, Leaf({ id }), [id]) : withKey(id, Leaf({ id })),
@@ -51,12 +50,13 @@ type Host = {
   unmount: () => void;
 };
 
-const make = (deps: boolean): Host => {
+const make = (deps: boolean, rebuildElements = false): Host => {
   let setTick!: (n: number) => void;
+  const elements = buildElements(deps);
   function List() {
     const [, set] = useState(0);
     setTick = set;
-    useResources(buildElements(deps));
+    useResources(rebuildElements ? buildElements(deps) : elements);
     return null;
   }
   const root = createRoot(document.createElement("div"));
@@ -107,7 +107,7 @@ describe(`useResources: rebuild elements array, ${N} children x ${K} hooks`, () 
         name,
         {
           beforeAll: () => {
-            host = make(deps);
+            host = make(deps, true);
           },
           afterAll: () => host.unmount(),
         },

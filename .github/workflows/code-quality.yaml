@@ -20,6 +20,8 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-distribution-barrels.mjs"
       - "scripts/check-distribution-barrels.test.mjs"
+      - "scripts/check-experimental.mjs"
+      - "scripts/check-experimental.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/source-mapped-tsconfigs.test.mjs"
@@ -256,6 +258,10 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:check
 
+      - name: Check experimental API annotations
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run experimental:check
+
       - name: Check built declarations
         if: steps.package_build_inputs.outputs.run == 'true'
         run: |
@@ -274,6 +280,10 @@ jobs:
       - name: Test the distribution barrel checker
         if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:test
+
+      - name: Test the experimental annotation checker
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run experimental:test
 
       - name: Test the deploy examples planner
         if: steps.package_build_inputs.outputs.run == 'true'

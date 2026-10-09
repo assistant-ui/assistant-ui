@@ -22,7 +22,7 @@ import {
   applyA2uiOperations,
   surfaceToPresentToolCall,
   type A2uiState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,

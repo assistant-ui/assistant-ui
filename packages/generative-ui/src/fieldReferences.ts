@@ -40,6 +40,7 @@ export const resolveFieldReferences = (
 ): unknown => {
   const ancestors = new Set<object>();
   const resolve = (entry: unknown, depth: number): unknown => {
+    if (depth > MAX_DEPTH) return entry;
     if (isFieldReference(entry)) {
       const current = Object.hasOwn(fields, entry.$field)
         ? fields[entry.$field]
@@ -47,12 +48,7 @@ export const resolveFieldReferences = (
       if (current !== undefined) return current;
       return Object.hasOwn(entry, "fallback") ? entry.fallback : undefined;
     }
-    if (
-      typeof entry !== "object" ||
-      entry === null ||
-      depth > MAX_DEPTH ||
-      ancestors.has(entry)
-    ) {
+    if (typeof entry !== "object" || entry === null || ancestors.has(entry)) {
       return entry;
     }
     ancestors.add(entry);

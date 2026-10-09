@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import type {
   McpAppMetadata,
   TextMessagePart,
@@ -204,7 +198,7 @@ function InlineRenderer({
   const opts = resolvePartOptions(rendererOptions, part);
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (app != null) cachedAppRef.current = app;
   }, [app]);
   const appForRender = app ?? cachedAppRef.current;
