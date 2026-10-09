@@ -172,6 +172,7 @@ export const createCloudThreadListAdapter = (
     return inMemory;
   }
 
+  /** @deprecated Experimental since 2026-08-18. Not scheduled for removal; the API may change in any release. */
   const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
     const cloudRef = useRef(cloud);
     const [scopeRef] = useState(() =>

@@ -59,6 +59,7 @@ type ThreadMessageLikePart =
       readonly mcp?: ToolCallMessagePartMcpMetadata;
       readonly providerMetadata?: PartProviderMetadata;
       readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+      /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
       readonly unstable_interactions?: Unstable_ToolInteractionLog;
     };
 
@@ -75,10 +76,13 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
+        /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
         readonly unstable_state?: ReadonlyJSONValue | undefined;
+        /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
         readonly unstable_annotations?:
           | readonly ReadonlyJSONValue[]
           | undefined;
+        /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
@@ -110,7 +114,7 @@ const convertDataPrefixedPart = (
 };
 
 /**
- * @deprecated This API is experimental and may change without notice.
+ * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.
  */
 export const fromThreadMessageLike = (
   like: ThreadMessageLike,

@@ -1268,6 +1268,7 @@ export abstract class BaseComposerRuntimeCore
     notifyEventListeners(subscribers, payload, `Composer runtime "${event}"`);
   }
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   public unstable_on<E extends ComposerRuntimeEventType>(
     event: E,
     callback: ComposerRuntimeEventCallback<E>,

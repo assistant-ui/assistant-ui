@@ -105,6 +105,7 @@ type CoreToolCallPart = Extract<
 type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
   result?: unknown;
   isError?: boolean | undefined;
+  /** @deprecated Experimental since 2026-03-08. Not scheduled for removal; the API may change in any release. */
   unstable_toolMessageId?: string;
 };
 

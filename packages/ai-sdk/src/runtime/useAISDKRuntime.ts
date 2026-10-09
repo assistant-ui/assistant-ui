@@ -115,12 +115,15 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
         })
       | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
+    /** @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release. */
     unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
      * The object a host answer belongs to, normally the `Chat` the runtime
      * renders. A host answer never reaches the `useChat` messages, so without
      * an owner it lives only as long as this runtime. With an owner, it
      * survives runtime remounts over the same chat.
+     *
+     * @deprecated Experimental since 2026-09-29. Not scheduled for removal; the API may change in any release.
      */
     unstable_hostApprovalOwner?: object | undefined;
     /**
@@ -184,7 +187,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * Called after an explicit `switchToBranch` (for example a BranchPicker
      * click). Complements `setMessages` and does not enable switching by itself.
      *
-     * @deprecated This API is still under active development and might change without notice.
+     * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
      */
     unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
   };

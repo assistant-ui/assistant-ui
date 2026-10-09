@@ -86,6 +86,13 @@ const useMessagePartsGrouped = (
   return { groups, partKeys: getMessagePartKeys(parts) };
 };
 
+/**
+ * @deprecated Prefer `<MessagePrimitive.GroupedParts>` for adjacent
+ * grouping — it dispatches all rendering through one `switch (part.type)`
+ * and supports nested group paths. Keep this primitive only for
+ * non-adjacent clustering (e.g., gathering parts with the same parent-id
+ * across the message).
+ */
 export namespace MessagePrimitiveUnstable_PartsGrouped {
   export type Props = {
     /**

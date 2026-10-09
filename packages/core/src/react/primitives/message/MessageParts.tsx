@@ -327,6 +327,8 @@ export namespace MessagePrimitiveParts {
          * When enabled, shows the Empty component if the last part in the message
          * is anything other than Text or Reasoning.
          *
+         * @deprecated Experimental since 2026-01-26. Not scheduled for removal; the API may change in any release.
+         *
          * @experimental This API is experimental and may change in future versions.
          * @default true
          */
@@ -337,6 +339,7 @@ export namespace MessagePrimitiveParts {
         /** Render function called for each part. Receives the enriched part state. */
         children: (value: { part: EnrichedPartState }) => ReactNode;
         components?: never;
+        /** @deprecated Experimental since 2026-01-26. Not scheduled for removal; the API may change in any release. */
         unstable_showEmptyOnNonTextEnd?: never;
       };
 }
@@ -419,6 +422,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const addResult = aui.part.addToolResult;
     const resume = aui.part.resumeToolCall;
     const respondToApproval = aui.part.respondToToolApproval;
+    /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
     const unstable_recordInteraction = aui.part.unstable_recordInteraction;
     if ("Override" in tools)
       return (
@@ -631,6 +635,7 @@ const RegisteredToolUI: FC = () => {
   const Render = useAuiState((s) =>
     s.part.type === "tool-call" ? resolveToolRender(s.tools, s.part) : null,
   );
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   const unstable_recordInteraction = aui.part.unstable_recordInteraction;
 
   if (!Render || part.type !== "tool-call") return null;
@@ -710,6 +715,7 @@ export type EnrichedPartState =
       resume: ToolCallMessagePartProps["resume"];
       /** Respond to a server-side tool approval gate. */
       respondToApproval: ToolCallMessagePartProps["respondToApproval"];
+      /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
       unstable_recordInteraction?:
         | ToolCallMessagePartProps["unstable_recordInteraction"]
         | undefined;
@@ -857,6 +863,7 @@ MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
 
 const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
+  /** @deprecated Experimental since 2026-01-26. Not scheduled for removal; the API may change in any release. */
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);

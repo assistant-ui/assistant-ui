@@ -9,7 +9,10 @@ export type {
 } from "./overrides/types";
 
 export { useIsMarkdownCodeBlock } from "./overrides/PreOverride";
-export { memoizeMarkdownComponents as unstable_memoizeMarkdownComponents } from "./memoization";
+export {
+  /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
+  memoizeMarkdownComponents as unstable_memoizeMarkdownComponents,
+} from "./memoization";
 
 export {
   rewriteLatexBracketDelimiters,
