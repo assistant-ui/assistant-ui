@@ -36,7 +36,7 @@ import {
   useCustomServersSection,
   useServerActionFocus,
   useServerAnnouncement,
-} from "@/components/assistant-ui/utils/mcp-config-state";
+} from "../utils/mcp-config-state";
 import { cn } from "@/lib/utils";
 
 const inputClassName =
