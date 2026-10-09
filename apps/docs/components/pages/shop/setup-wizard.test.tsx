@@ -1219,6 +1219,48 @@ describe("SetupWizard", () => {
     expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
+  it("waits for the cancel through a brief reconnect that has not outlasted the grace", async () => {
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    let deliver = () => {};
+    cancel.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        deliver = resolve;
+      }),
+    );
+    render(
+      <SetupWizard
+        checkout={{
+          ...context(connected({ status: "planning" }), true, true),
+          connection: {
+            status: "retrying",
+            degraded: false,
+            attempt: 1,
+            reconnect: () => {},
+          },
+        }}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(cancel).toHaveBeenCalled());
+    expect(abandonCheckout).not.toHaveBeenCalled();
+    deliver();
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+  });
+
+  it("ends the setup locally when the connection drops while the cancel is pending", async () => {
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    cancel.mockReturnValueOnce(new Promise<never>(() => {}));
+    const checkout = context(connected({ status: "planning" }), true, true);
+    const { rerender } = render(<SetupWizard checkout={checkout} />);
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(cancel).toHaveBeenCalled());
+    expect(abandonCheckout).not.toHaveBeenCalled();
+    rerender(<SetupWizard checkout={{ ...checkout, degraded: true }} />);
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+  });
+
   it("asks before ending the setup on Escape, unless the key was pressed inside a dialog", async () => {
     render(
       <SetupWizard
