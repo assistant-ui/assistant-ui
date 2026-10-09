@@ -93,14 +93,65 @@ def test_data_stream_encoder_file_frame() -> None:
     assert encoded == 'k:{"data": "aGVsbG8=", "mimeType": "image/png"}\n'
 
 
-def test_data_stream_encoder_file_frame_has_no_parent_id_field() -> None:
+def test_data_stream_encoder_file_frame_carries_parent_id() -> None:
     encoder = DataStreamEncoder()
 
     encoded = encoder.encode_chunk(
         FileChunk(data="x", mime_type="text/plain", parent_id="p1")
     )
 
-    assert encoded == 'k:{"data": "x", "mimeType": "text/plain"}\n'
+    assert encoded == 'k:{"data": "x", "mimeType": "text/plain", "parentId": "p1"}\n'
+
+
+@pytest.mark.parametrize(
+    ("code", "severity", "expected"),
+    [
+        (None, None, "failed"),
+        ("rate_limit", None, {"error": "failed", "code": "rate_limit"}),
+        (None, "warning", {"error": "failed", "severity": "warning"}),
+        ("rate_limit", "critical", {"error": "failed", "code": "rate_limit", "severity": "critical"}),
+    ],
+)
+def test_data_stream_encoder_error_metadata(code, severity, expected) -> None:
+    encoded = DataStreamEncoder().encode_chunk(
+        ErrorChunk(error="failed", code=code, severity=severity)
+    )
+
+    assert encoded.startswith("3:")
+    assert json.loads(encoded[2:]) == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("severity", ["warning", "info"])
+async def test_data_stream_encoder_keeps_tool_args_open_across_noncritical_error(severity) -> None:
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": ')
+        yield ErrorChunk(error="slow", severity=severity)
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='1}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+
+    frames = [line async for line in DataStreamEncoder().encode_stream(stream())]
+
+    assert [json.loads(line[2:]) for line in frames if line.startswith("c:")] == [
+        {"toolCallId": "t1", "argsTextDelta": '{"q": '},
+        {"toolCallId": "t1", "argsTextDelta": "1}"},
+        {"toolCallId": "t1", "argsTextDelta": "", "isFinal": True},
+    ]
+    assert json.loads(frames[2][2:]) == {"error": "slow", "severity": severity}
+
+
+def test_data_stream_encoder_tool_result_carries_nested_messages() -> None:
+    messages = [{"role": "assistant", "content": [{"type": "text", "text": "done"}]}]
+    encoded = DataStreamEncoder().encode_chunk(
+        ToolResultChunk(tool_call_id="t1", result="ok", messages=messages)
+    )
+
+    assert json.loads(encoded[2:]) == {
+        "toolCallId": "t1",
+        "result": "ok",
+        "messages": messages,
+    }
 
 
 @pytest.mark.anyio
@@ -288,6 +339,10 @@ async def test_data_stream_encoder_defaults_empty_tool_args() -> None:
             '"isContinued": false}\n',
         ),
         (ErrorChunk(error="failed"), '3:"failed"\n'),
+        (
+            ErrorChunk(error="failed", severity="critical"),
+            '3:{"error": "failed", "severity": "critical"}\n',
+        ),
     ],
 )
 async def test_data_stream_encoder_finishes_args_before_boundaries(
