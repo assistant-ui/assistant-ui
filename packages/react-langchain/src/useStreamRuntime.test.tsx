@@ -1165,7 +1165,6 @@ describe("useStreamRuntime fork ownership", () => {
       message("u1", "human", "original"),
       message("a1", "ai", "partial reply"),
     ]);
-    stream.isLoading = true;
     stream.stop.mockImplementation(() => {
       stream.isLoading = false;
     });
@@ -1197,6 +1196,11 @@ describe("useStreamRuntime fork ownership", () => {
     });
     expect(stream.submit).not.toHaveBeenCalled();
     expect(runtime.result.current.thread.getState().isRunning).toBe(false);
+    expect(
+      runtime.result.current.thread
+        .getState()
+        .messages.find((m) => m.id === "a1")?.metadata,
+    ).not.toHaveProperty("timing");
     view.unmount();
     runtime.unmount();
   });

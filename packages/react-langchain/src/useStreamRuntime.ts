@@ -177,8 +177,7 @@ const useStreamThreadRuntime = (
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
-  const effectiveIsRunning =
-    stream.isLoading || forkPending || hasExecutingTools;
+  const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
   const [uiSnapshotMemo] = useState(createUISnapshotMemo);
   const uiStateValue = reconcileUISnapshot(
