@@ -158,7 +158,7 @@ function reportUnknownComponent(type: string, available: string[]): void {
   if (process.env["NODE_ENV"] !== "production") {
     // eslint-disable-next-line no-console
     console.error(
-      `[@assistant-ui/react-generative-ui] Unknown component "${type}". ` +
+      `[@assistant-ui/generative-ui] Unknown component "${type}". ` +
         `Available components: ${available.join(", ") || "(none)"}.`,
     );
   }

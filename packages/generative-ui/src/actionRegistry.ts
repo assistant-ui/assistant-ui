@@ -37,7 +37,7 @@ export function createActionRegistry(
         if (process.env["NODE_ENV"] !== "production") {
           // eslint-disable-next-line no-console
           console.warn(
-            "[@assistant-ui/react-generative-ui] Skipping malformed action; " +
+            "[@assistant-ui/generative-ui] Skipping malformed action; " +
               "`$action.type` must be a string. " +
               `Received ${formatReceivedType(action?.type)}. Update the emitted ` +
               "`$action` payload.",
@@ -52,7 +52,7 @@ export function createActionRegistry(
           const actionTypes = [...map.keys()];
           // eslint-disable-next-line no-console
           console.warn(
-            `[@assistant-ui/react-generative-ui] Action "${action.type}" has ` +
+            `[@assistant-ui/generative-ui] Action "${action.type}" has ` +
               `no registered handler. ${formatRegisteredActions(actionTypes)} ` +
               "Register it with createActionRegistry(...) or update the emitted " +
               "`$action.type`.",
