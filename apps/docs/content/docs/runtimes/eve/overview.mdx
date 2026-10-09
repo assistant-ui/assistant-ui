@@ -151,8 +151,9 @@ export default function Home() {
 
 The renderer builds on `ToolFallback.Approval`, so it inherits the option
 buttons, the free-form answer field, the confirmation step, and the settled
-receipt with the recorded answer. A withdrawn question reads as skipped, and an
-error or an output it does not recognize falls back to the raw tool result.
+receipt with the recorded answer. A withdrawn question reads as skipped, a
+failed call shows its error message, and an output it does not recognize falls
+back to the raw tool result.
 
 ## Store threads in Assistant Cloud
 
