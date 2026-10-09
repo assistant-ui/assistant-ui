@@ -97,9 +97,7 @@ describe("POST /api/playground-chat telemetry", () => {
 
     expect(fieldsIn("components")).toEqual(expectedComponents);
     expect(fieldsIn("styles")).toEqual(expectedStyles);
-    expect(system).toContain(
-      `### ${Object.keys(updateConfigSchema.shape)[2]} (string, optional)`,
-    );
+    expect(system).toContain("### customCSS (string, optional)");
   });
 
   it("reports under its own capability so it separates from the other chat routes", async () => {

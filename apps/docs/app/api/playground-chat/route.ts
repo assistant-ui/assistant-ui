@@ -24,6 +24,9 @@ const actionBarShape = componentShape.actionBar.unwrap().shape;
 const styleShape = updateConfigSchema.shape.styles.unwrap().shape;
 const colorShape = styleShape.colors.unwrap().shape;
 
+const formatEnumOptions = (options: readonly string[]) =>
+  options.map((option) => `"${option}"`).join(" | ");
+
 const promptDescriptions = {
   components: {
     attachments: "(boolean): Enable file attachments",
@@ -39,19 +42,18 @@ const promptDescriptions = {
     suggestions: "(boolean): Show suggestion chips",
     scrollToBottom: "(boolean): Show scroll-to-bottom button",
     markdown: "(boolean): Enable markdown rendering",
-    codeHighlightTheme:
-      '("none" | "github" | "vitesse" | "tokyo-night" | "one-dark-pro" | "dracula"): Code syntax highlighting theme',
+    codeHighlightTheme: `(${formatEnumOptions(componentShape.codeHighlightTheme.unwrap().options)}): Code syntax highlighting theme`,
     reasoning: "(boolean): Show AI reasoning/thinking",
     sources: "(boolean): Show source citations",
     followUpSuggestions:
       "(boolean): Show follow-up suggestions after responses",
     avatar: "(boolean): Show user/assistant avatars",
-    typingIndicator: '("none" | "dot"): Typing indicator style',
-    loadingIndicator: '("none" | "spinner" | "text"): Loading indicator style',
+    typingIndicator: `(${formatEnumOptions(componentShape.typingIndicator.unwrap().options)}): Typing indicator style`,
+    loadingIndicator: `(${formatEnumOptions(componentShape.loadingIndicator.unwrap().options)}): Loading indicator style`,
     loadingText: '(string): Text shown during loading (e.g. "Thinking...")',
   },
   styles: {
-    theme: '("light" | "dark" | "system"): Color theme',
+    theme: `(${formatEnumOptions(styleShape.theme.unwrap().options)}): Color theme`,
     colors: {
       accent: "({light: string, dark: string}): Primary accent color (hex)",
       background: "({light: string, dark: string}): Background color",
@@ -70,14 +72,13 @@ const promptDescriptions = {
       suggestionBorder:
         "({light: string, dark: string}): Suggestion chip border",
     },
-    borderRadius: '("none" | "sm" | "md" | "lg" | "full"): Corner rounding',
+    borderRadius: `(${formatEnumOptions(styleShape.borderRadius.unwrap().options)}): Corner rounding`,
     maxWidth: '(string): Max content width (e.g. "44rem", "56rem", "100%")',
     fontFamily:
       '(string): Font family (e.g. "system-ui", "Inter, sans-serif", "Georgia, serif", "ui-monospace, monospace")',
-    fontSize: '("13px" | "14px" | "15px" | "16px"): Base font size',
-    messageSpacing:
-      '("compact" | "comfortable" | "spacious"): Space between messages',
-    userMessagePosition: '("right" | "left"): User message alignment',
+    fontSize: `(${formatEnumOptions(styleShape.fontSize.unwrap().options)}): Base font size`,
+    messageSpacing: `(${formatEnumOptions(styleShape.messageSpacing.unwrap().options)}): Space between messages`,
+    userMessagePosition: `(${formatEnumOptions(styleShape.userMessagePosition.unwrap().options)}): User message alignment`,
     animations: "(boolean): Enable animations",
   },
 } satisfies {
@@ -113,7 +114,6 @@ function formatFields(
     .join("\n");
 }
 
-const sectionNames = Object.keys(updateConfigSchema.shape);
 const componentFields = formatFields(
   componentShape,
   promptDescriptions.components,
@@ -129,12 +129,12 @@ const SYSTEM_PROMPT = `You are a UI customization assistant for the assistant-ui
 
 ## BuilderConfig Schema
 
-The config has two top-level sections: "${sectionNames[0]}" and "${sectionNames[1]}".
+The config has two top-level sections: "components" and "styles".
 
-### ${sectionNames[0]}
+### components
 ${componentFields}
 
-### ${sectionNames[1]}
+### styles
 ${styleFields}
 
 ## Available Presets
@@ -151,7 +151,7 @@ When users ask for a specific look, use the matching preset's exact config value
 - "Slack": Team chat inspired collaborative interface (light, green accent #007a5a, left-aligned, compact, small border radius, no animations)
 - "Grok": xAI's Grok-inspired minimal dark interface (dark, black/white accent, full border radius, dracula code theme)
 
-### ${sectionNames[2]} (string, optional)
+### customCSS (string, optional)
 Arbitrary CSS injected into the preview. Use this for fine-grained layout/styling changes not covered by the schema above. Target these CSS classes:
 
 Thread & Viewport:

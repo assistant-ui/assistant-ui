@@ -7,8 +7,6 @@ import {
   updateConfigSchema,
 } from "./playground-config-schema";
 
-export type { PartialBuilderConfig } from "./playground-config-schema";
-
 export function createPlaygroundChatToolkit(
   onConfigUpdate: (update: PartialBuilderConfig) => void,
 ): Toolkit {
