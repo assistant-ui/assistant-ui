@@ -283,6 +283,15 @@ const elementsRegistryItems: RegistryItem[] = [
     usesElements: ["collapsible-root"],
   }),
   createElementRegistryItem({
+    slug: "run-activity",
+    title: "Run activity",
+    description:
+      "Ordered commentary and tools, with a live summary and a final answer that stays visible.",
+    file: "run-activity.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["collapsible-root"],
+  }),
+  createElementRegistryItem({
     slug: "tool-timeline",
     title: "Tool timeline",
     description:
