@@ -176,7 +176,7 @@ export const createThreadViewportAutoScroll = (input: {
   };
 
   const cancelOnKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Enter") return;
+    if (event.key !== "Enter" && !SCROLL_KEYS.has(event.key)) return;
     if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
       return;
     cancelPendingScrollToBottom();
