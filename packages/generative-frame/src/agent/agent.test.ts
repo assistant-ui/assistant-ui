@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../spec/catalog";
 import { createWidgetTools } from "../tools/tools";
+import { createSpecTools, specGuidanceModule } from "../spec/render-spec";
 import { createWidgetAgent, type WidgetSink } from "./agent";
 import { fromAISDK } from "./ai-sdk";
 import type { AgentMessage, AgentModelEvent, WidgetAgentModel } from "./model";
@@ -260,7 +261,10 @@ describe("createWidgetAgent (spec)", () => {
     const sink = fakeSink([]);
     const result = await createWidgetAgent({
       model,
-      tools: createWidgetTools({ catalog }),
+      tools: createWidgetTools({
+        extraTools: createSpecTools(catalog),
+        modules: [specGuidanceModule(catalog)],
+      }),
     }).generate({ brief: "Users", mode: "spec" }, { sink });
     expect(calls[0]!.tools).toEqual(["read_me", "render_spec"]);
     expect(calls[1]!.messages.at(-1)!.content).toContain(

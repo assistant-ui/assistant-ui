@@ -6,7 +6,7 @@ Render model-generated HTML and SVG widgets safely while they stream. Each widge
 - **Host bridge**: widgets call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. The frame speaks the MCP Apps `ui/*` JSON-RPC protocol, so MCP Apps widgets work too, and `compat: ["openai"]` adds a `window.openai` subset.
 - **Theming**: your page's theme (shadcn/ui variables or the canonical tokens) becomes CSS variables in the frame, also under the MCP Apps standard names, and updates live.
 - **Diagnostics**: errors, unhandled rejections, console output, failed resources, CSP violations, and blank renders, plus a PNG screenshot taken inside the frame.
-- **Model side**: provider-agnostic tool definitions (`read_me`, `show_widget`, `edit_widget`, `preview_widget`, `render_spec`), a deterministic guidance generator, and a repair loop.
+- **Model side**: provider-agnostic tool definitions (`read_me`, `show_widget`, `edit_widget`, `preview_widget`, and `render_spec` from the spec entries), a deterministic guidance generator, and a repair loop.
 - **Spec mode**: the model streams JSONL patches against a catalog of your own components; no frame, your design system.
 - **Delegation**: an optional sub-agent behind one `generate_widget` tool, with a provider-neutral model interface.
 - **assistant-ui**: toolkit entries that render the tool calls in a thread as their arguments stream.
@@ -16,13 +16,18 @@ Framework-agnostic; the React and assistant-ui bindings are optional.
 | Entry | Contents |
 | --- | --- |
 | `generative-frame` | `createWidget`, `previewWidget`, theme, CSP, runtime |
-| `generative-frame/react` | `<Widget>`, `useWidget`, `useThemeTokens`, `<SpecRenderer>`, `useSpecStream` |
-| `generative-frame/tools` | model tools, `toAISDKTools`, `getToolDeclarations`, `buildWidgetInstructions` |
+| `generative-frame/react` | `<Widget>`, `useWidget`, `useThemeTokens` |
+| `generative-frame/tools` | widget tools, `toAISDKTools`, `getToolDeclarations`, `buildWidgetInstructions` |
 | `generative-frame/prompts` | `buildWidgetGuidance` |
 | `generative-frame/repair` | `repairLoop` |
-| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
 | `generative-frame/agent` | `createWidgetAgent`, `fromAISDK` |
 | `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
+| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/spec/react` | `<SpecRenderer>`, `useSpecStream` |
+| `generative-frame/spec/tools` | `createSpecTools` (`render_spec`), `specGuidanceModule` |
+| `generative-frame/spec/assistant-ui` | `createSpecToolkit`, `resolveSpecBase` |
+
+The frame entries and the spec entries never import each other, so an app that only renders HTML widgets ships no spec code, and a spec-only app ships no frame, runtime, or Safe Content Frame. Combine them by passing values in, as shown under Spec mode. `src/bundle-boundary.test.ts` enforces this.
 
 ## Installation
 
@@ -153,7 +158,7 @@ const guidance = catalog.prompt({ mode: "inline" }); // or "jsonl" for render_sp
 Props are JSON Schema; a Standard Schema that exposes JSON Schema (Zod 4) works too. `catalog.prompt()` documents the components, actions, the patch protocol, expressions, and rules.
 
 ```tsx
-import { SpecRenderer, useSpecStream } from "generative-frame/react";
+import { SpecRenderer, useSpecStream } from "generative-frame/spec/react";
 
 const { spec, text } = useSpecStream({ source: modelOutput, mode: "inline", complete: !streaming });
 
@@ -170,7 +175,7 @@ const { spec, text } = useSpecStream({ source: modelOutput, mode: "inline", comp
 - **Expressions**: `{ $state: "/path" }`, `{ $bindState: "/path" }` (two-way, via `setProp`), `{ $template: "Hi ${/name}" }`, `{ $cond, $then, $else }`, and `$item`/`$bindItem`/`$index` inside `repeat`. `visible` takes conditions with `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `not`, `$and`, `$or`, and arrays (all).
 - **Actions**: `on: { press: { action, params } }` runs the built-in `setState` or a catalog action through your handlers; `watch: { "/path": action }` runs when a state value changes. User changes to state survive the model streaming more state.
 - **Validation**: `validateSpec(spec, catalog)` returns issues with codes and JSON Pointers (`unknown-type`, `invalid-props`, `missing-child`, `cycle`, `unknown-action`, …); `formatSpecIssues` turns them into repair feedback.
-- **Tool**: `createWidgetTools({ catalog })` adds `render_spec({ title, patches | spec })`, which validates and returns the issues, and a `spec` module in `read_me`. Patches on a title already rendered apply to that spec, so repairs are small.
+- **Tool**: `createSpecTools(catalog)` from `generative-frame/spec/tools` returns `render_spec({ title, patches | spec })`, which validates and returns the issues. Patches on a title already rendered apply to that spec, so repairs are small. A spec-only app puts `catalog.prompt()` in its system prompt; next to the widget tools, compose them with `createWidgetTools({ extraTools: createSpecTools(catalog), modules: [specGuidanceModule(catalog)] })`, which also adds a `spec` module to `read_me`.
 
 The format follows the flat-spec and JSONL-patch shape of Vercel's json-render, without depending on it.
 
@@ -198,13 +203,17 @@ Trade-offs: delegation keeps the main context small and lets a cheaper or specia
 
 ## assistant-ui
 
-`generative-frame/assistant-ui` needs `@assistant-ui/react` (an optional peer, imported only by this entry).
+`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries).
 
 ```tsx
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { createWidgetToolkit, useWidgetInstructions } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
 
-const widgets = createWidgetToolkit({ catalog, components, widget: { maxHeight: 700 } });
+const widgets = createWidgetToolkit({
+  widget: { maxHeight: 700 },
+  spec: createSpecToolkit(catalog, { components }), // optional, from generative-frame/spec/assistant-ui
+});
 
 function Provider({ children }) {
   const runtime = useChatRuntime();

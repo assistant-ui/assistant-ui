@@ -47,12 +47,19 @@ You can also call `agent.generate(input, { signal, sink, onEvent })` directly.
 
 Only the first `show_widget` streams. A later full re-send replaces the widget once it is complete, because a frame cannot restart a stream after its scripts ran.
 
-For spec mode, pass tools created with a catalog:
+Spec mode is available when `tools` include `render_spec`. Compose them from both halves:
 
 ```ts
+import { createWidgetAgent } from "generative-frame/agent";
+import { createWidgetTools } from "generative-frame/tools";
+import { createSpecTools, specGuidanceModule } from "generative-frame/spec/tools";
+
 const agent = createWidgetAgent({
   model,
-  tools: createWidgetTools({ catalog }),
+  tools: createWidgetTools({
+    extraTools: createSpecTools(catalog),
+    modules: [specGuidanceModule(catalog)],
+  }),
 });
 
 await agent.generate(
@@ -60,6 +67,8 @@ await agent.generate(
   { sink: { spec: (spec, { streaming }) => renderSpec(spec, streaming) } },
 );
 ```
+
+The agent streams patches through the helpers `render_spec` carries, so `generative-frame/agent` does not import the spec code. Without `render_spec`, a `mode: "spec"` request is built as HTML.
 
 ## Sinks
 
@@ -105,7 +114,7 @@ The agent runs the tools itself, so the model function must not execute them. `f
   type="CreateWidgetAgentOptions"
   parameters={[
     { name: "model", type: "WidgetAgentModel", required: true, description: "The streaming model the sub-agent uses." },
-    { name: "tools", type: "WidgetTools & Partial<SpecTools>", default: "createWidgetTools()", description: "The widget tools the sub-agent calls. Pass `createWidgetTools({ catalog })` to enable spec mode, and share them with the host to edit results later." },
+    { name: "tools", type: "WidgetTools & Partial<SpecTools>", default: "createWidgetTools()", description: "The widget tools the sub-agent calls. Spec mode is available when they include `render_spec`. Share them with the host to edit results later." },
     { name: "extraTools", type: "Record<string, ToolDefinition>", description: "Extra tools the sub-agent may call, for example to look up data." },
     { name: "maxRounds", type: "number", default: "3", description: "Renders allowed per generation, including the first." },
     { name: "maxSteps", type: "number", default: "8", description: "Model calls allowed per generation." },

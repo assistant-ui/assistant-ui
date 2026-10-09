@@ -24,7 +24,19 @@ const tools = createWidgetTools({ preview: previewWidget });
 // { read_me, show_widget, edit_widget, preview_widget }
 ```
 
-Passing a `catalog` from [spec mode](/generative-frame/docs/spec-mode) adds `render_spec` and a `spec` module to `read_me`.
+`extraTools` adds tools to the returned object as they are, and `modules` adds modules to `read_me`. [Spec mode](/generative-frame/docs/spec-mode) uses both to add `render_spec`:
+
+```ts
+import { previewWidget } from "generative-frame";
+import { createWidgetTools } from "generative-frame/tools";
+import { createSpecTools, specGuidanceModule } from "generative-frame/spec/tools";
+
+const tools = createWidgetTools({
+  preview: previewWidget,
+  extraTools: createSpecTools(catalog),
+  modules: [specGuidanceModule(catalog)],
+});
+```
 
 <ParametersTable
   type="CreateWidgetToolsOptions"
@@ -46,19 +58,14 @@ Passing a `catalog` from [spec mode](/generative-frame/docs/spec-mode) adds `ren
       description: "Renders code offscreen for `preview_widget`, typically `previewWidget` from the core entry. Without it, `preview_widget` returns an error result.",
     },
     {
-      name: "catalog",
-      type: "Catalog",
-      description: "Enables `render_spec` and the `spec` module of `read_me`.",
+      name: "modules",
+      type: "GuidanceModule[]",
+      description: "Extra `read_me` modules, each `{ name, summary, guidance() }`, such as `specGuidanceModule(catalog)`.",
     },
     {
-      name: "specPrompt",
-      type: "Omit<SpecPromptOptions, \"mode\">",
-      description: "Options for the catalog guidance returned for the `spec` module (`customRules`, `omitExample`).",
-    },
-    {
-      name: "specs",
-      type: "Map<string, { spec: Spec; version: number }>",
-      description: "Latest spec per title, shared with the host so it can render them.",
+      name: "extraTools",
+      type: "Record<string, ToolDefinition>",
+      description: "Tools merged into the returned object, such as `createSpecTools(catalog)`.",
     },
   ]}
 />
@@ -69,7 +76,7 @@ Returns the rules for writing widgets plus guidance for the requested modules. T
 
 | Input | Type | Notes |
 | --- | --- | --- |
-| `modules` | `string[]` | Any of `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`, and `spec` with a catalog. |
+| `modules` | `string[]` | Any of `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`, plus the names of modules passed in `modules`, such as `spec`. |
 | `platform` | `"desktop" \| "mobile"` | Defaults to `desktop`. |
 
 The result is a string.
@@ -113,7 +120,7 @@ The result is a `PreviewResult`: `{ ok, kind, width, height, blank, errors, cons
 
 ## `render_spec`
 
-Available with a `catalog`. Validates and records a spec built from your components.
+`createSpecTools(catalog, { specs? })` from `generative-frame/spec/tools` returns `{ render_spec }`. It validates and records a spec built from your components. Pass `specs`, a `Map<string, { spec, version }>`, to share the latest spec per title with the host. The description tells the model to follow the spec guidance it was given, either the `spec` module of `read_me` or the system prompt.
 
 | Input | Type | Notes |
 | --- | --- | --- |
@@ -121,7 +128,7 @@ Available with a `catalog`. Validates and records a spec built from your compone
 | `patches` | `string` | JSONL patch operations, one per line. Applied onto the title's previous spec, if there is one. |
 | `spec` | `object` | A complete spec, replacing the previous one. |
 
-Result: `{ ok, title, version, elementCount, issues, feedback }`. `issues` come from [`validateSpec`](/generative-frame/docs/spec-mode#validation) plus one `invalid-patch` issue per skipped line, and `feedback` is the same list as text for a repair round.
+Result: `{ ok, title, version, elementCount, issues, feedback }`. `issues` come from [`validateSpec`](/generative-frame/docs/spec-mode#validation) plus one `invalid-patch` issue per skipped line, and `feedback` is the same list as text for a repair round. The tool also carries `streaming.create(initial?)` and `streaming.parse(text, initial?)`, which the [widget agent](/generative-frame/docs/agent) uses to stream patches without importing the spec code itself.
 
 ## Use them with a provider
 
@@ -142,6 +149,8 @@ const result = streamText({
 For any other provider, map `name`, `description`, `inputSchema`, and `execute` yourself.
 
 `getToolDeclarations(tools)` returns each tool's `description` and `inputSchema` without `execute`, for declaring tools to a model where they do not run, such as a server that forwards calls to tools executing in the browser.
+
+`generative-frame/spec/tools` exports `toAISDKTools` and `getToolDeclarations` too, so a spec-only app does not import the widget tools.
 
 ## System prompt section
 

@@ -219,6 +219,10 @@ type CatalogDefinition<TComponents extends Record<string, ComponentDefinition> =
   actions?: TActions;
 };
 
+type ClearStorageResult = {
+  cleared: string[];
+};
+
 type ClientError<E extends string> = {
   methods: Record<E, () => E>;
   meta: {
@@ -305,6 +309,13 @@ type CreateSpecStreamOptions = {
   initial?: Spec;
 };
 
+type CreateSpecToolsOptions = {
+  specs?: Map<string, {
+    spec: Spec;
+    version: number;
+  }>;
+};
+
 type CreateWidgetAgentOptions = {
   model: WidgetAgentModel;
   tools?: WidgetTools & Partial<SpecTools>;
@@ -325,6 +336,7 @@ type CreateWidgetOptions = WidgetHandlers & {
   container: HTMLElement;
   product?: string;
   frame?: SafeContentFrame;
+  id?: string;
   csp?: CspOptions | string;
   tokens?: ThemeTokens;
   context?: HostContext;
@@ -344,12 +356,7 @@ type CreateWidgetToolsOptions = {
     width?: number;
     appearance?: ColorScheme;
   }) => Promise<PreviewResult>;
-  catalog?: Catalog;
-  specPrompt?: Omit<SpecPromptOptions, "mode">;
-  specs?: Map<string, {
-    spec: Spec;
-    version: number;
-  }>;
+  modules?: readonly GuidanceModule[];
 };
 
 type CspOptions = {
@@ -521,6 +528,12 @@ type GenerativeUISpec = {
   readonly root: GenerativeUINode | readonly GenerativeUINode[];
 };
 
+type GuidanceModule = {
+  name: string;
+  summary: string;
+  guidance(): string;
+};
+
 type GuidanceOptions = {
   modules?: readonly WidgetModule[];
   platform?: Platform;
@@ -630,6 +643,7 @@ declare const METHODS: {
   readonly replace: "genframe/replace";
   readonly screenshot: "genframe/screenshot";
   readonly inspect: "genframe/inspect";
+  readonly clearStorage: "genframe/clear-storage";
   readonly hostContextChanged: "ui/notifications/host-context-changed";
   readonly toolInputPartial: "ui/notifications/tool-input-partial";
   readonly toolInput: "ui/notifications/tool-input";
@@ -786,7 +800,7 @@ type PatchOperation = {
 
 type Platform = "desktop" | "mobile";
 
-type PreviewOptions = Pick<CreateWidgetOptions, "compat" | "csp" | "css" | "frame" | "product" | "readyTimeoutMs"> & {
+type PreviewOptions = Pick<CreateWidgetOptions, "compat" | "csp" | "css" | "frame" | "id" | "product" | "readyTimeoutMs"> & {
   width?: number;
   appearance?: ColorScheme;
   tokens?: CreateWidgetOptions["tokens"];
@@ -843,7 +857,7 @@ type ReadMeInput = {
   platform?: Platform;
 };
 
-type ReadMeModule = WidgetModule | "spec";
+type ReadMeModule = WidgetModule | (string & {});
 
 type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
 
@@ -872,6 +886,11 @@ type RenderReport = {
   screenshot?: string;
 };
 
+type RenderReportOptions = {
+  timeoutMs?: number;
+  settleMs?: number;
+};
+
 type RenderSpecInput = {
   title: string;
   patches?: string;
@@ -885,6 +904,10 @@ type RenderSpecResult = {
   elementCount: number;
   issues: SpecIssue[];
   feedback: string;
+};
+
+type RenderSpecTool = ToolDefinition$1<RenderSpecInput, RenderSpecResult> & {
+  streaming: SpecStreaming;
 };
 
 interface RenderedFrame {
@@ -1105,7 +1128,7 @@ type SpecPlaceholderProps = {
 };
 
 type SpecPromptOptions = {
-  mode?: "inline" | "standalone";
+  mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
 };
@@ -1164,8 +1187,25 @@ type SpecStreamUpdate = {
   errors: SpecStreamError[];
 };
 
+type SpecStreaming = {
+  create(initial?: Spec): SpecStream;
+  parse(text: string, initial?: Spec): Spec;
+};
+
+type SpecToolkitOptions = {
+  components: SpecComponents;
+  handlers?: Record<string, ActionHandler>;
+  onAction?: (name: string, params: Record<string, unknown>, context: {
+    elementId?: string;
+    trigger?: string;
+    state: SpecStateStore;
+  }) => unknown;
+  placeholder?: ComponentType<SpecPlaceholderProps>;
+  specPrompt?: Omit<SpecPromptOptions, "mode">;
+};
+
 type SpecTools = {
-  render_spec: ToolDefinition$1<RenderSpecInput, RenderSpecResult>;
+  render_spec: RenderSpecTool;
 };
 
 type SpecValidation = {
@@ -1255,6 +1295,10 @@ type TextMessagePart = {
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
+};
+
+type ThemeObserveOptions = {
+  observeBodyStyle?: boolean;
 };
 
 type ThemeTokenInfo = {
@@ -1576,6 +1620,10 @@ type ToolWithoutType<TArgs extends Record<string, unknown> = Record<string, unkn
 
 type Toolkit = Record<string, ToolDefinition<any, any>>;
 
+type ToolkitDisplay = "inline" | "standalone";
+
+type ToolkitExecution = "backend" | "frontend";
+
 type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
 
 type TypeAtPath<T, P extends readonly any[]> = P extends [
@@ -1833,6 +1881,19 @@ type WidgetRegistry = {
   subscribe(listener: (record: WidgetRecord) => void): () => void;
 };
 
+type WidgetRenderReport = {
+  status: "rendered";
+  ok: boolean;
+  blank: boolean;
+  height: number;
+  errors: WidgetError[];
+  console: ConsoleEntry[];
+  feedback: string;
+} | {
+  status: "timeout";
+  feedback: string;
+};
+
 type WidgetSink = {
   write?(chunk: string): void;
   end?(): Promise<unknown>;
@@ -1850,24 +1911,32 @@ type WidgetSize = {
 
 type WidgetToolkit = {
   toolkit: Toolkit;
-  tools: WidgetTools & Partial<SpecTools>;
+  tools: WidgetTools & Record<string, AnyTool>;
   registry: WidgetRegistry;
 };
 
-type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry" | "specs"> & {
+type WidgetToolkitExtension = {
+  tools: Record<string, AnyTool>;
+  modules?: readonly GuidanceModule[];
+  entries(context: {
+    execution: ToolkitExecution;
+    display: ToolkitDisplay;
+  }): Record<string, unknown>;
+};
+
+type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry"> & {
   registry?: WidgetRegistry;
   execution?: "backend" | "frontend";
   widget?: Omit<UseWidgetOptions, "tokens">;
-  components?: SpecComponents;
-  handlers?: Record<string, ActionHandler>;
-  onAction?: (name: string, params: Record<string, unknown>, context: {
-    elementId?: string;
-    trigger?: string;
-    state: SpecStateStore;
-  }) => unknown;
-  placeholder?: ComponentType<SpecPlaceholderProps>;
+  spec?: WidgetToolkitExtension;
+  extraTools?: Record<string, AnyTool>;
   themeElement?: Element | null;
-  display?: "inline" | "standalone";
+  display?: ToolkitDisplay;
+  renderReport?: RenderReportOptions | false;
+  previewScreenshot?: boolean;
+  widgetId?: false | ((call: {
+    toolCallId: string;
+  }) => string);
 };
 
 type WidgetTools = {
@@ -1915,7 +1984,11 @@ declare function applyPatchOperation<T>(doc: T, operation: PatchOperation, optio
 declare function applyWidgetEdits(code: string, edits: readonly WidgetEdit[]): ApplyEditsResult;
 
 declare namespace entry_assistant_ui_exports {
-  export { ASSISTANT_UI_TOKEN_SOURCES, MessageLike, WidgetToolkit, WidgetToolkitOptions, createWidgetToolkit, resolveSpecBase, resolveWidgetCode, useAssistantUiThemeTokens, useWidgetInstructions };
+  export { ASSISTANT_UI_TOKEN_SOURCES, MessageLike, RenderReportOptions, ToolkitDisplay, ToolkitExecution, WidgetRenderReport, WidgetToolkit, WidgetToolkitExtension, WidgetToolkitOptions, createWidgetToolkit, resolveWidgetCode, resolveWidgetOrigin, useAssistantUiThemeTokens, useWidgetInstructions };
+}
+
+declare namespace entry_spec_assistant_ui_exports {
+  export { SpecToolkitOptions, createSpecToolkit, resolveSpecBase };
 }
 
 declare function buildBootstrapHtml(options: BootstrapOptions): string;
@@ -1935,7 +2008,7 @@ declare function buildSpecPrompt(catalog: Catalog, options?: SpecPromptOptions):
 
 declare function buildWidgetGuidance(options?: GuidanceOptions): string;
 
-declare function buildWidgetInstructions(tools: WidgetTools & Partial<SpecTools>, options?: WidgetInstructionsOptions): Promise<string>;
+declare function buildWidgetInstructions(tools: WidgetTools & Record<string, AnyTool>, options?: WidgetInstructionsOptions): Promise<string>;
 
 declare function checkPatchOperation(value: unknown): {
   ok: true;
@@ -1945,11 +2018,17 @@ declare function checkPatchOperation(value: unknown): {
   error: string;
 };
 
+declare function clearWidgetStorage(id: string, options?: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs">): Promise<ClearStorageResult>;
+
 declare function createActionDispatcher(options: ActionDispatcherOptions): ActionDispatcher;
 
 declare function createRpcPeer(endpoint: RpcEndpoint, handlers?: RpcHandlers): RpcPeer;
 
 declare function createSpecStream(options?: CreateSpecStreamOptions): SpecStream;
+
+declare function createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension;
+
+declare function createSpecTools(catalog: Catalog, options?: CreateSpecToolsOptions): SpecTools;
 
 declare function createStateStore(initial?: Record<string, unknown>): SpecStateStore;
 
@@ -1964,11 +2043,9 @@ declare function createWidgetRegistry(initial?: Iterable<{
 
 declare function createWidgetToolkit(options?: WidgetToolkitOptions): WidgetToolkit;
 
-declare function createWidgetTools(options: CreateWidgetToolsOptions & {
-  catalog: Catalog;
-}): WidgetTools & SpecTools;
-
-declare function createWidgetTools(options?: CreateWidgetToolsOptions): WidgetTools;
+declare function createWidgetTools<Extra extends Record<string, AnyTool> = Record<never, never>>(options?: CreateWidgetToolsOptions & {
+  extraTools?: Extra;
+}): WidgetTools & Extra;
 
 declare const defaultThemeTokens: (scheme: ColorScheme) => ThemeTokens;
 
@@ -2013,7 +2090,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { BootstrapOptions, ColorScheme, Compat, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_FONT_ORIGINS, DEFAULT_FONT_STYLE_ORIGINS, DEFAULT_LIGHT_TOKENS, DEFAULT_TOKEN_SOURCES, DisplayMode, EndResult, FrameInspection, GENFRAME_PROTOCOL_VERSION, HostContext, METHODS, PreviewOptions, PreviewResult, RPC_ERROR, RpcEndpoint, RpcError, RpcHandlers, RpcPeer, Screenshot, ScreenshotOptions, THEME_TOKENS, ThemeTokenInfo, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildBootstrapHtml, buildCsp, createRpcPeer, createWidget, defaultThemeTokens, detectColorScheme, detectWidgetKind, previewWidget, readThemeTokens, runtimeSource as runtime, themeContext, themeVariables, toMcpAppsVariables };
+  export { BootstrapOptions, ClearStorageResult, ColorScheme, Compat, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_FONT_ORIGINS, DEFAULT_FONT_STYLE_ORIGINS, DEFAULT_LIGHT_TOKENS, DEFAULT_TOKEN_SOURCES, DisplayMode, EndResult, FrameInspection, GENFRAME_PROTOCOL_VERSION, HostContext, METHODS, PreviewOptions, PreviewResult, RPC_ERROR, RpcEndpoint, RpcError, RpcHandlers, RpcPeer, Screenshot, ScreenshotOptions, THEME_TOKENS, ThemeTokenInfo, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildBootstrapHtml, buildCsp, clearWidgetStorage, createRpcPeer, createWidget, defaultThemeTokens, detectColorScheme, detectWidgetKind, previewWidget, readThemeTokens, runtimeSource as runtime, themeContext, themeVariables, toMcpAppsVariables, widgetStorageSalt };
 }
 
 declare const isExpression: (value: unknown) => value is Record<string, unknown>;
@@ -2039,7 +2116,11 @@ declare namespace entry_prompts_exports {
 }
 
 declare namespace entry_react_exports {
-  export { CodeUpdate, SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer, SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, UseWidgetOptions, UseWidgetResult, Widget, WidgetProps, planCodeUpdate, syncWidgetCode, useSpecStream, useThemeTokens, useWidget };
+  export { CodeUpdate, ThemeObserveOptions, UseWidgetOptions, UseWidgetResult, Widget, WidgetProps, planCodeUpdate, syncWidgetCode, useThemeTokens, useWidget };
+}
+
+declare namespace entry_spec_react_exports {
+  export { SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer, SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecStream };
 }
 
 declare function readThemeTokens(element?: Element, sources?: ThemeTokenSources): ThemeTokens;
@@ -2060,7 +2141,11 @@ declare function resolveValue(value: unknown, ctx: ExpressionContext): unknown;
 
 declare function resolveWidgetCode(messages: readonly MessageLike[], toolCallId: string): string | undefined;
 
+declare function resolveWidgetOrigin(messages: readonly MessageLike[], toolCallId: string): string | undefined;
+
 declare const runtimeSource: string;
+
+declare function specGuidanceModule(catalog: Catalog, options?: Omit<SpecPromptOptions, "mode">): GuidanceModule;
 
 declare namespace entry_spec_exports {
   export { ActionBinding, ActionDefinition, ActionDispatcher, ActionDispatcherOptions, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, ExpressionContext, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, ResolvedProps, SET_STATE_ACTION, SchemaIssue, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, ValidateSpecOptions, applyPatch, applyPatchOperation, buildSpecPrompt, checkPatchOperation, createActionDispatcher, createSpecStream, createStateStore, defineCatalog, describeSchema, emptySpec, escapePointerToken, evaluateCondition, formatSpecIssues, getAtPointer, isExpression, itemPointer, joinPointer, parsePointer, parseSpecStream, renderTemplate, resolveProps, resolveValue, validateJsonSchema, validateSchema, validateSpec };
@@ -2084,19 +2169,23 @@ declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: 
 
 declare function toMcpAppsVariables(tokens: ThemeTokens): Record<string, string>;
 
+declare namespace entry_spec_tools_exports {
+  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SpecStreaming, SpecTools, ToolDefinition$1 as ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
+}
+
 declare namespace entry_tools_exports {
-  export { ApplyEditsResult, CreateWidgetToolsOptions, EditWidgetInput, EditWidgetResult, JsonSchema, PreviewWidgetInput, ReadMeInput, ReadMeModule, RenderSpecInput, RenderSpecResult, ShowWidgetInput, ShowWidgetResult, SpecTools, ToolDefinition$1 as ToolDefinition, WidgetEdit, WidgetInstructionsOptions, WidgetRecord, WidgetRegistry, WidgetTools, applyWidgetEdits, buildWidgetInstructions, createWidgetRegistry, createWidgetTools, getToolDeclarations, toAISDKTools };
+  export { AnyTool, ApplyEditsResult, CreateWidgetToolsOptions, EditWidgetInput, EditWidgetResult, GuidanceModule, JsonSchema, PreviewWidgetInput, ReadMeInput, ReadMeModule, ShowWidgetInput, ShowWidgetResult, ToolDefinition$1 as ToolDefinition, WidgetEdit, WidgetInstructionsOptions, WidgetRecord, WidgetRegistry, WidgetTools, applyWidgetEdits, buildWidgetInstructions, createWidgetRegistry, createWidgetTools, getToolDeclarations, toAISDKTools };
 }
 
 declare function useAssistantUiThemeTokens(element?: Element | null): ThemeTokens;
 
 declare function useSpecStream(options?: UseSpecStreamOptions): UseSpecStreamResult;
 
-declare function useThemeTokens(element?: Element | null, sources?: ThemeTokenSources): ThemeTokens;
+declare function useThemeTokens(element?: Element | null, sources?: ThemeTokenSources, options?: ThemeObserveOptions): ThemeTokens;
 
 declare function useWidget(options?: UseWidgetOptions): UseWidgetResult;
 
-declare function useWidgetInstructions(tools: WidgetTools & Partial<SpecTools>, options?: WidgetInstructionsOptions): void;
+declare function useWidgetInstructions(tools: WidgetTools & Record<string, AnyTool>, options?: WidgetInstructionsOptions): void;
 
 declare function validateJsonSchema(schema: JsonSchema, value: unknown, options?: ValidateOptions, path?: string): SchemaIssue[];
 
@@ -2104,4 +2193,6 @@ declare function validateSchema(schema: JsonSchema | StandardSchemaLike, value: 
 
 declare function validateSpec(spec: Spec, catalog: Catalog, options?: ValidateSpecOptions): SpecValidation;
 
-export { entry_agent_exports as entry_agent, entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_tools_exports as entry_tools };
+declare const widgetStorageSalt: (id: string) => string;
+
+export { entry_agent_exports as entry_agent, entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_tools_exports as entry_tools };

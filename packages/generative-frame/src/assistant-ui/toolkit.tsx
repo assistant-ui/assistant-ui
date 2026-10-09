@@ -10,15 +10,6 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { previewWidget } from "../preview";
 import type { ConsoleEntry, WidgetError } from "../protocol";
 import { buildRepairFeedback } from "../repair/repair";
-import type { ActionHandler } from "../spec/actions";
-import type { SpecStateStore } from "../spec/state";
-import type { Spec } from "../spec/types";
-import {
-  SpecRenderer,
-  type SpecComponents,
-  type SpecPlaceholderProps,
-} from "../react/SpecRenderer";
-import { useSpecStream } from "../react/useSpecStream";
 import { useThemeTokens } from "../react/useThemeTokens";
 import { syncWidgetCode } from "../react/sync";
 import { useWidget, type UseWidgetOptions } from "../react/useWidget";
@@ -30,18 +21,17 @@ import {
   type CreateWidgetToolsOptions,
   type EditWidgetInput,
   type PreviewWidgetInput,
-  type RenderSpecInput,
   type ShowWidgetInput,
-  type SpecTools,
-  type ToolDefinition,
   type WidgetInstructionsOptions,
   type WidgetTools,
 } from "../tools/tools";
+import type { AnyTool, ToolDefinition } from "../tools/define";
 import {
-  resolveSpecBase,
-  resolveWidgetCode,
-  resolveWidgetOrigin,
-} from "./history";
+  toolkitEntry,
+  type ToolkitDisplay,
+  type WidgetToolkitExtension,
+} from "./extension";
+import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
 
 /**
  * Where theme tokens come from in an assistant-ui app: shadcn/ui variables
@@ -72,7 +62,7 @@ export function useAssistantUiThemeTokens(element?: Element | null) {
 
 export type WidgetToolkitOptions = Omit<
   CreateWidgetToolsOptions,
-  "registry" | "specs"
+  "registry"
 > & {
   registry?: WidgetRegistry;
   /**
@@ -84,20 +74,14 @@ export type WidgetToolkitOptions = Omit<
   execution?: "frontend" | "backend";
   /** Options for every widget frame (csp, product, maxHeight, compat, handlers, …). */
   widget?: Omit<UseWidgetOptions, "tokens">;
-  /** Implementations for the catalog's components; required to render `render_spec`. */
-  components?: SpecComponents;
-  /** Spec action handlers by name. */
-  handlers?: Record<string, ActionHandler>;
-  onAction?: (
-    name: string,
-    params: Record<string, unknown>,
-    context: { elementId?: string; trigger?: string; state: SpecStateStore },
-  ) => unknown;
-  placeholder?: ComponentType<SpecPlaceholderProps>;
+  /** Spec mode: `createSpecToolkit(catalog, { components })` from `generative-frame/spec/assistant-ui`. */
+  spec?: WidgetToolkitExtension;
+  /** More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread. */
+  extraTools?: Record<string, AnyTool>;
   /** Where the theme is read from. Defaults to the document root. */
   themeElement?: Element | null;
   /** How the widget tools are presented relative to the reasoning trace. Defaults to `standalone`. */
-  display?: "standalone" | "inline";
+  display?: ToolkitDisplay;
   /**
    * With frontend execution, `show_widget` and `edit_widget` wait for the
    * frame to finish rendering and return its errors as `render`. `false`
@@ -141,14 +125,13 @@ export type WidgetToolkit = {
   /** Pass to `Tools({ toolkit })`, or spread into your own toolkit. */
   toolkit: Toolkit;
   /** The tool definitions behind the toolkit, for instructions or the server. */
-  tools: WidgetTools & Partial<SpecTools>;
+  tools: WidgetTools & Record<string, AnyTool>;
   /** Latest code per widget title. */
   registry: WidgetRegistry;
 };
 
 type ShowArgs = Partial<ShowWidgetInput>;
 type EditArgs = Partial<EditWidgetInput>;
-type SpecArgs = Partial<RenderSpecInput>;
 
 const REPORT_BACKLOG = 50;
 
@@ -221,14 +204,15 @@ export function createWidgetToolkit(
   options: WidgetToolkitOptions = {},
 ): WidgetToolkit {
   const registry = options.registry ?? createWidgetRegistry();
-  const specs = new Map<string, { spec: Spec; version: number }>();
-  const tools: WidgetTools & Partial<SpecTools> = createWidgetTools({
+  const tools: WidgetTools & Record<string, AnyTool> = createWidgetTools({
     ...options,
     preview: options.preview ?? previewWidget,
     registry,
-    specs,
+    modules: [...(options.modules ?? []), ...(options.spec?.modules ?? [])],
+    extraTools: { ...options.extraTools, ...options.spec?.tools },
   });
   const display = options.display ?? "standalone";
+  const execution = options.execution ?? "frontend";
   const reports = createRenderReports();
   const reportOptions =
     options.renderReport === false ? undefined : (options.renderReport ?? {});
@@ -396,50 +380,6 @@ export function createWidgetToolkit(
     );
   }
 
-  function RenderSpecUI({
-    args,
-    toolCallId,
-  }: ToolCallMessagePartProps<SpecArgs>) {
-    const { argsStatus } = useToolArgsStatus<RenderSpecInput>();
-    const streaming = argsStatus !== "complete";
-    const messages = useAuiState((s) => s.thread.messages);
-    const title = typeof args.title === "string" ? args.title : "";
-    // The base only depends on earlier calls, so it is read once per call.
-    const [base] = useState(() => resolveSpecBase(messages, toolCallId, title));
-    const streamed = useSpecStream({
-      source: typeof args.patches === "string" ? args.patches : "",
-      complete: !streaming,
-      ...(base ? { initial: base } : {}),
-    });
-    const spec =
-      args.spec &&
-      typeof args.spec === "object" &&
-      typeof args.spec.root === "string"
-        ? ({ state: {}, ...args.spec } as Spec)
-        : streamed.spec;
-
-    if (!options.catalog || !options.components) {
-      return (
-        <p role="note" style={{ margin: "4px 0", opacity: 0.7 }}>
-          No components are configured for render_spec.
-        </p>
-      );
-    }
-    return (
-      <div data-gf-spec={title || undefined}>
-        <SpecRenderer
-          spec={spec}
-          catalog={options.catalog}
-          components={options.components}
-          streaming={streaming}
-          {...(options.handlers ? { handlers: options.handlers } : {})}
-          {...(options.onAction ? { onAction: options.onAction } : {})}
-          {...(options.placeholder ? { placeholder: options.placeholder } : {})}
-        />
-      </div>
-    );
-  }
-
   const Silent = () => null;
 
   type ExecuteContext = { toolCallId: string; abortSignal?: AbortSignal };
@@ -447,21 +387,10 @@ export function createWidgetToolkit(
   const entry = <I, O>(
     tool: ToolDefinition<I, O>,
     render: ComponentType<ToolCallMessagePartProps<never>>,
-    entryDisplay: "standalone" | "inline",
-    execute: (input: I, context: ExecuteContext) => Promise<unknown> = (
-      input,
-    ) => tool.execute(input),
+    entryDisplay: ToolkitDisplay,
+    execute?: (input: I, context: ExecuteContext) => Promise<unknown>,
   ) =>
-    options.execution === "backend"
-      ? { type: "backend" as const, display: entryDisplay, render }
-      : {
-          type: "frontend" as const,
-          display: entryDisplay,
-          description: tool.description,
-          parameters: tool.inputSchema as never,
-          execute,
-          render,
-        };
+    toolkitEntry(tool, render, { execution, display: entryDisplay }, execute);
 
   const withRenderReport =
     <I,>(tool: ToolDefinition<I, { ok: boolean }>) =>
@@ -499,11 +428,13 @@ export function createWidgetToolkit(
       withRenderReport(tools.edit_widget),
     ),
     preview_widget: entry(tools.preview_widget, Silent, "inline", preview),
-    ...(tools.render_spec
-      ? {
-          render_spec: entry(tools.render_spec, RenderSpecUI as never, display),
-        }
-      : {}),
+    ...Object.fromEntries(
+      Object.entries(options.extraTools ?? {}).map(([name, tool]) => [
+        name,
+        entry(tool, Silent, "inline"),
+      ]),
+    ),
+    ...options.spec?.entries({ execution, display }),
   };
 
   return { toolkit: toolkit as Toolkit, tools, registry };
@@ -514,7 +445,7 @@ export function createWidgetToolkit(
  * `read_me` guidance preloaded) to the system prompt sent with each run.
  */
 export function useWidgetInstructions(
-  tools: WidgetTools & Partial<SpecTools>,
+  tools: WidgetTools & Record<string, AnyTool>,
   options: WidgetInstructionsOptions = {},
 ): void {
   const [instruction, setInstruction] = useState("");

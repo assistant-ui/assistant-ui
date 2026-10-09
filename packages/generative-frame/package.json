@@ -39,6 +39,18 @@
       "types": "./dist/spec.d.ts",
       "default": "./dist/spec.js"
     },
+    "./spec/react": {
+      "types": "./dist/spec/react.d.ts",
+      "default": "./dist/spec/react.js"
+    },
+    "./spec/tools": {
+      "types": "./dist/spec/tools.d.ts",
+      "default": "./dist/spec/tools.js"
+    },
+    "./spec/assistant-ui": {
+      "types": "./dist/spec/assistant-ui.d.ts",
+      "default": "./dist/spec/assistant-ui.js"
+    },
     "./agent": {
       "types": "./dist/agent.d.ts",
       "default": "./dist/agent.js"

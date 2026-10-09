@@ -30,16 +30,21 @@ await widget.end();
 
 ## Entry points
 
+The package has two halves that never import each other: the frame half renders HTML and SVG widgets, and the spec half renders your own components from a spec. You compose them by passing values from one into the other, so an app ships only the half it uses.
+
 | Entry | Contents |
 | --- | --- |
 | `generative-frame` | `createWidget`, `previewWidget`, theme helpers, `buildCsp`, the in-frame runtime |
-| `generative-frame/react` | `<Widget>`, `useWidget`, `useThemeTokens`, `<SpecRenderer>`, `useSpecStream` |
+| `generative-frame/react` | `<Widget>`, `useWidget`, `useThemeTokens`, `syncWidgetCode` |
 | `generative-frame/tools` | `createWidgetTools`, `toAISDKTools`, `getToolDeclarations`, `buildWidgetInstructions` |
 | `generative-frame/prompts` | `buildWidgetGuidance`, `buildModuleGuidance` |
 | `generative-frame/repair` | `repairLoop`, `buildRepairFeedback` |
-| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
 | `generative-frame/agent` | `createWidgetAgent`, `fromAISDK` |
 | `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
+| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/spec/react` | `<SpecRenderer>`, `<SpecPlaceholder>`, `useSpecStream` |
+| `generative-frame/spec/tools` | `createSpecTools`, `specGuidanceModule` |
+| `generative-frame/spec/assistant-ui` | `createSpecToolkit`, `resolveSpecBase` |
 
 ## Pages
 

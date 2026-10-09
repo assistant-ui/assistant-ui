@@ -18,6 +18,7 @@ import {
   createWidgetToolkit,
   useWidgetInstructions,
 } from "../src/assistant-ui";
+import { createSpecToolkit } from "../src/spec/assistant-ui";
 import { catalog, components, DASHBOARD_REPLY, DATA } from "./catalog";
 import { RECORDED_STEPS } from "./recorded";
 import { applyDemoTheme, demoState, sleep } from "./shared";
@@ -199,20 +200,21 @@ function App() {
   const widgets = useMemo(
     () =>
       createWidgetToolkit({
-        catalog,
-        components,
         widget: { product: "generative-frame-demo", maxHeight: 700 },
-        handlers: {
-          refresh: ({ range }, { state }) => {
-            const data = DATA[String(range)] ?? DATA["7d"]!;
-            state.set("/metrics", {
-              revenue: data.revenue,
-              delta: data.delta,
-              orders: data.orders,
-            });
-            state.set("/regions", data.regions);
+        spec: createSpecToolkit(catalog, {
+          components,
+          handlers: {
+            refresh: ({ range }, { state }) => {
+              const data = DATA[String(range)] ?? DATA["7d"]!;
+              state.set("/metrics", {
+                revenue: data.revenue,
+                delta: data.delta,
+                orders: data.orders,
+              });
+              state.set("/regions", data.regions);
+            },
           },
-        },
+        }),
       }),
     [],
   );

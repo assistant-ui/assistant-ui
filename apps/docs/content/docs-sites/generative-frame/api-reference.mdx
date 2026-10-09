@@ -116,42 +116,27 @@ Options and result are on [Repair loop and screenshots](/generative-frame/docs/r
   ]}
 />
 
-### Hooks
+### Hooks and helpers
 
 | Export | Description |
 | --- | --- |
 | `useWidget(options): { ref, widget }` | Mounts a frame into the element passed to `ref`. Options are read once per mount; handlers call their latest version; a new `tokens` object becomes `setTheme`. |
-| `useThemeTokens(element?, sources?)` | Theme tokens that update with the page. |
-| `useSpecStream({ source?, complete?, mode?, initial? })` | `{ spec, text, errors, push, end, reset }`. |
+| `useThemeTokens(element?, sources?, { observeBodyStyle? }?)` | Theme tokens that update with the page; one shared observer per element and sources. |
 | `syncWidgetCode(widget, code, streaming)` | The update logic behind `<Widget>`, for other bindings. |
-
-### `<SpecRenderer>`
-
-<ParametersTable
-  type="SpecRendererProps"
-  parameters={[
-    { name: "spec", type: "Spec", required: true, description: "The spec to render." },
-    { name: "components", type: "SpecComponents", required: true, description: "Implementations by component type." },
-    { name: "catalog", type: "Catalog", description: "Validates props before rendering; invalid elements render a placeholder." },
-    { name: "state", type: "SpecStateStore", description: "An external store. Otherwise one is created and seeded from `spec.state`." },
-    { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
-    { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
-    { name: "onError", type: "(error, { elementId? }) => void", description: "A component threw or an action failed." },
-    { name: "streaming", type: "boolean", default: "false", description: "Missing children render as pending." },
-    { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", default: "SpecPlaceholder", description: "Rendered for elements that cannot render." },
-  ]}
-/>
+| `planCodeUpdate(current, next)` | Whether new code is `none`, an `append` of a chunk, or a `replace`. |
 
 ## `generative-frame/tools`
 
 | Export | Description |
 | --- | --- |
-| `createWidgetTools(options?)` | `{ read_me, show_widget, edit_widget, preview_widget }`, plus `render_spec` with a `catalog`. See [Tools and prompts](/generative-frame/docs/tools). |
+| `createWidgetTools({ registry?, guidance?, preview?, modules?, extraTools? })` | `{ read_me, show_widget, edit_widget, preview_widget }`, plus `extraTools`. See [Tools and prompts](/generative-frame/docs/tools). |
 | `toAISDKTools(tools, { jsonSchema })` | The tools in the Vercel AI SDK shape. |
 | `getToolDeclarations(tools)` | `{ description, inputSchema }` per tool, without `execute`. |
 | `buildWidgetInstructions(tools, { preload? }): Promise<string>` | A system prompt section for the tools. |
 | `createWidgetRegistry(initial?)` | The latest code per title. |
 | `applyWidgetEdits(code, edits)` | `{ ok: true, code }` or `{ ok: false, error, index }`. |
+
+The `ToolDefinition`, `AnyTool`, `GuidanceModule`, and `JsonSchema` types are exported too. A `GuidanceModule` is `{ name, summary, guidance(): string }`.
 
 ## `generative-frame/prompts`
 
@@ -186,24 +171,6 @@ buildModuleGuidance(module: WidgetModule, options?: GuidanceOptions): string
 
 Options are on [Repair loop and screenshots](/generative-frame/docs/repair#repairloop).
 
-## `generative-frame/spec`
-
-| Export | Description |
-| --- | --- |
-| `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
-| `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`. |
-| `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
-| `parseSpecStream(source, options?)` | The same for a complete string. |
-| `applyPatch(doc, operations)`, `applyPatchOperation`, `checkPatchOperation` | RFC 6902 helpers. |
-| `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
-| `formatSpecIssues(issues)` | Issues as model-readable text. |
-| `createStateStore(initial?)` | `{ getState, get, set, seed, subscribe }`. |
-| `createActionDispatcher(options)` | Runs action bindings against a store and handlers. |
-| `resolveValue`, `resolveProps`, `evaluateCondition`, `renderTemplate`, `isExpression` | The expression evaluator. |
-| `getAtPointer`, `parsePointer`, `joinPointer`, `escapePointerToken` | JSON Pointer helpers. |
-| `validateSchema`, `validateJsonSchema`, `describeSchema` | The JSON Schema subset used for props and params. |
-| `emptySpec()`, `SET_STATE_ACTION` | An empty spec and the built-in action. |
-
 ## `generative-frame/agent`
 
 ```ts
@@ -222,17 +189,15 @@ useWidgetInstructions(tools, { preload? }): void
 useAssistantUiThemeTokens(element?): ThemeTokens
 ```
 
-`WidgetToolkitOptions` takes the `createWidgetTools` options except `specs`, plus:
+`WidgetToolkitOptions` takes the `createWidgetTools` options except `extraTools`, plus:
 
 <ParametersTable
   type="WidgetToolkitOptions"
   parameters={[
     { name: "execution", type: "\"frontend\" | \"backend\"", default: "\"frontend\"", description: "`frontend` runs the tools in the browser; `backend` only renders." },
     { name: "widget", type: "Omit<UseWidgetOptions, \"tokens\">", description: "Options for every widget frame (csp, product, maxHeight, compat, handlers)." },
-    { name: "components", type: "SpecComponents", description: "Implementations for the catalog's components; required to render `render_spec`." },
-    { name: "handlers", type: "Record<string, ActionHandler>", description: "Spec action handlers by name." },
-    { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
-    { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for spec elements that cannot render." },
+    { name: "spec", type: "WidgetToolkitExtension", description: "Spec mode, from `createSpecToolkit(catalog, options)` in `generative-frame/spec/assistant-ui`. Adds `render_spec` and the `spec` module of `read_me`." },
+    { name: "extraTools", type: "Record<string, ToolDefinition>", description: "More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread." },
     { name: "themeElement", type: "Element | null", default: "document root", description: "Where the theme is read from." },
     { name: "display", type: "\"standalone\" | \"inline\"", default: "\"standalone\"", description: "How the widget tools are presented relative to the reasoning trace." },
     { name: "renderReport", type: "{ timeoutMs?, settleMs? } | false", default: "{ timeoutMs: 10000, settleMs: 300 }", description: "Frontend execution: `show_widget` and `edit_widget` results wait for the frame and carry a `render` report. `false` returns at once." },
@@ -242,4 +207,77 @@ useAssistantUiThemeTokens(element?): ThemeTokens
   ]}
 />
 
-`ASSISTANT_UI_TOKEN_SOURCES`, `resolveWidgetCode(messages, toolCallId)`, and `resolveSpecBase(messages, toolCallId, title)` are exported too, along with the `RenderReportOptions` and `WidgetRenderReport` types.
+`ASSISTANT_UI_TOKEN_SOURCES`, `resolveWidgetCode(messages, toolCallId)`, and `resolveWidgetOrigin(messages, toolCallId)` are exported too, along with the `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `ToolkitExecution`, and `ToolkitDisplay` types.
+
+## `generative-frame/spec`
+
+| Export | Description |
+| --- | --- |
+| `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
+| `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`. |
+| `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
+| `parseSpecStream(source, options?)` | The same for a complete string. |
+| `applyPatch(doc, operations)`, `applyPatchOperation`, `checkPatchOperation` | RFC 6902 helpers. |
+| `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
+| `formatSpecIssues(issues)` | Issues as model-readable text. |
+| `createStateStore(initial?)` | `{ getState, get, set, seed, subscribe }`. |
+| `createActionDispatcher(options)` | Runs action bindings against a store and handlers. |
+| `resolveValue`, `resolveProps`, `evaluateCondition`, `renderTemplate`, `isExpression` | The expression evaluator. |
+| `getAtPointer`, `parsePointer`, `joinPointer`, `escapePointerToken` | JSON Pointer helpers. |
+| `validateSchema`, `validateJsonSchema`, `describeSchema` | The JSON Schema subset used for props and params. |
+| `buildSpecPrompt(catalog, options?)` | The function behind `catalog.prompt`. |
+| `emptySpec()`, `SET_STATE_ACTION` | An empty spec and the built-in action. |
+
+## `generative-frame/spec/react`
+
+| Export | Description |
+| --- | --- |
+| `useSpecStream({ source?, complete?, mode?, initial? })` | `{ spec, text, errors, push, end, reset }`. |
+| `<SpecPlaceholder>` | The default placeholder for elements that cannot render. |
+
+### `<SpecRenderer>`
+
+<ParametersTable
+  type="SpecRendererProps"
+  parameters={[
+    { name: "spec", type: "Spec", required: true, description: "The spec to render." },
+    { name: "components", type: "SpecComponents", required: true, description: "Implementations by component type." },
+    { name: "catalog", type: "Catalog", description: "Validates props before rendering; invalid elements render a placeholder." },
+    { name: "state", type: "SpecStateStore", description: "An external store. Otherwise one is created and seeded from `spec.state`." },
+    { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
+    { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
+    { name: "onError", type: "(error, { elementId? }) => void", description: "A component threw or an action failed." },
+    { name: "streaming", type: "boolean", default: "false", description: "Missing children render as pending." },
+    { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", default: "SpecPlaceholder", description: "Rendered for elements that cannot render." },
+  ]}
+/>
+
+## `generative-frame/spec/tools`
+
+| Export | Description |
+| --- | --- |
+| `createSpecTools(catalog, { specs? })` | `{ render_spec }`. `specs` is a `Map<string, { spec, version }>` shared with the host. See [`render_spec`](/generative-frame/docs/tools#render_spec). |
+| `specGuidanceModule(catalog, promptOptions?)` | The `spec` module for `createWidgetTools({ modules })`. `promptOptions` are `catalog.prompt` options except `mode`. |
+| `toAISDKTools(tools, { jsonSchema })`, `getToolDeclarations(tools)` | The same adapters as in `generative-frame/tools`. |
+
+## `generative-frame/spec/assistant-ui`
+
+```ts
+createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension
+resolveSpecBase(messages, toolCallId, title): Spec | undefined
+```
+
+Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
+
+<ParametersTable
+  type="SpecToolkitOptions"
+  parameters={[
+    { name: "components", type: "SpecComponents", required: true, description: "Implementations for the catalog's components." },
+    { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
+    { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
+    { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for elements that cannot render." },
+    { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`)." },
+  ]}
+/>
+
+`resolveSpecBase` returns the spec a `render_spec` call's patches apply onto, built from earlier calls with the same title.

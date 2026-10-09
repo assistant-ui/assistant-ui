@@ -6,9 +6,9 @@ import {
   renderHook,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defineCatalog } from "../spec/catalog";
-import { createStateStore } from "../spec/state";
-import type { Spec } from "../spec/types";
+import { defineCatalog } from "../catalog";
+import { createStateStore } from "../state";
+import type { Spec } from "../types";
 import {
   SpecRenderer,
   type SpecComponentProps,

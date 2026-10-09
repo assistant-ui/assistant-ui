@@ -17,17 +17,17 @@ import {
   type ActionDispatcher,
   type ActionHandler,
   type ActionSource,
-} from "../spec/actions";
-import type { Catalog } from "../spec/catalog";
+} from "../actions";
+import type { Catalog } from "../catalog";
 import {
   evaluateCondition,
   itemPointer,
   resolveProps,
   type ExpressionContext,
-} from "../spec/expressions";
-import { getAtPointer } from "../spec/pointer";
-import { createStateStore, type SpecStateStore } from "../spec/state";
-import type { Spec, SpecElement } from "../spec/types";
+} from "../expressions";
+import { getAtPointer } from "../pointer";
+import { createStateStore, type SpecStateStore } from "../state";
+import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
 export type SpecComponentProps<

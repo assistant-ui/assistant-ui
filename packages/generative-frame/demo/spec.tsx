@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { SpecRenderer, useSpecStream } from "../src/react";
+import { SpecRenderer, useSpecStream } from "../src/spec/react";
 import {
   createStateStore,
   validateSpec,

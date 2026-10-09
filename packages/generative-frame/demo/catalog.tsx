@@ -1,4 +1,4 @@
-import type { SpecComponentProps, SpecComponents } from "../src/react";
+import type { SpecComponentProps, SpecComponents } from "../src/spec/react";
 import { defineCatalog } from "../src/spec";
 
 /** A small dashboard catalog shared by the spec and thread demos. */

@@ -1,18 +1,14 @@
 import type { JsonSchema } from "../json-schema";
 import { buildRepairFeedback, type RenderReport } from "../repair/repair";
-import {
-  createSpecStream,
-  parseSpecStream,
-  type SpecStream,
-} from "../spec/stream";
+import type { SpecTools } from "../spec/render-spec";
+import type { SpecStream } from "../spec/stream";
 import type { Spec } from "../spec/types";
 import { applyWidgetEdits, type WidgetEdit } from "../tools/edits";
+import type { ToolDefinition } from "../tools/define";
 import {
   createWidgetTools,
   type EditWidgetInput,
   type ShowWidgetInput,
-  type SpecTools,
-  type ToolDefinition,
   type WidgetTools,
 } from "../tools/tools";
 import type { WidgetInspection } from "../widget";
@@ -86,8 +82,9 @@ export type WidgetAgentEvent =
 export type CreateWidgetAgentOptions = {
   model: WidgetAgentModel;
   /**
-   * The widget tools the sub-agent calls; pass `createWidgetTools({ catalog })`
-   * to enable spec mode, and share them with the host to edit results later.
+   * The widget tools the sub-agent calls. Spec mode is available when they
+   * include `render_spec` (`createWidgetTools({ extraTools: createSpecTools(catalog), modules: [specGuidanceModule(catalog)] })`
+   * from `generative-frame/spec/tools`). Share them with the host to edit results later.
    */
   tools?: WidgetTools & Partial<SpecTools>;
   /** Extra tools the sub-agent may call, e.g. to look up data. */
@@ -303,8 +300,7 @@ export function createWidgetAgent(
         args["spec"] && typeof args["spec"] === "object"
           ? { state: {}, ...(args["spec"] as Spec) }
           : typeof args["patches"] === "string"
-            ? parseSpecStream(args["patches"], spec ? { initial: spec } : {})
-                .spec
+            ? tools.render_spec!.streaming.parse(args["patches"], spec)
             : spec;
       if (spec) {
         sink?.spec?.(spec, { streaming: false });
@@ -354,7 +350,7 @@ export function createWidgetAgent(
           if (!liveSpec || liveSpec.id !== id) {
             liveSpec = {
               id,
-              stream: createSpecStream(spec ? { initial: spec } : {}),
+              stream: tools.render_spec!.streaming.create(spec),
               consumed: "",
             };
           }

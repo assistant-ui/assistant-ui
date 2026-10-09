@@ -2,12 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { applyWidgetEdits } from "./edits";
 import { createWidgetRegistry } from "./registry";
 import { defineCatalog } from "../spec/catalog";
-import {
-  buildWidgetInstructions,
-  createWidgetTools,
-  getToolDeclarations,
-  toAISDKTools,
-} from "./tools";
+import { createSpecTools, specGuidanceModule } from "../spec/render-spec";
+import { getToolDeclarations, toAISDKTools } from "./define";
+import { buildWidgetInstructions, createWidgetTools } from "./tools";
 
 const CODE = `<h3>Revenue</h3><p class="note">Q1</p><p class="note">Q2</p>`;
 
@@ -223,10 +220,16 @@ const PATCHES = [
   '{"op":"add","path":"/elements/m","value":{"type":"Metric","props":{"label":"Users","value":"many"}}}',
 ].join("\n");
 
+const withSpec = () =>
+  createWidgetTools({
+    extraTools: createSpecTools(catalog),
+    modules: [specGuidanceModule(catalog)],
+  });
+
 describe("spec tools", () => {
-  it("adds render_spec and the spec module only with a catalog", async () => {
+  it("adds render_spec and the spec module only when composed in", async () => {
     expect("render_spec" in createWidgetTools()).toBe(false);
-    const tools = createWidgetTools({ catalog });
+    const tools = withSpec();
     expect(
       tools.read_me.inputSchema.properties?.["modules"]?.items?.enum,
     ).toContain("spec");
@@ -245,7 +248,7 @@ describe("spec tools", () => {
 
   it("validates streamed patches and returns repair feedback", async () => {
     const specs = new Map();
-    const tools = createWidgetTools({ catalog, specs });
+    const tools = createSpecTools(catalog, { specs });
     const first = await tools.render_spec.execute({
       title: "kpis",
       patches: `${PATCHES}\n{oops`,
@@ -290,7 +293,7 @@ describe("spec tools", () => {
 
 describe("server helpers", () => {
   it("declares tools without execute", () => {
-    const declarations = getToolDeclarations(createWidgetTools({ catalog }));
+    const declarations = getToolDeclarations(withSpec());
     expect(Object.keys(declarations)).toEqual([
       "read_me",
       "show_widget",
@@ -311,13 +314,17 @@ describe("server helpers", () => {
     const plain = await buildWidgetInstructions(createWidgetTools());
     expect(plain).toContain("## Visual widgets");
     expect(plain).not.toContain("render_spec");
-    const preloaded = await buildWidgetInstructions(
-      createWidgetTools({ catalog }),
-      {
-        preload: { modules: ["spec"] },
-      },
+    const preloaded = await buildWidgetInstructions(withSpec(), {
+      preload: { modules: ["spec"] },
+    });
+    expect(preloaded).toContain(
+      "`render_spec` after loading the `spec` module",
     );
-    expect(preloaded).toContain("`render_spec`");
     expect(preloaded).toContain("# Declarative UI");
+    const withoutModule = await buildWidgetInstructions(
+      createWidgetTools({ extraTools: createSpecTools(catalog) }),
+    );
+    expect(withoutModule).toContain("use `render_spec`.");
+    expect(withoutModule).not.toContain("`spec` module");
   });
 });

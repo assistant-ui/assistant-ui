@@ -1,32 +1,7 @@
-import { parseSpecStream } from "../spec/stream";
-import type { Spec } from "../spec/types";
 import { applyWidgetEdits, type WidgetEdit } from "../tools/edits";
+import { toolCalls, type MessageLike } from "./tool-calls";
 
-type ToolCallLike = {
-  type: string;
-  toolName?: string;
-  toolCallId?: string;
-  args?: unknown;
-};
-
-/** The part of a thread message the history readers need. */
-export type MessageLike = { readonly content: string | readonly unknown[] };
-
-function* toolCalls(messages: readonly MessageLike[]) {
-  for (const message of messages) {
-    if (typeof message.content === "string") continue;
-    for (const part of message.content) {
-      const call = part as ToolCallLike;
-      if (call?.type === "tool-call" && call.toolCallId && call.toolName) {
-        yield {
-          id: call.toolCallId,
-          name: call.toolName,
-          args: (call.args ?? {}) as Record<string, unknown>,
-        };
-      }
-    }
-  }
-}
+export type { MessageLike };
 
 /**
  * The code of a widget right after the `show_widget` or `edit_widget` call
@@ -85,29 +60,4 @@ export function resolveWidgetOrigin(
     }
   }
   return undefined;
-}
-
-/**
- * The spec a `render_spec` call's patches apply onto: the result of the
- * earlier `render_spec` calls with the same title in the thread.
- */
-export function resolveSpecBase(
-  messages: readonly MessageLike[],
-  toolCallId: string,
-  title: string,
-): Spec | undefined {
-  let spec: Spec | undefined;
-  for (const call of toolCalls(messages)) {
-    if (call.id === toolCallId) return spec;
-    if (call.name !== "render_spec" || call.args["title"] !== title) continue;
-    if (call.args["spec"] && typeof call.args["spec"] === "object") {
-      spec = { state: {}, ...(call.args["spec"] as Spec) };
-    } else if (typeof call.args["patches"] === "string") {
-      spec = parseSpecStream(
-        call.args["patches"],
-        spec ? { initial: spec } : {},
-      ).spec;
-    }
-  }
-  return spec;
 }

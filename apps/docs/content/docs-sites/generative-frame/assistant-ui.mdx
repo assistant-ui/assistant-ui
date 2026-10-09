@@ -37,7 +37,7 @@ function WidgetInstructions() {
 }
 ```
 
-`createWidgetToolkit` returns `{ toolkit, tools, registry }`. `toolkit` holds entries for `read_me`, `show_widget`, `edit_widget`, `preview_widget`, and, when you pass a `catalog`, `render_spec`. `tools` are the underlying [tool definitions](/generative-frame/docs/tools), and `registry` holds the latest code per widget title.
+`createWidgetToolkit` returns `{ toolkit, tools, registry }`. `toolkit` holds entries for `read_me`, `show_widget`, `edit_widget`, `preview_widget`, and, when you pass `spec`, `render_spec`. `tools` are the underlying [tool definitions](/generative-frame/docs/tools), and `registry` holds the latest code per widget title.
 
 `useWidgetInstructions(tools, { preload })` adds a short system prompt section that tells the model when to use the tools. Pass `preload: { modules: ["chart"] }` to inline the `read_me` guidance for those modules, which saves the model a round trip at the cost of a longer prompt.
 
@@ -45,10 +45,25 @@ function WidgetInstructions() {
 
 - `show_widget` streams `widget_code` from the partial tool arguments into a [`<Widget>`](/generative-frame/docs/react). While no code has arrived, the first of `loading_messages` is shown as a status line.
 - `edit_widget` replays the edits against the widget's code from earlier calls in the thread and renders the result.
-- `render_spec` streams patches into a [`<SpecRenderer>`](/generative-frame/docs/spec-mode). It needs `catalog` and `components` in the toolkit options.
+- `render_spec` streams patches into a [`<SpecRenderer>`](/generative-frame/docs/spec-mode) with your components. It is added by the `spec` option, described next.
 - `read_me` and `preview_widget` render nothing.
 
 A widget's `sendPrompt(text)` appends a user message to the thread. Pass `widget: { onPrompt }` to handle it yourself. Everything else under `widget` (`csp`, `product`, `compat`, `maxHeight`, handlers) applies to every frame the toolkit renders.
+
+## Spec mode
+
+The toolkit does not import the spec code. To render your own components, build spec mode with `createSpecToolkit` from `generative-frame/spec/assistant-ui` and pass it as `spec`:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, { components, handlers }),
+});
+```
+
+This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `placeholder`, and `specPrompt`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
 
 ## Frontend and backend execution
 
@@ -97,7 +112,7 @@ const result = streamText({
 });
 ```
 
-`preview_widget` is left out here because previews need a browser. The server's registry lives in that process, so create one per conversation; `createWidgetRegistry(initial)` from `generative-frame/tools` seeds it with existing widgets. Live render reports, described next, are only available in frontend execution.
+`preview_widget` is left out here because previews need a browser. The server's registry lives in that process, so create one per conversation; `createWidgetRegistry(initial)` from `generative-frame/tools` seeds it with existing widgets. Live render reports, described next, are only available in frontend execution. With spec mode, the server adds `render_spec` the same way, through `extraTools` and `modules` (see [Spec mode](/generative-frame/docs/spec-mode#as-a-tool)).
 
 ## Render errors reach the model
 
@@ -137,7 +152,7 @@ const tokens = useAssistantUiThemeTokens();
 
 The renderers derive their state from the thread, not from memory. `show_widget` renders from its arguments, `edit_widget` replays the edits of earlier calls with the same title, and `render_spec` applies its patches onto the spec built by earlier calls with that title. The registry is filled from rendered calls, so `edit_widget` also executes after a reload. Scripts run again when a widget mounts.
 
-`resolveWidgetCode(messages, toolCallId)`, `resolveWidgetOrigin(messages, toolCallId)`, and `resolveSpecBase(messages, toolCallId, title)` are exported for custom renderers.
+`resolveWidgetCode(messages, toolCallId)` and `resolveWidgetOrigin(messages, toolCallId)` are exported for custom renderers, and `resolveSpecBase(messages, toolCallId, title)` from `generative-frame/spec/assistant-ui`.
 
 ## Storage
 

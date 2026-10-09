@@ -106,7 +106,7 @@ import {
   useSpecStream,
   type SpecComponentProps,
   type SpecComponents,
-} from "generative-frame/react";
+} from "generative-frame/spec/react";
 
 const components: SpecComponents = {
   Card: ({ props, children, slots }: SpecComponentProps<{ title: string }>) => (
@@ -188,4 +188,56 @@ Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. C
 
 ## As a tool
 
-`createWidgetTools({ catalog })` adds [`render_spec`](/generative-frame/docs/tools#render_spec) and a `spec` module in `read_me`. Patches on a title that was already rendered apply to that spec, so a repair is a few lines. The result lists validation issues and a `feedback` text. In assistant-ui, pass `catalog` and `components` to [`createWidgetToolkit`](/generative-frame/docs/assistant-ui) and `render_spec` calls render in the thread.
+`generative-frame/spec/tools` turns a catalog into a model-facing tool. `createSpecTools(catalog)` returns `{ render_spec }`, and `specGuidanceModule(catalog)` returns the catalog guidance as a `spec` module for `read_me`. Patches on a title that was already rendered apply to that spec, so a repair is a few lines. The result lists validation issues and a `feedback` text. See [`render_spec`](/generative-frame/docs/tools#render_spec).
+
+The spec half never imports the widget half, and the widget half never imports the spec half. Pick one of these setups.
+
+With HTML widgets, pass the spec tool and its module into `createWidgetTools`:
+
+```ts
+import { createWidgetTools } from "generative-frame/tools";
+import { createSpecTools, specGuidanceModule } from "generative-frame/spec/tools";
+
+const tools = createWidgetTools({
+  extraTools: createSpecTools(catalog),
+  modules: [specGuidanceModule(catalog)],
+});
+// { read_me, show_widget, edit_widget, preview_widget, render_spec }
+```
+
+Spec only, with no frame code in the bundle, put the catalog guidance in the system prompt instead of `read_me`:
+
+```ts
+import { jsonSchema, streamText } from "ai";
+import { createSpecTools, toAISDKTools } from "generative-frame/spec/tools";
+
+const tools = createSpecTools(catalog);
+const result = streamText({
+  model,
+  system: `${basePrompt}\n\n${catalog.prompt()}`,
+  messages,
+  tools: toAISDKTools(tools, { jsonSchema }),
+});
+```
+
+## With assistant-ui
+
+`createSpecToolkit(catalog, { components })` from `generative-frame/spec/assistant-ui` builds spec mode for the [assistant-ui toolkit](/generative-frame/docs/assistant-ui). Pass it as `spec`, and `render_spec` calls render in the thread:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, {
+    components,
+    handlers: {
+      refresh: async (params, { state }) => {
+        state.set("/rows", await loadRows(String(params["range"])));
+      },
+    },
+  }),
+});
+```
+
+`createSpecToolkit` also takes `onAction`, `placeholder`, and `specPrompt` (options for the `spec` module guidance, such as `customRules` and `omitExample`).

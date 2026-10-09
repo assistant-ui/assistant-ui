@@ -7,16 +7,3 @@ export {
 export { useThemeTokens } from "./react/useThemeTokens";
 export type { ThemeObserveOptions } from "./react/themeStore";
 export { planCodeUpdate, syncWidgetCode, type CodeUpdate } from "./react/sync";
-export {
-  SpecRenderer,
-  SpecPlaceholder,
-  type SpecComponentProps,
-  type SpecComponents,
-  type SpecPlaceholderProps,
-  type SpecRendererProps,
-} from "./react/SpecRenderer";
-export {
-  useSpecStream,
-  type UseSpecStreamOptions,
-  type UseSpecStreamResult,
-} from "./react/useSpecStream";

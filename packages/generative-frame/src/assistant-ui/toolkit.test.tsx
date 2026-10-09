@@ -1,13 +1,13 @@
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defineCatalog } from "../spec/catalog";
-import type { SpecComponentProps } from "../react/SpecRenderer";
 import {
+  createSpecToolkit,
   resolveSpecBase,
-  resolveWidgetCode,
-  resolveWidgetOrigin,
-} from "./history";
+} from "../spec/assistant-ui/toolkit";
+import { defineCatalog } from "../spec/catalog";
+import type { SpecComponentProps } from "../spec/react/SpecRenderer";
+import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
 import { createWidgetToolkit, useWidgetInstructions } from "./toolkit";
 
 const mocks = vi.hoisted(() => ({
@@ -254,10 +254,29 @@ describe("createWidgetToolkit", () => {
     );
   });
 
-  it("renders only in backend mode and adds render_spec with a catalog", () => {
+  it("adds extra tools that execute and render nothing", async () => {
+    const lookup = {
+      name: "lookup",
+      description: "Looks up data.",
+      inputSchema: { type: "object" as const },
+      execute: async () => ({ rows: 3 }),
+    };
+    const { toolkit, tools } = createWidgetToolkit({
+      renderReport: false,
+      extraTools: { lookup },
+    });
+    expect(tools["lookup"]).toBe(lookup);
+    const entry = entries(toolkit)["lookup"]!;
+    expect(entry).toMatchObject({ type: "frontend", display: "inline" });
+    expect(await entry.execute!({})).toEqual({ rows: 3 });
+  });
+
+  it("renders only in backend mode and adds render_spec with spec mode", () => {
     const tools = entries(
-      createWidgetToolkit({ execution: "backend", catalog, components })
-        .toolkit,
+      createWidgetToolkit({
+        execution: "backend",
+        spec: createSpecToolkit(catalog, { components }),
+      }).toolkit,
     );
     expect(Object.keys(tools)).toEqual([
       "read_me",
@@ -474,7 +493,9 @@ describe("createWidgetToolkit", () => {
   });
 
   it("renders render_spec progressively from streamed patches", () => {
-    const { toolkit } = createWidgetToolkit({ catalog, components });
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
     const RenderSpec = entries(toolkit)["render_spec"]!.render;
     const lines = [
       '{"op":"add","path":"/root","value":"t"}',
@@ -497,22 +518,13 @@ describe("createWidgetToolkit", () => {
     );
     expect(view.container.textContent).toBe("Hello");
   });
-
-  it("explains a missing component map for render_spec", () => {
-    const { toolkit } = createWidgetToolkit({ catalog });
-    const RenderSpec = entries(toolkit)["render_spec"]!.render;
-    const view = render(
-      <RenderSpec {...partProps("s", { title: "s", patches: "" })} />,
-    );
-    expect(view.getByRole("note").textContent).toBe(
-      "No components are configured for render_spec.",
-    );
-  });
 });
 
 describe("useWidgetInstructions", () => {
   it("registers the instructions once built", async () => {
-    const { tools } = createWidgetToolkit({ catalog, components });
+    const { tools } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
     renderHook(() =>
       useWidgetInstructions(tools, { preload: { modules: ["spec"] } }),
     );

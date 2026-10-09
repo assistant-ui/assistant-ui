@@ -5,8 +5,8 @@ import {
   type SpecStream,
   type SpecStreamError,
   type SpecStreamMode,
-} from "../spec/stream";
-import { emptySpec, type Spec } from "../spec/types";
+} from "../stream";
+import { emptySpec, type Spec } from "../types";
 
 export type UseSpecStreamOptions = {
   /**

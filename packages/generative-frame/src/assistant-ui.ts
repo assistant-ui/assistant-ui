@@ -8,8 +8,12 @@ export {
   type WidgetToolkit,
   type WidgetToolkitOptions,
 } from "./assistant-ui/toolkit";
+export type {
+  ToolkitDisplay,
+  ToolkitExecution,
+  WidgetToolkitExtension,
+} from "./assistant-ui/extension";
 export {
-  resolveSpecBase,
   resolveWidgetCode,
   resolveWidgetOrigin,
   type MessageLike,

@@ -1,24 +1,25 @@
 export {
   buildWidgetInstructions,
   createWidgetTools,
-  getToolDeclarations,
-  toAISDKTools,
   type CreateWidgetToolsOptions,
   type EditWidgetInput,
   type EditWidgetResult,
-  type JsonSchema,
   type PreviewWidgetInput,
   type ReadMeInput,
   type ReadMeModule,
-  type RenderSpecInput,
-  type RenderSpecResult,
-  type SpecTools,
   type WidgetInstructionsOptions,
   type ShowWidgetInput,
   type ShowWidgetResult,
-  type ToolDefinition,
   type WidgetTools,
 } from "./tools/tools";
+export {
+  getToolDeclarations,
+  toAISDKTools,
+  type AnyTool,
+  type GuidanceModule,
+  type JsonSchema,
+  type ToolDefinition,
+} from "./tools/define";
 export {
   applyWidgetEdits,
   type ApplyEditsResult,

@@ -122,3 +122,19 @@ Built: the landing page at `/generative-frame` and the docs site at `/generative
 - **No opaque flash while a frame loads.** Safe Content Frame appends the iframe at once and its shim paints an opaque canvas, so each frame's slot stays at `opacity: 0` (still laid out) until the runtime's first size report, then fades in over 120 ms (no fade under reduced motion). A remounted frame swaps in already rendered. The bootstrap's `<html>` declares the color scheme and a transparent background on its first tag. On `setTheme`, the iframe element's `color-scheme` changes only after the frame has applied the theme, because a mismatch between the element and its document paints an opaque canvas; the brief mismatch left is the new theme's color.
 - **Per-id storage.** `id` sets the Safe Content Frame salt to `genframe:v1:<id>`, so the origin, and with it localStorage, IndexedDB, and cookies, is stable per id and host origin; `replace()` remounts on the same frame instance and keeps it. `id` and `frame` are exclusive because the salt is a constructor option. `clearWidgetStorage(id)` loads a hidden frame on that origin and calls `genframe/clear-storage`. The assistant-ui toolkit uses `aui:<toolCallId>` of the creating `show_widget` call (provider-generated, persisted in the thread), never the model-written title. Checked in Chrome against the live shim with `demo/storage.html?auto`.
 - **Theme store.** `useThemeTokens` shares one MutationObserver and media listener per (element, sources, options), reads once per animation frame, and returns the previous object when nothing changed. Body `style` is not observed unless `observeBodyStyle` is set.
+
+## Bundle boundaries
+
+The HTML/SVG frame and spec mode are separate halves that never import each other. Frame entries: `generative-frame`, `/react`, `/tools`, `/prompts`, `/repair`, `/agent`, `/assistant-ui`. Spec entries: `/spec`, `/spec/react`, `/spec/tools`, `/spec/assistant-ui`. They compose by passing values: `createWidgetTools({ extraTools: createSpecTools(catalog), modules: [specGuidanceModule(catalog)] })`, `createWidgetToolkit({ spec: createSpecToolkit(catalog, { components }) })`, and the widget agent reads spec streaming helpers from the `render_spec` tool it is given. Neutral pieces (`tools/define.ts` for tool shapes and adapters, `assistant-ui/extension.ts` and `assistant-ui/tool-calls.ts`) carry no code from either half; the JSON Schema validator is spec-only, and the frame side imports only its types. `runtime/generated.ts` is imported only through `bootstrap.ts`.
+
+`src/bundle-boundary.test.ts` bundles fixtures with rolldown (minified ESM, React and `@assistant-ui/*` external) and asserts on module ids. Sizes, min / min+gzip:
+
+| Fixture | Before the split | After |
+| --- | --- | --- |
+| Frame: `createWidget`, `<Widget>`, `createWidgetTools` | 75.3 kB / 27.4 kB (included `spec/{types,pointer,patch,stream,validate}` and the JSON Schema validator) | 64.8 kB / 23.9 kB, no spec modules |
+| Spec: `/spec`, `SpecRenderer` + `useSpecStream`, `render_spec` tool | 53.8 kB / 20.5 kB (included `csp.ts`, `theme.ts`, `prompts/guidance.ts`, the widget tools) | 28.9 kB / 10.6 kB, no frame modules |
+| `createWidgetToolkit` (frame assistant-ui) | not measured | 76.9 kB / 27.6 kB |
+| `createSpecToolkit` (spec assistant-ui) | not measured | 21.6 kB / 7.9 kB |
+
+Before the split, the spec fixture used `SpecRenderer` from `/react` and `createWidgetTools({ catalog })` from `/tools`, the only way to get `render_spec` then.
+
