@@ -45,7 +45,8 @@
   "scripts": {
     "build": "aui-build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
     "@assistant-ui/tap": "^0.9.7",
