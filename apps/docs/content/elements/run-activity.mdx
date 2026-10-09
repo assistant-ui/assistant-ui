@@ -61,11 +61,16 @@ Only put public commentary and tool history in `entries`, in their original orde
 
 The demo on this page runs through `useExternalStoreRuntime`, `ThreadPrimitive.Viewport`, and `MessagePrimitive.PartByIndex`. Its [complete, tested integration](https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/demo/elements/run-activity.tsx) includes conversion, timing, status mapping, tool approvals, and scroll locking.
 
-Keep one stable assistant message ID for each application-defined run. Your adapter must identify run boundaries and classify each part before rendering. The example stores only presentation annotations and timing in `metadata.custom.activityPresentation`; this is a recipe convention, not a built-in assistant-ui metadata field. Content, approval state, and message status are read from the live runtime, not copied into metadata.
+Keep one stable assistant message ID for each application-defined run, and give every message in the transcript its persisted `createdAt`; a message without one is stamped with the current time, which Next.js `cacheComponents` does not allow while prerendering. Your adapter must identify run boundaries and classify each part before rendering. The example stores only presentation annotations and timing in `metadata.custom.activityPresentation`; this is a recipe convention, not a built-in assistant-ui metadata field. Content, approval state, and message status are read from the live runtime, not copied into metadata.
 
 ```tsx title="Abridged external-store adapter"
 const transcript: readonly ActivityMessage[] = [
-  { id: "user-1", role: "user", content: "Check the files." },
+  {
+    id: "user-1",
+    role: "user",
+    content: "Check the files.",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  },
   run,
 ];
 

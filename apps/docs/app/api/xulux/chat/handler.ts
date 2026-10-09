@@ -358,6 +358,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         : null;
 
       const result = streamText({
+        abortSignal: req.signal,
         model: prism?.model ?? baseModel,
         ...(modelConfig.providerOptions
           ? { providerOptions: modelConfig.providerOptions }
@@ -395,7 +396,20 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           console.error(error);
           await prism?.end({ status: "error" });
         },
-        onAbort: async () => {
+        onAbort: async ({ steps }) => {
+          const usage = steps.reduce(
+            (total, step) => ({
+              inputTokens: total.inputTokens + (step.usage.inputTokens ?? 0),
+              outputTokens: total.outputTokens + (step.usage.outputTokens ?? 0),
+            }),
+            { inputTokens: 0, outputTokens: 0 },
+          );
+          await finishTurn(
+            budgetSessionId,
+            publicSession.id,
+            usage,
+            budgetDate,
+          );
           await prism?.end();
         },
       });

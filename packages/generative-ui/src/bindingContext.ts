@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { A2uiBinding } from "./types";
+import type { A2uiBinding } from "./binding";
 
 export const A2uiBindingContext =
   typeof React.createContext === "function"
