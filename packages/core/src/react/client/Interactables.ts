@@ -239,6 +239,7 @@ const useInteractablesResource = ({
     schedulePersistence,
     flush: flushPersistence,
     waitForAdapterSaves,
+    restoreAdapterRecovery,
   } = useInteractablePersistenceQueue({
     adapterRef: saveAdapterRef,
     adapterGenerationRef,
@@ -367,7 +368,12 @@ const useInteractablesResource = ({
       if (!adapter.load) return { status: "loaded" } as const;
       const unsaved = await waitForAdapterSaves(adapter);
       if (adapterRef.current !== adapter) return { status: "stale" } as const;
-      restoreUnsavedEdits(unsaved);
+      const [recovery] = unsaved;
+      if (recovery) {
+        restoreAdapterRecovery(adapter, recovery, () =>
+          restoreUnsavedEdits([recovery]),
+        );
+      }
       try {
         const saved = await adapter.load();
         if (adapterRef.current !== adapter) return { status: "stale" } as const;
@@ -378,7 +384,12 @@ const useInteractablesResource = ({
         return { status: "error", error: e } as const;
       }
     },
-    [applyLoadedState, restoreUnsavedEdits, waitForAdapterSaves],
+    [
+      applyLoadedState,
+      restoreAdapterRecovery,
+      restoreUnsavedEdits,
+      waitForAdapterSaves,
+    ],
   );
 
   const prepareAdapter = useCallback(
