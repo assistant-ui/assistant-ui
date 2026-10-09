@@ -16,7 +16,6 @@ import type {
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeQuestionRequest,
-  Part,
   QuestionAnswer,
   OpenCodeServerEvent,
   OpenCodeStateEvent,
@@ -39,14 +38,9 @@ import {
 } from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 import { serializeOpenCodeParts } from "./serializeUserParts";
-import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
+import { OpenCodeChildSessions } from "./OpenCodeChildSessions";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
-
-type ChildControllerEntry = {
-  controller: OpenCodeThreadController;
-  unsubscribe: (() => void) | null;
-};
 
 type InteractionRecoveryEntry = {
   asked?: OpenCodeServerEvent;
@@ -381,14 +375,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private readonly questionRepliesInFlight = new Map<string, number>();
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
-  private readonly childControllersById = new Map<
-    string,
-    ChildControllerEntry
-  >();
-  private readonly childSessionIdByPartId = new Map<string, string>();
+  private readonly childSessions: OpenCodeChildSessions<OpenCodeThreadController>;
   private interactionRecoveryEvents = createInteractionRecoveryEvents();
-  private ancestorSessionIds: ReadonlySet<string>;
-  private isChildSession = false;
   private readonly stagedMessages = new Map<
     string,
     {
@@ -410,7 +398,30 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.sessionId = sessionId;
     this.state = createOpenCodeThreadState(sessionId);
     this.getEventSource = getEventSource;
-    this.ancestorSessionIds = new Set([sessionId]);
+    this.childSessions = new OpenCodeChildSessions(
+      {
+        getState: () => this.state,
+        setState: (state) => {
+          this.state = state;
+        },
+        notifyListeners: () => this.notifyListeners(),
+        hasListeners: () => this.listeners.size > 0,
+        createController: (childSessionId, ancestorSessionIds) => {
+          const controller = new OpenCodeThreadController(
+            this.client,
+            this.getEventSource,
+            childSessionId,
+          );
+          controller.childSessions.adoptAsChild(ancestorSessionIds);
+          controller.permissionRecoveryToken = this.permissionRecoveryToken;
+          controller.questionRecoveryToken = this.questionRecoveryToken;
+          controller.interactionRecoveryEvents = this.interactionRecoveryEvents;
+          controller.replayInteractionRecoveryEvents();
+          return { controller, discard: () => controller.discard() };
+        },
+      },
+      sessionId,
+    );
   }
 
   private beginReply(repliesInFlight: Map<string, number>, id: string) {
@@ -441,17 +452,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.permissionRecoveryFence.clear();
     this.questionRecoveryToken = null;
     this.questionRecoveryFence.clear();
-    for (const entry of this.childControllersById.values()) {
-      entry.controller.cancelInteractionRecovery();
+    for (const controller of this.childSessions.controllers()) {
+      controller.cancelInteractionRecovery();
     }
-    if (!this.isChildSession) {
+    if (!this.childSessions.isChildSession) {
       this.interactionRecoveryEvents.permissions.clear();
       this.interactionRecoveryEvents.questions.clear();
     }
   }
 
   private retainInteractionRecoveryEvent(event: OpenCodeServerEvent) {
-    if (this.isChildSession || !event.sessionId) return;
+    if (this.childSessions.isChildSession || !event.sessionId) return;
 
     const events =
       event.type === "permission.asked" || event.type === "permission.replied"
@@ -512,43 +523,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private updateChildSnapshot(
-    sessionId: string,
-    childState: OpenCodeThreadState,
-  ) {
-    if (this.state.childSessionsById[sessionId] === childState) return;
-
-    const childSessionsById = nullProtoRecord(this.state.childSessionsById);
-    childSessionsById[sessionId] = childState;
-    this.state = {
-      ...this.state,
-      childSessionsById,
-    };
-    this.notifyListeners();
-  }
-
-  private attachChildController(
-    sessionId: string,
-    entry: ChildControllerEntry,
-  ) {
-    if (entry.unsubscribe) return;
-
-    entry.unsubscribe = entry.controller.subscribe(() => {
-      this.updateChildSnapshot(sessionId, entry.controller.getState());
-    });
-    this.updateChildSnapshot(sessionId, entry.controller.getState());
-    if (entry.controller.getState().loadState.type !== "ready") {
-      void entry.controller.load().catch(() => undefined);
-    }
-  }
-
-  private detachChildControllers() {
-    for (const entry of this.childControllersById.values()) {
-      entry.unsubscribe?.();
-      entry.unsubscribe = null;
-    }
-  }
-
   private discard() {
     this.loadPromise = null;
     this.historySyncWindow = null;
@@ -556,120 +530,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.cancelInteractionRecovery();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
-    for (const entry of this.childControllersById.values()) {
-      entry.unsubscribe?.();
-      entry.controller.discard();
-    }
-    this.childControllersById.clear();
-    this.childSessionIdByPartId.clear();
+    this.childSessions.discard();
     this.listeners.clear();
-  }
-
-  private rebuildChildSessionIndex() {
-    this.childSessionIdByPartId.clear();
-    for (const message of Object.values(this.state.messagesById)) {
-      for (const part of message.parts) {
-        const sessionId = getOpenCodeTaskSessionId(part);
-        if (sessionId) {
-          this.childSessionIdByPartId.set(part.id, sessionId);
-        }
-      }
-    }
-    this.syncChildControllers();
-  }
-
-  private updateChildSessionIndex(part: Part) {
-    const previousSessionId = this.childSessionIdByPartId.get(part.id);
-    const sessionId = getOpenCodeTaskSessionId(part);
-    if (sessionId === previousSessionId) return;
-
-    if (sessionId) {
-      this.childSessionIdByPartId.set(part.id, sessionId);
-    } else {
-      this.childSessionIdByPartId.delete(part.id);
-    }
-    this.syncChildControllers();
-  }
-
-  private removeFromChildSessionIndex(partId: string) {
-    if (!this.childSessionIdByPartId.delete(partId)) return;
-    this.syncChildControllers();
-  }
-
-  private syncChildControllers() {
-    const sessionIds = new Set(this.childSessionIdByPartId.values());
-    for (const sessionId of this.ancestorSessionIds) {
-      sessionIds.delete(sessionId);
-    }
-
-    let childSessionsById = this.state.childSessionsById;
-    for (const [sessionId, entry] of this.childControllersById) {
-      if (sessionIds.has(sessionId)) continue;
-
-      entry.unsubscribe?.();
-      entry.controller.discard();
-      this.childControllersById.delete(sessionId);
-      const remaining = nullProtoRecord(childSessionsById);
-      delete remaining[sessionId];
-      childSessionsById = remaining;
-    }
-
-    const added: [string, ChildControllerEntry][] = [];
-    for (const sessionId of sessionIds) {
-      if (this.childControllersById.has(sessionId)) continue;
-
-      const controller = new OpenCodeThreadController(
-        this.client,
-        this.getEventSource,
-        sessionId,
-      );
-      controller.ancestorSessionIds = new Set([
-        ...this.ancestorSessionIds,
-        sessionId,
-      ]);
-      controller.isChildSession = true;
-      controller.permissionRecoveryToken = this.permissionRecoveryToken;
-      controller.questionRecoveryToken = this.questionRecoveryToken;
-      controller.interactionRecoveryEvents = this.interactionRecoveryEvents;
-      controller.replayInteractionRecoveryEvents();
-      const entry: ChildControllerEntry = {
-        controller,
-        unsubscribe: null,
-      };
-      this.childControllersById.set(sessionId, entry);
-      const nextChildSessionsById = nullProtoRecord(childSessionsById);
-      nextChildSessionsById[sessionId] = controller.getState();
-      childSessionsById = nextChildSessionsById;
-      added.push([sessionId, entry]);
-    }
-
-    if (childSessionsById !== this.state.childSessionsById) {
-      this.state = { ...this.state, childSessionsById };
-    }
-
-    for (const [sessionId, entry] of added) {
-      if (this.listeners.size === 0) break;
-      this.attachChildController(sessionId, entry);
-    }
-  }
-
-  private syncChildSessionIndex(
-    event: Parameters<typeof reduceOpenCodeThreadStateInternal>[1],
-  ) {
-    switch (event.type) {
-      case "history.loaded":
-      case "message.removed":
-        this.rebuildChildSessionIndex();
-        break;
-      case "part.updated":
-        this.updateChildSessionIndex(event.part);
-        break;
-      case "part.removed":
-        this.removeFromChildSessionIndex(event.partId);
-        break;
-      default:
-        break;
-    }
   }
 
   private ensureEventSubscription() {
@@ -697,11 +559,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       this.questionRecoveryToken = recoveryToken;
     }
     targets.set(this.sessionId, this);
-    for (const entry of this.childControllersById.values()) {
-      entry.controller.collectInteractionRecoveryTargets(
-        targets,
-        recoveryToken,
-      );
+    for (const controller of this.childSessions.controllers()) {
+      controller.collectInteractionRecoveryTargets(targets, recoveryToken);
     }
     return targets;
   }
@@ -710,7 +569,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.permissionRecoveryToken !== token) return;
     this.permissionRecoveryToken = null;
     this.permissionRecoveryFence.clear();
-    if (!this.isChildSession) {
+    if (!this.childSessions.isChildSession) {
       this.interactionRecoveryEvents.permissions.clear();
     }
   }
@@ -719,7 +578,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.questionRecoveryToken !== token) return;
     this.questionRecoveryToken = null;
     this.questionRecoveryFence.clear();
-    if (!this.isChildSession) {
+    if (!this.childSessions.isChildSession) {
       this.interactionRecoveryEvents.questions.clear();
     }
   }
@@ -825,7 +684,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
-    if (this.isChildSession) return;
+    if (this.childSessions.isChildSession) return;
     this.interactionRecoveryEvents.permissions.clear();
     this.interactionRecoveryEvents.questions.clear();
     const interactionRecoveryTargets = this.collectInteractionRecoveryTargets(
@@ -916,7 +775,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.cancelInteractionRecovery();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
-    this.detachChildControllers();
+    this.childSessions.detachAll();
     this.listeners.clear();
   }
 
@@ -929,9 +788,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.listeners.add(listener);
     this.ensureEventSubscription();
     if (wasDetached) {
-      for (const [sessionId, entry] of this.childControllersById) {
-        this.attachChildController(sessionId, entry);
-      }
+      this.childSessions.attachAll();
     }
 
     return () => {
@@ -939,7 +796,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       if (this.listeners.size === 0) {
         this.unsubscribeFromEvents?.();
         this.unsubscribeFromEvents = null;
-        this.detachChildControllers();
+        this.childSessions.detachAll();
       }
     };
   };
@@ -1285,11 +1142,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   ): Promise<void> {
     if (!isCurrent()) return;
     visit(this);
-    const children = new Set(
-      [...this.childControllersById.values()].map(
-        ({ controller }) => controller,
-      ),
-    );
+    const children = new Set(this.childSessions.controllers());
     await Promise.all([
       ...[...children].map((controller) =>
         controller.visitInteractionRecoveryTree(visit, isCurrent),
@@ -1297,9 +1150,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       this.waitForLoadChain().then(async () => {
         if (!isCurrent()) return;
         await Promise.all(
-          [...this.childControllersById.values()]
-            .filter(({ controller }) => !children.has(controller))
-            .map(({ controller }) =>
+          [...this.childSessions.controllers()]
+            .filter((controller) => !children.has(controller))
+            .map((controller) =>
               controller.visitInteractionRecoveryTree(visit, isCurrent),
             ),
         );
@@ -1604,7 +1457,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       this.activityRevision += 1;
     }
     this.state = nextState;
-    this.syncChildSessionIndex(event);
+    this.childSessions.syncIndex(event);
     this.notifyListeners();
   }
 }
