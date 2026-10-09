@@ -942,11 +942,7 @@ const useRemoteThreadList = (
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
       if (store.value.newThreadId !== threadId) {
-        const data = getExposedThreadData(
-          store.value,
-          session.mainThreadId,
-          threadId,
-        );
+        const data = getThreadData(store.value, threadId);
         if (!data) throw threadNotFoundError(threadId, "initializing it");
         if (data.status === "new") {
           throw threadStatusError(threadId, data.status, "be initialized here");

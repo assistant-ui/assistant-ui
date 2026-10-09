@@ -920,7 +920,7 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
-  it("rejects captured item actions after reload no longer lists its retained thread", async () => {
+  it("rejects actions but initializes a mounted thread after reload unlists it", async () => {
     let lists = 0;
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -934,12 +934,30 @@ describe("RemoteThreadList", () => {
       updateCustom: vi.fn(async () => {}),
     });
     const stores = vi.spyOn(OptimisticState.prototype, "optimisticUpdate");
-    const { handle } = mountList(adapter);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (id) => StubThread({ threadId: id }) as never,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     const store = stores.mock.contexts[0] as OptimisticState<RemoteThreadState>;
     stores.mockRestore();
     const item = aui.threads.item({ id: "t2" });
+
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
 
     await aui.threads.reload();
     expect(aui.threads.getState().threadIds).toEqual(["t1"]);
@@ -957,9 +975,11 @@ describe("RemoteThreadList", () => {
     await expect(item.delete()).rejects.toThrow(
       'Thread "t2" was not found while deleting it.',
     );
-    await expect(item.initialize()).rejects.toThrow(
-      'Thread "t2" was not found while initializing it.',
-    );
+    await expect(item.initialize()).resolves.toEqual({
+      remoteId: "t2",
+      externalId: undefined,
+    });
+    expect(adapter.initialize).not.toHaveBeenCalled();
     expect(adapter.rename).not.toHaveBeenCalled();
     expect(adapter.updateCustom).not.toHaveBeenCalled();
     expect(adapter.archive).not.toHaveBeenCalled();
