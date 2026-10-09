@@ -359,6 +359,9 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../../packages/ai-sdk
+      '@assistant-ui/generative-ui':
+        specifier: workspace:*
+        version: link:../../packages/generative-ui
       '@assistant-ui/next':
         specifier: workspace:*
         version: link:../../packages/next
@@ -4686,9 +4689,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.24
         version: link:../core
-      '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.24
-        version: link:../react-generative-ui
+      '@assistant-ui/generative-ui':
+        specifier: ^0.0.0
+        version: link:../generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.17
         version: link:../store
@@ -4732,9 +4735,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.24
         version: link:../core
-      '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.24
-        version: link:../react-generative-ui
+      '@assistant-ui/generative-ui':
+        specifier: ^0.0.0
+        version: link:../generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.17
         version: link:../store

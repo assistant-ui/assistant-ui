@@ -28,7 +28,7 @@ import {
   surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import {
