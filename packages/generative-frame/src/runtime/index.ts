@@ -16,6 +16,7 @@ import { VERSION } from "../version";
 import { installDiagnostics, isBlankRender } from "./diagnostics";
 import { createStreamRenderer } from "./morph";
 import { captureScreenshot } from "./screenshot";
+import { measureRoot, reportableSize } from "./size";
 
 export type RuntimeConfig = {
   hostOrigin: string;
@@ -67,15 +68,13 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
       }),
   });
 
-  const measure = (): WidgetSize => {
-    const rect = root.getBoundingClientRect();
-    return { width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
-  };
+  const measure = (): WidgetSize => measureRoot(root);
 
   let sizeFrame: number | undefined;
   const reportSize = () => {
     sizeFrame = undefined;
-    const size = measure();
+    const size = reportableSize(root);
+    if (!size) return;
     const maxHeight = context.containerDimensions?.maxHeight;
     // The host sizes the iframe to the content, so a scrollbar would only flash
     // while the two catch up and steal width; it is needed only past maxHeight.
