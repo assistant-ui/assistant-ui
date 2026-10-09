@@ -16,15 +16,23 @@ const createDefaultStyles = (doc: Document) => {
   let sandbox: HTMLElement | undefined;
   let svgSandbox: SVGSVGElement | undefined;
 
+  let host: HTMLElement | undefined;
+
   const ensureSandbox = () => {
     if (sandbox) return;
-    sandbox = doc.createElement("div");
-    sandbox.setAttribute("aria-hidden", "true");
-    sandbox.style.cssText =
+    host = doc.createElement("div");
+    host.setAttribute("aria-hidden", "true");
+    host.style.cssText =
       "all:initial;position:absolute;left:-99999px;top:0;visibility:hidden;contain:strict;width:0;height:0;";
+    // Document rules such as `*{box-sizing:border-box}` do not cross a shadow
+    // boundary, so probes inside it report the defaults the serialized image
+    // will actually render with.
+    const shadow = host.attachShadow({ mode: "closed" });
+    sandbox = doc.createElement("div");
     svgSandbox = doc.createElementNS(SVG, "svg");
     sandbox.appendChild(svgSandbox);
-    doc.body.appendChild(sandbox);
+    shadow.appendChild(sandbox);
+    doc.body.appendChild(host);
   };
 
   return {
@@ -46,7 +54,7 @@ const createDefaultStyles = (doc: Document) => {
       return styles;
     },
     dispose() {
-      sandbox?.remove();
+      host?.remove();
     },
   };
 };
@@ -180,6 +188,21 @@ const collectInlineFontFaces = (doc: Document): string => {
   return rules.join("\n");
 };
 
+/**
+ * The capture box: the clone is laid out at the root's own width, and the
+ * image grows to the full scroll size so content overflowing the root is
+ * not clipped.
+ */
+export const measureCapture = (root: HTMLElement) => {
+  const rect = root.getBoundingClientRect();
+  const layoutWidth = Math.max(1, Math.ceil(rect.width));
+  return {
+    layoutWidth,
+    width: Math.max(layoutWidth, Math.ceil(root.scrollWidth)),
+    height: Math.max(1, Math.ceil(Math.max(rect.height, root.scrollHeight))),
+  };
+};
+
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
@@ -202,12 +225,7 @@ export async function captureScreenshot(
   const view = doc.defaultView!;
   await doc.fonts?.ready;
 
-  const rect = root.getBoundingClientRect();
-  const width = Math.max(1, Math.ceil(rect.width));
-  const height = Math.max(
-    1,
-    Math.ceil(Math.max(rect.height, root.scrollHeight)),
-  );
+  const { layoutWidth, width, height } = measureCapture(root);
 
   const defaults = createDefaultStyles(doc);
   let clone: Node | null;
@@ -225,7 +243,7 @@ export async function captureScreenshot(
   if (clone instanceof Element) {
     clone.setAttribute(
       "style",
-      `${clone.getAttribute("style") ?? ""};width:${width}px;margin:0;`,
+      `${clone.getAttribute("style") ?? ""};width:${layoutWidth}px;margin:0;`,
     );
   }
 
