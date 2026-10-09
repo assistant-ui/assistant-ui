@@ -208,10 +208,6 @@ const useLangGraphRuntimeImpl = (
       fallbackRef.current = undefined;
     };
   }, []);
-  // Top-level and subgraph error events both dispatch onError; subgraph errors
-  // additionally dispatch onSubgraphError (see OnErrorEventCallback docs). The
-  // balance is positive iff the run saw a top-level error, which drops any
-  // sends queued behind it.
   const [threadController] = useState(() => new LangGraphThreadController());
   const wrappedEventHandlers = useMemo(
     () =>

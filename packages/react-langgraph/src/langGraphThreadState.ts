@@ -20,13 +20,23 @@ export type LangGraphThreadState = {
   nextRunId: number;
   activeRunIds: ReadonlySet<string>;
   pendingToolCallIdsByRun: ReadonlyMap<string, readonly string[]>;
+  // Buffers client tool results until every pending parallel call has a result,
+  // so the graph resumes once with the complete batch. See bufferToolResult.
   toolResultBuffer: ReadonlyMap<string, ToolMessage>;
+  // Sibling results arriving before a queued batch is sent merge into
+  // `messages`; they remain pending because the thread transcript lacks them.
+  // `queued` preserves the original batch identity while `messages` accumulates
+  // later sibling results.
   pendingResume: ReadonlyMap<
     string,
     { queued: ToolMessage[]; messages: ToolMessage[] }
   >;
   autoCancelledToolCallTokens: ReadonlyMap<string, readonly LangChainMessage[]>;
   interruptRunConfig: unknown;
+  // Top-level and subgraph error events both dispatch onError; subgraph errors
+  // additionally dispatch onSubgraphError (see OnErrorEventCallback docs). The
+  // balance is positive iff the run saw a top-level error, which drops any
+  // sends queued behind it.
   runErrorBalance: number;
   readyBatch: ToolMessage[] | null;
   startedMessages: LangChainMessage[] | null;
