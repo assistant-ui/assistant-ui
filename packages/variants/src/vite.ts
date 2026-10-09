@@ -1,7 +1,10 @@
-import { handleNotesRequest, type NotesRequest } from "./server/handler";
+import {
+  handleNotesRequest,
+  readJsonBody,
+  type NotesRequest,
+} from "./server/handler";
 
 export const NOTES_PATH = "/__variants";
-const MAX_BODY = 64 * 1024;
 
 type IncomingRequest = AsyncIterable<Uint8Array | string> & {
   method?: string | undefined;
@@ -34,20 +37,6 @@ export type VariantsPluginOptions = {
   root?: string | undefined;
 };
 
-const readJson = async (request: IncomingRequest): Promise<unknown> => {
-  let size = 0;
-  let text = "";
-  const decoder = new TextDecoder();
-  for await (const chunk of request) {
-    const bytes =
-      typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
-    size += bytes.length;
-    if (size > MAX_BODY) throw new Error("request body too large");
-    text += decoder.decode(bytes, { stream: true });
-  }
-  return JSON.parse(text + decoder.decode());
-};
-
 /**
  * Vite plugin that serves the note endpoints under `/__variants` while the
  * dev server runs, so notes are written into source as `@variants-note`
@@ -68,7 +57,7 @@ export function variants(options: VariantsPluginOptions = {}) {
           method: request.method ?? "GET",
           path: request.url ?? "/",
           header,
-          json: () => readJson(request),
+          json: () => readJsonBody(request),
         };
         void handleNotesRequest(notesRequest, { root, dev: true })
           .catch(() => ({ status: 500, body: { error: "failed" } }))

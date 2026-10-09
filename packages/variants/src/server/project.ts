@@ -20,8 +20,10 @@ export async function* sourceFiles(root: string): AsyncGenerator<string> {
   let entries;
   try {
     entries = await readdir(root, { withFileTypes: true });
-  } catch {
-    return;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return;
+    throw error;
   }
   for (const entry of entries) {
     if (entry.name.startsWith(".") || SKIP.has(entry.name)) continue;

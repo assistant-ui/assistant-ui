@@ -30,6 +30,40 @@ const fail = (status: number, error: string): NotesResponse => ({
   body: { error },
 });
 
+export const MAX_BODY = 64 * 1024;
+
+export class BodyTooLargeError extends Error {
+  constructor() {
+    super("request body too large");
+  }
+}
+
+/** Decodes a JSON body, refusing it once more than `MAX_BODY` bytes arrive. */
+export const readJsonBody = async (
+  chunks: AsyncIterable<Uint8Array | string>,
+): Promise<unknown> => {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = "";
+  for await (const chunk of chunks) {
+    const bytes = typeof chunk === "string" ? encoder.encode(chunk) : chunk;
+    size += bytes.byteLength;
+    if (size > MAX_BODY) throw new BodyTooLargeError();
+    text += decoder.decode(bytes, { stream: true });
+  }
+  return JSON.parse(text + decoder.decode());
+};
+
+let writes: Promise<unknown> = Promise.resolve();
+
+/** Runs source edits one at a time so concurrent saves cannot drop each other's markers. */
+const serialized = <T>(task: () => Promise<T>): Promise<T> => {
+  const run = writes.then(task, task);
+  writes = run.catch(() => {});
+  return run;
+};
+
 const firstToken = (value: string | null) =>
   value?.split(",", 1)[0]?.trim() || null;
 
@@ -141,39 +175,49 @@ export const handleNotesRequest = async (
         (typeof hint !== "string" || hint.length > MAX_HINT)
       )
         return fail(400, "invalid hint");
-      const located = await locateGroup(root, group);
-      if (!located.ok) return fail(located.status, located.error);
-      const result = insertNote(
-        located.source,
-        { group, variant: variant as string | undefined },
-        hint ? { note: note.trim(), hint } : { note: note.trim() },
-      );
-      if (!result.ok) return fail(result.status, result.error);
-      await writeSource(root, located.file, result.source);
-      return {
-        status: 201,
-        body: {
-          id: result.id,
-          file: relative(root, located.file),
-          line: result.line,
-        },
-      };
+      return await serialized(async () => {
+        const located = await locateGroup(root, group);
+        if (!located.ok) return fail(located.status, located.error);
+        const result = insertNote(
+          located.source,
+          { group, variant: variant as string | undefined },
+          hint ? { note: note.trim(), hint } : { note: note.trim() },
+        );
+        if (!result.ok) return fail(result.status, result.error);
+        await writeSource(root, located.file, result.source);
+        return {
+          status: 201,
+          body: {
+            id: result.id,
+            file: relative(root, located.file),
+            line: result.line,
+          },
+        };
+      });
     }
 
     const deleting = /^\/notes\/(n-[0-9a-f]{8})$/.exec(url.pathname);
     if (method === "DELETE" && deleting) {
+      const id = deleting[1]!;
       const group = url.searchParams.get("group") ?? "";
       if (!ID.test(group)) return fail(400, "invalid group");
-      const located = await locateGroup(root, group);
-      if (!located.ok) return fail(located.status, located.error);
-      const next = deleteNote(located.source, deleting[1]!);
-      if (next === undefined) return fail(404, "note not found");
-      await writeSource(root, located.file, next);
-      return { status: 200, body: { ok: true } };
+      return await serialized(async () => {
+        const located = await locateGroup(root, group);
+        if (!located.ok) return fail(located.status, located.error);
+        const owned = listNotes(located.source).some(
+          (note) => note.id === id && note.group === group,
+        );
+        const next = owned ? deleteNote(located.source, id) : undefined;
+        if (next === undefined) return fail(404, "note not found");
+        await writeSource(root, located.file, next);
+        return { status: 200, body: { ok: true } };
+      });
     }
 
     return fail(mutation ? 405 : 404, "not found");
   } catch (error) {
+    if (error instanceof BodyTooLargeError) return fail(413, error.message);
+    if (error instanceof SyntaxError) return fail(400, "invalid JSON body");
     return fail(500, error instanceof Error ? error.message : "failed");
   }
 };

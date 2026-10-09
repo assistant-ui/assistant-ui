@@ -99,6 +99,7 @@ const skipBraces = (source: string, index: number): number => {
 /** Reads a JSX opening tag that starts at `start` (the `<`). */
 const readOpeningTag = (source: string, start: number) => {
   let cursor = start + 1;
+  let id: string | undefined;
   while (cursor < source.length) {
     const char = source[cursor];
     if (char === '"' || char === "'") {
@@ -111,18 +112,21 @@ const readOpeningTag = (source: string, start: number) => {
     }
     if (char === ">") {
       const selfClosing = source[cursor - 1] === "/";
-      return {
-        end: cursor + 1,
-        selfClosing,
-        text: source.slice(start, cursor + 1),
-      };
+      return { end: cursor + 1, selfClosing, id };
+    }
+    ID.lastIndex = cursor;
+    const found = id === undefined ? ID.exec(source) : null;
+    if (found) {
+      id = found[1] ?? found[2] ?? found[3];
+      cursor = ID.lastIndex;
+      continue;
     }
     cursor++;
   }
   return undefined;
 };
 
-const ID = /\sid\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`$]*)["'`]\s*\})/;
+const ID = /\sid\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`$]*)["'`]\s*\})/y;
 
 /** Every `<Variants>` and `<Variant>` opening tag, with each variant's group. */
 export const scanTags = (source: string): Tag[] => {
@@ -138,8 +142,7 @@ export const scanTags = (source: string): Tag[] => {
     }
     const tag = readOpeningTag(source, match.index);
     if (!tag) break;
-    const found = ID.exec(tag.text);
-    const id = found ? (found[1] ?? found[2] ?? found[3]) : undefined;
+    const { id } = tag;
     tags.push({
       kind,
       id,

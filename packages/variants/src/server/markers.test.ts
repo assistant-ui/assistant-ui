@@ -188,9 +188,15 @@ describe("insertNote and deleteNote", () => {
 
   it("ignores markers whose payload is broken", () => {
     const broken = page.replace(
-      '<Variant id="link">',
-      '<Variant id="link">{/* @variants-note id="n-00000000" ts="x" text="!!" */}',
+      "<Variant id='link'>",
+      '<Variant id=\'link\'>{/* @variants-note id="n-00000000" ts="x" text="Zm9v" */}',
     );
+    expect(broken).not.toBe(page);
     expect(listNotes(broken)).toEqual([]);
+  });
+
+  it("reads the id attribute, not an id inside another attribute's value", () => {
+    const source = `<Variants label="see id='other'" id="real"><Variant id="a" title='id="no"'>a</Variant></Variants>`;
+    expect(scanTags(source).map((tag) => tag.id)).toEqual(["real", "a"]);
   });
 });

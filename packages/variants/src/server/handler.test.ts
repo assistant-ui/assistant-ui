@@ -1,4 +1,5 @@
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -11,7 +12,12 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "../next";
 import { variants } from "../vite";
-import { handleNotesRequest, type NotesRequest } from "./handler";
+import {
+  handleNotesRequest,
+  MAX_BODY,
+  readJsonBody,
+  type NotesRequest,
+} from "./handler";
 import { confine, locateGroup } from "./project";
 
 const page = `export const Page = () => (
@@ -39,6 +45,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 const request = (
@@ -272,6 +279,65 @@ describe("notes round trip", () => {
   });
 });
 
+describe("body and concurrency", () => {
+  it("answers 400 for malformed JSON and 413 for an oversized body", async () => {
+    const malformed = request("POST", "/notes");
+    malformed.json = () => readJsonBody([new TextEncoder().encode("{")]);
+    expect(await call(malformed)).toEqual({
+      status: 400,
+      body: { error: "invalid JSON body" },
+    });
+    const oversized = request("POST", "/notes");
+    oversized.json = () => readJsonBody(["x".repeat(MAX_BODY + 1)]);
+    expect((await call(oversized)).status).toBe(413);
+  });
+
+  it("keeps both markers when two notes are saved at once", async () => {
+    const save = (note: string) =>
+      call(
+        request("POST", "/notes", {
+          body: { group: "demo-cta", variant: "link", note },
+        }),
+      );
+    const results = await Promise.all([save("one"), save("two")]);
+    expect(results.map((result) => result.status)).toEqual([201, 201]);
+    const listed = await call(request("GET", "/notes?groups=demo-cta"));
+    expect(
+      (listed.body as { notes: { note: string }[] }).notes
+        .map((note) => note.note)
+        .sort(),
+    ).toEqual(["one", "two"]);
+  });
+
+  it("deletes a note only through the group that owns it", async () => {
+    await writeFile(
+      join(root, "src", "page.tsx"),
+      `${page}\nexport const Other = () => (\n  <Variants id="demo-other">\n    <Variant id="x">x</Variant>\n  </Variants>\n);\n`,
+    );
+    const added = await call(
+      request("POST", "/notes", { body: { group: "demo-cta", note: "keep" } }),
+    );
+    const { id } = added.body as { id: string };
+    expect(
+      (await call(request("DELETE", `/notes/${id}?group=demo-other`))).status,
+    ).toBe(404);
+    expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toContain(id);
+  });
+
+  it("reports an unreadable directory instead of skipping it", async () => {
+    const locked = join(root, "src", "locked");
+    await mkdir(locked);
+    await chmod(locked, 0o000);
+    try {
+      expect(
+        (await call(request("GET", "/notes?groups=demo-cta"))).status,
+      ).toBe(500);
+    } finally {
+      await chmod(locked, 0o755);
+    }
+  });
+});
+
 describe("adapters", () => {
   it("serves the endpoints from the Vite dev server middleware", async () => {
     let middleware:
@@ -348,5 +414,9 @@ describe("adapters", () => {
       (await DELETE(make("DELETE", `/notes/${id}?group=demo-cta`))).status,
     ).toBe(200);
     expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toBe(page);
+    const oversized = await POST(
+      make("POST", "/notes", { group: "demo-cta", note: "x".repeat(MAX_BODY) }),
+    );
+    expect(oversized.status).toBe(413);
   });
 });

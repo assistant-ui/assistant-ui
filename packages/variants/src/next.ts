@@ -1,6 +1,20 @@
-import { handleNotesRequest } from "./server/handler";
+import { handleNotesRequest, readJsonBody } from "./server/handler";
 
 const MOUNT = "/__variants";
+
+async function* chunks(body: ReadableStream<Uint8Array> | null) {
+  if (!body) return;
+  const reader = body.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      yield value;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+}
 
 const handle = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
@@ -11,11 +25,7 @@ const handle = async (request: Request): Promise<Response> => {
       method: request.method,
       path,
       header: (name) => request.headers.get(name),
-      json: async () => {
-        const text = await request.text();
-        if (text.length > 64 * 1024) throw new Error("request body too large");
-        return JSON.parse(text) as unknown;
-      },
+      json: () => readJsonBody(chunks(request.body)),
     },
     {
       root: process.cwd(),
