@@ -194,11 +194,9 @@ export const useTrackedSyncExternalStore = <T>(
 
   const getSnapshot = tapHosted ? read : () => collectReads(read, readsRef);
 
-  const value = useSyncExternalStore(
-    subscribeToReads,
-    getSnapshot,
-    getSnapshot,
-  );
+  // A server render never subscribes, and a hydrated reader starts on the
+  // host-wide subscription until the resync below retargets it
+  const value = useSyncExternalStore(subscribeToReads, getSnapshot, read);
 
   // A render can change what the snapshot reads without any notification
   useEffect(() => {
