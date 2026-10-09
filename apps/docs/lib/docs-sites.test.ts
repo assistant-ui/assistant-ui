@@ -4,6 +4,7 @@ import {
   DOCS_SITE_REDIRECTS,
   docsSiteMarkdownFileRewrites,
   rewriteLegacyDocsSitePath,
+  subProject,
   subProjectGithubUrl,
 } from "./docs-sites";
 
@@ -23,6 +24,19 @@ describe("docs sites", () => {
   it("links the playground to its route source", () => {
     expect(subProjectGithubUrl("playground")).toBe(
       "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(demos)/playground",
+    );
+  });
+
+  it("uses the Learn site's metadata, product copy, and source", () => {
+    expect(subProject("learn")).toMatchObject({
+      title: "Learn",
+      metadataTitle: "Learn assistant-ui",
+      description:
+        "Build assistant interfaces through a guided course in the Xulux playground.",
+      productDescription: "Guided assistant-ui courses",
+    });
+    expect(subProjectGithubUrl("learn")).toBe(
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/lib/xulux/learn",
     );
   });
 

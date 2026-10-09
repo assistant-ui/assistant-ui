@@ -33,7 +33,7 @@ export type Product = {
 };
 
 export const PRODUCTS: Product[] = SUB_PROJECT_SLUGS.filter(
-  (slug) => slug !== "playground",
+  (slug) => slug !== "playground" && slug !== "learn",
 ).map((slug) => {
   const project = subProject(slug);
   return {
@@ -51,9 +51,9 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
     ? [
         {
           slug: "learn",
-          label: "Learn",
+          label: subProject("learn").title,
           href: "/learn",
-          description: "Guided assistant-ui courses",
+          description: subProject("learn").productDescription,
           external: false,
         },
       ]

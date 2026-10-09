@@ -109,6 +109,14 @@ export const SUB_PROJECT_REGISTRY = {
     path: "apps/docs/app/(demos)/playground",
     productDescription: "Interactive playground",
   },
+  learn: {
+    title: "Learn",
+    metadataTitle: "Learn assistant-ui",
+    description:
+      "Build assistant interfaces through a guided course in the Xulux playground.",
+    path: "apps/docs/lib/xulux/learn",
+    productDescription: "Guided assistant-ui courses",
+  },
 } as const satisfies Record<string, SubProject>;
 
 export type SubProjectSlug = keyof typeof SUB_PROJECT_REGISTRY;
@@ -116,7 +124,9 @@ export const SUB_PROJECT_SLUGS = Object.keys(
   SUB_PROJECT_REGISTRY,
 ) as SubProjectSlug[];
 
-export function subProject(slug: SubProjectSlug): SubProject {
+export function subProject<S extends SubProjectSlug>(
+  slug: S,
+): SubProject & (typeof SUB_PROJECT_REGISTRY)[S] {
   return SUB_PROJECT_REGISTRY[slug];
 }
 
