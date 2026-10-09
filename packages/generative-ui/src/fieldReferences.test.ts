@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
+import * as rootEntry from "./index";
+import * as reactEntry from "./react";
 
 describe("field references", () => {
+  it("are exported from the root and React entries", () => {
+    for (const entry of [rootEntry, reactEntry]) {
+      expect(entry.resolveFieldReferences).toBe(resolveFieldReferences);
+      expect(entry.hasFieldReference).toBe(hasFieldReference);
+    }
+  });
+
   it("resolve from own fields only and drop what does not resolve", () => {
     const fields = Object.assign(Object.create({ inherited: "no" }), {
       note: "hi",
