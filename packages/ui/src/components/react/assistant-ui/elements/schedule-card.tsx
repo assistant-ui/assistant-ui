@@ -49,12 +49,12 @@ export function ScheduleCard({
       {...props}
     >
       <div className="flex items-center gap-2.5">
-        <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">
+        <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-lg">
           <ClockIcon className="size-3.5" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13.5px] font-medium">{name}</span>
-          <span className={cn(mono, "text-foreground/30")}>{cadence}</span>
+          <span className={cn(mono, "text-muted-foreground")}>{cadence}</span>
         </div>
         <button
           type="button"
@@ -83,14 +83,14 @@ export function ScheduleCard({
           !enabled && "opacity-45",
         )}
       >
-        <span className={cn(mono, "text-foreground/30")}>next</span>
+        <span className={cn(mono, "text-muted-foreground")}>next</span>
         <span className="text-foreground/80 text-[13px]">
           {enabled ? nextRun : "paused"}
         </span>
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className={cn(mono, "text-foreground/30")}>recent runs</span>
+        <span className={cn(mono, "text-muted-foreground")}>recent runs</span>
         {history.map((run) => (
           <div key={run.id} className="flex items-baseline gap-2">
             {run.ok ? (
@@ -101,7 +101,7 @@ export function ScheduleCard({
             <span className="text-foreground/60 min-w-0 flex-1 truncate text-xs">
               {run.at}
             </span>
-            <span className={cn(mono, "text-foreground/25 shrink-0")}>
+            <span className={cn(mono, "text-muted-foreground shrink-0")}>
               {run.ok ? "ok" : "failed"}
             </span>
           </div>

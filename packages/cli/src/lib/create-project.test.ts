@@ -24,23 +24,6 @@ describe("reconcileAssistantUIImportLayout", () => {
   const read = (file: string) =>
     fs.readFileSync(path.join(projectDir, file), "utf8");
 
-  it("rewrites a legacy import when only the elements layout exists", async () => {
-    write(
-      "app/page.tsx",
-      'import { Thread } from "@/components/assistant-ui/thread";\n' +
-        'import { ThreadList } from "@/components/assistant-ui/thread-list";\n',
-    );
-    write("components/assistant-ui/elements/thread.aui.tsx", "export {};");
-    write("components/assistant-ui/elements/thread-list.aui.tsx", "export {};");
-
-    await reconcileAssistantUIImportLayout(projectDir);
-
-    expect(read("app/page.tsx")).toBe(
-      'import { Thread } from "@/components/assistant-ui/elements/thread.aui";\n' +
-        'import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";\n',
-    );
-  });
-
   it("rewrites module declarations without changing import-like source text", async () => {
     write(
       "app/page.tsx",

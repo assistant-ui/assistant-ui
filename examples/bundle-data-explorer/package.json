@@ -6,16 +6,17 @@
   "scripts": {
     "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
     "test": "node --test scripts/data.test.mjs",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit",
     "preview:build": "node ../../scripts/build-example-bundle.mjs"
   },
   "dependencies": {
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
-    "ai": "^7.0.101",
+    "ai": "^7.0.130",
+    "bundle-shared": "workspace:*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "bundle-shared": "workspace:*"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

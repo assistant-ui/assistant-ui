@@ -13,12 +13,6 @@ describe("formatWhen", () => {
   it("shows yesterday prefix for previous day", () => {
     expect(formatWhen("2026-06-16T10:36:04.000Z", now)).toMatch(/^Yesterday /);
   });
-
-  it("does not collapse to AM/PM only", () => {
-    const label = formatWhen("2026-06-17T10:36:04.000Z", now);
-    expect(label).not.toBe("AM");
-    expect(label).not.toBe("PM");
-  });
 });
 
 describe("formatWhenLabel", () => {

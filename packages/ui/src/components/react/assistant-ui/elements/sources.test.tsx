@@ -1,12 +1,17 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Sources, type Source } from "./sources";
+import { Sources, type Source, type SourcesProps } from "./sources";
 
 afterEach(cleanup);
 
-const renderSources = (sources: readonly Source[]) =>
-  render(<Sources sources={sources} open onOpenChange={() => {}} />);
+const renderSources = (
+  sources: readonly Source[],
+  layout?: SourcesProps["layout"],
+) =>
+  render(
+    <Sources sources={sources} open onOpenChange={() => {}} layout={layout} />,
+  );
 
 describe("Sources", () => {
   it("links safe URLs and leaves unsafe URLs as cards", () => {
@@ -93,5 +98,40 @@ describe("Sources", () => {
       "S",
       "T",
     ]);
+  });
+
+  it("keeps safe links, snippets and dates in the compact list layout", () => {
+    const { container } = renderSources(
+      [
+        {
+          title: "Safe citation",
+          url: "https://example.com/source",
+          snippet: "Reference excerpt",
+          author: "Ada",
+          publishedAt: "2025-09-16",
+        },
+        { title: "Unsafe citation", url: "javascript:alert(1)" },
+      ],
+      "list",
+    );
+
+    expect(
+      container
+        .querySelector('[data-slot="sources"]')
+        ?.getAttribute("data-layout"),
+    ).toBe("list");
+    expect(
+      container.querySelectorAll('[data-slot="source-card"]'),
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole("link", { name: /Safe citation/ }).getAttribute("href"),
+    ).toBe("https://example.com/source");
+    expect(screen.getByText("example.com")).toBeTruthy();
+    expect(screen.getByText("Reference excerpt")).toBeTruthy();
+    expect(screen.getByText("Ada · Sep 2025")).toBeTruthy();
+    expect(
+      screen.getByText("Unsafe citation").closest('[data-slot="source-card"]')
+        ?.tagName,
+    ).toBe("DIV");
   });
 });

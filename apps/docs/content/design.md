@@ -74,11 +74,12 @@ The numeric aliases (`--radius-lg`, `--radius-2xl`, `--radius-3xl`) exist for Ta
 
 ## Register: type
 
-Three faces, assigned by meaning rather than by size:
+Two faces, assigned by meaning rather than by size:
 
-- **Display** (`--font-display`) is for headings: `h1`, `h2`, `h3`, and the large figures a page is built around.
-- **Sans** (`--font-sans`) is reading text.
-- **Mono** (`--font-mono`) is only for **the thing you type or install** (a command, a package name, a path, an identifier, a version, a count). Never use mono for prose or for emphasis.
+- **Public Sans** is used for both display (`--font-display`) and reading text (`--font-sans`). Headings establish hierarchy through size and weight. Labels, navigation, captions, and statistics use the same face as prose.
+- **JetBrains Mono** (`--font-mono`) is only for **the thing you type or install**: code, commands, package names, paths, identifiers, and versions. Never use mono for prose or for emphasis. Counts and measurements use sans with `tabular-nums` when alignment matters.
+
+Labels and captions use sentence case, normal letter spacing, and a minimum of 12px. Preserve the case of acronyms, brands, and code. Never style a label with all caps or expanded tracking.
 
 Type roles are a closed set in `components/shared/type.ts`: `typeHero`, `typeSection`, `typePage`, `typeDeck`, `typePackage`. Use the role. Do not compose a one-off size, and never resize one peer because its string is longer.
 
@@ -153,7 +154,7 @@ Use these names. Do not invent a sibling, do not extrapolate one from another pr
 
 **Layout**: `PageFrame` with `pad` of `hero`, `heroBody`, or `sub`, and `PageCopy`, both in `components/shared/page-frame.tsx`.
 
-**Motion** (`apps/docs/styles/animate.css`): `hero-word`, `hero-word-ink`, `hero-caret`, `hero-rise`, `hero-glint`, `code-cascade`, `line-hot`, `stage-progress`, `search-reveal`. Motion explains a state change, preserves continuity, or confirms an action. It never gates reading. Every one of these is disabled under `prefers-reduced-motion`, and any new keyframe must be too.
+**Motion** (`apps/docs/styles/animate.css`): `hero-word`, `hero-word-ink`, `hero-caret`, `hero-rise`, `hero-glint`, `code-cascade`, `line-hot`, `stage-progress`, `search-reveal`, and the `nav-glyph-*` keyframes selected by `[data-glyph-motion]`. Motion explains a state change, preserves continuity, or confirms an action. It never gates reading. Every one of these is disabled under `prefers-reduced-motion`, and any new keyframe must be too.
 
 **Components**: `packages/ui/src/components/react/ui/{base,radix}`, shipped as identical twins. Base is the standard and the radix twin mirrors it markup for markup. A new component lands in both or it does not land. Chat surfaces build on the assistant-ui primitives, not on a parallel widget.
 

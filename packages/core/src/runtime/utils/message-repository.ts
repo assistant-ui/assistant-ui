@@ -91,7 +91,7 @@ const findHead = (
 
 // A history may store a message before its parent, for example one that
 // commits appends concurrently, so such a message is added after its parent.
-const withParentsFirst = (
+export const withParentsFirst = (
   messages: ExportedMessageRepository["messages"],
   isStored: (id: string) => boolean,
 ) => {
@@ -582,9 +582,51 @@ export class MessageRepository {
     }
 
     return {
-      headId: this.canonicalHeadId,
+      headId: this.exportedHeadId(),
       messages: exportItems,
     };
+  }
+
+  /**
+   * The head as it would be if the optimistic messages were deleted. Import
+   * resets to the exported head and drops its descendants, so an optimistic
+   * head resolves to a leaf of the exported tree rather than to its persisted
+   * ancestor, whose other children would be lost.
+   */
+  private exportedHeadId(): string | null {
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) head = head.prev;
+    if (head === this.head) return head?.current.id ?? null;
+
+    for (;;) {
+      const next = this.exportedChild(head ?? this.root);
+      if (!next) return head?.current.id ?? null;
+      head = next;
+    }
+  }
+
+  private exportedChild(parent: RepositoryParent): RepositoryMessage | null {
+    const selected = parent.next;
+    if (selected) {
+      if (!selected.current.metadata?.isOptimistic) return selected;
+      const descendant = this.exportedChild(selected);
+      if (descendant) return descendant;
+    }
+    const selectedIndex = selected
+      ? parent.children.indexOf(selected.current.id)
+      : parent.children.length;
+    const siblings = [
+      ...parent.children.slice(0, selectedIndex).reverse(),
+      ...parent.children.slice(selectedIndex + 1).reverse(),
+    ];
+    for (const id of siblings) {
+      const child = this.messages.get(id);
+      if (!child) continue;
+      if (!child.current.metadata?.isOptimistic) return child;
+      const descendant = this.exportedChild(child);
+      if (descendant) return descendant;
+    }
+    return null;
   }
 
   import({ headId, messages }: ExportedMessageRepository) {

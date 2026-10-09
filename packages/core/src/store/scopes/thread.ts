@@ -30,9 +30,21 @@ export type ThreadState = {
    */
   readonly isDisabled: boolean;
   /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
+  /**
    * Whether the thread is loading its history.
    */
   readonly isLoading: boolean;
+  /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
   /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
@@ -114,6 +126,12 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Load the page before the first loaded message. Resolves at once when
+   * `hasEarlier` is false; concurrent calls share one load, and a failed load
+   * is logged rather than rejected.
+   */
+  loadEarlier(): Promise<void>;
   /**
    * Re-fetch this thread's state from its backing store, in place: the tap
    * thread's refetch hook, which `threads.reloadMainThread()` prefers and

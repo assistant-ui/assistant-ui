@@ -224,7 +224,7 @@ function getToolStreamResponse(
       human(context.toolCallId, payload, context.executionId),
     [TOOL_EXECUTION_ID]: context.executionId,
   } as ToolExecutionContext;
-  tools?.[context.toolName]?.streamCall?.(reader, executionContext);
+  return tools?.[context.toolName]?.streamCall?.(reader, executionContext);
 }
 
 const isPendingToolCall = (

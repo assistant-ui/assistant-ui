@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { Suspense } from "react";
 import { useSyncExternalStore } from "react";

@@ -10,6 +10,8 @@ export const PACKAGE_BUILD_INPUTS = [
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "turbo.json",
+  "apps/docs/turbo.json",
+  "examples/with-resumable-stream/turbo.json",
 ];
 
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);

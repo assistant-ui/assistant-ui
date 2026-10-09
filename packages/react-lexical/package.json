@@ -31,6 +31,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types",
@@ -66,7 +67,7 @@
     "@lexical/react": "^0.52.0",
     "@lexical/utils": "^0.52.0",
     "@types/react": "^19.3.0",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.2",
     "lexical": "^0.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

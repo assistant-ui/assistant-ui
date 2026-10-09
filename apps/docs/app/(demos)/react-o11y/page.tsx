@@ -105,7 +105,7 @@ export default function ReactO11yPage() {
           >
             Read the docs
           </Link>
-          <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide">
+          <span className="text-muted-foreground/60 text-xs">
             experimental · api may change
           </span>
         </div>
@@ -113,7 +113,7 @@ export default function ReactO11yPage() {
 
       <figure className="mt-12 md:mt-16">
         <WaterfallSample />
-        <figcaption className="text-muted-foreground/70 mt-2 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px] tracking-wide">
+        <figcaption className="text-muted-foreground/70 mt-2 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-xs">
           <span>fig. 01 · a live waterfall</span>
           <span>collapse subtrees · hold ⌘ and scroll to zoom</span>
         </figcaption>

@@ -39,12 +39,12 @@ export function CodeRunner({
       {...props}
     >
       <div className="flex items-center gap-2 px-3.5 py-2">
-        <span className={cn(mono, "text-foreground/35 min-w-0 flex-1")}>
+        <span className={cn(mono, "text-muted-foreground min-w-0 flex-1")}>
           {language}
         </span>
         {durationMs !== undefined && state !== "running" && (
           <span
-            className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
+            className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
           >
             {durationMs}ms
           </span>
@@ -75,7 +75,7 @@ export function CodeRunner({
 
       {state !== "idle" && (
         <div className="border-foreground/[0.07] fade-in animate-in flex flex-col border-t px-3.5 py-2.5 duration-300">
-          <span className={cn(mono, "text-foreground/30 pb-1")}>output</span>
+          <span className={cn(mono, "text-muted-foreground pb-1")}>output</span>
           <div className={codeScroll}>
             <div className={cn(codeSurface, "flex flex-col")}>
               {output.map((line, i) => (

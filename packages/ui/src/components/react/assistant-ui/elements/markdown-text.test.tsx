@@ -101,6 +101,30 @@ describe("MarkdownText component overrides", () => {
     }
   });
 
+  it("routes a fenced language through componentsByLanguage", () => {
+    mocks.messagePartText.text =
+      "```mermaid\ngraph TD; A-->B\n```\n\n```tsx\nconst answer = 42;\n```";
+    try {
+      const Mermaid = ({ code }: { code: string }) => (
+        <div data-testid="mermaid">{code}</div>
+      );
+
+      render(
+        <MarkdownText
+          componentsByLanguage={{ mermaid: { SyntaxHighlighter: Mermaid } }}
+        />,
+      );
+
+      expect(screen.getByTestId("mermaid").textContent).toBe(
+        "graph TD; A-->B\n",
+      );
+      expect(screen.getAllByTestId("mermaid")).toHaveLength(1);
+      expect(screen.getByText("const answer = 42;")).toBeTruthy();
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
+
   it("gives a table its own horizontal scroll container", () => {
     mocks.messagePartText.text =
       "| ID |\n| --- |\n| aaaa0000bbbb1111cccc2222dddd3333 |";

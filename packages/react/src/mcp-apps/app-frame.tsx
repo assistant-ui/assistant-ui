@@ -15,6 +15,7 @@ import type {
   McpAppHostContext,
 } from "./types";
 import { isRecord } from "@assistant-ui/core/internal";
+import { applyMcpAppCsp } from "./csp";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
@@ -309,7 +310,7 @@ export function McpAppFrame({
 
   return (
     <SandboxHost
-      content={{ html: resource.html }}
+      content={{ html: applyMcpAppCsp(resource.html, resource.meta?.csp) }}
       contentKey={
         app.serverId ? `${app.serverId} ${resource.uri}` : resource.uri
       }
