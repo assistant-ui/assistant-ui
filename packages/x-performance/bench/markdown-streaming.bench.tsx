@@ -11,7 +11,7 @@ import {
 } from "@assistant-ui/react";
 import {
   MarkdownTextPrimitive,
-  memoizeMarkdownComponents,
+  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
 } from "@assistant-ui/react-markdown";
 
 (
