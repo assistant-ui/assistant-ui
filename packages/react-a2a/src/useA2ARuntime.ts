@@ -117,7 +117,6 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     new A2AThreadRuntimeCore({
       ...coreOptionsRef.current,
       client,
-      notifyUpdate: () => {},
     });
   const [pinnedCore, setPinnedCore] = useState(() => ({
     client,

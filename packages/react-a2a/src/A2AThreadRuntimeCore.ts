@@ -62,7 +62,6 @@ export type A2AThreadRuntimeCoreOptions = {
   onCancel?: (() => void) | undefined;
   onArtifactComplete?: ((artifact: A2AArtifact) => void) | undefined;
   history?: ThreadHistoryAdapter | undefined;
-  notifyUpdate: () => void;
 };
 
 const FALLBACK_USER_STATUS = {
@@ -145,7 +144,6 @@ export class A2AThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
     this.history = options.history;
-    this.listeners.add(options.notifyUpdate);
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -168,7 +166,7 @@ export class A2AThreadRuntimeCore {
     for (const listener of this.listeners) listener();
   }
 
-  updateOptions(options: Omit<A2AThreadRuntimeCoreOptions, "notifyUpdate">) {
+  updateOptions(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
     // The option only seeds the context; a re-render with the same value must
     // not clobber a server-assigned contextId learned from the stream.
