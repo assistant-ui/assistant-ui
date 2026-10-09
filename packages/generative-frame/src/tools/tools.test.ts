@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { applyWidgetEdits } from "./edits";
 import { createWidgetRegistry } from "./registry";
-import { createWidgetTools, toAISDKTools } from "./tools";
+import { defineCatalog } from "../spec/catalog";
+import {
+  buildWidgetInstructions,
+  createWidgetTools,
+  getToolDeclarations,
+  toAISDKTools,
+} from "./tools";
 
 const CODE = `<h3>Revenue</h3><p class="note">Q1</p><p class="note">Q2</p>`;
 
@@ -194,5 +200,124 @@ describe("toAISDKTools", () => {
     await expect(
       sdkTools.show_widget.execute({ title: "t", widget_code: "<p>x</p>" }),
     ).resolves.toMatchObject({ ok: true });
+  });
+});
+
+const catalog = defineCatalog({
+  components: {
+    Stack: { description: "Layout", slots: ["default"] },
+    Metric: {
+      description: "A number",
+      props: {
+        type: "object",
+        properties: { label: { type: "string" }, value: { type: "number" } },
+        required: ["label", "value"],
+      },
+    },
+  },
+});
+
+const PATCHES = [
+  '{"op":"add","path":"/root","value":"main"}',
+  '{"op":"add","path":"/elements/main","value":{"type":"Stack","children":["m"]}}',
+  '{"op":"add","path":"/elements/m","value":{"type":"Metric","props":{"label":"Users","value":"many"}}}',
+].join("\n");
+
+describe("spec tools", () => {
+  it("adds render_spec and the spec module only with a catalog", async () => {
+    expect("render_spec" in createWidgetTools()).toBe(false);
+    const tools = createWidgetTools({ catalog });
+    expect(
+      tools.read_me.inputSchema.properties?.["modules"]?.items?.enum,
+    ).toContain("spec");
+    const specOnly = await tools.read_me.execute({ modules: ["spec"] });
+    expect(specOnly.startsWith("# Declarative UI")).toBe(true);
+    expect(specOnly).toContain("### Metric");
+    expect(specOnly).toContain("Output only patch lines");
+    const both = await tools.read_me.execute({ modules: ["chart", "spec"] });
+    expect(both).toContain("## Module: chart");
+    expect(both).toContain("# Declarative UI");
+    const withoutCatalog = await createWidgetTools().read_me.execute({
+      modules: ["spec" as never],
+    });
+    expect(withoutCatalog).not.toContain("Declarative UI");
+  });
+
+  it("validates streamed patches and returns repair feedback", async () => {
+    const specs = new Map();
+    const tools = createWidgetTools({ catalog, specs });
+    const first = await tools.render_spec.execute({
+      title: "kpis",
+      patches: `${PATCHES}\n{oops`,
+    });
+    expect(first.ok).toBe(false);
+    expect(first.version).toBe(1);
+    expect(first.elementCount).toBe(2);
+    expect(first.issues.map((issue) => [issue.code, issue.path])).toEqual([
+      ["invalid-patch", ""],
+      ["invalid-props", "/elements/m/props/value"],
+    ]);
+    expect(first.feedback).toContain(
+      "Patch line 4 was skipped: not valid JSON",
+    );
+    expect(first.feedback).toContain(
+      '/elements/m/props/value: Metric "m" prop value expected number, got string.',
+    );
+
+    const fixed = await tools.render_spec.execute({
+      title: "kpis",
+      patches: '{"op":"replace","path":"/elements/m/props/value","value":42}',
+    });
+    expect(fixed).toMatchObject({
+      ok: true,
+      version: 2,
+      issues: [],
+      feedback: "The spec is valid.",
+    });
+    expect(specs.get("kpis").spec.elements.m.props.value).toBe(42);
+
+    const replaced = await tools.render_spec.execute({
+      title: "kpis",
+      spec: { root: "x", elements: { x: { type: "Stack" } } },
+    });
+    expect(replaced).toMatchObject({ ok: true, version: 3, elementCount: 1 });
+
+    const empty = await tools.render_spec.execute({ title: "other" });
+    expect(empty.ok).toBe(false);
+    expect(empty.issues[0]?.message).toBe("Pass `patches` or `spec`.");
+  });
+});
+
+describe("server helpers", () => {
+  it("declares tools without execute", () => {
+    const declarations = getToolDeclarations(createWidgetTools({ catalog }));
+    expect(Object.keys(declarations)).toEqual([
+      "read_me",
+      "show_widget",
+      "edit_widget",
+      "preview_widget",
+      "render_spec",
+    ]);
+    expect(declarations.show_widget).toEqual({
+      description: expect.stringContaining("Shows a visual widget"),
+      inputSchema: expect.objectContaining({
+        required: ["title", "widget_code"],
+      }),
+    });
+    expect("execute" in declarations.show_widget).toBe(false);
+  });
+
+  it("builds instructions with optional preloaded guidance", async () => {
+    const plain = await buildWidgetInstructions(createWidgetTools());
+    expect(plain).toContain("## Visual widgets");
+    expect(plain).not.toContain("render_spec");
+    const preloaded = await buildWidgetInstructions(
+      createWidgetTools({ catalog }),
+      {
+        preload: { modules: ["spec"] },
+      },
+    );
+    expect(preloaded).toContain("`render_spec`");
+    expect(preloaded).toContain("# Declarative UI");
   });
 });

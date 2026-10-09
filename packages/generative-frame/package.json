@@ -34,6 +34,10 @@
     "./repair": {
       "types": "./dist/repair.d.ts",
       "default": "./dist/repair.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "default": "./dist/spec.js"
     }
   },
   "main": "./dist/index.js",
