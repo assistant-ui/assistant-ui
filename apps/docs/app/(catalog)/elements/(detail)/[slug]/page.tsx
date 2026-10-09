@@ -174,7 +174,7 @@ export default async function ElementPage({
   const showToc = toc.length >= 3;
 
   const manualInstall = element.generative ? (
-    <PackageManagerTabs packages={["@assistant-ui/generative-ui"]} />
+    <PackageManagerTabs packages={["@assistant-ui/generative-ui", "zod"]} />
   ) : hasModes ? (
     <>
       <ElementModeToggle className="mb-6" />
