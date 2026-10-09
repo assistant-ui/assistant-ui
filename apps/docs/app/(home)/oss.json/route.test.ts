@@ -21,9 +21,9 @@ describe("GET /oss.json", () => {
       npmUrl: "https://www.npmjs.com/package/assistant-stream",
       pypiUrl: "https://pypi.org/project/assistant-stream/",
     });
-    expect(projects.get("skills")).toMatchObject({
-      url: "https://github.com/assistant-ui/skills",
-      repoUrl: "https://github.com/assistant-ui/skills",
+    expect(projects.get("xpm")).toMatchObject({
+      url: "https://github.com/assistant-ui/xpm",
+      repoUrl: "https://github.com/assistant-ui/xpm",
     });
   });
 });
