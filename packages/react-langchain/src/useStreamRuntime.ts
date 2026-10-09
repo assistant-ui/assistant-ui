@@ -165,6 +165,11 @@ const useStreamThreadRuntime = (
     getVisibleStagedMessages,
     getVisibleStagedMessages,
   );
+  const forkPending = useSyncExternalStore(
+    threadController.subscribe,
+    () => threadController.getState().forkPending,
+    () => threadController.getState().forkPending,
+  );
 
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -172,7 +177,8 @@ const useStreamThreadRuntime = (
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
-  const effectiveIsRunning = stream.isLoading || hasExecutingTools;
+  const effectiveIsRunning =
+    stream.isLoading || forkPending || hasExecutingTools;
 
   const [uiSnapshotMemo] = useState(createUISnapshotMemo);
   const uiStateValue = reconcileUISnapshot(
@@ -470,6 +476,11 @@ const useStreamThreadRuntime = (
     );
   };
 
+  const supersedeFork = () => {
+    threadController.dispatch({ type: "supersedeFork" });
+    return threadController.getState().forkGeneration;
+  };
+
   const extras = useMemo(
     () =>
       langChainExtras.provide({
@@ -499,7 +510,7 @@ const useStreamThreadRuntime = (
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
-    isRunning: stream.isLoading,
+    isRunning: stream.isLoading || forkPending,
     isLoading: stream.isThreadLoading,
     messages: messagesWithTranscripts,
     adapters,
@@ -585,115 +596,142 @@ const useStreamThreadRuntime = (
       );
     },
     onReload: async (parentId, config) => {
-      const stagedRun = getStagedRun(parentId);
-      if (stagedRun) {
-        if (
-          config.sourceId &&
-          threadController.getState().stagedEntries.get(config.sourceId)
-            ?.transcriptStatus
-        )
-          removeStagedMessage(config.sourceId);
-        dispatchStaging({
-          type: "promote",
-          messages: stagedRun.messages,
-          visibleMessages: visibleMessagesRef.current,
-        });
-        const runConfig = config.runConfig ?? stagedRun.runConfig;
-        setActiveRunConfig(runConfig);
-        await submitCarryingTranscripts(stagedRun.messages, () =>
-          stream.submit(
+      const forkGeneration = supersedeFork();
+      try {
+        await streamRef.current.stop();
+        if (threadController.getState().forkGeneration !== forkGeneration)
+          return;
+        const stagedRun = getStagedRun(parentId);
+        if (stagedRun) {
+          if (
+            config.sourceId &&
+            threadController.getState().stagedEntries.get(config.sourceId)
+              ?.transcriptStatus
+          )
+            removeStagedMessage(config.sourceId);
+          dispatchStaging({
+            type: "promote",
+            messages: stagedRun.messages,
+            visibleMessages: visibleMessagesRef.current,
+          });
+          const runConfig = config.runConfig ?? stagedRun.runConfig;
+          setActiveRunConfig(runConfig);
+          await submitCarryingTranscripts(stagedRun.messages, () =>
+            stream.submit(
+              {
+                [messagesKey]: stagedRun.messages.map(toStagedMessageInput),
+              },
+              runConfigToSubmitOptions(runConfig),
+            ),
+          );
+          return;
+        }
+
+        const threadId = externalId;
+        if (!threadId || parentId == null) return;
+        const s = streamRef.current;
+        const fork = planForkTranscripts(parentId);
+        const checkpointId = await resolveForkCheckpoint(
+          s.client,
+          threadId,
+          s.messages as readonly LangChainBaseMessage[],
+          fork.forkParentId,
+          config.sourceId,
+          s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+          messagesKey,
+        );
+        if (threadController.getState().forkGeneration !== forkGeneration)
+          return;
+        if (!checkpointId) return;
+        dropTranscripts(fork.truncated);
+        setActiveRunConfig(config.runConfig);
+        await submitCarryingTranscripts(fork.transcripts, () =>
+          s.submit(
+            fork.transcripts.length > 0
+              ? { [messagesKey]: fork.transcripts.map(toStagedMessageInput) }
+              : null,
             {
-              [messagesKey]: stagedRun.messages.map(toStagedMessageInput),
+              forkFrom: checkpointId,
+              ...runConfigToSubmitOptions(config.runConfig),
             },
-            runConfigToSubmitOptions(runConfig),
           ),
         );
-        return;
+      } finally {
+        threadController.dispatch({
+          type: "finishFork",
+          generation: forkGeneration,
+        });
       }
-
-      const threadId = externalId;
-      if (!threadId || parentId == null) return;
-      const s = streamRef.current;
-      const fork = planForkTranscripts(parentId);
-      const checkpointId = await resolveForkCheckpoint(
-        s.client,
-        threadId,
-        s.messages as readonly LangChainBaseMessage[],
-        fork.forkParentId,
-        config.sourceId,
-        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
-        messagesKey,
-      );
-      if (!checkpointId) return;
-      dropTranscripts(fork.truncated);
-      setActiveRunConfig(config.runConfig);
-      await submitCarryingTranscripts(fork.transcripts, () =>
-        s.submit(
-          fork.transcripts.length > 0
-            ? { [messagesKey]: fork.transcripts.map(toStagedMessageInput) }
-            : null,
-          {
-            forkFrom: checkpointId,
-            ...runConfigToSubmitOptions(config.runConfig),
-          },
-        ),
-      );
     },
     onEdit: async (message) => {
-      if (!(message.startRun ?? message.role === "user")) {
-        const truncated = truncateLangChainBaseMessages(
-          threadMessagesRef.current,
-          message.parentId,
-        );
-        const stagedMessage = toStagedHumanMessage(message);
-        dispatchStaging({
-          type: "stageEdit",
-          entry: {
-            message: stagedMessage,
-            runConfig: message.runConfig,
-            reconcileOnEcho: false,
-            baseMessageCount: 0,
-          },
-          baseMessages: truncated,
-        });
-        return;
-      }
+      const forkGeneration = supersedeFork();
+      try {
+        await streamRef.current.stop();
+        if (threadController.getState().forkGeneration !== forkGeneration)
+          return;
+        if (!(message.startRun ?? message.role === "user")) {
+          const truncated = truncateLangChainBaseMessages(
+            threadMessagesRef.current,
+            message.parentId,
+          );
+          const stagedMessage = toStagedHumanMessage(message);
+          dispatchStaging({
+            type: "stageEdit",
+            entry: {
+              message: stagedMessage,
+              runConfig: message.runConfig,
+              reconcileOnEcho: false,
+              baseMessageCount: 0,
+            },
+            baseMessages: truncated,
+          });
+          return;
+        }
 
-      const threadId = externalId;
-      if (!threadId) return;
-      const s = streamRef.current;
-      const fork = planForkTranscripts(message.parentId);
-      const checkpointId = await resolveForkCheckpoint(
-        s.client,
-        threadId,
-        s.messages as readonly LangChainBaseMessage[],
-        fork.forkParentId,
-        message.sourceId,
-        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
-        messagesKey,
-      );
-      if (!checkpointId) return;
-      dropTranscripts(fork.truncated);
-      const content = getMessageContent(message);
-      setActiveRunConfig(message.runConfig);
-      await submitCarryingTranscripts(fork.transcripts, () =>
-        s.submit(
-          {
-            [messagesKey]: [
-              ...fork.transcripts.map(toStagedMessageInput),
-              { type: "human", content },
-            ],
-          },
-          {
-            forkFrom: checkpointId,
-            ...runConfigToSubmitOptions(message.runConfig),
-          },
-        ),
-      );
+        const threadId = externalId;
+        if (!threadId) return;
+        const s = streamRef.current;
+        const fork = planForkTranscripts(message.parentId);
+        const checkpointId = await resolveForkCheckpoint(
+          s.client,
+          threadId,
+          s.messages as readonly LangChainBaseMessage[],
+          fork.forkParentId,
+          message.sourceId,
+          s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+          messagesKey,
+        );
+        if (threadController.getState().forkGeneration !== forkGeneration)
+          return;
+        if (!checkpointId) return;
+        dropTranscripts(fork.truncated);
+        const content = getMessageContent(message);
+        setActiveRunConfig(message.runConfig);
+        await submitCarryingTranscripts(fork.transcripts, () =>
+          s.submit(
+            {
+              [messagesKey]: [
+                ...fork.transcripts.map(toStagedMessageInput),
+                { type: "human", content },
+              ],
+            },
+            {
+              forkFrom: checkpointId,
+              ...runConfigToSubmitOptions(message.runConfig),
+            },
+          ),
+        );
+      } finally {
+        threadController.dispatch({
+          type: "finishFork",
+          generation: forkGeneration,
+        });
+      }
     },
     onCancel:
       unstable_allowCancellation !== false
         ? async () => {
+            threadController.dispatch({ type: "cancelFork" });
             activeRunConfigRef.current = undefined;
             await stream.stop();
           }
