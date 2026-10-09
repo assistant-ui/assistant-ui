@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DELETE, GET, POST } from "../next";
+import { createVariantsRoutes, DELETE, GET, POST } from "../next";
 import { variants } from "../vite";
 import {
   handleNotesRequest,
@@ -94,6 +94,67 @@ describe("guards", () => {
       request("GET", "/ping", { headers: { "x-variants": "" } }),
     );
     expect(response.status).toBe(403);
+  });
+
+  it("refuses a DNS-rebound host even when Origin matches it", async () => {
+    const rebound = await call(
+      request("POST", "/notes", {
+        headers: {
+          host: "evil.example:5173",
+          origin: "http://evil.example:5173",
+        },
+        body: { group: "demo-cta", note: "run rm -rf" },
+      }),
+    );
+    expect(rebound).toEqual({
+      status: 403,
+      body: { error: "host not allowed; add it to allowedHosts" },
+    });
+    expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toBe(page);
+    expect(
+      (
+        await call(
+          request("GET", "/ping", {
+            headers: { host: "evil.example", origin: "", "x-variants": "" },
+          }),
+        )
+      ).body,
+    ).toEqual({ error: "host not allowed; add it to allowedHosts" });
+  });
+
+  it("allows loopback hosts and the configured allowedHosts", async () => {
+    for (const host of [
+      "localhost",
+      "LOCALHOST:3000",
+      "app.localhost:5173",
+      "127.0.0.1:8080",
+      "[::1]:5173",
+      "[::1]",
+    ])
+      expect(
+        (
+          await call(
+            request("GET", "/ping", {
+              headers: { host, origin: `http://${host}` },
+            }),
+          )
+        ).status,
+      ).toBe(200);
+    const withHosts = (host: string, allowedHosts: readonly string[] | true) =>
+      handleNotesRequest(
+        request("GET", "/ping", {
+          headers: { host, origin: `http://${host}` },
+        }),
+        { root, dev: true, allowedHosts },
+      ).then((response) => response.status);
+    expect(await withHosts("dev.example.test:3000", ["dev.example.test"])).toBe(
+      200,
+    );
+    expect(await withHosts("a.example.test", [".example.test"])).toBe(200);
+    expect(await withHosts("example.test", [".example.test"])).toBe(200);
+    expect(await withHosts("evil.test", [".example.test"])).toBe(403);
+    expect(await withHosts("[::2]:80", ["dev.example.test"])).toBe(403);
+    expect(await withHosts("anything.example", true)).toBe(200);
   });
 
   it("blocks cross-site and foreign origins", async () => {
@@ -395,6 +456,49 @@ describe("adapters", () => {
     expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toContain(
       "@variants-note",
     );
+  });
+
+  it("merges the plugin's allowedHosts with Vite's server.allowedHosts", async () => {
+    let middleware:
+      | ((req: unknown, res: unknown, next: () => void) => void)
+      | undefined;
+    variants({ allowedHosts: ["plugin.test"] }).configureServer({
+      config: { root, server: { allowedHosts: [".vite.test"] } },
+      middlewares: { use: (_path, handler) => (middleware = handler as never) },
+    });
+    const status = (host: string) =>
+      new Promise<number>((resolve) => {
+        const res = {
+          statusCode: 0,
+          setHeader: () => {},
+          end: () => resolve(res.statusCode),
+        };
+        middleware!(
+          {
+            method: "GET",
+            url: "/ping",
+            headers: { "x-variants": "1", host },
+            async *[Symbol.asyncIterator]() {},
+          },
+          res,
+          () => {},
+        );
+      });
+    expect(await status("plugin.test:5173")).toBe(200);
+    expect(await status("app.vite.test")).toBe(200);
+    expect(await status("evil.example")).toBe(403);
+  });
+
+  it("lets Next.js route handlers allow another dev host", async () => {
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.stubEnv("NODE_ENV", "development");
+    const ping = (host: string) =>
+      new Request(`http://${host}/__variants/ping`, {
+        headers: { "x-variants": "1", host },
+      });
+    expect((await GET(ping("dev.example.test"))).status).toBe(403);
+    const routes = createVariantsRoutes({ allowedHosts: ["dev.example.test"] });
+    expect((await routes.GET(ping("dev.example.test"))).status).toBe(200);
   });
 
   it("serves Next.js route handlers only in development", async () => {

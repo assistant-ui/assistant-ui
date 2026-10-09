@@ -1,6 +1,7 @@
 import {
   handleNotesRequest,
   readJsonBody,
+  type AllowedHosts,
   type NotesRequest,
 } from "./server/handler";
 
@@ -19,7 +20,10 @@ type OutgoingResponse = {
 };
 
 type DevServer = {
-  config: { root: string };
+  config: {
+    root: string;
+    server?: { allowedHosts?: readonly string[] | true | undefined };
+  };
   middlewares: {
     use: (
       path: string,
@@ -35,6 +39,11 @@ type DevServer = {
 export type VariantsPluginOptions = {
   /** Directory scanned and written; defaults to Vite's `root`. */
   root?: string | undefined;
+  /**
+   * Hosts besides loopback that may reach the endpoints, with Vite's
+   * `server.allowedHosts` semantics, merged with Vite's own `server.allowedHosts`.
+   */
+  allowedHosts?: AllowedHosts | undefined;
 };
 
 /**
@@ -48,6 +57,10 @@ export function variants(options: VariantsPluginOptions = {}) {
     apply: "serve" as const,
     configureServer(server: DevServer) {
       const root = options.root ?? server.config.root;
+      const own = options.allowedHosts ?? [];
+      const vite = server.config.server?.allowedHosts ?? [];
+      const allowedHosts: AllowedHosts =
+        own === true || vite === true ? true : [...own, ...vite];
       server.middlewares.use(NOTES_PATH, (request, response) => {
         const header = (name: string) => {
           const value = request.headers[name.toLowerCase()];
@@ -59,7 +72,7 @@ export function variants(options: VariantsPluginOptions = {}) {
           header,
           json: () => readJsonBody(request),
         };
-        void handleNotesRequest(notesRequest, { root, dev: true })
+        void handleNotesRequest(notesRequest, { root, dev: true, allowedHosts })
           .catch(() => ({ status: 500, body: { error: "failed" } }))
           .then(({ status, body }) => {
             response.statusCode = status;

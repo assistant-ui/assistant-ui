@@ -1,4 +1,8 @@
-import { handleNotesRequest, readJsonBody } from "./server/handler";
+import {
+  handleNotesRequest,
+  readJsonBody,
+  type AllowedHosts,
+} from "./server/handler";
 
 const MOUNT = "/__variants";
 
@@ -16,7 +20,18 @@ async function* chunks(body: ReadableStream<Uint8Array> | null) {
   }
 }
 
-const handle = async (request: Request): Promise<Response> => {
+export type VariantsRouteOptions = {
+  /**
+   * Hosts besides loopback that may reach the endpoints, with Vite's
+   * `server.allowedHosts` semantics: `.example.test` also allows subdomains.
+   */
+  allowedHosts?: AllowedHosts | undefined;
+};
+
+const handle = async (
+  request: Request,
+  options: VariantsRouteOptions,
+): Promise<Response> => {
   const url = new URL(request.url);
   const at = url.pathname.indexOf(MOUNT);
   const path = `${at === -1 ? url.pathname : url.pathname.slice(at + MOUNT.length) || "/"}${url.search}`;
@@ -30,6 +45,7 @@ const handle = async (request: Request): Promise<Response> => {
     {
       root: process.cwd(),
       dev: process.env.NODE_ENV === "development",
+      allowedHosts: options.allowedHosts,
     },
   );
   return new Response(JSON.stringify(body), {
@@ -50,8 +66,12 @@ const handle = async (request: Request): Promise<Response> => {
  * export { GET, POST, DELETE } from "@assistant-ui/variants/next";
  * ```
  *
- * They answer 404 unless `NODE_ENV` is `development`.
+ * They answer 404 unless `NODE_ENV` is `development`, and 403 unless the
+ * `Host` is loopback. For another dev host, use `createVariantsRoutes`.
  */
-export const GET = handle;
-export const POST = handle;
-export const DELETE = handle;
+export const createVariantsRoutes = (options: VariantsRouteOptions = {}) => {
+  const route = (request: Request) => handle(request, options);
+  return { GET: route, POST: route, DELETE: route };
+};
+
+export const { GET, POST, DELETE } = createVariantsRoutes();

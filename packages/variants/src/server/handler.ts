@@ -1,7 +1,7 @@
+import { readFile, realpath } from "node:fs/promises";
 import { relative } from "node:path";
 import { deleteNote, insertNote, listNotes, type SourceNote } from "./markers";
 import { isMdx, locateGroup, sourceFiles, writeSource } from "./project";
-import { readFile, realpath } from "node:fs/promises";
 
 export const NOTES_HEADER = "x-variants";
 const MAX_NOTE = 2000;
@@ -23,7 +23,11 @@ export type NotesOptions = {
   root: string;
   /** Endpoints answer only in development. */
   dev: boolean;
+  /** Hosts besides loopback that may reach the endpoints. */
+  allowedHosts?: AllowedHosts | undefined;
 };
+
+export type AllowedHosts = readonly string[] | true;
 
 const fail = (status: number, error: string): NotesResponse => ({
   status,
@@ -67,14 +71,53 @@ const serialized = <T>(task: () => Promise<T>): Promise<T> => {
 const firstToken = (value: string | null) =>
   value?.split(",", 1)[0]?.trim() || null;
 
+/** The host name of a `Host` header, without the port; IPv6 keeps its brackets. */
+const hostName = (host: string) => {
+  const lower = host.trim().toLowerCase();
+  if (lower.startsWith("[")) return lower.slice(0, lower.indexOf("]") + 1);
+  return lower.split(":", 1)[0]!;
+};
+
 /**
- * Accepts only same-origin requests that carry the custom header, so another
- * site cannot drive the endpoints from a user's browser.
+ * Loopback names, plus `allowedHosts` with Vite's semantics: an entry starting
+ * with `.` also allows its subdomains, and `true` allows any host.
+ */
+export const isAllowedHost = (
+  host: string,
+  allowedHosts: AllowedHosts = [],
+) => {
+  const name = hostName(host);
+  if (
+    name === "localhost" ||
+    name.endsWith(".localhost") ||
+    name === "127.0.0.1" ||
+    name === "[::1]"
+  )
+    return true;
+  if (allowedHosts === true) return true;
+  return allowedHosts.some((entry) => {
+    const allowed = entry.toLowerCase();
+    return allowed.startsWith(".")
+      ? name === allowed.slice(1) || name.endsWith(allowed)
+      : name === allowed;
+  });
+};
+
+/**
+ * Accepts only requests to a loopback or explicitly allowed host, so a
+ * DNS-rebound page on another domain is refused, then only same-origin
+ * requests that carry the custom header, so another site cannot drive the
+ * endpoints from a user's browser.
  */
 export const checkRequest = (
   request: NotesRequest,
   needsJson: boolean,
+  allowedHosts?: AllowedHosts,
 ): NotesResponse | undefined => {
+  const host = request.header("host");
+  if (!host) return fail(400, "missing host header");
+  if (!isAllowedHost(host, allowedHosts))
+    return fail(403, "host not allowed; add it to allowedHosts");
   if (request.header(NOTES_HEADER) !== "1")
     return fail(403, `missing ${NOTES_HEADER} header`);
   if (
@@ -99,8 +142,6 @@ export const checkRequest = (
   } catch {
     return fail(403, "invalid origin header");
   }
-  const host = request.header("host");
-  if (!host) return fail(400, "missing host header");
   if (actual !== host.toLowerCase()) return fail(403, "origin mismatch");
   return undefined;
 };
@@ -132,7 +173,11 @@ export const handleNotesRequest = async (
   if (!options.dev) return fail(404, "not found");
   const method = request.method.toUpperCase();
   const mutation = method === "POST" || method === "DELETE";
-  const rejected = checkRequest(request, method === "POST");
+  const rejected = checkRequest(
+    request,
+    method === "POST",
+    options.allowedHosts,
+  );
   if (rejected) return rejected;
 
   try {
