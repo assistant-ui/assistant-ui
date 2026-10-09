@@ -13,14 +13,16 @@ export function DemoCard({
   description,
   connection,
   wide = false,
+  action,
   children,
 }: {
   href: string;
-  index: number;
+  index?: number;
   title: string;
   description: string;
   connection?: string;
   wide?: boolean;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -68,16 +70,16 @@ export function DemoCard({
         aria-label={title}
         className="group/caption mt-3.5 flex items-baseline gap-2.5"
       >
-        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-          {String(index).padStart(2, "0")}
-        </span>
+        {index === undefined ? null : (
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {String(index).padStart(2, "0")}
+          </span>
+        )}
         <h3 className="text-[13.5px] font-medium underline-offset-4 group-hover/caption:underline">
           {title}
         </h3>
         {connection ? (
-          <span className="text-muted-foreground font-mono text-[11px]">
-            {connection}
-          </span>
+          <span className="text-muted-foreground text-xs">{connection}</span>
         ) : null}
         <span
           aria-hidden
@@ -89,6 +91,7 @@ export function DemoCard({
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {description}
       </p>
+      {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }

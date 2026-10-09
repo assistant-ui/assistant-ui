@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import * as HeatGraph from "heat-graph";
 import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { CodeBlock } from "@/components/ui/code-block";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 function seededRandom(seed: number) {
@@ -612,7 +613,7 @@ const CODE_SNIPPETS: Record<ThemeName, string> = {
   "Mood Tracker": CODE_MOOD,
 };
 
-export function HeatGraphDemo() {
+function HeatGraphDemoContent() {
   const contributions = useMemo(() => generateContributions(), []);
   const steps = useMemo(() => generateSteps(), []);
   const gym = useMemo(() => generateGym(), []);
@@ -621,7 +622,7 @@ export function HeatGraphDemo() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-1 font-mono text-[11px] tracking-wide">
+      <div className="flex flex-wrap items-center gap-1 text-xs">
         {THEME_NAMES.map((name) => {
           const shapes = SWATCH_STYLES[name];
           const colors = THEME_SWATCHES[name];
@@ -666,7 +667,7 @@ export function HeatGraphDemo() {
             {activeTheme === "Mood Tracker" && <MoodGraph data={mood} />}
           </div>
         </div>
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. 01 · {activeTheme.toLowerCase()}</span>
           <span>hover a cell</span>
         </figcaption>
@@ -680,5 +681,20 @@ export function HeatGraphDemo() {
         />
       </CodeBlock>
     </div>
+  );
+}
+
+export function HeatGraphDemo() {
+  return (
+    <Suspense
+      fallback={
+        <Skeleton
+          aria-hidden
+          className="h-[636px] motion-reduce:animate-none sm:h-[607px]"
+        />
+      }
+    >
+      <HeatGraphDemoContent />
+    </Suspense>
   );
 }

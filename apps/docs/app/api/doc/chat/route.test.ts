@@ -35,6 +35,7 @@ vi.mock("@/lib/source", () => {
   return {
     source: emptySource,
     examples: emptySource,
+    docsSiteSources: { "safe-content-frame": emptySource },
   };
 });
 
@@ -79,6 +80,98 @@ describe("POST /api/doc/chat access boundary", () => {
       "session_1234567890",
     );
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized frontend tools before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "Search the docs" }],
+            },
+          ],
+          tools: {
+            search: {
+              description: "x".repeat(96_000),
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized page context before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "How do I use Thread?" }],
+            },
+          ],
+          tools: {},
+          system: "x".repeat(4_001),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Page context too long");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("accepts page context at the exact limit", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "How do I use Thread?" }],
+            },
+          ],
+          tools: {},
+          system: "x".repeat(4_000),
+        }),
+      }),
+    );
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
   });
 });
 

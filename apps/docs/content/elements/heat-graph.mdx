@@ -3,7 +3,7 @@ title: "Heat graph"
 description: "An activity heat map with month labels, weekday labels, legend, and tooltip."
 ---
 
-HeatGraph draws a GitHub-style activity calendar: a cell per day, colored by count, with month and weekday labels, a legend, and a hover tooltip. assistant-ui's runtime has no notion of daily activity counts, a thread's own message list isn't bucketed by day anywhere, so this element has just the one, standalone form: you pass the counted days in.
+HeatGraph draws a GitHub-style activity calendar: a cell per day, colored by count, with month and weekday labels, a legend, and a hover tooltip. The assistant-ui runtime does not track daily activity counts, so this element has only a standalone form: you pass the counted days in.
 
 ## Getting started
 
@@ -52,23 +52,23 @@ export function Activity() {
 </div>
 ```
 
-`HeatGraph` takes only `data`. There is no `className` prop and no `data-slot` marker on the root, both unlike the rest of the catalog, so a wrapping `<div>` is the only restyle hook you have from outside. Weeks start on Monday and the five-step blue scale is fixed by this file, not configurable through a prop, and that scale is five plain hex values with no separate dark mode variant. Weekday labels show on alternating rows rather than every row, to avoid crowding six line-height labels into a compact grid. The legend always shows exactly five swatches, one per color level, bracketed by "Less" and "More". Hovering or focusing a cell shows a tooltip reading `"{count} contributions on {date}"`, with the date spelled out as month, day, and year.
+`HeatGraph` takes only `data`. There is no `className` prop and no `data-slot` marker on the root, both unlike the rest of the catalog, so a wrapping `<div>` is the only restyle hook you have from outside. Weeks start on Monday and the five-step scale is fixed by this file, not configurable through a prop: empty days take a faint tint of the foreground color edged with the border token, and busier days step up through blue, with a lighter blue under the `dark` variant, so the grid follows the page's theme. The calendar keeps a minimum cell size and scrolls sideways inside its own box when the container is too narrow for a full year. Weekday labels show on alternating rows rather than every row, and each month label sits over the first week that starts in that month, so a month whose first week falls before the window and a month that begins in the current week go unlabelled. The legend shows five swatches, one per color level, bracketed by "Less" and "More"; when no day in the window has a count above zero, it shows one. Hovering a cell shows a tooltip reading `"{count} contributions on {date}"`, with the date spelled out as month, day, and year.
 
 ## Examples
 
 ### Editing the composition directly
 
-Since there's no prop for it, changing the color scale, the week start, or the hardcoded gray and white Tailwind classes means editing `heat-graph.tsx` itself rather than passing a class name. The file is a thin composition over the `heat-graph` package's own primitives: `Root`, `MonthLabels`, `DayLabels`, `Grid` with `Cell`, `Legend` with `LegendLevel`, and `Tooltip`. Swap `colorScale` or `weekStart` on `Root`, or drop a sub-part (the legend, say) to change what renders.
+Since there's no prop for it, changing the color scale, the week start, or the label and tooltip classes means editing `heat-graph.tsx` itself rather than passing a class name. The file is a thin composition over the `heat-graph` package's own primitives: `Root`, `MonthLabels`, `DayLabels`, `Grid` with `Cell`, `Legend` with `LegendLevel`, and `Tooltip`. Swap the `LEVEL_TINT` classes, pass `colorScale` or change `weekStart` on `Root`, or drop a sub-part (the legend, say) to change what renders.
 
 ```tsx
-<HeatGraphPrimitive.Root data={data} weekStart="sunday" colorScale={["#eee", "#0a5"]}>
+<HeatGraphPrimitive.Root data={data} weekStart="sunday" classify={HeatGraphPrimitive.autoLevels(2)} colorScale={["#eee", "#0a5"]}>
   {/* your own MonthLabels / DayLabels / Grid / Legend, or a subset of them */}
 </HeatGraphPrimitive.Root>
 ```
 
 ### A second composition, elsewhere in the catalog
 
-`activity-graph` builds its own calendar independently on the same `heat-graph` package primitives, with the shared `paper` and `mono` surface tokens, a `className` prop, and a dark-mode-aware tint scale, rather than wrapping this file's `HeatGraph`. If you need a restylable calendar, start from [Activity graph](/elements/activity-graph) or the raw `heat-graph` primitives directly, rather than forking this fixed one.
+`activity-graph` builds its own calendar independently on the same `heat-graph` package primitives, with the shared `paper` and `mono` surface tokens and a `className` prop, rather than wrapping this file's `HeatGraph`. If you need a restylable calendar, start from [Activity graph](/elements/activity-graph) or the raw `heat-graph` primitives directly, rather than forking this fixed one.
 
 ## API reference
 
@@ -76,6 +76,6 @@ Since there's no prop for it, changing the color scale, the week start, or the h
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `data` | `readonly DataPoint[]` | required | One entry per counted day. Days missing from the array render as the lowest color level. |
+| `data` | `DataPoint[]` | required | One entry per counted day. Days missing from the array render as the lowest color level. |
 
 `DataPoint` is `{ date: string | Date; count: number }`, from the `heat-graph` package this element wraps.

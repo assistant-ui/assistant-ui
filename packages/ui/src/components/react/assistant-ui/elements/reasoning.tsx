@@ -5,10 +5,10 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
@@ -78,7 +78,7 @@ function ReasoningRoot({
   const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (prevStreamingRef.current === streaming) return;
     prevStreamingRef.current = streaming;
     // A streaming transition only animates the panel when the resting state
@@ -168,7 +168,7 @@ function ReasoningTrigger({
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   active?: boolean;
-  duration?: number;
+  duration?: number | undefined;
 }) {
   const durationText = duration ? ` (${duration}s)` : "";
 

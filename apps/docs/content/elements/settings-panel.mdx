@@ -152,7 +152,7 @@ export function Settings() {
 </div>
 ```
 
-`temperature` is clamped into `0…2` before it is displayed or handed to the range input, and a `NaN` clamps to `0`, so a bad value never reaches the DOM as an invalid attribute. Model choices are buttons only when `onModelChange` is supplied, and toggle rows use real `role="switch"` buttons only when `onToggle` is supplied; otherwise those values render as non-interactive labels and indicators. The textarea and slider remain visible, and an empty `models` or `toggles` array simply renders that section with nothing in it rather than a placeholder message. Interactive model controls use `aria-pressed` rather than radio semantics, and interactive toggles use `aria-checked`.
+`temperature` is clamped into `0…2` before it is displayed or handed to the range input, and a `NaN` clamps to `0`, so a bad value never reaches the DOM as an invalid attribute. Model choices are buttons only when `onModelChange` is supplied, and toggle rows use real `role="switch"` buttons only when `onToggle` is supplied; otherwise those values render as non-interactive labels and indicators. The textarea and slider remain visible, and an empty `models` or `toggles` array renders that section with nothing in it rather than a placeholder message. Interactive model controls use `aria-pressed` rather than radio semantics, and interactive toggles use `aria-checked`.
 
 ## Examples
 
@@ -166,6 +166,7 @@ A registered provider reaches your backend the same way a manual `ModelSelector`
 export async function POST(req: Request) {
   const { messages, config, system, callSettings } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openai(config?.modelName ?? "gpt-5.6-luna"),
     providerOptions: { openai: { reasoningEffort: "none" } },
     temperature: callSettings?.temperature,

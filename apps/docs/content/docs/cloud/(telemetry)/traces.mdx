@@ -69,6 +69,7 @@ import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 export async function POST(request: Request) {
   const { messages } = await request.json();
   const result = streamText({
+    abortSignal: request.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     telemetry: { integrations: [new OpenTelemetry()] },
@@ -107,7 +108,7 @@ An all accepted export returns `{}`. An export with rejected spans still returns
 }
 ```
 
-When the receiver has no individual error text, `errorMessage` is `"<n> spans were rejected"`. Use this response rather than assuming that `200` means every span became a run.
+When the receiver has no individual error text, `errorMessage` is `"<n> spans were rejected"`. Check `partialSuccess` in the response: a `200` does not mean every span became a run.
 
 ## How spans become runs
 
@@ -201,22 +202,25 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const samplingCalls: Record<string, SamplingCallData[]> = {};
 
+  const aiSDKTools = {
+    delegate: tool({
+      inputSchema: z.object({ task: z.string() }),
+      execute: async ({ task }, { toolCallId }) => {
+        const collector = createSamplingCollector();
+        const answer = await runSubAgent(task, {
+          onSamplingCall: collector.collect,
+        });
+        samplingCalls[toolCallId] = collector.getCalls();
+        return answer;
+      },
+    }),
+  };
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      delegate: tool({
-        inputSchema: z.object({ task: z.string() }),
-        execute: async ({ task }, { toolCallId }) => {
-          const collector = createSamplingCollector();
-          const answer = await runSubAgent(task, {
-            onSamplingCall: collector.collect,
-          });
-          samplingCalls[toolCallId] = collector.getCalls();
-          return answer;
-        },
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse({

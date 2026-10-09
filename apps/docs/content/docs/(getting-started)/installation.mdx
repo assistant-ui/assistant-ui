@@ -7,8 +7,6 @@ platforms: ["react"]
 
 ## Quick Start
 
-The fastest way to get started with assistant-ui.
-
 ![animated gif showing the steps to create a new project](../../../../../.github/assets/assistant-ui-starter.gif)
 
 <Steps>
@@ -139,11 +137,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -158,11 +158,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: anthropic("claude-sonnet-5"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -177,11 +179,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: azure("your-deployment-name"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -196,11 +200,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: bedrock("us.anthropic.claude-sonnet-5"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -215,11 +221,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: google("gemini-3.8-flash"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -234,11 +242,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: vertex("gemini-3.8-flash"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -253,11 +263,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: groq("openai/gpt-oss-120b"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -272,11 +284,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: fireworks("accounts/fireworks/models/llama-v3p3-70b-instruct"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -291,11 +305,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: cohere("command-r-plus"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -310,11 +326,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: ollama("gpt-oss:20b"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -329,11 +347,13 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
+    abortSignal: req.signal,
     model: chromeai(),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -407,6 +427,8 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 <Tabs items={["Thread", "AssistantModal"]}>
 
 ```tsx title="/app/page.tsx" tab="Thread"
+"use client";
+
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
@@ -431,6 +453,8 @@ export default function MyApp() {
 ```
 
 ```tsx title="/app/page.tsx" tab="AssistantModal"
+"use client";
+
 // run `npx shadcn@latest add @assistant-ui/assistant-modal`
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";

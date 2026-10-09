@@ -70,15 +70,18 @@ export function Attachment() {
 ## Anatomy
 
 ```tsx
-<div data-slot="file-player">
-  <div data-slot="audio-player | video-player" />
+<div>
+  <div data-slot="file-player">
+    <div data-slot="audio-player | video-player" />
+  </div>
   <div>
-    <span data-slot="file-name">{filename ?? "Unnamed file"}</span>
     <span data-slot="file-size" />
     <a data-slot="file-download" />
   </div>
 </div>
 ```
+
+The player shows the filename as its title.
 
 The icon row remains for non-media files. `File.Player` routes playable audio and video data to the matching player: `http(s)`, `blob:`, and `data:` URLs are safe to play, and raw base64 becomes a data URI with the part's MIME type. An `id` or another URL scheme keeps the plain row. The icon depends on `mimeType`: images get an image icon, PDFs and other text get a document icon, JSON gets a braces icon, audio and video get their own icons, and everything else gets a generic file icon. `sourceType` states how `data` is encoded on the wire: `"url"` for a link, `"id"` for an opaque reference the download link can't resolve on its own, or omitted to infer it. The size row only appears for inline data (base64 or a `data:` URI), since a URL or id reference carries no byte count to read.
 
@@ -86,8 +89,13 @@ The icon row remains for non-media files. `File.Player` routes playable audio an
 
 ### Variants and sizes
 
+`variant` and `size` are props of `File.Root`. `File` itself renders the defaults.
+
 ```tsx
-<File variant="muted" size="sm" {...part} />
+<File.Root variant="muted" size="sm">
+  <File.Icon mimeType={part.mimeType} />
+  <File.Name>{part.filename}</File.Name>
+</File.Root>
 ```
 
 | Variant | Description |
@@ -147,7 +155,7 @@ export function CustomMediaFile() {
 | `File` | `div` | The `File` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.File`. |
 | `File.Root` | `div` | Row with `variant` and `size`. |
 | `File.Icon` | `span` | Icon chosen from `mimeType`. |
-| `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. |
+| `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. `File`'s own row passes it the `mimeType` label instead. |
 | `File.Size` | `span` | Formatted byte size; you supply `bytes`. |
 | `File.Download` | `a` | Download link; `null` when `data` can't produce a safe `href`. |
 | `File.Player` | `div` | Routes playable audio and video files to the matching inline player; `null` otherwise. |
@@ -156,7 +164,7 @@ export function CustomMediaFile() {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `filename` | `string` | Optional display name. |
+| `filename` | `string` | Optional display name; without one, the icon row of a non-media file shows a label derived from `mimeType`, such as "PDF file". |
 | `data` | `string` | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
 | `mimeType` | `string` | Drives the icon and, for base64/`data:` payloads, the download `href`. |
 | `sourceType` | `"url" \| "id"` | Optional. States how to interpret `data`; omitted infers from its shape. |
@@ -170,13 +178,13 @@ export function CustomMediaFile() {
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `type` | `"file"` | required | Required by the part type. |
-| `filename` | `string` | | Display name; falls back to "Unnamed file". |
+| `filename` | `string` | | Display name; the icon row of a non-media file falls back to a label derived from `mimeType`, such as "PDF file". |
 | `data` | `string` | required | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
 | `mimeType` | `string` | required | Drives the icon and, for base64/`data:` payloads, the download `href`. |
 | `sourceType` | `"url" \| "id"` | | States how to interpret `data`; omitted infers from its shape. |
 | `status` | `MessagePartStatus` | | Required by the type; not read by the renderer. |
-| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Row style, set on `File.Root`. |
-| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Row size, set on `File.Root`. |
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Row style. A prop of `File.Root`, not of `File`. |
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Row size. A prop of `File.Root`, not of `File`. |
 
 `File.Root`, `File.Icon`, `File.Name`, `File.Size`, `File.Download`, and `File.Player` are exported individually for a custom layout, as shown in [Restyle the row](#restyle-the-row).
 

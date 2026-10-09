@@ -2,9 +2,12 @@
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseWorkspaceGlobs } from "./check-changesets.mjs";
-import { posixPath, readJson } from "./lib/workspace.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
+import {
+  posixPath,
+  readJson,
+  readWorkspaceManifestEntries,
+} from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -13,6 +16,8 @@ const repoRoot = path.resolve(
 
 const COURSE_PROJECT_GLOB =
   "apps/docs/lib/xulux/learn/courses/*/shared/project/package.json";
+
+const EXPO_PROJECT = "examples/with-expo/package.json";
 
 const VERSION_FIELDS = ["dependencies", "devDependencies"];
 
@@ -156,6 +161,17 @@ export function findStaleCoursePins(courses, floors, published) {
   return problems;
 }
 
+export function findDriftedMetroConfigPins(projects) {
+  const problems = [];
+  for (const { file, pkg } of projects) {
+    const reactNative = pkg.dependencies?.["react-native"];
+    if (!reactNative) continue;
+    const pin = pkg.devDependencies?.["@react-native/metro-config"] ?? null;
+    if (pin !== reactNative) problems.push({ file, pin, reactNative });
+  }
+  return problems;
+}
+
 function readWorkflows(root) {
   return globSync(".github/workflows/*.{yaml,yml}", { cwd: root })
     .map(posixPath)
@@ -185,14 +201,19 @@ function readWorkspaceVersions(root) {
   const floors = new Map();
   const declared = new Map();
   const published = new Set();
-  const manifests = ["package.json"];
-  for (const glob of parseWorkspaceGlobs(
-    readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-  )) {
-    manifests.push(...globSync(`${glob}/package.json`, { cwd: root }));
-  }
-  for (const manifest of new Set(manifests.map(posixPath))) {
-    const pkg = readJson(path.join(root, manifest));
+  const { source, manifests } = readWorkspaceManifestEntries(root);
+  const entries = [
+    {
+      manifest: "package.json",
+      pkg: readJson(path.join(root, "package.json")),
+    },
+    ...manifests,
+  ];
+  const seen = new Set();
+  for (const { manifest, pkg } of entries) {
+    const file = posixPath(manifest);
+    if (seen.has(file)) continue;
+    seen.add(file);
     if (typeof pkg.name === "string" && pkg.private !== true) {
       published.add(pkg.name);
     }
@@ -210,7 +231,7 @@ function readWorkspaceVersions(root) {
   for (const [name, counts] of declared) {
     floors.set(name, prevailingFloor(counts));
   }
-  return { floors, published };
+  return { floors, published, source };
 }
 
 function readLockedIds(root) {
@@ -224,10 +245,13 @@ function readLockedIds(root) {
 
 export function runCheck(root = repoRoot) {
   const workflows = readWorkflows(root);
-  const { floors, published } = readWorkspaceVersions(root);
+  const { floors, published, source } = readWorkspaceVersions(root);
   const courses = globSync(COURSE_PROJECT_GLOB, { cwd: root })
     .map(posixPath)
     .sort()
+    .map((file) => ({ file, pkg: readJson(path.join(root, file)) }));
+  const expoProjects = globSync(EXPO_PROJECT, { cwd: root })
+    .map(posixPath)
     .map((file) => ({ file, pkg: readJson(path.join(root, file)) }));
   return {
     workflowCount: workflows.length,
@@ -235,13 +259,11 @@ export function runCheck(root = repoRoot) {
     unmarked: findUnmarkedActionRefs(workflows),
     nodePins: findInconsistentNodePins(workflows),
     allowBuilds: findDriftedAllowBuilds(
-      parseIndentedBlock(
-        readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-        "allowBuilds",
-      ),
+      parseIndentedBlock(source, "allowBuilds"),
       readLockedIds(root),
     ),
     coursePins: findStaleCoursePins(courses, floors, published),
+    metroConfigPins: findDriftedMetroConfigPins(expoProjects),
   };
 }
 
@@ -319,6 +341,28 @@ function main() {
     console.error(
       "move on every release, which the course projects do not participate in.\n",
     );
+  }
+
+  if (result.metroConfigPins.length > 0) {
+    failed = true;
+    console.error(
+      "The Expo example's Metro config pin does not match its React Native:\n",
+    );
+    for (const { file, pin, reactNative } of result.metroConfigPins) {
+      console.error(
+        `  ${file}: "@react-native/metro-config" is ${pin ?? "missing"}, "react-native" is ${reactNative}`,
+      );
+    }
+    console.error(
+      "\nNothing imports this pin. It satisfies `@react-native/community-cli-plugin`'s exact optional",
+    );
+    console.error(
+      "peer, which otherwise resolves to the version the rest of the workspace installs. Neither taze",
+    );
+    console.error(
+      "nor `expo install --fix` keeps it in step, and a dropped pin fails nothing until the next fresh",
+    );
+    console.error("resolve. Pin it to the `react-native` version.\n");
   }
 
   if (failed) process.exit(1);

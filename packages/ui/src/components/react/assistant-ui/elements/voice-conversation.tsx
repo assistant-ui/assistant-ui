@@ -123,7 +123,7 @@ export function VoiceConversation({
 
       <div className="flex flex-col items-center gap-1">
         <span className="text-[13.5px] font-medium">{CAPTION[mode]}</span>
-        <span className={cn(mono, "text-foreground/35")}>
+        <span className={cn(mono, "text-muted-foreground")}>
           {muted ? "Mic off" : canInterrupt ? "Tap to interrupt" : HINT[mode]}
         </span>
       </div>
@@ -139,7 +139,7 @@ export function VoiceConversation({
                 mono,
                 "w-8 shrink-0",
                 turn.role === "user"
-                  ? "text-foreground/30"
+                  ? "text-muted-foreground"
                   : "text-blue-500/70 dark:text-blue-400/70",
               )}
             >
@@ -149,7 +149,7 @@ export function VoiceConversation({
               className={cn(
                 "min-w-0 flex-1 break-words",
                 turn.role === "user"
-                  ? "text-foreground/50"
+                  ? "text-muted-foreground"
                   : "text-foreground/80",
               )}
             >

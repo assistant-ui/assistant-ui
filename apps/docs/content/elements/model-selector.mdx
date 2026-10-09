@@ -59,6 +59,7 @@ export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai(config?.modelName ?? "gpt-6-luna"),
     providerOptions: {
       openai:
@@ -119,7 +120,7 @@ Open the picker and select a model: the trigger shows the new model once it clos
 </div>
 ```
 
-The Thinking row (`Effort`) mounts only while the selected model has `efforts` set; switching to a model without it hides the row without discarding your effort choice; switching back to a model that supports it restores whatever level was selected before, as long as that model also offers it. `Content` needs a focused input to drive the keyboard: with no custom `children` (or `searchable={false}`), it renders a visually hidden `FocusAnchor` automatically; a custom layout that omits both `Search` and `searchable={false}` has no anchor and needs one added by hand to stay keyboard-operable.
+The Thinking row (`Effort`) mounts only while the selected model has `efforts` set. Switching to a model without it hides the row but keeps your effort choice, and switching back to a model that offers that level restores it. `Content` needs a focused input to drive the keyboard. With `searchable={false}`, or with no custom `children` and `searchable` unset, it renders a visually hidden `FocusAnchor`. A custom layout that has neither `Search` nor `searchable={false}` gets no anchor, so add `FocusAnchor` yourself to keep it keyboard-operable.
 
 ## Examples
 
@@ -206,7 +207,7 @@ Open the picker and search for a model or provider. Select a result to update th
 
 ### Provider groups and availability
 
-Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5.5 is disabled, thus a click on it does not change the selection.
+Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5.5 is disabled, so clicking it does not change the selection.
 
 <PreviewCode file="components/pages/docs/samples/model-selector/provider-groups-and-availability" name="ModelAvailabilitySelector" base={<ModelSelectorGroupedSample />}>
   <ModelSelectorGroupedRadixSample.ModelSelectorGroupedSample />
@@ -386,7 +387,7 @@ Families are derived from `models` with `[...new Set(models.map((m) => m.family)
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `models` | `PickableModel[]` | required | `{ id, name, family, context, price, capabilities }[]`. Families keep first-seen order; `context` and `price` are pre-formatted strings (the element does no currency math), `capabilities` renders as chip labels. |
+| `models` | `readonly PickableModel[]` | required | `{ id, name, family, context, price, capabilities }[]`. Families keep first-seen order; `context` and `price` are pre-formatted strings (the element does no currency math), `capabilities` renders as chip labels. |
 | `selectedId` | `string` | required | Which model is active. |
-| `onSelect` | `(id: string) => void` | | Called when a model is picked. Without it, model rows render as non-interactive options. |
+| `onSelect` | `(id: string) => void` | | Called when a model is picked. Without it, model rows render as non-interactive `div`s. |
 | `className` | `string` | | Merged onto the root. |

@@ -38,17 +38,16 @@ import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
 import type {
+  AgUiCustomMetadata,
   AgUiEvent,
   AgUiInterrupt,
   AgUiResumeEntry,
   AgUiResumeTranscript,
 } from "./types";
+import { AG_UI_METADATA_NAMESPACE, MCP_APPS_ACTIVITY_TYPE } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import {
-  AG_UI_METADATA_NAMESPACE,
-  type AgUiCustomMetadata,
   isPlainObject,
-  MCP_APPS_ACTIVITY_TYPE,
   RunAggregator,
   tryParseJSON,
 } from "./adapter/run-aggregator";
@@ -83,6 +82,9 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
+const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
+  part.type === "data" && part.name.startsWith("agui-activity/");
+
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
@@ -114,6 +116,7 @@ type CoreOptions = {
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
   notifyUpdate: () => void;
+  isThreadSwitching?: () => boolean;
 };
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
@@ -158,6 +161,7 @@ export class AgUiThreadRuntimeCore {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
+  private readonly isThreadSwitching: (() => boolean) | undefined;
   private readonly reportedErrors = new WeakSet<object>();
 
   private runtime: AssistantRuntime | undefined;
@@ -190,6 +194,8 @@ export class AgUiThreadRuntimeCore {
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
+  private _historyImportPromise: Promise<void> | undefined;
+  private historyMutationGeneration = 0;
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
   private pendingResume: { owner: AbortController; messageId: string } | null =
@@ -207,6 +213,7 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
+    this.isThreadSwitching = options.isThreadSwitching;
   }
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
@@ -266,28 +273,38 @@ export class AgUiThreadRuntimeCore {
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return Promise.resolve();
 
-    const promise = this.history.load();
+    const promise = this.history.load().then((repo) => {
+      if (!repo) return;
+
+      this.session.applyExternalMessageRepository(repo);
+      this.assistantHistoryParents.clear();
+      this.snapshotHistoryIds.clear();
+      this.persistedHistoryIds.clear();
+      for (const { message } of repo.messages) {
+        this.persistedHistoryIds.add(message.id);
+      }
+      this.notifyUpdate();
+
+      if (repo.state !== undefined) {
+        this.loadExternalState(repo.state);
+      }
+
+      return repo;
+    });
 
     this._isLoading = true;
+    this._historyImportPromise = promise.then(
+      () => {
+        this._historyImportPromise = undefined;
+      },
+      () => {
+        this._historyImportPromise = undefined;
+      },
+    );
 
     this._loadPromise = promise
       .then(async (repo) => {
-        if (!repo) return;
-
-        this.session.applyExternalMessageRepository(repo);
-        this.assistantHistoryParents.clear();
-        this.snapshotHistoryIds.clear();
-        this.persistedHistoryIds.clear();
-        for (const { message } of repo.messages) {
-          this.persistedHistoryIds.add(message.id);
-        }
-        this.notifyUpdate();
-
-        if (repo.state !== undefined) {
-          this.loadExternalState(repo.state);
-        }
-
-        if (repo.unstable_resume) {
+        if (repo?.unstable_resume) {
           const parentId = repo.headId ?? this.session.headId;
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
@@ -300,11 +317,7 @@ export class AgUiThreadRuntimeCore {
       })
       .catch((error) => {
         this.logger.error?.("[agui] failed to load history", error);
-        invokeRuntimeCallback(
-          "onError",
-          this.onError,
-          error instanceof Error ? error : new Error(String(error)),
-        );
+        this.reportError(error);
       })
       .finally(() => {
         this._isLoading = false;
@@ -315,7 +328,53 @@ export class AgUiThreadRuntimeCore {
     return this._loadPromise;
   }
 
+  private waitForHistoryImport(): Promise<boolean> | undefined {
+    const historyImport = this._historyImportPromise;
+    if (!historyImport) return undefined;
+    const generation = this.historyMutationGeneration;
+    return historyImport.then(
+      () =>
+        generation === this.historyMutationGeneration &&
+        !this.isThreadSwitching?.(),
+    );
+  }
+
+  private deferUntilHistoryImported(callback: () => void): boolean {
+    const historyImport = this._historyImportPromise;
+    if (!historyImport) return false;
+    const generation = this.historyMutationGeneration;
+    void historyImport.then(() => {
+      if (
+        generation !== this.historyMutationGeneration ||
+        this.isThreadSwitching?.()
+      ) {
+        return;
+      }
+      try {
+        callback();
+      } catch (error) {
+        this.reportError(error);
+      }
+    });
+    return true;
+  }
+
   async append(message: AppendMessage): Promise<void> {
+    const historyImport = this._historyImportPromise;
+    if (historyImport) {
+      const wasAtTail = message.parentId === this.session.headId;
+      const generation = this.historyMutationGeneration;
+      await historyImport;
+      if (
+        generation !== this.historyMutationGeneration ||
+        this.isThreadSwitching?.()
+      )
+        return;
+      if (wasAtTail) {
+        message = { ...message, parentId: this.session.headId };
+      }
+    }
+
     const startRun = message.startRun ?? message.role === "user";
     let ownsThread = true;
     if (startRun) {
@@ -370,12 +429,15 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     await this.startRun(parentId, config.runConfig);
   }
 
   async cancel(): Promise<void> {
+    this.historyMutationGeneration++;
     this.abortActiveRun();
   }
 
@@ -417,6 +479,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     this.assertNoPendingInterrupts();
     await this.startRun(
       config.parentId,
@@ -427,6 +491,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     // Without a resume stream startRun would re-run the agent from scratch.
     const resumeStream = this.history?.resume?.bind(this.history);
     if (!resumeStream) {
@@ -506,6 +572,8 @@ export class AgUiThreadRuntimeCore {
   async submitInterruptResponses(
     responses: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -601,6 +669,8 @@ export class AgUiThreadRuntimeCore {
   async respondToToolApproval(
     options: RespondToToolApprovalOptions,
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -674,6 +744,8 @@ export class AgUiThreadRuntimeCore {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const pending = this.getPendingInterrupts();
     if (!pending) {
       const pendingTools = this.getPendingToolCalls();
@@ -865,6 +937,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   addToolResult(options: AddToolResultOptions): void {
+    if (this.deferUntilHistoryImported(() => this.addToolResult(options)))
+      return;
     // Core's ToolInvocationTracker resolves a nested call to the nested
     // subagent message's id, which is not a session message; re-anchor on the
     // top-level message that owns the tree so the update can land.
@@ -906,6 +980,8 @@ export class AgUiThreadRuntimeCore {
     toolCallId: string;
     interaction: Unstable_ToolInteraction;
   }): Promise<void> {
+    const historyImport = this.waitForHistoryImport();
+    if (historyImport && !(await historyImport)) return;
     const sessionMessageId = this.session.tryGetMessage(options.messageId)
       ? options.messageId
       : this.findMessageIdForToolCall(options.toolCallId);
@@ -963,6 +1039,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {
+    if (this.deferUntilHistoryImported(() => this.sendA2uiAction(action)))
+      return;
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     const parentId = this.session.headId;
@@ -1039,11 +1117,7 @@ export class AgUiThreadRuntimeCore {
 
   private startResumeRun(messageId: string): void {
     void this.startRun(messageId, this.lastRunConfig).catch((error) => {
-      invokeRuntimeCallback(
-        "onError",
-        this.onError,
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      this.reportError(error);
     });
   }
 
@@ -1140,6 +1214,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   resetThreadState(): void {
+    this.historyMutationGeneration++;
     const controller = this.abortController;
     const activeRunAgent = this.activeRunAgent;
 
@@ -1170,6 +1245,7 @@ export class AgUiThreadRuntimeCore {
     resume?: ResumeDispatch,
     resumeStream?: ResumeStream,
   ): Promise<void> {
+    if (this.isThreadSwitching?.()) return;
     // A default AG-UI run supersedes the active run; the hook's opt-in message
     // queue serializes sends instead. append supersedes earlier, before it links
     // its message; this covers the entry points that start a run without one.
@@ -1293,8 +1369,10 @@ export class AgUiThreadRuntimeCore {
       },
       onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
+    let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
+      if (event.type === "RUN_FINISHED") runFinished = true;
       const nextAssistantMessageId = this.handleEvent(
         aggregator,
         event,
@@ -1325,8 +1403,14 @@ export class AgUiThreadRuntimeCore {
     try {
       if (resumeStream) {
         // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
-        cancelRun = () =>
+        cancelRun = () => {
+          const current =
+            assistantMessageId === undefined
+              ? undefined
+              : this.session.tryGetMessage(assistantMessageId)?.message;
+          if (current?.status?.type === "complete") return;
           applyUpdate({ status: { type: "incomplete", reason: "cancelled" } });
+        };
         pendingError =
           (await this.consumeResumeStream(resumeStream, {
             runConfig: normalizedRunConfig,
@@ -1369,11 +1453,13 @@ export class AgUiThreadRuntimeCore {
         await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
-      if (!abortSignal.aborted) {
+      // HttpAgent rethrows a failure it already passed to the subscriber's
+      // onRunFailed, which reported it.
+      if (!abortSignal.aborted && !pendingError) {
         const err = error instanceof Error ? error : new Error(String(error));
-        dispatch({ type: "RUN_ERROR", message: err.message });
+        if (!runFinished) dispatch({ type: "RUN_ERROR", message: err.message });
         invokeRuntimeCallback("onError", this.onError, err);
-        pendingError ??= err;
+        pendingError = err;
       }
     } finally {
       this.finishRun(abortController);
@@ -1758,6 +1844,128 @@ export class AgUiThreadRuntimeCore {
     return changed ? content : next;
   }
 
+  // A snapshot built from user, assistant, and tool records alone carries no
+  // reasoning or activity of its own, so the parts streamed locally would be
+  // lost on every refresh; keep the local ones where they streamed when the
+  // snapshot has none of that kind, matching the merge rule of @ag-ui/client.
+  private mergeSnapshotAssistantContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+    snapshotHasReasoning: boolean,
+    snapshotHasActivity: boolean,
+  ): ThreadAssistantMessage["content"] {
+    const shouldKeep = (part: ThreadAssistantMessage["content"][number]) =>
+      part.type === "reasoning"
+        ? this.showThinking && !snapshotHasReasoning
+        : isActivityPart(part) && !snapshotHasActivity;
+    const kept = previous.filter(shouldKeep);
+    const merged = this.reconcileSnapshotNestedContent(
+      previous,
+      this.preserveToolInteractions(previous, next),
+    );
+    if (kept.length === 0) return merged;
+
+    const mergedByType = new Map<string, number[]>();
+    const mergedTools = new Map<string, number>();
+    for (const [index, part] of merged.entries()) {
+      if (part.type === "tool-call") {
+        mergedTools.set(part.toolCallId, index);
+      } else {
+        const indexes = mergedByType.get(part.type) ?? [];
+        indexes.push(index);
+        mergedByType.set(part.type, indexes);
+      }
+    }
+
+    const previousOrdinals = new Map<string, number>();
+    const insertions: (typeof kept)[] = Array.from(
+      { length: merged.length + 1 },
+      () => [],
+    );
+    let predecessorIndex = -1;
+    for (const part of previous) {
+      if (shouldKeep(part)) {
+        insertions[predecessorIndex + 1]!.push(part);
+        continue;
+      }
+
+      let matchedIndex: number | undefined;
+      if (part.type === "tool-call") {
+        matchedIndex = mergedTools.get(part.toolCallId);
+      } else {
+        const ordinal = previousOrdinals.get(part.type) ?? 0;
+        matchedIndex = mergedByType.get(part.type)?.[ordinal];
+        previousOrdinals.set(part.type, ordinal + 1);
+      }
+      if (matchedIndex !== undefined) predecessorIndex = matchedIndex;
+    }
+
+    const result: ThreadAssistantMessage["content"][number][] = [];
+    for (const [index, part] of merged.entries()) {
+      result.push(...insertions[index]!, part);
+    }
+    result.push(...insertions[merged.length]!);
+    return result;
+  }
+
+  private reconcileSnapshotNestedContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const nestedIds = new Set<string>();
+    for (const part of previous) {
+      if (part.type !== "tool-call" || !part.messages) continue;
+      for (const nested of part.messages) {
+        if (nested.role !== "assistant") continue;
+        for (const call of iterateToolCallParts(nested.content)) {
+          nestedIds.add(call.toolCallId);
+        }
+      }
+    }
+
+    const flattened = new Map<string, ToolCallMessagePart>();
+    for (const part of next) {
+      if (part.type === "tool-call" && nestedIds.has(part.toolCallId)) {
+        flattened.set(part.toolCallId, part);
+      }
+    }
+    const carried =
+      flattened.size === 0
+        ? previous
+        : mapToolCallPartsDeep(previous, (part) => {
+            const snapshot = flattened.get(part.toolCallId);
+            if (!snapshot) return part;
+            return {
+              ...part,
+              ...(snapshot.result !== undefined
+                ? { result: snapshot.result }
+                : {}),
+              ...(snapshot.isError !== undefined
+                ? { isError: snapshot.isError }
+                : {}),
+              ...(snapshot.artifact !== undefined
+                ? { artifact: snapshot.artifact }
+                : {}),
+            };
+          }).content;
+    const previousCalls = new Map<string, ToolCallMessagePart>();
+    for (const part of carried) {
+      if (part.type !== "tool-call") continue;
+      previousCalls.set(part.toolCallId, part);
+    }
+
+    return next.flatMap<ThreadAssistantMessage["content"][number]>((part) => {
+      if (part.type === "tool-call" && flattened.has(part.toolCallId)) {
+        return [];
+      }
+      if (part.type !== "tool-call") return [part];
+      const prior = previousCalls.get(part.toolCallId);
+      return prior?.messages === undefined
+        ? [part]
+        : [{ ...part, messages: prior.messages }];
+    });
+  }
+
   private mergeAssistantMetadata(
     current: ThreadAssistantMessage["metadata"],
     incoming: NonNullable<ChatModelRunResult["metadata"]>,
@@ -2035,9 +2243,11 @@ export class AgUiThreadRuntimeCore {
     activeAssistantId: string | undefined,
   ) {
     try {
-      const activeMessage = activeAssistantId
-        ? this.session.tryGetMessage(activeAssistantId)?.message
+      const activeAssistantItem = activeAssistantId
+        ? this.session.tryGetMessage(activeAssistantId)
         : undefined;
+      const activeMessage = activeAssistantItem?.message;
+      const activeAssistantParentId = activeAssistantItem?.parentId;
       const activeAssistant =
         activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
@@ -2046,33 +2256,43 @@ export class AgUiThreadRuntimeCore {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
-          const convertedMessage = fromThreadMessageLike(
-            message,
-            generateId(),
-            FALLBACK_USER_STATUS,
+          converted.push(
+            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
           );
-          const existing = this.session.tryGetMessage(
-            convertedMessage.id,
-          )?.message;
-          if (
-            convertedMessage.role === "assistant" &&
-            existing?.role === "assistant"
-          ) {
-            converted.push({
-              ...convertedMessage,
-              content: this.preserveToolInteractions(
-                existing.content,
-                convertedMessage.content,
-              ),
-            });
-          } else {
-            converted.push(convertedMessage);
-          }
         } catch (error) {
           this.logger.error?.(
             "[agui] failed to import message from snapshot",
             error,
           );
+        }
+      }
+      const snapshotHasReasoning = converted.some(
+        (message) =>
+          message.role === "assistant" &&
+          message.content.some((part) => part.type === "reasoning"),
+      );
+      const snapshotHasActivity = converted.some(
+        (message) =>
+          message.role === "assistant" && message.content.some(isActivityPart),
+      );
+      for (let index = 0; index < converted.length; index++) {
+        const convertedMessage = converted[index]!;
+        const existing = this.session.tryGetMessage(
+          convertedMessage.id,
+        )?.message;
+        if (
+          convertedMessage.role === "assistant" &&
+          existing?.role === "assistant"
+        ) {
+          converted[index] = {
+            ...convertedMessage,
+            content: this.mergeSnapshotAssistantContent(
+              existing.content,
+              convertedMessage.content,
+              snapshotHasReasoning,
+              snapshotHasActivity,
+            ),
+          };
         }
       }
       const snapshotContainsActiveAssistant = converted.some(
@@ -2082,7 +2302,9 @@ export class AgUiThreadRuntimeCore {
         activeAssistant !== undefined &&
         !snapshotContainsActiveAssistant &&
         (activeAssistant.metadata.isOptimistic !== true ||
-          converted.at(-1)?.role !== "assistant");
+          converted.at(-1)?.role !== "assistant" ||
+          (activeAssistantParentId !== undefined &&
+            converted.at(-1)?.id === activeAssistantParentId));
       if (preservesActiveAssistant) {
         converted.push(activeAssistant);
       }

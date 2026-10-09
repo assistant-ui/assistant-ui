@@ -37,10 +37,7 @@ export function SubagentList({
   return (
     <div
       data-slot="subagent-list"
-      className={cn(
-        "flex min-h-[14.5rem] w-full max-w-xs flex-col gap-2",
-        className,
-      )}
+      className={cn("flex w-full max-w-xs flex-col gap-2", className)}
 
       {...props}
     >
@@ -61,12 +58,12 @@ export function SubagentList({
               {done ? (
                 <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 shrink-0 text-emerald-500 duration-200" />
               ) : (
-                <Loader2Icon className="text-foreground/35 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
+                <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
               )}
               <span className="flex-1 truncate text-[13.5px]">
                 {agent.name}
               </span>
-              <span className={cn(mono, "text-foreground/35")}>
+              <span className={cn(mono, "text-muted-foreground")}>
                 {agent.model}
               </span>
             </div>
@@ -76,11 +73,11 @@ export function SubagentList({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={percentage}
-              className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+              className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
             >
               <span
                 className={cn(
-                  "block h-full rounded-full transition-[width] duration-700",
+                  "block h-full rounded-full transition-[width] duration-700 forced-color-adjust-none",
                   done ? "bg-emerald-500/70" : "bg-foreground/60",
                 )}
                 style={{ width: `${percentage}%` }}
@@ -97,11 +94,11 @@ export function SubagentList({
           )}
         >
           <div className="flex items-center gap-2">
-            <Loader2Icon className="text-foreground/35 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
+            <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
             <span className="flex-1 truncate text-[13.5px]">
               {summaryAgent.name}
             </span>
-            <span className={cn(mono, "text-foreground/35")}>
+            <span className={cn(mono, "text-muted-foreground")}>
               {summaryAgent.model}
             </span>
           </div>
@@ -110,7 +107,7 @@ export function SubagentList({
             aria-label={`${summaryAgent.name} progress`}
             aria-valuemin={0}
             aria-valuemax={100}
-            className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+            className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
           >
             <span className="shimmer shimmer-bg block h-full w-full rounded-full motion-reduce:animate-none" />
           </span>

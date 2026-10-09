@@ -3,7 +3,10 @@ import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
-import { validateDocChatInput } from "@/lib/validate-input";
+import {
+  validateDocChatInput,
+  validateFrontendToolsInput,
+} from "@/lib/validate-input";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { NextResponse } from "next/server";
@@ -16,6 +19,7 @@ import {
 import type { UIMessage } from "ai";
 import type { ToolSet } from "ai";
 import { beginTurn, finishTurn } from "@/lib/xulux/usage-budget";
+import { XULUX_MODEL_ID } from "@/lib/xulux/usage-budget-codes";
 import {
   createXuluxDiagnosticMessageResponse,
   createXuluxTurnOutcome,
@@ -62,9 +66,10 @@ const MAX_RAW_MESSAGES_CHARS = 1_000_000;
 const MAX_SYSTEM_CHARS = 4_000;
 const MAX_SESSION_ID_CHARS = 128;
 
-async function prepareMessages(messages: readonly UIMessage[]) {
+async function prepareMessages(messages: readonly UIMessage[], tools: ToolSet) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
+    { tools },
   );
   return pruneMessages({ messages: modelMessages, ...PRUNE_OPTIONS });
 }
@@ -194,7 +199,6 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         messages,
         tools: clientTools,
         system: rawPageContext,
-        config,
         sessionId: bodySessionId,
         selectedTemplate,
         activePreviewContext,
@@ -207,6 +211,9 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         return new Response("Input too long", { status: 400 });
       }
 
+      const toolsError = validateFrontendToolsInput(clientTools);
+      if (toolsError) return toolsError;
+
       const uiMessages = messages as UIMessage[];
       const preparedUiMessages = agent.prepareMessages
         ? agent.prepareMessages({
@@ -215,7 +222,17 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             routeUrl: req.url,
           })
         : uiMessages;
-      const prunedMessages = await prepareMessages(preparedUiMessages);
+      const preparedTools = agent.prepareTools({
+        body,
+        clientTools: (clientTools ?? {}) as FrontendTools,
+        routeUrl: req.url,
+      });
+      if (preparedTools instanceof Response) return preparedTools;
+      const xuluxTools: ToolSet = preparedTools;
+      const prunedMessages = await prepareMessages(
+        preparedUiMessages,
+        xuluxTools,
+      );
       const pageContext =
         agent.allowRequestSystemPrompt !== false &&
         typeof rawPageContext === "string" &&
@@ -269,14 +286,6 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const inputError = validateDocChatInput(prunedMessages);
       if (inputError) return inputError;
 
-      const preparedTools = agent.prepareTools({
-        body,
-        clientTools: clientTools as FrontendTools,
-        routeUrl: req.url,
-      });
-      if (preparedTools instanceof Response) return preparedTools;
-      const xuluxTools: ToolSet = preparedTools;
-
       const distinctId = getDistinctId(req);
       const budget = await beginTurn(budgetSessionId, publicSession.id);
       if (budget.denied) {
@@ -309,9 +318,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const evalRunId = req.headers.get("x-agent-eval-run-id");
       const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
-      const modelConfig = resolveChatModel(
-        agent.modelName ? { modelName: agent.modelName } : config,
-      );
+      const modelConfig = resolveChatModel({ modelName: XULUX_MODEL_ID });
       const baseModel = modelConfig.model;
       const prismTracer = createPrismTracer({ evalRunId, localTraceUrl });
       const traceName = agent.traceName ?? "xulux_chat";
@@ -375,12 +382,11 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
                   : {},
             }
           : {}),
-        onFinish: async ({ usage, response }) => {
+        onFinish: async ({ usage }) => {
           await finishTurn(
             budgetSessionId,
             publicSession.id,
             usage,
-            response.modelId,
             budgetDate,
           );
           await prism?.end();

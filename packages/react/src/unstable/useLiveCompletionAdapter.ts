@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -75,7 +69,7 @@ export function unstable_useLiveCompletionAdapter(
 
   const fetcherRef = useRef(fetcher);
   // The debounce timer must only observe fetchers from committed renders.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     fetcherRef.current = fetcher;
   }, [fetcher]);
 
@@ -143,7 +137,7 @@ export function unstable_useLiveCompletionAdapter(
   );
 
   const scheduleFetchRef = useRef(scheduleFetch);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     scheduleFetchRef.current = scheduleFetch;
   }, [scheduleFetch]);
 
@@ -156,7 +150,7 @@ export function unstable_useLiveCompletionAdapter(
   }, [cancelTimer, rearmPendingRetry]);
 
   const cacheKeyRef = useRef(cacheKey);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (cacheKeyRef.current === cacheKey) return;
     cacheKeyRef.current = cacheKey;
     invalidatePending();
@@ -175,7 +169,7 @@ export function unstable_useLiveCompletionAdapter(
 
   // Render-time searches can outlive an abandoned render, so they only arm
   // request work after this hook commits.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     inactiveRef.current = false;
     const deferredQuery = deferredQueryRef.current;
     deferredQueryRef.current = null;

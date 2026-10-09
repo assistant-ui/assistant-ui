@@ -3,9 +3,9 @@ title: Auth.js (next-auth)
 description: Gate the chat route and scope thread persistence to the signed-in user with Auth.js v5.
 ---
 
-[Auth.js](https://authjs.dev/) (formerly NextAuth) is the dominant OSS auth library in the Next.js ecosystem. This page covers using it with assistant-ui *without* AssistantCloud: session-cookie auth, server-side `auth()` checks on the API route, and per-user scoping on a custom thread list.
+[Auth.js](https://authjs.dev/) (formerly NextAuth) is a widely used open-source auth library for Next.js. This page covers using it with assistant-ui *without* AssistantCloud: session-cookie auth, server-side `auth()` checks on the API route, and per-user scoping on a custom thread list.
 
-If you use AssistantCloud, see [cloud authorization](/docs/cloud) instead; cloud handles JWT exchange for you.
+If you use AssistantCloud, see [cloud authorization](/docs/cloud/authorization) instead; cloud handles JWT exchange for you.
 
 ## How it works
 
@@ -72,6 +72,7 @@ export async function POST(req: Request) {
 
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
@@ -167,7 +168,7 @@ Sign in. Check:
 
 - **Same-origin cookies.** Browser cookies travel automatically when frontend and API are on the same origin. If you split the API onto a different host, set `credentials: "include"` on every `fetch` and configure CORS on the API.
 - **Edge runtime.** `auth()` runs in Edge contexts only when your DB adapter is edge-compatible. If you use Prisma, Drizzle-over-`pg`, or another non-edge adapter together with Edge route handlers or pre-Next.js 16 middleware, follow Auth.js's [split-config pattern](https://authjs.dev/guides/edge-compatibility): keep a shared `auth.config.ts` without the adapter, instantiate the full `auth.ts` with the adapter elsewhere, and import only the config-instantiated `auth` inside middleware. Next.js 16+ runs `proxy.ts` on Node, so this workaround is generally unnecessary there.
-- **Roles and orgs.** For B2B SaaS where admins see all threads under an org, add `orgId` to the `threads` table, store the user's role in the session via the Auth.js callbacks, and gate `list()` accordingly. The pattern is the same; the `where` clause just gets richer.
+- **Roles and orgs.** For B2B SaaS where admins see all threads under an org, add `orgId` to the `threads` table, store the user's role in the session via the Auth.js callbacks, and gate `list()` accordingly. The pattern is the same, with more conditions in the `where` clause.
 - **OAuth providers.** This page is provider-agnostic. The same `auth()` pattern works whether you wired GitHub, Google, credentials, or a passkey provider in `auth.ts`.
 
 ## Related

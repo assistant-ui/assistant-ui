@@ -105,6 +105,7 @@ const setupPendingAttachmentSend = async () => {
 
 const setup = () => {
   const selectionChanged = vi.fn();
+  const onSwitchToThread = vi.fn();
   let aui!: ReturnType<typeof useAui>;
   const Consumer = () => {
     useAuiEvent("threads.selectionChanged" as never, selectionChanged as never);
@@ -114,6 +115,7 @@ const setup = () => {
     aui = useAui({
       threads: InMemoryThreadList({
         thread: (threadId) => StubThread({ threadId }) as never,
+        onSwitchToThread,
       }),
     } as never);
     return (
@@ -123,10 +125,84 @@ const setup = () => {
     );
   };
   render(<Harness />);
-  return { getAui: () => aui, selectionChanged };
+  return { getAui: () => aui, onSwitchToThread, selectionChanged };
 };
 
 describe("InMemoryThreadList selection events", () => {
+  it("emits item switch events once to both scopes after mount", async () => {
+    const starTo = vi.fn();
+    const starAway = vi.fn();
+    const itemTo = vi.fn();
+    const itemAway = vi.fn();
+    let aui!: ReturnType<typeof useAui>;
+    const Consumer = () => {
+      useAuiEvent(
+        { scope: "*", event: "threadListItem.switchedTo" } as never,
+        starTo as never,
+      );
+      useAuiEvent(
+        { scope: "*", event: "threadListItem.switchedAway" } as never,
+        starAway as never,
+      );
+      useAuiEvent("threadListItem.switchedTo" as never, itemTo as never);
+      useAuiEvent("threadListItem.switchedAway" as never, itemAway as never);
+      return null;
+    };
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) => StubThread({ threadId }) as never,
+        }),
+      } as never);
+      return (
+        <AuiProvider value={aui}>
+          <Consumer />
+        </AuiProvider>
+      );
+    };
+    const view = render(<Harness />);
+    await act(async () => {});
+    expect(starTo).not.toHaveBeenCalled();
+    expect(starAway).not.toHaveBeenCalled();
+    expect(itemTo).not.toHaveBeenCalled();
+    expect(itemAway).not.toHaveBeenCalled();
+
+    await act(async () => {
+      aui.threads.switchToNewThread();
+    });
+    const secondId = aui.threads.getState().mainThreadId;
+    expect(secondId).not.toBe("main");
+    expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+    expect(itemAway).not.toHaveBeenCalled();
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+
+    starTo.mockClear();
+    starAway.mockClear();
+    itemTo.mockClear();
+    await act(async () => {
+      aui.threads.switchToThread("main");
+    });
+    expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+    expect(itemAway).not.toHaveBeenCalled();
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+
+    await act(async () => {
+      aui.threads.item({ id: secondId }).delete();
+    });
+    starTo.mockClear();
+    itemTo.mockClear();
+    await act(async () => {
+      aui.threads.item({ id: "main" }).delete();
+    });
+    const fallbackId = aui.threads.getState().mainThreadId;
+    expect(fallbackId).not.toBe("main");
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: fallbackId });
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: fallbackId });
+    view.unmount();
+  });
+
   it("does not emit for the initially selected thread on mount", async () => {
     const { selectionChanged } = setup();
     await act(async () => {});
@@ -158,6 +234,87 @@ describe("InMemoryThreadList selection events", () => {
     expect(selectionChanged).toHaveBeenLastCalledWith({
       threadId: "main",
       previousThreadId: newThreadId,
+    });
+  });
+
+  it("ignores switches to an unknown thread id", async () => {
+    const { getAui, onSwitchToThread, selectionChanged } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    await act(async () => {});
+
+    const selectedId = getAui().threads.getState().mainThreadId;
+    selectionChanged.mockClear();
+
+    await act(async () => {
+      getAui().threads.switchToThread("missing");
+    });
+    await act(async () => {});
+
+    expect(getAui().threads.getState().mainThreadId).toBe(selectedId);
+    expect(getAui().threads.item("main").getState().id).toBe(selectedId);
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+    expect(selectionChanged).not.toHaveBeenCalled();
+
+    await act(async () => {
+      getAui().threads.item("main").rename("Selected thread");
+    });
+    expect(getAui().threads.item({ id: selectedId }).getState().title).toBe(
+      "Selected thread",
+    );
+  });
+
+  it("keeps every thread created in one batch switchable", async () => {
+    const { getAui, onSwitchToThread, selectionChanged } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+      getAui().threads.switchToNewThread();
+    });
+
+    const state = getAui().threads.getState();
+    const createdIds = state.threadIds.filter((id) => id !== "main");
+    expect(createdIds).toHaveLength(2);
+    expect(state.mainThreadId).toBe(createdIds[1]);
+    selectionChanged.mockClear();
+
+    await act(async () => {
+      getAui().threads.switchToThread(createdIds[0]!);
+    });
+
+    expect(getAui().threads.getState().mainThreadId).toBe(createdIds[0]);
+    expect(onSwitchToThread).toHaveBeenCalledExactlyOnceWith(createdIds[0]);
+    expect(selectionChanged).toHaveBeenCalledExactlyOnceWith({
+      threadId: createdIds[0],
+      previousThreadId: createdIds[1],
+    });
+  });
+
+  it("ignores a switch to a thread deleted earlier in the same batch", async () => {
+    const { getAui, onSwitchToThread, selectionChanged } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    const deletedId = getAui().threads.getState().mainThreadId;
+    selectionChanged.mockClear();
+
+    await act(async () => {
+      getAui().threads.item({ id: deletedId }).delete();
+      getAui().threads.switchToThread(deletedId);
+    });
+
+    expect(getAui().threads.getState().mainThreadId).toBe("main");
+    expect(getAui().threads.item("main").getState().id).toBe("main");
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+    expect(selectionChanged).toHaveBeenCalledExactlyOnceWith({
+      threadId: "main",
+      previousThreadId: deletedId,
     });
   });
 

@@ -1,4 +1,10 @@
-import { useEffect, useEffectEvent, use, createContext } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  use,
+  createContext,
+} from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import type {
   AssistantEventName,
@@ -43,24 +49,18 @@ export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
 };
 
-/**
- * Runs a registration effect that follows the bound client instance of one
- * scope: when a structural change remounts or replaces that instance, the
- * previous cleanup runs and the effect runs again against the replacement.
- * Value updates on the same instance do not re-run it, and while the scope
- * is unavailable only cleanup runs, so the effect always executes against a
- * bound scope. A migration whose effect throws stays unapplied, so the next
- * notification retries it. The client ref is committed before effects run,
- * so reads through it inside the effect see the finalized client.
- */
-export const useAssistantScopeEffect = (
+export const useOptionalAssistantClientRef = () =>
+  use(AssistantTapContext)?.clientRef;
+
+const useAssistantScopeEffectWithClientRef = (
+  clientRef: AssistantTapContextValue["clientRef"] | undefined,
   scope: ClientNames,
   effect: () => (() => void) | void,
   deps: readonly unknown[],
 ) => {
-  const { clientRef } = useAssistantTapContext();
-
   useEffect(() => {
+    if (clientRef === undefined) return;
+
     const client = clientRef.current;
     if (client === null) {
       throw new Error(
@@ -108,10 +108,37 @@ export const useAssistantScopeEffect = (
   }, [clientRef, scope, ...deps]);
 };
 
+/**
+ * Runs a registration effect that follows the bound client instance of one
+ * scope: when a structural change remounts or replaces that instance, the
+ * previous cleanup runs and the effect runs again against the replacement.
+ * Value updates on the same instance do not re-run it, and while the scope
+ * is unavailable only cleanup runs, so the effect always executes against a
+ * bound scope. A migration whose effect throws stays unapplied, so the next
+ * notification retries it. The client ref is committed before effects run,
+ * so reads through it inside the effect see the finalized client.
+ */
+export const useAssistantScopeEffect = (
+  scope: ClientNames,
+  effect: () => (() => void) | void,
+  deps: readonly unknown[],
+) => {
+  const { clientRef } = useAssistantTapContext();
+  useAssistantScopeEffectWithClientRef(clientRef, scope, effect, deps);
+};
+
+export const useOptionalAssistantScopeEffect = (
+  scope: ClientNames,
+  effect: () => (() => void) | void,
+  deps: readonly unknown[],
+) => {
+  const clientRef = use(AssistantTapContext)?.clientRef;
+  useAssistantScopeEffectWithClientRef(clientRef, scope, effect, deps);
+};
+
 export const useAssistantEmit = () => {
   const { emit } = useAssistantTapContext();
   const clientStack = useClientStack();
-
   return useEffectEvent(
     <TEvent extends Exclude<AssistantEventName, "*">>(
       event: TEvent,
@@ -119,5 +146,19 @@ export const useAssistantEmit = () => {
     ) => {
       emit(event, payload, clientStack);
     },
+  );
+};
+
+export const useOptionalAssistantEmit = () => {
+  const context = use(AssistantTapContext);
+  const clientStack = useClientStack();
+  return useCallback(
+    <TEvent extends Exclude<AssistantEventName, "*">>(
+      event: TEvent,
+      payload: AssistantEventPayload[TEvent],
+    ) => {
+      context?.emit(event, payload, clientStack);
+    },
+    [context, clientStack],
   );
 };

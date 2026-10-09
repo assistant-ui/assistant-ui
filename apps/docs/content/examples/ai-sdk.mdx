@@ -1,15 +1,15 @@
 ---
 title: AI SDK Chat Persistence
-description: Vercel AI SDK chat with thread persistence — open-source React example combining the AI SDK and assistant-ui for streaming, thread management, and message history.
+description: Vercel AI SDK chat with thread persistence. Open-source React example combining the AI SDK and assistant-ui for streaming, thread management, and message history.
 ---
 
 ## Overview
 
-This example demonstrates integrating assistant-ui with the Vercel AI SDK for building production-ready chat interfaces. It showcases a complete chat application with thread management, message persistence, and a collapsible sidebar for conversation history.
+This example integrates assistant-ui with the Vercel AI SDK. It is a chat application with thread management, message persistence, and a collapsible sidebar for conversation history.
 
 ## Features
 
-- **AI SDK Integration**: Seamless connection with Vercel's `ai` package
+- **AI SDK Integration**: Connects to Vercel's `ai` package through `useChatRuntime`
 - **Thread Management**: Create, switch, and delete conversation threads
 - **Collapsible Sidebar**: Toggle sidebar visibility for focused chat
 - **Model Picker**: Switch between different AI models
@@ -19,7 +19,7 @@ This example demonstrates integrating assistant-ui with the Vercel AI SDK for bu
 ## Quick Start
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/ai-sdk ai@^6 @ai-sdk/react@^3 @ai-sdk/openai
+npm install @assistant-ui/react @assistant-ui/ai-sdk ai@^7 @ai-sdk/react@^4 @ai-sdk/openai
 ```
 
 ## Code
@@ -61,6 +61,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     // Optional: Add system prompt

@@ -65,6 +65,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await ai.convertToModelMessages(messages),
   });
@@ -86,6 +87,7 @@ Pass a `langsmith` provider option to tag traces with user, session, or run iden
 import { createLangSmithProviderOptions } from "langsmith/experimental/vercel";
 
 const result = streamText({
+  abortSignal: req.signal,
   model: openai("gpt-6-luna"),
   messages: await ai.convertToModelMessages(messages),
   providerOptions: {
@@ -147,7 +149,7 @@ Send a message. The trace should appear in your LangSmith project within seconds
   <Card
     icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
-    description="The runtime that ferries traces from the route to the chat UI."
+    description="The runtime that connects the traced route to the chat UI."
     href="/docs/runtimes/ai-sdk/v7"
   />
 </Cards>

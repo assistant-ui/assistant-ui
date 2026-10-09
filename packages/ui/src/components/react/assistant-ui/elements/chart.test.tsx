@@ -50,7 +50,7 @@ describe("Chart delta", () => {
     );
 
     expect(delta("+0.0%").getAttribute("data-trend")).toBe("flat");
-    expect(delta("+0.0%").className).toContain("text-foreground/45");
+    expect(delta("+0.0%").className).toContain("text-muted-foreground");
   });
 
   it("takes an explicit trend over the sign, and keeps a flat one neutral", () => {
@@ -65,7 +65,7 @@ describe("Chart delta", () => {
       />,
     );
     expect(delta("0").getAttribute("data-trend")).toBe("flat");
-    expect(delta("0").className).toContain("text-foreground/45");
+    expect(delta("0").className).toContain("text-muted-foreground");
 
     view.rerender(
       <Chart

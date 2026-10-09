@@ -18,13 +18,11 @@ import {
   createMessageRepositorySession,
   invokeUserCallback,
 } from "@assistant-ui/core/internal";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
@@ -193,9 +191,12 @@ export class A2AThreadRuntimeCore {
   detachRuntime() {
     this.runtime = undefined;
     // Abort in-flight requests on unmount
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+    const controller = this.abortController;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -434,6 +435,7 @@ export class A2AThreadRuntimeCore {
         // that case out.
         if (this.currentTask === task && this.runGeneration === generation) {
           this.currentTask = updated;
+          this.notifyUpdate();
         }
       } catch {
         // Server cancel failed; local abort already handled
@@ -508,9 +510,15 @@ export class A2AThreadRuntimeCore {
   private async startRun(userThreadMessage: ThreadMessage): Promise<void> {
     this.runGeneration++;
 
-    // Cancel any in-progress run before starting a new one
-    if (this.abortController) {
-      this.abortController.abort();
+    // Cancel any in-progress run before starting a new one. Its abort runs
+    // onCancel synchronously, and a run that callback starts keeps the thread.
+    // A listener that throws before finishRun leaves `previous` installed, so
+    // only a different, non-null controller counts as a replacement run.
+    const previous = this.abortController;
+    if (previous) {
+      previous.abort();
+      if (this.abortController !== previous && this.abortController !== null)
+        return;
       this.abortController = null;
     }
 
@@ -886,16 +894,11 @@ export class A2AThreadRuntimeCore {
   private a2uiSurfaceParts(): ThreadAssistantMessagePart[] {
     const parts: ThreadAssistantMessagePart[] = [];
     for (const [surfaceId, surface] of this.a2uiState) {
-      const { spec } = convertSurfaceToUISpec(surface);
-      if (!spec) continue;
+      const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+      if (!toolCall) continue;
       parts.push({
         type: "tool-call",
-        toolCallId: `a2ui:${surfaceId}`,
-        toolName: "present",
-        args: spec as unknown as ReadonlyJSONObject,
-        argsText: JSON.stringify(spec),
-        result: {},
-        artifact: { a2ui: surfaceToOperations(surface) },
+        ...toolCall,
       });
     }
     return parts;

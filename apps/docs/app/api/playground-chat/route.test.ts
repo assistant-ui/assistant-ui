@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   resolveChatModel: vi.fn(),
   getDistinctId: vi.fn(),
   streamText: vi.fn(),
+  convertToModelMessages: vi.fn<
+    (messages: unknown, options?: { tools?: unknown }) => unknown
+  >((messages) => messages),
 }));
 
 vi.mock("@/lib/feature-flags", async (importOriginal) => ({
@@ -34,7 +37,7 @@ vi.mock("@/lib/posthog-server", async (importOriginal) => ({
 
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal()),
-  convertToModelMessages: (messages: unknown) => messages,
+  convertToModelMessages: mocks.convertToModelMessages,
   pruneMessages: ({ messages }: { messages: unknown }) => messages,
   stepCountIs: () => () => false,
   streamText: mocks.streamText,
@@ -42,7 +45,7 @@ vi.mock("ai", async (importOriginal) => ({
 
 import { POST } from "./route";
 
-const request = () =>
+const request = (overrides?: Record<string, unknown>) =>
   new Request("https://www.assistant-ui.com/api/playground-chat", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -52,6 +55,7 @@ const request = () =>
       ],
       tools: {},
       builderConfig: {},
+      ...overrides,
     }),
   });
 
@@ -64,15 +68,53 @@ describe("POST /api/playground-chat telemetry", () => {
       toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
     });
 
-    const response = await POST(request());
+    const req = request();
+    const response = await POST(req);
 
     expect(response.status).toBe(200);
     const options = mocks.streamText.mock.calls[0]?.[0];
+    expect(options.abortSignal).toBe(req.signal);
     expect(options.telemetry.functionId).toBe("playground_chat");
     expect(options.runtimeContext.$ai_span_name).toBe("playground_chat");
     expect(options.runtimeContext.posthog_distinct_id).toBe(
       "distinct_1234567890",
     );
+  });
+
+  it("converts messages with the tool set it streams with", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+    });
+
+    await POST(
+      request({
+        tools: {
+          update_config: {
+            description: "Update the builder config",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    );
+
+    const tools = mocks.streamText.mock.calls[0]?.[0].tools;
+    expect(Object.keys(tools)).toEqual(["update_config"]);
+    expect(mocks.convertToModelMessages.mock.calls[0]?.[1]?.tools).toBe(tools);
+  });
+
+  it("streams a request that sends no tools", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+    });
+
+    const response = await POST(request({ tools: undefined }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.streamText.mock.calls[0]?.[0].tools).toEqual({});
   });
 
   it("does not reach the model when the rate limit answers", async () => {
@@ -83,6 +125,26 @@ describe("POST /api/playground-chat telemetry", () => {
     const response = await POST(request());
 
     expect(response.status).toBe(429);
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+    expect(mocks.streamText).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized frontend tools before model selection", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      request({
+        tools: {
+          update: {
+            description: "x".repeat(96_000),
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
     expect(mocks.streamText).not.toHaveBeenCalled();
   });
