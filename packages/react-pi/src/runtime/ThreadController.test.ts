@@ -448,6 +448,36 @@ describe("PiThreadController", () => {
     expect(client.cancelled).toEqual([THREAD]);
   });
 
+  it("keeps a new run started during queue clearing out of a captured Stop", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    await controller.captureCancel()();
+    expect(client.cancelled).toEqual([THREAD]);
+    client.cancelled.length = 0;
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 2));
+    await controller.sendMessage(userMessage("new"));
+    expect(controller.getState().runStatus).toBe("running");
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["new"]);
+    expect(client.cancelled).toEqual([]);
+    expect(controller.getState().runStatus).toBe("running");
+  });
+
   it("sets model and thinking level via the client", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);

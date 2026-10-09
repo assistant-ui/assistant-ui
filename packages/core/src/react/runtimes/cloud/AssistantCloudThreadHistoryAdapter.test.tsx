@@ -121,6 +121,12 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
+function assertDefined<T>(value: T): asserts value is NonNullable<T> {
+  if (value == null) throw new Error("Expected adapter method to be defined");
+}
+
+type TelemetryMessage = { id: string; [key: string]: unknown };
+
 const makeToolCallMessage = (
   id: string,
   result?: unknown,
@@ -540,6 +546,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -587,6 +594,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
 
     await result.current.append({ parentId: null, message });
     cloudRef.current = secondCloud;
+    assertDefined(result.current.update);
     await result.current.update({ parentId: null, message });
 
     expect(secondCloud.threads.messages.update).toHaveBeenCalledWith(
@@ -611,6 +619,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const second = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(second.result.current.update);
     await second.result.current.update({ parentId: null, message });
 
     expect(cloud.threads.messages.create).toHaveBeenCalledOnce();
@@ -651,6 +660,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await result.current.append({ parentId: null, message });
     resolveFirst({ message_id: "remote-a" });
     await staleAppend;
+    assertDefined(result.current.update);
     await result.current.update({ parentId: null, message });
 
     expect(secondCloud.threads.messages.update).toHaveBeenCalledWith(
@@ -711,6 +721,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useScopedAssistantCloudThreadHistoryAdapter(cloudRef, scopeRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -754,6 +765,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
     const plainMessage = makeAssistantMessage("plain-message");
     const formattedMessage = makeAssistantMessage("formatted-message");
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "aui/v0",
       encode: ({ message }) => message,
@@ -777,6 +789,8 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       .fn()
       .mockRejectedValue(adapterChanged);
 
+    assertDefined(result.current.update);
+    assertDefined(formatted.update);
     await expect(
       result.current.update({ parentId: null, message: plainMessage }),
     ).rejects.toBe(adapterChanged);
@@ -789,6 +803,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     ).rejects.toBe(adapterChanged);
     await expect(formatted.load()).rejects.toBe(adapterChanged);
     result.current.feedback.submit({ message: plainMessage, type: "positive" });
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([{ parentId: null, message: formattedMessage }]);
 
     await waitFor(() =>
@@ -812,6 +827,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result, rerender } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -1019,14 +1035,15 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result, rerender } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "aui/v0",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
     const item = {
       parentId: null,
@@ -1042,7 +1059,9 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
 
     mocks.aui = mocks.makeClient("thread-2");
     rerender();
+    assertDefined(formatted.update);
     await formatted.update(item, "message-1");
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([item]);
     await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
 
@@ -1113,11 +1132,13 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
-    const error = new Error("Rate limited");
-    error.name = "AI_APICallError";
     const message: ThreadAssistantMessage = {
       ...makeAssistantMessage("local-message-1"),
-      status: { type: "incomplete", reason: "error", error },
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: { name: "AI_APICallError", message: "Rate limited" },
+      },
     };
 
     await result.current.append({ parentId: null, message });
@@ -1159,16 +1180,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "aui/v0",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([
       {
         parentId: null,
@@ -1194,16 +1217,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "ai-sdk/v6",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([
       {
         parentId: null,
@@ -1295,16 +1320,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "ai-sdk/v6",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([
       {
         parentId: null,
@@ -1349,16 +1376,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "ai-sdk/v6",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([
       {
         parentId: null,
@@ -1383,14 +1412,15 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "ai-sdk/v6",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
     const base = makeAssistantMessage("assistant-1");
     const message: ThreadAssistantMessage = {
@@ -1398,9 +1428,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       status: {
         type: "incomplete",
         reason: "error",
-        error: Object.assign(new Error("model unavailable"), {
-          code: "model_unavailable",
-        }),
+        error: { message: "model unavailable", code: "model_unavailable" },
       },
       metadata: {
         ...base.metadata,
@@ -1413,6 +1441,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       },
     };
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry(
       [
         {
@@ -1444,14 +1473,15 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "ai-sdk/v6",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
     const message: ThreadAssistantMessage = {
       ...makeAssistantMessage("assistant-1"),
@@ -1463,6 +1493,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       },
     };
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([], { message, durationMs: 120 });
     await waitFor(() => expect(cloud.runs.report).toHaveBeenCalled());
 
@@ -1483,16 +1514,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "aui/v0",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([
       {
         parentId: null,
@@ -1521,16 +1554,18 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "ai-sdk/v6",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
+    assertDefined(formatted.reportTelemetry);
     formatted.reportTelemetry([
       {
         parentId: null,
@@ -1558,14 +1593,15 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result, rerender } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat({
       format: "test",
       encode: ({ message }) => message,
       decode: ({ parent_id, content }) => ({
         parentId: parent_id,
-        message: content as { id: string },
+        message: content as TelemetryMessage,
       }),
-      getId: (message: { id: string }) => message.id,
+      getId: (message: TelemetryMessage) => message.id,
     });
 
     formatted.pin?.();
@@ -1599,6 +1635,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    assertDefined(result.current.withFormat);
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -1614,7 +1651,8 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
 
     formatted.pin!();
     await formatted.load();
-    await formatted.update!({ parentId: null, message: { id: "m1" } }, "m1");
+    assertDefined(formatted.update);
+    await formatted.update({ parentId: null, message: { id: "m1" } }, "m1");
 
     expect(cloud.threads.messages.update).toHaveBeenCalledWith(
       "thread-split",

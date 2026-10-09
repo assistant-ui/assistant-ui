@@ -4,7 +4,7 @@ import * as React from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { A2uiBindingContext } from "../a2ui/BindingContext";
+import { A2uiBindingContext } from "../bindingContext";
 import { AnsweredValuesProvider } from "../answeredValues";
 import { FIELD_VALUE_ATTR } from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";

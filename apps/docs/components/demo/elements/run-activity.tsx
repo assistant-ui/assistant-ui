@@ -29,6 +29,7 @@ import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 export type ActivityRun = {
   id: string;
+  createdAt?: Date | undefined;
   status: MessageStatus;
   timing?: { startedAt: number; completedAt?: number } | undefined;
   parts: readonly {
@@ -52,6 +53,7 @@ export function convertActivityMessage(
   if ("role" in run) return run;
   return {
     id: run.id,
+    createdAt: run.createdAt,
     role: "assistant",
     status: run.status,
     content: run.parts.map(({ id, part }) =>
@@ -318,6 +320,7 @@ const PARTS: ActivityRun["parts"] = [
 ];
 
 const PHASES = [1200, 1200, 1200, 1200, 0] as const;
+const DEMO_CREATED_AT = new Date("2026-01-01T00:00:00.000Z");
 
 export function RunActivityDemo() {
   const { phase, running } = useStoryPhases(PHASES);
@@ -336,6 +339,7 @@ export function RunActivityDemo() {
   const complete = phase === PHASES.length - 1;
   const run: ActivityRun = {
     id: "demo-run",
+    createdAt: DEMO_CREATED_AT,
     status: complete
       ? { type: "complete", reason: "stop" }
       : running
