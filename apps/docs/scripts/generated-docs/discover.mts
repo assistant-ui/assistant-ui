@@ -20,6 +20,7 @@ import {
 } from "./classify.mts";
 import {
   chooseDeclaration,
+  exportSpecifierDeprecated,
   extractJsDoc,
   extractSignature,
   getAllExportedNames,
@@ -153,20 +154,10 @@ function resolveDeclaration(entry: ExportEntry): TsNode | undefined {
   return undefined;
 }
 
-function getLeadingCommentText(node: TsNode): string {
-  return node
-    .getLeadingCommentRanges()
-    .map((range) => range.getText())
-    .join("\n");
-}
-
 function exportEntryDeprecated(entry: ExportEntry): string | undefined {
-  const comments = [
-    entry.specifier ? getLeadingCommentText(entry.specifier) : "",
-    getLeadingCommentText(entry.exportNode),
-  ].join("\n");
-  if (!comments.includes("@deprecated")) return undefined;
-  return comments.match(/@deprecated\s+([^*\n]+)/)?.[1]?.trim() || "true";
+  return entry.specifier
+    ? exportSpecifierDeprecated(entry.specifier)
+    : undefined;
 }
 
 function relativeToRepo(filePath: string | undefined): string | undefined {

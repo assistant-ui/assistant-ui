@@ -234,6 +234,7 @@ const isPendingToolCall = (
   part.state !== "result" &&
   part.result === undefined;
 
+/** @deprecated Experimental since 2025-04-07. Not scheduled for removal; the API may change in any release. */
 export async function unstable_runPendingTools(
   message: AssistantMessage,
   tools: Record<string, Tool> | undefined,

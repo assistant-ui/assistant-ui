@@ -34,6 +34,7 @@ const openai = createOpenAI({
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("<model id>"),
     messages: await convertToModelMessages(messages),
   });
@@ -69,6 +70,7 @@ const openrouter = createOpenAI({
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: openrouter("anthropic/claude-sonnet-5"),
     messages: await convertToModelMessages(messages),
   });
@@ -126,6 +128,7 @@ const litellm = createOpenAI({
 });
 
 const result = streamText({
+  abortSignal: req.signal,
   model: litellm("gpt-6-luna"),
   messages: await convertToModelMessages(messages),
 });

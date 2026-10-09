@@ -122,10 +122,12 @@ export const createContext = (defaultValue: any) => {
   return context;
 };
 
-export const use = (usable: any) =>
-  inTap() && isReadableTapContext(usable)
-    ? hooks.use(usable)
-    : ReactRuntime.use(usable);
+export const use = (usable: any) => {
+  if (inTap() && isReadableTapContext(usable)) return hooks.use(usable);
+  if (ReactRuntime.use) return ReactRuntime.use(usable);
+  if (isReadableTapContext(usable)) return ReactRuntime.useContext(usable);
+  throw new Error("React.use() requires React 19 outside a tap resource.");
+};
 
 export const useContext = (context: any) =>
   inTap() && isReadableTapContext(context)

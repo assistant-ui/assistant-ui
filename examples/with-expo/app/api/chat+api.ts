@@ -20,6 +20,7 @@ export async function POST(req: Request) {
   });
 
   const result = streamText({
+    abortSignal: req.signal,
     model,
     messages: prunedMessages,
     maxOutputTokens: 15000,

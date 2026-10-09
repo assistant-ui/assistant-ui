@@ -182,10 +182,14 @@ export async function POST(req: Request) {
     const aiSDKTools = await aiToolkit.tools({ frontend: tools });
 
     const result = streamText({
+      abortSignal: req.signal,
       model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
       tools: aiSDKTools,
       onFinish: async () => {
+        await aiToolkit.close();
+      },
+      onAbort: async () => {
         await aiToolkit.close();
       },
     });
@@ -230,10 +234,14 @@ export async function POST(req: Request) {
     const tools = await mcpClient.tools();
 
     const result = streamText({
+      abortSignal: req.signal,
       model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(messages, { tools }),
       tools,
       onFinish: async () => {
+        await mcpClient.close();
+      },
+      onAbort: async () => {
         await mcpClient.close();
       },
     });
@@ -246,7 +254,7 @@ export async function POST(req: Request) {
 }
 ```
 
-`onFinish` is the right place to call `close()`: it fires after the stream completes, so the connection stays open as long as the model is still calling tools.
+`onFinish` is the right place to call `close()`: it fires after the stream completes, so the connection stays open as long as the model is still calling tools. A cancelled request skips `onFinish` and runs `onAbort`, so the route closes the client there too.
 
 </Step>
 <Step>
@@ -416,6 +424,7 @@ MCP tools execute on the server, so approval is a server-side tool gate, not a `
 const tools = await mcpClient.tools();
 
 const result = streamText({
+  abortSignal: req.signal,
   model: openai("gpt-6-luna"),
   messages: await convertToModelMessages(messages, { tools }),
   tools,
@@ -423,6 +432,9 @@ const result = streamText({
     github_delete_repository: "user-approval",
   },
   onFinish: async () => {
+    await mcpClient.close();
+  },
+  onAbort: async () => {
     await mcpClient.close();
   },
 });

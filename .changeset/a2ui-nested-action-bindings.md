@@ -1,4 +1,5 @@
 ---
+"@assistant-ui/generative-ui": patch
 "@assistant-ui/react-generative-ui": patch
 ---
 

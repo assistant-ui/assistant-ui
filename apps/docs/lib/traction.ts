@@ -271,6 +271,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "ui",
   },
   {
+    name: "@assistant-ui/generative-ui",
+    description: "Framework-neutral generative UI.",
+    category: "ui",
+  },
+  {
     name: "@assistant-ui/react-generative-ui",
     description: "Render model-authored component trees.",
     category: "ui",

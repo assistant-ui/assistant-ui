@@ -1,4 +1,4 @@
-import { createRef } from "react";
+import { createRef, version } from "react";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -128,19 +128,22 @@ describe("ComposerMenu", () => {
     expect(screen.getByTestId("menu").style.translate).toBe("100px 0");
   });
 
-  it("runs the cleanup a callback ref returns", () => {
-    const cleanupRef = vi.fn();
-    const ref = vi.fn((_node: HTMLDivElement | null) => cleanupRef);
-    const { unmount } = render(
-      <Composer>
-        <ComposerMenu open ref={ref} />
-      </Composer>,
-    );
+  it.skipIf(version.startsWith("18."))(
+    "runs the cleanup a callback ref returns",
+    () => {
+      const cleanupRef = vi.fn();
+      const ref = vi.fn((_node: HTMLDivElement | null) => cleanupRef);
+      const { unmount } = render(
+        <Composer>
+          <ComposerMenu open ref={ref} />
+        </Composer>,
+      );
 
-    unmount();
-    expect(cleanupRef).toHaveBeenCalledOnce();
-    expect(ref).not.toHaveBeenCalledWith(null);
-  });
+      unmount();
+      expect(cleanupRef).toHaveBeenCalledOnce();
+      expect(ref).not.toHaveBeenCalledWith(null);
+    },
+  );
 
   it("forwards its ref and keeps a caller style", () => {
     const ref = createRef<HTMLDivElement>();

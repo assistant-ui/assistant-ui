@@ -3,13 +3,10 @@
 import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import {
-  Check,
   ChevronDown,
   Cloud,
   Droplet,
-  LayoutGrid,
   Monitor,
   PanelsTopLeft,
   Smartphone,
@@ -32,6 +29,11 @@ import {
   usePlatform,
 } from "./context";
 import { cn } from "@/lib/utils";
+import { headerSwitcherClassName } from "@/components/shared/header-chrome";
+import {
+  OtherOssProjectsItem,
+  ProjectMenuRadioItem,
+} from "@/components/shared/project-menu";
 import { getVisibleUrlsByPlatform } from "./tree";
 
 const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
@@ -81,10 +83,7 @@ export function PlatformSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={cn(
-          "group/platform bg-muted/70 text-foreground hover:bg-muted data-[popup-open]:bg-muted focus-visible:ring-foreground/20 flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-1",
-          className,
-        )}
+        className={cn("group/platform", headerSwitcherClassName, className)}
       >
         <span
           data-docs-platform={platform}
@@ -116,20 +115,7 @@ export function PlatformSwitcher({
           {MENU_PLATFORMS.map(renderItem)}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <MenuPrimitive.Item
-          closeOnClick
-          onClick={() => router.push("/oss")}
-          className={cn(
-            "flex h-8 cursor-default items-center gap-2 rounded-sm px-2 text-[13px] tracking-tight transition-colors outline-none select-none",
-            "data-[highlighted]:bg-foreground/5",
-          )}
-        >
-          <LayoutGrid className="text-muted-foreground size-4 shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-left">
-            Other OSS projects
-          </span>
-          <span className="size-3.5 shrink-0" />
-        </MenuPrimitive.Item>
+        <OtherOssProjectsItem />
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -137,26 +123,13 @@ export function PlatformSwitcher({
   function renderItem(p: Platform) {
     const Icon = PLATFORM_ICONS[p];
     return (
-      <MenuPrimitive.RadioItem
+      <ProjectMenuRadioItem
         key={p}
         value={p}
-        closeOnClick
-        className={cn(
-          "flex h-8 cursor-default items-center gap-2 rounded-sm px-2 text-[13px] tracking-tight transition-colors outline-none select-none",
-          "data-[highlighted]:bg-foreground/5 data-[checked]:bg-foreground/6 data-[checked]:font-medium",
-        )}
+        icon={<Icon className="text-muted-foreground size-4 shrink-0" />}
       >
-        <Icon className="text-muted-foreground size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-left">
-          {PLATFORM_LABELS[p]}
-        </span>
-        <MenuPrimitive.RadioItemIndicator
-          keepMounted
-          className="flex shrink-0 data-[unchecked]:invisible"
-        >
-          <Check className="text-foreground size-3.5" />
-        </MenuPrimitive.RadioItemIndicator>
-      </MenuPrimitive.RadioItem>
+        {PLATFORM_LABELS[p]}
+      </ProjectMenuRadioItem>
     );
   }
 }
