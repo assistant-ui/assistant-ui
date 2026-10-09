@@ -38,18 +38,21 @@ pnpm add @flue/sdk
 ```
 
 ```tsx
+import { useFlueRuntime } from "@assistant-ui/flue";
 import { createFlueClient } from "@flue/sdk";
 import { useMemo } from "react";
 
-const client = useMemo(
-  () =>
-    createFlueClient({
-      url: `/api/agents/support/${conversationId}`,
-      token,
-    }),
-  [conversationId, token],
-);
-const runtime = useFlueRuntime({ client });
+export function useSupportRuntime(conversationId: string, token: string) {
+  const client = useMemo(
+    () =>
+      createFlueClient({
+        url: `/api/agents/support/${conversationId}`,
+        token,
+      }),
+    [conversationId, token],
+  );
+  return useFlueRuntime({ client });
+}
 ```
 
 The adapter renders Flue text, reasoning, tool calls, files, and `data-*` parts. It also forwards cancellation to the conversation's `abort` route. Flue currently accepts image attachments only; configure assistant-ui with `SimpleImageAttachmentAdapter` when the composer should upload images.

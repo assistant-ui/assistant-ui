@@ -79,4 +79,6 @@ Mount it at the route used by the client:
 app.route("/api/agents/chat", createAgentRouter(ChatAgent));
 ```
 
+This demo has no `db.ts` persistence adapter, so Flue keeps conversation history in the server process's memory and a server restart starts it over. Add an adapter from Flue's database guide to keep history across restarts.
+
 The routes in this demo are intentionally unauthenticated and are only suitable for local development. Production Flue applications should protect the agent mount with application middleware.
