@@ -5,6 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import { version } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OptionList, type OptionListOption } from "./option-list";
@@ -23,6 +24,24 @@ const OPTIONS: OptionListOption[] = [
 ];
 
 describe("OptionList", () => {
+  it.skipIf(version.startsWith("18."))(
+    "runs the callback ref cleanup when the receipt unmounts",
+    () => {
+      const cleanupRef = vi.fn();
+      const ref = vi.fn((_node: HTMLDivElement | null) => cleanupRef);
+      const { unmount } = render(
+        <OptionList options={OPTIONS} choice={["keep"]} ref={ref} />,
+      );
+
+      expect(ref).toHaveBeenCalledWith(
+        screen.getByText("Keep all").closest('[data-slot="option-list"]'),
+      );
+      unmount();
+      expect(cleanupRef).toHaveBeenCalledOnce();
+      expect(ref).not.toHaveBeenCalledWith(null);
+    },
+  );
+
   it("focuses the receipt after a focused option settles", async () => {
     const { rerender } = render(
       <OptionList options={OPTIONS} onConfirm={() => {}} />,

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -15,14 +16,22 @@ describe("RecommendationCard", () => {
         acceptedLabel: "Accepted",
         children: "This change updates the answer.",
       };
-      const { rerender } = render(
-        <RecommendationCard state="idle" {...props} />,
-      );
+      function Card() {
+        const [state, setState] = useState<"idle" | "accepted">("idle");
+        return (
+          <RecommendationCard
+            {...props}
+            state={state}
+            onAccept={() => setState("accepted")}
+            onAlternatives={() => setState("accepted")}
+          />
+        );
+      }
+
+      render(<Card />);
       const answer = screen.getByRole("button", { name: button });
       answer.focus();
       fireEvent.click(answer);
-
-      rerender(<RecommendationCard state="accepted" {...props} />);
 
       expect(document.activeElement).toBe(screen.getByText("Accepted"));
     },

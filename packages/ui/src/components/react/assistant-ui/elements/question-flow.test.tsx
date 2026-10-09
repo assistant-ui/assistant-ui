@@ -5,7 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { createRef, version } from "react";
+import { version } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QuestionFlow, type QuestionFlowStep } from "./question-flow";
@@ -53,11 +53,27 @@ function moveToLastStep(
 }
 
 describe("QuestionFlow", () => {
+  it("focuses the receipt after the focused answer settles", async () => {
+    render(<QuestionFlow steps={[STEPS[0]!]} onComplete={() => {}} />);
+    const answer = screen.getByRole("button", { name: "The whole team" });
+    answer.focus();
+    await act(async () => {
+      fireEvent.click(answer);
+    });
+
+    expect(document.activeElement).toBe(
+      screen.getByText("The whole team").closest('[data-slot="question-flow"]'),
+    );
+  });
+
   it.skipIf(onReact18)(
-    "focuses the receipt after the focused answer settles",
+    "forwards the receipt ref and runs its cleanup",
     async () => {
-      const ref = createRef<HTMLDivElement>();
-      render(
+      const cleanupRef = vi.fn();
+      const ref = vi.fn((node: HTMLDivElement | null) =>
+        node?.dataset.state === "receipt" ? cleanupRef : undefined,
+      );
+      const { unmount } = render(
         <QuestionFlow ref={ref} steps={[STEPS[0]!]} onComplete={() => {}} />,
       );
       const answer = screen.getByRole("button", { name: "The whole team" });
@@ -66,12 +82,9 @@ describe("QuestionFlow", () => {
         fireEvent.click(answer);
       });
 
-      expect(document.activeElement).toBe(
-        screen
-          .getByText("The whole team")
-          .closest('[data-slot="question-flow"]'),
-      );
-      expect(ref.current).toBe(document.activeElement);
+      expect(ref).toHaveBeenCalledWith(document.activeElement);
+      unmount();
+      expect(cleanupRef).toHaveBeenCalledOnce();
     },
   );
 
