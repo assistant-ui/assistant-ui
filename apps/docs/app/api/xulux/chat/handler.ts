@@ -358,6 +358,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         : null;
 
       const result = streamText({
+        abortSignal: req.signal,
         model: prism?.model ?? baseModel,
         ...(modelConfig.providerOptions
           ? { providerOptions: modelConfig.providerOptions }

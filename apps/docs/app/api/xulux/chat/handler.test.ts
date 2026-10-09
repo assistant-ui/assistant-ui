@@ -205,6 +205,27 @@ describe("createXuluxChatHandler access boundary", () => {
     );
   });
 
+  it("forwards the request abort signal to streamText", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+
+    const req = request();
+    const response = await createXuluxChatHandler(agent)(req);
+
+    expect(response.status).toBe(200);
+    expect(mocks.streamText.mock.calls[0]?.[0].abortSignal).toBe(req.signal);
+  });
+
   it("converts messages with the tool set it streams with", async () => {
     mocks.requireSession.mockReturnValue({
       id: "signed-session-1234567890",
