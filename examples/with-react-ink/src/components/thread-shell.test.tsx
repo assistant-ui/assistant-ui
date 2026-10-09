@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { Text } from "ink";
+import { act } from "react";
 
 const mocks = vi.hoisted(() => ({
   state: {
@@ -51,18 +52,27 @@ vi.mock("@assistant-ui/react-ink", async (importOriginal) => ({
 
 import { ThreadShell } from "./thread-shell";
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const settle = () =>
+  act(() => new Promise<void>((resolve) => setTimeout(resolve, 40)));
 const create = async () => {
-  const result = render(
-    <ThreadShell>
-      {({ isComposing }) => (
-        <Text>{isComposing ? "Composer active" : "Composer paused"}</Text>
-      )}
-    </ThreadShell>,
-  );
-  await settle();
+  let result!: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(
+      <ThreadShell>
+        {({ isComposing }) => (
+          <Text>{isComposing ? "Composer active" : "Composer paused"}</Text>
+        )}
+      </ThreadShell>,
+    );
+  });
   const press = async (key: string) => {
-    result.stdin.write(key);
+    await act(async () => {
+      result.stdin.write(key);
+    });
     await settle();
   };
   return { ...result, press };
