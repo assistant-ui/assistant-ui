@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
     reasoning: false,
   })),
   streamText: vi.fn(),
+  convertToModelMessages: vi.fn<
+    (messages: unknown, options?: { tools?: unknown }) => unknown
+  >((messages) => messages),
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -69,7 +72,7 @@ vi.mock("@assistant-ui/ai-sdk", async (importOriginal) => ({
 
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal()),
-  convertToModelMessages: (messages: unknown) => messages,
+  convertToModelMessages: mocks.convertToModelMessages,
   pruneMessages: ({ messages }: { messages: unknown }) => messages,
   stepCountIs: () => () => false,
   streamText: mocks.streamText,
@@ -199,6 +202,54 @@ describe("createXuluxChatHandler access boundary", () => {
       publicSession.id,
       usage,
       "2026-08-27",
+    );
+  });
+
+  it("converts messages with the tool set it streams with", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+    const tools = {};
+
+    await createXuluxChatHandler({ ...agent, prepareTools: () => tools })(
+      request(),
+    );
+
+    expect(mocks.convertToModelMessages.mock.calls[0]?.[1]?.tools).toBe(tools);
+    expect(mocks.streamText.mock.calls[0]?.[0].tools).toBe(tools);
+  });
+
+  it("hands the agent an empty tool map when the request sends none", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+    const prepareTools = vi.fn(() => ({}));
+
+    const response = await createXuluxChatHandler({ ...agent, prepareTools })(
+      request(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(prepareTools).toHaveBeenCalledWith(
+      expect.objectContaining({ clientTools: {} }),
     );
   });
 

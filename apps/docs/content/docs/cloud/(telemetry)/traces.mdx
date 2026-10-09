@@ -201,22 +201,24 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const samplingCalls: Record<string, SamplingCallData[]> = {};
 
+  const aiSDKTools = {
+    delegate: tool({
+      inputSchema: z.object({ task: z.string() }),
+      execute: async ({ task }, { toolCallId }) => {
+        const collector = createSamplingCollector();
+        const answer = await runSubAgent(task, {
+          onSamplingCall: collector.collect,
+        });
+        samplingCalls[toolCallId] = collector.getCalls();
+        return answer;
+      },
+    }),
+  };
+
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      delegate: tool({
-        inputSchema: z.object({ task: z.string() }),
-        execute: async ({ task }, { toolCallId }) => {
-          const collector = createSamplingCollector();
-          const answer = await runSubAgent(task, {
-            onSamplingCall: collector.collect,
-          });
-          samplingCalls[toolCallId] = collector.getCalls();
-          return answer;
-        },
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse({

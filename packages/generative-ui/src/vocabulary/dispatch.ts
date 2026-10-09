@@ -1,7 +1,7 @@
 import { hasFieldReference, resolveFieldReferences } from "../fieldReferences";
 import type { Action } from "../ir";
 import type { GenerativeUIDispatch } from "../types";
-import type { A2uiBinding } from "../a2ui/BindingContext";
+import type { A2uiBinding } from "../a2ui/types";
 import { equalData } from "../a2ui/dataModel";
 import { CHECKBOX_GROUP_ATTR, FIELD_NAME_ATTR } from "../constants";
 import {

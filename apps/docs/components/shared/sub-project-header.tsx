@@ -237,7 +237,7 @@ function ProjectSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Switch project"
-        className="group/project bg-muted/70 text-foreground hover:bg-muted data-[popup-open]:bg-muted focus-visible:ring-foreground/20 flex h-7 min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-1"
+        className="group/project text-foreground hover:bg-foreground/5 data-[popup-open]:bg-foreground/5 focus-visible:ring-foreground/20 -mx-1 flex h-7 min-w-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-sm transition-colors outline-none focus-visible:ring-1"
       >
         <span className="min-w-0 flex-1 truncate text-left">{label}</span>
         <ChevronDown className="text-muted-foreground/70 size-3.5 shrink-0 transition-transform duration-150 ease-out group-data-[popup-open]/project:rotate-180" />
