@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createElement } from "react";
+import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
 import type { AssistantRuntime, ChatModelAdapter } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
@@ -13,7 +12,7 @@ import { createRenderCounter } from "../src/render-counter";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = false;
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const counter = createRenderCounter();
 
@@ -53,6 +52,8 @@ describe("local runtime commit shape", () => {
           text += "tok ";
           yield { content: [{ type: "text" as const, text }] };
         }
+        // Keep run completion outside the token measurement.
+        await gate();
       },
     };
 
@@ -70,16 +71,21 @@ describe("local runtime commit shape", () => {
     };
 
     const root = createRoot(document.createElement("div"));
-    flushSync(() => root.render(createElement(App)));
+    act(() => root.render(createElement(App)));
 
-    runtime.thread.append("hello");
-    await until(() => gates.length === 1);
+    await act(async () => {
+      runtime.thread.append("hello");
+      await until(() => gates.length === 1);
+    });
     const beforeTokens = counter.snapshot();
 
     for (let i = 0; i < TOKENS; i++) {
       const textBefore = counter.renders("text");
-      gates[i]!();
-      await until(() => counter.renders("text") >= textBefore + 1);
+      await act(async () => {
+        gates[i]!();
+        await until(() => gates.length === i + 2);
+      });
+      expect(counter.renders("text")).toBe(textBefore + 1);
     }
 
     const delta = Object.fromEntries(
@@ -89,28 +95,23 @@ describe("local runtime commit shape", () => {
       ]),
     );
 
-    // Mid-stream, each yielded chunk costs one commit and one text render with
-    // the message wrapper untouched.
     expect(delta).toEqual({
       "commits:thread": TOKENS,
       "renders:text": TOKENS,
       "renders:message": 0,
     });
 
-    await until(() => !runtime.thread.getState().isRunning);
+    await act(async () => {
+      gates[TOKENS]!();
+      await until(() => !runtime.thread.getState().isRunning);
+    });
 
-    // The boundaries add the rest: the append renders the message and its
-    // synthetic empty running part, the first chunk swaps that part for the
-    // real one, and run completion flips part status, re-rendering text and the
-    // wrapper. AuiProvider commits the host in the layout phase, so the append
-    // lands before the mid-stream baseline above instead of inside it; the
-    // whole-run totals are what stay invariant across that phase.
     expect(counter.snapshot()).toEqual({
-      "commits:thread": TOKENS + 2,
-      "renders:text": TOKENS + 2,
+      "commits:thread": TOKENS + 3,
+      "renders:text": TOKENS + 3,
       "renders:message": 2,
     });
 
-    flushSync(() => root.unmount());
+    act(() => root.unmount());
   });
 });
