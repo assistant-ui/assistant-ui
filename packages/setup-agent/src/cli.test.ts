@@ -423,12 +423,34 @@ describe("writeEnvSecret", () => {
     },
   );
 
-  it("keeps the rest of an existing file", async () => {
+  it("keeps the rest of an existing file and restricts it to its owner", async () => {
     const file = join(await tempDir(), ".env.local");
-    await writeFile(file, "A=1\nOPENAI_API_KEY=old\nB=2\n");
+    await writeFile(file, "A=1\nOPENAI_API_KEY=old\nB=2\n", { mode: 0o644 });
     await writeEnvSecret(file, "OPENAI_API_KEY", async () => "sk-test");
     expect(await readFile(file, "utf8")).toBe(
       "A=1\nOPENAI_API_KEY=sk-test\nB=2\n",
+    );
+    if (process.platform !== "win32") {
+      expect((await stat(file)).mode & 0o777).toBe(0o600);
+    }
+  });
+
+  it("refuses an invalid key before taking the secret", async () => {
+    const take = vi.fn(async () => "sk-test");
+    await expect(
+      writeEnvSecret(join(await tempDir(), ".env.local"), "BAD KEY", take),
+    ).rejects.toThrow("not an environment variable name");
+    expect(take).not.toHaveBeenCalled();
+  });
+
+  it("keeps lines another writer added while the secret was being taken", async () => {
+    const file = join(await tempDir(), ".env.local");
+    await writeEnvSecret(file, "OPENAI_API_KEY", async () => {
+      await writeFile(file, "OTHER_KEY=1\n");
+      return "sk-test";
+    });
+    expect(await readFile(file, "utf8")).toBe(
+      "OTHER_KEY=1\nOPENAI_API_KEY=sk-test\n",
     );
   });
 });

@@ -35,7 +35,7 @@ Three standard choices ship as presets (`setup-agent` exports `INPUT_PRESETS` an
 - `llm-provider`: OpenAI, Anthropic, Google Gemini, OpenRouter, xAI, Mistral, DeepSeek, Groq, Fireworks AI; defaults to OpenAI. Rendered as the model picker (provider, key, model, reasoning effort).
 - `project`: the React projects the agent found, passed as `--choices "apps/web=Next.js,apps/admin"`, ahead of a fixed "New project" option whose second pick is the meta framework. Answers a path, or `new:<next|vite|react-router|tanstack-start|expo>`.
 
-`--only` restricts a preset to some of its options (a single id locks the choice in) and `--default` preselects one.
+`--only` restricts a preset to some of its options and leaves out `--choices` (a single id locks the choice in) and `--default` preselects one.
 
 ## Workspace
 

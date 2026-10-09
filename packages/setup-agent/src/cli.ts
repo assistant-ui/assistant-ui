@@ -585,11 +585,15 @@ export const askSeed = (
   };
 };
 
-/** Sets `key=value` in dotenv text, replacing an existing line for the key. */
-export const upsertEnvLine = (content: string, key: string, value: string) => {
+const assertEnvKey = (key: string) => {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
     throw new Error(`"${key}" is not an environment variable name`);
   }
+};
+
+/** Sets `key=value` in dotenv text, replacing an existing line for the key. */
+export const upsertEnvLine = (content: string, key: string, value: string) => {
+  assertEnvKey(key);
   const line = `${key}=${value}`;
   const lines = content === "" ? [] : content.replace(/\n$/, "").split("\n");
   const index = lines.findIndex(
@@ -602,20 +606,22 @@ export const upsertEnvLine = (content: string, key: string, value: string) => {
 };
 
 /**
- * Write the secret `take` returns to `file` under `key`. The file is opened
- * (and created owner-only) before `take` runs, because taking the secret
- * consumes it and an unwritable destination must fail while it is still
- * deposited.
+ * Write the secret `take` returns to `file` under `key`, leaving the file
+ * owner-only. The file is opened before `take` runs, because taking the
+ * secret consumes it and an unwritable destination must fail while it is
+ * still deposited; it is read after, so lines written meanwhile survive.
  */
 export const writeEnvSecret = async (
   file: string,
   key: string,
   take: () => Promise<string>,
 ) => {
+  assertEnvKey(key);
   const handle = await open(file, "a+", 0o600);
   try {
-    const current = await handle.readFile("utf8");
+    await handle.chmod(0o600);
     const value = await take();
+    const current = await handle.readFile("utf8");
     await handle.truncate(0);
     await handle.writeFile(upsertEnvLine(current, key, value));
   } finally {
