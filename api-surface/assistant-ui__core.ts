@@ -1036,8 +1036,10 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   abstract exportExternalState(): any;
   abstract importExternalState(state: any): void;
   abstract unstable_notifySessionReset(): void;
-  protected _voiceMessages: ThreadMessage[];
-  protected _voiceGeneration: number;
+  protected get _voiceMessages(): ThreadMessage[];
+  protected set _voiceMessages(messages: ThreadMessage[]);
+  protected get _voiceGeneration(): number;
+  protected set _voiceGeneration(generation: number);
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
@@ -1067,7 +1069,8 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   speech: SpeechState | undefined;
   speak(messageId: string): void;
   stopSpeaking(): void;
-  voice: VoiceSessionState | undefined;
+  get voice(): VoiceSessionState | undefined;
+  set voice(value: VoiceSessionState | undefined);
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   protected _onVoiceConnected(): void;
