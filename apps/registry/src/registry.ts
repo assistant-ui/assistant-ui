@@ -101,6 +101,12 @@ const elementsRegistryItems: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/surfaces.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
     ],
     dependencies: ["tw-shimmer"],
     css: {
@@ -164,6 +170,12 @@ const elementsRegistryItems: RegistryItem[] = [
         path: "components/assistant-ui/utils/task.ts",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/utils/task.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -1398,6 +1410,12 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/reasoning.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
     ],
     registryDependencies: ["collapsible"],
     dependencies: ["lucide-react", "class-variance-authority", "tw-shimmer"],
@@ -2413,6 +2431,12 @@ export const nativeRegistry: RegistryItem[] = [
         path: "components/assistant-ui/utils/task.ts",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/utils/task.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
       },
     ],
     dependencies: ["@assistant-ui/react-native"],

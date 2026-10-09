@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
+import { useId, useRef, useState, type ComponentProps } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { cn } from "@/lib/utils";
 import { OptionList, type OptionListOption } from "./option-list";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -61,7 +56,7 @@ export function QuestionFlow({
   const currentStep = steps[currentIndex];
   const previousStepId = useRef(currentStep?.id);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (previousStepId.current === currentStep?.id) return;
     previousStepId.current = currentStep?.id;
     optionListRef.current

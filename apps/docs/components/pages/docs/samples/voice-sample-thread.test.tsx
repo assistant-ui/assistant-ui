@@ -20,9 +20,9 @@ const compilerStubs = vi.hoisted(() => ({
   defineGenerativeComponents: () => ({}),
 }));
 
-vi.mock("@assistant-ui/react-generative-ui", async (importOriginal) => ({
+vi.mock("@assistant-ui/generative-ui/react", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("@assistant-ui/react-generative-ui")
+    typeof import("@assistant-ui/generative-ui/react")
   >()),
   defineGenerativeComponents: compilerStubs.defineGenerativeComponents,
 }));
