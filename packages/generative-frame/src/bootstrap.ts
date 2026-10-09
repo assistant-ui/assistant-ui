@@ -88,7 +88,7 @@ export function buildBootstrapHtml(options: BootstrapOptions): string {
 
   return [
     "<!doctype html>",
-    `<html lang="en" data-theme="${tokens.colorScheme}" style="color-scheme:${tokens.colorScheme}">`,
+    `<html lang="en" data-theme="${tokens.colorScheme}" style="color-scheme:${tokens.colorScheme};background:transparent">`,
     "<head>",
     '<meta charset="utf-8">',
     `<meta http-equiv="Content-Security-Policy" content="${escapeAttribute(csp)}">`,

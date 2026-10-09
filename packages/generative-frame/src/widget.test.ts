@@ -179,6 +179,19 @@ describe("createWidget", () => {
     );
   });
 
+  it("keeps the frame transparent until the runtime reports its first size", async () => {
+    const { fake, widget } = setup();
+    await vi.waitFor(() => expect(fake.rendered[0]).toBeDefined());
+    const slot = fake.rendered[0]!.iframe.parentElement!;
+    expect(slot.style.opacity).toBe("0");
+    const frame = await fake.connect(0);
+    await widget.ready;
+    expect(slot.style.opacity).toBe("0");
+    frame.notify(METHODS.sizeChanged, { width: 600, height: 120 });
+    await vi.waitFor(() => expect(slot.style.opacity).toBe("1"));
+    expect(slot.style.transition).toContain("opacity");
+  });
+
   it("forwards frame errors and console output", async () => {
     const onError = vi.fn();
     const onLog = vi.fn();
@@ -293,12 +306,15 @@ describe("createWidget", () => {
       onNotification: (method, params) => notifications.push([method, params]),
     });
     widget.setTheme(DEFAULT_DARK_TOKENS);
+    expect(fake.rendered[0]!.iframe.style.colorScheme).toBe("light");
     await vi.waitFor(() => expect(notifications).toHaveLength(1));
     expect(notifications[0]).toMatchObject([
       METHODS.hostContextChanged,
       { theme: "dark" },
     ]);
-    expect(fake.rendered[0]!.iframe.style.colorScheme).toBe("dark");
+    await vi.waitFor(() =>
+      expect(fake.rendered[0]!.iframe.style.colorScheme).toBe("dark"),
+    );
 
     widget.dispose();
     expect(container.children).toHaveLength(0);

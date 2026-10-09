@@ -65,6 +65,17 @@ describe("buildCsp", () => {
 });
 
 describe("buildBootstrapHtml", () => {
+  it("declares the color scheme and a transparent canvas on the first tag", () => {
+    const html = buildBootstrapHtml({
+      hostOrigin: "https://app.test",
+      tokens: DEFAULT_DARK_TOKENS,
+      runtime: "",
+    });
+    expect(html).toMatch(
+      /<html [^>]*style="color-scheme:dark;background:transparent"/,
+    );
+  });
+
   const html = buildBootstrapHtml({
     hostOrigin: "https://app.example.com",
     tokens: DEFAULT_DARK_TOKENS,

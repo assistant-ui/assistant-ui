@@ -120,6 +120,10 @@ const DEFAULT_PRODUCT = "generative-frame";
 const DEFAULT_READY_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const SCRIPT_TAG = /<script[\s>]/i;
+const REVEAL_MS = 120;
+
+const prefersReducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 const promptText = (params: UiMessageParams) =>
   (params.content ?? [])
@@ -136,6 +140,8 @@ type Session = {
   ready: Promise<void>;
   peer: () => RpcPeer;
   iframe: () => HTMLIFrameElement | undefined;
+  /** Shows the iframe once the runtime has themed and laid out its document. */
+  reveal(): void;
   dispose(): void;
 };
 
@@ -305,6 +311,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     if (iframe) {
       const height = Math.min(Math.max(size.height, minHeight), maxHeight);
       iframe.style.height = `${height}px`;
+      session.reveal();
     }
     if (session === activeSession) {
       options.onResize?.(size);
@@ -315,15 +322,19 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   const createSession = (hidden: boolean): Session => {
     const slot = container.ownerDocument.createElement("div");
     slot.dataset["generativeFrame"] = "";
+    // Safe Content Frame appends the iframe at once, and its shim paints an
+    // opaque canvas before the runtime themes the document, so the slot stays
+    // transparent (but laid out) until the runtime's first size report.
     slot.style.cssText = hidden
-      ? "display:block;height:0;overflow:hidden;visibility:hidden;pointer-events:none"
-      : "display:block";
+      ? "display:block;height:0;overflow:hidden;visibility:hidden;pointer-events:none;opacity:0"
+      : "display:block;opacity:0";
     container.appendChild(slot);
 
     let rendered: RenderedFrame | undefined;
     let peer: RpcPeer | undefined;
     let initSent = false;
     let sessionDisposed = false;
+    let revealed = false;
     let resolveReady!: () => void;
     let rejectReady!: (error: unknown) => void;
     const ready = new Promise<void>((resolve, reject) => {
@@ -340,6 +351,14 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         return peer;
       },
       iframe: () => rendered?.iframe,
+      reveal() {
+        if (revealed) return;
+        revealed = true;
+        if (!prefersReducedMotion()) {
+          slot.style.transition = `opacity ${REVEAL_MS}ms ease-out`;
+        }
+        slot.style.opacity = "1";
+      },
       dispose() {
         if (sessionDisposed) return;
         sessionDisposed = true;
@@ -541,6 +560,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       )) as EndResult;
     if (disposed) throw new Error("Widget disposed");
     activeSession = session;
+    // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
     applySize(session, result.size);
     previous?.dispose();
@@ -589,9 +609,16 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     setTheme(next) {
       tokens = next;
       context = { ...context, ...themeContext(next) };
-      const iframe = activeSession?.iframe();
-      if (iframe) iframe.style.colorScheme = next.colorScheme;
       notify(METHODS.hostContextChanged, themeContext(next));
+      // An iframe whose color-scheme differs from its document's paints an
+      // opaque canvas, so the element follows only after the frame switched.
+      const session = activeSession;
+      const followTheme = () => {
+        const iframe = session?.iframe();
+        if (iframe && tokens === next)
+          iframe.style.colorScheme = next.colorScheme;
+      };
+      request(METHODS.inspect).then(followTheme, followTheme);
     },
     setContext(partial) {
       context = { ...context, ...partial };
