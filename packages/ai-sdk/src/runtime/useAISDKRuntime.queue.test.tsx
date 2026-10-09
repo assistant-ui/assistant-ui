@@ -9,7 +9,9 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useChat } from "@ai-sdk/react";
+import { useLayoutEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { Chat, useChat } from "@ai-sdk/react";
 import {
   lastAssistantMessageIsCompleteWithToolCalls,
   type ChatTransport,
@@ -542,6 +544,48 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     rerender({ isSendDisabled: false });
     await waitFor(() => expect(harness.requests).toHaveLength(2));
     expect(harness.requests[1]!.prompt).toBe("second");
+  });
+
+  it("holds a send made before its first effect when it mounts over a running chat", async () => {
+    const harness = createTransport();
+    const chat = new Chat({ transport: harness.transport });
+    void chat.sendMessage({ text: "first" });
+    await waitFor(() => expect(harness.requests).toHaveLength(1));
+    expect(chat.status).toBe("submitted");
+
+    const SendOnMount = ({ runtime }: { runtime: AssistantRuntime }) => {
+      useLayoutEffect(() => {
+        runtime.thread.composer.setText("second");
+        runtime.thread.composer.send({ steer: false });
+      }, [runtime]);
+      return null;
+    };
+    const Host = () => {
+      const runtime = useAISDKRuntime(useChat({ chat }), {
+        unstable_enableMessageQueue: true,
+      });
+      return <SendOnMount runtime={runtime} />;
+    };
+
+    const actEnvironment = globalThis as {
+      IS_REACT_ACT_ENVIRONMENT?: boolean | undefined;
+    };
+    const wasActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
+    actEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    const root = createRoot(document.createElement("div"));
+    try {
+      root.render(<Host />);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(harness.requests).toHaveLength(1);
+
+      harness.requests[0]!.stream("one");
+      harness.requests[0]!.finish();
+      await waitFor(() => expect(harness.requests).toHaveLength(2));
+      expect(harness.requests[1]!.prompt).toBe("second");
+    } finally {
+      root.unmount();
+      actEnvironment.IS_REACT_ACT_ENVIRONMENT = wasActEnvironment;
+    }
   });
 
   it("exposes no queue when the option is omitted", async () => {

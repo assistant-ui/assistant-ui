@@ -38,12 +38,14 @@ export const useMessageQueue = ({
   const interruptRef = useRef(interrupt);
   const onErrorRef = useRef(onError);
   const heldRef = useRef(!enabled || isSendDisabled);
+  const runningRef = useRef(isRunning);
   useInsertionEffect(() => {
     sendRef.current = send;
     cancelRef.current = cancel;
     interruptRef.current = interrupt;
     onErrorRef.current = onError;
     heldRef.current = !enabled || isSendDisabled;
+    runningRef.current = isRunning;
   });
 
   const cancelsRef = useRef(0);
@@ -87,7 +89,11 @@ export const useMessageQueue = ({
               }
               return;
             }
-            if (heldRef.current || reportedRef.current.busy) {
+            if (
+              heldRef.current ||
+              runningRef.current ||
+              reportedRef.current.busy
+            ) {
               await new Promise<void>((resolve) => {
                 idleWaitersRef.current.push(resolve);
               });
