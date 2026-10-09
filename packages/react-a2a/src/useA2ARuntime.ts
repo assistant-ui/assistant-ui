@@ -143,6 +143,12 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
 
     const { onSwitchToNewThread, onSwitchToThread } = threadListAdapter;
 
+    const releaseSwitch = (generation: number) => {
+      if (switchingGenerationRef.current === generation) {
+        switchingGenerationRef.current = null;
+      }
+    };
+
     return {
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
@@ -162,9 +168,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
               core.applyExternalMessages([]);
               core.resetContext();
             } finally {
-              if (switchingGenerationRef.current === generation) {
-                switchingGenerationRef.current = null;
-              }
+              releaseSwitch(generation);
             }
           }
         : undefined,
@@ -183,9 +187,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
               core.applyExternalMessages(result.messages);
               core.resetContext();
             } finally {
-              if (switchingGenerationRef.current === generation) {
-                switchingGenerationRef.current = null;
-              }
+              releaseSwitch(generation);
             }
           }
         : undefined,
