@@ -6,25 +6,27 @@ const makeSession = () => {
   let speech: (result: DictationAdapter.Result) => void = () => {};
   let speechStart: () => void = () => {};
   let speechEnd: () => void = () => {};
+  const unsubscribe = vi.fn();
   const session: DictationAdapter.Session = {
     status: { type: "starting" },
     stop: vi.fn(async () => {}),
     cancel: vi.fn(),
     onSpeech: (callback) => {
       speech = callback;
-      return () => {};
+      return unsubscribe;
     },
     onSpeechStart: (callback) => {
       speechStart = callback;
-      return () => {};
+      return unsubscribe;
     },
     onSpeechEnd: (callback) => {
       speechEnd = () => callback({ transcript: "" });
-      return () => {};
+      return unsubscribe;
     },
   };
   return {
     session,
+    unsubscribe,
     emitSpeech: (result: DictationAdapter.Result) => speech(result),
     emitStart: () => speechStart(),
     emitEnd: () => speechEnd(),
@@ -62,6 +64,7 @@ describe("DictationSessionController", () => {
     controller.stopDictation();
     await Promise.resolve();
     expect(recording.session.stop).toHaveBeenCalledTimes(1);
+    expect(recording.unsubscribe).toHaveBeenCalledTimes(3);
     expect(controller.dictation).toBeUndefined();
   });
 
@@ -89,11 +92,13 @@ describe("DictationSessionController", () => {
     expect(text).toBe("");
     expect(controller.dictation).toBeDefined();
     expect(first.session.stop).toHaveBeenCalledTimes(1);
+    expect(first.unsubscribe).toHaveBeenCalledTimes(3);
 
     second.emitSpeech({ transcript: "current", isFinal: true });
     expect(text).toBe("current");
     second.emitEnd();
     await Promise.resolve();
+    expect(second.unsubscribe).toHaveBeenCalledTimes(3);
     expect(controller.dictation).toBeUndefined();
   });
 
@@ -112,6 +117,7 @@ describe("DictationSessionController", () => {
     controller.startDictation();
     controller.cancel();
     recording.emitSpeech({ transcript: "late", isFinal: true });
+    expect(recording.unsubscribe).toHaveBeenCalledTimes(3);
     expect(recording.session.cancel).toHaveBeenCalledTimes(1);
     expect(controller.dictation).toBeUndefined();
     expect(text).toBe("draft");
