@@ -279,6 +279,11 @@ const useMcpServerResourceInstance = (
                 `Unsupported MCP OAuth authorization URL protocol: ${url.protocol}`,
               );
             }
+            if (!isSecureNetworkUrl(url.toString())) {
+              throw new Error(
+                "MCP OAuth authorization URL must use HTTPS or loopback HTTP.",
+              );
+            }
             setAuthorizationUrl(url.toString());
           },
         });
