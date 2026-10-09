@@ -908,6 +908,7 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
+  /** @internal */
   public captureCancel(): () => Promise<void> {
     const generation = this.runGeneration;
     return () =>

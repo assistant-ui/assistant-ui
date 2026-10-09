@@ -1912,7 +1912,6 @@ declare class PiThreadController implements PiThreadControllerLike {
     followUp: string[];
   }>;
   cancel(): Promise<void>;
-  captureCancel(): () => Promise<void>;
   setModel(input: {
     provider: string;
     modelId: string;
