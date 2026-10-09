@@ -198,6 +198,7 @@ export type DefLLM = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ parameters: DefLLM[] }>;
 };
 
@@ -253,6 +254,7 @@ const DefItemLLM: FC<
         </>
       ) : null}
       {def.deprecated ? <> (deprecated: {def.deprecated})</> : null}
+      {def.experimental ? <> (experimental)</> : null}
       {def.description ? <> — {renderDescription(def.description)}</> : null}
       {def.children?.map((child, i) => (
         <DefListLLM

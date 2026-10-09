@@ -10,7 +10,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { REACT_INDEX, REACT_PKG, REPO_ROOT } from "./paths.mts";
 import {
+  chooseDeclaration,
   exportSpecifierDeprecated,
+  extractJsDoc,
   getProject,
   getJsDocCommentText,
   jsDocTag,
@@ -81,6 +83,48 @@ export function primitiveModuleSourceFile(
     project.addSourceFileAtPath(sourcePath);
   primitiveSourceFiles.set(primitiveName, sourceFile);
   return sourceFile;
+}
+
+const specifierDeprecationsCache = new Map<SourceFile, Map<string, string>>();
+
+function specifierDeprecations(sourceFile: SourceFile): Map<string, string> {
+  const cached = specifierDeprecationsCache.get(sourceFile);
+  if (cached) return cached;
+  const deprecations = new Map<string, string>();
+  for (const exportDeclaration of sourceFile.getExportDeclarations()) {
+    for (const specifier of exportDeclaration.getNamedExports()) {
+      const deprecated = exportSpecifierDeprecated(specifier);
+      if (deprecated) {
+        deprecations.set(
+          specifier.getAliasNode()?.getText() ?? specifier.getName(),
+          deprecated,
+        );
+      }
+    }
+  }
+  specifierDeprecationsCache.set(sourceFile, deprecations);
+  return deprecations;
+}
+
+export function primitiveExportDeprecated(
+  primitiveName: string,
+  part: string,
+  options?: JsDocRenderOptions,
+): string | undefined {
+  const sourceFile = primitiveModuleSourceFile(primitiveName);
+  if (!sourceFile) return undefined;
+  const fromSpecifier = specifierDeprecations(sourceFile).get(part);
+  if (fromSpecifier) {
+    return renderJsDocLinks(
+      fromSpecifier,
+      `${part} export @deprecated`,
+      options,
+    );
+  }
+  const declaration = chooseDeclaration(
+    sourceFile.getExportedDeclarations().get(part) ?? [],
+  );
+  return extractJsDoc(declaration, options).deprecated;
 }
 
 export function readPrimitiveParts(primitiveName: string): string[] {
@@ -306,18 +350,7 @@ function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
   } catch {
     return [];
   }
-  const specifierDeprecations = new Map<string, string>();
-  for (const exportDeclaration of sourceFile.getExportDeclarations()) {
-    for (const specifier of exportDeclaration.getNamedExports()) {
-      const deprecated = exportSpecifierDeprecated(specifier);
-      if (deprecated) {
-        specifierDeprecations.set(
-          specifier.getAliasNode()?.getText() ?? specifier.getName(),
-          deprecated,
-        );
-      }
-    }
-  }
+  const deprecations = specifierDeprecations(sourceFile);
   const components: SubComponent[] = [];
   for (const [
     exportedName,
@@ -343,7 +376,7 @@ function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
     components.push({
       exportedName,
       declaration,
-      deprecated: specifierDeprecations.get(exportedName),
+      deprecated: deprecations.get(exportedName),
     });
   }
   return components;

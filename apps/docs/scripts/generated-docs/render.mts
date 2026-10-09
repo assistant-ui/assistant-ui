@@ -13,9 +13,9 @@ import {
 } from "./discover.mts";
 import {
   extractPrimitivePartsFor,
+  primitiveExportDeprecated,
   primitivePartTypeDocName,
   readPrimitiveParts,
-  type PrimitivePartModel,
 } from "./primitive-extract.mts";
 import type { TypeDoc, TypeDocBindings } from "./type-docs.mts";
 import { parseDeprecatedTag } from "../../../../scripts/lib/experimental-annotations.mjs";
@@ -556,7 +556,8 @@ function generatePrimitiveReferenceRegion(
           item.name,
           part,
           typeDocNames,
-          primitivePart,
+          primitivePart?.deprecated ??
+            primitiveExportDeprecated(item.name, part, item.jsDocRenderOptions),
           examples,
         ),
         "",
@@ -602,12 +603,11 @@ function primitiveParametersTable(
   primitiveName: string,
   part: string,
   typeDocNames: Set<string>,
-  primitivePart: PrimitivePartModel | undefined,
+  deprecated: string | undefined,
   examples: string[],
 ): string {
   const binding = `${primitiveName}Docs.${part}`;
   const typeDocName = primitivePartTypeDocName(primitiveName, part);
-  const deprecated = primitivePart?.deprecated;
   const experimental = experimentalCalloutText(deprecated);
   const statusCallout =
     experimental !== undefined

@@ -225,6 +225,27 @@ describe("deprecation tags", () => {
     ]);
   });
 
+  it("reads the tag on a specifier that exports a local declaration", () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/local/index.ts",
+      [
+        "function convert() {}",
+        "export {",
+        `  /** ${TAG} */`,
+        "  convert as unstable_convert,",
+        "};",
+      ].join("\n"),
+    );
+    const [specifier] = source
+      .getExportDeclarations()
+      .flatMap((declaration) => declaration.getNamedExports());
+
+    expect(specifier && exportSpecifierDeprecated(specifier)).toBe(
+      TAG.slice("@deprecated ".length),
+    );
+  });
+
   it("marks an experimental property instead of reporting it deprecated", () => {
     const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
