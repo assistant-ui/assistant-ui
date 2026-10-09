@@ -424,6 +424,7 @@ export class LocalThreadRuntimeCore
   }
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
+  private _pendingInitialization: Promise<unknown> | undefined;
 
   public __internal_setGetInitializePromise(
     getPromise: () => Promise<unknown> | undefined,
@@ -1098,18 +1099,26 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     const scopeGeneration = this._loadGeneration;
     const generation = captureThreadRuntimeGeneration(this);
-    // The first run of a seeded thread initializes it and, like a send, waits
-    // for the thread list so the run carries the remote thread id.
-    const initialization = this.ensureInitialized()
-      ? this._getInitializePromise?.()
-      : undefined;
+    // The first run of a seeded thread initializes it; every run that starts
+    // before the thread list settles waits for it, and fails with it, as a send does.
+    if (this.ensureInitialized()) {
+      const pending = this._getInitializePromise?.();
+      if (pending) {
+        this._pendingInitialization = pending;
+        const settle = () => {
+          if (this._pendingInitialization === pending)
+            this._pendingInitialization = undefined;
+        };
+        pending.then(settle, settle);
+      }
+    }
+    const initialization = this._pendingInitialization;
     if (initialization) {
       const resumed = this.getMessageById(message.id) !== undefined;
-      await initialization.catch(() => {});
+      await initialization;
       if (
         generation.aborted ||
         scopeGeneration !== this._loadGeneration ||
-        this._activeRun ||
         (resumed && !this.getMessageById(message.id))
       )
         return;
