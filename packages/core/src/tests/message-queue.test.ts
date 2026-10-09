@@ -21,6 +21,25 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it("restores a pre-busy abort without reporting it as a dispatch failure", async () => {
+    const error = new Error("cancelled before dispatch");
+    error.name = "AbortError";
+    const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+    run.mockImplementationOnce(() => Promise.reject(error));
+    const controller = createMessageQueue({ run });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      controller.adapter.enqueue(msg("first"));
+      await Promise.resolve();
+      expect(prompts(controller.adapter.items)).toEqual(["first"]);
+      expect(logged).not.toHaveBeenCalled();
+      controller.adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenLastCalledWith(msg("first"), { steer: false });
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it("does not restore a dispatch cleared from its dequeue notification", async () => {
     let reject!: (error: Error) => void;
     const pending = new Promise<void>((_resolve, fail) => {
