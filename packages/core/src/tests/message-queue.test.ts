@@ -21,6 +21,60 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["clear", "settled replacement"])(
+    "contains a synchronous retry failure during asynchronous %s recovery",
+    async (mode) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const failed = new Error("retry failed before busy");
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {
+        throw failed;
+      });
+      run.mockImplementationOnce(() => pending);
+      const controller = createMessageQueue({ run, cancel: () => {} });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const unhandled: unknown[] = [];
+      const onUnhandled = (error: unknown) => {
+        unhandled.push(error);
+      };
+      const listeners = process.listeners("unhandledRejection");
+      process.removeAllListeners("unhandledRejection");
+      process.on("unhandledRejection", onUnhandled);
+      try {
+        controller.adapter.enqueue(msg("original"));
+        if (mode === "clear") controller.clear();
+        else {
+          run.mockImplementationOnce(() => controller.notifyBusy());
+          controller.adapter.steer(msg("replacement"));
+          controller.notifyIdle();
+        }
+        controller.adapter.enqueue(msg("retry"));
+        reject(new Error("original rejected"));
+        await pending.catch(() => {});
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(unhandled).toEqual([]);
+        expect(logged).toHaveBeenCalledWith(
+          "[MessageQueue] run rejected",
+          failed,
+        );
+        expect(prompts(controller.adapter.items)).toEqual(["retry"]);
+        expect(controller.adapter.steerItems).toEqual([]);
+        run.mockImplementation(() => controller.notifyBusy());
+        controller.adapter.enqueue(msg("later"));
+        expect(run).toHaveBeenLastCalledWith(msg("retry"), { steer: false });
+        controller.notifyIdle();
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        process.removeListener("unhandledRejection", onUnhandled);
+        for (const listener of listeners)
+          process.on("unhandledRejection", listener);
+        logged.mockRestore();
+      }
+    },
+  );
+
   it.each([
     ["steer", false],
     ["steer", true],
