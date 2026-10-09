@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
-import { createRef, startTransition, Suspense, useLayoutEffect } from "react";
-import { act, render, waitFor } from "@testing-library/react";
+import {
+  createRef,
+  startTransition,
+  Suspense,
+  useLayoutEffect,
+  useState,
+} from "react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
   AuiConfig,
@@ -246,6 +252,76 @@ describe("RemoteThreadList concurrent rendering", () => {
     expect(refetchThread).toHaveBeenCalledExactlyOnceWith("thread-2");
     expect(selectionToolIds).toEqual(["thread-2"]);
     unsubscribe();
+  });
+
+  it("updates a selector that reads a captured main-thread client", async () => {
+    const adapter = makeAdapter();
+    adapter.list = vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "thread-1",
+          title: "Thread 1",
+        },
+        {
+          status: "regular" as const,
+          remoteId: "thread-2",
+          title: "Thread 2",
+        },
+      ],
+    }));
+    const clientRef = createRef<AssistantClient>();
+    let selectorRuns = 0;
+
+    const CapturedMain = () => {
+      const aui = useAui();
+      const [thread] = useState(() => aui.threads.thread("main"));
+      const id = useAuiState(() => {
+        selectorRuns += 1;
+        return thread.getState().messages[0]?.id ?? "empty";
+      });
+      return <span data-testid="captured-main">{id}</span>;
+    };
+    const App = () => (
+      <AuiProvider
+        ref={clientRef as never}
+        config={AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) =>
+              withKey(
+                id,
+                IdentifiedThread({
+                  id,
+                  onRender: () => {},
+                  onRefetch: () => {},
+                }),
+              ) as never,
+          }),
+        })}
+      >
+        <CapturedMain />
+      </AuiProvider>
+    );
+
+    render(<App />);
+    const client = clientRef.current!;
+    await client.threads.getLoadThreadsPromise();
+    await act(async () => {
+      await client.threads.switchToThread("thread-1");
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("captured-main").textContent).toBe("thread-1"),
+    );
+
+    const beforeSwitch = selectorRuns;
+    await act(async () => {
+      await client.threads.switchToThread("thread-2");
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("captured-main").textContent).toBe("thread-2"),
+    );
+    expect(selectorRuns).toBeGreaterThan(beforeSwitch);
   });
 
   it("keeps the main thread facade scoped to the committed factory", async () => {

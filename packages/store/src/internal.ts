@@ -6,6 +6,7 @@ export {
 } from "./utils/tap-assistant-context";
 export { useHostDestroySignal } from "./utils/useHostDestroySignal";
 export { useReplaySafeEffect } from "./utils/useReplaySafeEffect";
+export { useForwardingClient } from "./useClientResource";
 export {
   shallowEqual,
   useShallowSelector,
