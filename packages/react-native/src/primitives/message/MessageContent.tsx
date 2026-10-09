@@ -6,10 +6,12 @@ import type {
   MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import type {
-  ToolCallMessagePartProps,
-  DataMessagePartProps,
+import {
+  PartByIndexProvider,
+  type ToolCallMessagePartProps,
+  type DataMessagePartProps,
 } from "@assistant-ui/core/react";
+import { DefaultMessageImage } from "./MessageParts";
 import {
   getMessagePartKeys,
   resolveToolRender,
@@ -154,23 +156,55 @@ export const MessageContent = ({
               </Fragment>
             );
           case "image":
-            if (!renderImage) return null;
             return (
-              <Fragment key={key}>{renderImage({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderImage ? (
+                  renderImage({ part, index })
+                ) : (
+                  <PartByIndexProvider index={index}>
+                    <DefaultMessageImage />
+                  </PartByIndexProvider>
+                )}
+              </Fragment>
             );
           case "reasoning":
-            if (!renderReasoning) return null;
             return (
-              <Fragment key={key}>{renderReasoning({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderReasoning ? (
+                  renderReasoning({ part, index })
+                ) : (
+                  <Text>{part.text}</Text>
+                )}
+              </Fragment>
             );
           case "source":
-            if (!renderSource) return null;
             return (
-              <Fragment key={key}>{renderSource({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderSource ? (
+                  renderSource({ part, index })
+                ) : (
+                  <Text>
+                    [source{part.title || part.url ? ": " : ""}
+                    {part.title}
+                    {part.title && part.url ? " " : ""}
+                    {part.url}]
+                  </Text>
+                )}
+              </Fragment>
             );
           case "file":
-            if (!renderFile) return null;
-            return <Fragment key={key}>{renderFile({ part, index })}</Fragment>;
+            return (
+              <Fragment key={key}>
+                {renderFile ? (
+                  renderFile({ part, index })
+                ) : (
+                  <Text>
+                    [file: {part.filename ? `${part.filename} ` : ""}
+                    {part.mimeType}]
+                  </Text>
+                )}
+              </Fragment>
+            );
           case "data":
             return (
               <Fragment key={key}>

@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   respondToToolApproval: vi.fn(),
   unstable_recordInteraction: vi.fn(),
   state: {
+    part: { type: "text" } as AnyPart,
     message: {
       content: [] as AnyPart[],
       get parts() {
@@ -28,7 +29,8 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@assistant-ui/store", () => {
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const message = Object.assign(() => message, {
     part: ({ index }: { index: number }) => ({
       addToolResult: (...args: unknown[]) => h.addToolResult(index, ...args),
@@ -41,10 +43,20 @@ vi.mock("@assistant-ui/store", () => {
   });
   const aui = { message };
   return {
+    ...actual,
     useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
   };
 });
+
+vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
+  PartByIndexProvider: ({
+    children,
+  }: {
+    children: import("react").ReactNode;
+  }) => children,
+}));
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,6 +90,7 @@ describe("MessageContent", () => {
   const mount = async (
     props: Partial<Parameters<typeof MessageContent>[0]> = {},
   ) => {
+    h.state.part = h.state.message.content[0] ?? { type: "text" };
     await act(async () => {
       root.render(<MessageContent {...props} />);
     });
@@ -157,15 +170,16 @@ describe("MessageContent", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("renders null for optional parts when no renderer is provided", async () => {
+  it("renders defaults for optional parts when no renderer is provided", async () => {
     h.state.message.content = [
       { type: "image", image: "x" },
       { type: "reasoning", text: "r" },
       { type: "source", sourceType: "url", id: "1", url: "u" },
-      { type: "file", filename: "f" },
+      { type: "file", filename: "f", mimeType: "text/plain" },
     ];
     await mount();
-    expect(container.textContent).toBe("");
+    expect(container.querySelector("img")?.getAttribute("src")).toContain("x");
+    expect(container.textContent).toBe("r[source: u][file: f text/plain]");
   });
 
   it("renders optional parts via their provided renderers", async () => {
@@ -190,6 +204,7 @@ describe("MessageContent", () => {
     await mount({ renderImage, renderReasoning, renderSource, renderFile });
 
     expect(container.textContent).toBe("image-0reasoning-1source-2file-3");
+    expect(container.querySelector("img")).toBeNull();
     expect(renderImage).toHaveBeenCalledWith({
       part: h.state.message.content[0],
       index: 0,
