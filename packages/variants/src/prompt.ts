@@ -21,13 +21,35 @@ export type VariantsSelection = {
   url: string;
   /** Mounted groups in page order, parents before the groups nested in them. */
   groups: GroupSelection[];
+  /** Notes kept in this tab (not yet written into source) for these groups. */
+  notes: SelectionNote[];
 };
 
-/** The default copied text: `/variants choose <group>:<variant> …`. */
+export type SelectionNote = {
+  group: string;
+  /** Unset for a note on the whole group. */
+  variant: string | undefined;
+  note: string;
+  hint: string | undefined;
+};
+
+/** A note in the copied command: `group[:variant] "text" (on: hint)`. */
+const formatNote = (note: SelectionNote) =>
+  `${note.group}${note.variant === undefined ? "" : `:${note.variant}`} ${JSON.stringify(note.note)}${
+    note.hint ? ` (on: ${note.hint.replace(/[()]/g, "")})` : ""
+  }`;
+
+/**
+ * The default copied text: `/variants choose <group>:<variant> …`, followed
+ * by ` -- notes: ` and the notes kept in this tab, separated by `; `.
+ */
 export function formatVariantsPrompt(selection: VariantsSelection): string {
-  return `/variants choose ${selection.groups
+  const choices = `/variants choose ${selection.groups
     .map((group) => `${group.id}:${group.kept.id}`)
     .join(" ")}`;
+  return selection.notes.length > 0
+    ? `${choices} -- notes: ${selection.notes.map(formatNote).join("; ")}`
+    : choices;
 }
 
 export const buildSelection = (
@@ -57,11 +79,20 @@ export const buildSelection = (
     clean: false,
     canvas: false,
   });
+  const included = new Set(groups.map((group) => group.id));
   return {
     scope: only === undefined ? "page" : "group",
     pathname: location.pathname,
     url: `${location.origin}${location.pathname}${search}`,
     groups,
+    notes: snapshot.notes
+      .filter((note) => note.source === "session" && included.has(note.group))
+      .map((note) => ({
+        group: note.group,
+        variant: note.variant,
+        note: note.note,
+        hint: note.hint,
+      })),
   };
 };
 

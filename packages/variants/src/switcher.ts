@@ -8,6 +8,7 @@ import {
 import { NAME } from "./name";
 import { groupNodes, measureNodes } from "./nodes";
 import { highlightGroup } from "./outline";
+import { createNotes, describeTarget } from "./notes";
 import { promptFor } from "./prompt";
 import {
   depthOf,
@@ -96,6 +97,36 @@ code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, m
 .nudge[data-side="start"] { left: 2px; }
 .nudge[data-side="end"] { right: 2px; }
 .rail[data-overflow-start] .nudge[data-side="start"], .rail[data-overflow-end] .nudge[data-side="end"] { display: grid; }
+.note-count {
+  flex: none; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 11px; color: var(--fg-muted);
+  background: var(--quiet);
+}
+.note-count:hover, .note-count[aria-expanded="true"] { color: var(--fg); }
+.note-count[hidden], .notes[hidden], .editor[hidden] { display: none; }
+.notes { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.note {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: start;
+  padding: 6px 4px 6px 8px; border-radius: 6px; background: var(--bg-subtle); font-size: 11px;
+}
+.note-text { color: var(--fg); overflow-wrap: anywhere; }
+.note-meta { grid-column: 1; color: var(--fg-muted); overflow-wrap: anywhere; }
+.note .icon { grid-row: 1 / span 2; grid-column: 2; width: 24px; height: 24px; }
+.editor {
+  margin-top: 6px; display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  border-radius: 8px; box-shadow: inset 0 0 0 1px var(--border);
+}
+.editor-head { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--fg-muted); }
+.editor-head label { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.editor-hint { font: 11px/16px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg-muted); overflow-wrap: anywhere; }
+.editor textarea {
+  all: unset; box-sizing: border-box; display: block; width: 100%; min-height: 56px; padding: 6px 8px;
+  border-radius: 6px; background: var(--bg-subtle); color: var(--fg); font: inherit; white-space: pre-wrap;
+}
+.editor textarea:focus-visible { outline: 1.5px solid var(--ring); outline-offset: 0; }
+.editor-actions { display: flex; align-items: center; gap: 6px; }
+.editor-actions .where { color: var(--fg-muted); font-size: 11px; margin-right: auto; }
+.editor-error { color: #b91c1c; font-size: 11px; }
+@media (prefers-color-scheme: dark) { .editor-error { color: #fca5a5; } }
 .desc {
   height: 16px; margin-top: 4px; padding-left: 2px; font-size: 11px; line-height: 16px; color: var(--fg-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -184,6 +215,14 @@ const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
       h("span", { class: "label", id: labelId }, meta.label),
       h("button", {
         type: "button",
+        class: "note-count",
+        "data-action": "toggle-notes",
+        "data-group": meta.id,
+        "aria-expanded": "false",
+        hidden: "",
+      }),
+      h("button", {
+        type: "button",
         class: "offscreen",
         "data-action": "reveal",
         "data-group": meta.id,
@@ -265,6 +304,16 @@ const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
       ),
       iconButton(
         {
+          "data-action": "note",
+          "data-group": meta.id,
+          "data-key": `${meta.id}:note`,
+        },
+        `Add a note to ${meta.label}`,
+        "note",
+        `Add a note for your coding agent (or Alt-click inside the region)`,
+      ),
+      iconButton(
+        {
           "data-action": "copy-group",
           "data-group": meta.id,
           "data-key": `${meta.id}:copy`,
@@ -275,6 +324,8 @@ const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
       ),
     ),
     h("div", { class: "desc", id: descId, "data-desc": meta.id }),
+    h("div", { class: "notes", "data-notes": meta.id, hidden: "" }),
+    h("div", { class: "editor", "data-editor": meta.id, hidden: "" }),
   );
   return h(
     "div",
@@ -646,6 +697,220 @@ export const mountSwitcher = (store: Store): (() => void) => {
     else track.scrollLeft = left;
   };
 
+  const notes = createNotes(store);
+  const expandedNotes = new Set<string>();
+  const renderedNotes = new Map<string, string>();
+
+  const variantName = (group: string, variant: string | undefined) => {
+    if (variant === undefined) return "whole group";
+    const meta = store.getSnapshot().groups.find((item) => item.id === group);
+    const index = meta?.variants.findIndex((item) => item.id === variant) ?? -1;
+    const label = index >= 0 ? meta!.variants[index]!.label : variant;
+    return index >= 0 ? `${index + 1} · ${label}` : label;
+  };
+
+  const renderNotes = (group: string, snapshot: Snapshot) => {
+    const count = rowPart(group, "[data-action=toggle-notes]");
+    const list = rowPart(group, "[data-notes]");
+    if (!count || !list) return;
+    const items = snapshot.notes.filter((note) => note.group === group);
+    const expanded = expandedNotes.has(group) && items.length > 0;
+    count.hidden = items.length === 0;
+    count.textContent = `${items.length} ${items.length === 1 ? "note" : "notes"}`;
+    count.setAttribute("aria-expanded", expanded ? "true" : "false");
+    list.hidden = !expanded;
+    const key = JSON.stringify([expanded, items]);
+    if (renderedNotes.get(group) === key) return;
+    renderedNotes.set(group, key);
+    list.replaceChildren(
+      ...(expanded ? items : []).map((note) =>
+        h(
+          "div",
+          { class: "note" },
+          h("span", { class: "note-text" }, note.note),
+          h(
+            "span",
+            { class: "note-meta" },
+            [
+              variantName(group, note.variant),
+              note.hint ? `on ${note.hint}` : "",
+              note.source === "file"
+                ? `${note.file ?? "source"}${note.line ? `:${note.line}` : ""}`
+                : "this tab",
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          ),
+          iconButton(
+            {
+              "data-action": "delete-note",
+              "data-group": group,
+              "data-note": note.id,
+            },
+            "Delete note",
+            "trash",
+          ),
+        ),
+      ),
+    );
+  };
+
+  const closeEditor = (group: string) => {
+    const editor = rowPart(group, "[data-editor]");
+    if (!editor) return;
+    editor.hidden = true;
+    editor.replaceChildren();
+  };
+
+  const openEditor = (group: string, hint?: string) => {
+    const editor = rowPart(group, "[data-editor]");
+    const meta = store.getSnapshot().groups.find((item) => item.id === group);
+    if (!editor || !meta) return;
+    const variant = resolveActive(meta, store.getSnapshot().selections[group]);
+    editor.dataset["variant"] = variant ?? "";
+    editor.dataset["hint"] = hint ?? "";
+    const whole = h("input", {
+      type: "checkbox",
+      "data-whole": "",
+    }) as HTMLInputElement;
+    const target = h("span", {}, `Note on ${variantName(group, variant)}`);
+    whole.addEventListener("change", () => {
+      target.textContent = `Note on ${variantName(group, whole.checked ? undefined : variant)}`;
+    });
+    const textarea = h("textarea", {
+      "aria-label": `Note for ${meta.label}`,
+      placeholder: "What should change?",
+      rows: "3",
+    }) as HTMLTextAreaElement;
+    textarea.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeEditor(group);
+        byKey(`${group}:note`)?.focus();
+      } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        void saveNote(group);
+      }
+    });
+    editor.replaceChildren(
+      h(
+        "div",
+        { class: "editor-head" },
+        target,
+        h("label", {}, whole, "Whole group"),
+      ),
+      ...(hint ? [h("div", { class: "editor-hint" }, `on ${hint}`)] : []),
+      textarea,
+      h("div", { class: "editor-error", role: "alert", hidden: "" }),
+      h(
+        "div",
+        { class: "editor-actions" },
+        h(
+          "span",
+          { class: "where" },
+          notes.mode === "server"
+            ? "Saved into the source"
+            : "Kept in this tab and added to the copied command",
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "text-btn",
+            "data-action": "cancel-note",
+            "data-group": group,
+          },
+          "Cancel",
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "text-btn",
+            "data-action": "save-note",
+            "data-group": group,
+          },
+          "Save",
+        ),
+      ),
+    );
+    editor.hidden = false;
+    textarea.focus();
+  };
+
+  const saveNote = async (group: string) => {
+    const editor = rowPart(group, "[data-editor]");
+    const textarea = editor?.querySelector("textarea");
+    const error = editor?.querySelector<HTMLElement>(".editor-error");
+    if (!editor || !textarea) return;
+    const text = textarea.value.trim();
+    if (!text) {
+      textarea.focus();
+      return;
+    }
+    const whole =
+      editor.querySelector<HTMLInputElement>("[data-whole]")?.checked;
+    const failure = await notes.add({
+      group,
+      variant: whole ? undefined : editor.dataset["variant"] || undefined,
+      note: text,
+      hint: editor.dataset["hint"] || undefined,
+    });
+    if (failure) {
+      if (error) {
+        error.hidden = false;
+        error.textContent = failure;
+      }
+      return;
+    }
+    closeEditor(group);
+    expandedNotes.add(group);
+    renderNotes(group, store.getSnapshot());
+    live.textContent = "Note saved";
+    byKey(`${group}:note`)?.focus();
+  };
+
+  // Alt-click inside a variant opens a note for the innermost group there,
+  // with a short description of what was clicked.
+  const onPageClick = (event: MouseEvent) => {
+    if (!event.altKey || event.button !== 0 || host.hidden) return;
+    if (event.composedPath().includes(host)) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const snapshot = store.getSnapshot();
+    if (snapshot.clean || snapshot.canvas) return;
+    let best:
+      | { group: string; distance: number; depth: number; nodes: Node[] }
+      | undefined;
+    for (const meta of snapshot.groups) {
+      const nodes = groupNodes(meta.id);
+      const root = nodes.find(
+        (node) => node === target || node.contains(target),
+      );
+      if (!root) continue;
+      let distance = 0;
+      for (
+        let node: Node | null = target;
+        node && node !== root;
+        node = node.parentNode
+      )
+        distance++;
+      const depth = depthOf(meta, snapshot.groups);
+      if (
+        !best ||
+        distance < best.distance ||
+        (distance === best.distance && depth > best.depth)
+      )
+        best = { group: meta.id, distance, depth, nodes };
+    }
+    if (!best) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (snapshot.collapsed) store.setCollapsed(false);
+    openEditor(best.group, describeTarget(target, best.nodes));
+  };
+
   const sync = (snapshot: Snapshot) => {
     host.hidden =
       snapshot.hideUI || snapshot.clean || snapshot.groups.length === 0;
@@ -683,6 +948,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       if (changed && checked) revealSegment(track, checked);
       updateRail(meta.id);
       describe(meta.id);
+      renderNotes(meta.id, snapshot);
     }
     for (const [id, row] of rows) {
       row.element.toggleAttribute(
@@ -737,6 +1003,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       if (nextStructure !== structure) {
         structure = nextStructure;
         reconcile(snapshot, true);
+        void notes.refresh();
         if (anchor) keepAnchored();
         nextFrame(() => {
           for (const track of root.querySelectorAll("[data-track]"))
@@ -810,6 +1077,24 @@ export const mountSwitcher = (store: Store): (() => void) => {
     if (action === "select" && group && value) {
       setRoving(button);
       select(button, group, value);
+    } else if (action === "note" && group) {
+      const editor = rowPart(group, "[data-editor]");
+      if (editor && !editor.hidden) closeEditor(group);
+      else openEditor(group);
+    } else if (action === "save-note" && group) {
+      void saveNote(group);
+    } else if (action === "cancel-note" && group) {
+      closeEditor(group);
+      byKey(`${group}:note`)?.focus();
+    } else if (action === "toggle-notes" && group) {
+      if (expandedNotes.has(group)) expandedNotes.delete(group);
+      else expandedNotes.add(group);
+      renderNotes(group, snapshot);
+    } else if (action === "delete-note" && group) {
+      const note = snapshot.notes.find(
+        (item) => item.id === button.dataset["note"],
+      );
+      if (note) void notes.remove(note);
     } else if (action === "nudge" && group) {
       const track = rowPart(group, "[data-track]");
       if (!track) return;
@@ -904,7 +1189,8 @@ export const mountSwitcher = (store: Store): (() => void) => {
   const onGlobalKeyDown = (event: KeyboardEvent) => {
     const shortcut = currentShortcut();
     if (!shortcut || !matchesShortcut(event, shortcut)) return;
-    if (isEditable(event.target) || host.hidden) return;
+    if (isEditable(event.composedPath()[0] ?? event.target) || host.hidden)
+      return;
     event.preventDefault();
     const active = deepActiveElement();
     if (!active || !host.contains(active)) returnFocus = active;
@@ -963,6 +1249,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
   root.addEventListener("scroll", onScroll, { capture: true, passive: true });
   window.addEventListener("resize", onResize, { passive: true });
   document.addEventListener("keydown", onGlobalKeyDown);
+  document.addEventListener("click", onPageClick, true);
   const onSheetChange = () => render();
   sheet?.addEventListener?.("change", onSheetChange);
   document.body.append(host);
@@ -972,6 +1259,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     render();
   });
   render();
+  void notes.probe();
 
   return () => {
     unsubscribe();
@@ -979,6 +1267,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     sheet?.removeEventListener?.("change", onSheetChange);
     highlightGroup(undefined);
     document.removeEventListener("keydown", onGlobalKeyDown);
+    document.removeEventListener("click", onPageClick, true);
     window.removeEventListener("resize", onResize);
     pushPage(false);
     pageStyle.remove();

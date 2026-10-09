@@ -27,6 +27,21 @@ export type Snapshot = {
   focus: { group: string; seq: number } | undefined;
   /** The group whose switcher row and page region are linked by hover or focus. */
   highlight: { group: string; source: "switcher" | "page" } | undefined;
+  notes: readonly ClientNote[];
+  /** Where notes live: source files through the dev endpoints, or this tab. */
+  notesMode: "probing" | "server" | "session";
+};
+
+export type ClientNote = {
+  id: string;
+  group: string;
+  /** Unset for a note on the whole group. */
+  variant: string | undefined;
+  note: string;
+  hint?: string | undefined;
+  source: "file" | "session";
+  file?: string | undefined;
+  line?: number | undefined;
 };
 
 export type Store = {
@@ -46,6 +61,7 @@ export type Store = {
     group: string | undefined,
     source: "switcher" | "page",
   ) => void;
+  setNotes: (notes: readonly ClientNote[], mode: "server" | "session") => void;
   reset: () => void;
 };
 
@@ -62,6 +78,8 @@ const INITIAL: Snapshot = Object.freeze({
   canvasRows: [],
   focus: undefined,
   highlight: undefined,
+  notes: [],
+  notesMode: "probing",
 });
 
 export const storageKey = (group: string) => `${NAME}:${group}`;
@@ -313,6 +331,9 @@ export const createStore = (
       }
       if (current?.group === group && current.source === source) return;
       emit({ highlight: { group, source } });
+    },
+    setNotes(notes, notesMode) {
+      emit({ notes: [...notes], notesMode });
     },
     reset() {
       teardownUI?.();

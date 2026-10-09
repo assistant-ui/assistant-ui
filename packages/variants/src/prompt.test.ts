@@ -60,6 +60,8 @@ const snapshot = {
   canvasRows: [],
   focus: undefined,
   highlight: undefined,
+  notes: [],
+  notesMode: "session",
 } satisfies Snapshot;
 
 afterEach(() => {
@@ -129,8 +131,52 @@ describe("prompt", () => {
             parent: undefined,
           },
         ],
+        notes: [],
       }),
     ).toBe("/variants choose g:a");
+  });
+
+  it("appends notes kept in this tab after `-- notes:`", () => {
+    const withNotes = {
+      ...snapshot,
+      notes: [
+        {
+          id: "n-00000001",
+          group: "scf-cta",
+          variant: "link",
+          note: 'smaller "arrow"',
+          hint: "a > svg (icon)",
+          source: "session" as const,
+        },
+        {
+          id: "n-00000002",
+          group: "scf-features",
+          variant: undefined,
+          note: "tighter spacing",
+          source: "session" as const,
+        },
+        {
+          id: "n-00000003",
+          group: "scf-features",
+          variant: "cards",
+          note: "already in source",
+          source: "file" as const,
+        },
+        {
+          id: "n-00000004",
+          group: "elsewhere",
+          variant: undefined,
+          note: "not mounted",
+          source: "session" as const,
+        },
+      ],
+    };
+    expect(promptFor(withNotes, location)).toBe(
+      '/variants choose scf-features:cards scf-card-style:outlined scf-cta:link -- notes: scf-cta:link "smaller \\"arrow\\"" (on: a > svg icon); scf-features "tighter spacing"',
+    );
+    expect(promptFor(withNotes, location, "scf-cta")).toBe(
+      '/variants choose scf-cta:link -- notes: scf-cta:link "smaller \\"arrow\\"" (on: a > svg icon)',
+    );
   });
 
   it("uses a custom formatter", () => {

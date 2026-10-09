@@ -275,6 +275,68 @@ Paste the line into Claude Code. The `variants` skill then resolves each group:
 
 The skill finds each block by id alone, which is why group ids should be unique across the app.
 
+## Notes
+
+Notes are change requests for the coding agent, attached to a variant or a whole group. To write one:
+
+- Click the note button on a sidebar row. It targets the selected variant; tick **Whole group** to target the group instead.
+- Or <kbd>Alt</kbd>-click anything inside a variant on the page. That opens the editor for the innermost group there, with a hint describing what you clicked, such as `section.hero > a.cta "Get started"`.
+
+<kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> saves and <kbd>Esc</kbd> cancels. A row shows its note count; expanding it lists the notes, each with a delete button.
+
+### Written into source (dev endpoints)
+
+When the app mounts the dev endpoints, notes are written straight into the source as a JSX comment. The marker becomes the first child of the `<Variant id>`, or of `<Variants id>` for a group note:
+
+```tsx
+<Variant id="link" label="Link">
+  {/* @variants-note id="n-3f9a0c12" ts="2026-10-08T12:00:00.000Z" text="<base64url JSON {note, hint}>" */}
+  <a href="#start">Get started →</a>
+</Variant>
+```
+
+**Vite:**
+
+```ts
+// vite.config.ts
+import { variants } from "variants/vite";
+
+export default defineConfig({ plugins: [variants()] });
+```
+
+**Next.js App Router:** mount the route handlers once. The `%5F` (an encoded `_`) keeps the folder routable, because a plain `_variants` folder is private:
+
+```ts
+// app/%5F_variants/[...path]/route.ts
+export { GET, POST, DELETE } from "variants/next";
+```
+
+How the endpoints behave:
+
+- **Routes:** they live under `/__variants`: `GET /ping`, `GET /notes?groups=a,b`, `POST /notes` with body `{ group, variant?, note, hint? }`, and `DELETE /notes/:id?group=…`.
+- **Finding the file:** the server scans the project root for the one file that declares `<Variants id="group">`, skipping `node_modules`, `.git`, `dist`, `.next`, `build`, `out` and dot-directories. If there's no such file, or more than one, it refuses.
+- **What it changes:** it only ever inserts or deletes a marker. The one exception is a self-closing `<Variant />`, which gains a closing tag so the marker has somewhere to go.
+- **Parsing:** it uses a small JSX opening-tag scanner rather than the TypeScript compiler API, because TypeScript 7 ships no JavaScript API.
+- **Guards:**
+  - development only (the Vite plugin is `apply: "serve"`; the Next handlers return 404 unless `NODE_ENV` is `development`)
+  - a required `x-variants: 1` header
+  - same-origin only: `Origin` must match `Host`, and `Sec-Fetch-Site: cross-site` is refused
+  - `application/json` bodies of at most 64KB
+  - ids and lengths validated
+  - every file path resolved (symlinks included) and confined to the project root
+
+On load, the sidebar probes `GET /__variants/ping`.
+
+### Kept in the tab (fallback)
+
+Without the endpoints, notes live in `sessionStorage` and are appended to the copied command after ` -- notes: `, separated by `; `. Each note is `group[:variant] "text"`, with an optional `(on: hint)` (parentheses are removed from the hint). The text is a JSON string.
+
+```text
+/variants choose pricing-cta:link pricing-hero:split -- notes: pricing-cta:link "smaller arrow" (on: a > svg); pricing-hero "tighter heading"
+```
+
+Notes already written into source aren't repeated in the command; the skill reads the markers itself.
+
 ## SSR and hydration
 
 `<Variants>` never touches `window` while rendering. The server, and the first client render during hydration, always render `default` (or the first variant) with no extra markup. After mount, the URL and `sessionStorage` are read, and the group switches if they select something else. That can cause a brief flash of the default variant on a full page load. This is intentional: reading the URL during render would make the server and client HTML disagree and break hydration. The package doesn't need `useSearchParams` or any framework router.

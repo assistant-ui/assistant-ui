@@ -59,6 +59,9 @@ export const ICONS = {
     '<rect x="2.5" y="2.5" width="11" height="11" stroke-dasharray="2.5 2"/>',
   canvas:
     '<rect x="2" y="2.5" width="5" height="4.5" rx="1"/><rect x="9" y="2.5" width="5" height="4.5" rx="1"/><rect x="2" y="9" width="5" height="4.5" rx="1"/><rect x="9" y="9" width="5" height="4.5" rx="1"/>',
+  note: '<path d="M3 3.5h10v7H8.5L5.5 13v-2.5H3z"/><path d="M5.5 6.5h5"/><path d="M5.5 8.5h3"/>',
+  trash:
+    '<path d="M3.5 4.5h9"/><path d="M6.5 4.5V3h3v1.5"/><path d="M4.5 4.5l.5 8.5h6l.5-8.5"/>',
   copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>',
   check: '<path d="m3.5 8.5 3 3 6-7"/>',
   close: '<path d="m4 4 8 8"/><path d="m12 4-8 8"/>',

@@ -14,4 +14,5 @@ export {
   type VariantsSelection,
   type GroupSelection,
   type VariantChoice,
+  type SelectionNote,
 } from "./prompt";

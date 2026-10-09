@@ -505,6 +505,339 @@ describe("switcher", () => {
   });
 });
 
+describe("notes", () => {
+  const settle = () => act(async () => {});
+  const editor = () =>
+    switcherRoot().querySelector<HTMLElement>('[data-editor="hero"]')!;
+  const textarea = () =>
+    switcher().ui.getByRole("textbox", {
+      name: "Note for Hero",
+    }) as HTMLTextAreaElement;
+  const count = () =>
+    switcherRoot().querySelector<HTMLElement>(
+      '[data-action="toggle-notes"][data-group="hero"]',
+    )!;
+  const write = (text: string) =>
+    fireEvent.input(Object.assign(textarea(), { value: text }));
+
+  it("adds a note from the row, lists it and deletes it", async () => {
+    renderWithStore(<Hero default="b" />);
+    await settle();
+    expect(count().hidden).toBe(true);
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
+    );
+    expect(editor().hidden).toBe(false);
+    expect(editor().textContent).toContain("Note on 2 · Split");
+    expect(editor().textContent).toContain("Kept in this tab");
+    expect(switcherRoot().activeElement).toBe(textarea());
+    fireEvent.click(switcher().ui.getByRole("button", { name: "Save" }));
+    await settle();
+    expect(editor().hidden).toBe(false);
+
+    write("tighter heading");
+    fireEvent.click(switcher().ui.getByRole("button", { name: "Save" }));
+    await settle();
+    expect(editor().hidden).toBe(true);
+    expect(count().hidden).toBe(false);
+    expect(count().textContent).toBe("1 note");
+    expect(count().getAttribute("aria-expanded")).toBe("true");
+    const note = switcherRoot().querySelector<HTMLElement>(".note")!;
+    expect(note.textContent).toContain("tighter heading");
+    expect(note.textContent).toContain("2 · Split · this tab");
+
+    fireEvent.click(count());
+    expect(switcherRoot().querySelector(".note")).toBeNull();
+    fireEvent.click(count());
+    fireEvent.click(switcher().ui.getByRole("button", { name: "Delete note" }));
+    await settle();
+    expect(count().hidden).toBe(true);
+  });
+
+  it("saves a whole-group note with Cmd+Enter and cancels with Escape", async () => {
+    renderWithStore(<Hero />);
+    await settle();
+    const button = switcher().ui.getByRole("button", {
+      name: "Add a note to Hero",
+    });
+    fireEvent.click(button);
+    fireEvent.keyDown(textarea(), { key: "Escape" });
+    expect(editor().hidden).toBe(true);
+    expect(switcherRoot().activeElement).toBe(button);
+
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(editor().hidden).toBe(true);
+    fireEvent.click(button);
+    const whole = editor().querySelector<HTMLInputElement>("[data-whole]")!;
+    fireEvent.click(whole);
+    expect(editor().textContent).toContain("Note on whole group");
+    write("same rhythm everywhere");
+    fireEvent.keyDown(textarea(), { key: "Enter", metaKey: true });
+    await settle();
+    expect(store.getSnapshot().notes).toHaveLength(1);
+    expect(store.getSnapshot().notes[0]!.group).toBe("hero");
+    expect(store.getSnapshot().notes[0]!.variant).toBeUndefined();
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
+    );
+    fireEvent.click(switcher().ui.getByRole("button", { name: "Cancel" }));
+    expect(editor().hidden).toBe(true);
+  });
+
+  it("opens a note with a hint on Alt-click inside a variant", async () => {
+    renderWithStore(
+      <>
+        <p id="outside">outside</p>
+        <Hero />
+      </>,
+    );
+    await settle();
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Collapse variant switcher" }),
+    );
+    const heading = document.querySelector("h1")!;
+    const plain = fireEvent.click(heading, { altKey: false });
+    expect(plain).toBe(true);
+    fireEvent.click(document.getElementById("outside")!, { altKey: true });
+    expect(switcherRoot().querySelector('[data-editor="hero"]')).toBeNull();
+
+    const handled = fireEvent.click(heading, { altKey: true });
+    expect(handled).toBe(false);
+    expect(editor().hidden).toBe(false);
+    expect(editor().querySelector(".editor-hint")!.textContent).toBe(
+      'on h1 "A"',
+    );
+    write("bigger");
+    fireEvent.click(switcher().ui.getByRole("button", { name: "Save" }));
+    await settle();
+    expect(store.getSnapshot().notes[0]).toMatchObject({
+      group: "hero",
+      variant: "a",
+      hint: 'h1 "A"',
+    });
+  });
+
+  it("appends notes kept in this tab to the copied command", async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      renderWithStore(<Hero default="b" />);
+      await settle();
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
+      );
+      write("tighter");
+      fireEvent.click(switcher().ui.getByRole("button", { name: "Save" }));
+      await settle();
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Copy prompt" }),
+      );
+      await settle();
+      expect(writeText).toHaveBeenCalledWith(
+        '/variants choose hero:b -- notes: hero:b "tighter"',
+      );
+    } finally {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  it("keeps Alt+V typing inside the note editor", async () => {
+    renderWithStore(<Hero />);
+    await settle();
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
+    );
+    const field = textarea();
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        code: "KeyV",
+        key: "√",
+        altKey: true,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+    expect(switcherRoot().activeElement).toBe(field);
+  });
+});
+
+describe("switcher edge cases", () => {
+  const settle = () => act(async () => {});
+  const reduceMotion = () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("reduce"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  };
+
+  it("scrolls back with the start arrow, instantly under reduced motion", () => {
+    const restore = reduceMotion();
+    try {
+      renderWithStore(<Hero />);
+      const track = switcherRoot().querySelector<HTMLElement>(
+        '[data-track="hero"]',
+      )!;
+      Object.defineProperty(track, "clientWidth", {
+        configurable: true,
+        value: 100,
+      });
+      const scrollBy = vi.fn();
+      track.scrollBy = scrollBy as typeof track.scrollBy;
+      fireEvent.click(
+        switcherRoot().querySelector<HTMLElement>(
+          '[data-rail="hero"] [data-side="start"]',
+        )!,
+      );
+      expect(scrollBy).toHaveBeenCalledWith({ left: -70, behavior: "auto" });
+
+      const segment = radio("c");
+      Object.defineProperty(segment, "offsetLeft", {
+        configurable: true,
+        value: 300,
+      });
+      Object.defineProperty(segment, "offsetWidth", {
+        configurable: true,
+        value: 32,
+      });
+      (track as { scrollTo?: unknown }).scrollTo = undefined;
+      (track as { scrollBy?: unknown }).scrollBy = undefined;
+      fireEvent.click(segment);
+      expect(track.scrollLeft).toBe(256);
+      fireEvent.click(
+        switcherRoot().querySelector<HTMLElement>(
+          '[data-rail="hero"] [data-side="end"]',
+        )!,
+      );
+      expect(track.scrollLeft).toBe(326);
+    } finally {
+      restore();
+    }
+  });
+
+  it("points up to a region above the viewport", () => {
+    rects["a1"] = box(-400, 0, 200, -300);
+    renderWithStore(<Hero />);
+    fireEvent.pointerOver(radio("Split"));
+    expect(
+      switcher().ui.getByRole("button", { name: "Scroll up to hero" })
+        .textContent,
+    ).toBe("↑ Off-screen");
+  });
+
+  it("selects with Space and Enter, ignores modified keys, and blurs on Escape", () => {
+    const { container } = renderWithStore(<Hero />);
+    const split = radio("Split");
+    split.focus();
+    fireEvent.keyDown(split, { key: " " });
+    expect(shown(container)).toEqual(["b"]);
+    fireEvent.keyDown(radio("c"), { key: "Enter" });
+    expect(shown(container)).toEqual(["c"]);
+    fireEvent.keyDown(radio("c"), { key: "ArrowLeft", ctrlKey: true });
+    expect(shown(container)).toEqual(["c"]);
+    radio("c").focus();
+    fireEvent.keyDown(radio("c"), { key: "Escape" });
+    expect(active()).toBeNull();
+  });
+
+  it("saves notes into the source when the dev endpoints answer", async () => {
+    const original = globalThis.fetch;
+    const posted: unknown[] = [];
+    globalThis.fetch = (async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
+      const url = String(input);
+      if (url.endsWith("/ping"))
+        return new Response(JSON.stringify({ ok: true, version: 1 }));
+      if (init?.method === "POST") {
+        posted.push(JSON.parse(String(init.body)));
+        return posted.length === 1
+          ? new Response(JSON.stringify({ error: "group appears twice" }), {
+              status: 409,
+            })
+          : new Response(JSON.stringify({ id: "n-00000009" }), { status: 201 });
+      }
+      return new Response(
+        JSON.stringify({
+          notes:
+            posted.length > 1
+              ? [
+                  {
+                    id: "n-00000009",
+                    group: "hero",
+                    variant: "a",
+                    note: "bigger",
+                    file: "src/page.tsx",
+                    line: 4,
+                  },
+                ]
+              : [],
+        }),
+      );
+    }) as typeof fetch;
+    try {
+      renderWithStore(<Hero />);
+      await settle();
+      expect(store.getSnapshot().notesMode).toBe("server");
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
+      );
+      const editor = switcherRoot().querySelector<HTMLElement>(
+        '[data-editor="hero"]',
+      )!;
+      expect(editor.textContent).toContain("Saved into the source");
+      const field = switcher().ui.getByRole("textbox", {
+        name: "Note for Hero",
+      }) as HTMLTextAreaElement;
+      field.value = "bigger";
+      fireEvent.keyDown(field, { key: "Enter", ctrlKey: true });
+      await settle();
+      expect(switcher().ui.getByRole("alert").textContent).toBe(
+        "group appears twice",
+      );
+      fireEvent.click(switcher().ui.getByRole("button", { name: "Save" }));
+      await settle();
+      expect(editor.hidden).toBe(true);
+      expect(switcherRoot().querySelector(".note-meta")!.textContent).toBe(
+        "1 · Big headline · src/page.tsx:4",
+      );
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("notes the innermost group on Alt-click and ignores clicks in the sidebar", async () => {
+    renderWithStore(
+      <Variants id="outer" label="Outer">
+        <Variant id="x">
+          <Variants id="inner" label="Inner">
+            <Variant id="y">
+              <p>shared</p>
+            </Variant>
+          </Variants>
+        </Variant>
+      </Variants>,
+    );
+    await settle();
+    fireEvent.click(document.querySelector("p")!, { altKey: true });
+    expect(
+      switcherRoot().querySelector<HTMLElement>('[data-editor="inner"]')!
+        .hidden,
+    ).toBe(false);
+    expect(fireEvent.click(radio("y"), { altKey: true })).toBe(true);
+  });
+});
+
 describe("numbered segments", () => {
   const desc = (group = "hero") =>
     switcherRoot().querySelector<HTMLElement>(`[data-desc="${group}"]`)!;
