@@ -255,10 +255,7 @@ test("the Ink deployment uses the same scoped install inside and outside Vercel"
     `pnpm install --frozen-lockfile --filter=${root.name} --filter=with-react-ink-web... --filter=@assistant-ui/react-devtools...`,
   );
   const workflow = readFileSync(path.join(repoRoot, WORKFLOW_FILE), "utf8");
-  assert.match(
-    workflow,
-    /cache: \$\{\{ matrix.example != 'with-react-ink-web' \}\}/,
-  );
+  assert.match(workflow, /cache: false/);
   const install = workflow.match(
     /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
   )?.[0];
