@@ -35,6 +35,7 @@ import {
   nullProtoRecord,
   resolveFileMediaType,
   resolveImageMediaType,
+  RunLeases,
   toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
@@ -365,8 +366,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
-  private runGeneration = 0;
-  private revertGeneration = 0;
+  private readonly runLeases = new RunLeases();
+  private readonly revertLeases = new RunLeases();
   private readonly permissionRecoveryFence = new Map<
     string,
     "asked" | "settled"
@@ -1037,7 +1038,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     pending: PendingUserMessage,
     options?: OpenCodeUserMessageOptions,
   ) {
-    this.runGeneration++;
+    this.runLeases.begin();
     this.dispatch({ type: "run.started" });
 
     try {
@@ -1118,7 +1119,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async cancel() {
-    const runGeneration = this.runGeneration;
+    const runLease = this.runLeases.current();
     this.dispatch({ type: "run.cancelling" });
     try {
       await this.client.session.abort(
@@ -1129,7 +1130,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       );
     } catch (error) {
       if (
-        runGeneration === this.runGeneration &&
+        runLease.isCurrent() &&
         this.state.runState.type !== "idle" &&
         this.state.runState.type !== "error"
       ) {
@@ -1140,8 +1141,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async revert(messageId: string) {
-    const runGeneration = this.runGeneration;
-    const revertGeneration = ++this.revertGeneration;
+    const runLease = this.runLeases.current();
+    const revertLease = this.revertLeases.begin();
     const wasRunning = isOpenCodeStateRunning(this.state);
     // Reverting a finished turn leaves the session idle, so the server sends no
     // busy-to-idle transition and the transient state would never be left.
@@ -1158,8 +1159,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       );
     } catch (error) {
       if (
-        runGeneration === this.runGeneration &&
-        revertGeneration === this.revertGeneration &&
+        runLease.isCurrent() &&
+        revertLease.isCurrent() &&
         (!wasRunning || this.state.runState.type === "reverting")
       ) {
         this.dispatch({ type: "run.failed", error });
