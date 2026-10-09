@@ -114,6 +114,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     repo: OSS_MONOREPO,
     path: "packages/generative-frame",
     site: "/generative-frame",
+    npm: "generative-frame",
     license: "MIT",
   },
   {

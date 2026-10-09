@@ -261,13 +261,6 @@ export const NAV_ITEMS: NavItem[] = [
             glyph: "frame",
           },
           {
-            label: "Generative Frame",
-            href: "/generative-frame",
-            description: "Model-written widgets that stream",
-            external: false,
-            glyph: "elements",
-          },
-          {
             label: "react-o11y",
             href: "/react-o11y",
             description: "Span primitives for agent runs",
