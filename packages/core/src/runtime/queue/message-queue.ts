@@ -94,14 +94,28 @@ export const createMessageQueue = (
   let paused = false;
   let held = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
-  // swallow the cancelled run's settle when steering so it does not double-advance
-  let suppressIdle = 0;
-  // settles from cancelled runs that must drop `running` without advancing
-  let cancelSettles = 0;
+  type DispatchToken = { started: boolean };
+  let suppressIdle: (DispatchToken | undefined)[] = [];
+  let cancelSettles: (DispatchToken | undefined)[] = [];
   let interrupting = false;
   let busyEdges = 0;
   let generation = 0;
-  let activeDispatch = 0;
+  let activeDispatch: DispatchToken | undefined;
+
+  const retireFailure = (dispatch: DispatchToken): boolean => {
+    if (!dispatch.started) {
+      suppressIdle = suppressIdle.filter((pending) => pending !== dispatch);
+      const cancelled = cancelSettles.includes(dispatch);
+      cancelSettles = cancelSettles.filter((pending) => pending !== dispatch);
+      if (cancelled && dispatch !== activeDispatch) {
+        if (cancelSettles.length === 0 && suppressIdle.length > 0)
+          cancelSettles.push(suppressIdle.pop());
+        running = cancelSettles.length > 0;
+        advance();
+      }
+    }
+    return dispatch === activeDispatch;
+  };
 
   const observeRun = (pending: unknown, restoreFailure: () => void) => {
     if (pending === undefined) return;
@@ -157,14 +171,15 @@ export const createMessageQueue = (
     running = true;
     messages.delete(head.id);
     const dispatch = { id: head.id, item: head, message };
-    const dispatchId = ++activeDispatch;
+    const dispatchId = { started: false };
+    activeDispatch = dispatchId;
     const busyEdgesBeforeRun = busyEdges;
     const dispatchGeneration = generation;
     dispatchPending = true;
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     dispatchPending = false;
     const restoreFailure = () => {
-      if (dispatchId !== activeDispatch) return;
+      if (!retireFailure(dispatchId)) return;
       if (busyEdges === busyEdgesBeforeRun) {
         running = false;
         if (generation === dispatchGeneration) restore(lane, dispatch);
@@ -189,18 +204,17 @@ export const createMessageQueue = (
   ) => {
     paused = false;
     const dispatchGeneration = generation;
-    const dispatchId = ++activeDispatch;
-    // the interrupted run settles exactly once, whether or not it was
-    // already cancel-notified
-    suppressIdle += Math.max(cancelSettles, 1);
-    cancelSettles = 0;
+    suppressIdle.push(
+      ...(cancelSettles.length ? cancelSettles : [activeDispatch]),
+    );
+    cancelSettles = [];
+    const dispatchId = { started: false };
+    activeDispatch = dispatchId;
     const restoreInterrupted = (replacementStarted = false) => {
-      if (replacementStarted || dispatchId !== activeDispatch) return;
-      // The live count distinguishes an outstanding cancellation settle
-      // from one delivered synchronously by cancel().
-      const pendingSettles = suppressIdle;
-      suppressIdle = Math.max(pendingSettles - 1, 0);
-      cancelSettles = pendingSettles > 0 ? 1 : 0;
+      if (!retireFailure(dispatchId) || replacementStarted) return;
+      const pendingSettles = suppressIdle.length;
+      const pending = suppressIdle.pop();
+      cancelSettles = pendingSettles > 0 ? [pending] : [];
       running = pendingSettles > 0;
       if (generation === dispatchGeneration)
         restore(restoreLane, dispatch, restoreIndex);
@@ -349,9 +363,9 @@ export const createMessageQueue = (
 
   const notifyCancelled = () => {
     if (interrupting || dispatchPending) return;
-    if (running && cancelSettles === 0) {
+    if (running && cancelSettles.length === 0) {
       paused = true;
-      cancelSettles = 1;
+      cancelSettles = [activeDispatch];
     }
   };
 
@@ -382,17 +396,22 @@ export const createMessageQueue = (
       paused = false;
       // a cancelled run's settle that is still outstanding belongs to a run
       // this new one replaces; swallow it entirely
-      suppressIdle += cancelSettles;
-      cancelSettles = 0;
+      if (cancelSettles.length > 0) {
+        suppressIdle.push(...cancelSettles);
+        cancelSettles = [];
+        activeDispatch = undefined;
+      } else if (activeDispatch) {
+        activeDispatch.started = true;
+      }
       running = true;
       busyEdges++;
     },
     notifyIdle: () => {
-      if (suppressIdle > 0) {
-        suppressIdle--;
+      if (suppressIdle.length > 0) {
+        suppressIdle.shift();
         return;
       }
-      if (cancelSettles > 0) cancelSettles--;
+      cancelSettles.shift();
       running = false;
       advance();
     },
