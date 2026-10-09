@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { GitHubIcon } from "@/components/icons/github";
 import { useScrolled } from "@/hooks/use-scrolled";
-import { CartButton } from "./shop-entry";
+import { HeaderActions } from "./header-actions";
 import { HeaderBrandLink } from "./header-brand-link";
 import { headerBarClassName, headerSlashClassName } from "./header-chrome";
-import { ThemeToggle } from "./theme-toggle";
 
 /** The open-source index uses the same chrome as the projects it lists. */
 export function OssHeader(): React.ReactElement {
@@ -30,19 +28,10 @@ export function OssHeader(): React.ReactElement {
             oss
           </Link>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <CartButton />
-          <a
-            href="https://github.com/assistant-ui"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
-            aria-label="assistant-ui on GitHub"
-          >
-            <GitHubIcon className="size-4" />
-          </a>
-          <ThemeToggle />
-        </div>
+        <HeaderActions
+          githubHref="https://github.com/assistant-ui"
+          githubLabel="assistant-ui on GitHub"
+        />
       </div>
     </header>
   );
