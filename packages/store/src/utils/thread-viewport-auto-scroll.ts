@@ -170,6 +170,7 @@ export const createThreadViewportAutoScroll = (input: {
     handleScroll();
   };
 
+  // A pointer gesture clears retained intent and a queued frame so neither can hijack the next content growth.
   const onPointerdown = () => {
     intent = null;
     cancelFrame();
