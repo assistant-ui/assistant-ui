@@ -166,6 +166,8 @@ type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>
 
 type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
+type ElementKey = NonNullable<ResourceElement<unknown>["key"]>;
+
 type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
 
 type Hook = (...args: any[]) => any;
@@ -387,7 +389,7 @@ declare function useClientLookup<TMethods extends ClientMethods>(elements: reado
   get: (lookup: {
     index: number;
   } | {
-    key: string;
+    key: ElementKey;
   }) => TMethods;
 };
 
