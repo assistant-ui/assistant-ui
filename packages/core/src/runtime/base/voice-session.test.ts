@@ -6,12 +6,14 @@ const createHarness = () => {
   const sessions: Array<{
     session: RealtimeVoiceAdapter.Session;
     emitStatus: (status: RealtimeVoiceAdapter.Status) => void;
+    emitMode: (mode: RealtimeVoiceAdapter.Mode) => void;
     emitVolume: (volume: number) => void;
     emitTranscript: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
   }> = [];
   const adapter: RealtimeVoiceAdapter = {
     connect: () => {
       const statuses = new Set<(status: RealtimeVoiceAdapter.Status) => void>();
+      const modes = new Set<(mode: RealtimeVoiceAdapter.Mode) => void>();
       const volumes = new Set<(volume: number) => void>();
       const transcripts = new Set<
         (item: RealtimeVoiceAdapter.TranscriptItem) => void
@@ -20,7 +22,7 @@ const createHarness = () => {
         <T>(listeners: Set<(value: T) => void>) =>
         (callback: (value: T) => void) => {
           listeners.add(callback);
-          return () => listeners.delete(callback);
+          return () => {};
         };
       const session: RealtimeVoiceAdapter.Session = {
         status: { type: "running" },
@@ -31,13 +33,16 @@ const createHarness = () => {
         onStatusChange: subscribe(statuses),
         onVolumeChange: subscribe(volumes),
         onTranscript: subscribe(transcripts),
-        onModeChange: () => () => {},
+        onModeChange: subscribe(modes),
       };
       sessions.push({
         session,
         emitStatus: (status) => {
           session.status = status;
           for (const callback of [...statuses]) callback(status);
+        },
+        emitMode: (mode) => {
+          for (const callback of [...modes]) callback(mode);
         },
         emitVolume: (volume) => {
           for (const callback of [...volumes]) callback(volume);
@@ -98,10 +103,14 @@ describe("VoiceSessionController", () => {
     expect(first.session.disconnect).toHaveBeenCalledOnce();
     expect(sessions).toHaveLength(2);
     expect(controller.getVoiceVolume()).toBe(0);
-    first.emitStatus({ type: "ended", reason: "finished" });
+    first.emitMode("speaking");
+    expect(controller.voice?.mode).toBe("listening");
+    first.emitVolume(0.9);
+    expect(controller.getVoiceVolume()).toBe(0);
     first.emitTranscript({ role: "user", text: "stale", isFinal: true });
-    expect(controller.voice?.status.type).toBe("running");
     expect(controller.getMessages()).toEqual([]);
+    first.emitStatus({ type: "ended", reason: "finished" });
+    expect(controller.voice?.status.type).toBe("running");
     expect(onConnected).toHaveBeenCalledTimes(2);
     expect(onDisconnected).not.toHaveBeenCalled();
   });

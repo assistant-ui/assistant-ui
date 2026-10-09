@@ -133,6 +133,13 @@ export class VoiceSessionController {
     );
   }
 
+  /**
+   * Waits for a pending history import before a voice message is committed.
+   * The import may begin before or after the voice session connects, so the
+   * loading state must be rechecked when the commit is ready to run. The wait
+   * also ends when the runtime is invalidated, since a superseded runtime may
+   * never learn that loading ended.
+   */
   public getVoiceCommitBarrier(): Promise<void> | undefined {
     if (!this.host.isLoading()) return undefined;
     const generation = this.host.captureGeneration();

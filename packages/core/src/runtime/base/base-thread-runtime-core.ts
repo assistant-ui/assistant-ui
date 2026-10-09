@@ -82,29 +82,30 @@ export abstract class BaseThreadRuntimeCore
   /** @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release. */
   public abstract unstable_notifySessionReset(): void;
 
-  private readonly _voiceController = new VoiceSessionController({
-    adapter: () => this.adapters?.voice,
-    isRunning: () => (this as ThreadRuntimeCore).isRunning === true,
-    isRunActive: () => this._isRunActive(),
-    isLoading: () => this.isLoading,
-    getBaseMessages: () => this._getBaseMessages(),
-    messages: () => this.messages,
-    state: () => this.state,
-    notify: () => this._notifySubscribers(),
-    subscribe: (callback) => this.subscribe(callback),
-    captureGeneration: () => captureThreadRuntimeGeneration(this),
-    ensureInitialized: () => this.ensureInitialized(),
-    commitVoiceMessage: (message) => this._commitVoiceMessage(message),
-    markVoiceMessagesDirty: () => this._markVoiceMessagesDirty(),
-    onConnected: () => this._onVoiceConnected(),
-    onDisconnected: () => this._onVoiceDisconnected(),
-    enrichAppendMetadata: (message) => this.enrichAppendMetadata(message),
-    resolveAppendParent: (parentId) => this._resolveAppendParent(parentId),
-    stopSpeakingForVoiceMessage: () =>
-      this.speech && this._isVoiceMessage(this.speech.messageId)
-        ? this._stopSpeaking
-        : undefined,
-  });
+  private readonly _voiceController: VoiceSessionController =
+    new VoiceSessionController({
+      adapter: () => this.adapters?.voice,
+      isRunning: () => (this as ThreadRuntimeCore).isRunning === true,
+      isRunActive: () => this._isRunActive(),
+      isLoading: () => this.isLoading,
+      getBaseMessages: () => this._getBaseMessages(),
+      messages: () => this.messages,
+      state: () => this.state,
+      notify: () => this._notifySubscribers(),
+      subscribe: (callback) => this.subscribe(callback),
+      captureGeneration: () => captureThreadRuntimeGeneration(this),
+      ensureInitialized: () => this.ensureInitialized(),
+      commitVoiceMessage: (message) => this._commitVoiceMessage(message),
+      markVoiceMessagesDirty: () => this._markVoiceMessagesDirty(),
+      onConnected: () => this._onVoiceConnected(),
+      onDisconnected: () => this._onVoiceDisconnected(),
+      enrichAppendMetadata: (message) => this.enrichAppendMetadata(message),
+      resolveAppendParent: (parentId) => this._resolveAppendParent(parentId),
+      stopSpeakingForVoiceMessage: () =>
+        this.speech && this._isVoiceMessage(this.speech.messageId)
+          ? this._stopSpeaking
+          : undefined,
+    });
 
   protected get _voiceMessages(): ThreadMessage[] {
     return this._voiceController.voiceMessages;
