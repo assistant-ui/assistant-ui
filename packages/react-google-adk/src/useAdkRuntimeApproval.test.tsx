@@ -36,6 +36,14 @@ const mocks = vi.hoisted(() => {
   };
 });
 
+const mockController = {
+  subscribe: () => () => {},
+  getStagedMessageCount: () => 0,
+  getState: () => ({ messages: mocks.messages }),
+  dispatch: vi.fn(),
+  getStagedRun: () => null,
+};
+
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
   useCloudThreadListAdapter: () => ({}),
@@ -72,6 +80,7 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
       }
     };
     return {
+      controller: mockController,
       messages: mocks.messages,
       stateDelta: {},
       agentInfo: {},

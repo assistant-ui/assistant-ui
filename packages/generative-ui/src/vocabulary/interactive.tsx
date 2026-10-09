@@ -13,7 +13,7 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
-import { A2uiBindingContext, useA2uiBinding } from "../a2ui/BindingContext";
+import { A2uiBindingContext, useA2uiBinding } from "../bindingContext";
 import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";

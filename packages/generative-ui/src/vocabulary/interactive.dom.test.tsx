@@ -5,7 +5,7 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
-import { A2uiBindingContext } from "../a2ui/BindingContext";
+import { A2uiBindingContext } from "../bindingContext";
 import { applyA2uiOperations } from "../a2ui/reducer";
 import { A2uiPresentRenderer } from "../a2ui/PresentRenderer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";

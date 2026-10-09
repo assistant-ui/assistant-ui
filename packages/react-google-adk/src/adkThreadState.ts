@@ -1,3 +1,4 @@
+import type { AppendMessage } from "@assistant-ui/core";
 import type {
   AdkAuthRequest,
   AdkMessage,
@@ -5,6 +6,11 @@ import type {
   AdkThreadSnapshot,
   AdkToolConfirmation,
 } from "./types";
+
+export type AdkStagedEntry = {
+  message: AdkMessage & { id: string };
+  runConfig: AppendMessage["runConfig"];
+};
 
 export type AdkThreadState = {
   messages: AdkMessage[];
@@ -16,14 +22,17 @@ export type AdkThreadState = {
   authRequests: AdkAuthRequest[];
   escalated: boolean;
   messageMetadata: Map<string, AdkMessageMetadata>;
+  stagedEntries: ReadonlyMap<string, AdkStagedEntry>;
 };
 
 export type AdkThreadAction =
-  | { type: "event.published"; state: AdkThreadState }
+  | { type: "event.published"; state: Omit<AdkThreadState, "stagedEntries"> }
   | { type: "snapshot.applied"; snapshot: AdkThreadSnapshot }
   | { type: "messages.replaced"; messages: AdkMessage[] }
   | { type: "messages.set"; messages: AdkMessage[] }
   | { type: "longRunningToolIds.set"; ids: string[] }
+  | { type: "staged.stage"; entry: AdkStagedEntry }
+  | { type: "staged.unstage"; ids: readonly string[] }
   | {
       type: "run.started";
       messages: AdkMessage[];
@@ -42,6 +51,7 @@ export const createAdkThreadState = (): AdkThreadState => ({
   authRequests: [],
   escalated: false,
   messageMetadata: new Map(),
+  stagedEntries: new Map(),
 });
 
 export const reduceAdkThreadState = (
@@ -52,6 +62,7 @@ export const reduceAdkThreadState = (
     case "event.published": {
       const next = action.state;
       return {
+        ...state,
         ...next,
         stateDelta: { ...state.stateDelta, ...next.stateDelta },
         artifactDelta: { ...state.artifactDelta, ...next.artifactDelta },
@@ -64,6 +75,7 @@ export const reduceAdkThreadState = (
     case "snapshot.applied": {
       const snapshot = action.snapshot;
       return {
+        ...state,
         messages: snapshot.messages,
         stateDelta: snapshot.stateDelta ?? {},
         agentInfo: snapshot.agentInfo ?? {},
@@ -89,6 +101,17 @@ export const reduceAdkThreadState = (
       return { ...state, messages: action.messages };
     case "longRunningToolIds.set":
       return { ...state, longRunningToolIds: action.ids };
+    case "staged.stage": {
+      const stagedEntries = new Map(state.stagedEntries);
+      stagedEntries.set(action.entry.message.id, action.entry);
+      return { ...state, stagedEntries };
+    }
+    case "staged.unstage": {
+      if (!action.ids.some((id) => state.stagedEntries.has(id))) return state;
+      const stagedEntries = new Map(state.stagedEntries);
+      for (const id of action.ids) stagedEntries.delete(id);
+      return { ...state, stagedEntries };
+    }
     case "run.started":
       return {
         ...state,

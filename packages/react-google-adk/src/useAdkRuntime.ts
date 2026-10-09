@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   pickExternalStoreSharedOptions,
@@ -187,6 +188,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, []);
 
   const {
+    controller,
     messages,
     stateDelta,
     agentInfo,
@@ -353,43 +355,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     adkMessagesRef.current = messages;
   }, [messages]);
 
-  const stagedMessagesRef = useRef(
-    new Map<
-      string,
-      {
-        message: AdkMessage & { id: string };
-        runConfig: AppendMessage["runConfig"];
-      }
-    >(),
+  const stagedMessageCount = useSyncExternalStore(
+    controller.subscribe,
+    controller.getStagedMessageCount,
+    controller.getStagedMessageCount,
   );
-  const [stagedMessageCount, setStagedMessageCount] = useState(0);
   const hasStagedMessages = stagedMessageCount > 0;
-
-  const getStagedRun = (parentId: string | null) => {
-    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
-
-    const staged: AdkMessage[] = [];
-    for (const message of adkMessagesRef.current) {
-      if (message.id && stagedMessagesRef.current.has(message.id)) {
-        staged.push(stagedMessagesRef.current.get(message.id)!.message);
-      }
-      if (message.id === parentId) break;
-    }
-
-    return {
-      messages: staged,
-      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
-    };
-  };
 
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toAdkUserMessage(msg);
-    stagedMessagesRef.current.set(stagedMessage.id, {
-      message: stagedMessage,
-      runConfig: msg.runConfig,
+    controller.dispatch({
+      type: "staged.stage",
+      entry: { message: stagedMessage, runConfig: msg.runConfig },
     });
-    setStagedMessageCount(stagedMessagesRef.current.size);
-    const nextMessages = [...adkMessagesRef.current, stagedMessage];
+    const nextMessages = [...controller.getState().messages, stagedMessage];
     adkMessagesRef.current = nextMessages;
     setMessages(nextMessages);
   };
@@ -544,11 +523,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           replaceMessages(truncated);
           if (!(msg.startRun ?? msg.role === "user")) {
             const stagedMessage = toAdkUserMessage(msg);
-            stagedMessagesRef.current.set(stagedMessage.id, {
-              message: stagedMessage,
-              runConfig: msg.runConfig,
+            controller.dispatch({
+              type: "staged.stage",
+              entry: { message: stagedMessage, runConfig: msg.runConfig },
             });
-            setStagedMessageCount(stagedMessagesRef.current.size);
             const nextMessages = [...truncated, stagedMessage];
             adkMessagesRef.current = nextMessages;
             setMessages(nextMessages);
@@ -574,12 +552,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           onReload: async (parentId, config) => {
             const initialLoad = waitForInitialLoad();
             if (initialLoad && !(await initialLoad).active) return;
-            const stagedRun = getStagedRun(parentId);
+            const stagedRun = controller.getStagedRun(parentId);
             if (stagedRun) {
-              for (const message of stagedRun.messages) {
-                stagedMessagesRef.current.delete(message.id);
-              }
-              setStagedMessageCount(stagedMessagesRef.current.size);
+              controller.dispatch({
+                type: "staged.unstage",
+                ids: stagedRun.messages.map((message) => message.id!),
+              });
               return handleSendMessage(stagedRun.messages, {
                 runConfig: config.runConfig ?? stagedRun.runConfig,
               });

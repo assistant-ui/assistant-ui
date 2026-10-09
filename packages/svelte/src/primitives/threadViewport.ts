@@ -30,6 +30,7 @@ export const threadViewport = (options?: {
   const scrollToBottomOnThreadSwitch =
     options?.scrollToBottomOnThreadSwitch ?? true;
   const context = getAuiContext();
+  const contentInsetEntries = new Map<symbol, number>();
   const atBottomListeners = new Set<() => void>();
   const subscribeAtBottom = createSubscriber((update) => {
     atBottomListeners.add(update);
@@ -46,6 +47,28 @@ export const threadViewport = (options?: {
       for (const listener of atBottomListeners) listener();
     },
   });
+  const updateContentInset = () => {
+    let total = 0;
+    for (const height of contentInsetEntries.values()) total += height;
+    autoScrollController.setContentInset(total);
+  };
+
+  const registerContentInset = () => {
+    const id = Symbol();
+    contentInsetEntries.set(id, 0);
+
+    return {
+      setHeight: (height: number) => {
+        if (contentInsetEntries.get(id) === height) return;
+        contentInsetEntries.set(id, height);
+        updateContentInset();
+      },
+      unregister: () => {
+        if (!contentInsetEntries.delete(id)) return;
+        updateContentInset();
+      },
+    };
+  };
 
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const checkInitialize = () =>
@@ -70,6 +93,7 @@ export const threadViewport = (options?: {
     },
     scrollToBottom: (behavior: ScrollBehavior = "auto") =>
       autoScrollController.scrollToBottom(behavior),
+    registerContentInset,
   };
 };
 
