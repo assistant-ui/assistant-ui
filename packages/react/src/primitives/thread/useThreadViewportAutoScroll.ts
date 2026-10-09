@@ -322,7 +322,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
   const handleScroll = useCallback(() => onScrollRef.current(), []);
 
-  const resizeRef = useOnResizeContent(() => {
+  const onResize = () => {
     const div = divRef.current;
     if (!div) return;
 
@@ -360,7 +360,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     }
 
     handleScroll();
+  };
+  const onResizeRef = useRef(onResize);
+  useLayoutEffect(() => {
+    onResizeRef.current = onResize;
   });
+  const resizeRef = useOnResizeContent(() => onResizeRef.current());
 
   const scrollRef = useManagedRef<HTMLElement>(
     useCallback(

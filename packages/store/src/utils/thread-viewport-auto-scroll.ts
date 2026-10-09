@@ -171,11 +171,9 @@ export const createThreadViewportAutoScroll = (input: {
     handleScroll();
   };
 
-  // Scroll gestures clear retained intent and a queued frame before content growth can hijack it.
-  const cancelScrollIntent = () => {
+  const onPointerdown = () => {
     intent = null;
     cancelFrame();
-    handleScroll();
   };
 
   const pauseFollowOnExpand = (event: MouseEvent) => {
@@ -231,9 +229,7 @@ export const createThreadViewportAutoScroll = (input: {
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
       el.addEventListener("scroll", handleScroll);
-      el.addEventListener("pointerdown", cancelScrollIntent);
-      el.addEventListener("wheel", cancelScrollIntent, { passive: true });
-      el.addEventListener("touchstart", cancelScrollIntent, { passive: true });
+      el.addEventListener("pointerdown", onPointerdown);
       el.addEventListener("click", pauseFollowOnExpand, true);
       for (const gesture of ["pointerdown", "wheel", "touchmove", "keydown"])
         el.addEventListener(gesture, noteScrollGesture, { passive: true });
@@ -243,9 +239,7 @@ export const createThreadViewportAutoScroll = (input: {
         if (detachAttached !== detach) return;
         disconnect();
         el.removeEventListener("scroll", handleScroll);
-        el.removeEventListener("pointerdown", cancelScrollIntent);
-        el.removeEventListener("wheel", cancelScrollIntent);
-        el.removeEventListener("touchstart", cancelScrollIntent);
+        el.removeEventListener("pointerdown", onPointerdown);
         el.removeEventListener("click", pauseFollowOnExpand, true);
         for (const gesture of [
           "pointerdown",

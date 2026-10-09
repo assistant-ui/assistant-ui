@@ -570,27 +570,6 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
-  it("updates at-bottom state when a wheel interrupts a smooth scroll", () => {
-    const view = geometry(500, 100);
-    view.scrollTo.mockImplementation(() => {});
-    const onAtBottomChange = vi.fn();
-    const controller = createThreadViewportAutoScroll({
-      getOptions: () => ({ ...options(), autoScroll: false }),
-      onAtBottomChange,
-    });
-    controller.attach(view.element);
-
-    controller.scrollToBottom("smooth");
-    view.setTop(100);
-    expect(controller.isAtBottom).toBe(true);
-
-    view.element.dispatchEvent(new Event("wheel"));
-
-    expect(controller.isAtBottom).toBe(false);
-    expect(onAtBottomChange).toHaveBeenLastCalledWith(false);
-    controller.dispose();
-  });
-
   it("keeps a scheduled run-start behavior pending through content resize", () => {
     const view = geometry(500, 100);
     const controller = createThreadViewportAutoScroll({
