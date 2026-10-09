@@ -1,5 +1,15 @@
 # assistant-ui
 
+## 0.0.122
+
+### Patch Changes
+
+- [#9132](https://github.com/assistant-ui/assistant-ui/pull/9132) [`97b053b`](https://github.com/assistant-ui/assistant-ui/commit/97b053b93c025e48c2e2458b83cd7a870cd95592) - fix(cli): write only the assistant-ui server into Cursor, Windsurf and Claude Desktop MCP configs ([@okisdev](https://github.com/okisdev))
+
+- [#8896](https://github.com/assistant-ui/assistant-ui/pull/8896) [`bddc100`](https://github.com/assistant-ui/assistant-ui/commit/bddc1003a0a67440142119672fd93204ed41f1e7) - give the CLI's download, package manager, and file discovery helpers one home each ([@okisdev](https://github.com/okisdev))
+
+- [#7255](https://github.com/assistant-ui/assistant-ui/pull/7255) [`025505a`](https://github.com/assistant-ui/assistant-ui/commit/025505a948664137e47a5e6a753ddb8911c14e53) - fix(cli): accept comments and trailing commas in VS Code and Zed MCP configuration while preserving unrelated settings. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.121
 
 ### Patch Changes
