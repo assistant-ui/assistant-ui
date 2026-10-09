@@ -75,7 +75,7 @@ describe("pairNoise", () => {
     expect(four).toBeLessThan(two);
   });
 
-  it("widens the floor alike for one slow run on either side", () => {
+  it("gives one slow run the same verdict on either side", () => {
     const steady = [100, 100, 100, 100].map((m) => run(row("a", m)));
     const slow = [500, 100, 100, 100].map((m) => run(row("a", m)));
     const verdict = (refRuns: typeof steady, curRuns: typeof steady) =>

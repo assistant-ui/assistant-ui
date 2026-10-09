@@ -33,7 +33,8 @@ export const meanRows = (runsList) => {
 
 // Noise floor per benchmark: twice the standard error of the mean pair
 // delta, each pair taken against the base side's mean so the floor is the
-// printed delta's own error and a slow run widens it alike on either side.
+// printed delta's own error and a slow run gets the same verdict on either
+// side.
 // At two pairs this equals their absolute difference (the range), and unlike
 // the range it shrinks with more pairs instead of loosening, so heavier
 // --runs tightens the floor along with the estimate.
