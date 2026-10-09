@@ -401,9 +401,14 @@ export class LocalThreadRuntimeCore
   constructor(
     contextProvider: ModelContextProvider,
     options: LocalRuntimeOptionsBase,
+    initialMessages?: ExportedMessageRepository,
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
+    // A seed is starting state, not activity; import() would fire initialize,
+    // which makes a remote thread list create the thread.
+    if (initialMessages)
+      this.repository.import(withLocalPauseReasons(initialMessages));
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -419,6 +424,7 @@ export class LocalThreadRuntimeCore
   }
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
+  private _pendingInitialization: Promise<unknown> | undefined;
 
   public __internal_setGetInitializePromise(
     getPromise: () => Promise<unknown> | undefined,
@@ -1050,7 +1056,6 @@ export class LocalThreadRuntimeCore
     { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
-    this.ensureInitialized();
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))
@@ -1094,6 +1099,30 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     const scopeGeneration = this._loadGeneration;
     const generation = captureThreadRuntimeGeneration(this);
+    // A seeded thread initializes on its first run. Runs that start before the
+    // thread list settles wait for it, and run without a remote id if it fails.
+    if (this.ensureInitialized()) {
+      const pending = this._getInitializePromise?.();
+      if (pending) {
+        this._pendingInitialization = pending;
+        const settle = () => {
+          if (this._pendingInitialization === pending)
+            this._pendingInitialization = undefined;
+        };
+        pending.then(settle, settle);
+      }
+    }
+    const initialization = this._pendingInitialization;
+    if (initialization) {
+      const resumed = this.getMessageById(message.id) !== undefined;
+      await initialization.catch(() => {});
+      if (
+        generation.aborted ||
+        scopeGeneration !== this._loadGeneration ||
+        (resumed && !this.getMessageById(message.id))
+      )
+        return;
+    }
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});

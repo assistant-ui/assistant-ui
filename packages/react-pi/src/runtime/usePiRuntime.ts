@@ -342,12 +342,16 @@ const usePiThreadStore = (
       },
       onCancel: async () => {
         try {
+          const cancel =
+            controller instanceof PiThreadController
+              ? controller.captureCancel()
+              : () => controller.cancel();
           // clear before cancelling so the server cannot promote a queued
           // prompt into a new run in between
           try {
             await controller.clearQueue();
           } finally {
-            await controller.cancel();
+            await cancel();
           }
         } catch (error) {
           invokePiErrorCallback(onError, error);

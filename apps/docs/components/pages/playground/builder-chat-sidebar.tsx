@@ -26,10 +26,8 @@ import {
   type UIMessage,
 } from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
-import {
-  createPlaygroundChatToolkit,
-  type PartialBuilderConfig,
-} from "@/lib/playground-chat-toolkit";
+import { createPlaygroundChatToolkit } from "@/lib/playground-chat-toolkit";
+import type { PartialBuilderConfig } from "@/lib/playground-config-schema";
 import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-config-codec";

@@ -87,6 +87,8 @@ describe("NoteField", () => {
     const note = screen.getByLabelText("Note for your agent");
     fireEvent.keyDown(note, { key: "Enter" });
     expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.keyDown(note, { key: "Enter", shiftKey: true, keyCode: 229 });
+    expect(onSubmit).not.toHaveBeenCalled();
     fireEvent.keyDown(note, { key: "Enter", shiftKey: true });
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
