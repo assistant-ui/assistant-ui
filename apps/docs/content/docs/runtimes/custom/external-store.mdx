@@ -458,13 +458,51 @@ By default, sending while the thread is running is disabled. Provide a `queue` a
 
 The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
 
+The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. A rejected dispatch that never reported busy needs no idle notification, including when a steer cancelled it. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue logs failures other than aborts.
+
+Call `notifyBusy()` synchronously before committing a message or starting work that can fail. A busy notification from a later React effect can arrive after a fast failure and is too late to establish that the message was already accepted. After accepting a message, the driver owns failure handling and must eventually report `notifyIdle()` when that run settles.
+
 A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors: unknown ids or anchors throw instead of being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
 
+The example below expects `onNew` to resolve or reject only when its run settles. If it starts work and returns early, such as dispatching a socket message, keep busy and idle notifications tied to the store's actual run lifecycle and omit the idle notification in the driver's `finally` block.
+
 ```tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createMessageQueue, useExternalStoreRuntime } from "@assistant-ui/react";
 
-const [queue] = useState(() => createMessageQueue({ run: onNew }));
+const onNewRef = useRef(onNew);
+const busyEdges = useRef(0);
+const wasRunning = useRef(isRunning);
+useLayoutEffect(() => {
+  onNewRef.current = onNew;
+}, [onNew]);
+
+const [queue] = useState(() => {
+  const controller = createMessageQueue({
+    run: async (message) => {
+      const edgesAtDispatch = busyEdges.current;
+      controller.notifyBusy();
+      try {
+        await onNewRef.current(message);
+      } finally {
+        if (busyEdges.current === edgesAtDispatch && !wasRunning.current) {
+          controller.notifyIdle();
+        }
+      }
+    },
+  });
+  if (isRunning) controller.notifyBusy();
+  return controller;
+});
+
+useEffect(() => {
+  if (!wasRunning.current && isRunning) {
+    busyEdges.current++;
+    queue.notifyBusy();
+  }
+  if (wasRunning.current && !isRunning) queue.notifyIdle();
+  wasRunning.current = isRunning;
+}, [isRunning, queue]);
 
 const runtime = useExternalStoreRuntime({
   messages,
@@ -472,13 +510,6 @@ const runtime = useExternalStoreRuntime({
   onNew,
   queue: queue.adapter,
 });
-
-const wasRunning = useRef(isRunning);
-useEffect(() => {
-  if (!wasRunning.current && isRunning) queue.notifyBusy();
-  if (wasRunning.current && !isRunning) queue.notifyIdle();
-  wasRunning.current = isRunning;
-}, [isRunning, queue]);
 ```
 
 With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
