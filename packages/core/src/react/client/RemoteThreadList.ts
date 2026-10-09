@@ -22,6 +22,15 @@ import {
   useThreadListItemSelectionEvents,
   useThreadSelectionEvents,
 } from "../../store/clients/thread-selection-events";
+import {
+  isSelectedThread,
+  removalFallback,
+  selectRemovalDraft,
+  shouldRetryControlledThread,
+  shouldStartFallbackSwitch,
+  shouldUnarchiveSwitchTarget,
+  switchTarget,
+} from "../../runtimes/remote-thread-list/thread-list-decisions";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
   applyInitialThreadPage,
@@ -247,11 +256,7 @@ const isSameThread = (
   listState: RemoteThreadState,
   left: string,
   right: string,
-) => {
-  if (left === right) return true;
-  const data = getThreadData(listState, left);
-  return data !== undefined && itemMatchesId(data, listState, right);
-};
+) => isSelectedThread(listState, left, right, true);
 
 const useRemoteThreadBody = ({
   id,
@@ -811,20 +816,28 @@ const useRemoteThreadList = (
         const targetId = data.id;
         let current: RemoteThreadData | undefined = data;
 
-        if (current.status === "archived" && options?.unarchive !== false) {
+        if (shouldUnarchiveSwitchTarget(current, options)) {
           const { remoteId } = await current.initializeTask;
-          if (generation !== session.switchGeneration) return;
-          current = getThreadData(store.value, targetId);
-          if (current?.id !== targetId) return;
+          current = switchTarget(
+            store.value,
+            targetId,
+            generation,
+            session.switchGeneration,
+          );
+          if (!current) return;
           if (current.status === "archived") {
             await store.optimisticUpdate({
               execute: () => session.adapter.unarchive(remoteId),
               optimistic: (state) =>
                 updateStatusReducer(state, targetId, "regular"),
             });
-            if (generation !== session.switchGeneration) return;
-            current = getThreadData(store.value, targetId);
-            if (current?.id !== targetId) return;
+            current = switchTarget(
+              store.value,
+              targetId,
+              generation,
+              session.switchGeneration,
+            );
+            if (!current) return;
           }
         }
         if (generation !== session.switchGeneration) return;
@@ -884,7 +897,10 @@ const useRemoteThreadList = (
           throw new Error("Cannot ensure new thread is not main");
         }
         let switchTask = session.switchTask;
-        const startedFallback = !switchTask || switchTask === lastAwaitedTask;
+        const startedFallback = shouldStartFallbackSwitch(
+          switchTask,
+          lastAwaitedTask,
+        );
         if (startedFallback) {
           switchTask = switchToNewThread();
         }
@@ -905,28 +921,16 @@ const useRemoteThreadList = (
   // initialize() collapses it into, which may be the main thread.
   const leaveRemovedMainThread = useCallback(
     async (settledThreadId: string) => {
-      const data = getThreadData(store.value, session.mainThreadId);
-      if (
-        data !== undefined &&
-        (data.status !== "archived" ||
-          !isSameThread(store.value, settledThreadId, session.mainThreadId))
-      )
-        return;
-      // A removed main thread cannot render, so it moves to the draft now
-      // instead of waiting on a switch that may still be loading another thread.
-      const initializing =
-        store.baseValue.newThreadId !== undefined &&
-        store.value.newThreadId === undefined;
-      if (data === undefined && !initializing) {
-        const draftId = store.value.newThreadId;
-        let id: string;
-        if (draftId !== undefined) {
-          id = getThreadData(store.value, draftId)?.id ?? draftId;
-        } else {
-          const seeded = seedNewThread(store.baseValue);
-          store.update(seeded.state);
-          id = seeded.id;
-        }
+      const fallback = removalFallback(
+        store.value,
+        store.baseValue,
+        session.mainThreadId,
+        isSameThread(store.value, settledThreadId, session.mainThreadId),
+      );
+      if (fallback === "none") return;
+      if (fallback === "draft") {
+        const { state, id } = selectRemovalDraft(store.value, store.baseValue);
+        if (state !== store.value) store.update(state);
         assignMainThreadId(id);
         notifyRemoteId(undefined, true);
         session.onSwitchToNewThread?.();
@@ -1404,18 +1408,24 @@ const useRemoteThreadList = (
   // again once a load lands, unless another switch has started since.
   useEffect(() => {
     const controlledId = session.lastControlledThreadId;
-    if (listState.isLoading || listState.isLoadingMore) return;
-    if (controlledId === undefined) return;
-    if (session.controlledSwitchGeneration !== session.switchGeneration) return;
-    if (session.controlledReloadPending && listState.loadError !== undefined)
-      return;
     if (
-      !session.controlledReloadPending &&
-      getThreadData(listState, controlledId) === undefined
+      controlledId === undefined ||
+      !shouldRetryControlledThread({
+        threadId: controlledId,
+        targetId: getThreadData(listState, controlledId)?.id,
+        mainThreadId: session.mainThreadId,
+        state: listState,
+        controlledGeneration: session.controlledSwitchGeneration,
+        switchGeneration: session.switchGeneration,
+        allowMissing: session.controlledReloadPending,
+        allowUncontrolled: false,
+        loadError: listState.loadError,
+        isLoading: listState.isLoading || listState.isLoadingMore,
+        matchRemoteIdentity: true,
+      })
     )
       return;
     session.controlledReloadPending = false;
-    if (isSameThread(listState, controlledId, session.mainThreadId)) return;
     handleThreadListAction("switch", () => {
       const task = switchToThread(controlledId, undefined, false);
       session.controlledSwitchGeneration = session.switchGeneration;

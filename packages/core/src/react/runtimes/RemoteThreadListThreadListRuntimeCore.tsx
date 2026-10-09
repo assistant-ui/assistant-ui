@@ -13,6 +13,14 @@ import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { nullProtoRecord } from "../../utils/record";
+import {
+  removalFallback,
+  selectRemovalDraft,
+  shouldRetryControlledThread,
+  shouldStartFallbackSwitch,
+  shouldUnarchiveSwitchTarget,
+  switchTarget,
+} from "../../runtimes/remote-thread-list/thread-list-decisions";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -312,18 +320,24 @@ export class RemoteThreadListThreadListRuntimeCore
     switchGenerationAtLoad = this._switchGeneration,
   ) {
     const threadId = this._options.threadId;
-    if (threadId === undefined) return;
-    const data = this.getItemById(threadId);
+    const data =
+      threadId === undefined ? undefined : this.getItemById(threadId);
     if (
-      (replacedList &&
-        switchGenerationAtLoad !== this._switchGeneration &&
-        this._controlledSwitchGeneration !== this._switchGeneration) ||
-      (!replacedList &&
-        (data === undefined ||
-          this._controlledSwitchGeneration !== this._switchGeneration))
+      !shouldRetryControlledThread({
+        threadId,
+        targetId: data?.id,
+        mainThreadId: this._mainThreadId,
+        state: this._state.value,
+        controlledGeneration: this._controlledSwitchGeneration,
+        switchGeneration: this._switchGeneration,
+        allowMissing: replacedList,
+        allowUncontrolled:
+          replacedList && switchGenerationAtLoad === this._switchGeneration,
+        loadError: undefined,
+        isLoading: false,
+      })
     )
       return;
-    if (data?.id === this._mainThreadId) return;
     this._switchToThreadFromProp(threadId).catch(() => {});
   }
 
@@ -804,21 +818,32 @@ export class RemoteThreadListThreadListRuntimeCore
       );
     }
 
-    if (generation !== this._switchGeneration) return;
+    let current = switchTarget(
+      this._state.value,
+      data.id,
+      generation,
+      this._switchGeneration,
+    );
+    if (!current) return;
 
-    let current = getThreadData(this._state.value, data.id);
-    if (current?.id !== data.id) return;
-
-    if (current.status === "archived" && options?.unarchive !== false) {
+    if (shouldUnarchiveSwitchTarget(current, options)) {
       await current.initializeTask;
-      if (generation !== this._switchGeneration) return;
-      current = getThreadData(this._state.value, data.id);
-      if (current?.id !== data.id) return;
+      current = switchTarget(
+        this._state.value,
+        data.id,
+        generation,
+        this._switchGeneration,
+      );
+      if (!current) return;
       if (current.status === "archived") {
         await this._unarchive(current.id, current);
-        if (generation !== this._switchGeneration) return;
-        current = getThreadData(this._state.value, data.id);
-        if (current?.id !== data.id) return;
+        current = switchTarget(
+          this._state.value,
+          data.id,
+          generation,
+          this._switchGeneration,
+        );
+        if (!current) return;
       }
     }
     this._setMainThreadId(current.id);
@@ -1226,7 +1251,10 @@ export class RemoteThreadListThreadListRuntimeCore
       if (threadId === this.newThreadId)
         throw new Error("Cannot ensure new thread is not main");
       let switchTask = this._switchTask;
-      const startedFallback = !switchTask || switchTask === lastAwaitedTask;
+      const startedFallback = shouldStartFallbackSwitch(
+        switchTask,
+        lastAwaitedTask,
+      );
       if (startedFallback) switchTask = this.switchToNewThread();
       lastAwaitedTask = switchTask;
 
@@ -1249,25 +1277,20 @@ export class RemoteThreadListThreadListRuntimeCore
   // initialize() collapses it into, which may be the main thread.
   private async _leaveRemovedMainThread(settledThreadId: string) {
     const threadId = this._mainThreadId;
-    const data = this.getItemById(threadId);
-    if (
-      data !== undefined &&
-      (data.status !== "archived" || !this._isMainThread(settledThreadId))
-    )
-      return;
-    // A removed main thread cannot render, so it moves to the draft now
-    // instead of waiting on a switch that may still be loading another thread.
-    const initializing =
-      this._state.baseValue.newThreadId !== undefined &&
-      this._state.value.newThreadId === undefined;
-    if (data === undefined && !initializing) {
-      let id = this._state.value.newThreadId;
-      if (id === undefined) {
-        const next = seedNewThread(this._state.baseValue);
-        id = next.id;
-        this._state.update(next.state);
-      }
-      this._mainThreadId = getThreadData(this._state.value, id)?.id ?? id;
+    const fallback = removalFallback(
+      this._state.value,
+      this._state.baseValue,
+      threadId,
+      this._isMainThread(settledThreadId),
+    );
+    if (fallback === "none") return;
+    if (fallback === "draft") {
+      const { state, id } = selectRemovalDraft(
+        this._state.value,
+        this._state.baseValue,
+      );
+      if (state !== this._state.value) this._state.update(state);
+      this._mainThreadId = id;
       this._hookManager.stopThreadRuntime(threadId);
       void this._hookManager.startThreadRuntime(this._mainThreadId).then(
         () => this._notifySubscribers(),

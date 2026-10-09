@@ -348,6 +348,36 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(internals._titleStates.has(data.id)).toBe(false);
   });
 
+  it("keeps an A deletion after swapping from A to B and back to A", async () => {
+    const removal = deferred<void>();
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "thread-b" }],
+      })),
+      delete: vi.fn(() => removal.promise),
+    });
+    const adapterB = makeAdapter();
+    const core = createCore(adapterA);
+    await core.getLoadThreadsPromise();
+
+    const deletion = core.delete("thread-b");
+    await vi.waitFor(() =>
+      expect(adapterA.delete).toHaveBeenCalledWith("thread-b"),
+    );
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    core.__internal_setOptions({
+      adapter: adapterA,
+      runtimeHook: () => ({}) as never,
+    });
+    removal.resolve();
+    await deletion;
+
+    expect(core.getItemById("thread-b")).toBeUndefined();
+  });
+
   it("stops the thread runtime when the adapter changes during a successful deletion", async () => {
     const removal = deferred<void>();
     const adapter = makeAdapter({
