@@ -13,7 +13,7 @@ For approved scaffolding, use the detected or approved framework and the package
 - React Router: \`npx create-react-router@latest <name> --yes\`.
 - TanStack Start: \`npm create @tanstack/start@latest <name>\`.
 - Expo: \`npx assistant-ui@latest create <name> --native\`, then follow /docs/react-native.md.
-Install dependencies in the approved folder and run later commands there.
+Run a scaffolder from the approved folder's parent with the folder's name as <name>, so the app lands in the approved folder rather than a nested one. Install dependencies in the approved folder and run later commands there.
 
 Verify: the target's package.json depends on React and its dev server starts.`,
   ],

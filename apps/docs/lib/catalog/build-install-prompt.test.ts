@@ -27,6 +27,24 @@ describe("buildInstallPrompt", () => {
     );
   });
 
+  it("falls back to the index page when a setup has no entry-point answer", () => {
+    const prompt = buildInstallPrompt(resolveProducts(["assistant-ui"]));
+    expect(prompt).toContain(
+      "When there is no entryPoint answer (outside a setup session, or with a setup-agent that cannot ask one), keep an existing placement",
+    );
+    expect(prompt).toContain(
+      "render it once on the app's index page (app/page.tsx on Next.js, src/App.tsx on Vite, the index route in React Router and TanStack Start, app/index.tsx on Expo)",
+    );
+    expect(prompt).toContain("open the assistant where it was mounted");
+  });
+
+  it("scaffolds a new app into the approved folder itself", () => {
+    const prompt = buildInstallPrompt(resolveProducts(["react-app"]));
+    expect(prompt).toContain(
+      "Run a scaffolder from the approved folder's parent with the folder's name as <name>",
+    );
+  });
+
   it("numbers each product and links its markdown docs", () => {
     const prompt = buildInstallPrompt(
       resolveProducts(["assistant-ui", "cloud"]),

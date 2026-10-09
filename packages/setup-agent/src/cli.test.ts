@@ -527,6 +527,7 @@ describe("agent instructions", () => {
       .split("\n")
       .find((line) => line.includes("--entry-points '<JSON array>'"));
     expect(ask?.trim().endsWith("--wait")).toBe(true);
+    expect(ask).not.toContain("--default");
   });
 
   it("skips the entry-point question for a setup that puts no assistant in the app", () => {
