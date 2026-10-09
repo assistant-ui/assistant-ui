@@ -2655,7 +2655,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     feedback?: FeedbackAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
   };
-  constructor(contextProvider: ModelContextProvider, options: LocalRuntimeOptionsBase);
+  constructor(contextProvider: ModelContextProvider, options: LocalRuntimeOptionsBase, initialMessages?: ExportedMessageRepository);
   __internal_setGetThreadId(getThreadId: () => string | undefined): void;
   __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
   get extras(): undefined;

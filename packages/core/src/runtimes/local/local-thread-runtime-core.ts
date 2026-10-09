@@ -401,9 +401,14 @@ export class LocalThreadRuntimeCore
   constructor(
     contextProvider: ModelContextProvider,
     options: LocalRuntimeOptionsBase,
+    initialMessages?: ExportedMessageRepository,
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
+    // A seed is starting state, not activity; import() would fire initialize,
+    // which makes a remote thread list create the thread.
+    if (initialMessages)
+      this.repository.import(withLocalPauseReasons(initialMessages));
   }
 
   private _options!: LocalRuntimeOptionsBase;
