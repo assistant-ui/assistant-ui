@@ -529,7 +529,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
               // Opening through appendReasoning registers the part as the
               // current reasoning append target, so the deltas that follow
               // extend it instead of opening a second part.
-              /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
               const unstable_summary = value.unstable_summary ?? undefined;
               target.appendReasoning("", {
                 ...(unstable_summary !== undefined ? { unstable_summary } : {}),

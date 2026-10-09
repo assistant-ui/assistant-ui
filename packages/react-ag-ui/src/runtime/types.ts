@@ -34,10 +34,10 @@ export type AgUiCustomMetadata = {
 };
 
 /**
- * @experimental This API is still under active development and might change without notice.
- *
  * Same as ExternalStoreThreadListAdapter, except `onSwitchToThread` returns
  * the messages (and optional state) to hydrate the thread with.
+ *
+ * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
  */
 type SwitchToThreadResult = {
   messages: readonly ThreadMessage[];
@@ -70,9 +70,7 @@ export type UseAgUiRuntimeAdapters = {
   voice?: RealtimeVoiceAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
-  /**
-   * @experimental This API is still under active development and might change without notice.
-   */
+  /** @deprecated Experimental since 2026-01-28. Not scheduled for removal; the API may change in any release. */
   threadList?: UseAgUiThreadListAdapter;
 };
 

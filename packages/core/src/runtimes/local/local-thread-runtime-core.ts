@@ -1268,7 +1268,6 @@ export class LocalThreadRuntimeCore
         ) {
           return part;
         }
-        /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
         const unstable_interactions = interactions.get(part.toolCallId);
         return unstable_interactions === undefined
           ? part

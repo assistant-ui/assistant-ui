@@ -227,12 +227,12 @@ type ToolBase<
   display?: ToolDisplay;
 
   /**
-   * @deprecated Experimental since 2026-06-02. Not scheduled for removal; the API may change in any release.
-   *
    * @internal Defaults already known by the backend for this tool. Client
    * transports omit matching fields and only upload overrides.
    *
    * This is only meaningful for frontend and human tools.
+   *
+   * @deprecated Experimental since 2026-06-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_backendDefault?: {
     parameters?: boolean;
