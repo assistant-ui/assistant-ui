@@ -5,6 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QuestionFlow, type QuestionFlowStep } from "./question-flow";
@@ -50,6 +51,23 @@ function moveToLastStep(
 }
 
 describe("QuestionFlow", () => {
+  it("focuses the receipt after the focused answer settles", async () => {
+    const ref = createRef<HTMLDivElement>();
+    render(
+      <QuestionFlow ref={ref} steps={[STEPS[0]!]} onComplete={() => {}} />,
+    );
+    const answer = screen.getByRole("button", { name: "The whole team" });
+    answer.focus();
+    await act(async () => {
+      fireEvent.click(answer);
+    });
+
+    expect(document.activeElement).toBe(
+      screen.getByText("The whole team").closest('[data-slot="question-flow"]'),
+    );
+    expect(ref.current).toBe(document.activeElement);
+  });
+
   it("advances a single selection on pick", () => {
     render(<QuestionFlow steps={STEPS} onComplete={() => {}} />);
 

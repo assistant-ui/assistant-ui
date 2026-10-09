@@ -416,6 +416,15 @@ const elementsRegistryItems: RegistryItem[] = [
       "Human in the loop: the agent asks before it runs anything with side effects.",
     file: "approval-card.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
+  }),
+  createElementRegistryItem({
+    slug: "receipt-focus",
+    title: "Receipt focus",
+    description:
+      "Keeps focus on a receipt when the focused answer is replaced.",
+    file: "receipt-focus.ts",
+    usesSurfaces: false,
   }),
   createElementRegistryItem({
     slug: "option-list",
@@ -432,7 +441,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "A few short questions asked one at a time, answered together and kept as a receipt.",
     file: "question-flow.tsx",
-    usesElements: ["option-list"],
+    usesElements: ["option-list", "receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "recommendation-card",
@@ -550,6 +559,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A server pausing mid-tool-call to ask you for the fields it still needs.",
     file: "elicitation-form.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "retrieval-chunks",
@@ -797,6 +807,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Granting a capability rather than approving one action, with the reach spelled out.",
     file: "permission-grant.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "computer-use",
