@@ -90,7 +90,7 @@ Wraps resource element to create stable client proxy. Adds client to stack for e
 useClientLookup<TMethods extends ClientMethods>(
   getElements: () => readonly ResourceElement<TMethods>[],
   getElementsDeps: readonly unknown[]
-): { state: InferClientState<TMethods>[]; get: (lookup: { index: number } | { key: string }) => TMethods };
+): { state: InferClientState<TMethods>[]; get: (lookup: { index: number } | { key: string | number }) => TMethods };
 ```
 Wraps each element with `useClientResource`. Throws on lookup miss.
 

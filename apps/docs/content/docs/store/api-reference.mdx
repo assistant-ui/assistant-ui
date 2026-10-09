@@ -185,7 +185,7 @@ function useClientLookup<TMethods extends ClientMethods>(
   elements: readonly ResourceElement<TMethods>[],
 ): {
   state: InferClientState<TMethods>[];
-  get: (lookup: { index: number } | { key: string }) => TMethods;
+  get: (lookup: { index: number } | { key: string | number }) => TMethods;
 };
 ```
 

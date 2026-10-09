@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { resource, withKey } from "@assistant-ui/tap";
 import { useClientLookup } from "./useClientLookup";
 
 const Item = resource(({ id }: { id: string }) => ({
   getState: () => ({ id }),
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("useClientLookup", () => {
   it("keeps numeric and string keys distinct", () => {
