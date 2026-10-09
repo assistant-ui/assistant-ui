@@ -84,7 +84,8 @@ export class AssistantCloudRuns {
     return {
       api: `${this.cloud._baseUrl}/v1/runs/stream`,
       protocol: "ui-message-stream" as const,
-      headers: () => buildCloudHeaders(this.cloud, { Accept: "text/plain" }),
+      headers: (): Promise<{ Accept: string; "Aui-Sdk": string }> =>
+        buildCloudHeaders(this.cloud, { Accept: "text/plain" }),
       body: async (options?: { threadId?: string }) => {
         const threadId = options?.threadId;
         if (threadId === undefined) {

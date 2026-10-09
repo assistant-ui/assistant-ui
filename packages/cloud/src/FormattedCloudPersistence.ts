@@ -1,5 +1,4 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { CloudMessagePersistence } from "./CloudMessagePersistence";
 
 /**
  * Format adapter shape — structurally identical to the MessageFormatAdapter
@@ -24,11 +23,23 @@ export type MessageFormatAdapter<TMessage, TStorageFormat> = {
  * not need to import the class.
  */
 export const createFormattedPersistence = <TMessage, TStorageFormat>(
-  persistence: Pick<
-    CloudMessagePersistence,
-    "append" | "load" | "isPersisted"
-  > &
-    Partial<Pick<CloudMessagePersistence, "update">>,
+  persistence: {
+    append: (
+      threadId: string,
+      messageId: string,
+      parentId: string | null,
+      format: string,
+      content: ReadonlyJSONObject,
+    ) => Promise<void>;
+    load: (threadId: string, format?: string) => Promise<any[]>;
+    isPersisted: (messageId: string) => boolean;
+    update?: (
+      threadId: string,
+      messageId: string,
+      format: string,
+      content: ReadonlyJSONObject,
+    ) => Promise<void>;
+  },
   adapter: MessageFormatAdapter<TMessage, TStorageFormat>,
 ) => ({
   append: async (

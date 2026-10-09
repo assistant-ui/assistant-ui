@@ -220,6 +220,7 @@ declare class AssistantCloudRuns {
     api: string;
     protocol: "ui-message-stream";
     headers: () => Promise<{
+      Accept: string;
       "Aui-Sdk": string;
     }>;
     body: (options?: {

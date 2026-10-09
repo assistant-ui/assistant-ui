@@ -105,9 +105,11 @@ type MakeRequestOptions = {
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
 const authGenerations = new WeakMap<AssistantCloudAPI, number>();
 
-export const buildCloudHeaders = async (
+export const buildCloudHeaders = async <
+  TRequired extends Record<string, string>,
+>(
   cloud: AssistantCloudAPI,
-  requiredHeaders: Record<string, string>,
+  requiredHeaders: TRequired,
   additionalHeaders?: Record<string, string>,
   authGeneration?: number,
 ) => {
