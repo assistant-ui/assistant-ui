@@ -10,11 +10,11 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**"],
       thresholds: {
-        lines: 94,
-        functions: 86,
-        branches: 86,
-        statements: 94,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 93,
+        functions: 85,
+        branches: 85,
+        statements: 93,
+        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
     projects: [

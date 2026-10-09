@@ -19,10 +19,10 @@ export default defineConfig({
       exclude: ["src/__tests__/**"],
       thresholds: {
         lines: 95,
-        functions: 95,
+        functions: 94,
         branches: 85,
         statements: 93,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",

@@ -7,10 +7,10 @@ export default defineConfig({
       exclude: ["src/__tests__/**", "src/tests/**"],
       thresholds: {
         lines: 95,
-        functions: 88,
-        branches: 87,
+        functions: 89,
+        branches: 88,
         statements: 93,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
   },

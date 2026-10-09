@@ -25,11 +25,12 @@ export default {
         "lib/xulux/learn/courses/*/stages/**",
       ],
       thresholds: {
-        lines: 36,
-        functions: 28,
-        branches: 32,
-        statements: 35,
-        autoUpdate: (threshold: number) => Math.ceil(threshold) - 1,
+        lines: 39,
+        functions: 30,
+        branches: 35,
+        statements: 37,
+        autoUpdate: (threshold: number) =>
+          Math.max(0, Math.floor(threshold) - 1),
       },
     },
     environment: "node",

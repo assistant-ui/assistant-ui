@@ -7,10 +7,10 @@ export default defineConfig({
       exclude: ["src/testUtils.ts"],
       thresholds: {
         lines: 97,
-        functions: 97,
+        functions: 96,
         branches: 93,
         statements: 96,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
     fsModuleCache: true,

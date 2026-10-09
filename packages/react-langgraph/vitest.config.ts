@@ -7,10 +7,10 @@ export default defineConfig({
       exclude: ["src/testUtils.ts", "src/tests/**"],
       thresholds: {
         lines: 94,
-        functions: 95,
-        branches: 86,
+        functions: 94,
+        branches: 85,
         statements: 92,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",

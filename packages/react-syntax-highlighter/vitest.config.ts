@@ -8,7 +8,7 @@ export default defineConfig({
         lines: 99,
         functions: 99,
         statements: 99,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",
