@@ -65,7 +65,7 @@ Code that starts with `<svg` renders as a standalone SVG; anything else is an HT
 
 ### Preview
 
-`previewWidget(code, { width, appearance })` renders complete code in a hidden frame and resolves with `{ ok, errors, console, blank, height, screenshot }`.
+`previewWidget(code, { width, appearance })` renders complete code in a hidden frame and resolves with `{ ok, kind, width, height, blank, errors, console, screenshot }`, plus `screenshotError` when the capture failed.
 
 ### Content Security Policy
 
@@ -81,7 +81,7 @@ function ToolCall({ args, status }) {
   return (
     <Widget
       code={args.widget_code ?? ""}
-      streaming={status === "running"}
+      streaming={status.type === "running"}
       tokens={tokens}
       onPrompt={(text) => composer.send(text)}
     />
@@ -101,9 +101,9 @@ const tools = createWidgetTools();
 streamText({ model, tools: toAISDKTools(tools, { jsonSchema }) });
 ```
 
-Each tool is `{ name, description, inputSchema, execute }` with a JSON Schema input, so it adapts to any provider. `edit_widget` applies exact `old_string` → `new_string` replacements to the latest code of a widget, tracked by title in a registry, and fails without changes when a match is missing or ambiguous. Pass `preview: previewWidget` to enable `preview_widget` in the browser.
+Each tool is `{ name, description, inputSchema, execute }` with a JSON Schema input, so it adapts to any provider. `edit_widget` applies exact `old_string` → `new_string` replacements to the latest code of a widget, tracked by title in a registry, and fails without changes when a match is missing or ambiguous. `preview_widget` renders through the `preview` option, typically `previewWidget` in the browser; without it the tool returns an error result, so leave it out of tool sets that run on a server.
 
-`generative-frame/prompts` exports `buildWidgetGuidance({ modules, platform, tokens, cdnOrigins })`, which `read_me` returns: base rules, a token reference generated from your tokens, platform notes, and modules (`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`).
+`generative-frame/prompts` exports `buildWidgetGuidance({ modules, platform, tokens, cdnOrigins, connectOrigins, allowEval, width, compat, hostApi })`, which `read_me` returns: base rules, a token reference generated from your tokens, platform notes, rules that match the frame's CSP (`cdnOrigins`, `connectOrigins`, `allowEval`) and host API (`compat`, `hostApi`), and modules (`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`).
 
 ## Repair loop
 
@@ -145,7 +145,7 @@ export const catalog = defineCatalog({
   },
 });
 
-const guidance = catalog.prompt({ mode: "inline" }); // or "standalone" for render_spec
+const guidance = catalog.prompt({ mode: "inline" }); // or "jsonl" for render_spec
 ```
 
 Props are JSON Schema; a Standard Schema that exposes JSON Schema (Zod 4) works too. `catalog.prompt()` documents the components, actions, the patch protocol, expressions, and rules.

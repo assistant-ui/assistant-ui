@@ -1,13 +1,14 @@
+import type { SpecStreamMode } from "./stream";
 import { describeSchema } from "../json-schema";
 import type { Catalog } from "./catalog";
 
 export type SpecPromptOptions = {
   /**
-   * `standalone`: the output is only JSONL patches, e.g. the `patches`
+   * `jsonl`: the output is only JSONL patches, e.g. the `patches`
    * argument of `render_spec`. `inline`: patches go in a ```spec fence inside
-   * a normal reply. Defaults to `standalone`.
+   * a normal reply. Defaults to `jsonl`.
    */
-  mode?: "standalone" | "inline";
+  mode?: SpecStreamMode;
   /** Extra rules appended to the built-in ones. */
   customRules?: readonly string[];
   /** Leave out the worked example. */
@@ -60,7 +61,7 @@ Bind actions to a component's events with \`on\`: \`"on": { "press": { "action":
 ${entries.join("\n")}`;
 };
 
-const protocolSection = (mode: "standalone" | "inline") => `## Output protocol
+const protocolSection = (mode: SpecStreamMode) => `## Output protocol
 
 A spec is flat: \`{ "root": id, "elements": { id: element }, "state": { … } }\`. An element is \`{ "type", "props", "children": [ids], "slots"?, "visible"?, "repeat"?, "on"?, "watch"? }\`. Children are ids, never nested elements.
 
@@ -121,7 +122,7 @@ export function buildSpecPrompt(
   catalog: Catalog,
   options: SpecPromptOptions = {},
 ): string {
-  const mode = options.mode ?? "standalone";
+  const mode = options.mode ?? "jsonl";
   const rules = [
     "Use only the listed component types, props, events, and actions.",
     "Every id in `children` or `slots` must be added as an element; every element except the root must be someone's child.",

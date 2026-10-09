@@ -168,7 +168,7 @@ export function createWidgetTools(
         const requested: readonly string[] = input.modules ?? [];
         const spec =
           catalog && requested.includes("spec")
-            ? catalog.prompt({ ...options.specPrompt, mode: "standalone" })
+            ? catalog.prompt({ ...options.specPrompt, mode: "jsonl" })
             : undefined;
         const modules = normalizeModules(requested);
         if (spec && modules.length === 0) return spec;

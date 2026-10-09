@@ -47,7 +47,7 @@ export const catalog = defineCatalog({
 
 Props and params are JSON Schema. A Standard Schema that exposes JSON Schema, such as a Zod 4 schema, works too. `slots` lists the child slots a component accepts (`"default"` maps to `children`); a component without slots takes no children. `events` lists what elements may bind with `on`.
 
-`catalog.prompt({ mode })` returns the model guidance for the catalog: the components and actions, the patch protocol, expressions, and rules. Use `mode: "standalone"` (the default) when the output is only patches, as in `render_spec`, and `mode: "inline"` when patches sit in a fenced block inside a normal reply.
+`catalog.prompt({ mode })` returns the model guidance for the catalog: the components and actions, the patch protocol, expressions, and rules. Use `mode: "jsonl"` (the default) when the output is only patches, as in `render_spec`, and `mode: "inline"` when patches sit in a fenced block inside a normal reply.
 
 ## The spec format
 

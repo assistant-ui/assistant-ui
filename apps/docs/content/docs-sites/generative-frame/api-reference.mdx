@@ -183,7 +183,7 @@ Options are on [Repair loop and screenshots](/generative-frame/docs/repair#repai
 | Export | Description |
 | --- | --- |
 | `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
-| `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"standalone"` (default) or `"inline"`. |
+| `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `parseSpecStream(source, options?)` | The same for a complete string. |
 | `applyPatch(doc, operations)`, `applyPatchOperation`, `checkPatchOperation` | RFC 6902 helpers. |
