@@ -98,11 +98,28 @@ const useCheckoutHost = (restored: unknown) => {
     }
     if (
       seed.multiple &&
-      (kind !== "choice" || seed.options?.some((option) => option.variants))
+      (kind !== "choice" ||
+        seed.options?.some((option) => option.variants?.length))
     ) {
       throw reject(
         "invalid-input",
         "only a choice whose options have no variants accepts several answers",
+      );
+    }
+    const ids = seed.options?.map((option) => option.id) ?? [];
+    if (new Set(ids).size !== ids.length) {
+      throw reject("invalid-input", "option ids must be unique");
+    }
+    if (
+      seed.options?.some(
+        (option) =>
+          option.id.includes(":") ||
+          option.variants?.some((variant) => variant.id.includes(":")),
+      )
+    ) {
+      throw reject(
+        "invalid-input",
+        'option and variant ids cannot contain ":", which separates them in an answer',
       );
     }
     if (
@@ -306,7 +323,7 @@ const useCheckoutHost = (restored: unknown) => {
       plan.feedback = params.feedback.trim();
     },
     "checkout/cancel": () => {
-      if (state.status === "cancelled") return;
+      if (state.createdAt === null || isClosed(state)) return;
       state.status = "cancelled";
       dismissOpenInputs();
     },

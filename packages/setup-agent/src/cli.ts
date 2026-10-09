@@ -2,7 +2,7 @@ import { connectCheckout } from "./client";
 import type { CheckoutClient } from "./client";
 import { INPUT_PRESETS, isPresetId, presetInput } from "./presets";
 import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 import { resolve } from "node:path";
 import {
@@ -601,6 +601,28 @@ export const upsertEnvLine = (content: string, key: string, value: string) => {
   return `${lines.join("\n")}\n`;
 };
 
+/**
+ * Write the secret `take` returns to `file` under `key`. The file is opened
+ * (and created owner-only) before `take` runs, because taking the secret
+ * consumes it and an unwritable destination must fail while it is still
+ * deposited.
+ */
+export const writeEnvSecret = async (
+  file: string,
+  key: string,
+  take: () => Promise<string>,
+) => {
+  const handle = await open(file, "a+", 0o600);
+  try {
+    const current = await handle.readFile("utf8");
+    const value = await take();
+    await handle.truncate(0);
+    await handle.writeFile(upsertEnvLine(current, key, value));
+  } finally {
+    await handle.close();
+  }
+};
+
 const answerFields = (input: Checkout.Input, answer: string) => ({
   answer: (input.multiple && parseMultipleAnswer(answer)) || answer,
   ...(input.note !== undefined && { note: input.note }),
@@ -759,16 +781,18 @@ export const main = async (argv: readonly string[]) => {
           fail(`input "${inputId}" is not an llm-provider answer`);
         }
         const file = resolve(flagText(flags, "file") ?? ".env.local");
-        const response = await fetch(
-          `${url.replace(/\/$/, "")}/secret/${encodeURIComponent(inputId)}?setup=${encodeURIComponent(setupId)}`,
-        );
-        if (response.status === 404) {
-          fail(`the key for "${inputId}" was already taken or never deposited`);
-        }
-        if (!response.ok) fail(`could not fetch the key: ${response.status}`);
-        const value = await response.text();
-        const current = await readFile(file, "utf8").catch(() => "");
-        await writeFile(file, upsertEnvLine(current, envKey, value));
+        await writeEnvSecret(file, envKey, async () => {
+          const response = await fetch(
+            `${url.replace(/\/$/, "")}/secret/${encodeURIComponent(inputId)}?setup=${encodeURIComponent(setupId)}`,
+          );
+          if (response.status === 404) {
+            fail(
+              `the key for "${inputId}" was already taken or never deposited`,
+            );
+          }
+          if (!response.ok) fail(`could not fetch the key: ${response.status}`);
+          return response.text();
+        });
         print({ ok: true, envKey, file });
         break;
       }

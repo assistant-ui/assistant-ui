@@ -1,5 +1,8 @@
 import { initialCheckoutState, type Checkout } from "./protocol";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   HELP,
   INSTRUCTIONS,
@@ -9,6 +12,7 @@ import {
   isDirectInvocation,
   upsertEnvLine,
   waitForStart,
+  writeEnvSecret,
 } from "./cli";
 
 describe("the agent's briefing", () => {
@@ -387,4 +391,44 @@ describe("begin planning", () => {
       expect(settled).toHaveBeenCalledWith("cancelled");
     },
   );
+});
+
+describe("writeEnvSecret", () => {
+  const tempDir = async () => {
+    const dir = await mkdtemp(join(tmpdir(), "setup-agent-"));
+    onTestFinished(() => rm(dir, { recursive: true, force: true }));
+    return dir;
+  };
+
+  it("leaves the secret deposited when the file cannot be opened", async () => {
+    const dir = await tempDir();
+    const take = vi.fn(async () => "sk-test");
+    await expect(
+      writeEnvSecret(
+        join(dir, "missing", ".env.local"),
+        "OPENAI_API_KEY",
+        take,
+      ),
+    ).rejects.toThrow();
+    expect(take).not.toHaveBeenCalled();
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "creates the file readable only by its owner",
+    async () => {
+      const file = join(await tempDir(), ".env.local");
+      await writeEnvSecret(file, "OPENAI_API_KEY", async () => "sk-test");
+      expect((await stat(file)).mode & 0o777).toBe(0o600);
+      expect(await readFile(file, "utf8")).toBe("OPENAI_API_KEY=sk-test\n");
+    },
+  );
+
+  it("keeps the rest of an existing file", async () => {
+    const file = join(await tempDir(), ".env.local");
+    await writeFile(file, "A=1\nOPENAI_API_KEY=old\nB=2\n");
+    await writeEnvSecret(file, "OPENAI_API_KEY", async () => "sk-test");
+    expect(await readFile(file, "utf8")).toBe(
+      "A=1\nOPENAI_API_KEY=sk-test\nB=2\n",
+    );
+  });
 });
