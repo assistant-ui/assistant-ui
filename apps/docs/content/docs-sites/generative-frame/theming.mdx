@@ -85,6 +85,8 @@ const tokens = readThemeTokens(document.documentElement, {
 });
 ```
 
+Map only design tokens. Every value you map is sent into the frame, where model-written or third-party widget code can read it.
+
 Tailwind v4 aliases `--color-accent` to shadcn's muted `--accent`, so in a Tailwind v4 app the canonical name holds the wrong color. `ASSISTANT_UI_TOKEN_SOURCES` from `generative-frame/assistant-ui` reads the shadcn variables first, and `useAssistantUiThemeTokens` uses it.
 
 ## MCP Apps names
@@ -110,6 +112,8 @@ widget.setTheme(readThemeTokens());
 ```
 
 `setTheme` updates the variables in the frame without reloading it. In React, a new `tokens` prop does the same, and `useThemeTokens` produces new tokens when the page's theme changes.
+
+`useThemeTokens(element?, sources?, options?)` re-reads when `class`, `data-theme`, `data-mode`, or `style` changes on `<html>` (or on `element`), when `class`, `data-theme`, or `data-mode` changes on `<body>`, and when the system color scheme flips. Every component that asks for the same element and sources shares one observer, and a change costs one read per animation frame however many widgets are mounted. Body `style` is ignored by default because scroll-lock and dialog libraries rewrite it constantly; pass `{ observeBodyStyle: true }` if your app sets theme variables there.
 
 Inside the frame, a theme change fires a `themechange` event on `window` with `{ theme, variables }` as its `detail`. Canvas-based libraries cannot read CSS variables, so a widget that draws on a canvas resolves them and redraws on that event:
 

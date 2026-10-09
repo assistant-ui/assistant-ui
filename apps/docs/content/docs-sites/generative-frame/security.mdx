@@ -79,6 +79,16 @@ The frame isolates the widget from your page. What a widget can do through the b
 - **Tool data.** Whatever you forward with `notifyToolInput` and `notifyToolResult` is readable by widget code.
 - **Policy.** `connectOrigins` gives widget code network access to those origins, and `allowEval` re-enables `eval`.
 
+## What a widget can send out
+
+`connect-src 'none'` stops `fetch`, XHR, and WebSockets, but a widget can still move what it knows out of the frame:
+
+- in the text it passes to `sendPrompt`,
+- in the URLs it passes to `openLink` or puts on links,
+- in the URLs of images, styles, fonts, and scripts it loads from the allowlisted CDNs, which can carry data in their path or query.
+
+What a widget knows is what the model wrote into it plus what you send it. Theme variables are low-sensitivity; conversation content in the widget code or tool data is what matters. Treat these channels like any other model output: confirm `openLink` in its handler, show or confirm prompts that should not send silently, and narrow `cdnOrigins` and `imageOrigins` when widgets do not need them.
+
 ## Spec mode runs no model code
 
 In [spec mode](/generative-frame/docs/spec-mode) there is no frame and no model-written code. The model writes data: which of your catalog's components to render, with which props, bound to which of your actions. With the catalog passed to `SpecRenderer`, props are validated before rendering. Expressions only read and write the spec's state, and every action other than the built-in `setState` runs through a handler you wrote. The components and handlers you supply are the whole attack surface.
