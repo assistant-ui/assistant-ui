@@ -365,6 +365,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
+  private runGeneration = 0;
+  private revertGeneration = 0;
   private readonly permissionRecoveryFence = new Map<
     string,
     "asked" | "settled"
@@ -1035,6 +1037,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     pending: PendingUserMessage,
     options?: OpenCodeUserMessageOptions,
   ) {
+    this.runGeneration++;
     this.dispatch({ type: "run.started" });
 
     try {
@@ -1115,6 +1118,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async cancel() {
+    const runGeneration = this.runGeneration;
     this.dispatch({ type: "run.cancelling" });
     try {
       await this.client.session.abort(
@@ -1124,15 +1128,24 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
     } catch (error) {
-      this.dispatch({ type: "run.failed", error });
+      if (
+        runGeneration === this.runGeneration &&
+        this.state.runState.type !== "idle" &&
+        this.state.runState.type !== "error"
+      ) {
+        this.dispatch({ type: "run.failed", error });
+      }
       throw error;
     }
   }
 
   public async revert(messageId: string) {
+    const runGeneration = this.runGeneration;
+    const revertGeneration = ++this.revertGeneration;
+    const wasRunning = isOpenCodeStateRunning(this.state);
     // Reverting a finished turn leaves the session idle, so the server sends no
     // busy-to-idle transition and the transient state would never be left.
-    if (isOpenCodeStateRunning(this.state)) {
+    if (wasRunning) {
       this.dispatch({ type: "run.reverting" });
     }
     try {
@@ -1144,7 +1157,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
     } catch (error) {
-      this.dispatch({ type: "run.failed", error });
+      if (
+        runGeneration === this.runGeneration &&
+        revertGeneration === this.revertGeneration &&
+        (!wasRunning || this.state.runState.type === "reverting")
+      ) {
+        this.dispatch({ type: "run.failed", error });
+      }
       throw error;
     }
   }
