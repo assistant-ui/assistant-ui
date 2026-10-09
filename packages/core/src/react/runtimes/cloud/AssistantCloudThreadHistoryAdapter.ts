@@ -811,8 +811,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 }
 
-export { extractAuiV0 } from "./runTelemetry";
-
 export function useScopedAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
   scopeRef: RefObject<unknown>,

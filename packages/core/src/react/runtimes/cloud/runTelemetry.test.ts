@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { extractAuiV0 as adapterExtractAuiV0 } from "./AssistantCloudThreadHistoryAdapter";
 import { extractAuiV0 } from "./runTelemetry";
 
 const auiV0Message = (status: { type: string; reason?: string }) => ({
@@ -18,10 +17,6 @@ const auiV0Message = (status: { type: string; reason?: string }) => ({
 });
 
 describe("extractAuiV0", () => {
-  it("remains available from the history adapter", () => {
-    expect(adapterExtractAuiV0).toBe(extractAuiV0);
-  });
-
   it("returns null for a requires-action message so paused writes never report", () => {
     expect(
       extractAuiV0(
