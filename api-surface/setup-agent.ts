@@ -30,7 +30,9 @@ declare namespace Checkout {
     trigger: string;
     recommended?: boolean;
   };
-  type EntryPointOption = ChoiceOption & {
+  type EntryPointOption = {
+    id: string;
+    label: string;
     description: string;
     entryPoint: EntryPoint;
   };
@@ -354,7 +356,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { HELP, INSTRUCTIONS, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;

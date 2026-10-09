@@ -14,7 +14,6 @@ import {
   isClosed,
   isOptionIcon,
   isValidModelAnswer,
-  parseModelAnswer,
   parseEntryPointOptions,
   parseMultipleAnswer,
   stepProgress,
