@@ -95,7 +95,6 @@ export function useResources<E extends ResourceElement<any>>(
 
       const seenKeys = new Set<string | number>();
       const values: any[] = [];
-      let newCount = 0;
 
       for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;
@@ -125,7 +124,6 @@ export function useResources<E extends ResourceElement<any>>(
             committedElement: undefined,
             committedValue: undefined,
           };
-          newCount++;
           fibers.set(elementKey, state);
         } else if (state.fiber.hook !== element.hook) {
           const fiber = createFiber(element.hook, element.key, () =>
@@ -159,8 +157,7 @@ export function useResources<E extends ResourceElement<any>>(
         );
       }
 
-      // Clean up removed fibers (only if there might be stale ones)
-      if (fibers.size > values.length - newCount) {
+      if (fibers.size > seenKeys.size) {
         for (const key of fibers.keys()) {
           if (!seenKeys.has(key)) {
             fibers.get(key)!.next = "delete";
