@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CDN_ORIGINS } from "../csp";
 import { DEFAULT_LIGHT_TOKENS, THEME_TOKENS } from "../theme";
