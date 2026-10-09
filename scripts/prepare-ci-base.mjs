@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 
 export function prepareCiBase(baseRef, cwd = process.cwd()) {
   if (!baseRef) {
@@ -44,6 +44,6 @@ export function prepareCiBase(baseRef, cwd = process.cwd()) {
   checked("merge-base", "HEAD", base);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   prepareCiBase(process.env.GITHUB_BASE_REF);
 }

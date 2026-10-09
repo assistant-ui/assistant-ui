@@ -15,6 +15,7 @@ import {
   isRecord,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
 } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
@@ -43,6 +44,7 @@ const resourceOf = (block: AcpEmbeddedResourceContentBlock) =>
 
 export function threadContentToAcpBlocks(
   content: ThreadUserMessage["content"],
+  contentType?: string,
 ): AcpContentBlock[] {
   const blocks: AcpContentBlock[] = [];
   for (const part of content) {
@@ -56,11 +58,18 @@ export function threadContentToAcpBlocks(
         const parsed = parseDataUrl(part.image);
         blocks.push(
           parsed
-            ? { type: "image", data: parsed.data, mimeType: parsed.mimeType }
+            ? {
+                type: "image",
+                data: parsed.data,
+                mimeType: resolveImageMediaType(part.image, contentType),
+              }
             : {
                 type: "resource_link",
                 uri: part.image,
                 name: part.filename || part.image,
+                ...(contentType?.startsWith("image/")
+                  ? { mimeType: resolveImageMediaType(part.image, contentType) }
+                  : undefined),
               },
         );
         break;
@@ -589,6 +598,9 @@ const mediaPartsFromBlock = (block: AcpContentBlock): readonly MediaPart[] => {
     case "audio":
       return [{ type: "file", data: block.data, mimeType: block.mimeType }];
     case "resource_link":
+      if (block.mimeType?.startsWith("image/")) {
+        return [{ type: "image", image: block.uri, filename: block.name }];
+      }
       return [
         {
           type: "file",
