@@ -29,7 +29,7 @@ Commands (the url always comes first):
   ask <prompt> [--placeholder <text>] [--optional] [--step <step-id>] [--wait]
                                     Ask the user for a line of text.
   ask [prompt] --preset <framework|llm-provider|project> [--only <id,id>] [--choices <id=description,...>] [--default <id>] [--optional] [--step <step-id>] [--wait]
-                                    Ask a standard question. --only restricts the options (one id locks it in); --default preselects one.
+                                    Ask a standard question. --only restricts the options and leaves out --choices (one id locks it in); --default preselects one.
                                     "framework" answers "<framework>:<language>"; "llm-provider" answers JSON with provider, model and reasoningEffort; the key itself arrives through "env".
                                     "project" lists the React projects you found as --choices "<path>=<what it is>,..." ahead of "New project"; it answers a path, or "new:<next|vite|react-router|tanstack-start|expo>".
   ask <prompt> --choices <id,id,...> --icons <id=icon,...> [--single] [--default <id>] [--optional] [--step <step-id>] [--wait]

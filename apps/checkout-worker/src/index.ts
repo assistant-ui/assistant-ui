@@ -51,7 +51,7 @@ const readCapped = async (request: Request, max: number) => {
     if (done) break;
     size += value.byteLength;
     if (size > max) {
-      await reader.cancel();
+      reader.cancel().catch(() => {});
       return undefined;
     }
     chunks.push(value);
