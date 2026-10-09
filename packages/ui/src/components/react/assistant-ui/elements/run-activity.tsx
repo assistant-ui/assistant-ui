@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 import { collapsePanel } from "./surfaces";
 
 export type RunActivityStatus =
@@ -73,7 +73,7 @@ export function RunActivity({
         <Collapsible open={open} onOpenChange={onOpenChange}>
           <CollapsibleTrigger
             aria-busy={status === "running"}
-            className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring flex max-w-full items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex max-w-full items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-[3px]"
           >
             <ChevronRightIcon
               aria-hidden="true"
