@@ -227,29 +227,32 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    getWeather: tool({
+      description: "Get current weather for a location",
+      inputSchema: zodSchema(
+        z.object({
+          location: z.string(),
+          unit: z.enum(["celsius", "fahrenheit"]),
+        }),
+      ),
+      execute: async ({ location, unit }) => {
+        const weather = await fetchWeatherAPI(location);
+        return {
+          temperature: weather.temp,
+          description: weather.condition,
+          humidity: weather.humidity,
+          windSpeed: weather.wind,
+        };
+      },
+    }),
+  };
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      getWeather: tool({
-        description: "Get current weather for a location",
-        inputSchema: zodSchema(
-          z.object({
-            location: z.string(),
-            unit: z.enum(["celsius", "fahrenheit"]),
-          }),
-        ),
-        execute: async ({ location, unit }) => {
-          const weather = await fetchWeatherAPI(location);
-          return {
-            temperature: weather.temp,
-            description: weather.condition,
-            humidity: weather.humidity,
-            windSpeed: weather.wind,
-          };
-        },
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -623,6 +626,45 @@ The runtime records that as `{ approvalId, approved: true, text }`, because answ
 
 An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no refusal of its own, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision; a `dismissible` question gets a Dismiss control instead, which sends `{ approved: false }` and drops whatever was typed. The text field submits the answer as typed, an empty one included, because the request declared no constraint on it; a host that cannot record an empty answer rejects the response, and the controls come back with its error.
 
+#### Several questions or several answers
+
+`display: "questions"` asks several questions at once, or lets one question take several answers. `approval.questions` lists them, each with an `id`, a `prompt`, an optional `header`, and either `options` (each an `id`, a `label` and an optional `description`) or none, in which case the question takes a typed answer. `multiple` lets a question take more than one option, and `allowFreeform` accepts a typed answer alongside its options. The request's own `options`, `allowFreeform` and `text` are unused here.
+
+```ts
+const approval = {
+  id: "a2",
+  prompt: "Before I refactor:",
+  display: "questions",
+  dismissible: true,
+  questions: [
+    {
+      id: "scope",
+      header: "Scope",
+      prompt: "Which folders should change?",
+      options: [
+        { id: "src", label: "src" },
+        { id: "tests", label: "tests" },
+      ],
+      multiple: true,
+    },
+    { id: "note", prompt: "Anything I should avoid?" },
+  ],
+};
+```
+
+A renderer answers every question together, keyed by question id:
+
+```tsx
+respondToApproval({
+  answers: {
+    scope: { optionIds: ["src", "tests"] },
+    note: { text: "keep the public API" },
+  },
+});
+```
+
+The runtime records that as `{ approvalId, approved: true, answers }`, and the answers stay on `approval.answers` once it settles. Every question needs an answer: at least one of its options, or typed text where it accepts some. A response that misses a question, picks an option the question does not declare, picks several on a question without `multiple`, or types an answer a question does not accept throws, as does any `approved`, `optionId` or `text` sent alongside `answers`; `{ approved: false }` dismisses the whole request. The default `ToolFallback` renders each question with its options as toggle buttons and a text field where it accepts one, keeps Send disabled until every question is answered, adds Dismiss only when the request is `dismissible`, and lists each question's answer once it settles.
+
 Not every runtime emits these fields. The Eve runtime projects its input requests onto `prompt`, `display`, `allowFreeform` and `options` and never marks one dismissible, because it rejects a refusal to a question. The Pi runtime projects `select`, `input` and `editor` requests as dismissible questions because Pi resolves a cancelled one with `undefined`. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
 
 Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny. `LocalRuntime` records `cancelled` itself when the user sends another message instead of answering.
@@ -723,7 +765,7 @@ For the opposite pattern (showing partial data as it streams in), see [Field-Lev
 
 ### Field-Level Streaming State
 
-Use `useToolArgsStatus` to react to per-field streaming state. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. Call it inside a tool-call message part context:
+Use `useToolArgsStatus` to distinguish argument streaming from tool execution. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives, and `argsStatus` tracks completion of the full arguments object. Call it inside a tool-call message part context:
 
 ```tsx
 import { useToolArgsStatus } from "@assistant-ui/react";
@@ -732,13 +774,13 @@ const toolkit = defineToolkit({
   submitForm: {
     type: "backend",
     render: ({ args }) => {
-      const { propStatus } = useToolArgsStatus<{
+      const { argsStatus, propStatus } = useToolArgsStatus<{
         email: string;
         phone: string;
       }>();
 
       return (
-        <form className="space-y-4">
+        <form className="space-y-4" aria-busy={argsStatus === "streaming"}>
           <div>
             <input
               type="email"
@@ -762,6 +804,14 @@ const toolkit = defineToolkit({
   },
 });
 ```
+
+`argsStatus` remains `"streaming"` while the object is partial, even if every field received so far is complete. Once the object is complete it becomes `"complete"`, including while the hook's `status` remains `"running"` during tool execution. A field absent from `propStatus` is not in the current args: while `argsStatus` is `"streaming"` it may still arrive, and once `argsStatus` is `"complete"` it was never sent.
+
+The hook uses parser metadata when available. The AI SDK marks settled tool arguments complete even while tool execution continues, so received fields in `propStatus` become `"complete"` at that point too.
+Without parser metadata, a running part remains conservatively `"streaming"`:
+some runtimes build `argsText` from an incomplete argument snapshot. Any
+non-running lifecycle settles argument streaming. `"complete"` does not
+guarantee valid arguments or a successful tool result.
 
 ### Partial Results & Streaming
 

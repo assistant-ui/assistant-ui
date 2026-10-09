@@ -29,6 +29,7 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
@@ -46,6 +47,7 @@ declare class AssistantCloudAPI {
   readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -54,6 +56,7 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
@@ -836,6 +839,8 @@ type ExternalStoreAdapterBase<T> = {
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
@@ -1100,6 +1105,23 @@ type LangChainContentBlock = {
   type: "input_json_delta" | "tool_use";
 };
 
+type LangChainMediaBlock = {
+  type: "audio" | "file" | "image" | "text-plain" | "video";
+  mimeType?: string;
+  mime_type?: string;
+  data?: string | Uint8Array;
+  base64?: string | Uint8Array;
+  url?: string;
+  fileId?: string;
+  file_id?: string;
+  id?: string;
+  text?: string;
+  source_type?: "base64" | "id" | "text" | "url";
+  metadata?: {
+    filename?: string;
+  };
+};
+
 type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & {
   uiMessagesByParent?: Map<string, UIMessage[]>;
   messageTiming?: Record<string, MessageTiming>;
@@ -1108,6 +1130,7 @@ type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & 
 type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;
@@ -1259,6 +1282,11 @@ type MessagePartStreamStatus = {
 } | {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
 };
 
 declare class MessageRepository {
@@ -1522,6 +1550,7 @@ type ReasoningMessagePart = {
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1583,6 +1612,7 @@ type RespondToToolApprovalOptions = {
   approved: boolean;
   optionId?: string;
   text?: string;
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -1762,6 +1792,7 @@ type ThreadComposerState = BaseComposerState & {
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
   unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
@@ -1939,6 +1970,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
@@ -1993,7 +2025,10 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
@@ -2056,7 +2091,12 @@ type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePar
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -2071,6 +2111,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -2087,6 +2142,9 @@ type ToolApprovalResponse = {
   readonly reason?: string;
 } | {
   readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly reason?: string;
 };
 
@@ -2133,6 +2191,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -2165,10 +2225,7 @@ interface ToolCallResponseReader<TResult> {
   get: () => Promise<ToolResponse<TResult>>;
 }
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDisplay = "inline" | "standalone";
 
@@ -2321,10 +2378,10 @@ type VoiceSessionState = {
 
 declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metadata?: LangChainMessageConverterMetadata) => useExternalMessageConverter.Message;
 
-declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
+declare const convertLangChainContentBlock: (part: LangChainContentBlock | LangChainMediaBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
-  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, normalizeToolCallArgs, uiMessageToDataPart, withAudioTranscript };
 }
 
 declare const createLangChainStreamingTimingAccessors: <TMessage extends {
@@ -2438,6 +2495,8 @@ declare namespace entry_root_exports {
   export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
 
+declare const normalizeToolCallArgs: (args: unknown) => ReadonlyJSONObject;
+
 declare const uiMessageToDataPart: <TUIMessage extends {
   name: string;
   props: Record<string, unknown>;
@@ -2447,6 +2506,7 @@ declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
   type Metadata = ExternalMessageConverterMetadata;
   type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param3: {
@@ -2455,6 +2515,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param3: {
   isRunning: boolean;
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
 }) => ThreadMessage[];
 
 declare const useLangChainError: () => unknown;

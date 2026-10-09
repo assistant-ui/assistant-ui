@@ -110,8 +110,7 @@
 
 @theme inline {
   --font-sans: var(--font-public-sans);
-  --font-display:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-public-sans);
   --font-mono: var(--font-jetbrains-mono);
   --container-7xl: var(--page-width);
   --tracking-hero: -0.015em;

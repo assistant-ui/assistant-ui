@@ -1,5 +1,7 @@
 # @assistant-ui/react-generative-ui
 
+This package re-exports [`@assistant-ui/generative-ui`](https://www.npmjs.com/package/@assistant-ui/generative-ui), the framework-neutral home of assistant-ui's generative UI. Existing imports keep working unchanged; new code should depend on `@assistant-ui/generative-ui` directly and import the React renderer from `@assistant-ui/generative-ui/react`.
+
 Generative UI tools for assistant-ui.
 
 ## Installation

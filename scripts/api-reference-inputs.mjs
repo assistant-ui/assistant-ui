@@ -8,6 +8,7 @@ export const API_REFERENCE_INPUTS = [
   "packages/tap",
   "packages/cloud",
   "packages/assistant-stream",
+  "packages/generative-ui",
   "packages/react-generative-ui",
   "packages/ai-sdk",
   "packages/react-ai-sdk",
@@ -20,6 +21,7 @@ export const API_REFERENCE_INPUTS = [
   "apps/docs/package.json",
   "apps/docs/tsconfig.json",
   "scripts/api-reference-inputs.mjs",
+  "scripts/lib/experimental-annotations.mjs",
   ".github/workflows/autofix.yaml",
   ".github/workflows/code-quality.yaml",
 ];
@@ -27,8 +29,10 @@ export const API_REFERENCE_INPUTS = [
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 
 export function hasApiReferenceInputs(changedFiles) {
-  return changedFiles.some((file) =>
-    API_REFERENCE_INPUTS.some((input) => touches(file, input)),
+  return changedFiles.some(
+    (file) =>
+      !/^packages\/[^/]+\/README\.md$/.test(file) &&
+      API_REFERENCE_INPUTS.some((input) => touches(file, input)),
   );
 }
 

@@ -86,7 +86,10 @@ const messageIdSetCache = new WeakMap<
   ReadonlySet<string>
 >();
 
-const hasMessageId = (messages: readonly MessageState[], messageId: string) => {
+export const hasMessageId = (
+  messages: readonly MessageState[],
+  messageId: string,
+) => {
   let ids = messageIdSetCache.get(messages);
   if (!ids) {
     ids = new Set(messages.map((m) => m.id));
@@ -187,6 +190,7 @@ export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Pro
 
 ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export namespace ThreadPrimitiveUnstable_MessageById {
   export type Props = {
     messageId: string;
@@ -203,7 +207,7 @@ export namespace ThreadPrimitiveUnstable_MessageById {
  * `unstable_useThreadMessageIds`. A missing or removed id renders `null` rather
  * than throwing.
  *
- * @deprecated Unstable / Experimental - may change in any release.
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  *
  * @example
  * ```tsx

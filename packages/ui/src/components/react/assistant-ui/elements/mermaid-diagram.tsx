@@ -6,11 +6,14 @@ import {
   type FC,
   type ReactNode,
   memo,
+  type ComponentProps,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -24,6 +27,146 @@ export type MermaidDiagramProps = {
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
+
+const DANGLING_LINK = /(?:--|==|-\.|~~)[-.=~]*[>ox]?\s*(?:\|[^|]*\|)?$/;
+
+const isIncompleteDiagram = (code: string, svg: string) => {
+  if (/^<svg\b[^>]*\swidth="0"/.test(svg)) return true;
+  const lines = code
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("%%"));
+  return (
+    /^(?:graph|flowchart)\b/i.test(lines[0] ?? "") &&
+    lines.slice(1).some((line) => DANGLING_LINK.test(line))
+  );
+};
+
+const CSS_IMPORT =
+  /@import\s*(?:url\(\s*(?:"[^"]*"|'[^']*'|[^)]*)\s*\)|"[^"]*"|'[^']*')[^;]*(?:;|$)/g;
+
+const SVG_STYLE = /<style\b[^>]*>([\s\S]*?)<\/style>/;
+
+const splitSvgStyles = (svg: string) => {
+  let css = "";
+  let markup = svg;
+  // Removing one <style> can splice the text around it into another, so each
+  // pass takes the first block and rescans.
+  for (
+    let match = SVG_STYLE.exec(markup);
+    match;
+    match = SVG_STYLE.exec(markup)
+  ) {
+    css += match[1];
+    markup =
+      markup.slice(0, match.index) +
+      markup.slice(match.index + match[0].length);
+  }
+  return {
+    markup: markup.replace(
+      /(<[^>]*?)\sstyle="([^"]*)"/g,
+      '$1 data-aui-style="$2"',
+    ),
+    css: css.replace(CSS_IMPORT, "").trim(),
+  };
+};
+
+type StyleRoot = Document | ShadowRoot;
+type AdoptedSheet = { sheet: CSSStyleSheet; count: number };
+
+const adoptedStyles = new WeakMap<StyleRoot, Map<string, AdoptedSheet>>();
+
+const SCOPE = "[data-aui-mermaid-svg]";
+
+const adoptStyles = (root: StyleRoot, css: string) => {
+  const sheets = adoptedStyles.get(root) ?? new Map<string, AdoptedSheet>();
+  adoptedStyles.set(root, sheets);
+  let entry = sheets.get(css);
+  if (!entry) {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    for (const rule of sheet.cssRules) {
+      if (rule instanceof CSSStyleRule) {
+        rule.selectorText = `:where(${SCOPE}) :is(${rule.selectorText})`;
+      }
+    }
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+    entry = { sheet, count: 0 };
+    sheets.set(css, entry);
+  }
+  entry.count++;
+  const adopted = entry;
+  return () => {
+    if (--adopted.count > 0) return;
+    root.adoptedStyleSheets = root.adoptedStyleSheets.filter(
+      (s) => s !== adopted.sheet,
+    );
+    sheets.delete(css);
+  };
+};
+
+const subscribeNothing = () => () => {};
+
+const supportsAdoptedStyles = () =>
+  typeof CSSStyleSheet === "function" &&
+  "replaceSync" in CSSStyleSheet.prototype &&
+  "adoptedStyleSheets" in document;
+
+type MermaidSvgProps = Omit<
+  ComponentProps<"div">,
+  "dangerouslySetInnerHTML"
+> & {
+  svg: string;
+};
+
+/**
+ * Renders beautiful-mermaid's SVG without inline `<style>` or `style=""`,
+ * which a Content Security Policy without 'unsafe-inline' blocks: its CSS
+ * goes into a constructed stylesheet scoped to the diagram and its inline
+ * styles are set through the CSSOM. Server and hydration renders, and browsers without
+ * constructable stylesheets, keep the original markup.
+ */
+function MermaidSvg({ svg, ...props }: MermaidSvgProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const constructable = useSyncExternalStore(
+    subscribeNothing,
+    supportsAdoptedStyles,
+    () => false,
+  );
+  const { markup, css } = useMemo(() => splitSvgStyles(svg), [svg]);
+
+  useLayoutEffect(() => {
+    const container = ref.current;
+    if (!constructable || !container) return;
+    for (const el of container.querySelectorAll<SVGElement>(
+      "[data-aui-style]",
+    )) {
+      for (const declaration of (el.dataset["auiStyle"] ?? "").split(";")) {
+        const colon = declaration.indexOf(":");
+        if (colon <= 0) continue;
+        el.style.setProperty(
+          declaration.slice(0, colon).trim(),
+          declaration.slice(colon + 1).trim(),
+        );
+      }
+    }
+    if (!css) return;
+    const root = container.getRootNode();
+    const styleRoot =
+      root instanceof ShadowRoot ? root : container.ownerDocument;
+    if (!("adoptedStyleSheets" in styleRoot)) return;
+    return adoptStyles(styleRoot, css);
+  }, [constructable, markup, css]);
+
+  return (
+    <div
+      ref={ref}
+      {...props}
+      data-aui-mermaid-svg=""
+      dangerouslySetInnerHTML={{ __html: constructable ? markup : svg }}
+    />
+  );
+}
 
 type MermaidZoomProps = {
   svg: string;
@@ -191,14 +334,14 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
             >
-              <div
+              <MermaidSvg
                 data-slot="mermaid-zoom-content"
                 className="aui-mermaid-zoom-content flex h-full w-full items-center justify-center [&_svg]:max-h-[80vh] [&_svg]:max-w-[90vw]"
                 style={{
                   transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
                   transformOrigin: "0 0",
                 }}
-                dangerouslySetInnerHTML={{ __html: zoomSvg }}
+                svg={zoomSvg}
               />
             </div>
             <div
@@ -254,17 +397,18 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
   const result = useMemo(() => {
     if (streaming) return null;
     try {
-      return {
-        svg: renderMermaidSVG(code, {
-          bg: "var(--background)",
-          fg: "var(--foreground)",
-          muted: "var(--muted-foreground)",
-          border: "var(--border)",
-          accent: "var(--foreground)",
-          transparent: true,
-        }),
-        error: null,
-      };
+      const svg = renderMermaidSVG(code, {
+        bg: "var(--background)",
+        fg: "var(--foreground)",
+        muted: "var(--muted-foreground)",
+        border: "var(--border)",
+        accent: "var(--foreground)",
+        transparent: true,
+      });
+      if (isIncompleteDiagram(code, svg)) {
+        throw new Error("Incomplete mermaid diagram");
+      }
+      return { svg, error: null };
     } catch (err) {
       return {
         svg: null,
@@ -311,13 +455,13 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
 
   return (
     <MermaidZoom svg={result.svg}>
-      <div
+      <MermaidSvg
         data-slot="mermaid-diagram"
         className={cn(
           "aui-mermaid-diagram bg-muted overflow-x-auto rounded-b-lg p-2 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full",
           className,
         )}
-        dangerouslySetInnerHTML={{ __html: result.svg }}
+        svg={result.svg}
       />
     </MermaidZoom>
   );

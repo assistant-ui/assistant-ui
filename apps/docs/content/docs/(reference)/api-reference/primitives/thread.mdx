@@ -3,7 +3,7 @@ title: ThreadPrimitive
 description: Thread primitives for rendering chat transcripts, message lists, viewport state, suggestions, and composers in assistant-ui.
 ---
 
-import { ThreadPrimitiveIfProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
+import { ThreadPrimitiveIfProps, ThreadPrimitiveLoadEarlierProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveRowProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -65,11 +65,9 @@ const Thread = () => (
 
 ### Empty
 
-{ThreadPrimitiveDocs.Empty?.deprecated && (
-  <Callout type="warn">
-    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.Empty.deprecated}
-  </Callout>
-)}
+<Callout type="warn">
+  <strong>Deprecated.</strong> Use `<AuiIf condition={(s) => s.thread.isEmpty} />` instead.
+</Callout>
 
 {ThreadPrimitiveDocs.Empty?.description}
 
@@ -83,11 +81,9 @@ const Thread = () => (
 
 ### If
 
-{ThreadPrimitiveDocs.If?.deprecated && (
-  <Callout type="warn">
-    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.If.deprecated}
-  </Callout>
-)}
+<Callout type="warn">
+  <strong>Deprecated.</strong> Use `<AuiIf condition={(s) => s.thread...} />` instead.
+</Callout>
 
 {ThreadPrimitiveDocs.If?.description}
 
@@ -198,11 +194,9 @@ const Thread = () => (
 
 ### Unstable_MessageById
 
-{ThreadPrimitiveDocs.Unstable_MessageById?.deprecated && (
-  <Callout type="tip">
-    <strong>Experimental.</strong> {ThreadPrimitiveDocs.Unstable_MessageById.deprecated}
-  </Callout>
-)}
+<Callout type="tip">
+  <strong>Experimental.</strong> Shipped 2026-06-23; it may change in any release.
+</Callout>
 
 {ThreadPrimitiveDocs.Unstable_MessageById?.description}
 
@@ -223,6 +217,22 @@ return messageIds.map((messageId) => (
 
 <ParametersTable {...ThreadPrimitiveUnstable_MessageByIdProps} />
 
+### Row
+
+{ThreadPrimitiveDocs.Row?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.Row.deprecated}
+  </Callout>
+)}
+
+{ThreadPrimitiveDocs.Row?.description}
+
+{ThreadPrimitiveDocs.Row?.element && (
+  <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.Row?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ThreadPrimitiveRowProps} />
+
 ### ScrollToBottom
 
 {ThreadPrimitiveDocs.ScrollToBottom?.deprecated && (
@@ -238,6 +248,22 @@ return messageIds.map((messageId) => (
 )}
 
 <ParametersTable {...ThreadPrimitiveScrollToBottomProps} />
+
+### LoadEarlier
+
+{ThreadPrimitiveDocs.LoadEarlier?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ThreadPrimitiveDocs.LoadEarlier.deprecated}
+  </Callout>
+)}
+
+{ThreadPrimitiveDocs.LoadEarlier?.description}
+
+{ThreadPrimitiveDocs.LoadEarlier?.element && (
+  <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.LoadEarlier?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ThreadPrimitiveLoadEarlierProps} />
 
 ### Suggestion
 

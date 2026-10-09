@@ -50,37 +50,37 @@ export function ComposerBar() {
   const mention = useComposerMentions();
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-      <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mention.adapter}>
-        <ComposerPrimitive.Unstable_TriggerPopover.Directive
+    <ComposerPrimitive.TriggerPopoverRoot>
+      <ComposerPrimitive.TriggerPopover char="@" adapter={mention.adapter}>
+        <ComposerPrimitive.TriggerPopover.Directive
           formatter={mention.directive.formatter}
           onInserted={mention.directive.onInserted}
         />
-        <ComposerPrimitive.Unstable_TriggerPopoverItems>
+        <ComposerPrimitive.TriggerPopoverItems>
           {(items) => (
             <div className={cn(floating, "absolute bottom-full z-10 mb-2 w-64 rounded-2xl p-1.5")}>
               {items.map((item, index) => (
-                <ComposerPrimitive.Unstable_TriggerPopoverItem
+                <ComposerPrimitive.TriggerPopoverItem
                   key={item.id}
                   item={item}
                   index={index}
                   className="data-[highlighted]:bg-foreground/[0.04] flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 outline-none"
                 >
-                  <span className="bg-foreground/[0.06] text-foreground/45 flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-medium">
+                  <span className="bg-foreground/[0.06] text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-medium">
                     {item.label[0]}
                   </span>
                   <span className="flex-1 truncate text-start">{item.label}</span>
-                  <span className={cn(mono, "text-foreground/35")}>{item.type}</span>
-                </ComposerPrimitive.Unstable_TriggerPopoverItem>
+                  <span className={cn(mono, "text-muted-foreground")}>{item.type}</span>
+                </ComposerPrimitive.TriggerPopoverItem>
               ))}
             </div>
           )}
-        </ComposerPrimitive.Unstable_TriggerPopoverItems>
-      </ComposerPrimitive.Unstable_TriggerPopover>
+        </ComposerPrimitive.TriggerPopoverItems>
+      </ComposerPrimitive.TriggerPopover>
       <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[24px] p-2.5">
         <ComposerPrimitive.Input placeholder="Message, or @ to mention..." rows={1} className="min-h-11 w-full resize-none bg-transparent px-3 outline-none" />
       </ComposerPrimitive.Root>
-    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 }
 ```
@@ -157,7 +157,7 @@ export function ChatBox() {
 </div>
 ```
 
-With a runtime, a pick does not insert a chip directly into the textarea; it inserts literal directive text in `unstable_defaultDirectiveFormatter`'s `:type[label]{name=id}` syntax (the `{name=…}` part is dropped when `id` and `label` match), which only renders as a chip once a message renderer parses it back out. Standalone, `applyMention` inserts the plain name instead, since there is no message-rendering step to hand a directive to.
+With a runtime, a pick does not insert a chip directly into the textarea; it inserts literal directive text in `defaultDirectiveFormatter`'s `:type[label]{name=id}` syntax (the `{name=…}` part is dropped when `id` and `label` match), which only renders as a chip once a message renderer parses it back out. Standalone, `applyMention` inserts the plain name instead, since there is no message-rendering step to hand a directive to.
 
 ## Examples
 
@@ -217,10 +217,10 @@ Both lanes render into `ComposerMenu`; the avatar circle, name, and role label a
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `Unstable_TriggerPopoverRoot` | provider | Shared with every trigger char registered inside it; see [Slash commands](/elements/composer-slash-commands). |
-| `Unstable_TriggerPopover` | `div` (when open) | `char="@"`, `adapter`. |
-| `Unstable_TriggerPopover.Directive` | behavior | `formatter?`, `onInserted?`; inserts serialized directive text at the trigger position. |
-| `Unstable_TriggerPopoverItems` / `Item` | render prop / `button` | Same shape as the slash-command popover; `Item` gets `data-highlighted` under keyboard navigation. |
+| `TriggerPopoverRoot` | provider | Shared with every trigger char registered inside it; see [Slash commands](/elements/composer-slash-commands). |
+| `TriggerPopover` | `div` (when open) | `char="@"`, `adapter`. |
+| `TriggerPopover.Directive` | behavior | `formatter?`, `onInserted?`; inserts serialized directive text at the trigger position. |
+| `TriggerPopoverItems` / `Item` | render prop / `button` | Same shape as the slash-command popover; `Item` gets `data-highlighted` under keyboard navigation. |
 
 ### unstable_useMentionAdapter
 
@@ -229,10 +229,10 @@ Both lanes render into `ComposerMenu`; the avatar circle, name, and role label a
 | `items` | `Unstable_Mention[]` | Flat list: `{ id, type, label, description?, icon?, metadata? }`; supplying it keeps the adapter flat even when a tool `category` is configured. |
 | `categories` | `Unstable_MentionCategory[]` | Grouped mentions for drill-down navigation; takes precedence over `items`. |
 | `includeModelContextTools` | `boolean \| { category?, formatLabel?, icon? }` | Include tools from `aui.thread.getModelContext()`; an object `category` selects drill-down on its own unless `items` is given. @default `true` when neither `items` nor `categories` is given |
-| `formatter` | `Unstable_DirectiveFormatter` | @default `unstable_defaultDirectiveFormatter` |
+| `formatter` | `DirectiveFormatter` | @default `defaultDirectiveFormatter` |
 | `onInserted` | `(item) => void` | Fires after the directive text lands in the composer. |
 
-Returns `{ adapter, directive, iconMap?, fallbackIcon? }`; spread `directive` onto `Unstable_TriggerPopover.Directive`.
+Returns `{ adapter, directive, iconMap?, fallbackIcon? }`; spread `directive` onto `TriggerPopover.Directive`.
 
 </RuntimeMode>
 

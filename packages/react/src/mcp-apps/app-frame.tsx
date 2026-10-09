@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  type MutableRefObject,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { type MutableRefObject, useEffect, useRef } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { type McpAppBridge, createMcpAppBridge } from "./bridge";
 import {
   SandboxHost,
@@ -19,6 +15,7 @@ import type {
   McpAppHostContext,
 } from "./types";
 import { isRecord } from "@assistant-ui/core/internal";
+import { applyMcpAppCsp } from "./csp";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
@@ -190,7 +187,7 @@ export function McpAppFrame({
     input,
     output,
   });
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     liveRef.current = {
       handlers,
       hostInfo,
@@ -313,7 +310,7 @@ export function McpAppFrame({
 
   return (
     <SandboxHost
-      content={{ html: resource.html }}
+      content={{ html: applyMcpAppCsp(resource.html, resource.meta?.csp) }}
       contentKey={
         app.serverId ? `${app.serverId} ${resource.uri}` : resource.uri
       }

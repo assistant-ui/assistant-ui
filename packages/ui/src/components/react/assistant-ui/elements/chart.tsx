@@ -90,7 +90,7 @@ export function Chart({
       {...props}
     >
       <div className="flex items-baseline justify-between">
-        <span className={cn(mono, "text-foreground/35")}>{label}</span>
+        <span className={cn(mono, "text-muted-foreground")}>{label}</span>
         {delta !== undefined && (
           <span
             data-trend={direction}
@@ -98,7 +98,7 @@ export function Chart({
               mono,
               "tabular-nums",
               good === undefined
-                ? "text-foreground/45"
+                ? "text-muted-foreground"
                 : good
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-red-600 dark:text-red-400",

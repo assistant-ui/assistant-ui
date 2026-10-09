@@ -6,6 +6,7 @@ export const maxDuration = 30;
 export async function POST(request: Request) {
   const { messages }: { messages: UIMessage[] } = await request.json();
   const result = streamText({
+    abortSignal: request.signal,
     model: openai("gpt-6-luna"),
     system: "You are a concise, helpful assistant.",
     messages: await convertToModelMessages(messages),

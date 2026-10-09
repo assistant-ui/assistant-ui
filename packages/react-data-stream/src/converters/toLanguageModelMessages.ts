@@ -9,6 +9,7 @@ import type {
 import type { ThreadMessage } from "@assistant-ui/core";
 import {
   toGenericMessages,
+  type GenericFilePart,
   type GenericMessage,
   type GenericTextPart,
   type GenericToolCallPart,
@@ -32,11 +33,23 @@ function convertUserContent(
 }
 
 function convertAssistantContent(
-  content: (GenericTextPart | GenericToolCallPart)[],
-): (LanguageModelV2TextPart | LanguageModelV2ToolCallPart)[] {
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[],
+): (
+  | LanguageModelV2TextPart
+  | LanguageModelV2FilePart
+  | LanguageModelV2ToolCallPart
+)[] {
   return content.map((part) => {
     if (part.type === "text") {
       return part;
+    }
+    if (part.type === "file") {
+      return {
+        type: "file",
+        data: part.data,
+        mediaType: part.mediaType,
+        ...(part.filename && { filename: part.filename }),
+      };
     }
     return {
       type: "tool-call",
@@ -84,7 +97,11 @@ function convertGenericToLanguageModel(
  */
 export function toLanguageModelMessages(
   messages: readonly ThreadMessage[],
-  options: { unstable_includeId?: boolean | undefined } = {},
+  options: {
+    /** @deprecated Experimental since 2024-10-24. Not scheduled for removal; the API may change in any release. */ unstable_includeId?:
+      | boolean
+      | undefined;
+  } = {},
 ): LanguageModelV2Message[] {
   const includeId = options.unstable_includeId ?? false;
 

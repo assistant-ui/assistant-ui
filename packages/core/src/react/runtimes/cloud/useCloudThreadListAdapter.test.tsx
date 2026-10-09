@@ -30,6 +30,24 @@ const Suspend = ({ pending }: { pending: Promise<never> }) => {
 };
 
 describe("useCloudThreadListAdapter", () => {
+  it("replaces the list adapter when its scope changes", () => {
+    const cloud = {
+      registerSdk: vi.fn(),
+      threads: {},
+    } as unknown as AssistantCloud;
+    const { result, rerender } = renderHook(
+      ({ scopeId }) => useCloudThreadListAdapter({ cloud, scopeId }),
+      { initialProps: { scopeId: "workspace-a" } },
+    );
+    const first = result.current;
+
+    rerender({ scopeId: "workspace-a" });
+    expect(result.current).toBe(first);
+
+    rerender({ scopeId: "workspace-b" });
+    expect(result.current).not.toBe(first);
+  });
+
   it("keeps operations scoped to the committed Cloud options", async () => {
     const deleteA = vi.fn(async () => {});
     const deleteB = vi.fn(async () => {});

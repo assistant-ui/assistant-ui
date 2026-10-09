@@ -13,11 +13,12 @@ import {
 } from "./discover.mts";
 import {
   extractPrimitivePartsFor,
+  primitiveExportDeprecated,
   primitivePartTypeDocName,
   readPrimitiveParts,
-  type PrimitivePartModel,
 } from "./primitive-extract.mts";
 import type { TypeDoc, TypeDocBindings } from "./type-docs.mts";
+import { parseDeprecatedTag } from "../../../../scripts/lib/experimental-annotations.mjs";
 
 // ── MDX rendering ──────────────────────────────────────────────────────────
 
@@ -147,23 +148,25 @@ function renderJsDocExample(value: string): string {
 
 type ApiStatus = "stable" | "experimental" | "deprecated";
 
-function isExperimentalDeprecation(deprecated?: string): boolean {
-  return /^(unstable \/ experimental|experimental\b|this (api|feature) is experimental\b|this api is (still )?under active development\b|under active development\b)/i.test(
-    deprecated ?? "",
-  );
+function experimentalCalloutText(deprecated?: string): string | undefined {
+  const tag = parseDeprecatedTag(deprecated ?? "");
+  return tag.kind === "experimental"
+    ? `Shipped ${tag.since}; it may change in any release.`
+    : undefined;
 }
 
 function apiStatusForDeprecatedTag(deprecated?: string): ApiStatus {
   if (!deprecated) return "stable";
-  return isExperimentalDeprecation(deprecated) ? "experimental" : "deprecated";
+  return experimentalCalloutText(deprecated) ? "experimental" : "deprecated";
 }
 
 function apiStatusCallout(deprecated?: string): string[] {
   if (!deprecated) return [];
-  if (apiStatusForDeprecatedTag(deprecated) === "experimental") {
+  const experimental = experimentalCalloutText(deprecated);
+  if (experimental) {
     return [
       `<Callout type="tip">`,
-      `<strong>Experimental.</strong> ${mdxEscape(deprecated)}`,
+      `<strong>Experimental.</strong> ${mdxEscape(experimental)}`,
       `</Callout>`,
       "",
     ];
@@ -553,7 +556,8 @@ function generatePrimitiveReferenceRegion(
           item.name,
           part,
           typeDocNames,
-          primitivePart,
+          primitivePart?.deprecated ??
+            primitiveExportDeprecated(item.name, part, item.jsDocRenderOptions),
           examples,
         ),
         "",
@@ -599,27 +603,32 @@ function primitiveParametersTable(
   primitiveName: string,
   part: string,
   typeDocNames: Set<string>,
-  primitivePart: PrimitivePartModel | undefined,
+  deprecated: string | undefined,
   examples: string[],
 ): string {
   const binding = `${primitiveName}Docs.${part}`;
   const typeDocName = primitivePartTypeDocName(primitiveName, part);
+  const experimental = experimentalCalloutText(deprecated);
   const statusCallout =
-    apiStatusForDeprecatedTag(primitivePart?.deprecated) === "experimental"
+    experimental !== undefined
       ? [
-          `{${binding}?.deprecated && (`,
-          `  <Callout type="tip">`,
-          `    <strong>Experimental.</strong> {${binding}.deprecated}`,
-          `  </Callout>`,
-          `)}`,
+          `<Callout type="tip">`,
+          `  <strong>Experimental.</strong> ${mdxEscape(experimental)}`,
+          `</Callout>`,
         ]
-      : [
-          `{${binding}?.deprecated && (`,
-          `  <Callout type="warn">`,
-          `    <strong>Deprecated.</strong> {${binding}.deprecated}`,
-          `  </Callout>`,
-          `)}`,
-        ];
+      : deprecated
+        ? [
+            `<Callout type="warn">`,
+            `  <strong>Deprecated.</strong> ${mdxEscape(deprecated)}`,
+            `</Callout>`,
+          ]
+        : [
+            `{${binding}?.deprecated && (`,
+            `  <Callout type="warn">`,
+            `    <strong>Deprecated.</strong> {${binding}.deprecated}`,
+            `  </Callout>`,
+            `)}`,
+          ];
   const table = typeDocNames.has(typeDocName)
     ? `<ParametersTable {...${typeDocName}} />`
     : [

@@ -32,7 +32,9 @@ export type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
+  /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   unstable_summary?: string;
+  timing?: MessagePartTiming;
   parentId?: string;
 };
 
@@ -55,17 +57,20 @@ type ToolCallStatus =
     };
 
 /**
- * Wall-clock timing of a tool call. Accumulator-populated timings are
+ * Wall-clock timing of a message part. Accumulator-populated timings are
  * measured by the consuming accumulator, so resumed or replayed streams
  * re-measure them; hosts that need authoritative timings supply the field
  * themselves.
  */
-export type ToolCallTiming = {
-  /** Epoch milliseconds when the tool call started streaming or executing. */
+export type MessagePartTiming = {
+  /** Epoch milliseconds when the part started streaming, or when a tool call started executing. */
   readonly startedAt: number;
-  /** Epoch milliseconds when the result landed. Absent while the call runs. */
+  /** Epoch milliseconds when the part finished: a reasoning part stopped streaming, or a tool call's result landed. Absent while the part runs. */
   readonly completedAt?: number;
 };
+
+/** Wall-clock timing of a tool call. */
+export type ToolCallTiming = MessagePartTiming;
 
 type ToolCallPartBase = {
   type: "tool-call";
@@ -219,8 +224,11 @@ export type AssistantMessage = {
   content: AssistantMessagePart[];
 
   metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     unstable_state: ReadonlyJSONValue;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     unstable_data: ReadonlyJSONValue[];
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];
     custom: Record<string, unknown>;

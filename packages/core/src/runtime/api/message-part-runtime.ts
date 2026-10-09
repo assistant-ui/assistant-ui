@@ -31,6 +31,7 @@ export type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_recordInteraction?: (
     input: Unstable_ToolInteractionInput,
   ) => Promise<void>;
@@ -152,6 +153,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       );
   }
 
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   public async unstable_recordInteraction(
     input: Unstable_ToolInteractionInput,
   ): Promise<void> {

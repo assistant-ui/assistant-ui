@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "safe-content-frame";
+const title = "Safe Content Frame";
 const description =
-  "Untrusted HTML in a sandboxed iframe. Unique origin per render. Pure JS.";
+  "Sandboxes for HTML. Render MCP Apps and Generative UI in isolated iframes with their own origins.";
 
 export const metadata: Metadata = {
   title,
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-export default function SafeContentFrameLayout({
+export default function SandboxLayout({
   children,
 }: {
   children: ReactNode;

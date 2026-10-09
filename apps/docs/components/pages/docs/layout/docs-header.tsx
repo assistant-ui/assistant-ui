@@ -16,7 +16,10 @@ import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { CartButton } from "@/components/shared/shop-entry";
-import { headerBarClassName } from "@/components/shared/header-chrome";
+import {
+  headerBarClassName,
+  headerSlashClassName,
+} from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -194,10 +197,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           )}
         >
           <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink labelClassName="hidden sm:inline md:max-lg:hidden" />
-            <span className="text-muted-foreground/40 mx-3 max-md:hidden">
-              /
-            </span>
+            <HeaderBrandLink showLabel={false} />
+            <span className={cn(headerSlashClassName, "max-md:hidden")}>/</span>
             <Link
               href={homeHref}
               className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"

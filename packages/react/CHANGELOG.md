@@ -1,5 +1,48 @@
 # @assistant-ui/react
 
+## 0.15.25
+
+### Patch Changes
+
+- [#8796](https://github.com/assistant-ui/assistant-ui/pull/8796) [`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22) - a tool approval can ask several questions at once, or let one question take several answers: `display: "questions"` with `approval.questions`, answered through `respondToApproval({ answers })` keyed by question id, validated before it reaches `onRespondToToolApproval` and recorded on `approval.answers`; the AI SDK converter reads `questions` and `answers` from the approval descriptor when a response handler is set, and the cloud format keeps them ([@okisdev](https://github.com/okisdev))
+
+- [#7212](https://github.com/assistant-ui/assistant-ui/pull/7212) [`9f40133`](https://github.com/assistant-ui/assistant-ui/commit/9f40133ba1a472c143a3da80ec702a828120ace8) - fix: clean up cancelled and pre-load failed sandbox frame renders ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7189](https://github.com/assistant-ui/assistant-ui/pull/7189) [`d2782af`](https://github.com/assistant-ui/assistant-ui/commit/d2782afd1ea692aac00230cf4747f49056a376fc) - feat: allow visible component action settle delays to be configured ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7155](https://github.com/assistant-ui/assistant-ui/pull/7155) [`5484ca4`](https://github.com/assistant-ui/assistant-ui/commit/5484ca42d6bb6a0202997de98da61b59b4888975) - feat: support message-scoped converter metadata invalidation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8798](https://github.com/assistant-ui/assistant-ui/pull/8798) [`ec48da2`](https://github.com/assistant-ui/assistant-ui/commit/ec48da206fc4d9e7c991a06d91f7c224aa1e3089) - a thread can open on its latest page and load older messages on demand: the external store adapter takes `hasEarlier` and `onLoadEarlier`, the runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()` with one load in flight at a time, `ThreadPrimitive.LoadEarlier` loads the next page, `ThreadPrimitive.Viewport` keeps the visible messages in place when it lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` pages through the runtime when it gets no `history` prop ([@okisdev](https://github.com/okisdev))
+
+- [#8760](https://github.com/assistant-ui/assistant-ui/pull/8760) [`2e4d6a9`](https://github.com/assistant-ui/assistant-ui/commit/2e4d6a9788d066665b3a7c993ff5cdbb1c9da14a) - streaming text, running tool durations, and message stall detection read no wall clock during render, so a cacheComponents prerender no longer fails on them. ([@okisdev](https://github.com/okisdev))
+
+- [#8794](https://github.com/assistant-ui/assistant-ui/pull/8794) [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e) - reasoning parts carry an optional `timing` with their start and end times, typed as the new `MessagePartTiming` that `ToolCallTiming` now aliases, so a host can show how long its agent thought; the assistant-stream accumulator stamps it while reasoning streams, joined reasoning parts and the cloud format keep it, and a `MessagePrimitive.GroupedParts` group reports the span of its timed parts as `timing` ([@okisdev](https://github.com/okisdev))
+
+- [#8795](https://github.com/assistant-ui/assistant-ui/pull/8795) [`1f77d04`](https://github.com/assistant-ui/assistant-ui/commit/1f77d04435f71476172a6d1ffca871da1a0c933a) - the composer trigger popover primitives and their adapter, item, category and directive formatter types get stable names; the `Unstable_` names stay as deprecated aliases, and the trigger popover hooks stay unstable ([@okisdev](https://github.com/okisdev))
+
+- [#8799](https://github.com/assistant-ui/assistant-ui/pull/8799) [`aecb5eb`](https://github.com/assistant-ui/assistant-ui/commit/aecb5eb749e915920682bdcffddc54668f911aab) - a long thread can be virtualized per part instead of per message: `createThreadRowsSelector` flattens the thread for `useAuiState` into stable rows (a user message, each top-level part group of an assistant message, a turn end) that keep their identity while tokens stream, and `ThreadPrimitive.Row` renders one row with only the scopes it needs; a turn-end row carries the turn's start time and, once the turn completes, the latest end its messages record, so a turn footer can show how long the agent worked ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`c883dc0`](https://github.com/assistant-ui/assistant-ui/commit/c883dc0a7283e9c97e2887eb49178d5d8714c10b), [`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`64277e2`](https://github.com/assistant-ui/assistant-ui/commit/64277e2781ac0b65eb34b45bf0fad1f371e7b2d7), [`9f40133`](https://github.com/assistant-ui/assistant-ui/commit/9f40133ba1a472c143a3da80ec702a828120ace8), [`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f), [`ed84b12`](https://github.com/assistant-ui/assistant-ui/commit/ed84b12cdb12cbe3c265ecf64def460f8f7fb6fe), [`2bc1edb`](https://github.com/assistant-ui/assistant-ui/commit/2bc1edb8c84c56d8dbe296c7161ca3dcb5a972b7), [`0284a07`](https://github.com/assistant-ui/assistant-ui/commit/0284a07bec29c6c8651ffb231ebda309368ef50b), [`5484ca4`](https://github.com/assistant-ui/assistant-ui/commit/5484ca42d6bb6a0202997de98da61b59b4888975), [`ec48da2`](https://github.com/assistant-ui/assistant-ui/commit/ec48da206fc4d9e7c991a06d91f7c224aa1e3089), [`46133cd`](https://github.com/assistant-ui/assistant-ui/commit/46133cdbc759c711b0d217a1aa70e65224c78386), [`3effee5`](https://github.com/assistant-ui/assistant-ui/commit/3effee567af36c5aaac45c4fb4373da3f2516811), [`451a76c`](https://github.com/assistant-ui/assistant-ui/commit/451a76c08cd67311eed08102e923fa83f45c4f5e), [`16439da`](https://github.com/assistant-ui/assistant-ui/commit/16439da6329f765f62e9977da5a3b105a7a3c0ac), [`1f77d04`](https://github.com/assistant-ui/assistant-ui/commit/1f77d04435f71476172a6d1ffca871da1a0c933a), [`aecb5eb`](https://github.com/assistant-ui/assistant-ui/commit/aecb5eb749e915920682bdcffddc54668f911aab), [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956)]:
+  - @assistant-ui/core@0.3.24
+  - assistant-stream@0.3.48
+  - safe-content-frame@0.0.33
+
+## 0.15.24
+
+### Patch Changes
+
+- [#8148](https://github.com/assistant-ui/assistant-ui/pull/8148) [`b400b75`](https://github.com/assistant-ui/assistant-ui/commit/b400b757a9993d8fc2c104134bd28b14df5d5e64) - fix(react): ignore the Enter or Escape that ends an IME composition, so committing a conversion in Safari no longer sends the message, and cancelling one no longer cancels the run or stops read-aloud ([@samdickson22](https://github.com/samdickson22))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8684](https://github.com/assistant-ui/assistant-ui/pull/8684) [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd) - key message parts by their id when no other part of the same type in the message shares it, so a replaced or reordered part no longer keeps another part's component state ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c), [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc), [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a), [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9), [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd), [`3ea546a`](https://github.com/assistant-ui/assistant-ui/commit/3ea546a3e3d8b04253e095972a007ffc789d895d), [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc), [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4)]:
+  - @assistant-ui/core@0.3.23
+  - assistant-stream@0.3.47
+  - assistant-cloud@0.2.5
+  - safe-content-frame@0.0.32
+  - @assistant-ui/store@0.3.17
+  - @assistant-ui/tap@0.9.21
+
 ## 0.15.23
 
 ### Patch Changes

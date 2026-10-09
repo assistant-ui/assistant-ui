@@ -335,11 +335,15 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
    * When true, renders the Cancel button in the composer and aborts the
    * `AbortController` whose signal is exposed to your `stream` callback
    * as `config.abortSignal`.
+   *
+   * @deprecated Experimental since 2025-01-03. Not scheduled for removal; the API may change in any release.
    */
   unstable_allowCancellation?: boolean | undefined;
   /**
    * Opt in to message queuing: a message sent during a run is held in
    * `composer.queue` and sent once the run settles. Steering runs it next.
+   *
+   * @deprecated Experimental since 2026-06-04. Not scheduled for removal; the API may change in any release.
    */
   unstable_enableMessageQueue?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
@@ -442,6 +446,11 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
     | undefined;
   cloud?: AssistantCloud | undefined;
   /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
+  /**
    * A `RemoteThreadListAdapter` to use instead of the cloud adapter. Provide
    * this to back the thread list with a custom store (e.g. LangGraph
    * `client.threads.search()`) so pre-existing LangGraph thread ids appear in
@@ -450,6 +459,8 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
    * When provided, `cloud`, `create`, and `delete` are ignored — the adapter
    * owns the full thread list lifecycle. The `externalId` returned by the
    * adapter's `list()` / `initialize()` is what the `load` callback receives.
+   *
+   * @deprecated Experimental since 2026-04-16. Not scheduled for removal; the API may change in any release.
    */
   unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
 };

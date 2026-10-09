@@ -37,21 +37,21 @@ export function PermissionGrant({
       {...props}
     >
       <div className="flex items-center gap-2.5">
-        <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">
+        <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-lg">
           <KeyRoundIcon className="size-3.5" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13.5px] font-medium">
             {capability}
           </span>
-          <span className="text-foreground/45 truncate text-xs">
+          <span className="text-muted-foreground truncate text-xs">
             requested by {requester}
           </span>
         </div>
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className={cn(mono, "text-foreground/30")}>this grants</span>
+        <span className={cn(mono, "text-muted-foreground")}>this grants</span>
         {reach.map((item) => (
           <span
             key={item}
@@ -73,14 +73,14 @@ export function PermissionGrant({
               <button
                 type="button"
                 onClick={() => onGrant("denied")}
-                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+                className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
               >
                 Deny
               </button>
               <button
                 type="button"
                 onClick={() => onGrant("session")}
-                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+                className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
               >
                 This session
               </button>
@@ -101,7 +101,7 @@ export function PermissionGrant({
               className={cn(
                 field,
                 mono,
-                "fade-in animate-in text-foreground/55 rounded-full px-2.5 py-1.5 duration-300",
+                "fade-in animate-in text-muted-foreground rounded-full px-2.5 py-1.5 duration-300",
               )}
             >
               pending
@@ -113,7 +113,7 @@ export function PermissionGrant({
             className={cn(
               field,
               mono,
-              "fade-in animate-in text-foreground/55 rounded-full px-2.5 py-1.5 duration-300",
+              "fade-in animate-in text-muted-foreground rounded-full px-2.5 py-1.5 duration-300",
             )}
           >
             {scope === "denied" ? "denied" : `granted · ${scope}`}

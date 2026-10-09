@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Ref hook benchmark: many ref cells in one host.
  *

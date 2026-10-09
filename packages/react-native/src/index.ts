@@ -20,9 +20,13 @@ export type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
+  ToolApprovalAnswer,
+  ToolApprovalQuestion,
+  ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePart,
   ToolCallMessagePartStatus,
+  MessagePartTiming,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
@@ -156,9 +160,13 @@ export {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
   useExternalMessageConverter,
+  /** @deprecated Experimental since 2025-01-26. Not scheduled for removal; the API may change in any release. */
   convertExternalMessages as unstable_convertExternalMessages,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
   createMessageConverter as unstable_createMessageConverter,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
   type JoinStrategy,
 } from "@assistant-ui/core/react";
@@ -179,6 +187,11 @@ export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ErrorPrimitive from "./primitives/error";
 
 export { groupPartByType, type GroupByContext } from "@assistant-ui/core/react";
+export {
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
+} from "@assistant-ui/core/react";
 export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 
 // Re-export shared providers from core/react
@@ -404,9 +417,17 @@ export type {
   ThreadSuggestion,
   ToolCallMessagePartMcpMetadata,
   ToolExecutionStatus,
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
   VoiceSessionState,
 } from "@assistant-ui/core";
-export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "@assistant-ui/core";

@@ -61,6 +61,13 @@ export type GenericThreadHistoryAdapter<TMessage> = {
 
 export type ThreadHistoryAdapter = {
   /**
+   * Stable identity for the storage scope read by LocalRuntime. Keep it the
+   * same when recreating the adapter for one thread, account, or workspace,
+   * and change it before loading a different scope. Adapters that omit it are
+   * treated as sharing one scope. External-history runtimes do not read it.
+   */
+  scopeId?: string | undefined;
+  /**
    * Keeps a copy of messages whose source of truth is the runtime's backend.
    * `branch` is the conversation from its first message to its last, and
    * `messageIds` names the ones in it that are new or changed; the adapter
@@ -68,6 +75,8 @@ export type ThreadHistoryAdapter = {
    * yet, keyed by each message's own id. It is undefined while the adapter
    * keeps no copies, so the runtime then neither copies nor records tool
    * interactions.
+   *
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_copy?:
     | ((
@@ -78,6 +87,7 @@ export type ThreadHistoryAdapter = {
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;
+      /** @deprecated Experimental since 2025-03-31. Not scheduled for removal; the API may change in any release. */
       unstable_resume?: boolean;
     }
   >;

@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 
-// Deliberately does not mock `eve/react`: the real `useEveAgent` resumes an
-// offline session so the durable `meta.at` values travel through eve's own
-// store and reducer before the adapter reads them. Supplying `session` keeps
-// the store from constructing a network client.
-
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MessageStreamEvent } from "eve/client";
 
+import { createEveSessionFixture } from "./testUtils";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 
 const TURN = "turn_resumed";
@@ -61,7 +57,11 @@ const nextTurnEvents = [
   {
     type: "message.received",
     data: { message: "follow up", sequence: 8, turnId: NEXT_TURN },
-    meta: { at: "2026-01-02T10:03:01.000Z", id: "evt_202" },
+    meta: {
+      at: "2026-01-02T10:03:01.000Z",
+      id: "evt_202",
+      deliveryIds: ["delivery_1"],
+    },
   },
   {
     type: "step.started",
@@ -108,23 +108,13 @@ const parkedEvents = [
 const copyEvents = (events: readonly MessageStreamEvent[]) =>
   JSON.parse(JSON.stringify(events)) as readonly MessageStreamEvent[];
 
-const offlineSession = {
-  state: { sessionId: "session_resumed", streamIndex: 0 },
-  cancel: async () => ({ status: "no_active_turn" }),
-  send: () => {
-    throw new Error("the resume test must not reach the network");
-  },
-  stream: async function* () {
-    yield* JSON.parse(
-      JSON.stringify(resumedEvents),
-    ) as readonly MessageStreamEvent[];
-  },
-} as never;
+afterEach(() => vi.unstubAllGlobals());
 
 describe("useEveAgentRuntime against a resumed eve session", () => {
   it("renders resumed history at its durable event times, not the current time", async () => {
+    const { session } = createEveSessionFixture({ events: resumedEvents });
     const { result } = renderHook(() =>
-      useEveAgentRuntime({ resume: true, session: offlineSession }),
+      useEveAgentRuntime({ resume: true, session }),
     );
 
     await waitFor(() =>
@@ -137,44 +127,34 @@ describe("useEveAgentRuntime against a resumed eve session", () => {
   });
 
   it("reports the replay as loading and holds a send typed during it until the replay ends", async () => {
-    let openReplay!: () => void;
-    const replayOpened = new Promise<void>((resolve) => {
-      openReplay = resolve;
+    const { fetch, push, session } = createEveSessionFixture({
+      tailIndex: parkedEvents.length - 1,
+      onSend: () => setTimeout(() => push(copyEvents(nextTurnEvents)), 0),
     });
-    const stream = vi.fn(async function* () {
-      await replayOpened;
-      yield* copyEvents(parkedEvents);
-    });
-    const send = vi.fn(async function* () {
-      yield* copyEvents(nextTurnEvents);
-    });
-    const session = {
-      state: { sessionId: "session_resumed", streamIndex: 0 },
-      cancel: async () => ({ status: "no_active_turn" }),
-      send,
-      stream,
-    } as never;
 
     const { result } = renderHook(() =>
       useEveAgentRuntime({ resume: true, session }),
     );
 
-    await waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     expect(result.current.thread.getState().isLoading).toBe(true);
 
     act(() => result.current.thread.append("follow up"));
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(send).not.toHaveBeenCalled();
-    expect(stream).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledOnce();
 
-    await act(async () => openReplay());
+    await act(async () => {
+      push(copyEvents(parkedEvents));
+    });
 
     await waitFor(() =>
       expect(result.current.thread.getState().messages).toHaveLength(4),
     );
-    expect(send).toHaveBeenCalledOnce();
+    expect(
+      fetch.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(1);
     expect(result.current.thread.getState().isLoading).toBe(false);
   });
 });

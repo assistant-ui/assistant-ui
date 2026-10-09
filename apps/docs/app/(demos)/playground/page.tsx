@@ -174,7 +174,7 @@ function BuilderPlayground() {
                 </button>
               );
             })}
-            <span className="text-foreground/30 ml-1.5 font-mono text-[11px] tabular-nums">
+            <span className="text-foreground/30 ml-1.5 text-xs tabular-nums">
               {viewportWidth === "100%" ? "100%" : `${viewportWidth}px`}
             </span>
           </div>
@@ -210,7 +210,7 @@ function BuilderPlayground() {
           <div className="flex items-center gap-0.5">
             <ThreadListPrimitive.New
               className={cn(toolBtn, toolBtnOff)}
-              aria-label="New thread"
+              aria-label="New Thread"
             >
               <Plus className="size-3.5" />
               <span className="hidden sm:inline">New Thread</span>
@@ -261,6 +261,7 @@ function BuilderPlayground() {
             <button
               type="button"
               onClick={() => setShowCode(!showCode)}
+              aria-label={showCode ? "Close" : "Code"}
               className={cn(toolBtn, showCode ? toolBtnOn : toolBtnOff)}
             >
               {showCode ? (
@@ -281,7 +282,12 @@ function BuilderPlayground() {
               container={previewContainerRef}
               onOpenCodeView={() => setShowCode(true)}
             >
-              <Button type="button" variant="outline" size="sm">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Create Project"
+              >
                 <SquareTerminal className="size-3.5" />
                 <span className="hidden sm:inline">Create Project</span>
               </Button>
