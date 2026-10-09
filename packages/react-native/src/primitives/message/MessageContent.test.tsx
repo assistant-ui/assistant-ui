@@ -11,7 +11,6 @@ const h = vi.hoisted(() => ({
   respondToToolApproval: vi.fn(),
   unstable_recordInteraction: vi.fn(),
   state: {
-    part: { type: "text" } as AnyPart,
     message: {
       content: [] as AnyPart[],
       get parts() {
@@ -49,15 +48,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
-  PartByIndexProvider: ({
-    children,
-  }: {
-    children: import("react").ReactNode;
-  }) => children,
-}));
-
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("MessageContent", () => {
@@ -90,7 +80,6 @@ describe("MessageContent", () => {
   const mount = async (
     props: Partial<Parameters<typeof MessageContent>[0]> = {},
   ) => {
-    h.state.part = h.state.message.content[0] ?? { type: "text" };
     await act(async () => {
       root.render(<MessageContent {...props} />);
     });
@@ -170,16 +159,14 @@ describe("MessageContent", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("renders defaults for optional parts when no renderer is provided", async () => {
+  it("renders null for reasoning, source, and file without renderers", async () => {
     h.state.message.content = [
-      { type: "image", image: "x" },
       { type: "reasoning", text: "r" },
       { type: "source", sourceType: "url", id: "1", url: "u" },
-      { type: "file", filename: "f", mimeType: "text/plain" },
+      { type: "file", filename: "f" },
     ];
     await mount();
-    expect(container.querySelector("img")?.getAttribute("src")).toContain("x");
-    expect(container.textContent).toBe("r[source: u][file: f text/plain]");
+    expect(container.textContent).toBe("");
   });
 
   it("renders optional parts via their provided renderers", async () => {

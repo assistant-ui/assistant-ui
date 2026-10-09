@@ -14,73 +14,40 @@ import { MessageContent } from "./MessageContent";
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("MessageContent with a runtime", () => {
-  it.each([
-    {
-      type: "image",
-      part: { type: "image", image: "data:image/png;base64,iVBORw0KGgo=" },
-      expected: "data:image/png;base64,iVBORw0KGgo=",
-    },
-    {
-      type: "reasoning",
-      part: { type: "reasoning", text: "thinking text" },
-      expected: "thinking text",
-    },
-    {
-      type: "source",
-      part: {
-        type: "source",
-        sourceType: "url",
-        id: "src-1",
-        title: "Docs",
-        url: "https://example.com/docs",
-      },
-      expected: "[source: Docs https://example.com/docs]",
-    },
-    {
-      type: "file",
-      part: {
-        type: "file",
-        filename: "report.txt",
-        mimeType: "text/plain",
-        data: "contents",
-      },
-      expected: "[file: report.txt text/plain]",
-    },
-  ] as const)(
-    "renders a default $type part",
-    async ({ type, part, expected }) => {
-      const App = () => {
-        const runtime = useExternalStoreRuntime({
-          messages: [
-            { role: "assistant", content: [part] },
-          ] satisfies ThreadMessageLike[],
-          convertMessage: (value) => value,
-          onNew: async () => {},
-        });
-        return (
-          <AssistantRuntimeProvider runtime={runtime}>
-            <MessageByIndexProvider index={0}>
-              <MessageContent />
-            </MessageByIndexProvider>
-          </AssistantRuntimeProvider>
-        );
-      };
-      const container = document.createElement("div");
-      const root = createRoot(container);
-      try {
-        await act(async () => root.render(<App />));
-        if (type === "image") {
-          expect(container.querySelector("img")?.getAttribute("src")).toBe(
-            expected,
-          );
-        } else {
-          expect(container.textContent).toContain(expected);
-        }
-      } finally {
-        await act(async () => root.unmount());
-      }
-    },
-  );
+  it("renders a default image after a text part", async () => {
+    const image = "data:image/png;base64,iVBORw0KGgo=";
+    const App = () => {
+      const runtime = useExternalStoreRuntime({
+        messages: [
+          {
+            role: "assistant",
+            content: [
+              { type: "text", text: "lead" },
+              { type: "image", image },
+            ],
+          },
+        ] satisfies ThreadMessageLike[],
+        convertMessage: (value) => value,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <MessageByIndexProvider index={0}>
+            <MessageContent />
+          </MessageByIndexProvider>
+        </AssistantRuntimeProvider>
+      );
+    };
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<App />));
+      expect(container.textContent).toContain("lead");
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(image);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
 
   it.each(["tool-call", "data"] as const)(
     "renders derived status for registered %s UIs",

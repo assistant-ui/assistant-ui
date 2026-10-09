@@ -168,43 +168,18 @@ export const MessageContent = ({
               </Fragment>
             );
           case "reasoning":
+            if (!renderReasoning) return null;
             return (
-              <Fragment key={key}>
-                {renderReasoning ? (
-                  renderReasoning({ part, index })
-                ) : (
-                  <Text>{part.text}</Text>
-                )}
-              </Fragment>
+              <Fragment key={key}>{renderReasoning({ part, index })}</Fragment>
             );
           case "source":
+            if (!renderSource) return null;
             return (
-              <Fragment key={key}>
-                {renderSource ? (
-                  renderSource({ part, index })
-                ) : (
-                  <Text>
-                    [source{part.title || part.url ? ": " : ""}
-                    {part.title}
-                    {part.title && part.url ? " " : ""}
-                    {part.url}]
-                  </Text>
-                )}
-              </Fragment>
+              <Fragment key={key}>{renderSource({ part, index })}</Fragment>
             );
           case "file":
-            return (
-              <Fragment key={key}>
-                {renderFile ? (
-                  renderFile({ part, index })
-                ) : (
-                  <Text>
-                    [file: {part.filename ? `${part.filename} ` : ""}
-                    {part.mimeType}]
-                  </Text>
-                )}
-              </Fragment>
-            );
+            if (!renderFile) return null;
+            return <Fragment key={key}>{renderFile({ part, index })}</Fragment>;
           case "data":
             return (
               <Fragment key={key}>
