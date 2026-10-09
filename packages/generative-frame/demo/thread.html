@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>generative-frame assistant-ui demo</title>
+    <link rel="stylesheet" href="./demo.css" />
+    <style>
+      .thread { display: grid; gap: 12px; }
+      .user { justify-self: end; background: var(--muted); border-radius: 14px; padding: 8px 12px; max-width: 80%; }
+      .assistant { display: grid; gap: 8px; }
+      .assistant p { margin: 0; }
+      .composer { display: flex; gap: 8px; margin-top: 16px; }
+      .composer textarea { flex: 1; font: inherit; color: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--input); background: var(--card); resize: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./thread.tsx"></script>
+  </body>
+</html>

@@ -38,4 +38,7 @@ export default defineConfig({
   root: here,
   plugins: [saveArtifacts],
   server: { port: 5199, strictPort: true },
+  // Workspace packages are not pre-bundled by default, and @assistant-ui/tap's
+  // React shim re-exports CommonJS React, which only works pre-bundled.
+  optimizeDeps: { include: ["@assistant-ui/react"] },
 });

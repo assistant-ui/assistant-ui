@@ -157,8 +157,8 @@ const slug = (text: string) =>
   text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40) || "widget";
+    .slice(0, 40)
+    .replace(/^_+|_+$/g, "") || "widget";
 
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve) => {

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>generative-frame agent demo</title>
+    <link rel="stylesheet" href="./demo.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Delegated generation</h1>
+      <p class="lead">A fake model replays a recorded sub-agent stream: read_me, a buggy show_widget, then an edit_widget repair.</p>
+      <div class="controls"><button id="run" type="button">Run generate_widget</button></div>
+      <p class="prose" id="status" role="status"></p>
+      <div class="bubble" id="widget"></div>
+      <pre id="result" class="prose"></pre>
+      <div id="log"></div>
+    </main>
+    <script type="module" src="./agent.ts"></script>
+  </body>
+</html>
