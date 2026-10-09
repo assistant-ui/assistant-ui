@@ -8,7 +8,8 @@ import {
 } from "../test-utils";
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
+import { useMemo as useResourceMemo } from "../../react-hooks/useMemo";
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 import {
@@ -60,6 +61,52 @@ describe("@assistant-ui/tap/react resource API", () => {
   });
 
   describe("useResources", () => {
+    it("keeps memo replay consistent for initial and later keys in a StrictMode host", () => {
+      const calls = { initial: 0, later: 0 };
+      const Item = resource(function useItem({
+        name,
+        value,
+      }: {
+        name: keyof typeof calls;
+        value: number;
+      }) {
+        return useResourceMemo(() => {
+          calls[name]++;
+          return value;
+        }, [value]);
+      });
+      function Host({ addLater, value }: { addLater: boolean; value: number }) {
+        const names = addLater
+          ? (["initial", "later"] as const)
+          : (["initial"] as const);
+        useResources(
+          names.map((name) =>
+            withKey(name, Item({ name, value }), [name, value]),
+          ),
+        );
+        return null;
+      }
+      const view = render(
+        <StrictMode>
+          <Host addLater={false} value={0} />
+        </StrictMode>,
+      );
+      view.rerender(
+        <StrictMode>
+          <Host addLater value={0} />
+        </StrictMode>,
+      );
+      calls.initial = 0;
+      calls.later = 0;
+      view.rerender(
+        <StrictMode>
+          <Host addLater value={1} />
+        </StrictMode>,
+      );
+      expect(calls.initial).toBeGreaterThan(0);
+      expect(calls.later).toBe(calls.initial);
+    });
+
     it("hosts a keyed list inside a tap resource", () => {
       const useItem = (p: { n: number }) => {
         return p.n * 10;

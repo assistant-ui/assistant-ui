@@ -14,18 +14,21 @@ type RendererInternals = {
   ) => void;
 };
 
-let renderer: RendererInternals | undefined;
-const fiberRoots = new Set<unknown>();
-vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
-  supportsFiber: true,
-  inject: (internals: RendererInternals) => {
-    renderer = internals;
-    return 1;
-  },
-  onScheduleFiberRoot: () => {},
-  onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
-  onCommitFiberUnmount: () => {},
+const { rendererState, fiberRoots } = vi.hoisted(() => {
+  const rendererState = { current: undefined as RendererInternals | undefined };
+  const fiberRoots = new Set<unknown>();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
+    supportsFiber: true,
+    inject: (internals: RendererInternals) => {
+      rendererState.current = internals;
+      return 1;
+    },
+    onScheduleFiberRoot: () => {},
+    onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
+    onCommitFiberUnmount: () => {},
+  });
+  return { rendererState, fiberRoots };
 });
 const { createRoot } = await import("react-dom/client");
 const roots = new Set<Root>();
@@ -113,33 +116,16 @@ import { useOpenCodeRuntime } from "./useOpenCodeRuntime";
 
 const onReact18 = version.startsWith("18.");
 
-// Fails on React 18: TypeError: useEffectEvent is not a function (useOpenCodeRuntime imports useEffectEvent from react, which React 18 does not export). Shipped React 18 incompatibility, so on React 18 these tests assert that error, and fail once it's fixed.
-const itBrokenOnReact18 = (
-  name: string,
-  fn: () => void | Promise<void>,
-  timeout?: number,
-) =>
-  onReact18
-    ? it(
-        name,
-        () =>
-          expect(Promise.resolve().then(fn)).rejects.toThrow(
-            /useEffectEvent\)? is not a function/,
-          ),
-        timeout,
-      )
-    : it(name, fn, timeout);
-
 mocks.state = EMPTY_OPENCODE_THREAD_STATE;
 
 const refresh = async (Before: unknown, After: unknown) => {
   const family: Family = { current: After };
-  renderer!.setRefreshHandler((type) =>
+  rendererState.current!.setRefreshHandler((type) =>
     type === Before || type === After ? family : undefined,
   );
   await act(async () => {
     for (const root of fiberRoots) {
-      renderer!.scheduleRefresh(root, {
+      rendererState.current!.scheduleRefresh(root, {
         staleFamilies: new Set(),
         updatedFamilies: new Set([family]),
       });
@@ -158,66 +144,60 @@ afterEach(() => {
 });
 afterAll(() => vi.unstubAllGlobals());
 
-itBrokenOnReact18(
-  "keeps the client, registry, thread list, and event source through Fast Refresh",
-  async () => {
-    const Before = () => {
-      useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
-      return null;
-    };
-    const After = () => {
-      useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
-      return null;
-    };
-    const view = render(<Before />);
-    const client = mocks.controllers[0]!.client;
-    const controller = mocks.controllers[0]!;
-    expect(controller.load).toHaveBeenCalledOnce();
-    const source = mocks.sources[0]!;
-    const adapter = mocks.adapters[0];
+it("keeps the client, registry, thread list, and event source through Fast Refresh", async () => {
+  const Before = () => {
+    useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
+    return null;
+  };
+  const After = () => {
+    useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
+    return null;
+  };
+  const view = render(<Before />);
+  const client = mocks.controllers[0]!.client;
+  const controller = mocks.controllers[0]!;
+  expect(controller.load).toHaveBeenCalledOnce();
+  const source = mocks.sources[0]!;
+  const adapter = mocks.adapters[0];
 
-    await refresh(Before, After);
+  await refresh(Before, After);
 
-    expect(mocks.controllers).toHaveLength(1);
-    expect(mocks.controllers[0]!.client).toBe(client);
-    expect(mocks.sources).toHaveLength(1);
-    expect(source.subscribe).toHaveBeenCalledOnce();
-    expect(mocks.adapters.at(-1)).toBe(adapter);
-    expect(mocks.reloads).toBe(1);
-    expect(controller.dispose).not.toHaveBeenCalled();
-    expect(controller.load).toHaveBeenCalledOnce();
-    expect(source.dispose).not.toHaveBeenCalled();
+  expect(mocks.controllers).toHaveLength(1);
+  expect(mocks.controllers[0]!.client).toBe(client);
+  expect(mocks.sources).toHaveLength(1);
+  expect(source.subscribe).toHaveBeenCalledOnce();
+  expect(mocks.adapters.at(-1)).toBe(adapter);
+  expect(mocks.reloads).toBe(1);
+  expect(controller.dispose).not.toHaveBeenCalled();
+  expect(controller.load).toHaveBeenCalledOnce();
+  expect(source.dispose).not.toHaveBeenCalled();
 
-    view.unmount();
-    await act(async () => {});
-    expect(controller.dispose).toHaveBeenCalledOnce();
-    expect(source.dispose).toHaveBeenCalledOnce();
-  },
-);
+  view.unmount();
+  await act(async () => {});
+  expect(controller.dispose).toHaveBeenCalledOnce();
+  expect(source.dispose).toHaveBeenCalledOnce();
+});
 
-itBrokenOnReact18(
-  "replaces the client, registry, and thread list when baseUrl changes",
-  async () => {
-    const App = ({ baseUrl }: { baseUrl: string }) => {
-      useOpenCodeRuntime({ baseUrl });
-      return null;
-    };
-    const view = render(<App baseUrl="http://localhost:4096" />);
-    const oldController = mocks.controllers[0]!;
-    const oldSource = mocks.sources[0]!;
-    const oldAdapter = mocks.adapters.at(-1);
+it("replaces the client, registry, and thread list when baseUrl changes", async () => {
+  const App = ({ baseUrl }: { baseUrl: string }) => {
+    useOpenCodeRuntime({ baseUrl });
+    return null;
+  };
+  const view = render(<App baseUrl="http://localhost:4096" />);
+  const oldController = mocks.controllers[0]!;
+  const oldSource = mocks.sources[0]!;
+  const oldAdapter = mocks.adapters.at(-1);
 
-    view.rerender(<App baseUrl="http://localhost:4097" />);
-    await act(async () => {});
+  view.rerender(<App baseUrl="http://localhost:4097" />);
+  await act(async () => {});
 
-    expect(mocks.controllers[1]!.client).not.toBe(oldController.client);
-    expect(mocks.controllers[1]!.load).toHaveBeenCalledOnce();
-    expect(mocks.adapters.at(-1)).not.toBe(oldAdapter);
-    expect(mocks.reloads).toBe(2);
-    expect(oldController.dispose).toHaveBeenCalledOnce();
-    expect(oldSource.dispose).toHaveBeenCalledOnce();
-  },
-);
+  expect(mocks.controllers[1]!.client).not.toBe(oldController.client);
+  expect(mocks.controllers[1]!.load).toHaveBeenCalledOnce();
+  expect(mocks.adapters.at(-1)).not.toBe(oldAdapter);
+  expect(mocks.reloads).toBe(2);
+  expect(oldController.dispose).toHaveBeenCalledOnce();
+  expect(oldSource.dispose).toHaveBeenCalledOnce();
+});
 
 // Activity is React 19 only.
 it.skipIf(onReact18)(

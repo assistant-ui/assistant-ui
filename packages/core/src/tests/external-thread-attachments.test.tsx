@@ -22,11 +22,6 @@ import type {
 
 const onReact18 = version.startsWith("18.");
 
-// useAssistantClientDestroySignal fails outside a tap resource on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-const useDestroySignalProbe = onReact18
-  ? () => undefined
-  : useAssistantClientDestroySignal;
-
 const { mockGenerateId, realGenerateId } = vi.hoisted(() => {
   const realGenerateId = { current: (): string => "" };
   return {
@@ -2618,7 +2613,7 @@ describe("attachment sends and the client lifetime", () => {
     } = {};
     const Capture: FC = () => {
       captured.aui = useAui();
-      captured.destroySignal = useDestroySignalProbe();
+      captured.destroySignal = useAssistantClientDestroySignal();
       return null;
     };
     const Chat: FC = () => (
@@ -2804,27 +2799,23 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-  it.skipIf(onReact18)(
-    "leaves a finished send's signal alone when the client is destroyed later",
-    async () => {
-      const { adapter, upload, signals } = slowAdapter();
-      const onNew = vi.fn();
-      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-      const composer = () => thread.aui().thread.composer();
-      const listeners = thread.destroyListeners();
-      await act(async () => {
-        await composer().addAttachment(new File(["a"], "a"));
-        composer().send();
-      });
-      await act(async () => upload.resolve());
-      expect(onNew).toHaveBeenCalledOnce();
-      expect(thread.destroyListeners()).toBe(listeners);
+  it("leaves a finished send's signal alone when the client is destroyed later", async () => {
+    const { adapter, upload, signals } = slowAdapter();
+    const onNew = vi.fn();
+    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+    const composer = () => thread.aui().thread.composer();
+    const listeners = thread.destroyListeners();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().send();
+    });
+    await act(async () => upload.resolve());
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(thread.destroyListeners()).toBe(listeners);
 
-      await thread.destroy();
-      expect(signals[0]?.aborted).toBe(false);
-    },
-  );
+    await thread.destroy();
+    expect(signals[0]?.aborted).toBe(false);
+  });
 
   it("never calls the adapter for a send made after the client is destroyed", async () => {
     const { adapter, send } = slowAdapter();
@@ -2843,10 +2834,7 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-  it
-    .skipIf(onReact18)
-    .each(["the adapter's send", "an upload in add()"] as const)(
+  it.each(["the adapter's send", "an upload in add()"] as const)(
     "releases the destroy signal when a send stalled on %s is cancelled",
     async (stall) => {
       const { adapter } = slowAdapter();
