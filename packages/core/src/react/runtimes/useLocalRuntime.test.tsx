@@ -8,6 +8,8 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useLocalRuntime } from "./useLocalRuntime";
+import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
+import { InMemoryThreadListAdapter } from "../../runtimes/remote-thread-list/adapter/in-memory";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AttachmentAdapter } from "../../adapters/attachment";
@@ -695,5 +697,73 @@ describe("useLocalRuntime", () => {
       expect(threadIds[0]).toBeDefined();
       expect(threadIds[0]).toBe(runtime.threads.mainItem.getState().remoteId);
     });
+
+    it("when a second run starts before the thread list settles", async () => {
+      const { runtime, threadIds } = await renderSeeded([
+        { role: "user", content: "What is assistant-ui?" },
+        { role: "assistant", content: "A set of React components." },
+      ]);
+
+      act(() => {
+        runtime.thread.getMessageByIndex(1).reload();
+        runtime.thread.getMessageByIndex(1).reload();
+      });
+
+      await waitFor(() => {
+        expect(runtime.thread.getState().isRunning).toBe(false);
+        expect(threadIds.length).toBeGreaterThan(0);
+      });
+      const { remoteId } = runtime.threads.mainItem.getState();
+      expect(remoteId).toBeDefined();
+      expect(threadIds.every((threadId) => threadId === remoteId)).toBe(true);
+    });
+  });
+
+  it("runs nothing for a seeded thread the thread list fails to initialize", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+    vi.spyOn(adapter, "initialize").mockRejectedValue(new Error("offline"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    let runtime: AssistantRuntime | null = null;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function RuntimeHook() {
+          return useLocalRuntime(
+            { run },
+            {
+              initialMessages: [
+                { role: "user", content: "What is assistant-ui?" },
+                { role: "assistant", content: "A set of React components." },
+              ],
+            },
+          );
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    act(() => {
+      runtime!.thread.getMessageByIndex(1).reload();
+    });
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Message reload failed",
+        expect.objectContaining({ message: "offline" }),
+      );
+    });
+    expect(adapter.initialize).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
   });
 });
