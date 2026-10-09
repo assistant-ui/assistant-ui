@@ -539,7 +539,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
   const [queueError, setQueueError] = useState<Error>();
-  const runtimeError = queueError ?? chatHelpers.error;
+  const runtimeError = unstable_enableMessageQueue
+    ? (queueError ?? chatHelpers.error)
+    : chatHelpers.error;
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -1055,6 +1057,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   };
 
   const sendNew = async (message: AppendMessage) => {
+    setQueueError(undefined);
     const createMessage = (
       customToCreateMessage ?? toCreateMessage
     )<UI_MESSAGE>(message);

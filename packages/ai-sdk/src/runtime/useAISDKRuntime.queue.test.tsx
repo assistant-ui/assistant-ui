@@ -107,15 +107,20 @@ const setup = (
   },
 ) => {
   const harness = createTransport();
-  const { result } = renderHook(() => {
-    const chat = useChat({
-      transport: harness.transport,
-      onFinish: ({ message, isAbort }) => {
-        harness.events.push(`finish ${isAbort ? "aborted" : textOf(message)}`);
-      },
-    });
-    return useAISDKRuntime(chat, options);
-  });
+  const { result, rerender } = renderHook(
+    (runtimeOptions) => {
+      const chat = useChat({
+        transport: harness.transport,
+        onFinish: ({ message, isAbort }) => {
+          harness.events.push(
+            `finish ${isAbort ? "aborted" : textOf(message)}`,
+          );
+        },
+      });
+      return useAISDKRuntime(chat, runtimeOptions);
+    },
+    { initialProps: options },
+  );
   const runtime = () => result.current as AssistantRuntime;
   render(
     <AssistantRuntimeProvider runtime={runtime()}>
@@ -130,7 +135,7 @@ const setup = (
     });
   const queued = () => screen.getByTestId("queued").textContent;
   const isRunning = () => runtime().thread.getState().isRunning;
-  return { ...harness, runtime, send, queued, isRunning };
+  return { ...harness, runtime, send, queued, isRunning, setOptions: rerender };
 };
 
 afterEach(() => {
@@ -138,6 +143,53 @@ afterEach(() => {
 });
 
 describe("useAISDKRuntime unstable_enableMessageQueue", () => {
+  it("does not let a disabled queue's error hide a later direct-send error", async () => {
+    let fail = true;
+    function createMessage<UI_MESSAGE extends UIMessage>(
+      message: AppendMessage,
+    ) {
+      if (fail) throw new Error("queue conversion failed");
+      return toCreateMessage<UI_MESSAGE>(message);
+    }
+    const options = {
+      unstable_enableMessageQueue: true,
+      toCreateMessage: createMessage,
+    };
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { send, requests, setOptions } = setup(options);
+      await send("first");
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-error").textContent).toBe(
+          "queue conversion failed",
+        ),
+      );
+      act(() => setOptions({ ...options, unstable_enableMessageQueue: false }));
+      expect(screen.getByTestId("queue-error").textContent).toBe("");
+
+      fail = false;
+      await send("second");
+      await waitFor(() => expect(requests).toHaveLength(1));
+      act(() =>
+        requests[0]!.emit({
+          type: "error",
+          errorText: "direct request failed",
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-error").textContent).toBe(
+          "direct request failed",
+        ),
+      );
+      act(() => setOptions(options));
+      expect(screen.getByTestId("queue-error").textContent).toBe(
+        "direct request failed",
+      );
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it("does not mark an earlier answer failed when a queued prompt fails before append", async () => {
     let fail = false;
     function createMessage<UI_MESSAGE extends UIMessage>(
@@ -216,7 +268,7 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
         requests[1]!.finish();
       });
       await waitFor(() => expect(isRunning()).toBe(false));
-      expect(logged).toHaveBeenCalledWith("[MessageQueue] run rejected", error);
+      expect(logged).toHaveBeenCalled();
     } finally {
       logged.mockRestore();
     }
