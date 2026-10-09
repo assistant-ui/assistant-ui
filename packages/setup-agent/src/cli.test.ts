@@ -521,6 +521,18 @@ describe("agent instructions", () => {
       .find((line) => line.includes("--entry-points '<JSON array>'"));
     expect(ask?.trim().endsWith("--wait")).toBe(true);
   });
+
+  it("skips the entry-point question for a setup that puts no assistant in the app", () => {
+    const instructions = agentInstructions(
+      "http://localhost:18892/checkout/session",
+    );
+    expect(instructions).toContain(
+      "When the setup puts an assistant in the app, ask how users should access it",
+    );
+    expect(instructions).toContain(
+      "Skip this question when no product's guide installs an assistant",
+    );
+  });
 });
 
 describe("writeEnvSecret", () => {
