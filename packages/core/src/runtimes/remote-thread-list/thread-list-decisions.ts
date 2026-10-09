@@ -38,11 +38,14 @@ export const removalFallback = (
   const data = getThreadData(state, mainThreadId);
   if (data !== undefined && (data.status !== "archived" || !settledIsMain))
     return "none";
+  // A removed main thread cannot render, so it moves to the draft now
+  // instead of waiting on a switch that may still be loading another thread.
   if (
     data === undefined &&
     !(baseState.newThreadId !== undefined && state.newThreadId === undefined)
   )
     return "draft";
+  // An initializing draft stays selected until its thread data settles.
   return "wait";
 };
 
@@ -74,36 +77,3 @@ export const shouldUnarchiveSwitchTarget = (
   options: { unarchive?: boolean } | undefined,
 ): data is RemoteThreadData & { status: "archived" } =>
   data.status === "archived" && options?.unarchive !== false;
-
-export const shouldRetryControlledThread = ({
-  threadId,
-  targetId,
-  mainThreadId,
-  state,
-  controlledGeneration,
-  switchGeneration,
-  allowMissing,
-  allowUncontrolled,
-  loadError,
-  isLoading,
-  matchRemoteIdentity,
-}: {
-  threadId: string | undefined;
-  targetId: string | undefined;
-  mainThreadId: string;
-  state: RemoteThreadState;
-  controlledGeneration: number | undefined;
-  switchGeneration: number;
-  allowMissing: boolean;
-  allowUncontrolled: boolean;
-  loadError: unknown;
-  isLoading: boolean;
-  matchRemoteIdentity?: boolean;
-}): boolean =>
-  threadId !== undefined &&
-  !isLoading &&
-  (allowUncontrolled || controlledGeneration === switchGeneration) &&
-  (allowMissing || targetId !== undefined) &&
-  (!allowMissing || loadError === undefined) &&
-  (targetId === undefined ||
-    !isSelectedThread(state, targetId, mainThreadId, matchRemoteIdentity));

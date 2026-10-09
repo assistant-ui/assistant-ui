@@ -3,7 +3,6 @@ import {
   isSelectedThread,
   removalFallback,
   selectRemovalDraft,
-  shouldRetryControlledThread,
   shouldStartFallbackSwitch,
   shouldUnarchiveSwitchTarget,
   switchTarget,
@@ -93,58 +92,5 @@ describe("thread list decisions", () => {
     expect(
       shouldUnarchiveSwitchTarget(getThreadData(state, "first")!, undefined),
     ).toBe(false);
-  });
-
-  it("retries controlled deep links only when the load and switch remain valid", () => {
-    const state = listed();
-    const options = {
-      threadId: "first",
-      targetId: "first",
-      mainThreadId: "second",
-      state,
-      controlledGeneration: 2,
-      switchGeneration: 2,
-      allowMissing: false,
-      allowUncontrolled: false,
-      loadError: undefined,
-      isLoading: false,
-    };
-    expect(shouldRetryControlledThread(options)).toBe(true);
-    expect(
-      shouldRetryControlledThread({ ...options, targetId: undefined }),
-    ).toBe(false);
-    expect(shouldRetryControlledThread({ ...options, isLoading: true })).toBe(
-      false,
-    );
-    expect(
-      shouldRetryControlledThread({ ...options, switchGeneration: 3 }),
-    ).toBe(false);
-    expect(
-      shouldRetryControlledThread({ ...options, mainThreadId: "first" }),
-    ).toBe(false);
-    expect(
-      shouldRetryControlledThread({
-        ...options,
-        targetId: undefined,
-        allowMissing: true,
-      }),
-    ).toBe(true);
-    expect(
-      shouldRetryControlledThread({
-        ...options,
-        targetId: undefined,
-        allowMissing: true,
-        loadError: new Error("load"),
-      }),
-    ).toBe(false);
-    expect(
-      shouldRetryControlledThread({
-        ...options,
-        targetId: undefined,
-        allowMissing: true,
-        allowUncontrolled: true,
-        switchGeneration: 3,
-      }),
-    ).toBe(true);
   });
 });

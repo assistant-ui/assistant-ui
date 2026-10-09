@@ -1646,6 +1646,37 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("does not refetch a controlled main thread omitted by reload", async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular" as const, remoteId: "t1" }],
+      })
+      .mockResolvedValue({ threads: [] });
+    const fetch = vi.fn(async (id: string) => ({
+      status: "regular" as const,
+      remoteId: id,
+    }));
+    const adapter = makeAdapter({ list, fetch });
+    const { handle } = mountList(adapter, "t1");
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1"),
+      );
+      const fetchesBeforeReload = fetch.mock.calls.length;
+      await handle.getClient().threads.reload();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toEqual([]),
+      );
+      await microtasks(20);
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload);
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("keeps the latest switch when an earlier fetch resolves last", async () => {
     const fetchB = deferred<{
       status: "regular";

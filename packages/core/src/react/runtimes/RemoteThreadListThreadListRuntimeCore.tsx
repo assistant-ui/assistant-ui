@@ -16,7 +16,6 @@ import { nullProtoRecord } from "../../utils/record";
 import {
   removalFallback,
   selectRemovalDraft,
-  shouldRetryControlledThread,
   shouldStartFallbackSwitch,
   shouldUnarchiveSwitchTarget,
   switchTarget,
@@ -320,24 +319,18 @@ export class RemoteThreadListThreadListRuntimeCore
     switchGenerationAtLoad = this._switchGeneration,
   ) {
     const threadId = this._options.threadId;
-    const data =
-      threadId === undefined ? undefined : this.getItemById(threadId);
+    if (threadId === undefined) return;
+    const data = this.getItemById(threadId);
     if (
-      !shouldRetryControlledThread({
-        threadId,
-        targetId: data?.id,
-        mainThreadId: this._mainThreadId,
-        state: this._state.value,
-        controlledGeneration: this._controlledSwitchGeneration,
-        switchGeneration: this._switchGeneration,
-        allowMissing: replacedList,
-        allowUncontrolled:
-          replacedList && switchGenerationAtLoad === this._switchGeneration,
-        loadError: undefined,
-        isLoading: false,
-      })
+      (replacedList &&
+        switchGenerationAtLoad !== this._switchGeneration &&
+        this._controlledSwitchGeneration !== this._switchGeneration) ||
+      (!replacedList &&
+        (data === undefined ||
+          this._controlledSwitchGeneration !== this._switchGeneration))
     )
       return;
+    if (data?.id === this._mainThreadId) return;
     this._switchToThreadFromProp(threadId).catch(() => {});
   }
 
