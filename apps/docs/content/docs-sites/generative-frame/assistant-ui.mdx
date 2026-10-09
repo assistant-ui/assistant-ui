@@ -154,4 +154,8 @@ The renderers derive their state from the thread, not from memory. `show_widget`
 
 ## Storage
 
-Each widget's frame gets a [storage id](/generative-frame/docs/quickstart#persistent-storage) from the `toolCallId` of the `show_widget` call that created it, so its localStorage survives a reload and carries over to its `edit_widget` versions. Tool call ids come from the provider, not from arguments the model writes. To scope ids yourself, for example by thread, pass ``widgetId: ({ toolCallId }) => `${threadId}:${toolCallId}` ``; `widgetId: false` gives every frame a fresh origin.
+Each widget's frame gets a [storage id](/generative-frame/docs/quickstart#persistent-storage) made of the thread's persisted id and the `toolCallId` of the `show_widget` call that created it: `<remoteId>:<toolCallId>`. Its localStorage survives a reload and carries over to its `edit_widget` versions. Both parts come from the runtime and the provider, not from arguments the model writes.
+
+A thread gets its `remoteId` when a thread list adapter (for example Assistant Cloud) persists it. Without one, or before it is persisted, the id is `aui:<toolCallId>`. The id is read when a frame mounts and never changes while it is mounted, so a widget drawn before its new thread was persisted keeps its storage for that page view, and starts with empty storage after a reload, when the thread's remote id is known.
+
+Pass `widgetId: ({ toolCallId, threadId }) => …` to choose ids yourself, or `widgetId: false` to give every frame a fresh origin.

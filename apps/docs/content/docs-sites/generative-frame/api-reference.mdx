@@ -180,7 +180,7 @@ useAssistantUiThemeTokens(element?): ThemeTokens
     { name: "renderReport", type: "{ timeoutMs?, settleMs? } | false", default: "{ timeoutMs: 10000, settleMs: 300 }", description: "Frontend execution: `show_widget` and `edit_widget` results wait for the frame and carry a `render` report. `false` returns at once." },
     { name: "preview", type: "(code, { width?, appearance? }) => Promise<PreviewResult>", default: "previewWidget", description: "Renders code for `preview_widget`." },
     { name: "previewScreenshot", type: "boolean", default: "false", description: "Keep the PNG in `preview_widget` results." },
-    { name: "widgetId", type: "(({ toolCallId }) => string) | false", default: "aui:<toolCallId>", description: "The storage id of a widget's frame, from the `show_widget` call that created it. `false` gives every frame a fresh origin." },
+    { name: "widgetId", type: "(({ toolCallId, threadId }) => string) | false", default: "<remoteId>:<toolCallId>, or aui:<toolCallId> without a remote id", description: "The storage id of a widget's frame, from the thread's remote id and the `show_widget` call that created it. `false` gives every frame a fresh origin." },
   ]}
 />
 

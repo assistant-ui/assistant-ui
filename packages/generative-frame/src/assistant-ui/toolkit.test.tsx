@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   append: vi.fn(),
   register: vi.fn(),
   messages: [] as unknown[],
+  remoteId: undefined as string | undefined,
   argsStatus: "complete" as "complete" | "streaming",
   propStatus: {} as Record<string, string>,
   instructions: [] as unknown[],
@@ -73,7 +74,10 @@ const fakeWidget = (): FakeWidget => {
 vi.mock("@assistant-ui/react", () => ({
   useAui: () => ({ thread: { append: mocks.append } }),
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ thread: { messages: mocks.messages } }),
+    selector({
+      thread: { messages: mocks.messages },
+      threadListItem: { remoteId: mocks.remoteId },
+    }),
   useToolArgsStatus: () => ({
     status: "running",
     argsStatus: mocks.argsStatus,
@@ -107,6 +111,7 @@ vi.mock("../preview", async (importOriginal) => ({
 afterEach(() => {
   cleanup();
   mocks.messages = [];
+  mocks.remoteId = undefined;
   mocks.argsStatus = "complete";
   mocks.propStatus = {};
   mocks.instructions.length = 0;
@@ -444,7 +449,8 @@ describe("createWidgetToolkit", () => {
     expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "aui:a" });
 
     const custom = createWidgetToolkit({
-      widgetId: ({ toolCallId }) => `thread-7:${toolCallId}`,
+      widgetId: ({ toolCallId, threadId }) =>
+        `${threadId ?? "x"}-7:${toolCallId}`,
     });
     const CustomShow = entries(custom.toolkit)["show_widget"]!.render;
     render(
@@ -452,7 +458,16 @@ describe("createWidgetToolkit", () => {
         {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
       />,
     );
-    expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "thread-7:a" });
+    expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "x-7:a" });
+
+    mocks.remoteId = "thread_1";
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "thread_1:a" });
+    mocks.remoteId = undefined;
 
     const fresh = createWidgetToolkit({ widgetId: false });
     const FreshShow = entries(fresh.toolkit)["show_widget"]!.render;

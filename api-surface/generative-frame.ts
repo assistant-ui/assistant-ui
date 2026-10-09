@@ -1575,6 +1575,7 @@ type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry"> & {
   previewScreenshot?: boolean;
   widgetId?: false | ((call: {
     toolCallId: string;
+    threadId: string | undefined;
   }) => string);
 };
 

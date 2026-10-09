@@ -91,13 +91,16 @@ export type WidgetToolkitOptions = Omit<
   /** Keep the PNG in `preview_widget` results. Defaults to false. */
   previewScreenshot?: boolean;
   /**
-   * The storage id of a widget's frame, from the `toolCallId` of the
-   * `show_widget` call that created it, so a widget keeps its localStorage
-   * across reloads and edits. Defaults to `aui:<toolCallId>`; `false` gives
-   * every frame a fresh origin. Derive it from host data only, never from
-   * tool arguments the model wrote.
+   * The storage id of a widget's frame, from the thread's persisted id and
+   * the `toolCallId` of the `show_widget` call that created it, so a widget
+   * keeps its localStorage across reloads and edits. Defaults to
+   * `<remoteId>:<toolCallId>`, or `aui:<toolCallId>` while the thread has no
+   * remote id; `false` gives every frame a fresh origin. Derive it from host
+   * data only, never from tool arguments the model wrote.
    */
-  widgetId?: false | ((call: { toolCallId: string }) => string);
+  widgetId?:
+    | false
+    | ((call: { toolCallId: string; threadId: string | undefined }) => string);
 };
 
 export type RenderReportOptions = {
@@ -233,12 +236,15 @@ export function createWidgetToolkit(
     };
   }
 
-  const widgetId = (originToolCallId: string | undefined) => {
+  /** The storage id for a widget, read at mount so a mounted frame never changes origin. */
+  function useStorageId(originToolCallId: string | undefined) {
+    const threadId = useAuiState((s) => s.threadListItem?.remoteId);
     if (options.widgetId === false || !originToolCallId) return undefined;
-    return options.widgetId
-      ? options.widgetId({ toolCallId: originToolCallId })
-      : `aui:${originToolCallId}`;
-  };
+    if (options.widgetId) {
+      return options.widgetId({ toolCallId: originToolCallId, threadId });
+    }
+    return `${threadId ?? "aui"}:${originToolCallId}`;
+  }
 
   function ToolWidget({
     code,
@@ -307,6 +313,7 @@ export function createWidgetToolkit(
     const streaming = propStatus.widget_code !== "complete";
     const code = typeof args.widget_code === "string" ? args.widget_code : "";
     const title = typeof args.title === "string" ? args.title : "";
+    const storageId = useStorageId(toolCallId);
 
     useEffect(() => {
       if (streaming || !title || !code) return;
@@ -325,7 +332,7 @@ export function createWidgetToolkit(
           code={code}
           streaming={streaming}
           toolCallId={toolCallId}
-          storageId={widgetId(toolCallId)}
+          storageId={storageId}
         />
       </div>
     );
@@ -347,6 +354,7 @@ export function createWidgetToolkit(
       () => (complete ? resolveWidgetOrigin(messages, toolCallId) : undefined),
       [complete, messages, toolCallId],
     );
+    const storageId = useStorageId(origin);
 
     useEffect(() => {
       if (!title || code === undefined) return;
@@ -374,7 +382,7 @@ export function createWidgetToolkit(
           code={code}
           streaming={false}
           toolCallId={toolCallId}
-          storageId={widgetId(origin)}
+          storageId={storageId}
         />
       </div>
     );
