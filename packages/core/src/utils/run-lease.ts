@@ -3,9 +3,10 @@ export type RunLease = {
 };
 
 /**
- * Tells late async work whether the run it belongs to is still current.
- * `begin()` starts a run and supersedes every earlier lease, `current()` joins
- * the run in progress, and `invalidate()` ends it without starting another.
+ * Generation fence for late async work. `begin()` advances the generation and
+ * returns a lease for the new run, `current()` captures the generation as it
+ * is, and `invalidate()` advances it without starting a run. A lease stays
+ * current until the next `begin()` or `invalidate()`.
  */
 export class RunLeases {
   private _generation = 0;

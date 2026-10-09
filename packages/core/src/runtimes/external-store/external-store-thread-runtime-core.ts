@@ -194,9 +194,9 @@ export class ExternalStoreThreadRuntimeCore
   // last handed to setMessages, whichever was written last.
   private _storeMessages: readonly ThreadMessage[] = [];
 
-  private _runStarts = 0;
+  private readonly _runStartLeases = new RunLeases();
   private readonly _runCancellationLeases = new RunLeases();
-  private _cancelRunResyncGeneration = 0;
+  private readonly _cancelRunResyncLeases = new RunLeases();
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -939,7 +939,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
-    this._runStarts++;
+    this._runStartLeases.begin();
     const visible = this.repository.getMessages();
     const kept = new Set(
       visible
@@ -968,7 +968,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
-    this._runStarts++;
+    this._runStartLeases.begin();
     await this._store.onResume(config);
   }
 
@@ -983,7 +983,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onLoadExternalState)
       throw new Error("Runtime does not support importing external states.");
 
-    this._cancelRunResyncGeneration++;
+    this._cancelRunResyncLeases.invalidate();
 
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
@@ -1005,7 +1005,7 @@ export class ExternalStoreThreadRuntimeCore
    * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
    */
   public unstable_notifySessionReset(): void {
-    this._cancelRunResyncGeneration++;
+    this._cancelRunResyncLeases.invalidate();
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1016,7 +1016,7 @@ export class ExternalStoreThreadRuntimeCore
 
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
-    const resyncGeneration = this._cancelRunResyncGeneration;
+    const resyncLease = this._cancelRunResyncLeases.current();
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
@@ -1035,7 +1035,7 @@ export class ExternalStoreThreadRuntimeCore
     const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const cancelledTailId = previousMessage?.id ?? null;
-    const runStartsAtCancel = this._runStarts;
+    const runStartLease = this._runStartLeases.current();
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
@@ -1077,18 +1077,14 @@ export class ExternalStoreThreadRuntimeCore
     // rollbacks to it, instead of stamping a snapshot captured above over the
     // newer state.
     setTimeout(() => {
-      if (
-        generation.aborted ||
-        resyncGeneration !== this._cancelRunResyncGeneration
-      )
-        return;
+      if (generation.aborted || !resyncLease.isCurrent()) return;
 
       // A placeholder under a message other than the cancelled tail, or one
       // following a reload or resume issued after the cancel, belongs to a
       // run that started after the cancel, so the rollback leaves it.
       const startedSinceCancel =
         this._getEffectiveIsRunning(this._store) &&
-        (this._runStarts !== runStartsAtCancel ||
+        (!runStartLease.isCurrent() ||
           (this.repository.getMessages().at(-2)?.id ?? null) !==
             cancelledTailId);
       if (!startedSinceCancel) this.dropEmptyOptimisticHead();
@@ -1198,7 +1194,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
-    this._cancelRunResyncGeneration++;
+    this._cancelRunResyncLeases.invalidate();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -1208,7 +1204,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onImport)
       throw new Error("Runtime does not support importing messages.");
 
-    this._cancelRunResyncGeneration++;
+    this._cancelRunResyncLeases.invalidate();
     super.import(data);
     this._store.onImport(this.repository.getMessages());
   }

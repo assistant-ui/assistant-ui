@@ -23,6 +23,8 @@ import {
   createAbortableThreadLoad,
   createCloudThreadListAdapterCreateFallback,
   isRecord,
+  RunLeases,
+  type RunLease,
 } from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
@@ -265,21 +267,21 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
-  const runGenerationRef = useRef(0);
+  const [runLeases] = useState(() => new RunLeases());
   const reloadLookupRef = useRef<{
-    generation: number;
+    lease: RunLease;
     beforeReload: AdkThreadSnapshot;
   } | null>(null);
 
   const runExclusive = async (
     run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
-    const generation = ++runGenerationRef.current;
+    const lease = runLeases.begin();
     try {
       setIsRunning(true);
-      await run(() => runGenerationRef.current === generation);
+      await run(lease.isCurrent);
     } finally {
-      if (runGenerationRef.current === generation) setIsRunning(false);
+      if (lease.isCurrent()) setIsRunning(false);
     }
   };
 
@@ -301,7 +303,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   };
 
   const stopRun = () => {
-    runGenerationRef.current++;
+    runLeases.invalidate();
     setIsRunning(false);
     cancel();
   };
@@ -586,7 +588,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             const externalId = aui.threadListItem.getState().externalId;
             return runExclusive(async (isCurrent) => {
               const lookup = {
-                generation: runGenerationRef.current,
+                lease: runLeases.current(),
                 beforeReload,
               };
               reloadLookupRef.current = lookup;
@@ -652,10 +654,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     onCancel: unstable_allowCancellation
       ? async () => {
           const lookup = reloadLookupRef.current;
-          const beforeReload =
-            lookup?.generation === runGenerationRef.current
-              ? lookup.beforeReload
-              : undefined;
+          const beforeReload = lookup?.lease.isCurrent()
+            ? lookup.beforeReload
+            : undefined;
           stopRun();
           // A reload stopped before it sent leaves the ADK session holding the
           // turn it removed, so the thread shows that turn again.
