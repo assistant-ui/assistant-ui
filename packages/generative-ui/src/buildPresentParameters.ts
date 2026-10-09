@@ -3,6 +3,7 @@ import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { TYPE_KEY } from "./constants";
 import type { GenerativeUILibrary } from "./types";
 import { scopeSchema } from "./scopeSchema";
+import { isDefaultGenerativeUIComponent } from "./defaultGenerativeUIComponents";
 
 /**
  * Builds the JSON schema for the `present` tool from a {@link GenerativeUILibrary}.
@@ -68,7 +69,14 @@ export function buildPresentParameters(
 
   if (process.env["NODE_ENV"] !== "production") {
     for (const [key, owners] of propOwners) {
-      if (owners.length < 2) continue;
+      if (
+        owners.length < 2 ||
+        owners.every((name) =>
+          isDefaultGenerativeUIComponent(name, library[name]!.properties),
+        )
+      ) {
+        continue;
+      }
       // eslint-disable-next-line no-console
       console.warn(
         `[@assistant-ui/react-generative-ui] Prop "${key}" is declared by ` +
