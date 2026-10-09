@@ -1,4 +1,4 @@
-import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import { buildCloudHeaders, type AssistantCloudAPI } from "./AssistantCloudAPI";
 import type { AssistantCloudRunReportToolCall } from "./runTelemetry";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 import {
@@ -84,15 +84,8 @@ export class AssistantCloudRuns {
     return {
       api: `${this.cloud._baseUrl}/v1/runs/stream`,
       protocol: "ui-message-stream" as const,
-      headers: async () => {
-        const headers = await this.cloud._auth.getAuthHeaders();
-        if (!headers) throw new Error("Authorization failed");
-        return {
-          ...headers,
-          Accept: "text/plain",
-          "Aui-Sdk": this.cloud.sdkHeader(),
-        };
-      },
+      headers: (): Promise<{ Accept: string; "Aui-Sdk": string }> =>
+        buildCloudHeaders(this.cloud, { Accept: "text/plain" }),
       body: async (options?: { threadId?: string }) => {
         const threadId = options?.threadId;
         if (threadId === undefined) {
