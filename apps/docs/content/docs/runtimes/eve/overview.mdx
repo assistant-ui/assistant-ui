@@ -102,12 +102,13 @@ standard thread leaves unmatched data parts unrendered.
 
 ## Questions
 
-Eve's built-in `ask_question` tool pauses the turn until the user answers. The
-runtime projects it onto an assistant-ui tool approval that carries the
-`prompt`, the `options`, and whether a free-form answer is accepted, and the
-answer goes back through `respondToApproval`. Eve records a question the user
-never answers as `ignored` when the next message arrives, so a reply typed into
-the composer does not answer it.
+Eve's opt-in `ask_question` tool (added with `eve add tool/ask_question`) pauses
+the turn until the user answers. The runtime projects it onto an assistant-ui
+tool approval that carries the `prompt`, the `options`, and whether a free-form
+answer is accepted, and the answer goes back through `respondToApproval`. While
+the question is pending, a composer message that matches an option label, or
+any message when the question accepts free text, answers it as well. Any other
+message withdraws the question, and the tool returns `{ interrupted: true }`.
 
 Without a renderer for `ask_question`, the question is drawn by the default
 `ToolFallback` inside the collapsed tool group, which reads as a step in the
@@ -117,31 +118,41 @@ on its own with the answer controls, and `eve add @assistant-ui/eve-chat`
 installs it. Add it to an existing app from the registry:
 
 ```sh
-eve add @assistant-ui/eve-ask-question
-```
-
-or
-
-```sh
 npx shadcn@latest add https://r.assistant-ui.com/eve-ask-question.json
 ```
 
-Then register the toolkit it exports on the runtime provider:
+Then register the toolkit it exports on the runtime provider in `app/page.tsx`:
 
 ```tsx title="app/page.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { eveAskQuestionToolkit } from "@/components/eve-ask-question";
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useEveAgentRuntime } from "@assistant-ui/eve";
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
 
-const config = AuiConfig({ tools: Tools({ toolkit: eveAskQuestionToolkit }) });
+export default function Home() {
+  const runtime = useEveAgentRuntime();
+  const config = AuiConfig({
+    tools: Tools({ toolkit: eveAskQuestionToolkit }),
+  });
 
-<AssistantRuntimeProvider runtime={runtime} config={config}>
-  <Thread />
-</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 The renderer builds on `ToolFallback.Approval`, so it inherits the option
-buttons, the free-form answer field, and the confirmation step, and it shows
-the recorded answer once the question is resolved.
+buttons, the free-form answer field, the confirmation step, and the settled
+receipt with the recorded answer. A withdrawn question reads as skipped, and an
+error or an output it does not recognize falls back to the raw tool result.
 
 ## Store threads in Assistant Cloud
 

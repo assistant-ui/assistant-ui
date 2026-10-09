@@ -4,59 +4,90 @@ import {
   defineToolkit,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import { ToolFallbackApproval } from "@/components/assistant-ui/elements/tool-fallback.aui";
+import {
+  ToolFallbackApproval,
+  ToolFallbackResult,
+} from "@/components/assistant-ui/elements/tool-fallback.aui";
 
 type AskQuestionArgs = {
-  prompt?: string;
-  options?: { id: string; label: string }[];
-  allowFreeform?: boolean;
+  question?: string;
+  options?: { label: string; description?: string }[];
 };
 
-type AskQuestionResult = {
-  status: "answered" | "ignored";
-  optionId?: string;
-  text?: string;
+type AskQuestionOutcome =
+  | { answer: string }
+  | { note: string }
+  | { raw: unknown };
+
+const readOutcome = (
+  result: unknown,
+  isError: boolean | undefined,
+): AskQuestionOutcome | undefined => {
+  if (result === undefined) return undefined;
+  if (!isError && typeof result === "object" && result !== null) {
+    if ("interrupted" in result && result.interrupted === true)
+      return { note: "Skipped" };
+    if ("status" in result && result.status === "unavailable")
+      return { note: "Unavailable in this session" };
+    if (
+      "status" in result &&
+      result.status === "answered" &&
+      "answer" in result &&
+      typeof result.answer === "string"
+    )
+      return { answer: result.answer };
+  }
+  return { raw: result };
 };
 
-const EveAskQuestion: ToolCallMessagePartComponent<
-  AskQuestionArgs,
-  AskQuestionResult
-> = ({ args, approval, result, status, respondToApproval }) => {
-  const prompt = approval?.prompt ?? args.prompt;
-  const isPending =
-    approval !== undefined &&
-    approval.approved === undefined &&
-    approval.resolution === undefined;
+const EveAskQuestion: ToolCallMessagePartComponent<AskQuestionArgs> = ({
+  args,
+  approval,
+  result,
+  isError,
+  status,
+  respondToApproval,
+}) => {
+  const outcome = readOutcome(result, isError);
+  const settled =
+    approval != null &&
+    (approval.approved !== undefined || approval.resolution !== undefined);
 
-  if (isPending) {
+  if (
+    approval != null &&
+    (outcome === undefined ||
+      (settled &&
+        ("answer" in outcome || (isError && approval.approved === false))))
+  ) {
     return (
-      <div className="aui-eve-ask-question my-2 flex flex-col gap-2">
-        <ToolFallbackApproval
-          approval={approval}
-          respondToApproval={respondToApproval}
-          status={status}
-        />
-      </div>
+      <ToolFallbackApproval
+        className="aui-eve-ask-question my-2"
+        approval={
+          outcome && "answer" in outcome && approval.text === undefined
+            ? { ...approval, text: outcome.answer }
+            : approval
+        }
+        respondToApproval={respondToApproval}
+        status={status}
+      />
     );
   }
 
-  const optionId = approval?.optionId ?? result?.optionId;
-  const answer =
-    approval?.text ??
-    result?.text ??
-    approval?.options?.find((option) => option.id === optionId)?.label ??
-    optionId;
-  const skipped =
-    approval?.resolution !== undefined || result?.status === "ignored";
+  if (outcome === undefined) return null;
 
+  const prompt = approval?.prompt ?? args.question;
   return (
-    <div className="aui-eve-ask-question my-2 flex flex-col gap-1">
-      {prompt && <p className="text-foreground">{prompt}</p>}
-      {answer ? (
-        <p className="text-muted-foreground text-sm">{answer}</p>
-      ) : skipped ? (
-        <p className="text-muted-foreground text-sm">Skipped</p>
-      ) : null}
+    <div className="aui-eve-ask-question my-2 flex flex-col gap-1.5">
+      {prompt && (
+        <p className="text-muted-foreground whitespace-pre-line">{prompt}</p>
+      )}
+      {"raw" in outcome ? (
+        <ToolFallbackResult result={outcome.raw} />
+      ) : (
+        <p className="whitespace-pre-line">
+          {"answer" in outcome ? outcome.answer : outcome.note}
+        </p>
+      )}
     </div>
   );
 };
