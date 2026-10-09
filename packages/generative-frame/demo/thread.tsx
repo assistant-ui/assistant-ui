@@ -13,27 +13,19 @@ import {
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { parsePartialJson } from "../src/agent";
 import {
   createWidgetToolkit,
   useWidgetInstructions,
 } from "../src/assistant-ui";
 import { createSpecToolkit } from "../src/spec/assistant-ui";
 import { catalog, components, DASHBOARD_REPLY, DATA } from "./catalog";
-import { RECORDED_STEPS } from "./recorded";
+import { parsePartialJson } from "./partial-json";
+import { SIGNUPS_CODE } from "./recorded";
 import { applyDemoTheme, demoState, sleep } from "./shared";
 
 applyDemoTheme();
 
-const FIXED_CODE = (() => {
-  const show = RECORDED_STEPS[1]!.find((e) => e.type === "tool-call")!;
-  const edit = RECORDED_STEPS[2]!.find((e) => e.type === "tool-call")!;
-  const code = (show as { args: { widget_code: string } }).args.widget_code;
-  const [fix] = (
-    edit as { args: { edits: { old_string: string; new_string: string }[] } }
-  ).args.edits;
-  return code.replace(fix!.old_string, fix!.new_string);
-})();
+const FIXED_CODE = SIGNUPS_CODE;
 
 const SPEC_PATCHES = DASHBOARD_REPLY.split("\n")
   .filter((line) => line.startsWith("{"))

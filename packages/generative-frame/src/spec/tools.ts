@@ -5,7 +5,6 @@ export {
   type RenderSpecInput,
   type RenderSpecResult,
   type RenderSpecTool,
-  type SpecStreaming,
   type SpecTools,
 } from "./render-spec";
 export {

@@ -1,7 +1,7 @@
 import type { GuidanceModule, ToolDefinition } from "../tools/define";
 import type { Catalog } from "./catalog";
 import type { SpecPromptOptions } from "./prompt";
-import { createSpecStream, parseSpecStream, type SpecStream } from "./stream";
+import { parseSpecStream } from "./stream";
 import { emptySpec, type Spec } from "./types";
 import { formatSpecIssues, validateSpec, type SpecIssue } from "./validate";
 
@@ -23,18 +23,7 @@ export type RenderSpecResult = {
   feedback: string;
 };
 
-/** Spec streaming helpers carried by `render_spec`, so callers such as the widget agent need no static import of the spec code. */
-export type SpecStreaming = {
-  create(initial?: Spec): SpecStream;
-  parse(text: string, initial?: Spec): Spec;
-};
-
-export type RenderSpecTool = ToolDefinition<
-  RenderSpecInput,
-  RenderSpecResult
-> & {
-  streaming: SpecStreaming;
-};
+export type RenderSpecTool = ToolDefinition<RenderSpecInput, RenderSpecResult>;
 
 export type SpecTools = { render_spec: RenderSpecTool };
 
@@ -48,12 +37,6 @@ const TITLE_SCHEMA = {
   description:
     "Short snake_case identifier for the UI, unique in this conversation (e.g. `q3_revenue_by_region`). Reuse it to replace or patch the UI.",
 } as const;
-
-const streaming: SpecStreaming = {
-  create: (initial) => createSpecStream(initial ? { initial } : {}),
-  parse: (text, initial) =>
-    parseSpecStream(text, initial ? { initial } : {}).spec,
-};
 
 /**
  * The `render_spec` tool for a catalog: validates the spec the model streams
@@ -128,7 +111,6 @@ export function createSpecTools(
         feedback: formatSpecIssues(issues),
       };
     },
-    streaming,
   };
   return { render_spec };
 }

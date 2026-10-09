@@ -3,7 +3,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Blocks,
-  Bot,
+  Database,
   Feather,
   MessagesSquare,
   Palette,
@@ -71,10 +71,10 @@ const FEATURES = [
     api: "defineCatalog(), <SpecRenderer>",
   },
   {
-    title: "Agent delegation",
-    icon: Bot,
-    body: "A sub-agent writes and repairs widgets behind one generate_widget tool.",
-    api: "createWidgetAgent()",
+    title: "Storage that persists",
+    icon: Database,
+    body: "Give a widget an id and its localStorage survives reloads. Clear it from the host.",
+    api: "id, clearWidgetStorage()",
   },
   {
     title: "assistant-ui toolkit",

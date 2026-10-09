@@ -169,16 +169,6 @@ buildModuleGuidance(module: WidgetModule, options?: GuidanceOptions): string
 
 Options are on [Repair loop and screenshots](/generative-frame/docs/repair#repairloop).
 
-## `generative-frame/agent`
-
-```ts
-createWidgetAgent(options: CreateWidgetAgentOptions): WidgetAgent
-fromAISDK({ streamText, jsonSchema, model, settings? }): WidgetAgentModel
-parsePartialJson(text: string): unknown
-```
-
-`WidgetAgent` is `{ tool, generate(input, { signal?, sink?, onEvent? }) }`. Options are on [Agent delegation](/generative-frame/docs/agent#options).
-
 ## `generative-frame/assistant-ui`
 
 ```ts

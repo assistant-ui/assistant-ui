@@ -128,7 +128,7 @@ The result is a `PreviewResult`: `{ ok, kind, width, height, blank, errors, cons
 | `patches` | `string` | JSONL patch operations, one per line. Applied onto the title's previous spec, if there is one. |
 | `spec` | `object` | A complete spec, replacing the previous one. |
 
-Result: `{ ok, title, version, elementCount, issues, feedback }`. `issues` come from [`validateSpec`](/generative-frame/docs/spec-mode#validation) plus one `invalid-patch` issue per skipped line, and `feedback` is the same list as text for a repair round. The tool also carries `streaming.create(initial?)` and `streaming.parse(text, initial?)`, which the [widget agent](/generative-frame/docs/agent) uses to stream patches without importing the spec code itself.
+Result: `{ ok, title, version, elementCount, issues, feedback }`. `issues` come from [`validateSpec`](/generative-frame/docs/spec-mode#validation) plus one `invalid-patch` issue per skipped line, and `feedback` is the same list as text for a repair round.
 
 ## Use them with a provider
 

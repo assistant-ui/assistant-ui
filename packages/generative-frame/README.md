@@ -8,7 +8,6 @@ Render model-generated HTML and SVG widgets safely while they stream. Each widge
 - **Diagnostics**: errors, unhandled rejections, console output, failed resources, CSP violations, and blank renders, plus a PNG screenshot taken inside the frame.
 - **Model side**: provider-agnostic tool definitions (`read_me`, `show_widget`, `edit_widget`, `preview_widget`, and `render_spec` from the spec entries), a deterministic guidance generator, and a repair loop.
 - **Spec mode**: the model streams JSONL patches against a catalog of your own components; no frame, your design system.
-- **Delegation**: an optional sub-agent behind one `generate_widget` tool, with a provider-neutral model interface.
 - **assistant-ui**: toolkit entries that render the tool calls in a thread as their arguments stream.
 
 Framework-agnostic; the React and assistant-ui bindings are optional.
@@ -20,7 +19,6 @@ Framework-agnostic; the React and assistant-ui bindings are optional.
 | `generative-frame/tools` | widget tools, `toAISDKTools`, `getToolDeclarations`, `buildWidgetInstructions` |
 | `generative-frame/prompts` | `buildWidgetGuidance` |
 | `generative-frame/repair` | `repairLoop` |
-| `generative-frame/agent` | `createWidgetAgent`, `fromAISDK` |
 | `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
 | `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
 | `generative-frame/spec/react` | `<SpecRenderer>`, `useSpecStream` |
@@ -181,25 +179,7 @@ The format follows the flat-spec and JSONL-patch shape of Vercel's json-render, 
 
 ## Delegated generation
 
-By default the main agent calls `show_widget` itself (inline): the fastest path, but every widget's guidance and code lands in its context. `generative-frame/agent` moves that into a sub-agent behind one tool:
-
-```ts
-import { createWidgetAgent, fromAISDK } from "generative-frame/agent";
-import { jsonSchema, streamText } from "ai";
-
-const agent = createWidgetAgent({
-  model: fromAISDK({ streamText, jsonSchema, model: yourModel }),
-  createSink: () => createWidget({ container }), // a WidgetHandle is a sink
-});
-
-// give agent.tool (generate_widget) to the main agent
-const result = await agent.tool.execute({ brief: "Signups by plan, 30 days", data });
-// { ok, title, mode, summary, errors, rounds }
-```
-
-The sub-agent runs `read_me` → `show_widget` (or `render_spec` with `mode: "spec"`) → checks the render (`preview`, or the sink's `inspect()`) → repairs with `edit_widget` or patches, up to `maxRounds` renders. Tool-call arguments stream into the sink as they arrive. The model is any function `(messages, { tools, signal }) => AsyncIterable<event>` with events `text-delta`, `tool-call-delta`, `tool-call`, and `finish`; `fromAISDK` adapts the AI SDK without making `ai` a dependency.
-
-Trade-offs: delegation keeps the main context small and lets a cheaper or specialized model draw, but adds at least one extra model call of latency, and the main agent only knows the widget through the brief and the summary.
+To keep widget code out of the main agent's context, give it one tool that asks a second model for the widget and checks it with `repairLoop` and `previewWidget`. The docs have a short recipe; the package ships no agent of its own.
 
 ## assistant-ui
 
@@ -246,4 +226,4 @@ function Instructions() {
 
 ## Development
 
-`src/runtime` is the code that runs inside the frame. `scripts/build-runtime.mjs` bundles it into `src/runtime/generated.ts` (gitignored) before `build`, `test`, and `typecheck`. `pnpm dev` serves demos at `http://localhost:5199` (`/`, `/spec.html`, `/agent.html`, `/thread.html`); append `?auto` (and `&dark`) to run a scripted scenario, which saves screenshots and reports to `.screenshots/`. The agent and thread demos use recorded model streams, so they make no network model calls.
+`src/runtime` is the code that runs inside the frame. `scripts/build-runtime.mjs` bundles it into `src/runtime/generated.ts` (gitignored) before `build`, `test`, and `typecheck`. `pnpm dev` serves demos at `http://localhost:5199` (`/`, `/spec.html`, `/thread.html`, `/storage.html`); append `?auto` (and `&dark`) to run a scripted scenario, which saves screenshots and reports to `.screenshots/`. The thread demo uses recorded model streams, so they make no network model calls.

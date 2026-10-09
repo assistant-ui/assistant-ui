@@ -51,10 +51,6 @@
       "types": "./dist/spec/assistant-ui.d.ts",
       "default": "./dist/spec/assistant-ui.js"
     },
-    "./agent": {
-      "types": "./dist/agent.d.ts",
-      "default": "./dist/agent.js"
-    },
     "./assistant-ui": {
       "types": "./dist/assistant-ui.d.ts",
       "default": "./dist/assistant-ui.js"
