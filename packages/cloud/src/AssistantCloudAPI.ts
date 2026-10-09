@@ -3,8 +3,8 @@ import {
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
-  normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
+import { normalizeBaseUrl } from "./baseUrl";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 import { ASSISTANT_CLOUD_VERSION } from "./version";
 
