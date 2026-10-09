@@ -6,6 +6,7 @@ import {
   INIT_MESSAGE,
   METHODS,
   READY_MESSAGE,
+  type ClearStorageResult,
   type Compat,
   type ConsoleEntry,
   type DisplayMode,
@@ -60,6 +61,13 @@ export type CreateWidgetOptions = WidgetHandlers & {
   product?: string;
   /** A preconfigured `SafeContentFrame`, for example with `useShadowDom`. */
   frame?: SafeContentFrame;
+  /**
+   * Gives the widget a stable origin, so its localStorage, IndexedDB, and
+   * cookies persist across reloads for this id on this host origin. Choose
+   * it on the host (never from model output); widgets with the same id share
+   * storage. Without an id, every frame gets a fresh origin.
+   */
+  id?: string;
   csp?: CspOptions | string;
   tokens?: ThemeTokens;
   /** Extra host context fields (locale, display mode, …) merged over the theme. */
@@ -117,6 +125,32 @@ export type WidgetHandle = {
 };
 
 const DEFAULT_PRODUCT = "generative-frame";
+
+/** The Safe Content Frame salt behind a widget id's stable origin. */
+export const widgetStorageSalt = (id: string) => `genframe:v1:${id}`;
+
+const resolveFrame = (
+  options: Pick<CreateWidgetOptions, "frame" | "id" | "product">,
+) => {
+  if (options.frame && options.id !== undefined) {
+    throw new TypeError(
+      "Pass either `frame` or `id` to createWidget; for both, build the frame with `salt: widgetStorageSalt(id)`.",
+    );
+  }
+  return (
+    options.frame ??
+    new SafeContentFrame(
+      options.product ?? DEFAULT_PRODUCT,
+      options.id !== undefined ? { salt: widgetStorageSalt(options.id) } : {},
+    )
+  );
+};
+
+/** Lets `clearWidgetStorage` send a request no public method exposes. */
+const internalRequests = new WeakMap<
+  WidgetHandle,
+  <T>(method: string, params?: unknown) => Promise<T>
+>();
 const DEFAULT_READY_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const SCRIPT_TAG = /<script[\s>]/i;
@@ -152,8 +186,7 @@ type Session = {
  */
 export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   const { container } = options;
-  const frame =
-    options.frame ?? new SafeContentFrame(options.product ?? DEFAULT_PRODUCT);
+  const frame = resolveFrame(options);
   const minHeight = options.minHeight ?? 0;
   const maxHeight = options.maxHeight ?? Number.POSITIVE_INFINITY;
   const readyTimeoutMs = options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
@@ -661,10 +694,38 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     },
   };
 
+  internalRequests.set(handle, request);
+
   if (options.code !== undefined) {
     handle.write(options.code);
     void handle.end().catch(() => {});
   }
 
   return handle;
+}
+
+/**
+ * Clears what widgets with this `id` stored (localStorage, sessionStorage,
+ * IndexedDB, Cache Storage, and cookies) by loading a hidden frame on the
+ * same origin. Resolves with the storage kinds that were cleared.
+ */
+export async function clearWidgetStorage(
+  id: string,
+  options: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs"> = {},
+): Promise<ClearStorageResult> {
+  const container = document.createElement("div");
+  container.setAttribute("aria-hidden", "true");
+  container.style.cssText =
+    "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
+  document.body.appendChild(container);
+  const widget = createWidget({ ...options, container, id });
+  try {
+    await widget.ready;
+    return await internalRequests.get(widget)!<ClearStorageResult>(
+      METHODS.clearStorage,
+    );
+  } finally {
+    widget.dispose();
+    container.remove();
+  }
 }

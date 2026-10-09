@@ -11,5 +11,6 @@ export {
 export {
   resolveSpecBase,
   resolveWidgetCode,
+  resolveWidgetOrigin,
   type MessageLike,
 } from "./assistant-ui/history";

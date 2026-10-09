@@ -1,5 +1,7 @@
 export {
+  clearWidgetStorage,
   createWidget,
+  widgetStorageSalt,
   type CreateWidgetOptions,
   type Screenshot,
   type ToolCallRequest,
@@ -48,6 +50,7 @@ export {
   METHODS,
   type ColorScheme,
   type Compat,
+  type ClearStorageResult,
   type ConsoleEntry,
   type ConsoleLevel,
   type DisplayMode,

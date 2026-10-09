@@ -98,6 +98,21 @@ const { dataUrl, width, height } = await widget.screenshot();
 
 The screenshot is taken inside the frame and is best effort; [Repair loop and screenshots](/generative-frame/docs/repair) lists its limits.
 
+## Persistent storage
+
+Without an `id`, every frame gets a fresh origin, so a widget starts with empty storage each time it mounts. Give it an `id` and its origin is the same on every mount:
+
+```ts
+createWidget({ container, id: `${conversationId}:${widgetKey}` });
+```
+
+- The same `id` on the same host origin gets the same localStorage, IndexedDB, and cookies, across reloads. Widgets mounted at the same time with the same `id` share that storage.
+- Storage belongs to the site that embeds the widget. The same `id` on another site starts empty.
+- The browser can evict it, and cookies are often blocked in third-party frames, so keep only small UI state there. State that must last goes to the host through `genframe.setState`.
+- Choose the `id` on the host, from data the model does not control. An `id` taken from model output would let one widget read another's storage.
+
+`clearWidgetStorage(id)` loads a hidden frame on that origin and clears its localStorage, sessionStorage, IndexedDB, Cache Storage, and cookies. `id` cannot be combined with `frame`; to configure your own `SafeContentFrame`, give it `salt: widgetStorageSalt(id)`.
+
 ## Dispose
 
 ```ts

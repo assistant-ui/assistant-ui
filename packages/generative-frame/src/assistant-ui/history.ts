@@ -65,6 +65,29 @@ export function resolveWidgetCode(
 }
 
 /**
+ * The `show_widget` call that created the widget a `show_widget` or
+ * `edit_widget` call renders, so every version of a widget can share a
+ * host-chosen storage id. Undefined when the call or its widget is unknown.
+ */
+export function resolveWidgetOrigin(
+  messages: readonly MessageLike[],
+  toolCallId: string,
+): string | undefined {
+  const origins = new Map<string, string>();
+  for (const call of toolCalls(messages)) {
+    const title =
+      typeof call.args["title"] === "string" ? call.args["title"] : "";
+    if (call.name === "show_widget") origins.set(title, call.id);
+    if (call.id === toolCallId) {
+      return call.name === "show_widget" || call.name === "edit_widget"
+        ? origins.get(title)
+        : undefined;
+    }
+  }
+  return undefined;
+}
+
+/**
  * The spec a `render_spec` call's patches apply onto: the result of the
  * earlier `render_spec` calls with the same title in the thread.
  */

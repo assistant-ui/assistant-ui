@@ -9,7 +9,7 @@ import { createWidget, type CreateWidgetOptions } from "./widget";
 
 export type PreviewOptions = Pick<
   CreateWidgetOptions,
-  "product" | "frame" | "csp" | "compat" | "css" | "readyTimeoutMs"
+  "product" | "frame" | "id" | "csp" | "compat" | "css" | "readyTimeoutMs"
 > & {
   /** Layout width in CSS pixels. Defaults to 680. */
   width?: number;
@@ -59,6 +59,7 @@ export async function previewWidget(
     onPrompt: () => {},
     ...(options.product !== undefined ? { product: options.product } : {}),
     ...(options.frame !== undefined ? { frame: options.frame } : {}),
+    ...(options.id !== undefined ? { id: options.id } : {}),
     ...(options.csp !== undefined ? { csp: options.csp } : {}),
     ...(options.compat !== undefined ? { compat: options.compat } : {}),
     ...(options.css !== undefined ? { css: options.css } : {}),

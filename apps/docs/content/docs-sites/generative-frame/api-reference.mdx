@@ -23,7 +23,8 @@ const widget: WidgetHandle = createWidget(options);
     { name: "minHeight", type: "number", default: "0", description: "The smallest height of the iframe." },
     { name: "code", type: "string", description: "Complete code to render immediately, as `write(code)` then `end()`." },
     { name: "product", type: "string", default: "\"generative-frame\"", description: "Scopes the frame origin, see `SafeContentFrame`." },
-    { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame, for example with `useShadowDom`." },
+    { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame, for example with `useShadowDom`. Cannot be combined with `id`." },
+    { name: "id", type: "string", description: "A stable origin, so the widget's storage persists for this id. Choose it on the host. See [Persistent storage](/generative-frame/docs/quickstart#persistent-storage)." },
     { name: "context", type: "HostContext", description: "Extra MCP Apps host context fields (locale, display mode, and so on) merged over the theme." },
     { name: "compat", type: "\"openai\"[]", default: "[]", description: "`[\"openai\"]` adds a `window.openai` subset for widgets written for that API." },
     { name: "animate", type: "boolean", default: "true", description: "Fade in elements as they stream in. Always off under reduced motion." },
@@ -61,6 +62,13 @@ const widget: WidgetHandle = createWidget(options);
 | `inspect(): Promise<WidgetInspection>` | `{ kind, ended, size, blank, errors, console, code }`. |
 | `on(event, listener): () => void` | Subscribes to `ready`, `resize`, `error`, `log`, or `end`. |
 | `dispose()` | Removes the frame. |
+
+### Storage
+
+| Function | Description |
+| --- | --- |
+| `clearWidgetStorage(id, { product?, readyTimeoutMs? })` | Clears the storage of widgets with this `id`; resolves with `{ cleared }`, the storage kinds cleared. |
+| `widgetStorageSalt(id)` | The `SafeContentFrame` salt behind an `id`'s origin. |
 
 ### `previewWidget`
 
@@ -230,6 +238,7 @@ useAssistantUiThemeTokens(element?): ThemeTokens
     { name: "renderReport", type: "{ timeoutMs?, settleMs? } | false", default: "{ timeoutMs: 10000, settleMs: 300 }", description: "Frontend execution: `show_widget` and `edit_widget` results wait for the frame and carry a `render` report. `false` returns at once." },
     { name: "preview", type: "(code, { width?, appearance? }) => Promise<PreviewResult>", default: "previewWidget", description: "Renders code for `preview_widget`." },
     { name: "previewScreenshot", type: "boolean", default: "false", description: "Keep the PNG in `preview_widget` results." },
+    { name: "widgetId", type: "(({ toolCallId }) => string) | false", default: "aui:<toolCallId>", description: "The storage id of a widget's frame, from the `show_widget` call that created it. `false` gives every frame a fresh origin." },
   ]}
 />
 

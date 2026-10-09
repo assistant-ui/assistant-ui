@@ -17,6 +17,7 @@ import { installDiagnostics, isBlankRender } from "./diagnostics";
 import { createStreamRenderer } from "./morph";
 import { captureScreenshot } from "./screenshot";
 import { measureRoot, reportableSize } from "./size";
+import { clearFrameStorage } from "./storage";
 
 export type RuntimeConfig = {
   hostOrigin: string;
@@ -307,6 +308,8 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
       case METHODS.inspect:
         renderer.flush();
         return inspect();
+      case METHODS.clearStorage:
+        return clearFrameStorage(win);
       default:
         throw new RpcError(
           RPC_ERROR.methodNotFound,

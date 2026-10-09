@@ -3,7 +3,11 @@ import type { ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../spec/catalog";
 import type { SpecComponentProps } from "../react/SpecRenderer";
-import { resolveSpecBase, resolveWidgetCode } from "./history";
+import {
+  resolveSpecBase,
+  resolveWidgetCode,
+  resolveWidgetOrigin,
+} from "./history";
 import { createWidgetToolkit, useWidgetInstructions } from "./toolkit";
 
 const mocks = vi.hoisted(() => ({
@@ -390,6 +394,55 @@ describe("createWidgetToolkit", () => {
     expect(
       await withShot["preview_widget"]!.execute!({ widget_code: "<p>a</p>" }),
     ).toHaveProperty("screenshot");
+  });
+
+  it("gives each widget a host-derived storage id shared by its edits", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+          call("b", "edit_widget", {
+            title: "w",
+            edits: [{ old_string: "one", new_string: "two" }],
+          }),
+        ],
+      },
+    ];
+    expect(resolveWidgetOrigin(mocks.messages as never, "b")).toBe("a");
+    expect(resolveWidgetOrigin(mocks.messages as never, "zzz")).toBeUndefined();
+
+    mocks.propStatus = { widget_code: "complete" };
+    const { toolkit } = createWidgetToolkit();
+    const ShowWidget = entries(toolkit)["show_widget"]!.render;
+    const EditWidget = entries(toolkit)["edit_widget"]!.render;
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "aui:a" });
+    render(<EditWidget {...partProps("b", { title: "w" })} />);
+    expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "aui:a" });
+
+    const custom = createWidgetToolkit({
+      widgetId: ({ toolCallId }) => `thread-7:${toolCallId}`,
+    });
+    const CustomShow = entries(custom.toolkit)["show_widget"]!.render;
+    render(
+      <CustomShow
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)).toMatchObject({ id: "thread-7:a" });
+
+    const fresh = createWidgetToolkit({ widgetId: false });
+    const FreshShow = entries(fresh.toolkit)["show_widget"]!.render;
+    render(
+      <FreshShow
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)).not.toHaveProperty("id");
   });
 
   it("renders edit_widget with code replayed from the thread", () => {

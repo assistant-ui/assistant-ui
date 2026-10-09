@@ -11,6 +11,7 @@ export const METHODS = {
   replace: "genframe/replace",
   screenshot: "genframe/screenshot",
   inspect: "genframe/inspect",
+  clearStorage: "genframe/clear-storage",
   hostContextChanged: "ui/notifications/host-context-changed",
   toolInputPartial: "ui/notifications/tool-input-partial",
   toolInput: "ui/notifications/tool-input",
@@ -85,6 +86,11 @@ export type EndResult = {
   size: WidgetSize;
   blank: boolean;
   errorCount: number;
+};
+
+export type ClearStorageResult = {
+  /** The storage kinds that were cleared; a kind the browser lacks is left out. */
+  cleared: string[];
 };
 
 export type FrameInspection = {

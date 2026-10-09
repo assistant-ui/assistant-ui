@@ -13,7 +13,34 @@ import {
   type RpcPeer,
 } from "./rpc";
 import { DEFAULT_DARK_TOKENS } from "./theme";
-import { createWidget, type CreateWidgetOptions } from "./widget";
+import {
+  clearWidgetStorage,
+  createWidget,
+  widgetStorageSalt,
+  type CreateWidgetOptions,
+} from "./widget";
+
+const mocks = vi.hoisted(() => ({
+  constructed: [] as { product: string; options: unknown; renders: number }[],
+  render: undefined as
+    | ((html: string, container: HTMLElement) => Promise<unknown>)
+    | undefined,
+}));
+
+vi.mock("safe-content-frame", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("safe-content-frame")>()),
+  SafeContentFrame: class {
+    record: { product: string; options: unknown; renders: number };
+    constructor(product: string, options: unknown = {}) {
+      this.record = { product, options, renders: 0 };
+      mocks.constructed.push(this.record);
+    }
+    renderHtml(html: string, container: HTMLElement) {
+      this.record.renders++;
+      return mocks.render!(html, container);
+    }
+  },
+}));
 
 const ORIGIN = "https://frame.test";
 const ports: MessagePort[] = [];
@@ -336,5 +363,77 @@ describe("createWidget", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("widget ids", () => {
+  afterEach(() => {
+    mocks.constructed.length = 0;
+    mocks.render = undefined;
+  });
+
+  const setupWithId = (options: Partial<CreateWidgetOptions> = {}) => {
+    const fake = createFakeFrame();
+    mocks.render = fake.frame.renderHtml as never;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const widget = createWidget({ container, ...options });
+    return { fake, widget };
+  };
+
+  it("derives a stable salt from the id and keeps a random one without it", () => {
+    setupWithId({ id: "thread-1:call_9", product: "app" });
+    setupWithId();
+    expect(widgetStorageSalt("x")).toBe("genframe:v1:x");
+    expect(mocks.constructed).toEqual([
+      {
+        product: "app",
+        options: { salt: "genframe:v1:thread-1:call_9" },
+        renders: 1,
+      },
+      { product: "generative-frame", options: {}, renders: 1 },
+    ]);
+  });
+
+  it("rejects an id together with a preconfigured frame", () => {
+    const container = document.createElement("div");
+    expect(() =>
+      createWidget({ container, id: "a", frame: createFakeFrame().frame }),
+    ).toThrow(TypeError);
+  });
+
+  it("remounts on the same salted frame, so the origin and storage stay", async () => {
+    const { fake, widget } = setupWithId({ id: "a" });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const handlers: RpcHandlers = { onRequest: () => result };
+    await fake.connect(0, handlers);
+    widget.write("<p>a</p><script>run()</script>");
+    await widget.end();
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    await fake.connect(1, handlers);
+    await remounted;
+    expect(mocks.constructed).toHaveLength(1);
+    expect(mocks.constructed[0]!.renders).toBe(2);
+  });
+
+  it("clears storage through a hidden frame on the id's origin", async () => {
+    const fake = createFakeFrame();
+    mocks.render = fake.frame.renderHtml as never;
+    const cleared = clearWidgetStorage("a");
+    const methods: string[] = [];
+    await fake.connect(0, {
+      onRequest: (method) => {
+        methods.push(method);
+        return { cleared: ["localStorage"] };
+      },
+    });
+    await expect(cleared).resolves.toEqual({ cleared: ["localStorage"] });
+    expect(methods).toEqual([METHODS.clearStorage]);
+    expect(mocks.constructed[0]!.options).toEqual({ salt: "genframe:v1:a" });
+    expect(document.body.children).toHaveLength(0);
   });
 });

@@ -37,7 +37,11 @@ import {
   type WidgetInstructionsOptions,
   type WidgetTools,
 } from "../tools/tools";
-import { resolveSpecBase, resolveWidgetCode } from "./history";
+import {
+  resolveSpecBase,
+  resolveWidgetCode,
+  resolveWidgetOrigin,
+} from "./history";
 
 /**
  * Where theme tokens come from in an assistant-ui app: shadcn/ui variables
@@ -102,6 +106,14 @@ export type WidgetToolkitOptions = Omit<
   renderReport?: RenderReportOptions | false;
   /** Keep the PNG in `preview_widget` results. Defaults to false. */
   previewScreenshot?: boolean;
+  /**
+   * The storage id of a widget's frame, from the `toolCallId` of the
+   * `show_widget` call that created it, so a widget keeps its localStorage
+   * across reloads and edits. Defaults to `aui:<toolCallId>`; `false` gives
+   * every frame a fresh origin. Derive it from host data only, never from
+   * tool arguments the model wrote.
+   */
+  widgetId?: false | ((call: { toolCallId: string }) => string);
 };
 
 export type RenderReportOptions = {
@@ -237,16 +249,30 @@ export function createWidgetToolkit(
     };
   }
 
+  const widgetId = (originToolCallId: string | undefined) => {
+    if (options.widgetId === false || !originToolCallId) return undefined;
+    return options.widgetId
+      ? options.widgetId({ toolCallId: originToolCallId })
+      : `aui:${originToolCallId}`;
+  };
+
   function ToolWidget({
     code,
     streaming,
     toolCallId,
+    storageId,
   }: {
     code: string;
     streaming: boolean;
     toolCallId: string;
+    storageId: string | undefined;
   }) {
-    const { ref, widget } = useWidget(useWidgetProps());
+    const widgetProps = useWidgetProps();
+    const { ref, widget } = useWidget(
+      storageId !== undefined && !widgetProps.frame
+        ? { ...widgetProps, id: storageId }
+        : widgetProps,
+    );
 
     useEffect(() => {
       if (!widget || !reportOptions) return;
@@ -311,7 +337,12 @@ export function createWidgetToolkit(
             {status}
           </p>
         ) : null}
-        <ToolWidget code={code} streaming={streaming} toolCallId={toolCallId} />
+        <ToolWidget
+          code={code}
+          streaming={streaming}
+          toolCallId={toolCallId}
+          storageId={widgetId(toolCallId)}
+        />
       </div>
     );
   }
@@ -326,6 +357,10 @@ export function createWidgetToolkit(
     const complete = argsStatus === "complete";
     const code = useMemo(
       () => (complete ? resolveWidgetCode(messages, toolCallId) : undefined),
+      [complete, messages, toolCallId],
+    );
+    const origin = useMemo(
+      () => (complete ? resolveWidgetOrigin(messages, toolCallId) : undefined),
       [complete, messages, toolCallId],
     );
 
@@ -351,7 +386,12 @@ export function createWidgetToolkit(
     return (
       <div data-gf-widget={title || undefined}>
         <span style={visuallyHidden}>Updated {title}</span>
-        <ToolWidget code={code} streaming={false} toolCallId={toolCallId} />
+        <ToolWidget
+          code={code}
+          streaming={false}
+          toolCallId={toolCallId}
+          storageId={widgetId(origin)}
+        />
       </div>
     );
   }

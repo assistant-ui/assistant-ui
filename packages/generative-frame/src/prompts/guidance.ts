@@ -117,7 +117,7 @@ ${themeTable(ctx)}
 - Pin exact versions in library URLs, for example \`${ctx.example("chart.js@4.4.1/dist/chart.umd.min.js")}\`. Prefer UMD builds loaded with \`<script src>\`; use \`<script type="module">\` with ES module URLs only when no UMD build exists.
 - ${ctx.allowEval ? "`eval` and `new Function` are allowed." : "`eval` and `new Function` are blocked; avoid libraries that compile templates or expressions at runtime."}
 - Form submissions cannot navigate. Handle \`submit\` in JavaScript and call \`preventDefault()\`.
-- Storage such as \`localStorage\` may be empty or unavailable. Keep state in memory.
+- \`localStorage\` can keep small UI state (the open tab, a toggle) between visits when the host gives the widget a stable id; otherwise it starts empty. Read it defensively, and expect the browser to evict it. Do not use cookies: browsers block them in third-party frames. State that must last goes through \`genframe.setState\`.
 
 ## Host API
 
