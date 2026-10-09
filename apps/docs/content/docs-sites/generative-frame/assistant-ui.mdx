@@ -1,0 +1,140 @@
+---
+title: With assistant-ui
+description: Render widget tool calls in an assistant-ui thread as their arguments stream, and report render errors back to the model.
+---
+
+`generative-frame/assistant-ui` turns the widget tools into an assistant-ui toolkit. It needs `@assistant-ui/react`, an optional peer that only this entry imports.
+
+## Set up the toolkit
+
+```tsx
+"use client";
+
+import type { ReactNode } from "react";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  createWidgetToolkit,
+  useWidgetInstructions,
+} from "generative-frame/assistant-ui";
+
+const widgets = createWidgetToolkit({ widget: { maxHeight: 700 } });
+const config = AuiConfig({ tools: Tools({ toolkit: widgets.toolkit }) });
+
+export function Provider({ children }: { children: ReactNode }) {
+  const runtime = useChatRuntime();
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <WidgetInstructions />
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+
+function WidgetInstructions() {
+  useWidgetInstructions(widgets.tools);
+  return null;
+}
+```
+
+`createWidgetToolkit` returns `{ toolkit, tools, registry }`. `toolkit` holds entries for `read_me`, `show_widget`, `edit_widget`, `preview_widget`, and, when you pass a `catalog`, `render_spec`. `tools` are the underlying [tool definitions](/generative-frame/docs/tools), and `registry` holds the latest code per widget title.
+
+`useWidgetInstructions(tools, { preload })` adds a short system prompt section that tells the model when to use the tools. Pass `preload: { modules: ["chart"] }` to inline the `read_me` guidance for those modules, which saves the model a round trip at the cost of a longer prompt.
+
+## What renders in the thread
+
+- `show_widget` streams `widget_code` from the partial tool arguments into a [`<Widget>`](/generative-frame/docs/react). While no code has arrived, the first of `loading_messages` is shown as a status line.
+- `edit_widget` replays the edits against the widget's code from earlier calls in the thread and renders the result.
+- `render_spec` streams patches into a [`<SpecRenderer>`](/generative-frame/docs/spec-mode). It needs `catalog` and `components` in the toolkit options.
+- `read_me` and `preview_widget` render nothing.
+
+A widget's `sendPrompt(text)` appends a user message to the thread. Pass `widget: { onPrompt }` to handle it yourself. Everything else under `widget` (`csp`, `product`, `compat`, `maxHeight`, handlers) applies to every frame the toolkit renders.
+
+## Frontend and backend execution
+
+By default the tools execute in the browser. Your route forwards their schemas to the model with `frontendTools` from `@assistant-ui/ai-sdk`:
+
+```ts title="app/api/chat/route.ts (abridged)"
+import { frontendTools } from "@assistant-ui/ai-sdk";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = (await req.json()) as {
+    messages: UIMessage[];
+    system?: string;
+    tools?: Parameters<typeof frontendTools>[0];
+  };
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+    ...(system ? { system } : {}),
+    tools: frontendTools(tools ?? {}),
+  });
+  // return the UI message stream response as your route already does
+}
+```
+
+The instructions from `useWidgetInstructions` arrive in `system`.
+
+With `execution: "backend"`, the toolkit only renders, and the server runs the tools:
+
+```ts
+import { jsonSchema, streamText } from "ai";
+import {
+  buildWidgetInstructions,
+  createWidgetTools,
+  toAISDKTools,
+} from "generative-frame/tools";
+
+const widgetTools = createWidgetTools();
+const { preview_widget: _preview, ...serverTools } = widgetTools;
+
+const result = streamText({
+  model,
+  system: await buildWidgetInstructions(widgetTools),
+  messages,
+  tools: toAISDKTools(serverTools, { jsonSchema }),
+});
+```
+
+`preview_widget` is left out here because previews need a browser. The server's registry lives in that process, so create one per conversation; `createWidgetRegistry(initial)` from `generative-frame/tools` seeds it with existing widgets. Live render reports, described next, are only available in frontend execution.
+
+## Render errors reach the model
+
+In frontend execution, the `show_widget` and `edit_widget` results wait for the frame in the thread to finish rendering and carry a `render` field:
+
+```ts
+// the frame ended and settled
+{ status: "rendered", ok, blank, height, errors, console, feedback }
+
+// the frame had not finished within the timeout
+{ status: "timeout", feedback }
+```
+
+`errors` are the widget's errors, `console` its console warnings and errors (most recent last), and `feedback` is model-readable text in the same format as [`buildRepairFeedback`](/generative-frame/docs/repair). The model sees a script error, a blocked resource, or a blank render in the tool result and can fix it with `edit_widget`. A call that fails before rendering (an empty `widget_code`, an edit that does not match) returns its error without `render`.
+
+```ts
+createWidgetToolkit({ renderReport: { timeoutMs: 15000, settleMs: 500 } });
+```
+
+`timeoutMs` (default 10000 ms) caps how long a result waits. `settleMs` (default 300 ms) is the wait after the code ends, so errors from scripts that run a little later are caught. `renderReport: false` returns each result as soon as the code is stored.
+
+## `preview_widget`
+
+The toolkit includes `preview_widget`, executed in the browser with `previewWidget` from the core entry. Pass `preview` to use a different renderer. The result is the [preview result](/generative-frame/docs/repair#previewwidget) plus `feedback` text, without the PNG screenshot, because a base64 image in a JSON tool result is large. Set `previewScreenshot: true` to keep it.
+
+## Theme
+
+Frames follow the app's shadcn/ui theme through `useAssistantUiThemeTokens`, which reads shadcn variables first (`--background`, `--primary`, `--muted`, and so on). Pass `themeElement` to read from an element other than the document root. The hook is exported for your own `<Widget>`s:
+
+```tsx
+import { useAssistantUiThemeTokens } from "generative-frame/assistant-ui";
+
+const tokens = useAssistantUiThemeTokens();
+```
+
+## History after a reload
+
+The renderers derive their state from the thread, not from memory. `show_widget` renders from its arguments, `edit_widget` replays the edits of earlier calls with the same title, and `render_spec` applies its patches onto the spec built by earlier calls with that title. The registry is filled from rendered calls, so `edit_widget` also executes after a reload. Scripts run again when a widget mounts.
+
+`resolveWidgetCode(messages, toolCallId)` and `resolveSpecBase(messages, toolCallId, title)` are exported for custom renderers.

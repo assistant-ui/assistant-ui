@@ -1,0 +1,95 @@
+---
+title: React
+description: Render streaming widgets from React with the Widget component, useWidget, and useThemeTokens.
+---
+
+`generative-frame/react` needs `react` 18 or 19. It wraps the core `createWidget` and adds the spec renderer described in [Spec mode](/generative-frame/docs/spec-mode).
+
+## `<Widget>`
+
+```tsx
+import { Widget, useThemeTokens } from "generative-frame/react";
+
+function GeneratedWidget({
+  code,
+  streaming,
+}: {
+  code: string;
+  streaming: boolean;
+}) {
+  const tokens = useThemeTokens();
+  return (
+    <Widget
+      code={code}
+      streaming={streaming}
+      tokens={tokens}
+      maxHeight={640}
+      onPrompt={(text) => sendChatMessage(text)}
+    />
+  );
+}
+```
+
+`<Widget>` takes every `createWidget` option except `container` and `code`, plus `code`, `streaming`, `className`, and `style`. It renders a `div` and mounts the frame inside it.
+
+### How `code` and `streaming` are applied
+
+`code` can be complete or still growing. On each change the component compares the new `code` with what the frame already has:
+
+- While `streaming` is true and the new `code` starts with the current code, only the new suffix is written.
+- When `streaming` turns false (or is false from the start) and `code` is not empty, the widget ends and held scripts run.
+- When the new `code` is not an extension of the current code, or the widget has already ended, the code is replaced. Before any script has run this morphs in place; after that it remounts in a new frame.
+
+Keep `streaming` true for as long as the model is still writing, so scripts do not run on partial code.
+
+### Options and handlers
+
+Mount options such as `csp`, `product`, `compat`, `maxHeight`, and `css` are read once, when the frame mounts. Handlers (`onPrompt`, `onOpenLink`, `onCallTool`, `onError`, and the rest) always call their latest version, so inline arrow functions are fine. A handler that is not passed at mount time stays disabled for that mount.
+
+A new `tokens` object is sent to the frame as a theme change without remounting.
+
+## `useWidget`
+
+`useWidget(options)` gives you the `WidgetHandle` directly, for code that needs `inspect`, `screenshot`, or its own write logic.
+
+```tsx
+import { useEffect } from "react";
+import { useWidget } from "generative-frame/react";
+
+function CapturableWidget({ code }: { code: string }) {
+  const { ref, widget } = useWidget({ maxHeight: 640 });
+
+  useEffect(() => {
+    if (widget && code) void widget.replace(code);
+  }, [widget, code]);
+
+  return (
+    <figure>
+      <div ref={ref} />
+      <button
+        type="button"
+        onClick={async () => {
+          const shot = await widget?.screenshot();
+          if (shot) download(shot.dataUrl);
+        }}
+      >
+        Save as PNG
+      </button>
+    </figure>
+  );
+}
+```
+
+`ref` attaches to the element the frame mounts in. `widget` is `null` before mount and after unmount; the frame is disposed on unmount.
+
+## `useThemeTokens`
+
+```ts
+const tokens = useThemeTokens(element, sources);
+```
+
+Both arguments are optional. The hook reads tokens with `readThemeTokens` from `element` (the document root by default) and reads them again when the `class`, `style`, `data-theme`, or `data-mode` attribute changes on the root, the body, or `element`, or when the system color scheme flips. It returns the same object while nothing changed, so it is safe to pass straight to `<Widget tokens>`.
+
+`sources` overrides where each token is read from. See [Theming](/generative-frame/docs/theming).
+
+On the first render, before the effect runs, the hook returns the built-in light tokens.

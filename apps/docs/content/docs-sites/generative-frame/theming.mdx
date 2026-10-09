@@ -1,0 +1,122 @@
+---
+title: Theming
+description: How the host page's theme becomes CSS variables in the frame, under canonical and MCP Apps names, and stays in sync.
+---
+
+A widget is styled with CSS variables that the host sends into the frame. A widget that uses only these variables matches the host in light and dark mode, and changes with it live.
+
+## Tokens
+
+```ts
+type ThemeTokens = {
+  colorScheme: "light" | "dark";
+  variables: Record<string, string>;
+};
+```
+
+`variables` is keyed by CSS custom property name. The frame applies them on `:root`, sets `color-scheme` and `data-theme` on the root element, and themes plain elements (headings, links, tables, buttons, inputs) with them before any widget CSS loads. The widget's background stays transparent.
+
+## Variables a widget can use
+
+| Variable | Use |
+| --- | --- |
+| `--color-background` | the host page behind the widget; for knockouts only |
+| `--color-surface` | cards, panels, popovers |
+| `--color-surface-muted` | wells, table stripes, hover fills, code blocks |
+| `--color-text` | body text, headings, primary values |
+| `--color-text-muted` | labels, secondary text, axis titles |
+| `--color-text-subtle` | captions, tick labels, placeholders, disabled |
+| `--color-border` | hairlines, dividers, card outlines, gridlines |
+| `--color-border-strong` | inputs, emphasized outlines, focus-adjacent edges |
+| `--color-accent` | primary actions, selection, the one highlighted series |
+| `--color-accent-text` | text and icons placed on `--color-accent` |
+| `--color-danger` | errors, destructive actions, negative deltas |
+| `--color-success` | success, positive deltas |
+| `--color-warning` | warnings, pending states |
+| `--color-info` | neutral notices, links inside callouts |
+| `--chart-1` to `--chart-6` | categorical series, in order |
+| `--font-sans` | all UI text |
+| `--font-mono` | code, tabular identifiers |
+| `--radius-sm`, `--radius-md`, `--radius-lg` | chips and inputs; buttons and cards; large panels |
+
+`THEME_TOKENS` exports this list with a usage note per token, and `buildWidgetGuidance` writes it into the model's guidance. Variables you add beyond these are listed to the model too when you pass your `tokens` to the guidance.
+
+`DEFAULT_LIGHT_TOKENS` and `DEFAULT_DARK_TOKENS` (or `defaultThemeTokens(scheme)`) are the built-in palettes. A frame created without `tokens` uses the light one.
+
+## Read the page theme
+
+```ts
+import { readThemeTokens } from "generative-frame";
+
+const tokens = readThemeTokens(); // from document.documentElement
+const panelTokens = readThemeTokens(panelElement);
+```
+
+`readThemeTokens(element, sources)` reads the computed custom properties of `element` and detects its color scheme. Tokens the page does not define fall back to the built-in palette for that scheme.
+
+The color scheme comes from the nearest `.dark`, `.light`, `[data-theme]`, or `[data-mode]` ancestor, then the element's `color-scheme`, then the luminance of its background, then `prefers-color-scheme`. `detectColorScheme(element)` exposes that step on its own.
+
+### Sources and shadcn/ui
+
+By default each token is read from its canonical name first and then from the matching shadcn/ui variable:
+
+| Token | Read from |
+| --- | --- |
+| `--color-background` | `--color-background`, `--background` |
+| `--color-surface` | `--color-surface`, `--card`, `--background` |
+| `--color-surface-muted` | `--color-surface-muted`, `--muted`, `--secondary` |
+| `--color-text` | `--color-text`, `--foreground` |
+| `--color-text-muted`, `--color-text-subtle` | the canonical name, `--muted-foreground` |
+| `--color-border` | `--color-border`, `--border` |
+| `--color-border-strong` | `--color-border-strong`, `--input`, `--ring` |
+| `--color-accent` | `--color-accent`, `--primary` |
+| `--color-accent-text` | `--color-accent-text`, `--primary-foreground` |
+| `--color-danger` | `--color-danger`, `--destructive` |
+| `--radius-md` | `--radius-md`, `--radius` |
+
+The other tokens are read from their canonical names only. Older shadcn themes that store bare HSL channels (`222 47% 11%`) are wrapped in `hsl()`. When the page defines `--radius` but not `--radius-sm` or `--radius-lg`, those are derived from it, and `--font-sans` falls back to the body's computed font family.
+
+Override the lookup per token with `ThemeTokenSources`:
+
+```ts
+const tokens = readThemeTokens(document.documentElement, {
+  "--color-accent": ["--brand", "--primary"],
+  "--chart-1": "--brand-chart-1",
+});
+```
+
+Tailwind v4 aliases `--color-accent` to shadcn's muted `--accent`, so in a Tailwind v4 app the canonical name holds the wrong color. `ASSISTANT_UI_TOKEN_SOURCES` from `generative-frame/assistant-ui` reads the shadcn variables first, and `useAssistantUiThemeTokens` uses it.
+
+## MCP Apps names
+
+Each frame also receives the MCP Apps standard style variables, so widgets written for MCP Apps hosts pick up the theme. `toMcpAppsVariables(tokens)` returns them, and `themeVariables(tokens)` returns everything a frame receives. Examples:
+
+| MCP Apps variable | From |
+| --- | --- |
+| `--color-background-primary` | `--color-background` |
+| `--color-background-secondary` | `--color-surface` |
+| `--color-text-primary` | `--color-text` |
+| `--color-text-secondary` | `--color-text-muted` |
+| `--color-border-primary` | `--color-border` |
+| `--color-ring-primary` | `--color-accent` |
+| `--border-radius-md` | `--radius-md` |
+
+The status backgrounds (`--color-background-danger` and the others) are the status colors at 12% opacity. Font weights, font sizes, `--border-radius-full`, and `--border-width-regular` are fixed values. The variables also reach MCP Apps widgets through the host context (`styles.variables`).
+
+## Change the theme
+
+```ts
+widget.setTheme(readThemeTokens());
+```
+
+`setTheme` updates the variables in the frame without reloading it. In React, a new `tokens` prop does the same, and `useThemeTokens` produces new tokens when the page's theme changes.
+
+Inside the frame, a theme change fires a `themechange` event on `window` with `{ theme, variables }` as its `detail`. Canvas-based libraries cannot read CSS variables, so a widget that draws on a canvas resolves them and redraws on that event:
+
+```js
+const color = () =>
+  getComputedStyle(document.documentElement).getPropertyValue("--chart-1").trim();
+
+window.addEventListener("themechange", () => chart.update());
+// or: genframe.on("themechange", () => chart.update());
+```

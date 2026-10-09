@@ -1,0 +1,84 @@
+---
+title: Security model
+description: What isolates a widget from the host page, the default Content Security Policy, and what the host still decides.
+---
+
+Widget code is written by a model, so treat it as untrusted. This page lists what the package isolates and what is left to the host.
+
+## Every widget runs on its own site
+
+Each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). The frame is served from a hashed subdomain of a domain on the Public Suffix List, so browsers treat it as a separate site from your app: widget scripts cannot reach your page's DOM, cookies, or storage, even though the frame allows scripts. [How Safe Content Frame works](/safe-content-frame/docs/how-it-works) explains the origin scheme.
+
+`product` scopes the frame origin (it defaults to `"generative-frame"`), and `frame` accepts a preconfigured `SafeContentFrame`, for example one with `useShadowDom`.
+
+## How code reaches the frame
+
+The frame loads one bootstrap document: the Content Security Policy, the theme, and the in-frame runtime. The runtime announces itself to the host origin baked into that document, and the host answers once with a `MessageChannel` port. Widget code then streams over that private port as JSON-RPC 2.0 messages.
+
+The host also answers the same requests when they arrive as window messages, because widgets built on the MCP Apps SDK talk to `window.parent`. Those are accepted only when the message's source is the frame's own window and its origin is the frame's origin.
+
+Theme variables written into the bootstrap are filtered: names must be plain custom property names and values cannot contain `;`, `{`, `}`, `<`, or `>`.
+
+## The default policy
+
+Every frame enforces a CSP `<meta>` tag that widget code cannot lift. By default (`buildCsp()`):
+
+| Directive | Allowed |
+| --- | --- |
+| `default-src` | `'none'` |
+| `script-src` | inline scripts, and the CDN origins |
+| `style-src` | inline styles, the CDN origins, and `https://fonts.googleapis.com` |
+| `img-src` | `data:`, `blob:`, and the CDN origins |
+| `font-src` | `data:`, the CDN origins, and `https://fonts.gstatic.com` |
+| `media-src` | `data:`, `blob:`, and the CDN origins |
+| `connect-src` | `'none'`: no `fetch`, XHR, or WebSocket |
+| `frame-src` | `'none'` |
+| `worker-src` | `blob:` |
+| `object-src`, `base-uri`, `form-action` | `'none'` |
+
+The CDN origins are `https://cdnjs.cloudflare.com`, `https://cdn.jsdelivr.net`, `https://unpkg.com`, and `https://esm.sh` (`DEFAULT_CDN_ORIGINS`). A widget can load any package published to those CDNs, so the allowlist limits where code comes from, not what it does once loaded. `eval` and `new Function` are blocked.
+
+Configure the policy with `csp` on `createWidget`:
+
+```ts
+createWidget({
+  container,
+  csp: {
+    cdnOrigins: ["https://cdn.jsdelivr.net"],
+    connectOrigins: ["https://api.example.com"],
+    imageOrigins: ["https://images.example.com"],
+    frameOrigins: [],
+    allowEval: false,
+  },
+});
+```
+
+| Option | Effect |
+| --- | --- |
+| `cdnOrigins` | Replaces the CDN list for scripts, styles, images, fonts, and media. |
+| `connectOrigins` | Origins `fetch`, XHR, and WebSocket may reach. `wss://` origins are accepted here. |
+| `imageOrigins` | Extra image origins, such as an image proxy. |
+| `frameOrigins` | Origins that nested frames may load. |
+| `allowEval` | Adds `'unsafe-eval'`, which some charting libraries need. |
+
+Sources that are not plain `http(s)` origins (with a `*.` wildcard allowed) or the keywords `'self'`, `'none'`, `data:`, `blob:`, and `https:` are dropped. You can also pass a complete policy string, which is used as is. Keep [the guidance](/generative-frame/docs/tools#guidance) in sync, so the model does not reach for something the policy blocks.
+
+## Scripts wait for complete code
+
+Scripts are held while code streams and run once, in document order, after `end()`. This exists so scripts never run against half-written markup. It is not a security boundary: complete code runs with everything the frame allows.
+
+## What the host decides
+
+The frame isolates the widget from your page. What a widget can do through the bridge is set by the handlers you pass:
+
+- **`onPrompt` / `onMessage`.** A widget can call `sendPrompt(text)` at any time, with or without a click, and the text is sent as the user's message. Without either handler, the call fails. Confirm in the handler if a message should not be sent without the user seeing it.
+- **`onOpenLink`.** Link clicks, `window.open`, and `openLink(url)` all go through it. Only `http:` and `https:` URLs reach the handler. Without a handler, the URL opens in a new tab with `noopener,noreferrer` and no confirmation. A URL can carry data in its query, so a host that wants a confirmation step passes its own handler.
+- **`onCallTool`.** Off unless you pass it. The widget chooses the tool name and arguments, so allowlist names and validate arguments in the handler.
+- **`onUpdateModelContext`.** Off unless you pass it. Its content is model-generated and goes back to a model, so treat it as untrusted input.
+- **`onRequestDisplayMode` and `onWidgetState`.** Without a handler, display-mode requests return the current mode and widget state is dropped.
+- **Tool data.** Whatever you forward with `notifyToolInput` and `notifyToolResult` is readable by widget code.
+- **Policy.** `connectOrigins` gives widget code network access to those origins, and `allowEval` re-enables `eval`.
+
+## Spec mode runs no model code
+
+In [spec mode](/generative-frame/docs/spec-mode) there is no frame and no model-written code. The model writes data: which of your catalog's components to render, with which props, bound to which of your actions. With the catalog passed to `SpecRenderer`, props are validated before rendering. Expressions only read and write the spec's state, and every action other than the built-in `setState` runs through a handler you wrote. The components and handlers you supply are the whole attack surface.

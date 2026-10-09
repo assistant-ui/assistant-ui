@@ -1,0 +1,77 @@
+---
+title: Introduction
+description: Render model-generated HTML and SVG widgets in a sandboxed frame while they stream.
+---
+
+`generative-frame` renders HTML and SVG that a model writes, chunk by chunk, inside a [Safe Content Frame](/safe-content-frame) on its own site. The frame loads once, and code streams into it over a private `MessagePort`, so partial markup renders as it arrives and scripts run once the code is complete.
+
+The package also ships the model side (tool definitions, prompts, a repair loop), a spec mode that renders your own components from JSONL patches, a sub-agent for delegated generation, and bindings for React and assistant-ui. The core is framework-agnostic; React and `@assistant-ui/react` are optional peers.
+
+## Install
+
+<InstallCommand npm={["generative-frame"]} />
+
+## Render a streamed widget
+
+```ts
+import { createWidget, readThemeTokens } from "generative-frame";
+
+const widget = createWidget({
+  container: document.getElementById("widget")!,
+  tokens: readThemeTokens(),
+  onPrompt: (text) => sendChatMessage(text),
+});
+
+for await (const chunk of modelStream) widget.write(chunk);
+await widget.end();
+```
+
+`createWidget` returns immediately. Writes made before the frame connects are queued, and the iframe grows to the height of its content.
+
+## Entry points
+
+| Entry | Contents |
+| --- | --- |
+| `generative-frame` | `createWidget`, `previewWidget`, theme helpers, `buildCsp`, the in-frame runtime |
+| `generative-frame/react` | `<Widget>`, `useWidget`, `useThemeTokens`, `<SpecRenderer>`, `useSpecStream` |
+| `generative-frame/tools` | `createWidgetTools`, `toAISDKTools`, `getToolDeclarations`, `buildWidgetInstructions` |
+| `generative-frame/prompts` | `buildWidgetGuidance`, `buildModuleGuidance` |
+| `generative-frame/repair` | `repairLoop`, `buildRepairFeedback` |
+| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/agent` | `createWidgetAgent`, `fromAISDK` |
+| `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
+
+## Pages
+
+<Cards>
+  <Card title="Quickstart" href="/generative-frame/docs/quickstart">
+    Stream a widget into a page with plain TypeScript.
+  </Card>
+  <Card title="React" href="/generative-frame/docs/react">
+    The `Widget` component, `useWidget`, and `useThemeTokens`.
+  </Card>
+  <Card title="With assistant-ui" href="/generative-frame/docs/assistant-ui">
+    Render widget tool calls in a thread as their arguments stream.
+  </Card>
+  <Card title="Tools and prompts" href="/generative-frame/docs/tools">
+    The model-facing tools, their inputs and results, and the guidance text.
+  </Card>
+  <Card title="Spec mode" href="/generative-frame/docs/spec-mode">
+    Let the model build UI from your own components with JSONL patches.
+  </Card>
+  <Card title="Agent delegation" href="/generative-frame/docs/agent">
+    Move widget generation into a sub-agent behind one tool.
+  </Card>
+  <Card title="Repair loop and screenshots" href="/generative-frame/docs/repair">
+    Render, collect errors, and feed them back to the model.
+  </Card>
+  <Card title="Theming" href="/generative-frame/docs/theming">
+    How your page's theme becomes CSS variables inside the frame.
+  </Card>
+  <Card title="Security model" href="/generative-frame/docs/security">
+    What the frame isolates, the default policy, and what the host decides.
+  </Card>
+  <Card title="API reference" href="/generative-frame/docs/api-reference">
+    Signatures and options for every entry point.
+  </Card>
+</Cards>
