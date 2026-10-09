@@ -70,14 +70,14 @@ export function variants(options: VariantsPluginOptions = {}) {
           header,
           json: () => readJson(request),
         };
-        void handleNotesRequest(notesRequest, { root, dev: true }).then(
-          ({ status, body }) => {
+        void handleNotesRequest(notesRequest, { root, dev: true })
+          .catch(() => ({ status: 500, body: { error: "failed" } }))
+          .then(({ status, body }) => {
             response.statusCode = status;
             response.setHeader("content-type", "application/json");
             response.setHeader("cache-control", "no-store");
             response.end(JSON.stringify(body));
-          },
-        );
+          });
       });
     },
   };

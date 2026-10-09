@@ -75,6 +75,13 @@ describe("guards", () => {
     });
   });
 
+  it("answers 400 for a path that is not a valid URL", async () => {
+    expect(await call(request("GET", "//["))).toEqual({
+      status: 400,
+      body: { error: "invalid path" },
+    });
+  });
+
   it("requires the custom header", async () => {
     const response = await call(
       request("GET", "/ping", { headers: { "x-variants": "" } }),

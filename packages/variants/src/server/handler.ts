@@ -84,18 +84,27 @@ const publicNote = (root: string, file: string, note: SourceNote) => ({
   file: relative(root, file),
 });
 
+const parsePath = (path: string) => {
+  try {
+    return new URL(path, "http://local");
+  } catch {
+    return undefined;
+  }
+};
+
 export const handleNotesRequest = async (
   request: NotesRequest,
   options: NotesOptions,
 ): Promise<NotesResponse> => {
   if (!options.dev) return fail(404, "not found");
-  const url = new URL(request.path, "http://local");
   const method = request.method.toUpperCase();
   const mutation = method === "POST" || method === "DELETE";
   const rejected = checkRequest(request, method === "POST");
   if (rejected) return rejected;
 
   try {
+    const url = parsePath(request.path);
+    if (!url) return fail(400, "invalid path");
     const root = await realpath(options.root);
     if (method === "GET" && url.pathname === "/ping")
       return { status: 200, body: { ok: true, version: 1 } };
