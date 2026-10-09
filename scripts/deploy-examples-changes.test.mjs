@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -107,6 +114,89 @@ test("a change selects only the examples it feeds", () => {
   });
 });
 
+test("isolated package tests do not deploy examples, but production and source inputs do", () => {
+  for (const files of [
+    [
+      "packages/tap/src/__tests__/react/concurrent-mode.test.tsx",
+      "packages/tap/src/__tests__/strictmode/strictmode-parity.test.tsx",
+    ],
+    ["packages/assistant-stream/src/core/tool/schema-utils.test.ts"],
+    ["packages/core/src/tests/external-thread-attachments.test.tsx"],
+    [
+      "packages/react-ink/src/components/message.test.tsx",
+      "packages/react-native/src/primitives/thread.test.tsx",
+    ],
+  ]) {
+    assert.deepEqual(planDeploys(repoRoot, files), {
+      matrix: { include: [] },
+      any: false,
+    });
+  }
+  for (const file of [
+    "packages/core/src/index.ts",
+    "packages/core/src/index.spec.ts",
+    "packages/core/src/tests/helpers.ts",
+    "packages/core/vitest.config.ts",
+    "packages/core/package.json",
+    "packages/x-buildutils/src/declarations.test.ts",
+    "pnpm-lock.yaml",
+  ]) {
+    assert.deepEqual(
+      examplesOf(planDeploys(repoRoot, [file])),
+      ["with-expo", "with-react-ink-web"],
+      file,
+    );
+  }
+  for (const file of [
+    "packages/metro/src/transformer.test.ts",
+    "packages/ui/src/components/react-native/assistant-ui/thread.test.tsx",
+    "examples/with-expo/app/index.test.tsx",
+  ]) {
+    assert.deepEqual(
+      examplesOf(planDeploys(repoRoot, [file])),
+      ["with-expo"],
+      file,
+    );
+  }
+  for (const file of [
+    "examples/with-react-ink/src/components/thread-shell.test.tsx",
+    "examples/with-react-ink-web/app/page.test.tsx",
+  ]) {
+    assert.deepEqual(
+      examplesOf(planDeploys(repoRoot, [file])),
+      ["with-react-ink-web"],
+      file,
+    );
+  }
+  assert.deepEqual(
+    examplesOf(
+      planDeploys(repoRoot, [
+        "packages/core/src/tests/external-thread-attachments.test.tsx",
+        "packages/react-ink/src/index.ts",
+      ]),
+    ),
+    ["with-react-ink-web"],
+  );
+});
+
+test("deleted shared package inputs still select both deployments", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "aui-deploy-inputs-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "packages"));
+  for (const example of ["with-expo", "with-react-ink-web"]) {
+    const dir = path.join(root, "examples", example);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ name: example }),
+    );
+  }
+  assert.deepEqual(
+    examplesOf(planDeploys(root, ["packages/x-buildutils/package.json"])),
+    ["with-expo", "with-react-ink-web"],
+  );
+});
+
 test("an unknown base deploys every example", () => {
   const plan = planDeploys(repoRoot, null);
   assert.deepEqual(examplesOf(plan), ["with-expo", "with-react-ink-web"]);
@@ -119,7 +209,8 @@ test("an unknown base deploys every example", () => {
 
 test("the CLI reads NUL separated paths and honours --all", () => {
   const piped = spawnSync(process.execPath, [script], {
-    input: "examples/with-react-ink-web/app/page.tsx\0apps/docs/x.mdx\0",
+    input:
+      "examples/with-react-ink-web/app/page.tsx\0packages/core/src/tests/external-thread-attachments.test.tsx\0apps/docs/x.mdx\0",
     encoding: "utf8",
   });
   assert.equal(piped.status, 0, piped.stderr);
@@ -208,7 +299,7 @@ test("the Ink install includes every explicitly built workspace", () => {
   }
 });
 
-test("the Expo native bundle workflow watches every bundle input", () => {
+test("the Expo native bundle watches bundle inputs but skips isolated package tests", () => {
   const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
   const workflow = readFileSync(
     path.join(repoRoot, nativeWorkflowFile),
@@ -220,19 +311,90 @@ test("the Expo native bundle workflow watches every bundle input", () => {
     match[1]
       .trim()
       .split("\n")
-      .map((line) => line.replace(/^\s*- /, "").replace(/\/\*\*$/, ""))
-      .sort(),
+      .map((line) => line.replace(/^\s*- /, "").replace(/^["']|["']$/g, "")),
   );
   const expectedPaths = [
     ...exampleInputs(repoRoot, "with-expo").filter(
       (input) => input !== WORKFLOW_FILE && !input.startsWith("scripts/"),
     ),
     nativeWorkflowFile,
+    "packages/ui/src/components/react-native",
   ].sort();
 
   assert.equal(pathBlocks.length, 2, "pull request and push path filters");
-  assert.deepEqual(pathBlocks[0], expectedPaths);
-  assert.deepEqual(pathBlocks[1], expectedPaths);
+  for (const patterns of pathBlocks) {
+    const matches = (file) =>
+      patterns.reduce((included, pattern) => {
+        const negative = pattern.startsWith("!");
+        return path.posix.matchesGlob(
+          file,
+          negative ? pattern.slice(1) : pattern,
+        )
+          ? !negative
+          : included;
+      }, false);
+
+    assert.equal(
+      matches(
+        "packages/ui/src/components/react/assistant-ui/elements/agent-plan.test.tsx",
+      ),
+      false,
+    );
+    assert.equal(
+      matches(
+        "packages/ui/src/components/react-native/assistant-ui/thread.test.tsx",
+      ),
+      true,
+    );
+    assert.deepEqual(
+      patterns
+        .filter((pattern) => !pattern.startsWith("!"))
+        .map((pattern) => pattern.replace(/\/\*\*$/, ""))
+        .sort(),
+      expectedPaths,
+    );
+    for (const input of expectedPaths) {
+      if (!input.startsWith("packages/")) {
+        assert.ok(
+          matches(
+            input.startsWith("examples/")
+              ? `${input}/app/index.test.tsx`
+              : input,
+          ),
+          input,
+        );
+        continue;
+      }
+      for (const file of [
+        "src/index.ts",
+        "src/nested/component.tsx",
+        "src/index.spec.ts",
+        "src/tests/helpers.ts",
+        "package.json",
+        "vitest.config.ts",
+      ]) {
+        assert.ok(matches(`${input}/${file}`), `${input}/${file}`);
+      }
+      // Native UI tests enter Tailwind's scan; CJS builds use the full tsconfig program.
+      const packageRoot = input.split("/").slice(0, 2).join("/");
+      const pkg = JSON.parse(
+        readFileSync(path.join(repoRoot, packageRoot, "package.json"), "utf8"),
+      );
+      const testsAreInputs =
+        input === "packages/ui/src/components/react-native" ||
+        JSON.stringify(pkg.exports ?? {}).includes(".cjs");
+      for (const file of [
+        "src/index.test.ts",
+        "src/nested/component.test.tsx",
+      ]) {
+        assert.equal(
+          matches(`${input}/${file}`),
+          testsAreInputs,
+          `${input}/${file}`,
+        );
+      }
+    }
+  }
 });
 
 test("the Expo native bundle installs only its workspace graph", () => {

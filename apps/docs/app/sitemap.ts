@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { source, blog, examples, careers } from "@/lib/source";
+import { blog, examples, careers } from "@/lib/source";
+import { allDocsPages } from "@/lib/docs-pages";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { DEMOS } from "@/lib/demos";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
@@ -79,7 +80,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       ]
     : [];
 
-  const docsPages: MetadataRoute.Sitemap = source.getPages().map((page) => ({
+  const docsPages: MetadataRoute.Sitemap = allDocsPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
     changeFrequency: "weekly" as const,
     priority: 0.9,

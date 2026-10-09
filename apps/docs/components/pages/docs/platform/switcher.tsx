@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Cloud,
   Droplet,
+  LayoutGrid,
   Monitor,
   PanelsTopLeft,
   Smartphone,
@@ -31,6 +32,7 @@ import {
   usePlatform,
 } from "./context";
 import { cn } from "@/lib/utils";
+import { headerSwitcherClassName } from "@/components/shared/header-chrome";
 import { getVisibleUrlsByPlatform } from "./tree";
 
 const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
@@ -42,8 +44,8 @@ const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
   cloud: Cloud,
 };
 
-const LIBRARIES: readonly Platform[] = ["tap", "cloud"];
-const BINDINGS = PLATFORMS.filter((p) => !LIBRARIES.includes(p));
+// Tap keeps its docs but is not offered as a platform to switch to.
+const MENU_PLATFORMS = PLATFORMS.filter((p) => p !== "tap");
 
 function getVisiblePlatformSwitchHref(
   visibleUrls: ReadonlySet<string>,
@@ -80,10 +82,7 @@ export function PlatformSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={cn(
-          "group/platform bg-muted/70 text-foreground hover:bg-muted data-[popup-open]:bg-muted focus-visible:ring-foreground/20 flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-1",
-          className,
-        )}
+        className={cn("group/platform", headerSwitcherClassName, className)}
       >
         <span
           data-docs-platform={platform}
@@ -96,7 +95,7 @@ export function PlatformSwitcher({
       <DropdownMenuContent
         align="start"
         sideOffset={6}
-        className="min-w-44 rounded-lg p-1"
+        className="min-w-52 rounded-lg p-1"
       >
         <DropdownMenuRadioGroup
           className="flex flex-col gap-0.5"
@@ -112,10 +111,23 @@ export function PlatformSwitcher({
             setPlatform(next);
           }}
         >
-          {BINDINGS.map(renderItem)}
-          <DropdownMenuSeparator />
-          {LIBRARIES.map(renderItem)}
+          {MENU_PLATFORMS.map(renderItem)}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <MenuPrimitive.Item
+          closeOnClick
+          onClick={() => router.push("/oss")}
+          className={cn(
+            "flex h-8 cursor-default items-center gap-2 rounded-sm px-2 text-[13px] tracking-tight transition-colors outline-none select-none",
+            "data-[highlighted]:bg-foreground/5",
+          )}
+        >
+          <LayoutGrid className="text-muted-foreground size-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            Other OSS projects
+          </span>
+          <span className="size-3.5 shrink-0" />
+        </MenuPrimitive.Item>
       </DropdownMenuContent>
     </DropdownMenu>
   );
