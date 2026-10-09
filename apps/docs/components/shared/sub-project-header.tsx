@@ -119,7 +119,9 @@ export function SubProjectHeader({
             showLabel={false}
             href={docsActive ? (current?.href ?? `/${name}`) : "/"}
             homeLabel={
-              docsActive ? `${current?.label ?? name} home` : "assistant-ui home"
+              docsActive
+                ? `${current?.label ?? name} home`
+                : "assistant-ui home"
             }
           />
           <span className="text-muted-foreground/40 ml-2 sm:ml-3">/</span>
