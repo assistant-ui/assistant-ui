@@ -35,11 +35,17 @@ When you're choosing between designs, the real page is the best place to judge t
 
 ## Install
 
-```bash
-npm install variants
+`@assistant-ui/variants` is not published to npm yet. Inside this monorepo, add it to a workspace package as a dev dependency:
+
+```json
+{
+  "devDependencies": {
+    "@assistant-ui/variants": "workspace:*"
+  }
+}
 ```
 
-Peer dependencies: `react` and `react-dom` 18 or 19. There are no other runtime dependencies, and you don't need a CSS import.
+Then run `pnpm install`. Peer dependencies: `react` and `react-dom` 18 or 19. There are no other runtime dependencies, and you don't need a CSS import.
 
 ## API
 
@@ -80,8 +86,9 @@ Each call replaces the previous configuration. The `selection` passed to `prompt
 
 - `scope`: `"page"` or `"group"`.
 - `pathname`.
-- `url`: the full URL with the selected `?variant=` params.
+- `url`: the full URL with the selected `?variant=` params (for one group, also its ancestors' selections) and the current hash.
 - `groups`: one entry per mounted group, parents first, each with `id`, `label`, `kept`, `removed` and `parent`.
+- `notes`: the notes kept in this tab for those groups, each with `group`, `variant`, `note` and `hint`. Notes written into source are not included.
 
 ### Which variant renders
 
@@ -316,12 +323,12 @@ How the endpoints behave:
 - **Routes:** they live under `/__variants`: `GET /ping`, `GET /notes?groups=a,b`, `POST /notes` with body `{ group, variant?, note, hint? }`, and `DELETE /notes/:id?group=…`.
 - **Finding the file:** the server scans the project root for the one file that declares `<Variants id="group">`, skipping `node_modules`, `.git`, `dist`, `.next`, `build`, `out` and dot-directories. If there's no such file, or more than one, it refuses.
 - **What it changes:** it only ever inserts or deletes a marker. The one exception is a self-closing `<Variant />`, which gains a closing tag so the marker has somewhere to go.
-- **Parsing:** it uses a small JSX opening-tag scanner rather than the TypeScript compiler API, because TypeScript 7 ships no JavaScript API.
+- **Parsing:** it uses a small JSX-aware tokenizer rather than the TypeScript compiler API, because TypeScript 7 ships no JavaScript API. Tags and markers inside comments, strings, template literals, regular expressions, and MDX code fences or inline code are ignored.
 - **Guards:**
   - development only (the Vite plugin is `apply: "serve"`; the Next handlers return 404 unless `NODE_ENV` is `development`)
   - a required `x-variants: 1` header
   - same-origin only: `Origin` must match `Host`, and `Sec-Fetch-Site: cross-site` is refused
-  - `application/json` bodies of at most 64KB
+  - `application/json` bodies of at most 64KB (malformed JSON is a 400, a larger body a 413)
   - ids and lengths validated
   - every file path resolved (symlinks included) and confined to the project root
 
@@ -329,7 +336,7 @@ On load, the sidebar probes `GET /__variants/ping`.
 
 ### Kept in the tab (fallback)
 
-Without the endpoints, notes live in `sessionStorage` and are appended to the copied command after ` -- notes: `, separated by `; `. Each note is `group[:variant] "text"`, with an optional `(on: hint)` (parentheses are removed from the hint). The text is a JSON string.
+Without the endpoints, notes live in `sessionStorage` and are appended to the copied command after ` -- notes: `, separated by `; `. Each note is `group[:variant] "text"`, with an optional `(on: hint)` (parentheses and semicolons are removed from the hint). The text is a JSON string.
 
 ```text
 /variants choose pricing-cta:link pricing-hero:split -- notes: pricing-cta:link "smaller arrow" (on: a > svg); pricing-hero "tighter heading"

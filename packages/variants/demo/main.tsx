@@ -21,11 +21,17 @@ const accents = [
 
 const demoState = new URLSearchParams(window.location.search).get("demo");
 if (demoState) {
-  window.sessionStorage.clear();
-  for (const entry of demoState.split(",")) {
-    const [key, value] = entry.split("=");
-    if (key && value) window.sessionStorage.setItem(`variants:${key}`, value);
-  }
+  try {
+    const storage = window.sessionStorage;
+    for (let index = storage.length - 1; index >= 0; index--) {
+      const key = storage.key(index);
+      if (key?.startsWith("variants:")) storage.removeItem(key);
+    }
+    for (const entry of demoState.split(",")) {
+      const [key, value] = entry.split("=");
+      if (key && value) storage.setItem(`variants:${key}`, value);
+    }
+  } catch {}
 }
 
 function FeatureCards({ filled }: { filled: boolean }) {

@@ -45,7 +45,7 @@ A production build refuses to render a `<Variants>`, so an undecided comparison 
 ## Show the candidates
 
 - Check every variant renders. `?variant=<group>:<id>` selects one.
-- Send the canvas link, `http://localhost:3000/<page>?variants=canvas`, which shows every variant of every group side by side. Send a screenshot of it too.
+- Send the canvas link (the page's own dev URL with `?variants=canvas` added, for example `http://localhost:5173/pricing?variants=canvas`), which shows every variant of every group side by side. Send a screenshot of it too.
 - When layout matters, also send one clean screenshot per variant at phone width (`?variant=<group>:<id>&variants=clean`). This hides the outline and sidebar. The variant's top-level elements carry `data-variant="<id>"`, so `[data-variant="<id>"]` works as an element-screenshot target.
 - Report one line per variant: its `id`, its label, what makes it different, and its direct link.
 - The user can pick in the sidebar and paste the `/variants choose …` line it copies, or simply reply with ids.
@@ -85,7 +85,7 @@ Users leave notes (change requests) on a variant or a whole group from the sideb
 `/variants choose <pairs…> [-- notes: …]` is the decision. Treat the listed choices as final.
 
 1. Parse the arguments before ` -- notes: ` as `group:variant` pairs, separated by whitespace or commas (the `?variant=` syntax). A variant written as a number (`scf-cta:2`) means the variant in that position, counting from 1, unless a variant actually has that id. Parse the notes section as described in "Notes".
-2. For each group, find its block with `rg -n 'id="<group>"' --glob '*.tsx'` across the repo, and keep only `<Variants` matches. If there's no match, or more than one, stop and ask.
+2. For each group, find its block with `rg -n 'id="<group>"' --glob '*.{tsx,jsx,js,mdx}'` across the repo, and keep only `<Variants` matches. If there's no match, or more than one, stop and ask.
 3. Check the variant id is one of that block's `<Variant id=…>` children. If it isn't, list the valid ids and ask. If a group listed in the notes doesn't exist, ask about that note.
 4. Apply notes before resolving:
    - Apply the notes on each chosen variant and its group: the `@variants-note` markers inside the block and the notes in the command. This is the same as "Apply".
@@ -182,7 +182,7 @@ When the user chooses:
 2. Replace the whole `<Variants>` block with the chosen `<Variant>`'s children.
 3. Delete the losing candidate components and any content, imports, or icons only they used.
 4. Rename the chosen component to a permanent name if its name describes the comparison.
-5. Search the change for leftovers: `rg "<Variants|<Variant |from \"@assistant-ui/variants|@variants-note"` must find nothing in the files you touched.
+5. Search the files you touched for leftovers: `rg "<Variants|<Variant |from \"@assistant-ui/variants|@variants-note" <touched files>` must find nothing.
 6. Typecheck, run the page's tests, and look at the page once more without query parameters.
 
 A `<Variants>` left in a statically prerendered page fails `next build`. One left in a dynamic or client-only page fails at request time instead, so the search in step 5 is the real guard. Note markers are comments and never fail a build, so the same search is the only thing that catches them. Never land a PR that still contains a `<Variants>` or a `@variants-note`, and never set `allowInProduction` or `VARIANTS_ALLOW_IN_PRODUCTION` outside a preview deployment the user asked for.
