@@ -2,4 +2,4 @@
 "generative-frame": patch
 ---
 
-feat: add `generative-frame`, which streams model-generated HTML and SVG widgets into Safe Content Frames, with an MCP Apps-compatible host bridge, theme tokens, diagnostics, in-frame screenshots, provider-agnostic widget tools, prompt guidance, and a repair loop; a declarative spec mode (`generative-frame/spec`) with catalogs, JSONL patch streams, validation, expressions, state, and actions, rendered by `SpecRenderer`; delegated generation behind a `generate_widget` tool (`generative-frame/agent`); and an assistant-ui toolkit (`generative-frame/assistant-ui`)
+feat: stream model-generated HTML and SVG widgets into Safe Content Frames with an MCP Apps-compatible host bridge, theme tokens, diagnostics, in-frame screenshots, per-id persistent storage, provider-agnostic widget tools, prompt guidance, and a repair loop; React bindings and an assistant-ui toolkit; and a declarative spec mode in separate entry points (`generative-frame/spec`, `/spec/react`, `/spec/tools`, `/spec/assistant-ui`) that never bundles the frame
