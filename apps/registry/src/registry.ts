@@ -2013,6 +2013,40 @@ export const registry: RegistryItem[] = [
     registryDependencies: [],
   },
   {
+    name: "command-tabs",
+    type: "registry:ui",
+    title: "Command Tabs",
+    description:
+      "Switch between command variants and copy the selected command.",
+    files: [
+      {
+        type: "registry:ui",
+        path: "components/ui/command-tabs.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/ui/radix/command-tabs.tsx",
+      },
+    ],
+    dependencies: ["lucide-react", "react-shiki"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-command-tabs-state.json",
+    ],
+  },
+  {
+    name: "elements-command-tabs-state",
+    type: "registry:component",
+    title: "Command Tabs State",
+    description:
+      "Shared selection, persistence, and copy state for command tabs.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/use-command-tabs-state.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/use-command-tabs-state.ts",
+      },
+    ],
+  },
+  {
     name: "select",
     type: "registry:ui",
     title: "Select",

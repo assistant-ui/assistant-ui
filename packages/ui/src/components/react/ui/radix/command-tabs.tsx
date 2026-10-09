@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
+import type { ComponentProps } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useShikiHighlighter } from "react-shiki";
+import { useCommandTabsState } from "@/components/assistant-ui/utils/use-command-tabs-state";
 import { cn } from "@/lib/utils";
 
 export interface CommandTabsProps extends Omit<
@@ -26,10 +21,6 @@ export interface CommandTabsProps extends Omit<
   onValueChange?: (value: string) => void;
 }
 
-function syncEventName(storageKey: string) {
-  return `command-tabs:${storageKey}`;
-}
-
 /**
  * One command in several dialects: a tab per variant, the active command as
  * highlighted Bash, and a copy button. With a `storageKey`, picking a tab
@@ -42,60 +33,11 @@ export function CommandTabs({
   className,
   ...props
 }: CommandTabsProps) {
-  const labels = Object.keys(commands);
-  const [active, setActive] = useState(labels[0] ?? "");
-  const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
+  const { labels, activeLabel, copied, select, copy } = useCommandTabsState(
+    commands,
+    storageKey,
+    onValueChange,
   );
-  const copyScope = useRef(0);
-
-  const commandsRef = useRef(commands);
-  commandsRef.current = commands;
-
-  useEffect(() => {
-    return () => {
-      copyScope.current += 1;
-      clearTimeout(copyTimer.current);
-      copyTimer.current = undefined;
-      setCopied(false);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!storageKey) return;
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(storageKey);
-    } catch {}
-    if (stored && Object.hasOwn(commandsRef.current, stored)) setActive(stored);
-
-    const onSync = (event: Event) => {
-      const value = (event as CustomEvent<string>).detail;
-      if (Object.hasOwn(commandsRef.current, value)) setActive(value);
-    };
-    window.addEventListener(syncEventName(storageKey), onSync);
-    return () => window.removeEventListener(syncEventName(storageKey), onSync);
-  }, [storageKey]);
-
-  const select = useCallback(
-    (value: string) => {
-      setActive(value);
-      onValueChange?.(value);
-      if (!storageKey) return;
-      try {
-        localStorage.setItem(storageKey, value);
-      } catch {}
-      window.dispatchEvent(
-        new CustomEvent(syncEventName(storageKey), { detail: value }),
-      );
-    },
-    [storageKey, onValueChange],
-  );
-
-  const activeLabel = Object.hasOwn(commands, active)
-    ? active
-    : (labels[0] ?? "");
   const command = commands[activeLabel] ?? "";
   const highlighted = useShikiHighlighter(command, "bash", {
     light: "catppuccin-latte",
@@ -136,22 +78,7 @@ export function CommandTabs({
         <button
           type="button"
           aria-label="Copy command"
-          onClick={async () => {
-            const scope = copyScope.current;
-            try {
-              await navigator.clipboard.writeText(command);
-            } catch {
-              return;
-            }
-            if (scope !== copyScope.current) return;
-
-            setCopied(true);
-            clearTimeout(copyTimer.current);
-            copyTimer.current = setTimeout(() => {
-              copyTimer.current = undefined;
-              setCopied(false);
-            }, 1500);
-          }}
+          onClick={() => copy(command)}
           className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors"
         >
           {copied ? (
