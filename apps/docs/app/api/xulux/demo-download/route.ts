@@ -9,7 +9,7 @@ import { zipDownloadResponse } from "@/lib/xulux/demo-downloads/zip-response";
 
 export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
-    return zipDownloadResponse();
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const url = new URL(req.url);
