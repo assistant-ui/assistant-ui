@@ -37,6 +37,14 @@ const readOutcome = (
     )
       return { answer: result.answer };
   }
+  if (
+    isError &&
+    typeof result === "object" &&
+    result !== null &&
+    "error" in result &&
+    typeof result.error === "string"
+  )
+    return { note: `Error: ${result.error}` };
   return { raw: result };
 };
 
