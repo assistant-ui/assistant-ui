@@ -4,12 +4,12 @@ import { useEffect, useRef, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   useAui,
-  useLocalRuntime,
   type ChatModelAdapter,
   type CreateAttachment,
   type LocalRuntimeOptions,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
+import { useSampleRuntime } from "./use-sample-runtime";
 
 const noOpAdapter: ChatModelAdapter = {
   async *run() {
@@ -57,7 +57,7 @@ export function SampleRuntimeProvider({
   initialAttachments?: CreateAttachment[];
   children: ReactNode;
 }) {
-  const runtime = useLocalRuntime(noOpAdapter, {
+  const runtime = useSampleRuntime(noOpAdapter, {
     initialMessages: messages.map((message) => ({
       ...message,
       createdAt: message.createdAt ?? CREATED_AT,
