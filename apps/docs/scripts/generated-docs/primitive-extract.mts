@@ -10,12 +10,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { REACT_INDEX, REACT_PKG, REPO_ROOT } from "./paths.mts";
 import {
+  exportSpecifierDeprecated,
   getProject,
   getJsDocCommentText,
   jsDocTag,
   jsDocTags,
   processComponentDeclaration,
   processTypeOrInterface,
+  renderJsDocLinks,
   type JsDocRenderOptions,
   type PropModel,
 } from "./extract.mts";
@@ -281,6 +283,7 @@ function discoverPrimitiveBarrelExports(): Map<string, string> {
 type SubComponent = {
   exportedName: string;
   declaration: ExportedDeclarations;
+  deprecated?: string | undefined;
 };
 
 function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
@@ -302,6 +305,18 @@ function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
       project.addSourceFileAtPath(indexPath);
   } catch {
     return [];
+  }
+  const specifierDeprecations = new Map<string, string>();
+  for (const exportDeclaration of sourceFile.getExportDeclarations()) {
+    for (const specifier of exportDeclaration.getNamedExports()) {
+      const deprecated = exportSpecifierDeprecated(specifier);
+      if (deprecated) {
+        specifierDeprecations.set(
+          specifier.getAliasNode()?.getText() ?? specifier.getName(),
+          deprecated,
+        );
+      }
+    }
   }
   const components: SubComponent[] = [];
   for (const [
@@ -325,7 +340,11 @@ function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
       return false;
     });
     if (!declaration) continue;
-    components.push({ exportedName, declaration });
+    components.push({
+      exportedName,
+      declaration,
+      deprecated: specifierDeprecations.get(exportedName),
+    });
   }
   return components;
 }
@@ -357,11 +376,15 @@ function extractPrimitivePart(
   const ns = findNamespace(sourceFile, localName);
   const propsAlias = ns?.getTypeAliases().find((t) => t.getName() === "Props");
   const element = ns ? extractElementType(ns) : undefined;
-  const { description, deprecated, examples } = getPrimitiveComponentMeta(
-    sourceFile,
-    localName,
-    options,
-  );
+  const meta = getPrimitiveComponentMeta(sourceFile, localName, options);
+  const { description, examples } = meta;
+  const deprecated = sub.deprecated
+    ? renderJsDocLinks(
+        sub.deprecated,
+        `${sub.exportedName} export @deprecated`,
+        options,
+      )
+    : meta.deprecated;
 
   let props: PropModel[] | undefined;
   let isActionButton = false;

@@ -20,6 +20,7 @@ type ParameterDef = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<ParametersTableProps>;
 };
 
@@ -122,7 +123,7 @@ const Parameter: FC<{ parameter: ParameterDef }> = ({
           <DefinitionAnnotation>= {parameter.default}</DefinitionAnnotation>
         )}
         {parameter.deprecated && <StatusBadge variant="deprecated" />}
-        {parameter.name.startsWith("unstable_") && (
+        {(parameter.experimental || parameter.name.startsWith("unstable_")) && (
           <StatusBadge variant="unstable" />
         )}
       </DefinitionTerm>

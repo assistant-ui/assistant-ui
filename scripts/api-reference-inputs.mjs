@@ -21,6 +21,7 @@ export const API_REFERENCE_INPUTS = [
   "apps/docs/package.json",
   "apps/docs/tsconfig.json",
   "scripts/api-reference-inputs.mjs",
+  "scripts/lib/experimental-annotations.mjs",
   ".github/workflows/autofix.yaml",
   ".github/workflows/code-quality.yaml",
 ];
