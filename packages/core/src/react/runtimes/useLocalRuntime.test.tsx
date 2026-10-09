@@ -719,13 +719,12 @@ describe("useLocalRuntime", () => {
     });
   });
 
-  it("runs nothing for a seeded thread the thread list fails to initialize", async () => {
+  it("still runs an answered seeded approval when the thread list fails to initialize the thread", async () => {
     const adapter = new InMemoryThreadListAdapter();
     vi.spyOn(adapter, "initialize").mockRejectedValue(new Error("offline"));
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({
+      content: [{ type: "text", text: "sent" }],
+    }));
     let runtime: AssistantRuntime | null = null;
     const App = () => {
       runtime = useRemoteThreadListRuntime({
@@ -734,9 +733,22 @@ describe("useLocalRuntime", () => {
           return useLocalRuntime(
             { run },
             {
+              unstable_humanToolNames: ["send_email"],
               initialMessages: [
-                { role: "user", content: "What is assistant-ui?" },
-                { role: "assistant", content: "A set of React components." },
+                { role: "user", content: "send an email" },
+                {
+                  role: "assistant",
+                  content: [
+                    {
+                      type: "tool-call",
+                      toolCallId: "call-send_email",
+                      toolName: "send_email",
+                      args: {},
+                      argsText: "{}",
+                      approval: { id: "a1" },
+                    },
+                  ],
+                },
               ],
             },
           );
@@ -753,17 +765,20 @@ describe("useLocalRuntime", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    act(() => {
-      runtime!.thread.getMessageByIndex(1).reload();
+    await act(async () => {
+      await runtime!.thread
+        .getMessageByIndex(1)
+        .getMessagePartByIndex(0)
+        .respondToToolApproval({ approved: true });
     });
 
     await waitFor(() => {
-      expect(consoleError).toHaveBeenCalledWith(
-        "[assistant-ui] Message reload failed",
-        expect.objectContaining({ message: "offline" }),
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(runtime!.thread.getState().messages.at(-1)?.status?.type).toBe(
+        "complete",
       );
     });
     expect(adapter.initialize).toHaveBeenCalledTimes(1);
-    expect(run).not.toHaveBeenCalled();
+    expect(run.mock.calls[0]![0].unstable_threadId).toBeUndefined();
   });
 });
