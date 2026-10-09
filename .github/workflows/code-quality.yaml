@@ -195,6 +195,9 @@ jobs:
           else
             BASE="${{ github.event.before }}"
           fi
+          if [ "${{ github.event_name }}" = "push" ] && ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            BASE=HEAD^1
+          fi
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
             run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
           else
@@ -264,14 +267,9 @@ jobs:
 
       - name: Check built declarations
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
-          elif [ "${{ github.event_name }}" = "merge_group" ]; then
-            pnpm run declarations:check -- --filter="...[${{ github.event.merge_group.base_sha }}]"
-          else
-            pnpm run declarations:check -- --filter="...[HEAD^1]"
-          fi
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+        run: pnpm run declarations:check -- --filter="...[$BASE]"
 
       - name: Test built declaration checker
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -358,12 +356,16 @@ jobs:
           else
             BASE="${{ github.event.before }}"
           fi
+          if [ "${{ github.event_name }}" = "push" ] && ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            BASE=HEAD^1
+          fi
           if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
             run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/app-build-inputs.mjs)
           else
             run=true
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Test app build input detector
         run: node --test scripts/app-build-inputs.test.mjs
@@ -392,21 +394,12 @@ jobs:
       - name: Build apps
         if: steps.app_build_inputs.outputs.run == 'true'
         env:
+          BASE: ${{ steps.app_build_inputs.outputs.base }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build apps and templates affected by changes compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
-            pnpm turbo build --filter="{./examples/*}[origin/${{ github.base_ref }}]"
-          elif [ "${{ github.event_name }}" = "merge_group" ]; then
-            pnpm turbo build --filter="...[${{ github.event.merge_group.base_sha }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
-            pnpm turbo build --filter="{./examples/*}[${{ github.event.merge_group.base_sha }}]"
-          else
-            # Push to main: Build apps and templates affected by the last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
-            pnpm turbo build --filter="{./examples/*}[HEAD^1]"
-          fi
+          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+          pnpm turbo build --filter="{./examples/*}[$BASE]"
 
       - name: Verify standalone example bundle contracts
         if: steps.app_build_inputs.outputs.run == 'true'
@@ -434,11 +427,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
+            BASE=HEAD^1
           elif [ "${{ github.event_name }}" = "merge_group" ]; then
             BASE="${{ github.event.merge_group.base_sha }}"
           else
-            BASE="HEAD^1"
+            BASE="${{ github.event.before }}"
+          fi
+          if [ "${{ github.event_name }}" = "push" ] && ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            BASE=HEAD^1
           fi
           if ! git rev-parse --verify "$BASE" >/dev/null; then
             echo "Unable to resolve API reference diff base: $BASE"
@@ -479,8 +475,6 @@ jobs:
     name: Typecheck Changed Packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      CI_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event_name == 'merge_group' && github.event.merge_group.base_sha || 'HEAD^1' }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -490,6 +484,21 @@ jobs:
       - name: Prepare CI comparison base
         if: github.event_name == 'pull_request'
         run: node scripts/prepare-ci-base.mjs
+
+      - name: Resolve CI comparison base
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=HEAD^1
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ "${{ github.event_name }}" = "push" ] && ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            BASE=HEAD^1
+          fi
+          echo "CI_BASE=$BASE" >> "$GITHUB_ENV"
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
@@ -509,20 +518,13 @@ jobs:
         if: steps.tasks.outputs.run == 'true'
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          elif [ "${{ github.event_name }}" = "merge_group" ]; then
-            BASE="${{ github.event.merge_group.base_sha }}"
-          else
-            BASE=HEAD^1
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
+          if git diff --quiet "$CI_BASE" HEAD -- \
             package.json \
             pnpm-lock.yaml \
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..." --filter="!@assistant-ui/api-surface"
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$CI_BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
@@ -532,11 +534,4 @@ jobs:
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            bash scripts/typecheck.sh --continue --filter="...[origin/${{ github.base_ref }}]"
-          elif [ "${{ github.event_name }}" = "merge_group" ]; then
-            bash scripts/typecheck.sh --continue --filter="...[${{ github.event.merge_group.base_sha }}]"
-          else
-            bash scripts/typecheck.sh --continue --filter="...[HEAD^1]"
-          fi
+        run: bash scripts/typecheck.sh --continue --filter="...[$CI_BASE]"

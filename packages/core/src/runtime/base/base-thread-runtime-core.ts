@@ -472,10 +472,10 @@ export abstract class BaseThreadRuntimeCore
   }
 
   protected ensureInitialized() {
-    if (!this._isInitialized) {
-      this._isInitialized = true;
-      this._notifyEventSubscribers("initialize", {});
-    }
+    if (this._isInitialized) return false;
+    this._isInitialized = true;
+    this._notifyEventSubscribers("initialize", {});
+    return true;
   }
 
   public export() {

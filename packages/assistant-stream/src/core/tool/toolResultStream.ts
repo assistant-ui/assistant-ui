@@ -7,6 +7,7 @@ import type {
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
+import type { InternalToolExecutionOptions } from "./internal-tool-execution-options";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
@@ -23,27 +24,6 @@ type InternalToolResultStreamOptions = Omit<
   ToolResultStreamOptions,
   "onExecutionStart" | "onExecutionEnd"
 > & {
-  onExecutionStart?:
-    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
-    | undefined;
-  onExecutionEnd?:
-    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
-    | undefined;
-};
-
-type InternalToolExecutionOptions = {
-  execute: (toolCall: {
-    toolCallId: string;
-    toolName: string;
-    args: ReadonlyJSONObject;
-    executionId: symbol;
-  }) => ReturnType<typeof getToolResponse>;
-  streamCall: (toolCall: {
-    reader: ToolCallReader<any, ReadonlyJSONValue>;
-    toolCallId: string;
-    toolName: string;
-    executionId: symbol;
-  }) => void;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;

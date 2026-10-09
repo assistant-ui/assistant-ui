@@ -39,7 +39,6 @@ const createCore = (
     logger: noopLogger,
     showThinking: true,
     ...(hooks.history ? { history: hooks.history } : {}),
-    notifyUpdate: () => {},
   });
 
 const finalizingAgent = (text: string) =>

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { changedFilesSince } from "./lib/changed-files.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import { requiresFullApiSurface } from "./update-api-surface.mjs";
 
@@ -40,4 +40,4 @@ function main() {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isExecutedAsMain(import.meta.url, process.argv[1])) main();

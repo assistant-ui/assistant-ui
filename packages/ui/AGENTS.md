@@ -8,3 +8,4 @@ The private component kit the registry copies into user projects; the root and `
 - Never re-vendor `src/components/react/ui/` from shadcn upstream over the copies here; the kit is its own design system.
 - Name element variants by suffix under `src/components/react/assistant-ui/elements/`: an unmarked file is the props-only source, `.radix.tsx` holds its Radix variant, `.aui.tsx` binds it to the runtime, and `.aui.radix.tsx` holds the Radix variant of that binding.
 - Under `src/components/react/ui/`, the `base/` or `radix/` directory carries a primitive's flavor, except that a `.radix.tsx` sibling there is the Radix variant of its unmarked Base UI file.
+- Fix a file mirrored between `src/components/react/` and `src/components/react-native/` in both copies in the same pull request, because the two trees install separately and nothing else carries a fix across.

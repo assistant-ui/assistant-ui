@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AssistantCloudAPI } from "../AssistantCloudAPI";
+import { AssistantCloudAPI } from "../AssistantCloudAPI";
 import { AssistantCloud } from "../AssistantCloud";
 import { AssistantCloudRuns } from "../AssistantCloudRuns";
 import { CloudResponseError } from "../cloudResponse";
@@ -17,10 +17,76 @@ const streamBody = {
   messages: [],
 };
 
+const jwt = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: "user-id" })).toString("base64url")}.sig`;
+
 describe("AssistantCloudRuns", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
+
+  it.each([
+    {
+      name: "API key",
+      createApi: () =>
+        new AssistantCloudAPI({
+          apiKey: "test-key",
+          userId: "user-id",
+          workspaceId: "workspace-id",
+        }),
+      authHeaders: {
+        Authorization: "Bearer test-key",
+        "Aui-User-Id": "user-id",
+        "Aui-Workspace-Id": "workspace-id",
+      },
+    },
+    {
+      name: "JWT",
+      createApi: () =>
+        new AssistantCloudAPI({
+          baseUrl: "https://test.example.com",
+          authToken: async () => jwt,
+        }),
+      authHeaders: { Authorization: `Bearer ${jwt}` },
+    },
+  ])(
+    "keeps request and streaming headers for $name auth",
+    async ({ createApi, authHeaders }) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response("Generated title", {
+          headers: { "Content-Type": "text/plain" },
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const api = createApi();
+      const runs = new AssistantCloudRuns(api);
+      api.registerSdk({ name: "@assistant-ui/core", version: "0.3.18" });
+      const sdkHeader = api.sdkHeader();
+
+      await api.makeRawRequest("/threads", { headers: { "X-Test": "1" } });
+      await runs.stream(streamBody);
+      const optionHeaders = await runs
+        .__internal_getAssistantOptions("assistant-id")
+        .headers();
+
+      expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({
+        ...authHeaders,
+        "X-Test": "1",
+        "Content-Type": "application/json",
+        "Aui-Sdk": sdkHeader,
+      });
+      expect(fetchMock.mock.calls[1]?.[1]?.headers).toEqual({
+        ...authHeaders,
+        Accept: "text/plain",
+        "Content-Type": "application/json",
+        "Aui-Sdk": sdkHeader,
+      });
+      expect(optionHeaders).toEqual({
+        ...authHeaders,
+        Accept: "text/plain",
+        "Aui-Sdk": sdkHeader,
+      });
+    },
+  );
 
   it("decodes text/plain run streams", async () => {
     vi.stubGlobal(

@@ -3,15 +3,14 @@ import { notFound } from "next/navigation";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { XuluxApp } from "@/components/xulux/XuluxApp";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import { createOgMetadata } from "@/lib/og";
 import { parseLearnAutoStartSource } from "@/lib/xulux/learn/types";
 
 export const instant = false;
 
-const title = "Learn assistant-ui";
-const description =
-  "Build assistant interfaces through a guided course in the Xulux playground.";
+const { metadataTitle: title, description } = subProject("learn");
 
 export const metadata: Metadata = {
   title,
@@ -30,7 +29,7 @@ export default async function LearnPage({
   return (
     <SubProjectLayout
       name="learn"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/lib/xulux/learn"
+      githubPath={subProjectGithubUrl("learn")}
       fullHeight
       hideFooter
     >

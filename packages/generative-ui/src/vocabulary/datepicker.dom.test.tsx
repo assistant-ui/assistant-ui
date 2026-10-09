@@ -4,7 +4,7 @@ import * as React from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { A2uiBindingContext } from "../a2ui/BindingContext";
+import { A2uiBindingContext } from "../bindingContext";
 import { AnsweredValuesProvider } from "../answeredValues";
 import { FIELD_VALUE_ATTR } from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
@@ -301,6 +301,25 @@ describe("DatePicker temporal contract", () => {
     });
     await blur(input);
     expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not commit on an IME confirmation Enter", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await type(input, "2025-12-16");
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      isComposing: false,
+      bubbles: true,
+    });
+    Object.defineProperty(event, "keyCode", { value: 229 });
+
+    await React.act(async () => input.dispatchEvent(event));
+
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it("resets the committed baseline when the initial value changes", async () => {
