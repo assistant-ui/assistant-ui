@@ -57,7 +57,7 @@ function tocTitle(node: unknown): string {
   return "";
 }
 
-const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/generative-ui/react";
 
 <div data-aui-theme="elements">
   {renderGenerativeUI(spec, library, { status: "done" })}
@@ -174,7 +174,7 @@ export default async function ElementPage({
   const showToc = toc.length >= 3;
 
   const manualInstall = element.generative ? (
-    <PackageManagerTabs packages={["@assistant-ui/react-generative-ui"]} />
+    <PackageManagerTabs packages={["@assistant-ui/generative-ui"]} />
   ) : hasModes ? (
     <>
       <ElementModeToggle className="mb-6" />
