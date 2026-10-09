@@ -355,18 +355,17 @@ describe("canvas", () => {
 
 describe("sidebar", () => {
   const html = document.documentElement;
-  const pushed = () =>
-    html.style.getPropertyValue("--contenders-sidebar-width");
+  const pushed = () => html.style.getPropertyValue("--variants-sidebar-width");
 
   it("pushes the page aside while open and restores it", () => {
     const { unmount } = renderPage();
     expect(pushed()).toBe("300px");
-    expect(html.hasAttribute("data-contenders-sidebar")).toBe(true);
+    expect(html.hasAttribute("data-variants-sidebar")).toBe(true);
     fireEvent.click(
       switcher().getByRole("button", { name: "Collapse variant switcher" }),
     );
     expect(pushed()).toBe("");
-    expect(html.hasAttribute("data-contenders-sidebar")).toBe(false);
+    expect(html.hasAttribute("data-variants-sidebar")).toBe(false);
     fireEvent.click(
       switcher().getByRole("button", { name: "Expand variant switcher" }),
     );

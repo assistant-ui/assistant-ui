@@ -1,11 +1,11 @@
 ---
 name: variants
-description: Use when the user asks for mockups, variants, options, alternatives, or "N versions" of a piece of UI in the assistant-ui docs or any app in this repo, asks to iterate on a design before choosing one, or runs `/variants choose <group>:<variant> …` (pasted from the variants sidebar). Builds the candidates inline in the real page with the `contenders` package (`<Variants>` / `<Variant>`), shows them to the user, and resolves the pick.
+description: Use when the user asks for mockups, variants, options, alternatives, or "N versions" of a piece of UI in the assistant-ui docs or any app in this repo, asks to iterate on a design before choosing one, or runs `/variants choose <group>:<variant> …` (pasted from the variants sidebar). Builds the candidates inline in the real page with the `variants` package (`<Variants>` / `<Variant>`), shows them to the user, and resolves the pick.
 ---
 
 # Variants
 
-Compare design candidates inside the real page instead of a separate mockups route, so each one is judged with real data, real neighbours, and real breakpoints. `contenders` renders one variant at a time, with these on top:
+Compare design candidates inside the real page instead of a separate mockups route, so each one is judged with real data, real neighbours, and real breakpoints. `variants` renders one variant at a time, with these on top:
 
 - a dashed outline around the undecided region
 - a sidebar for switching variants
@@ -22,7 +22,7 @@ A production build refuses to render a `<Variants>`, so an undecided comparison 
 4. Add one group per decision:
 
    ```tsx
-   import { Variant, Variants } from "contenders";
+   import { Variant, Variants } from "variants";
 
    <Variants id="scf-features" label="Feature list" default="current">
      <Variant id="current" label="Current">
@@ -73,7 +73,7 @@ When the user chooses:
 1. Replace the whole `<Variants>` block with the chosen `<Variant>`'s children.
 2. Delete the losing candidate components and any content, imports, or icons only they used.
 3. Rename the chosen component to a permanent name if its name describes the comparison.
-4. Search the change for leftovers: `rg "<Variants|<Variant |from \"contenders\""` must find nothing in the files you touched.
+4. Search the change for leftovers: `rg "<Variants|<Variant |from \"variants\""` must find nothing in the files you touched.
 5. Typecheck, run the page's tests, and look at the page once more without query parameters.
 
-A `<Variants>` left in a statically prerendered page fails `next build`. One left in a dynamic or client-only page fails at request time instead, so the search in step 4 is the real guard. Never land a PR that still contains a `<Variants>`, and never set `allowInProduction` or `CONTENDERS_ALLOW_IN_PRODUCTION` outside a preview deployment the user asked for.
+A `<Variants>` left in a statically prerendered page fails `next build`. One left in a dynamic or client-only page fails at request time instead, so the search in step 4 is the real guard. Never land a PR that still contains a `<Variants>`, and never set `allowInProduction` or `VARIANTS_ALLOW_IN_PRODUCTION` outside a preview deployment the user asked for.

@@ -26,8 +26,8 @@ describe("assertAllowed", () => {
   });
 
   it.each([
-    "CONTENDERS_ALLOW_IN_PRODUCTION",
-    "NEXT_PUBLIC_CONTENDERS_ALLOW_IN_PRODUCTION",
+    "VARIANTS_ALLOW_IN_PRODUCTION",
+    "NEXT_PUBLIC_VARIANTS_ALLOW_IN_PRODUCTION",
   ])("allows production when %s is truthy", (name) => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv(name, "1");

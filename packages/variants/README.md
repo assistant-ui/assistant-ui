@@ -1,9 +1,9 @@
-# `contenders`
+# `variants`
 
 Compare several working versions of a piece of UI inline, inside the real page, while a human or a coding agent decides which one to keep. Production builds refuse to render the comparison, so you can't ship it by accident.
 
 ```tsx
-import { Variant, Variants } from "contenders";
+import { Variant, Variants } from "variants";
 
 <Variants id="pricing-features" label="Feature list" default="cards">
   <Variant id="grid" label="Three-column grid">
@@ -31,12 +31,12 @@ When you're choosing between designs, the real page is the best place to judge t
 - **Storybook-style workshops** render components on their own, away from the page, and nothing forces you to make a decision.
 - **Feature-flag toolbars** are built to ship several variants to users. This package does the opposite.
 
-`contenders` gives you typed React components, addressable state (URL + `data-*` hooks), a one-line hand-off to a coding agent, and a production build that refuses to render the comparison.
+`variants` gives you typed React components, addressable state (URL + `data-*` hooks), a one-line hand-off to a coding agent, and a production build that refuses to render the comparison.
 
 ## Install
 
 ```bash
-npm install contenders
+npm install variants
 ```
 
 Peer dependencies: `react` and `react-dom` 18 or 19. There are no other runtime dependencies, and you don't need a CSS import.
@@ -66,7 +66,7 @@ Children must all be `<Variant>` elements.
 ### `configureVariants(config)`
 
 ```ts
-import { configureVariants, formatVariantsPrompt } from "contenders";
+import { configureVariants, formatVariantsPrompt } from "variants";
 
 configureVariants({
   // What the Copy buttons put on the clipboard. Defaults to formatVariantsPrompt.
@@ -160,14 +160,14 @@ Outlines have three settings:
 
 ### Sidebar
 
-The sidebar is a 300px panel docked to the right, at full height. It never covers the page. While it's open, it pushes the page aside with `html { margin-right: var(--contenders-sidebar-width) }`, and removes the margin again when it collapses or unmounts.
+The sidebar is a 300px panel docked to the right, at full height. It never covers the page. While it's open, it pushes the page aside with `html { margin-right: var(--variants-sidebar-width) }`, and removes the margin again when it collapses or unmounts.
 
 The margin narrows the page's content area, but **viewport media queries still see the full window width**. Container queries do respond to the narrower width. Elements with `position: fixed` (and `sticky` elements pinned to the viewport edge) are laid out against the viewport, so they'd sit under the sidebar. To keep them clear, use the variable, which is unset whenever the sidebar isn't pushing the page:
 
 ```css
 .site-header {
   position: fixed;
-  inset-inline: 0 var(--contenders-sidebar-width, 0px);
+  inset-inline: 0 var(--variants-sidebar-width, 0px);
 }
 ```
 
@@ -285,7 +285,7 @@ The components are marked `"use client"`, so you can import them straight into S
 When `process.env.NODE_ENV === "production"`, rendering `<Variants>` throws:
 
 ```text
-[contenders] <Variants id="hero"> rendered in a production build. Pick one variant, replace the <Variants> block with that <Variant>'s children, and remove the wrapper. …
+[variants] <Variants id="hero"> rendered in a production build. Pick one variant, replace the <Variants> block with that <Variant>'s children, and remove the wrapper. …
 ```
 
 The guard runs at render time, so where it fires depends on when the page renders. Verified with Next.js 16.4 (App Router, Turbopack):
@@ -298,17 +298,17 @@ To catch leftovers on dynamic or client-only pages before deploy, add a smoke te
 
 ### Escape hatch for preview deployments
 
-Set `CONTENDERS_ALLOW_IN_PRODUCTION=1` for server rendering, and `NEXT_PUBLIC_CONTENDERS_ALLOW_IN_PRODUCTION=1` for Next.js client bundles. Accepted values are `1`, `true` and `yes`. Alternatively, pass `allowInProduction`, for example `allowInProduction={process.env.NEXT_PUBLIC_VERCEL_ENV === "preview"}`. Only set these on preview environments.
+Set `VARIANTS_ALLOW_IN_PRODUCTION=1` for server rendering, and `NEXT_PUBLIC_VARIANTS_ALLOW_IN_PRODUCTION=1` for Next.js client bundles. Accepted values are `1`, `true` and `yes`. Alternatively, pass `allowInProduction`, for example `allowInProduction={process.env.NEXT_PUBLIC_VERCEL_ENV === "preview"}`. Only set these on preview environments.
 
 ## Resolving a choice by hand
 
-Replace the whole `<Variants>…</Variants>` block with the chosen `<Variant>`'s children. Then delete the losing components (and their imports) if nothing else uses them, and remove the `contenders` import. If the block sat in an expression position and the chosen variant has several children, wrap them in a fragment.
+Replace the whole `<Variants>…</Variants>` block with the chosen `<Variant>`'s children. Then delete the losing components (and their imports) if nothing else uses them, and remove the `variants` import. If the block sat in an expression position and the chosen variant has several children, wrap them in a fragment.
 
 ## Comparison with prior art
 
-- **[unship](https://github.com/mbenhard/unship)** marks variants with attributes, provides a dev picker, and ships a cleanup CLI. Its cleanup tooling goes further than this package. `contenders` uses typed components, unmounts inactive variants, and refuses to render in production builds.
+- **[unship](https://github.com/mbenhard/unship)** marks variants with attributes, provides a dev picker, and ships a cleanup CLI. Its cleanup tooling goes further than this package. `variants` uses typed components, unmounts inactive variants, and refuses to render in production builds.
 - **Storybook and other workshops** are great for building components on their own. They don't show the variant in its real page context, and nothing pushes you to pick one.
-- **Feature-flag toolbars** exist to ship several variants to real users. `contenders` is for the decision before shipping and is designed to disappear afterwards.
+- **Feature-flag toolbars** exist to ship several variants to real users. `variants` is for the decision before shipping and is designed to disappear afterwards.
 
 ## Limitations
 

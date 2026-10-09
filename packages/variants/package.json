@@ -1,5 +1,6 @@
 {
-  "name": "contenders",
+  "name": "variants",
+  "private": true,
   "version": "0.0.0",
   "description": "Compare UI variants inline in the real page, pick one, and let the production build make sure you did",
   "keywords": [
@@ -61,15 +62,11 @@
     "vite": "^8.3.3",
     "vitest": "^5.0.3"
   },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
-  "homepage": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/contenders",
+  "homepage": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/variants",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/contenders"
+    "directory": "packages/variants"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

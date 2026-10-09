@@ -9,7 +9,7 @@ if (demoState) {
   window.sessionStorage.clear();
   for (const entry of demoState.split(",")) {
     const [key, value] = entry.split("=");
-    if (key && value) window.sessionStorage.setItem(`contenders:${key}`, value);
+    if (key && value) window.sessionStorage.setItem(`variants:${key}`, value);
   }
 }
 

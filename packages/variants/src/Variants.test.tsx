@@ -984,9 +984,9 @@ describe("production guard", () => {
     );
   });
 
-  it("renders in production with CONTENDERS_ALLOW_IN_PRODUCTION", () => {
+  it("renders in production with VARIANTS_ALLOW_IN_PRODUCTION", () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("CONTENDERS_ALLOW_IN_PRODUCTION", "1");
+    vi.stubEnv("VARIANTS_ALLOW_IN_PRODUCTION", "1");
     expect(renderToString(<Hero />)).toBe('<h1 id="a1">A</h1>');
   });
 });

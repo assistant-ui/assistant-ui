@@ -66,7 +66,6 @@
     "cmdk": "^1.1.1",
     "cn": "^0.4.0",
     "codehike": "^1.1.0",
-    "contenders": "workspace:*",
     "date-fns": "^4.4.0",
     "dotenv": "^18.0.6",
     "embla-carousel-react": "^8.6.0",
@@ -115,6 +114,7 @@
     "tailwind-scrollbar": "^4.0.2",
     "tw-shimmer": "workspace:*",
     "unified": "^11.0.5",
+    "variants": "workspace:*",
     "vaul": "^1.1.2",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
