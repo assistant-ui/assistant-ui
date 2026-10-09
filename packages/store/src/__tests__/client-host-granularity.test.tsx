@@ -2,8 +2,9 @@
 
 import { useEffect, useState, type FC } from "react";
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource, useResources, withKey } from "@assistant-ui/tap";
+import * as tap from "@assistant-ui/tap";
 import { AuiConfig } from "../AuiConfig";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
@@ -79,6 +80,7 @@ const hosts = {
 describe("client host granularity", () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   for (const [name, host] of Object.entries(hosts)) {
@@ -106,4 +108,49 @@ describe("client host granularity", () => {
       expect(runs).toEqual([1, 1, 1, 1, 1]);
     });
   }
+
+  it("forwards scope deps through both useAui hosts", () => {
+    const useResourcesSpy = vi.spyOn(tap, "useResources");
+    const ConfigClient = resource(() => ({ getState: () => ({}) }));
+    const PropsClient = resource(() => ({ getState: () => ({}) }));
+    const config = AuiConfig({
+      thread: withKey("thread", ConfigClient(), [0]),
+    } as never);
+    const props = {
+      thread: withKey("thread", PropsClient(), [0]),
+    } as unknown as useAui.Props;
+    let bumpConfig!: () => void;
+    let bumpProps!: () => void;
+
+    function ConfigHost() {
+      const [, setTick] = useState(0);
+      bumpConfig = () => setTick((tick) => tick + 1);
+      return <AuiProvider config={config as never}>{null}</AuiProvider>;
+    }
+
+    function PropsHost() {
+      const [, setTick] = useState(0);
+      bumpProps = () => setTick((tick) => tick + 1);
+      const aui = useAui(props);
+      return <AuiProvider value={aui}>{null}</AuiProvider>;
+    }
+
+    const configView = render(<ConfigHost />);
+    const configScope = useResourcesSpy.mock.calls
+      .flatMap(([elements]) => elements)
+      .filter((element) => element.key === "thread")
+      .at(-1);
+    expect(configScope?.deps).toEqual([0]);
+    act(() => bumpConfig());
+    configView.unmount();
+
+    const propsView = render(<PropsHost />);
+    const propsScope = useResourcesSpy.mock.calls
+      .flatMap(([elements]) => elements)
+      .filter((element) => element.key === "thread")
+      .at(-1);
+    expect(propsScope?.deps).toEqual([0]);
+    act(() => bumpProps());
+    propsView.unmount();
+  });
 });

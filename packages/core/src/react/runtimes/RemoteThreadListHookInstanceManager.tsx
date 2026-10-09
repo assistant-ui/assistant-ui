@@ -406,6 +406,16 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           publish: this._publish,
           destroySignal,
         }),
+        [
+          id,
+          generation,
+          this.parent,
+          runtimeHook,
+          parentClient,
+          threadAdapters,
+          this._publish,
+          destroySignal,
+        ],
       );
     });
   }

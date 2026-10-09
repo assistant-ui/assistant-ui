@@ -259,7 +259,9 @@ const ScopeMount = resource(useScopeMount);
 
 const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
   useResources(
-    entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
+    entries.map(([name, element]) =>
+      withKey(name, ScopeMount(name, element), element.deps),
+    ),
   );
 
 // Commits the freshly built client only when its identity-relevant inputs
