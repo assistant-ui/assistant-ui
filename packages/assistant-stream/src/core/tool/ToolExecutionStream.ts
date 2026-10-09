@@ -14,6 +14,7 @@ import { ToolResponse } from "./ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { ToolCallReaderImpl } from "./ToolCallReader";
 import type { ToolCallReader } from "./tool-types";
+import type { InternalToolExecutionOptions } from "./internal-tool-execution-options";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
@@ -42,33 +43,6 @@ type ToolExecutionOptions = {
     | ((toolCallId: string, toolName: string) => void)
     | undefined;
   onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
-};
-
-type InternalToolExecutionOptions = {
-  execute: (toolCall: {
-    toolCallId: string;
-    toolName: string;
-    args: ReadonlyJSONObject;
-    executionId: symbol;
-  }) =>
-    | Promise<ToolResponse<ReadonlyJSONValue>>
-    | ToolResponse<ReadonlyJSONValue>
-    | undefined;
-  streamCall: <
-    TArgs extends ReadonlyJSONObject = ReadonlyJSONObject,
-    TResult extends ReadonlyJSONValue = ReadonlyJSONValue,
-  >(toolCall: {
-    reader: ToolCallReader<TArgs, TResult>;
-    toolCallId: string;
-    toolName: string;
-    executionId: symbol;
-  }) => unknown;
-  onExecutionStart?:
-    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
-    | undefined;
-  onExecutionEnd?:
-    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
-    | undefined;
 };
 
 const invokeExecutionCallback = (
@@ -112,7 +86,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk
 > {
   constructor(options: ToolExecutionOptions) {
-    const internalOptions = options as unknown as InternalToolExecutionOptions;
+    const internalOptions: InternalToolExecutionOptions = options;
     const toolCallPromises = new Map<symbol, PromiseLike<void>>();
     const toolCallControllers = new Map<
       symbol,
