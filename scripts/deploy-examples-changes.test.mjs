@@ -299,7 +299,7 @@ test("the Ink install includes every explicitly built workspace", () => {
   }
 });
 
-test("the Expo native bundle workflow watches every bundle input", () => {
+test("the Expo native bundle watches bundle inputs but skips isolated package tests", () => {
   const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
   const workflow = readFileSync(
     path.join(repoRoot, nativeWorkflowFile),
@@ -311,19 +311,90 @@ test("the Expo native bundle workflow watches every bundle input", () => {
     match[1]
       .trim()
       .split("\n")
-      .map((line) => line.replace(/^\s*- /, "").replace(/\/\*\*$/, ""))
-      .sort(),
+      .map((line) => line.replace(/^\s*- /, "").replace(/^["']|["']$/g, "")),
   );
   const expectedPaths = [
     ...exampleInputs(repoRoot, "with-expo").filter(
       (input) => input !== WORKFLOW_FILE && !input.startsWith("scripts/"),
     ),
     nativeWorkflowFile,
+    "packages/ui/src/components/react-native",
   ].sort();
 
   assert.equal(pathBlocks.length, 2, "pull request and push path filters");
-  assert.deepEqual(pathBlocks[0], expectedPaths);
-  assert.deepEqual(pathBlocks[1], expectedPaths);
+  for (const patterns of pathBlocks) {
+    const matches = (file) =>
+      patterns.reduce((included, pattern) => {
+        const negative = pattern.startsWith("!");
+        return path.posix.matchesGlob(
+          file,
+          negative ? pattern.slice(1) : pattern,
+        )
+          ? !negative
+          : included;
+      }, false);
+
+    assert.equal(
+      matches(
+        "packages/ui/src/components/react/assistant-ui/elements/agent-plan.test.tsx",
+      ),
+      false,
+    );
+    assert.equal(
+      matches(
+        "packages/ui/src/components/react-native/assistant-ui/thread.test.tsx",
+      ),
+      true,
+    );
+    assert.deepEqual(
+      patterns
+        .filter((pattern) => !pattern.startsWith("!"))
+        .map((pattern) => pattern.replace(/\/\*\*$/, ""))
+        .sort(),
+      expectedPaths,
+    );
+    for (const input of expectedPaths) {
+      if (!input.startsWith("packages/")) {
+        assert.ok(
+          matches(
+            input.startsWith("examples/")
+              ? `${input}/app/index.test.tsx`
+              : input,
+          ),
+          input,
+        );
+        continue;
+      }
+      for (const file of [
+        "src/index.ts",
+        "src/nested/component.tsx",
+        "src/index.spec.ts",
+        "src/tests/helpers.ts",
+        "package.json",
+        "vitest.config.ts",
+      ]) {
+        assert.ok(matches(`${input}/${file}`), `${input}/${file}`);
+      }
+      // Native UI tests enter Tailwind's scan; CJS builds use the full tsconfig program.
+      const packageRoot = input.split("/").slice(0, 2).join("/");
+      const pkg = JSON.parse(
+        readFileSync(path.join(repoRoot, packageRoot, "package.json"), "utf8"),
+      );
+      const testsAreInputs =
+        input === "packages/ui/src/components/react-native" ||
+        JSON.stringify(pkg.exports ?? {}).includes(".cjs");
+      for (const file of [
+        "src/index.test.ts",
+        "src/nested/component.test.tsx",
+      ]) {
+        assert.equal(
+          matches(`${input}/${file}`),
+          testsAreInputs,
+          `${input}/${file}`,
+        );
+      }
+    }
+  }
 });
 
 test("the Expo native bundle installs only its workspace graph", () => {

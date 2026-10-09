@@ -113,26 +113,27 @@ async function streamModel(
 
   const toolkitTools = await aiToolkit.tools({ frontend: frontendToolDefs });
 
+  const aiSDKTools = {
+    ...toolkitTools,
+    get_current_weather: tool({
+      description: "Get the current weather for a city",
+      inputSchema: zodSchema(z.object({ city: z.string() })),
+      execute: async ({ city }) => `The weather in ${city} is sunny, 72°F`,
+    }),
+    search_web: tool({
+      description:
+        "Search the web for citations on a topic. Returns a list of source URLs and titles the assistant should consult.",
+      inputSchema: zodSchema(z.object({ query: z.string() })),
+      execute: async ({ query }) => ({ sources: searchSources(query) }),
+    }),
+  };
   const result = streamText({
     abortSignal,
     // Reasoning model so the chain-of-thought group has real content.
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
-    tools: {
-      ...toolkitTools,
-      get_current_weather: tool({
-        description: "Get the current weather for a city",
-        inputSchema: zodSchema(z.object({ city: z.string() })),
-        execute: async ({ city }) => `The weather in ${city} is sunny, 72°F`,
-      }),
-      search_web: tool({
-        description:
-          "Search the web for citations on a topic. Returns a list of source URLs and titles the assistant should consult.",
-        inputSchema: zodSchema(z.object({ query: z.string() })),
-        execute: async ({ query }) => ({ sources: searchSources(query) }),
-      }),
-    },
+    tools: aiSDKTools,
     providerOptions: {
       openai: {
         reasoningEffort: "high",

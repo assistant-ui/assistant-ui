@@ -333,7 +333,7 @@ const onEdit = async (message: AppendMessage) => {
 
 ## Branching
 
-The linear `messages` array assumes each message's parent is the previous one. For branching (e.g. multiple regenerations), use `ExportedMessageRepository.fromBranchableArray()` and import via `thread.import()`:
+The linear `messages` array assumes each message's parent is the previous one. For branching (e.g. multiple regenerations), build the tree with `ExportedMessageRepository.fromBranchableArray()` and pass it to the store as `messageRepository`:
 
 ```tsx
 import {
@@ -355,7 +355,11 @@ const repo = ExportedMessageRepository.fromBranchableArray(
   { headId: "asst-1" },
 );
 
-runtime.thread.import(repo);
+const runtime = useExternalStoreRuntime({
+  messageRepository: repo,
+  setMessages, // performs branch switches
+  onNew,
+});
 ```
 
 Each message must have an explicit `id` and `parentId`; messages with the same `parentId` create branches. Parents must appear before children in the array.
@@ -374,6 +378,8 @@ runtime.thread.import(repo);
 ```
 
 The exported shape round-trips through `thread.import()` directly, so the same value is both your persistence format and what you load back.
+
+On an external store, `thread.import()` hands the imported messages to `onImport`, which writes them back into your store. A store without `onImport` rejects the import instead of letting the runtime's copy drift from the store, so implement `onImport`, or pass the snapshot back as `messageRepository`.
 
 ### Persisting branch selection
 
@@ -987,7 +993,7 @@ useExternalStoreRuntime({
       name: "onImport",
       type: "(messages: readonly ThreadMessage[]) => void",
       description:
-        "Called when the runtime imports messages into the external store (e.g. on thread switch).",
+        "Called when the runtime imports messages into the external store (e.g. on thread switch). `thread.import()` throws when it is missing.",
     },
     {
       name: "onExportExternalState",

@@ -91,19 +91,21 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
+  const aiSDKTools = {
+    get_current_weather: tool({
+      description: "Get the current weather",
+      inputSchema: zodSchema(z.object({ city: z.string() })),
+      execute: async ({ city }) => {
+        return `The weather in ${city} is sunny`;
+      },
+    }),
+  };
+
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages), // async in v6
-    tools: {
-      get_current_weather: tool({
-        description: "Get the current weather",
-        inputSchema: zodSchema(z.object({ city: z.string() })),
-        execute: async ({ city }) => {
-          return `The weather in ${city} is sunny`;
-        },
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }), // async in v6
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -245,15 +247,17 @@ export async function POST(req: Request) {
     tools?: any;
   } = await req.json();
 
+  const aiSDKTools = {
+    ...frontendTools(tools),
+    // your backend tools...
+  };
+
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: {
-      ...frontendTools(tools),
-      // your backend tools...
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -277,13 +281,15 @@ import {
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    /* ... */
+  };
+
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      /* ... */
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
     stopWhen: stepCountIs(10), // cap at 10 tool-call iterations
   });
 
@@ -307,18 +313,20 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    deploy: tool({
+      description: "Deploy the current build to an environment.",
+      inputSchema: z.object({ target: z.string() }),
+      needsApproval: ({ input }) => input.target === "production",
+      execute: async ({ target }) => ({ deployed: target }),
+    }),
+  };
+
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      deploy: tool({
-        description: "Deploy the current build to an environment.",
-        inputSchema: z.object({ target: z.string() }),
-        needsApproval: ({ input }) => input.target === "production",
-        execute: async ({ target }) => ({ deployed: target }),
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -456,11 +464,14 @@ import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
   const { messages, tools, config } = await req.json();
+
+  const aiSDKTools = frontendTools(tools);
+
   const result = streamText({
     abortSignal: req.signal,
     model: getModel(config?.modelName),
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {

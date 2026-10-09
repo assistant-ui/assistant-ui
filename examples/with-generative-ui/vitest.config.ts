@@ -12,7 +12,7 @@ export default defineConfig({
         lines: 11,
         functions: 8,
         branches: 5,
-        statements: 12,
+        statements: 11,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },

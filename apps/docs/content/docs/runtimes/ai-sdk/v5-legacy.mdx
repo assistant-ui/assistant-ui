@@ -39,17 +39,20 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const aiSDKTools = {
+    get_current_weather: tool({
+      description: "Get the current weather",
+      inputSchema: z.object({ city: z.string() }),
+      execute: async ({ city }) => `The weather in ${city} is sunny`,
+    }),
+  };
+
   const result = streamText({
     abortSignal: req.signal,
     model: openai.responses("gpt-6-luna"),
-    messages: convertToModelMessages(messages),
-    tools: {
-      get_current_weather: tool({
-        description: "Get the current weather",
-        inputSchema: z.object({ city: z.string() }),
-        execute: async ({ city }) => `The weather in ${city} is sunny`,
-      }),
-    },
+    messages: convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }

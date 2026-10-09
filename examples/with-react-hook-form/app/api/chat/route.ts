@@ -12,14 +12,13 @@ const openai = createOpenAI({
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
+  const aiSDKTools = { ...frontendTools(tools) };
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: {
-      ...frontendTools(tools),
-    },
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
