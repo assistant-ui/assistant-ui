@@ -115,7 +115,6 @@ type CoreOptions = {
   onError?: (error: Error) => void;
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
-  notifyUpdate?: () => void;
   isThreadSwitching?: () => boolean;
 };
 
@@ -220,7 +219,6 @@ export class AgUiThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
-    if (options.notifyUpdate) this.listeners.add(options.notifyUpdate);
     this.isThreadSwitching = options.isThreadSwitching;
   }
 
@@ -242,7 +240,7 @@ export class AgUiThreadRuntimeCore {
     for (const listener of this.listeners) listener();
   }
 
-  updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
+  updateOptions(options: CoreOptions) {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
