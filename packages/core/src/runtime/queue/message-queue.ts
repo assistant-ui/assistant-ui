@@ -122,13 +122,21 @@ export const createMessageQueue = (
     return dispatch === activeDispatch;
   };
 
+  const reportFailure = (error: unknown) => {
+    if (!(error instanceof Error && error.name === "AbortError")) {
+      console.error("[MessageQueue] run rejected", error);
+    }
+  };
+
   const observeRun = (pending: unknown, restoreFailure: () => void) => {
     if (pending === undefined) return;
     void Promise.resolve(pending).catch((error: unknown) => {
-      restoreFailure();
-      if (!(error instanceof Error && error.name === "AbortError")) {
-        console.error("[MessageQueue] run rejected", error);
+      try {
+        restoreFailure();
+      } catch (recoveryError) {
+        reportFailure(recoveryError);
       }
+      reportFailure(error);
     });
   };
 
