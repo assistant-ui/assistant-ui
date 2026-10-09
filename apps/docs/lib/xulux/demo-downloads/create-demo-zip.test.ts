@@ -1,12 +1,23 @@
-import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { createDemoFileMap } from "./create-demo-zip";
+import { strFromU8, unzipSync } from "fflate";
+import { describe, expect, it, vi } from "vitest";
+import type { createRepoSourceReader } from "@/lib/repo-source";
+import { createDemoZip } from "./create-demo-zip";
 
 const ROOT = path.resolve(__dirname, "../../../../..");
 
-const snapshot = new Proxy({} as Record<string, string>, {
-  get: (_target, key) => readFileSync(path.join(ROOT, String(key)), "utf8"),
+const { createReader } = vi.hoisted(() => ({
+  createReader: vi.fn<typeof createRepoSourceReader>(),
+}));
+
+vi.mock("@/lib/repo-source", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/repo-source")>();
+  return {
+    ...original,
+    createRepoSourceReader: createReader.mockImplementation(() =>
+      original.createRepoSourceReader(ROOT),
+    ),
+  };
 });
 
 const sidebarDemoSlugs = [
@@ -18,11 +29,11 @@ const sidebarDemoSlugs = [
   "perplexity",
 ] as const;
 
-describe("sidebar demo download file maps", () => {
+describe("sidebar demo download archives", () => {
   it.each(sidebarDemoSlugs)(
-    "builds a self-contained file map with the sidebar for %s",
+    "builds a self-contained archive with the sidebar for %s",
     async (slug) => {
-      const files = await createDemoFileMap(slug, snapshot);
+      const files = unzipSync(await createDemoZip(slug));
       const keys = Object.keys(files);
 
       expect(keys).toContain("components/examples/clone-thread-shell.tsx");
@@ -30,8 +41,9 @@ describe("sidebar demo download file maps", () => {
         "components/assistant-ui/elements/thread-list.aui.tsx",
       );
 
-      for (const [file, content] of Object.entries(files)) {
-        if (!/\.(tsx|ts)$/.test(file) || typeof content !== "string") continue;
+      for (const [file, bytes] of Object.entries(files)) {
+        if (!/\.(tsx|ts)$/.test(file)) continue;
+        const content = strFromU8(bytes);
         for (const match of content.matchAll(
           /from "((?:@\/|\.\.?\/)[^"]+)"/g,
         )) {
