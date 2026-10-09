@@ -105,6 +105,32 @@ type MakeRequestOptions = {
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
 const authGenerations = new WeakMap<AssistantCloudAPI, number>();
 
+export const buildCloudHeaders = async <
+  TRequired extends Record<string, string>,
+>(
+  cloud: AssistantCloudAPI,
+  requiredHeaders: TRequired,
+  additionalHeaders?: Record<string, string>,
+  authGeneration?: number,
+) => {
+  const requestAuthGeneration =
+    authGeneration ?? authGenerations.get(cloud) ?? 0;
+  const authHeaders = await cloud._auth.getAuthHeaders();
+  if (
+    requestAuthGeneration !== (authGenerations.get(cloud) ?? 0) ||
+    !authHeaders
+  ) {
+    throw new Error("Authorization failed");
+  }
+
+  return {
+    ...authHeaders,
+    ...additionalHeaders,
+    ...requiredHeaders,
+    "Aui-Sdk": cloud.sdkHeader(),
+  };
+};
+
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
@@ -164,17 +190,12 @@ export class AssistantCloudAPI {
     options: MakeRequestOptions = {},
   ) {
     const authGeneration = authGenerations.get(this) ?? 0;
-    const authHeaders = await this._auth.getAuthHeaders();
-    if (authGeneration !== (authGenerations.get(this) ?? 0) || !authHeaders) {
-      throw new Error("Authorization failed");
-    }
-
-    const headers = {
-      ...authHeaders,
-      ...options.headers,
-      "Content-Type": "application/json",
-      "Aui-Sdk": this.sdkHeader(),
-    };
+    const headers = await buildCloudHeaders(
+      this,
+      { "Content-Type": "application/json" },
+      options.headers,
+      authGeneration,
+    );
 
     const queryParams = new URLSearchParams();
     if (options.query) {
