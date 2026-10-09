@@ -194,11 +194,11 @@ const sources = [
 | `open` | `boolean` | Whether the source list is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | Receives the expanded state. |
 | `layout` | `"grid" \| "list" \| undefined` | Two-column cards, or one compact row per source. Defaults to `"grid"`. |
-| `hideTrigger` | `boolean \| undefined` | Omits the pill when your own control drives `open`, such as a tab in a citations panel. Defaults to `false`. |
+| `hideTrigger` | `boolean \| undefined` | Omits the pill when your own button drives `open`; give that button `aria-expanded`. Defaults to `false`. |
 | `locale` | `string \| undefined` | Locale for `publishedAt` month and year. Defaults to `"en-US"`. |
 | `className` | `string \| undefined` | Extra classes merged onto the root. |
 
-`SourceGlyph` renders a domain's initial the way the cards do, for a custom trigger that should match them. It takes a `domain: string` and fetches no icon.
+`SourceGlyph`, exported next to `Sources`, renders a domain's initial the way the cards do, for a custom trigger that should match them. It takes a `domain: string`, fetches no icon, and is hidden from assistive technology, so pair it with a text label.
 
 ### Source fields
 
