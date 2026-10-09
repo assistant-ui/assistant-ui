@@ -33,7 +33,11 @@ import { docsSiteBaseUrl, getDocsSite } from "@/lib/docs-sites";
 import { ThemeToggle } from "./theme-toggle";
 import { CartButton } from "./shop-entry";
 import { HeaderBrandLink } from "./header-brand-link";
-import { headerBarClassName } from "./header-chrome";
+import {
+  headerBarClassName,
+  headerSlashClassName,
+  headerSwitcherClassName,
+} from "./header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 
 export interface SubProjectBreadcrumb {
@@ -115,21 +119,27 @@ export function SubProjectHeader({
         )}
       >
         <div className="flex min-w-0 items-center">
-          <HeaderBrandLink showLabel={false} />
-          <span className="text-muted-foreground/40 ml-2 sm:ml-3">/</span>
+          <HeaderBrandLink
+            showLabel={false}
+            href={docsActive ? (current?.href ?? `/${name}`) : "/"}
+            homeLabel={
+              docsActive
+                ? `${current?.label ?? name} home`
+                : "assistant-ui home"
+            }
+          />
+          <span className={headerSlashClassName}>/</span>
           {docsHref && docsActive ? (
             <>
               <Link
                 href={docsHref}
-                className="text-foreground hover:text-foreground/80 ml-2 text-sm font-medium transition-colors"
+                className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
               >
                 docs
               </Link>
               <span className="text-muted-foreground mx-1.5 text-sm">for</span>
             </>
-          ) : (
-            <span className="ml-2" />
-          )}
+          ) : null}
           <ProjectSwitcher
             name={name}
             current={current}
@@ -235,7 +245,7 @@ function ProjectSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Switch project"
-        className="group/project text-foreground hover:bg-foreground/5 data-[popup-open]:bg-foreground/5 focus-visible:ring-foreground/20 -mx-1 flex h-7 min-w-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-sm transition-colors outline-none focus-visible:ring-1"
+        className={cn("group/project", headerSwitcherClassName)}
       >
         <span className="min-w-0 flex-1 truncate text-left">{label}</span>
         <ChevronDown className="text-muted-foreground/70 size-3.5 shrink-0 transition-transform duration-150 ease-out group-data-[popup-open]/project:rotate-180" />

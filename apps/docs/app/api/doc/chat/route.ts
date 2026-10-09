@@ -343,6 +343,7 @@ export async function POST(req: Request): Promise<Response> {
     const repoTools = createRepoTools();
 
     const result = streamText({
+      abortSignal: req.signal,
       model,
       ...(providerOptions ? { providerOptions } : {}),
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),

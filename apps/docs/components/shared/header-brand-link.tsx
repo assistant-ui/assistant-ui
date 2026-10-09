@@ -19,12 +19,16 @@ type BrandAssetsMenuProps = {
 };
 
 type HeaderBrandLinkProps = {
+  href?: string;
+  homeLabel?: string;
   className?: string;
   labelClassName?: string;
   showLabel?: boolean;
 };
 
 export function HeaderBrandLink({
+  href = "/",
+  homeLabel = "assistant-ui home",
   className,
   labelClassName,
   showLabel = true,
@@ -32,8 +36,8 @@ export function HeaderBrandLink({
   return (
     <BrandAssetsMenu>
       <Link
-        href="/"
-        aria-label={showLabel ? undefined : "assistant-ui home"}
+        href={href}
+        aria-label={showLabel ? undefined : homeLabel}
         className={cn("flex shrink-0 items-center gap-2", className)}
       >
         <Image

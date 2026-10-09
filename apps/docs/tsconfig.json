@@ -31,6 +31,7 @@
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],
+      "@assistant-ui/generative-ui/*": ["../../packages/generative-ui/src/*"],
       "@assistant-ui/react-generative-ui/*": [
         "../../packages/react-generative-ui/src/*"
       ],

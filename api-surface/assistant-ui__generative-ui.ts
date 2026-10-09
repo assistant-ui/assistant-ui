@@ -1,0 +1,1646 @@
+import { StandardSchemaV1 } from "@standard-schema/spec";
+
+import { JSONSchema7 } from "json-schema";
+
+import "radix-ui";
+
+import "radix-ui/internal";
+
+import { ComponentType, ReactNode } from "react";
+
+import "react-textarea-autosize";
+
+import { ZodType } from "zod";
+
+import "zustand";
+
+type A2uiCreateSurfaceOperation = {
+  readonly version: "v0.9";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
+  readonly version: "v0.9.1";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
+  readonly version: "v1.0";
+  readonly createSurface: A2uiCreateSurfaceV10Payload;
+};
+
+interface A2uiCreateSurfaceV09Payload {
+  readonly surfaceId: string;
+  readonly catalogId?: string;
+  readonly theme?: unknown;
+  readonly attachDataModel?: unknown;
+}
+
+interface A2uiCreateSurfaceV10Payload {
+  readonly surfaceId: string;
+  readonly catalogId?: string;
+  readonly surfaceProperties?: unknown;
+  readonly sendDataModel?: unknown;
+  readonly components?: readonly ComponentNode[];
+  readonly dataModel?: unknown;
+}
+
+interface A2uiDeleteSurfaceOperation {
+  readonly version: A2uiVersion;
+  readonly deleteSurface: A2uiDeleteSurfacePayload;
+}
+
+interface A2uiDeleteSurfacePayload {
+  readonly surfaceId: string;
+}
+
+type A2uiOperation = A2uiCreateSurfaceOperation | A2uiUpdateComponentsOperation | A2uiUpdateDataModelOperation | A2uiDeleteSurfaceOperation;
+
+interface A2uiOperationResult {
+  readonly state: A2uiState;
+  readonly warnings: string[];
+}
+
+type A2uiPresentToolCall = {
+  toolCallId: string;
+  toolName: "present";
+  args: ReadonlyJSONObject;
+  argsText: string;
+  result: Record<string, never>;
+  artifact: {
+    a2ui: readonly A2uiSurfaceSnapshotOperation[];
+  };
+};
+
+type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
+
+type A2uiSurfaceSnapshotOperation = {
+  readonly version: "v0.9";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
+  readonly version: "v0.9";
+  readonly updateComponents: A2uiUpdateComponentsPayload;
+} | {
+  readonly version: "v0.9";
+  readonly updateDataModel: A2uiUpdateDataModelPayload;
+};
+
+type A2uiSurfaceState = {
+  catalogId?: string;
+  components: Map<string, Record<string, unknown>>;
+  dataModel: unknown;
+};
+
+interface A2uiTemplateChildren {
+  readonly template: {
+    readonly componentId: string;
+    readonly path: string;
+  };
+}
+
+interface A2uiUpdateComponentsOperation {
+  readonly version: A2uiVersion;
+  readonly updateComponents: A2uiUpdateComponentsPayload;
+}
+
+interface A2uiUpdateComponentsPayload {
+  readonly surfaceId: string;
+  readonly components: readonly ComponentNode[];
+}
+
+interface A2uiUpdateDataModelOperation {
+  readonly version: A2uiVersion;
+  readonly updateDataModel: A2uiUpdateDataModelPayload;
+}
+
+interface A2uiUpdateDataModelPayload {
+  readonly surfaceId: string;
+  readonly path?: string;
+  readonly contents?: unknown;
+  readonly value?: unknown;
+  readonly data?: unknown;
+}
+
+type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
+
+declare const ALERT_TONES: readonly [
+  "info",
+  "success",
+  "warning",
+  "danger"
+];
+
+declare const ALIGNS: readonly [
+  "start",
+  "center",
+  "end"
+];
+
+interface Action {
+  readonly type: string;
+  readonly [payload: string]: unknown;
+}
+
+type ActionDispatchContext = {
+  readonly payload: Action;
+};
+
+type ActionHandler = (ctx: ActionDispatchContext) => unknown | Promise<unknown>;
+
+type ActionRegistry = {
+  dispatch(action: Action): unknown;
+  has(type: string): boolean;
+};
+
+interface AdaptiveCardResult {
+  readonly card: TeamsAdaptiveCard;
+  readonly warnings: TeamsConversionWarning[];
+}
+
+type AlertTone = (typeof ALERT_TONES)[number];
+
+type Align = (typeof ALIGNS)[number];
+
+type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
+
+type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
+
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
+  subscribe(listener: () => void): Unsubscribe;
+  on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
+};
+
+type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
+  (): ClientSchemas[K]["methods"];
+} & (ClientMeta<K> | {
+  source: "root";
+  query: Record<string, never>;
+} | {
+  source: null;
+  query: null;
+}) & {
+  name: K;
+};
+
+type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
+
+type AssistantEventName = keyof AssistantEventPayload;
+
+type AssistantEventPayload = ClientEventMap & {
+  "*": WildcardPayload;
+};
+
+type AssistantEventScope<TEvent extends AssistantEventName> = "*" | EventSource<TEvent> | (EventSource<TEvent> extends ClientNames ? AncestorsOf<EventSource<TEvent>> : never);
+
+type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
+  scope: AssistantEventScope<TEvent>;
+  event: TEvent;
+};
+
+type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
+
+declare const BUTTON_STYLES: readonly [
+  "primary",
+  "secondary",
+  "outline",
+  "ghost",
+  "danger"
+];
+
+type BackendDefaultMetadata = {
+  unstable_backendDefault?: {
+    parameters?: boolean;
+  };
+};
+
+type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "backend";
+  description?: undefined;
+  parameters?: undefined;
+  disabled?: undefined;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: undefined;
+};
+
+type BaseAttachment = {
+  id: string;
+  type: "image" | "document" | "file" | (string & {});
+  name: string;
+  contentType?: string | undefined;
+  file?: File;
+  content?: ThreadUserMessagePart[];
+};
+
+type BaseThreadMessage = {
+  readonly status?: ThreadAssistantMessage["status"];
+  readonly metadata: {
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
+    readonly submittedFeedback?: {
+      readonly type: "negative" | "positive";
+      readonly comment?: string;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
+    readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
+    readonly custom: Record<string, unknown>;
+  };
+  readonly attachments?: ThreadUserMessage["attachments"];
+};
+
+type ButtonStyle = (typeof BUTTON_STYLES)[number];
+
+declare const COLORS: readonly [
+  "emphasis",
+  "secondary",
+  "alpha-70",
+  "white",
+  "white-70",
+  "white-50"
+];
+
+type ClientError<E extends string> = {
+  methods: Record<E, () => E>;
+  meta: {
+    source: ClientNames;
+    query: Record<E, E>;
+  };
+  events: Record<`${E}.`, E>;
+};
+
+type ClientEventMap = UnionToIntersection<{
+  [K in ClientNames]: ClientEvents<K>;
+}[ClientNames]>;
+
+type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K & string> ? ClientSchemas[K]["events"] : never : never;
+
+type ClientEventsType<K extends string> = Record<`${K}.${string}`, unknown>;
+
+type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
+
+type ClientMetaType = {
+  source: ClientNames;
+  query: Record<string, unknown>;
+};
+
+interface ClientMethods {
+  [key: string | symbol]: (...args: any[]) => any;
+}
+
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
+
+type ClientSchemas = keyof ScopeRegistry extends never ? {
+  "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
+} : {
+  [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
+};
+
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
+};
+
+type Color = (typeof COLORS)[number];
+
+type CompleteAttachment = BaseAttachment & {
+  status: CompleteAttachmentStatus;
+  content: ThreadUserMessagePart[];
+};
+
+type CompleteAttachmentStatus = {
+  type: "complete";
+};
+
+interface ComponentNode extends Record<string, unknown> {
+  readonly id: string;
+  readonly component: string;
+  readonly children?: readonly string[] | {
+    readonly componentId: string;
+    readonly path: string;
+  } | A2uiTemplateChildren;
+}
+
+type DataMessagePart<T = any> = {
+  readonly type: "data";
+  readonly id?: string;
+  readonly name: string;
+  readonly data: T;
+};
+
+type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
+  [key: string]: any;
+} ? {
+  readonly [K in keyof T]?: DeepPartial<T[K]>;
+} : T;
+
+interface DevToolsApiEntry {
+  api: Partial<AssistantClient>;
+  logs: EventLog[];
+}
+
+interface DevToolsHook {
+  apis: Map<number, DevToolsApiEntry>;
+  nextId: number;
+  listeners: Set<(apiId: number) => void>;
+}
+
+interface EventLog {
+  time: Date;
+  event: string;
+  data: unknown;
+}
+
+type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
+
+type FileMessagePart = {
+  readonly type: "file";
+  readonly id?: string;
+  readonly filename?: string;
+  readonly data: string;
+  readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly parentId?: string;
+};
+
+interface FromSlackBlocksResult {
+  readonly nodes: UIElement[];
+  readonly warnings: SlackConversionWarning[];
+}
+
+type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "frontend";
+  description?: string | undefined;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  disabled?: boolean;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
+  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  providerOptions?: ProviderOptions;
+};
+
+type GenerativeUIAction = Action;
+
+type GenerativeUIComponent<P = any> = {
+  description: string;
+  properties: ZodType<P>;
+  streamProperties: boolean | undefined;
+  render: (props: StreamingRenderProps<P>) => ReactNode;
+} | {
+  description: string;
+  properties: ZodType<P>;
+  streamProperties?: false | undefined;
+  render: (props: StaticRenderProps<P>) => ReactNode;
+};
+
+type GenerativeUIDispatch = (action: Action) => unknown;
+
+type GenerativeUIElement = NormalizedUIElement;
+
+type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
+
+type GenerativeUIMessagePart = {
+  readonly type: "generative-ui";
+  readonly spec: GenerativeUISpec;
+  readonly id?: string;
+  readonly parentId?: string;
+};
+
+type GenerativeUINode = GenerativeUIElement | string | number | boolean | null | undefined | GenerativeUINode[];
+
+type GenerativeUINode$1 = string | number | readonly GenerativeUINode$1[] | {
+  readonly component: string;
+  readonly props?: Record<string, unknown>;
+  readonly children?: readonly GenerativeUINode$1[];
+  readonly key?: string;
+};
+
+type GenerativeUIProps = NormalizedUIElement["props"];
+
+type GenerativeUIRenderContext = {
+  status: GenerativeUIStatus;
+  dispatch?: GenerativeUIDispatch;
+};
+
+type GenerativeUISpec = {
+  readonly root: GenerativeUINode$1 | readonly GenerativeUINode$1[];
+};
+
+type GenerativeUIStatus = "done" | "streaming";
+
+interface GenerativeUIToJSXOptions {
+  escape?: boolean;
+  pretty?: boolean;
+}
+
+type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "human";
+  description?: string | undefined;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  disabled?: boolean;
+  display?: "standalone";
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
+};
+
+declare const ICON_NAMES: readonly [
+  "sun",
+  "moon",
+  "cloud",
+  "rain",
+  "snow",
+  "wind",
+  "play",
+  "pause",
+  "check",
+  "x",
+  "star",
+  "heart",
+  "arrow-right",
+  "arrow-up-right",
+  "chevron-right",
+  "calendar",
+  "clock",
+  "map-pin",
+  "plane",
+  "truck",
+  "credit-card",
+  "user",
+  "search",
+  "bell"
+];
+
+declare const IMAGE_SIZE_TOKENS: readonly [
+  "sm",
+  "md",
+  "lg"
+];
+
+type IconName = (typeof ICON_NAMES)[number];
+
+type ImageMessagePart = {
+  readonly type: "image";
+  readonly id?: string;
+  readonly image: string;
+  readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
+};
+
+type ImageSize = (typeof IMAGE_SIZE_TOKENS)[number] | number;
+
+declare class JSONGenerativeUI {
+  #private;
+  constructor(options: JSONGenerativeUIOptions);
+  present(options?: PresentToolOptions): PresentTool;
+  promptUser(): PromptUserTool;
+}
+
+declare class JSONGenerativeUI$1 {
+  #private;
+  constructor(options: JSONGenerativeUIOptions);
+  present(options?: PresentToolOptions): PresentTool;
+  promptUser(): PromptUserTool;
+}
+
+type JSONGenerativeUIOptions = {
+  library: GenerativeUILibrary;
+  actions?: ActionRegistry;
+};
+
+declare const JUSTIFIES: readonly [
+  "start",
+  "center",
+  "end",
+  "between"
+];
+
+type Justify = (typeof JUSTIFIES)[number];
+
+interface LegacyComponentNode {
+  readonly component: string;
+  readonly props?: Record<string, unknown>;
+  readonly children?: UIChildren;
+  readonly key?: string;
+}
+
+type McpAppMetadata = {
+  readonly resourceUri: string;
+  readonly mimeType?: string;
+  readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
+};
+
+type McpServerConfig = {
+  type: "http" | "sse";
+  url: string;
+  headers?: Record<string, string>;
+  redirect?: "error" | "follow";
+  connectionTimeout?: number | undefined;
+} | {
+  type: "stdio";
+  command: string;
+  args?: readonly string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  connectionTimeout?: number | undefined;
+};
+
+type McpTool = ToolBase<Record<string, unknown>, unknown> & {
+  type: "mcp";
+  server: McpServerConfig;
+  description?: undefined;
+  parameters?: undefined;
+  disabled?: boolean;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: undefined;
+};
+
+type MessageCommonProps = {
+  readonly id: string;
+  readonly createdAt: Date;
+};
+
+type MessageModality = "voice";
+
+type MessagePartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
+  readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+};
+
+type MessagePartStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+  readonly error?: unknown;
+};
+
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
+type MessageStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "requires-action";
+  readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "complete";
+  readonly reason: "stop" | "unknown";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
+  readonly error?: ReadonlyJSONValue;
+};
+
+type MessageTiming = {
+  readonly streamStartTime: number;
+  readonly firstTokenTime?: number;
+  readonly totalStreamTime?: number;
+  readonly tokenCount?: number;
+  readonly tokensPerSecond?: number;
+  readonly totalChunks: number;
+  readonly toolCallCount: number;
+};
+
+interface NormalizedUIElement {
+  readonly type: string;
+  readonly props: Readonly<Record<string, unknown>>;
+  readonly children?: NormalizedUINode | undefined;
+  readonly key?: string | number | undefined;
+  readonly action?: Action | undefined;
+}
+
+type NormalizedUINode = string | number | readonly NormalizedUINode[] | NormalizedUIElement | null;
+
+type ObjectKey<T> = keyof T & (string | number);
+
+type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
+
+type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
+  source: infer S;
+} ? S extends ClientNames ? S : never : never;
+
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
+type PresentTool = ToolDefinition<Record<string, unknown>, Record<string, never>> & BackendDefaultMetadata;
+
+type PresentToolOptions = {
+  display?: "standalone";
+};
+
+type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> & BackendDefaultMetadata;
+
+type ProviderOptions = Record<string, Record<string, unknown>>;
+
+type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "provider";
+  providerId: `${string}.${string}`;
+  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
+  args: Record<string, unknown>;
+  supportsDeferredResults?: boolean;
+  description?: undefined;
+  disabled?: boolean;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
+};
+
+type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
+
+type ReadonlyJSONObject = {
+  readonly [key: string]: ReadonlyJSONValue;
+};
+
+type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray;
+
+type ReasoningMessagePart = {
+  readonly type: "reasoning";
+  readonly id?: string;
+  readonly text: string;
+  readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly parentId?: string;
+};
+
+type ReservedAccessorProps = "name" | "query" | "source";
+
+type ReservedScopeNames = "on" | "optional" | "subscribe";
+
+interface ScopeRegistry {
+  [key: string]: { methods: any; meta?: any; events?: any };
+}
+
+type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackTimePickerElement | SlackDateTimePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
+
+interface SlackActionsBlock {
+  readonly type: "actions";
+  readonly block_id?: string;
+  readonly elements: readonly SlackActionElement[];
+}
+
+interface SlackAlertBlock {
+  readonly type: "alert";
+  readonly text: SlackTextObject;
+  readonly level?: SlackAlertLevel;
+}
+
+type SlackAlertLevel = "default" | "error" | "info" | "success" | "warning";
+
+type SlackBlock = SlackHeaderBlock | SlackSectionBlock | SlackContextBlock | SlackImageBlock | SlackDividerBlock | SlackActionsBlock | SlackInputBlock | SlackCardBlock | SlackCarouselBlock | SlackDataTableBlock | SlackMarkdownBlock | SlackAlertBlock;
+
+interface SlackBlocksResult {
+  readonly blocks: SlackBlock[];
+  readonly warnings: SlackConversionWarning[];
+}
+
+interface SlackButtonElement {
+  readonly type: "button";
+  readonly text: SlackPlainText;
+  readonly action_id: string;
+  readonly value?: string;
+  readonly style?: "danger" | "primary";
+}
+
+interface SlackCardBlock {
+  readonly type: "card";
+  readonly hero_image?: SlackImageBlock;
+  readonly title?: SlackTextObject;
+  readonly subtitle?: SlackTextObject;
+  readonly body?: SlackTextObject;
+  readonly subtext?: SlackTextObject;
+  readonly actions?: readonly SlackButtonElement[];
+}
+
+interface SlackCarouselBlock {
+  readonly type: "carousel";
+  readonly elements: readonly SlackCardBlock[];
+}
+
+interface SlackCheckboxesElement {
+  readonly type: "checkboxes";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly initial_options?: readonly SlackOption[];
+}
+
+interface SlackContextBlock {
+  readonly type: "context";
+  readonly elements: readonly SlackMrkdwnText[];
+}
+
+interface SlackConversionWarning {
+  readonly code: "clamped" | "dropped" | "fallback";
+  readonly component: string;
+  readonly detail: string;
+}
+
+interface SlackDataTableBlock {
+  readonly type: "data_table";
+  readonly caption: string;
+  readonly rows: readonly (readonly SlackDataTableCell[])[];
+  readonly page_size?: number;
+}
+
+type SlackDataTableCell = SlackDataTableRawTextCell | SlackDataTableRawNumberCell;
+
+interface SlackDataTableRawNumberCell {
+  readonly type: "raw_number";
+  readonly text: string;
+}
+
+interface SlackDataTableRawTextCell {
+  readonly type: "raw_text";
+  readonly text: string;
+}
+
+interface SlackDatePickerElement {
+  readonly type: "datepicker";
+  readonly action_id: string;
+  readonly initial_date?: string;
+}
+
+interface SlackDateTimePickerElement {
+  readonly type: "datetimepicker";
+  readonly action_id: string;
+  readonly initial_date_time?: number;
+}
+
+interface SlackDividerBlock {
+  readonly type: "divider";
+}
+
+interface SlackHeaderBlock {
+  readonly type: "header";
+  readonly text: SlackPlainText;
+}
+
+interface SlackImageBlock {
+  readonly type: "image";
+  readonly image_url: string;
+  readonly alt_text: string;
+}
+
+interface SlackInputBlock {
+  readonly type: "input";
+  readonly block_id?: string;
+  readonly label: SlackPlainText;
+  readonly element: SlackPlainTextInputElement;
+  readonly dispatch_action?: boolean;
+}
+
+interface SlackMarkdownBlock {
+  readonly type: "markdown";
+  readonly text: string;
+}
+
+interface SlackMrkdwnText {
+  readonly type: "mrkdwn";
+  readonly text: string;
+}
+
+interface SlackOption {
+  readonly text: SlackPlainText;
+  readonly value: string;
+}
+
+interface SlackPlainText {
+  readonly type: "plain_text";
+  readonly text: string;
+}
+
+interface SlackPlainTextInputElement {
+  readonly type: "plain_text_input";
+  readonly action_id: string;
+  readonly dispatch_action_config?: {
+    readonly trigger_actions_on?: readonly ("on_character_entered" | "on_enter_pressed")[];
+  };
+  readonly multiline?: boolean;
+  readonly initial_value?: string;
+  readonly placeholder?: SlackPlainText;
+}
+
+interface SlackRadioButtonsElement {
+  readonly type: "radio_buttons";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
+}
+
+interface SlackSectionBlock {
+  readonly type: "section";
+  readonly text?: SlackMrkdwnText;
+  readonly fields?: readonly SlackMrkdwnText[];
+  readonly accessory?: SlackButtonElement;
+}
+
+interface SlackStaticSelectElement {
+  readonly type: "static_select";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
+  readonly placeholder?: SlackPlainText;
+}
+
+type SlackTextObject = SlackPlainText | SlackMrkdwnText;
+
+interface SlackTimePickerElement {
+  readonly type: "timepicker";
+  readonly action_id: string;
+  readonly initial_time?: string;
+}
+
+type SourceMessagePart = {
+  readonly type: "source";
+  readonly sourceType: "url";
+  readonly id: string;
+  readonly url: string;
+  readonly title?: string;
+  readonly providerMetadata?: SourceProviderMetadata;
+  readonly parentId?: string;
+} | {
+  readonly type: "source";
+  readonly sourceType: "document";
+  readonly id: string;
+  readonly url?: undefined;
+  readonly title: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+  readonly providerMetadata?: SourceProviderMetadata;
+  readonly parentId?: string;
+};
+
+type SourceProviderMetadata = PartProviderMetadata;
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognitionInstance;
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+type StaticRenderProps<P> = P & {
+  children?: ReactNode;
+  $status: "done";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+type StreamingRenderProps<P> = (Partial<P> & {
+  children?: ReactNode;
+  $status: "streaming";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+}) | (P & {
+  children?: ReactNode;
+  $status: "done";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+});
+
+declare const TEXT_SIZES: readonly [
+  "sm",
+  "md",
+  "lg",
+  "xl",
+  "2xl",
+  "3xl"
+];
+
+declare const TOOL_RESPONSE_SYMBOL: unique symbol;
+
+declare const TYPE_KEY = "$type";
+
+interface TeamsActionSet {
+  readonly type: "ActionSet";
+  readonly actions: readonly TeamsSubmitAction[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsAdaptiveCard {
+  readonly $schema: "http://adaptivecards.io/schemas/adaptive-card.json";
+  readonly type: "AdaptiveCard";
+  readonly version: "1.5";
+  readonly body: readonly TeamsCardElement[];
+  readonly actions: readonly TeamsCardAction[];
+}
+
+interface TeamsAttachmentsResult {
+  readonly attachments: TeamsCardAttachment[];
+  readonly attachmentLayout?: "carousel";
+  readonly warnings: TeamsConversionWarning[];
+}
+
+type TeamsCardAction = TeamsSubmitAction;
+
+interface TeamsCardAttachment {
+  readonly contentType: "application/vnd.microsoft.card.adaptive";
+  readonly content: TeamsAdaptiveCard;
+}
+
+type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsInputTime | TeamsTable;
+
+interface TeamsColumn {
+  readonly type: "Column";
+  readonly width: "auto";
+  readonly items: readonly TeamsCardElement[];
+}
+
+interface TeamsColumnSet {
+  readonly type: "ColumnSet";
+  readonly columns: readonly TeamsColumn[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsContainer {
+  readonly type: "Container";
+  readonly style?: TeamsContainerStyle;
+  readonly items: readonly TeamsCardElement[];
+  readonly selectAction?: TeamsSubmitAction;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+type TeamsContainerStyle = "accent" | "attention" | "default" | "emphasis" | "good" | "warning";
+
+interface TeamsConversionWarning {
+  readonly code: "advisory" | "clamped" | "dropped" | "fallback";
+  readonly component: string;
+  readonly detail: string;
+}
+
+interface TeamsFact {
+  readonly title: string;
+  readonly value: string;
+}
+
+interface TeamsFactSet {
+  readonly type: "FactSet";
+  readonly facts: readonly TeamsFact[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsImage {
+  readonly type: "Image";
+  readonly url: string;
+  readonly altText?: string;
+  readonly size?: "large" | "medium" | "small";
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputChoice {
+  readonly title: string;
+  readonly value: string;
+}
+
+interface TeamsInputChoiceSet {
+  readonly type: "Input.ChoiceSet";
+  readonly id: string;
+  readonly style: "compact" | "expanded";
+  readonly isMultiSelect?: true;
+  readonly choices: readonly TeamsInputChoice[];
+  readonly placeholder?: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputDate {
+  readonly type: "Input.Date";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputText {
+  readonly type: "Input.Text";
+  readonly id: string;
+  readonly style?: "password";
+  readonly label?: string;
+  readonly placeholder?: string;
+  readonly value?: string;
+  readonly isMultiline?: true;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputTime {
+  readonly type: "Input.Time";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputToggle {
+  readonly type: "Input.Toggle";
+  readonly id: string;
+  readonly title: string;
+  readonly value: "false" | "true";
+  readonly valueOn: "true";
+  readonly valueOff: "false";
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsSubmitAction {
+  readonly type: "Action.Submit";
+  readonly title: string;
+  readonly data: TeamsSubmitData;
+  readonly mode?: "secondary";
+}
+
+interface TeamsSubmitData {
+  readonly aui: {
+    readonly type: string;
+    readonly payload?: Record<string, unknown>;
+  };
+}
+
+interface TeamsTable {
+  readonly type: "Table";
+  readonly firstRowAsHeaders: boolean;
+  readonly columns: readonly TeamsTableColumnDefinition[];
+  readonly rows: readonly TeamsTableRow[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsTableCell {
+  readonly type: "TableCell";
+  readonly items: readonly TeamsTextBlock[];
+}
+
+interface TeamsTableColumnDefinition {
+  readonly width: 1;
+}
+
+interface TeamsTableRow {
+  readonly type: "TableRow";
+  readonly cells: readonly TeamsTableCell[];
+}
+
+interface TeamsTextBlock {
+  readonly type: "TextBlock";
+  readonly text: string;
+  readonly wrap: true;
+  readonly size?: TeamsTextSize;
+  readonly weight?: "bolder";
+  readonly style?: "heading";
+  readonly isSubtle?: true;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
+
+type TextMessagePart = {
+  readonly type: "text";
+  readonly id?: string;
+  readonly text: string;
+  readonly status?: MessagePartStreamStatus;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly parentId?: string;
+};
+
+type TextSize = (typeof TEXT_SIZES)[number];
+
+type ThreadAssistantMessage = MessageCommonProps & {
+  readonly role: "assistant";
+  readonly content: readonly ThreadAssistantMessagePart[];
+  readonly status: MessageStatus;
+  readonly metadata: {
+    readonly unstable_state: ReadonlyJSONValue;
+    readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    readonly unstable_data: readonly ReadonlyJSONValue[];
+    readonly steps: readonly ThreadStep[];
+    readonly submittedFeedback?: {
+      readonly type: "negative" | "positive";
+      readonly comment?: string;
+    };
+    readonly timing?: MessageTiming;
+    readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
+    readonly custom: Record<string, unknown>;
+  };
+};
+
+type ThreadAssistantMessagePart = TextMessagePart | ReasoningMessagePart | ToolCallMessagePart | SourceMessagePart | FileMessagePart | ImageMessagePart | DataMessagePart | GenerativeUIMessagePart;
+
+type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
+
+type ThreadStep = {
+  readonly messageId?: string;
+  readonly usage?: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+  } | undefined;
+};
+
+type ThreadSystemMessage = MessageCommonProps & {
+  readonly role: "system";
+  readonly content: readonly [
+    TextMessagePart
+  ];
+  readonly metadata: {
+    readonly unstable_state?: undefined;
+    readonly unstable_annotations?: undefined;
+    readonly unstable_data?: undefined;
+    readonly steps?: undefined;
+    readonly submittedFeedback?: undefined;
+    readonly timing?: undefined;
+    readonly modality?: undefined;
+    readonly custom: Record<string, unknown>;
+  };
+};
+
+type ThreadUserMessage = MessageCommonProps & {
+  readonly role: "user";
+  readonly content: readonly ThreadUserMessagePart[];
+  readonly attachments: readonly CompleteAttachment[];
+  readonly metadata: {
+    readonly unstable_state?: undefined;
+    readonly unstable_annotations?: undefined;
+    readonly unstable_data?: undefined;
+    readonly steps?: undefined;
+    readonly submittedFeedback?: undefined;
+    readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
+    readonly custom: Record<string, unknown>;
+  };
+};
+
+type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | Unstable_AudioMessagePart;
+
+interface ToAdaptiveCardOptions {
+}
+
+interface ToSlackBlocksOptions {
+  readonly surface?: "message" | "modal";
+}
+
+type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
+
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
+
+type ToolApprovalOption = {
+  readonly id: string;
+  readonly kind: ToolApprovalOptionKind | (string & {});
+  readonly label?: string;
+  readonly description?: string;
+  readonly grants?: readonly string[];
+  readonly confirm?: boolean | {
+    title?: string;
+    description?: string;
+  };
+};
+
+type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
+
+type ToolApprovalResponse = {
+  readonly approved: boolean;
+  readonly text?: string;
+  readonly reason?: string;
+} | {
+  readonly optionId: string;
+  readonly text?: string;
+  readonly reason?: string;
+} | {
+  readonly approved: boolean;
+  readonly optionId: string;
+  readonly text?: string;
+  readonly reason?: string;
+} | {
+  readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
+  readonly reason?: string;
+};
+
+type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
+  streamCall?: ToolStreamCallFunction<TArgs, TResult>;
+  display?: ToolDisplay;
+  overwrite?: boolean;
+};
+
+interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
+  get<PathT extends TypePath<TArgs>>(...fieldPath: PathT): Promise<TypeAtPath<TArgs, PathT>>;
+  streamValues<PathT extends TypePath<TArgs>>(...fieldPath: PathT): AsyncIterableStream<DeepPartial<TypeAtPath<TArgs, PathT>>>;
+  streamText<PathT extends TypePath<TArgs>>(...fieldPath: PathT): TypeAtPath<TArgs, PathT> extends string & (infer U) ? AsyncIterableStream<U> : never;
+  forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
+}
+
+type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult, TValue> = TValue | undefined | null | ((options: {
+  args: TArgs;
+  result: TResult | undefined;
+}) => TValue | undefined | null);
+
+type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: TArgs;
+  readonly result?: TResult | undefined;
+  readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
+  readonly argsText: string;
+  readonly artifact?: unknown;
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  readonly interrupt?: {
+    type: "human";
+    payload: unknown;
+  };
+  readonly approval?: {
+    readonly id: string;
+    readonly prompt?: string;
+    readonly display?: ToolApprovalDisplay;
+    readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
+    readonly approved?: boolean;
+    readonly reason?: string;
+    readonly isAutomatic?: boolean;
+    readonly options?: readonly ToolApprovalOption[];
+    readonly optionId?: string;
+    readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
+    readonly resolution?: "cancelled" | "expired";
+  };
+  readonly parentId?: string;
+  readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
+};
+
+type ToolCallMessagePartComponent<TArgs = any, TResult = any> = ComponentType<ToolCallMessagePartProps<TArgs, TResult>>;
+
+type ToolCallMessagePartMcpMetadata = {
+  readonly app?: McpAppMetadata;
+};
+
+type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState & ToolCallMessagePart<TArgs, TResult> & {
+  addResult: (result: TResult | ToolResponse<TResult>) => void;
+  resume: (payload: unknown) => void;
+  respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
+  unstable_recordInteraction?: ((input: Unstable_ToolInteractionInput) => Promise<void>) | undefined;
+};
+
+type ToolCallMessagePartStatus = {
+  readonly type: "requires-action";
+  readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
+} | MessagePartStatus;
+
+interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
+  args: ToolCallArgsReader<TArgs>;
+  response: ToolCallResponseReader<TResult>;
+  result: {
+    get: () => Promise<TResult>;
+  };
+}
+
+interface ToolCallResponseReader<TResult> {
+  get: () => Promise<ToolResponse<TResult>>;
+}
+
+type ToolCallRunningText<TArgs extends Record<string, unknown>, TValue> = TValue | undefined | null | ((options: {
+  args: TArgs;
+}) => TValue | undefined | null);
+
+type ToolCallText<TArgs extends Record<string, unknown>, TResult> = ToolCallText$1<TArgs, TResult, ReactNode>;
+
+type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = string> = {
+  running: ToolCallRunningText<TArgs, TValue>;
+  complete?: ToolCallCompleteText<TArgs, TResult, TValue> | undefined;
+} | {
+  running?: ToolCallRunningText<TArgs, TValue> | undefined;
+  complete: ToolCallCompleteText<TArgs, TResult, TValue>;
+};
+
+type ToolCallTiming = MessagePartTiming;
+
+type ToolDefinition<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = WithRender<Tool<TArgs, TResult>, TArgs, TResult>;
+
+type ToolDisplay = "inline" | "standalone";
+
+type ToolExecuteFunction<TArgs, TResult> = (args: TArgs, context: ToolExecutionContext) => TResult | Promise<TResult>;
+
+type ToolExecutionContext = {
+  toolCallId: string;
+  abortSignal: AbortSignal;
+  human: (payload: unknown) => Promise<unknown>;
+};
+
+type ToolModelContentPart = {
+  readonly type: "text";
+  readonly text: string;
+} | {
+  readonly type: "file";
+  readonly data: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+};
+
+type ToolModelOutputFunction<TArgs, TResult> = (options: {
+  toolCallId: string;
+  input: TArgs;
+  output: TResult;
+}) => readonly ToolModelContentPart[] | Promise<readonly ToolModelContentPart[]>;
+
+declare class ToolResponse<TResult> {
+  get [TOOL_RESPONSE_SYMBOL](): boolean;
+  readonly artifact?: ReadonlyJSONValue;
+  readonly result: TResult;
+  readonly isError: boolean;
+  readonly isPreliminary?: boolean;
+  readonly modelContent?: readonly ToolModelContentPart[];
+  readonly messages?: ReadonlyJSONValue;
+  constructor(options: ToolResponseLike<TResult>);
+  static [Symbol.hasInstance](obj: unknown): obj is ToolResponse<ReadonlyJSONValue>;
+  static toResponse(result: any | ToolResponse<any>): ToolResponse<any>;
+}
+
+type ToolResponseLike<TResult> = {
+  result: TResult;
+  artifact?: ReadonlyJSONValue | undefined;
+  isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
+  modelContent?: readonly ToolModelContentPart[] | undefined;
+  messages?: ReadonlyJSONValue | undefined;
+};
+
+type ToolStreamCallFunction<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (reader: ToolCallReader<TArgs, TResult>, context: ToolExecutionContext) => void;
+
+type ToolWithoutType<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (Omit<FrontendTool<TArgs, TResult>, "type"> | Omit<BackendTool<TArgs, TResult>, "type"> | Omit<HumanTool<TArgs, TResult>, "type"> | Omit<ProviderTool<TArgs, TResult>, "type">) & {
+  type?: undefined;
+};
+
+type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
+
+type TypeAtPath<T, P extends readonly any[]> = P extends [
+  infer Head,
+  ...infer Rest
+] ? Head extends keyof T ? TypeAtPath<T[Head], Rest> : never : T;
+
+type TypePath<T> = [
+] | (0 extends 1 & T ? any[] : T extends object ? T extends readonly any[] ? number extends T["length"] ? {
+  [K in TupleIndex<T>]: [
+    AsNumber<K>,
+    ...TypePath<T[K]>
+  ];
+}[TupleIndex<T>] : [
+  number,
+  ...TypePath<T[number]>
+] : {
+  [K in ObjectKey<T>]: [
+    K,
+    ...TypePath<T[K]>
+  ];
+}[ObjectKey<T>] : [
+]);
+
+type UIChildren = UINode | readonly UINode[];
+
+interface UIElement {
+  readonly $type: string;
+  readonly $key?: string | number;
+  readonly children?: UIChildren;
+  readonly $action?: Action;
+  readonly [prop: string]: unknown;
+}
+
+type UINode = string | number | UIElement | LegacyComponentNode;
+
+type UISpec = UINode | readonly UINode[];
+
+type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends ((x: infer I) => void) ? I : never;
+
+type Unstable_AudioMessagePart = {
+  readonly type: "audio";
+  readonly audio: {
+    readonly data: string;
+    readonly format: "mp3" | "wav";
+  };
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
+type Unsubscribe = () => void;
+
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
+  methods: ClientMethods;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+
+declare const WEIGHTS: readonly [
+  "normal",
+  "medium",
+  "semibold",
+  "bold"
+];
+
+type Weight = (typeof WEIGHTS)[number];
+
+type WildcardPayload = {
+  [K in keyof ClientEventMap]: {
+    event: K;
+    payload: ClientEventMap[K];
+  };
+}[Extract<keyof ClientEventMap, string>];
+
+type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
+  type: "frontend" | "human";
+} ? T & (T extends {
+  type: "frontend";
+} ? {
+  render: ToolCallMessagePartComponent<TArgs, TResult>;
+} | {
+  render?: ToolCallMessagePartComponent<TArgs, TResult>;
+  renderText: ToolCallText<TArgs, TResult>;
+} : {
+  render: ToolCallMessagePartComponent<TArgs, TResult>;
+}) : T & {
+  render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+  renderText?: ToolCallText<TArgs, TResult> | undefined;
+};
+
+declare namespace entry_a2ui_exports {
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiPresentToolCall, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations, surfaceToPresentToolCall };
+}
+
+declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
+
+declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7;
+
+declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
+  readonly keepUnknownComponents?: boolean;
+}): {
+  spec: UIElement | null;
+  warnings: string[];
+};
+
+declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
+
+declare function decodeBlockAction(action: unknown, stateValues?: unknown): Action | undefined;
+
+declare function decodeSubmitData(value: unknown): Action | undefined;
+
+declare const defaultGenerativeUILibrary: GenerativeUILibrary;
+
+declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
+
+declare const emptyActionRegistry: ActionRegistry;
+
+declare function fromSlackBlocks(blocks: unknown): FromSlackBlocksResult;
+
+declare function generativeUIToJSX(node: unknown, options?: GenerativeUIToJSXOptions): string;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
+
+declare global {
+  interface Window {
+    __ASSISTANT_UI_DEVTOOLS_HOOK__?: any;
+  }
+}
+
+declare const hasFieldReference: (value: unknown) => boolean;
+
+declare namespace entry_root_exports {
+  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, hasFieldReference, normalizeSpec, normalizeUINode, resolveFieldReferences };
+}
+
+declare function normalizeSpec(spec: UISpec): {
+  readonly root: NormalizedUINode | readonly NormalizedUINode[];
+};
+
+declare function normalizeUINode(node: unknown, partialPath?: readonly string[] | undefined, depth?: number): NormalizedUINode;
+
+declare namespace entry_react_default_exports {
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+}
+
+declare namespace entry_react_react_server_exports {
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+}
+
+declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
+
+declare const resolveFieldReferences: (value: unknown, fields: Readonly<Record<string, unknown>>) => unknown;
+
+declare namespace entry_slack_exports {
+  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+}
+
+declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
+
+declare function surfaceToPresentToolCall(surfaceId: string, surface: A2uiSurfaceState): {
+  toolCall: A2uiPresentToolCall | undefined;
+  warnings: ReturnType<typeof convertSurfaceToUISpec>["warnings"];
+};
+
+declare namespace entry_teams_exports {
+  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputTime, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
+}
+
+declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions): AdaptiveCardResult;
+
+declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): SlackBlocksResult;
+
+declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
+
+export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };

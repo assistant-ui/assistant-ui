@@ -9,7 +9,11 @@ export type {
 } from "./overrides/types";
 
 export { useIsMarkdownCodeBlock } from "./overrides/PreOverride";
-export { memoizeMarkdownComponents as unstable_memoizeMarkdownComponents } from "./memoization";
+export {
+  memoizeMarkdownComponents,
+  /** @deprecated Use `memoizeMarkdownComponents` instead. */
+  memoizeMarkdownComponents as unstable_memoizeMarkdownComponents,
+} from "./memoization";
 
 export {
   rewriteLatexBracketDelimiters,
