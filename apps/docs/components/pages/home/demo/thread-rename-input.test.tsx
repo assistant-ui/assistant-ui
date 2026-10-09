@@ -193,4 +193,23 @@ describe("thread rename", () => {
     expect(onDone).toHaveBeenCalledWith(true);
     expect(onRename).not.toHaveBeenCalled();
   });
+
+  it("does not submit an IME confirmation after composition ends", () => {
+    const onRename = vi.fn();
+    const onDone = vi.fn();
+    render(
+      <ThreadRenameInput title="First" onRename={onRename} onDone={onDone} />,
+    );
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Changed" } });
+    expect(
+      fireEvent.keyDown(input, {
+        key: "Enter",
+        keyCode: 229,
+        isComposing: false,
+      }),
+    ).toBe(false);
+    expect(onRename).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+  });
 });

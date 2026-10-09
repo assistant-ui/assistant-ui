@@ -67,7 +67,7 @@ export function ThreadRenameInput({
       }}
       onKeyDown={(event) => {
         event.stopPropagation();
-        if (event.nativeEvent.isComposing) {
+        if (event.nativeEvent.isComposing || event.keyCode === 229) {
           if (event.key === "Enter") event.preventDefault();
           return;
         }
