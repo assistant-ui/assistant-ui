@@ -235,16 +235,16 @@ const isSameThread = (
 
 const useRemoteThreadBody = ({
   id,
-  status,
   remoteId,
   item,
   thread,
+  onAutomaticTitle,
 }: {
   id: string;
-  status: RemoteThreadData["status"];
   remoteId: string | undefined;
   item: (isRunning: boolean) => ResourceElement<ClientOutput<"threadListItem">>;
   thread: ResourceElement<ClientOutput<"thread">>;
+  onAutomaticTitle: (id: string, messages: readonly ThreadMessage[]) => void;
 }): ClientOutput<"thread"> => {
   const parent = useAssistantContextValue();
   const [isRunning, setIsRunning] = useState(false);
@@ -260,32 +260,18 @@ const useRemoteThreadBody = ({
       get: () => itemHandle.methods,
     }),
   });
-  // Auto-title arms only for a thread born "new" in this body's lifetime;
-  // threads loaded or fetched from the adapter already carry their title. The
-  // settled (non-optimistic) initialize is what writes remoteId, so its
-  // arrival is the initialization signal.
-  const bornNewRef = useRef(status === "new");
-  const titleFiredRef = useRef(false);
   return useAssistantContextProvider(client, function useBoundRemoteBody() {
     const body = useClientResource(thread);
     const bodyRunning = body.state.isRunning === true;
     useEffect(() => {
       setIsRunning(bodyRunning);
     }, [bodyRunning]);
-    const armed =
-      bornNewRef.current && !titleFiredRef.current && remoteId !== undefined;
-    const hasTitleSource =
-      armed &&
-      (
-        body.state.messages as readonly {
-          status?: { type: string } | undefined;
-        }[]
-      ).some(isTitleSourceMessage);
+    const messages = body.state.messages as readonly ThreadMessage[];
     useEffect(() => {
-      if (!hasTitleSource || titleFiredRef.current) return;
-      titleFiredRef.current = true;
-      client.threadListItem.generateTitle({ automatic: true });
-    }, [hasTitleSource]);
+      if (remoteId !== undefined && messages.some(isTitleSourceMessage)) {
+        onAutomaticTitle(id, messages);
+      }
+    });
     return body.methods;
   });
 };
@@ -323,6 +309,7 @@ const useRemoteThreadListView = ({
   mainThreadId,
   initialMainId,
   startedIds,
+  pendingAutomaticTitles,
   backgroundThreads,
   threadFactory,
   useAdapters,
@@ -340,6 +327,7 @@ const useRemoteThreadListView = ({
   mainThreadId: string;
   initialMainId: string;
   startedIds: readonly string[];
+  pendingAutomaticTitles: Set<string>;
   backgroundThreads: boolean;
   threadFactory: RemoteThreadListProps["thread"];
   useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
@@ -383,6 +371,13 @@ const useRemoteThreadListView = ({
     }
     return ids;
   }, [backgroundThreads, listState, mainThreadId, startedIds]);
+
+  const onAutomaticTitle = (id: string, messages: readonly ThreadMessage[]) => {
+    if (!pendingAutomaticTitles.delete(id)) return;
+    handleThreadListAction("generate title", () =>
+      onGenerateTitle(id, messages, { automatic: true }),
+    );
+  };
 
   const itemElementFor = (
     data: RemoteThreadData,
@@ -443,11 +438,11 @@ const useRemoteThreadListView = ({
         backgroundThreads && data !== undefined
           ? RemoteThreadBody({
               id,
-              status: data.status,
               remoteId: data.remoteId,
               // The list's own item reports selection; a body copy would repeat it.
               item: (isRunning) => itemElementFor(data, isRunning, false),
               thread: wrapped,
+              onAutomaticTitle,
             })
           : wrapped;
       return withKey(backgroundThreads ? id : (made.key ?? "main"), element);
@@ -515,6 +510,7 @@ const useRemoteThreadList = (
         adapterAtLoad: adapter,
         adapterGeneration: 0,
         titleStates: new Map<string, ThreadTitleState>(),
+        pendingAutomaticTitles: new Set<string>(),
         loadGeneration: 0,
         switchGeneration: 0,
         loadPromise: undefined as Promise<void> | undefined,
@@ -631,6 +627,7 @@ const useRemoteThreadList = (
     if (adapterChanged) {
       session.adapterGeneration++;
       session.titleStates.clear();
+      session.pendingAutomaticTitles.clear();
       const preserveControlled =
         session.lastControlledThreadId !== undefined &&
         session.controlledSwitchAdapter === adapter &&
@@ -933,9 +930,10 @@ const useRemoteThreadList = (
       }
       requireAdapterGeneration(adapterGeneration);
       const initializeTask = currentAdapter.initialize(threadId);
+      if (backgroundThreads) session.pendingAutomaticTitles.add(threadId);
       let removedMappingId: string | undefined;
       let replacementMainThreadId: string | undefined;
-      const result = await store.optimisticUpdate({
+      const initialization = store.optimisticUpdate({
         execute: () => initializeTask,
         optimistic: (state) =>
           promoteNewThreadReducer(state, threadId, initializeTask),
@@ -960,6 +958,13 @@ const useRemoteThreadList = (
           return reconciliation.state;
         },
       });
+      let result: Awaited<typeof initialization>;
+      try {
+        result = await initialization;
+      } catch (error) {
+        session.pendingAutomaticTitles.delete(threadId);
+        throw error;
+      }
       requireAdapterGeneration(adapterGeneration);
       if (removedMappingId !== undefined) {
         setStartedIds((prev) =>
@@ -1188,6 +1193,7 @@ const useRemoteThreadList = (
       // while the deletion is in flight.
       if (getThreadData(store.value, data.id) !== undefined) return result;
       clearThreadTitleState(session.titleStates, data.id);
+      session.pendingAutomaticTitles.delete(data.id);
       onDelete?.(data.id);
       return result;
     },
@@ -1287,6 +1293,7 @@ const useRemoteThreadList = (
       mainThreadId,
       initialMainId,
       startedIds,
+      pendingAutomaticTitles: session.pendingAutomaticTitles,
       backgroundThreads,
       threadFactory,
       useAdapters: adapter.unstable_useAdapters,
