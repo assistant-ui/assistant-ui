@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   analyze:
@@ -30,34 +30,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - language: actions
-            paths: .github/workflows
-          - language: javascript-typescript
-            paths: >-
-              .
-              :(exclude).github/workflows
-              :(exclude)python
-              :(exclude,glob)**/*.py
-              :(exclude,glob)**/*.md
-              :(exclude,glob)**/*.mdx
-          - language: python
-            paths: :(glob)**/*.py
+        language: [actions, javascript-typescript, python]
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 2
 
+      - name: Test language selection
+        if: strategy.job-index == 0
+        run: node --test scripts/codeql-language-selection.test.mjs
+
       # A pull request only analyzes the languages it touches. Pushes and scheduled runs skip this step and analyze all three.
       - name: Select language
         id: selection
         if: github.event_name == 'pull_request'
         env:
-          LANGUAGE_PATHS: ${{ matrix.paths }}
+          LANGUAGE: ${{ matrix.language }}
         run: |
           set -euo pipefail
-          read -ra paths <<< "$LANGUAGE_PATHS"
+          case "$LANGUAGE" in
+            actions)
+              paths=(.github/workflows ':(glob)**/action.yml' ':(glob)**/action.yaml')
+              ;;
+            javascript-typescript)
+              paths=(. ':(exclude).github/workflows' ':(exclude)python' ':(exclude,glob)**/*.py' ':(exclude,glob)**/*.md' ':(exclude,glob)**/*.mdx')
+              ;;
+            python) paths=(':(glob)**/*.py') ;;
+            *) exit 1 ;;
+          esac
           run=true
           if git diff --quiet --no-renames HEAD^1 HEAD -- "${paths[@]}" &&
             git diff --quiet --no-renames HEAD^1 HEAD -- .github/workflows/codeql.yaml; then
