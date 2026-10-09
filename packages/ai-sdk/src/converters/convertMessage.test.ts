@@ -1390,7 +1390,9 @@ describe("AISDKMessageConverter", () => {
     const call = terminal[0]?.content.find(
       (part): part is any => part.type === "tool-call",
     );
-    expect(call?.args).toEqual({ city: "NYC" });
+    expect(Object.fromEntries(Object.entries(call?.args ?? {}))).toEqual({
+      city: "NYC",
+    });
     expect(call?.result).toEqual({ temp: 70 });
   });
 
@@ -2094,7 +2096,10 @@ describe("AISDKMessageConverter", () => {
     const toolCall = converted[0]?.content.find(
       (part): part is any => part.type === "tool-call",
     );
-    expect(toolCall?.args).toEqual({ city: "NYC", units: "F" });
+    expect(Object.fromEntries(Object.entries(toolCall?.args ?? {}))).toEqual({
+      city: "NYC",
+      units: "F",
+    });
     expect(toolCall?.argsText).toBe('{"city":"NYC","units":"F"}');
   });
 
@@ -2168,6 +2173,7 @@ describe("AISDKMessageConverter", () => {
 
     expect(a.argsText).toBe('{"a":1,"b":2}');
     expect(b.argsText).toBe('{"b":2,"a":1}');
+    expect(Object.keys(b.args)).toEqual(["a", "b"]);
 
     // Both entries must survive a reconversion: the key-order entries are gone
     // by now, so a cache miss would re-serialize B in raw key order.
@@ -2206,5 +2212,117 @@ describe("AISDKMessageConverter", () => {
       AISDKMessageConverter.toThreadMessages(messages, false, metadata);
     }
     expect(stableStringifySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips null parts and parts without a type", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [null, { text: "no type" }, { type: "text", text: "hi" }],
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [null, { text: "no type" }, { type: "text", text: "yo" }],
+      },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([{ type: "text", text: "hi" }]);
+    expect(converted[0]?.attachments).toEqual([]);
+    expect(converted[1]?.content).toMatchObject([{ type: "text", text: "yo" }]);
+  });
+
+  it("joins the text parts of a system message into one text part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "s1",
+        role: "system",
+        parts: [
+          {
+            type: "text",
+            text: "be ",
+            providerMetadata: { p1: { k: "a" }, p2: { k: "b" } },
+          },
+          { type: "text", text: "brief", providerMetadata: { p2: { k: "c" } } },
+        ],
+      },
+      { id: "s2", role: "system", parts: [] },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([
+      {
+        type: "text",
+        text: "be brief",
+        providerMetadata: { p1: { k: "a" }, p2: { k: "c" } },
+      },
+    ]);
+    expect(converted[1]?.content).toMatchObject([{ type: "text", text: "" }]);
+    expect(converted[1]?.content[0]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("reads a user text part without text as empty text", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      { id: "u1", role: "user", parts: [{ type: "text" }] },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([{ type: "text", text: "" }]);
+  });
+
+  it("skips a file part without a url and floors a missing mediaType", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [{ type: "file", mediaType: "image/png", filename: "a.png" }],
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "file", mediaType: "image/png" },
+          { type: "file", url: "https://cdn/file.bin" },
+          { type: "reasoning-file", mediaType: "image/png" },
+          { type: "reasoning-file", url: "https://cdn/thought.bin" },
+        ],
+      },
+    ] as any);
+
+    expect(converted[0]?.attachments).toEqual([]);
+    expect(converted[1]?.content).toMatchObject([
+      {
+        type: "file",
+        data: "https://cdn/file.bin",
+        mimeType: "unknown/unknown",
+      },
+      {
+        type: "file",
+        data: "https://cdn/thought.bin",
+        mimeType: "unknown/unknown",
+      },
+    ]);
+  });
+
+  it("gives a dynamic tool call without a toolName an empty name", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tc-1",
+      toolName: "",
+    });
   });
 });

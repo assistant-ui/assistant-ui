@@ -9,12 +9,19 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**"],
+      thresholds: {
+        lines: 94,
+        functions: 86,
+        branches: 86,
+        statements: 94,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     projects: [
       {
         test: {
           name: "dev",
-          environment: "jsdom",
+          environment: "node",
           include: ["src/**/*.test.{ts,tsx}"],
           globals: true,
         },

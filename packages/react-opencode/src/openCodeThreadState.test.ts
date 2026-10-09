@@ -2,17 +2,71 @@ import { describe, it, expect } from "vitest";
 import {
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
+  reduceOpenCodeThreadStateInternal,
 } from "./openCodeThreadState";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 import type {
   Message,
   MessageWithParts,
+  OpenCodePermissionRequest,
+  OpenCodeQuestionRequest,
   OpenCodeThreadState,
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
 
 describe("reduceOpenCodeThreadState", () => {
+  it.each(["permission", "question"] as const)(
+    "ignores an unchanged $kind reconciliation",
+    (kind) => {
+      const initial = createOpenCodeThreadState("ses_1");
+      const state =
+        kind === "permission"
+          ? reduceOpenCodeThreadState(initial, {
+              type: "permission.asked",
+              request: {
+                id: "perm_1",
+                sessionId: "ses_1",
+                permission: "fs.write",
+                patterns: [],
+                metadata: {},
+                always: [],
+                askedAt: 1,
+                raw: {
+                  id: "perm_1",
+                  sessionID: "ses_1",
+                  permission: "fs.write",
+                  patterns: [],
+                  metadata: {},
+                  always: [],
+                },
+              } satisfies OpenCodePermissionRequest,
+            })
+          : reduceOpenCodeThreadState(initial, {
+              type: "question.asked",
+              request: {
+                id: "q_1",
+                sessionID: "ses_1",
+                questions: [],
+                askedAt: 1,
+              } satisfies OpenCodeQuestionRequest,
+            });
+
+      const reconciled =
+        kind === "permission"
+          ? reduceOpenCodeThreadStateInternal(state, {
+              type: "permissions.reconciled",
+              pending: { ...state.interactions.permissions.pending },
+            })
+          : reduceOpenCodeThreadStateInternal(state, {
+              type: "questions.reconciled",
+              pending: { ...state.interactions.questions.pending },
+            });
+
+      expect(reconciled).toBe(state);
+    },
+  );
+
   it("keeps sessionStatus as server truth across run start and send failure", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {

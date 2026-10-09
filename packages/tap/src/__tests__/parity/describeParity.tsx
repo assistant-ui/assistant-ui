@@ -79,8 +79,7 @@ export type Scenario = {
   react18ReplaysUpdaters?: boolean;
 };
 
-// On React 18 in dev, createTapRoot emulates React 19's StrictMode replay, which reuses hook state that React 18's replay recomputes.
-// Fails on React 18: tapRoot's dev log misses React's StrictMode replays (useDevStrictMode never detects StrictMode, so useTapRoot runs without strict emulation). Shipped React 18 incompatibility.
+// Tap roots emulate React 19's StrictMode replay, which reuses hook state that React 18's replay recomputes.
 const skipOnReact18 = (scenario: Scenario, env: TapEnv) =>
   (env !== "bridge" || scenario.react18ReplaysUpdaters === true) &&
   isDevMode &&

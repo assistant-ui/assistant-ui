@@ -34,7 +34,7 @@ export function AgentHandoff({
         <span
           className={cn(
             field,
-            "text-foreground/45 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-opacity duration-500",
+            "text-muted-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-opacity duration-500",
             settled && "opacity-45",
           )}
         >
@@ -45,7 +45,9 @@ export function AgentHandoff({
         <ArrowRightIcon
           className={cn(
             "size-3.5 shrink-0 transition-colors duration-500",
-            settled ? "text-foreground/25" : "text-blue-500 dark:text-blue-400",
+            settled
+              ? "text-muted-foreground"
+              : "text-blue-500 dark:text-blue-400",
           )}
         />
 
@@ -62,11 +64,13 @@ export function AgentHandoff({
         </span>
       </div>
 
-      <p className="text-foreground/55 text-xs leading-relaxed">{reason}</p>
+      <p className="text-muted-foreground text-xs leading-relaxed">{reason}</p>
 
       {carried.length > 0 && (
         <div className="flex flex-col gap-1">
-          <span className={cn(mono, "text-foreground/30")}>carried over</span>
+          <span className={cn(mono, "text-muted-foreground")}>
+            carried over
+          </span>
           {carried.map((item) => (
             <span
               key={item}

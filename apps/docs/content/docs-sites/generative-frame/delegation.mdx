@@ -1,0 +1,44 @@
+---
+title: Delegate to a sub-agent
+description: Keep widget code out of the main agent's context by giving it one tool that a second model call fills in, checked with the repair loop.
+---
+
+By default the main agent calls `show_widget` itself. That is the fastest path, but every widget's guidance and code lands in its context. To keep the main context small, give the main agent one tool that asks a second model for the widget and checks it with the [repair loop](/generative-frame/docs/repair). The package has no agent of its own; this recipe composes `generative-frame/prompts`, `generative-frame/repair`, and `previewWidget`, here with the AI SDK.
+
+```ts
+import { generateText, jsonSchema, tool } from "ai";
+import { previewWidget } from "generative-frame";
+import { buildWidgetGuidance } from "generative-frame/prompts";
+import { repairLoop } from "generative-frame/repair";
+
+export const generateWidget = tool({
+  description:
+    "Has a widget specialist build a visual widget from a brief and shows it to the user. Describe the widget fully, with the data it needs.",
+  inputSchema: jsonSchema<{ brief: string }>({
+    type: "object",
+    properties: { brief: { type: "string" } },
+    required: ["brief"],
+  }),
+  execute: async ({ brief }) => {
+    const system = `${buildWidgetGuidance({ modules: ["chart", "interactive"] })}\n\nReply with the widget code only.`;
+    const { code, ok, rounds } = await repairLoop({
+      generate: async ({ previousCode, feedback }) => {
+        const prompt = feedback
+          ? `${brief}\n\nYour last widget:\n${previousCode}\n\n${feedback.text}`
+          : brief;
+        return (await generateText({ model: widgetModel, system, prompt })).text;
+      },
+      render: (candidate) => previewWidget(candidate),
+      maxRounds: 3,
+    });
+    showWidget(code); // your host renders it, e.g. with createWidget or <Widget>
+    return { ok, rounds: rounds.length };
+  },
+});
+```
+
+`previewWidget` renders in a browser, so run this where the tool executes in the browser, or replace `render` with your own headless check. `generate` may also return `{ edits }` (exact replacements on `previousCode`) instead of new code, which keeps repair rounds small.
+
+## Trade-offs
+
+Delegation keeps the main context small and lets a cheaper or specialized model draw. It costs at least one extra model call of latency, the widget does not stream to the user while the sub-agent works, and the main agent knows the widget only through the brief and the result.

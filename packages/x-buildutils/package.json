@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
-    "@types/node": "^26.6.3"
+    "@types/node": "^26.6.4"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
@@ -48,6 +48,7 @@
   },
   "scripts": {
     "test": "node --test \"src/**/*.test.ts\"",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit"
   },
   "publishConfig": {

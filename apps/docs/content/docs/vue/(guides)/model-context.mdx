@@ -1,0 +1,135 @@
+---
+title: Model context
+description: Send system instructions, tools, and call settings with each request, and change them while the app runs.
+---
+
+Model context holds `system` instructions, `tools`, `callSettings`, and `config`. Providers can set a `priority` to control how their values combine. With the AI SDK runtime, `AssistantChatTransport` reads the current context when it sends a message and puts the system string, tool schemas, call settings, and config in the request body. The server route decides which fields to use.
+
+## Add system instructions
+
+Register a provider in a component rendered under `AuiProvider`. `register` returns a function that removes it. Call that function when the Vue scope is disposed:
+
+```vue title="app/components/AssistantInstructions.vue"
+<script setup lang="ts">
+import { onScopeDispose } from "vue";
+import { useAui } from "@assistant-ui/vue";
+
+const aui = useAui();
+const unregister = aui.modelContext.register({
+  getModelContext: () => ({
+    system: "Answer questions about this account using the information shown on this page.",
+  }),
+});
+
+onScopeDispose(unregister);
+</script>
+
+<template>
+  <slot />
+</template>
+```
+
+Place the component around the part of your app that supplies the instructions. Its provider contributes while that component is mounted. The [quickstart](/docs/vue/quickstart) shows how to set up `AuiProvider` and a runtime.
+
+## Change instructions over time
+
+`getModelContext` reads the latest value when context is requested. Add `subscribe` so changes also notify the runtime and context state:
+
+```vue title="app/components/EditableInstructions.vue"
+<script setup lang="ts">
+import { onScopeDispose, ref, watch } from "vue";
+import { useAui } from "@assistant-ui/vue";
+
+const aui = useAui();
+const instruction = ref("Answer in short paragraphs.");
+
+const unregister = aui.modelContext.register({
+  getModelContext: () => ({ system: instruction.value }),
+  subscribe: (callback) => watch(instruction, callback, { flush: "sync" }),
+});
+
+onScopeDispose(unregister);
+</script>
+
+<template>
+  <label class="flex flex-col gap-2">
+    Assistant instructions
+    <textarea v-model="instruction" class="rounded-md border p-2" />
+  </label>
+</template>
+```
+
+For instructions managed outside a component, `ModelContextRegistry.addInstruction` returns a handle with `update` and `remove` methods. Register the registry as a provider with `aui.modelContext.register` and remove both registrations when their owners are disposed.
+
+## Use it on the server
+
+The default transport sends `system` and tool definitions in the body. `frontendTools` converts those definitions to AI SDK tools that the client can fulfill. This route extends the one from the [quickstart](/docs/vue/quickstart) by reading both fields:
+
+```ts title="server/api/chat.post.ts"
+import { openai } from "@ai-sdk/openai";
+import { frontendTools, type FrontendTools } from "@assistant-ui/ai-sdk";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+
+export default defineEventHandler(async (event) => {
+  const abortController = new AbortController();
+  event.node.res.on("close", () => {
+    if (!event.node.res.writableFinished) {
+      abortController.abort();
+    }
+  });
+
+  const { messages, system, tools } = await readBody<{
+    messages: UIMessage[];
+    system?: string;
+    tools?: FrontendTools;
+  }>(event);
+
+  const aiSDKTools = frontendTools(tools ?? {});
+
+  const result = streamText({
+    abortSignal: abortController.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    system,
+    tools: aiSDKTools,
+  });
+
+  return result.toUIMessageStreamResponse();
+});
+```
+
+`callSettings` and `config` also arrive in the request body. This route does not apply them; read and use the fields your server supports.
+
+## How providers combine
+
+Providers are sorted by descending `priority`, with `0` as the default. Their nonempty `system` strings join in that order, separated by two newlines. Higher priority values win for overlapping `config` and `callSettings` keys.
+
+Tools are keyed by name. Different names accumulate. At the same priority, two different tools with the same name throw unless the later tool has `overwrite: true`. Across different priorities, properties from the higher priority tool take precedence. `priority` affects the merged context on the client; the transport does not send it as a body field.
+
+## Inspect the current context
+
+`s.modelContext.toolNames` lists the merged tool names, and `s.modelContext.modelName` reads `config.modelName`. To inspect the complete context, call `aui.thread.getModelContext()`. The `thread.modelContextUpdate` event fires when the thread's provider reports a change:
+
+```vue title="app/components/ModelContextStatus.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/vue";
+
+const aui = useAui();
+const toolNames = useAuiState((s) => s.modelContext.toolNames);
+const modelName = useAuiState((s) => s.modelContext.modelName);
+const system = ref(aui.thread.getModelContext().system ?? "");
+
+useAuiEvent("thread.modelContextUpdate", () => {
+  system.value = aui.thread.getModelContext().system ?? "";
+});
+</script>
+
+<template>
+  <div>
+    <p>Model: {{ modelName ?? "Default" }}</p>
+    <p>Tools: {{ toolNames.join(", ") || "None" }}</p>
+    <p>Instructions: {{ system || "None" }}</p>
+  </div>
+</template>
+```

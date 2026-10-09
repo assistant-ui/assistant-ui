@@ -1,0 +1,110 @@
+---
+title: Repair loop and screenshots
+description: Render widget code offscreen, turn errors into model-readable feedback, and capture screenshots inside the frame.
+---
+
+A widget can fail in ways the model cannot see from its own output: a script throws, a library URL is blocked by the policy, or everything renders at zero height. This page covers the pieces that make those failures visible.
+
+## `previewWidget`
+
+```ts
+import { previewWidget } from "generative-frame";
+
+const result = await previewWidget(code, { width: 680, appearance: "dark" });
+// { ok, kind, width, height, blank, errors, console, screenshot?, screenshotError? }
+```
+
+`previewWidget` renders complete code in a hidden frame, waits for it to settle, inspects it, takes a screenshot, and disposes the frame. `ok` is true when there are no errors and the render is not blank. It needs a browser.
+
+<ParametersTable
+  type="PreviewOptions"
+  parameters={[
+    { name: "width", type: "number", default: "680", description: "Layout width in CSS pixels." },
+    { name: "appearance", type: "\"light\" | \"dark\"", default: "\"light\"", description: "Selects the built-in token set when `tokens` is not given." },
+    { name: "tokens", type: "ThemeTokens", description: "Theme tokens to render with." },
+    { name: "screenshot", type: "boolean", default: "true", description: "Capture a PNG. When capture fails, `screenshotError` says why." },
+    { name: "settleMs", type: "number", default: "600", description: "Time to let scripts, fonts, and animations settle after `end`." },
+    { name: "csp", type: "CspOptions | string", description: "The frame's Content Security Policy, as in `createWidget`." },
+    { name: "product", type: "string", description: "Scopes the frame origin, as in `createWidget`." },
+    { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame." },
+    { name: "css", type: "string", description: "Extra CSS for the frame." },
+    { name: "readyTimeoutMs", type: "number", default: "15000", description: "How long to wait for the frame to connect." },
+  ]}
+/>
+
+The preview frame stays inside the viewport, nearly transparent and behind the page, because Chrome stops animation frames in cross-origin frames outside the viewport, which would freeze script-driven charts mid-animation.
+
+## `buildRepairFeedback`
+
+```ts
+import { buildRepairFeedback } from "generative-frame/repair";
+
+const feedback = buildRepairFeedback(result);
+// feedback.text:
+// The widget did not render cleanly. Fix the causes below.
+//
+// Errors (1):
+// - error: Chart is not defined (line 14:5)
+//
+// Rendered height: 0px.
+```
+
+It takes a `RenderReport` and returns `{ ok, round, errors, console, blank, height?, screenshot?, text }`. `text` lists errors with their locations, a blank-render note, an excerpt of console warnings and errors (the last 20 by default), and the rendered height. Options: `round`, `ok` (override the verdict), `consoleLimit`, and `includeScreenshot` (default true).
+
+```ts
+type RenderReport = {
+  errors: WidgetError[];
+  console: ConsoleEntry[];
+  blank: boolean;
+  height?: number;
+  screenshot?: string;
+};
+```
+
+A `PreviewResult` and the output of `widget.inspect()` (with `height` taken from `size`) both fit this shape. The [assistant-ui toolkit](/generative-frame/docs/assistant-ui#render-errors-reach-the-model) uses the same text in its `render` reports.
+
+## `repairLoop`
+
+```ts
+import { previewWidget } from "generative-frame";
+import { repairLoop } from "generative-frame/repair";
+
+const { ok, code, report, rounds } = await repairLoop({
+  generate: async ({ round, previousCode, feedback }) =>
+    askModel({ previousCode, feedback: feedback?.text }),
+  render: (code) => previewWidget(code),
+  maxRounds: 3,
+});
+```
+
+Each round calls `generate`, renders the result, and builds feedback for the next round. `generate` returns new code as a string, or `{ edits }` with exact replacements on the previous round's code. Edits that do not apply count as a failed round with an error that says why.
+
+The loop stops at the first accepted render. If none is accepted, it returns the attempt with the fewest errors (a blank render counts as one).
+
+<ParametersTable
+  type="RepairLoopOptions"
+  parameters={[
+    { name: "generate", type: "(context: GenerateContext) => Promise<string | { edits }>", required: true, description: "Produces code. `context` has `round`, `previousCode`, and `feedback` (both undefined in the first round)." },
+    { name: "render", type: "(code: string) => Promise<RenderReport>", required: true, description: "Renders code and reports what happened, typically `previewWidget`." },
+    { name: "maxRounds", type: "number", default: "3", description: "Rounds including the first generation." },
+    { name: "accept", type: "(report: RenderReport) => boolean", default: "no errors and not blank", description: "Decides whether a render is good enough." },
+    { name: "consoleLimit", type: "number", default: "20", description: "Console entries carried into feedback." },
+    { name: "includeScreenshot", type: "boolean", default: "true", description: "Forward the screenshot to `generate`, for models that accept images." },
+  ]}
+/>
+
+## Screenshots
+
+```ts
+const { dataUrl, width, height } = await widget.screenshot({ scale: 2 });
+```
+
+A host page cannot capture a cross-origin frame, so the screenshot is taken inside the frame: the runtime clones the widget, inlines computed styles, serializes it into an SVG `foreignObject`, draws that onto a canvas, and returns a PNG data URL. `scale` defaults to the frame's device pixel ratio, capped at 2, and `background` defaults to `--color-background`. Canvas elements are copied as images.
+
+It is best effort:
+
+- Web fonts loaded by URL are not embedded, because fetching them would need network access the frame does not have by default. Fonts already inlined as `data:` URLs are.
+- Cross-origin images served without CORS headers cannot be inlined.
+- Pseudo-elements (`::before`, `::after`) are not reproduced.
+- Layout can drift by a few pixels from the live frame.
+- The canvas side is capped at 4096 pixels; larger captures are scaled down.

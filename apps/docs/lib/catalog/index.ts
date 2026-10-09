@@ -6,6 +6,8 @@ import { GUIDE_PRODUCTS } from "./products/guides";
 import { reactApp } from "./products/react-app";
 import { harnessSdk } from "./products/harness-sdk";
 import { statewire } from "./products/statewire";
+import { safeContentFrame } from "./products/safe-content-frame";
+import { generativeFrame } from "./products/generative-frame";
 import { SPONSOR_PRODUCTS, sponsorAssistantUi } from "./products/sponsors";
 import { checkoutEnabled } from "@/lib/checkout/config";
 import type { CatalogItem, CatalogProduct } from "./types";
@@ -26,6 +28,8 @@ export const CATALOG_ITEMS: readonly CatalogItem[] = [
         sponsorAssistantUi,
         harnessSdk,
         statewire,
+        safeContentFrame,
+        generativeFrame,
         ...GUIDE_PRODUCTS,
         ...ELEMENT_PRODUCTS,
         ...SPONSOR_PRODUCTS,

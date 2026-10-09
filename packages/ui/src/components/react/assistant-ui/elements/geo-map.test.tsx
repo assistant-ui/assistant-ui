@@ -52,7 +52,6 @@ let contentLayers: {
 let markerInstances: { setIcon: ReturnType<typeof vi.fn> }[];
 
 beforeEach(() => {
-  vi.clearAllMocks();
   contentLayers = [];
   markerInstances = [];
   mapInstance = {
@@ -89,7 +88,10 @@ beforeEach(() => {
   });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("GeoMap", () => {
   it("renders a server placeholder before Leaflet loads", () => {
@@ -162,6 +164,26 @@ describe("GeoMap", () => {
     expect(frame().getAttribute("data-theme")).toBe("dark");
     expect(frame().className).toContain("invert");
     expect(leaflet.tileLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it("inks auto tiles through the dark variant rather than the system preference", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const { container } = render(<GeoMap places={PLACES} />);
+
+    await waitFor(() => expect(leaflet.tileLayer).toHaveBeenCalledTimes(1));
+    const frame = container.querySelector<HTMLElement>('[role="region"]')!;
+    const classes = frame.className.split(/\s+/);
+    expect(frame.getAttribute("data-theme")).toBe("auto");
+    expect(classes).toContain("[&_.leaflet-tile-pane]:grayscale");
+    expect(classes).toContain("dark:[&_.leaflet-tile-pane]:invert");
+    expect(classes).not.toContain("[&_.leaflet-tile-pane]:invert");
   });
 
   it("leaves custom tiles as the provider draws them", async () => {

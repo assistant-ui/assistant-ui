@@ -71,6 +71,7 @@ type AuiV0MessagePart =
       readonly type: "reasoning";
       readonly id?: string;
       readonly text: string;
+      /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
       readonly unstable_summary?: string;
       readonly timing?: MessagePartTiming;
       readonly providerMetadata?: NonNullable<
@@ -159,6 +160,7 @@ type AuiV0ToolCallPart = {
   readonly approval?: AuiV0ToolApproval;
   readonly parentId?: string;
   readonly messages?: readonly AuiV0Message[];
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
@@ -224,8 +226,11 @@ type AuiV0Message = {
   readonly content: readonly AuiV0MessagePart[];
   readonly attachments?: readonly AuiV0Attachment[];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: ReadonlyJSONValue;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly {
       readonly usage?: {
@@ -723,25 +728,6 @@ export function auiV0DecodeSafely(
     );
     return null;
   }
-}
-
-export function auiV0Decode(
-  cloudMessage: CloudMessage & { format: "aui/v0" },
-): ExportedMessageRepositoryItem {
-  const payload = cloudMessage.content as unknown as AuiV0Message;
-  const message = decodeAuiV0Message(
-    {
-      ...payload,
-      id: cloudMessage.id,
-      createdAt: cloudMessage.created_at,
-    },
-    cloudMessage.id,
-  );
-
-  return {
-    parentId: cloudMessage.parent_id,
-    message,
-  };
 }
 
 const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({

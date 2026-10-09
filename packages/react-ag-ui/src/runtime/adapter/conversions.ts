@@ -11,6 +11,7 @@ import {
   getAutoStatus,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
   walkToolCallTree,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
@@ -21,14 +22,13 @@ import {
   MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
-} from "./run-aggregator";
+} from "../types";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import {
@@ -105,6 +105,7 @@ type CoreToolCallPart = Extract<
 type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
   result?: unknown;
   isError?: boolean | undefined;
+  /** @deprecated Experimental since 2026-03-08. Not scheduled for removal; the API may change in any release. */
   unstable_toolMessageId?: string;
 };
 
@@ -276,9 +277,16 @@ function toInputContent(
     const image = getString(part, "image");
     if (image === undefined) return null;
     const metadata = buildInputMetadata(part, getString(part, "filename"));
+    const source = buildInputSource(image, fallbackMimeType);
     return {
       type: "image",
-      source: buildInputSource(image, fallbackMimeType),
+      source:
+        source.type === "data"
+          ? {
+              ...source,
+              mimeType: resolveImageMediaType(image, fallbackMimeType),
+            }
+          : source,
       ...(metadata && { metadata }),
     };
   }
@@ -502,7 +510,6 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
       : isObject(value.args) && !Array.isArray(value.args)
         ? (value.args as ReadonlyJSONObject)
         : undefined;
-
   const part: ToolCallPart = {
     type: "tool-call",
     ...(toolCallId !== undefined ? { toolCallId } : {}),
@@ -693,27 +700,17 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
-// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
-// assistant message from a bucket of rebuilt surface state, mirroring the
-// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
-// other tool calls) are preserved; existing a2ui parts are replaced wholesale
-// so create/update/delete within the bucket all converge on the rebuilt set.
 function attachA2uiSurfaces(
   message: CoreThreadMessageLike,
   state: A2uiState,
 ): CoreThreadMessageLike {
   const a2uiParts: ToolCallPart[] = [];
   for (const [surfaceId, surface] of state) {
-    const { spec } = convertSurfaceToUISpec(surface);
-    if (!spec) continue;
+    const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+    if (!toolCall) continue;
     a2uiParts.push({
       type: "tool-call",
-      toolCallId: `a2ui:${surfaceId}`,
-      toolName: "present",
-      args: spec as unknown as ReadonlyJSONObject,
-      argsText: JSON.stringify(spec),
-      result: {},
-      artifact: { a2ui: surfaceToOperations(surface) },
+      ...toolCall,
     });
   }
 

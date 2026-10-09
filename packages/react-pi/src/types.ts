@@ -534,7 +534,12 @@ export type PiClientEventBody =
   | { type: "context_usage"; contextUsage: PiContextUsage }
   | { type: "extension_ui_request"; request: PiHostUiRequest }
   | { type: "extension_ui_resolved"; requestId: string }
-  | { type: "error"; error: string };
+  | {
+      type: "error";
+      error: string;
+      /** Set when the client ended the subscription's stream; subscribe again to receive events. */
+      terminal?: boolean;
+    };
 
 /**
  * Forward-compatible fallback for augmented/unknown event types. The transport

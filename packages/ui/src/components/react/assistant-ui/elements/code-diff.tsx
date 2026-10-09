@@ -62,7 +62,7 @@ export function CodeDiff({
               key={`${cycle}-${i}-${line.text}`}
               className={cn(
                 "fade-in animate-in fill-mode-both flex px-4 py-0.5 leading-relaxed whitespace-pre duration-300",
-                line.kind === "context" && "text-foreground/45",
+                line.kind === "context" && "text-muted-foreground",
                 line.kind === "added" &&
                   "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
                 line.kind === "removed" &&

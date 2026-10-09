@@ -63,7 +63,7 @@ export function Citations() {
 }
 ```
 
-The static element is controlled. `open` and `onOpenChange` belong to the caller.
+The static element is controlled. `open` and `onOpenChange` belong to the caller. Set `layout="list"` for compact rows; safe links, snippets and publication details remain available in both layouts.
 
 </StandaloneMode>
 
@@ -191,10 +191,14 @@ const sources = [
 | Prop | Type | Description |
 |------|------|-------------|
 | `sources` | `readonly Source[]` | Citation cards revealed by the pill. |
-| `open` | `boolean` | Whether the card grid is expanded. |
+| `open` | `boolean` | Whether the source list is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | Receives the expanded state. |
+| `layout` | `"grid" \| "list" \| undefined` | Two-column cards, or one compact row per source. Defaults to `"grid"`. |
+| `hideTrigger` | `boolean \| undefined` | Omits the pill when your own button drives `open`; give that button `aria-expanded`. Defaults to `false`. |
 | `locale` | `string \| undefined` | Locale for `publishedAt` month and year. Defaults to `"en-US"`. |
 | `className` | `string \| undefined` | Extra classes merged onto the root. |
+
+`SourceGlyph`, exported next to `Sources`, renders a domain's initial the way the cards do, for a custom trigger that should match them. It takes a `domain: string`, fetches no icon, and is hidden from assistive technology, so pair it with a text label.
 
 ### Source fields
 

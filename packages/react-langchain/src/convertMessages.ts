@@ -11,6 +11,7 @@ import {
   convertLangChainContentBlock,
   getCustomMetadata,
   getMessageModality,
+  normalizeToolCallArgs,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "./converter";
@@ -89,21 +90,6 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
   return [];
 };
 
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    return {};
-  }
-
-  try {
-    const prototype = Object.getPrototypeOf(args);
-    return prototype === Object.prototype || prototype === null
-      ? (args as ReadonlyJSONObject)
-      : {};
-  } catch {
-    return {};
-  }
-};
-
 const toolCallArgs = (
   value: unknown,
 ): { args: ReadonlyJSONObject; argsText: string } => {
@@ -123,7 +109,14 @@ const contentToParts = (content: unknown) => {
     return [{ type: "text" as const, text: content }];
 
   return contentBlocks(content)
-    .map(convertLangChainContentBlock)
+    .map((block) => {
+      const part = convertLangChainContentBlock(block);
+      if (part === undefined)
+        warnOnceInDevelopment(
+          `Dropped an unrepresentable message part of type: ${block.type}`,
+        );
+      return part;
+    })
     .filter((part) => part !== null && part !== undefined);
 };
 

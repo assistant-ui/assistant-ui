@@ -28,11 +28,18 @@ describe("parseAdkRequest", () => {
     });
   });
 
-  it("parses a message request with stateDelta", async () => {
+  it("parses a message request with sessionId and stateDelta", async () => {
     const result = await parseAdkRequest(
-      makeRequest({ message: "Hello", stateDelta: { count: 1 } }),
+      makeRequest({
+        message: "Hello",
+        sessionId: "session-1",
+        stateDelta: { count: 1 },
+      }),
     );
-    expect(result).toMatchObject({ stateDelta: { count: 1 } });
+    expect(result).toMatchObject({
+      sessionId: "session-1",
+      stateDelta: { count: 1 },
+    });
   });
 
   it("parses a message request with parts (multimodal)", async () => {
@@ -130,6 +137,7 @@ describe("parseAdkRequest", () => {
     [{ parts: [null] }, 'field "parts"'],
     [{ type: "unknown", message: "hello" }, 'field "type"'],
     [{ message: "hello", checkpointId: 42 }, 'field "checkpointId"'],
+    [{ message: "hello", sessionId: 42 }, 'field "sessionId"'],
     [{ message: "hello", stateDelta: [] }, 'field "stateDelta"'],
   ])("rejects malformed message requests %#", async (body, error) => {
     await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);

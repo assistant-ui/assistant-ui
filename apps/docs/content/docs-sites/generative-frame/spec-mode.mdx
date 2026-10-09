@@ -1,0 +1,243 @@
+---
+title: Spec mode
+description: Let the model build UI from your own components with a flat spec streamed as JSONL patches.
+---
+
+In spec mode the model does not write HTML. It writes a flat spec that names components from a catalog you define, and your own components render it. Nothing runs in a frame, and no model-written code runs at all.
+
+The format follows the flat spec and JSONL patch shape of Vercel's json-render, without depending on it.
+
+## Define a catalog
+
+```ts
+import { defineCatalog } from "generative-frame/spec";
+
+export const catalog = defineCatalog({
+  components: {
+    Card: {
+      description: "A titled panel.",
+      props: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"],
+      },
+      slots: ["default", "footer"],
+    },
+    Button: {
+      description: "A button.",
+      props: {
+        type: "object",
+        properties: { label: { type: "string" } },
+        required: ["label"],
+      },
+      events: ["press"],
+    },
+  },
+  actions: {
+    refresh: {
+      description: "Reloads the data for a range.",
+      params: {
+        type: "object",
+        properties: { range: { type: "string" } },
+      },
+    },
+  },
+});
+```
+
+Props and params are JSON Schema. A Standard Schema that exposes JSON Schema, such as a Zod 4 schema, works too. `slots` lists the child slots a component accepts (`"default"` maps to `children`); a component without slots takes no children. `events` lists what elements may bind with `on`.
+
+`catalog.prompt({ mode })` returns the model guidance for the catalog: the components and actions, the patch protocol, expressions, and rules. Use `mode: "jsonl"` (the default) when the output is only patches, as in `render_spec`, and `mode: "inline"` when patches sit in a fenced block inside a normal reply.
+
+## The spec format
+
+```json
+{
+  "root": "main",
+  "elements": {
+    "main": { "type": "Card", "props": { "title": "Orders" }, "children": ["reload"] },
+    "reload": {
+      "type": "Button",
+      "props": { "label": "Reload" },
+      "on": { "press": { "action": "refresh", "params": { "range": "7d" } } }
+    }
+  },
+  "state": {}
+}
+```
+
+Elements are flat and refer to children by id. An element is `{ type, props?, children?, slots?, visible?, repeat?, on?, watch? }`.
+
+## JSONL patches
+
+The model builds the spec with RFC 6902 JSON Patch operations, one per line, so the UI renders while it writes:
+
+```jsonl
+{"op":"add","path":"/root","value":"main"}
+{"op":"add","path":"/state","value":{"count":0}}
+{"op":"add","path":"/elements/main","value":{"type":"Card","props":{"title":"Clicks"},"children":["bump"]}}
+{"op":"add","path":"/elements/bump","value":{"type":"Button","props":{"label":"Click"}}}
+```
+
+A line may also hold an array of operations or a whole spec. A malformed line is skipped and reported, and the rest keeps rendering.
+
+## Stream patches
+
+`createSpecStream` applies each complete line as it arrives:
+
+```ts
+import { createSpecStream } from "generative-frame/spec";
+
+const stream = createSpecStream({ mode: "jsonl" });
+for await (const chunk of modelStream) {
+  const { spec, errors } = stream.push(chunk);
+  render(spec);
+}
+const { spec, errors } = stream.result();
+```
+
+`push` returns the spec after every patch so far (a new object only when it changed), the operations it applied, any prose, and errors for lines it completed. `result()` processes a last line without a newline. In `inline` mode, patch lines inside a fence opened with `` ```spec `` or lines starting with `{"op"` are patches and everything else is returned as `text`. `parseSpecStream(source, options)` does the same for a complete string, and `initial` sets the spec the patches apply onto.
+
+## Render with React
+
+```tsx
+import {
+  SpecRenderer,
+  useSpecStream,
+  type SpecComponentProps,
+  type SpecComponents,
+} from "generative-frame/spec/react";
+
+const components: SpecComponents = {
+  Card: ({ props, children, slots }: SpecComponentProps<{ title: string }>) => (
+    <section>
+      <h2>{props.title}</h2>
+      {children}
+      {slots["footer"]}
+    </section>
+  ),
+  Button: ({ props, emit }: SpecComponentProps<{ label: string }>) => (
+    <button type="button" onClick={() => emit("press")}>
+      {props.label}
+    </button>
+  ),
+};
+
+function GeneratedUI({ output, streaming }: { output: string; streaming: boolean }) {
+  const { spec, text } = useSpecStream({
+    source: output,
+    mode: "inline",
+    complete: !streaming,
+  });
+  return (
+    <>
+      <p>{text}</p>
+      <SpecRenderer
+        spec={spec}
+        catalog={catalog}
+        components={components}
+        streaming={streaming}
+        handlers={{
+          refresh: async (params, { state }) => {
+            state.set("/rows", await loadRows(String(params["range"])));
+          },
+        }}
+      />
+    </>
+  );
+}
+```
+
+`useSpecStream` follows a growing `source` string, or, without `source`, takes chunks through `push`, `end`, and `reset`.
+
+Each component receives `id`, `element`, resolved `props`, `children`, `slots`, `emit(event, payload?)`, `setProp(name, value)` for bound props, `bindings`, the `state` store, and `streaming`. While `streaming` is true, children that have not arrived render as pending. An unknown type, invalid props, a cycle, or a component that throws renders a small placeholder; pass `placeholder` to replace it.
+
+## Expressions
+
+Any prop or action param can be an expression:
+
+| Expression | Value |
+| --- | --- |
+| `{ "$state": "/path" }` | The state value at a JSON Pointer. |
+| `{ "$bindState": "/path" }` | The same, and the component can write it back with `setProp`. |
+| `{ "$template": "Hi ${/name}" }` | A string with state values filled in. |
+| `{ "$cond": condition, "$then": a, "$else": b }` | `a` or `b`. |
+| `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }` | The current item, a two-way binding to it, and its index, inside `repeat`. |
+| `{ "$event": "" }` | The payload of the event that triggered an action. |
+
+`visible` takes a condition: a boolean, a value expression (truthy), a comparison such as `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$and": [...] }`, `{ "$or": [...] }`, or an array (all must hold). A condition with an unknown shape is false, so a half-streamed condition hides its element.
+
+`repeat: { path, key? }` renders the element's children once per item of the state array at `path`.
+
+## Actions and state
+
+`on: { press: { action, params } }` runs actions when a component emits an event; a list runs in order. `setState` is built in and writes `params.value` at `params.path`. Every other action goes to `handlers[name]`, then to `onAction`. `watch: { "/path": action }` runs an action when that state value changes.
+
+State lives in a store created from `spec.state`. When the model streams more state, the store re-applies what the user already changed on top of it, so user input is not lost. Pass `state={createStateStore(initial)}` to own the store; an external store is not seeded from `spec.state`.
+
+## Validation
+
+```ts
+import { formatSpecIssues, validateSpec } from "generative-frame/spec";
+
+const { ok, issues } = validateSpec(spec, catalog);
+const feedback = formatSpecIssues(issues);
+```
+
+Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
+
+## As a tool
+
+`generative-frame/spec/tools` turns a catalog into a model-facing tool. `createSpecTools(catalog)` returns `{ render_spec }`, and `specGuidanceModule(catalog)` returns the catalog guidance as a `spec` module for `read_me`. Patches on a title that was already rendered apply to that spec, so a repair is a few lines. The result lists validation issues and a `feedback` text. See [`render_spec`](/generative-frame/docs/tools#render_spec).
+
+The spec half never imports the widget half, and the widget half never imports the spec half. Pick one of these setups.
+
+With HTML widgets, pass the spec tool and its module into `createWidgetTools`:
+
+```ts
+import { createWidgetTools } from "generative-frame/tools";
+import { createSpecTools, specGuidanceModule } from "generative-frame/spec/tools";
+
+const tools = createWidgetTools({
+  extraTools: createSpecTools(catalog),
+  modules: [specGuidanceModule(catalog)],
+});
+// { read_me, show_widget, edit_widget, preview_widget, render_spec }
+```
+
+Spec only, with no frame code in the bundle, put the catalog guidance in the system prompt instead of `read_me`:
+
+```ts
+import { jsonSchema, streamText } from "ai";
+import { createSpecTools, toAISDKTools } from "generative-frame/spec/tools";
+
+const tools = createSpecTools(catalog);
+const result = streamText({
+  model,
+  system: `${basePrompt}\n\n${catalog.prompt()}`,
+  messages,
+  tools: toAISDKTools(tools, { jsonSchema }),
+});
+```
+
+## With assistant-ui
+
+`createSpecToolkit(catalog, { components })` from `generative-frame/spec/assistant-ui` builds spec mode for the [assistant-ui toolkit](/generative-frame/docs/assistant-ui). Pass it as `spec`, and `render_spec` calls render in the thread:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, {
+    components,
+    handlers: {
+      refresh: async (params, { state }) => {
+        state.set("/rows", await loadRows(String(params["range"])));
+      },
+    },
+  }),
+});
+```
+
+`createSpecToolkit` also takes `onAction`, `placeholder`, and `specPrompt` (options for the `spec` module guidance, such as `customRules` and `omitExample`).

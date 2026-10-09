@@ -139,13 +139,18 @@ const TaskTrayItem: FC<{ task: TaskState }> = ({ task }) => {
       </span>
       {meta !== undefined && (
         <span
-          className={cn(mono, "text-foreground/35 max-w-24 shrink-0 truncate")}
+          className={cn(
+            mono,
+            "text-muted-foreground max-w-24 shrink-0 truncate",
+          )}
         >
           {meta}
         </span>
       )}
       {elapsedMs !== undefined && (
-        <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {formatElapsed(elapsedMs)}
         </span>
       )}

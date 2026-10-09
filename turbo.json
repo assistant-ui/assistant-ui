@@ -18,7 +18,8 @@
         "$TURBO_DEFAULT$",
         "!**/*.test.{ts,tsx}",
         "!**/*.spec.{ts,tsx}",
-        "!**/__tests__/**"
+        "!**/__tests__/**",
+        "!vitest.peer-*.config.ts"
       ],
       "outputs": [
         "dist/**",
@@ -43,8 +44,7 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"],
-      "passThroughEnv": ["VITEST_MAX_WORKERS"]
+      "dependsOn": ["^build"]
     },
     "test:coverage": {
       "dependsOn": ["^build"],

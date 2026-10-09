@@ -454,7 +454,7 @@ aui.thread.append({ role: "user", content: "Hello" });
 **Selector optimization:**
 
 ```tsx
-// ❌ Expensive computation in selector (runs on every store update)
+// ❌ Expensive computation in selector (runs on every update of the thread)
 const result = useAuiState(
   (s) => s.thread.messages.filter((m) => m.role === "user").length,
 );

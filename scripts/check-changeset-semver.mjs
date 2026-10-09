@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseBumpLine, readChangesetSource } from "./check-changesets.mjs";
+import { parseBumpLine, readChangesetSource } from "./lib/changesets.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { collectPackages } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(

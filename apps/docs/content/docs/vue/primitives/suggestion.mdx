@@ -1,0 +1,76 @@
+---
+title: Suggestion
+description: Render suggested prompts that fill the composer or send right away.
+---
+
+The suggestion primitives render the current `suggestions` scope. `ThreadPrimitiveSuggestions` repeats its slot for each prompt, and the parts inside each slot read that prompt's title, label, and text.
+
+```vue title="app/components/SuggestionList.vue"
+<script setup lang="ts">
+import {
+  SuggestionPrimitiveDescription,
+  SuggestionPrimitiveTitle,
+  SuggestionPrimitiveTrigger,
+  ThreadPrimitiveSuggestions,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <div class="flex flex-wrap gap-2" role="group" aria-label="Suggested prompts">
+    <ThreadPrimitiveSuggestions>
+      <SuggestionPrimitiveTrigger
+        send
+        class="flex flex-col items-start rounded-xl border px-3 py-2 text-left text-sm disabled:opacity-50"
+      >
+        <span class="font-medium"><SuggestionPrimitiveTitle /></span>
+        <span class="text-muted-foreground text-xs">
+          <SuggestionPrimitiveDescription />
+        </span>
+      </SuggestionPrimitiveTrigger>
+    </ThreadPrimitiveSuggestions>
+  </div>
+</template>
+```
+
+Render this component under an `AuiProvider` with a runtime. Configure prompts with `Suggestions(...)` or supply them from the runtime; see [Suggestions](/docs/vue/suggestions).
+
+## Fill or send
+
+By default, clicking `SuggestionPrimitiveTrigger` replaces the composer text with the suggestion's `prompt`. Set `:clear-composer="false"` to join nonblank draft text and the prompt with a space. Blank segments are omitted.
+
+Set `send` to append the prompt as a new message instead. The trigger forwards the composer's `runConfig`. With `clearComposer` at its default `true`, an immediate send clears the composer text; set it to `false` to keep the draft.
+
+During a run, a send is queued if the runtime supports a queue. A queued send keeps the draft even when `clearComposer` is true. Without a queue, the send trigger is disabled until the run ends. A connected voice session follows its `canSendText` flag instead: it allows sending text when true and blocks sending when false. Any suggestion trigger is disabled when the thread is disabled.
+
+## Parts
+
+### ThreadPrimitiveSuggestions
+
+Renders no element of its own. Its default slot renders once per suggestion in `s.suggestions.suggestions`, scoped to that suggestion.
+
+### SuggestionByIndexProvider
+
+Scopes its default slot to the suggestion at the required `index` in `s.suggestions.suggestions`. Use it when placing suggestions yourself instead of using `ThreadPrimitiveSuggestions`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `index` | `number` | Required | Position of the suggestion to scope. |
+
+### SuggestionPrimitiveTrigger
+
+A `<button type="button">` whose default slot supplies its content. Attributes and listeners pass through to the button. A click listener can call `preventDefault()` to stop the action, and a `disabled` attribute disables it.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `send` | `boolean` | `false` | Send the prompt as a message instead of filling the composer. |
+| `clearComposer` | `boolean` | `true` | Replace text when filling, or clear it after an immediate send. |
+
+### SuggestionPrimitiveTitle
+
+Renders the current suggestion's `title` as text, without an element of its own.
+
+### SuggestionPrimitiveDescription
+
+Renders the current suggestion's `label` as text, without an element of its own.
+
+See [Suggestions](/docs/vue/suggestions) for static prompts and runtime follow-ups.

@@ -4,6 +4,7 @@ import type { AssistantClient, AssistantState } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { isScopeAvailable } from "./client-accessor";
 import { clientScopeKeys, isIgnoredClientKey } from "./client-keys";
+import { trackSignal, trackedBy, type ScopedSignal } from "./scoped-signal";
 
 let readWindow = 0;
 let readWindowDepth = 0;
@@ -41,7 +42,10 @@ const createProxiedAssistantState = (
 ): AssistantState => {
   let optionalState: AssistantState["optional"] | undefined;
 
-  const scopeCache = new Map<string, unknown>();
+  const scopeCache = new Map<
+    string,
+    { state: unknown; signals: ScopedSignal[]; untracked: boolean }
+  >();
   let scopeCacheWindow = -1;
 
   const readScopeState = (scope: ScopeKey) => {
@@ -50,12 +54,22 @@ const createProxiedAssistantState = (
     if (scopeCacheWindow !== readWindow) {
       scopeCache.clear();
       scopeCacheWindow = readWindow;
-    } else if (scopeCache.has(scope)) {
-      return scopeCache.get(scope);
+    } else {
+      const cached = scopeCache.get(scope);
+      if (cached) {
+        // Every reader served from the cache still depends on what the read did
+        cached.signals.forEach(trackSignal);
+        if (cached.untracked) trackSignal(undefined);
+        return cached.state;
+      }
     }
 
-    const state = getClientState(client[scope]());
-    scopeCache.set(scope, state);
+    const {
+      value: state,
+      signals,
+      untracked,
+    } = trackedBy(() => getClientState(client[scope]()));
+    scopeCache.set(scope, { state, signals, untracked });
     return state;
   };
 

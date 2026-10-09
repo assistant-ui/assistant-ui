@@ -4,7 +4,7 @@ import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseWorkspaceGlobs } from "./check-changesets.mjs";
+import { parseWorkspaceGlobs } from "./lib/workspace.mjs";
 import {
   PACKAGE_BUILD_INPUTS,
   hasPackageBuildInputs,
@@ -84,7 +84,7 @@ test("the workflow runs for detector changes", () => {
   ]) {
     assert.equal(
       workflow.match(new RegExp(`      - "${file}"`, "g"))?.length,
-      2,
+      1,
       file,
     );
   }
@@ -204,21 +204,20 @@ test("the build install follows the affected package graph", () => {
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
 });
 
-test("test and typecheck installs exclude API snapshots without weakening the build check", () => {
-  for (const job of ["test", "typecheck"]) {
-    const content = workflow.match(
-      new RegExp(`\\n  ${job}:\\n[\\s\\S]*?(?=\\n  [a-z-]+:|$)`),
-    )?.[0];
-    assert.ok(content, job);
-    const install = content.match(
-      /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
-    )?.[0];
-    assert.ok(install, job);
-    assert.match(install, /--filter="!@assistant-ui\/api-surface"/);
-    assert.match(install, /--filter="\.\.\.\[\$BASE\]\.\.\."/);
-    assert.match(install, /--filter="@assistant-ui\/react-devtools\.\.\."/);
-    assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
-  }
+test("the typecheck install excludes API snapshots without weakening the build check", () => {
+  const job = "typecheck";
+  const content = workflow.match(
+    new RegExp(`\\n  ${job}:\\n[\\s\\S]*?(?=\\n  [a-z-]+:|$)`),
+  )?.[0];
+  assert.ok(content, job);
+  const install = content.match(
+    /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+  )?.[0];
+  assert.ok(install, job);
+  assert.match(install, /--filter="!@assistant-ui\/api-surface"/);
+  assert.match(install, /--filter="\.\.\.\[\$BASE\]\.\.\."/);
+  assert.match(install, /--filter="@assistant-ui\/react-devtools\.\.\."/);
+  assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
   assert.doesNotMatch(
     step("Install dependencies"),
     /!@assistant-ui\/api-surface/,
