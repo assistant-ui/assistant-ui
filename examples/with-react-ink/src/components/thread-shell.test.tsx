@@ -142,7 +142,9 @@ describe("terminal thread controls", () => {
     const { stdout, press, lastFrame } = await create();
     expect(lastFrame()).toContain("First thread");
     const columns = vi.spyOn(stdout, "columns", "get").mockReturnValue(42);
-    stdout.emit("resize");
+    await act(async () => {
+      stdout.emit("resize");
+    });
     await settle();
     expect(lastFrame()).not.toContain("First thread");
     expect(lastFrame()).toContain("Composer active");
@@ -169,14 +171,18 @@ describe("terminal thread controls", () => {
     try {
       const { stdout, lastFrame, press } = await create();
       Object.assign(stdout, { rows: 40 });
-      stdout.emit("resize");
+      await act(async () => {
+        stdout.emit("resize");
+      });
       await press("\x07");
       await press("\x1b[B");
       await press("\x1b[B");
       expect(lastFrame()).toContain("Thread 15");
 
       Object.assign(stdout, { rows: 18 });
-      stdout.emit("resize");
+      await act(async () => {
+        stdout.emit("resize");
+      });
       await vi.waitFor(() => {
         expect(lastFrame()).not.toContain("Thread 15");
         expect(lastFrame()).toContain("Thread 02");
@@ -184,7 +190,9 @@ describe("terminal thread controls", () => {
       });
 
       Object.assign(stdout, { rows: 40 });
-      stdout.emit("resize");
+      await act(async () => {
+        stdout.emit("resize");
+      });
       await vi.waitFor(() => expect(lastFrame()).toContain("Thread 15"));
       await press("\r");
       expect(mocks.switchToThread).toHaveBeenCalledWith("t2", {
