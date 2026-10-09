@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   AssistantRuntimeProvider,
   MessagePrimitive,
@@ -30,7 +30,7 @@ import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 export type ActivityRun = {
   id: string;
   status: MessageStatus;
-  timing: { startedAt: number; completedAt?: number };
+  timing?: { startedAt: number; completedAt?: number } | undefined;
   parts: readonly {
     id: string;
     kind: "commentary" | "tool" | "answer" | "attention";
@@ -154,7 +154,7 @@ function AnnotatedActivityRunMessage({
   const lockScroll = useScrollLock(rootRef, 200);
   const status = activityStatus(messageStatus!);
   const hasDuration =
-    status === "running" || presentation.timing.completedAt !== undefined;
+    status === "running" || presentation.timing?.completedAt !== undefined;
   const parts = messageParts.map((part, index) => {
     const partId =
       part.type === "tool-call"
@@ -260,7 +260,7 @@ export function ActivityRunExample({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ThreadPrimitive.Root>
-        <ThreadPrimitive.Viewport className="max-h-96 overflow-y-auto">
+        <ThreadPrimitive.Viewport className="max-h-96 overflow-y-auto p-1">
           <ThreadPrimitive.Messages
             components={{ AssistantMessage: ActivityRunMessage, UserMessage }}
           />
@@ -321,13 +321,19 @@ const PHASES = [1200, 1200, 1200, 1200, 0] as const;
 
 export function RunActivityDemo() {
   const { phase, running } = useStoryPhases(PHASES);
-  const [timing, setTiming] = useState<ActivityRun["timing"]>(() => ({
-    startedAt: Date.now(),
-  }));
+  const [timing, setTiming] = useState<ActivityRun["timing"]>();
+  useLayoutEffect(() => {
+    // The clock is read after mount because a prerender may not read it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTiming((current) => {
+      if (running) return current ?? { startedAt: Date.now() };
+      if (current === undefined || current.completedAt !== undefined) {
+        return current;
+      }
+      return { ...current, completedAt: Date.now() };
+    });
+  }, [running]);
   const complete = phase === PHASES.length - 1;
-  if (!running && timing.completedAt === undefined) {
-    setTiming({ ...timing, completedAt: Date.now() });
-  }
   const run: ActivityRun = {
     id: "demo-run",
     status: complete
