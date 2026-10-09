@@ -94,7 +94,11 @@ export const createMessageQueue = (
   let paused = false;
   let held = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
-  type DispatchToken = { started: boolean };
+  type DispatchToken = {
+    started: boolean;
+    busyEdge: number;
+    suppressedAt?: number;
+  };
   let suppressIdle: (DispatchToken | undefined)[] = [];
   let cancelSettles: (DispatchToken | undefined)[] = [];
   let interrupting = false;
@@ -104,6 +108,7 @@ export const createMessageQueue = (
 
   const retireFailure = (dispatch: DispatchToken): boolean => {
     if (!dispatch.started) {
+      if (dispatch.suppressedAt === busyEdges) notifyIdle();
       suppressIdle = suppressIdle.filter((pending) => pending !== dispatch);
       const cancelled = cancelSettles.includes(dispatch);
       cancelSettles = cancelSettles.filter((pending) => pending !== dispatch);
@@ -173,7 +178,7 @@ export const createMessageQueue = (
     running = true;
     messages.delete(head.id);
     const dispatch = { id: head.id, item: head, message };
-    const dispatchId = { started: false };
+    const dispatchId: DispatchToken = { started: false, busyEdge: busyEdges };
     activeDispatch = dispatchId;
     const busyEdgesBeforeRun = busyEdges;
     const dispatchGeneration = generation;
@@ -210,7 +215,7 @@ export const createMessageQueue = (
       ...(cancelSettles.length ? cancelSettles : [activeDispatch]),
     );
     cancelSettles = [];
-    const dispatchId = { started: false };
+    const dispatchId: DispatchToken = { started: false, busyEdge: busyEdges };
     activeDispatch = dispatchId;
     const restoreInterrupted = (replacementStarted = false) => {
       if (!retireFailure(dispatchId) || replacementStarted) return;
@@ -385,6 +390,19 @@ export const createMessageQueue = (
     __internal_notifyCancelled: notifyCancelled,
   };
 
+  const notifyIdle = () => {
+    if (suppressIdle.length > 0) {
+      const dispatch = suppressIdle.shift();
+      if (dispatch && !dispatch.started && busyEdges > dispatch.busyEdge) {
+        dispatch.suppressedAt = busyEdges;
+      }
+      return;
+    }
+    cancelSettles.shift();
+    running = false;
+    advance();
+  };
+
   return {
     adapter,
     hold: () => {
@@ -408,15 +426,7 @@ export const createMessageQueue = (
       running = true;
       busyEdges++;
     },
-    notifyIdle: () => {
-      if (suppressIdle.length > 0) {
-        suppressIdle.shift();
-        return;
-      }
-      cancelSettles.shift();
-      running = false;
-      advance();
-    },
+    notifyIdle,
     notifyCancelled,
     clear: () => {
       generation++;
