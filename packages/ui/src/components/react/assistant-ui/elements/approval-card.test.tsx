@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +13,26 @@ const cardProps = {
 };
 
 describe("ApprovalCard", () => {
+  it("focuses the receipt after the focused answer settles", () => {
+    function Card() {
+      const [state, setState] = useState<"request" | "running">("request");
+      return (
+        <ApprovalCard
+          {...cardProps}
+          state={state}
+          onAllowOnce={() => setState("running")}
+        />
+      );
+    }
+
+    render(<Card />);
+    const answer = screen.getByRole("button", { name: "Allow once" });
+    answer.focus();
+    fireEvent.click(answer);
+
+    expect(document.activeElement).toBe(screen.getByRole("status"));
+  });
+
   it("uses custom action labels", () => {
     const onAllowOnce = vi.fn();
     const onAlwaysAllow = vi.fn();

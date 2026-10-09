@@ -6,10 +6,12 @@ import type {
   MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import type {
-  ToolCallMessagePartProps,
-  DataMessagePartProps,
+import {
+  PartByIndexProvider,
+  type ToolCallMessagePartProps,
+  type DataMessagePartProps,
 } from "@assistant-ui/core/react";
+import { DefaultMessageImage } from "./MessageParts";
 import {
   getMessagePartKeys,
   resolveToolRender,
@@ -154,9 +156,16 @@ export const MessageContent = ({
               </Fragment>
             );
           case "image":
-            if (!renderImage) return null;
             return (
-              <Fragment key={key}>{renderImage({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderImage ? (
+                  renderImage({ part, index })
+                ) : (
+                  <PartByIndexProvider index={index}>
+                    <DefaultMessageImage />
+                  </PartByIndexProvider>
+                )}
+              </Fragment>
             );
           case "reasoning":
             if (!renderReasoning) return null;

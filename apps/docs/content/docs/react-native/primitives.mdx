@@ -538,7 +538,7 @@ Renders message content parts using render-prop functions instead of the compone
 |------|------|-------------|
 | `renderText` | `(props: { part, index }) => ReactElement` | Renderer for text parts (default: React Native `<Text>`) |
 | `renderToolCall` | `(props: { part, index }) => ReactElement` | Fallback renderer for tool-call parts not handled by registered tool UIs |
-| `renderImage` | `(props: { part, index }) => ReactElement` | Renderer for image parts |
+| `renderImage` | `(props: { part, index }) => ReactElement` | Renderer for image parts (default: React Native `<Image>`) |
 | `renderReasoning` | `(props: { part, index }) => ReactElement` | Renderer for reasoning parts |
 | `renderSource` | `(props: { part, index }) => ReactElement` | Renderer for source parts |
 | `renderFile` | `(props: { part, index }) => ReactElement` | Renderer for file parts |

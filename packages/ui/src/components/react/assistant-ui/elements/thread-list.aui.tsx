@@ -423,6 +423,8 @@ const ThreadListItemRename: FC<{
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => commit(false)}
       onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229)
+          return;
         if (event.key === "Enter") {
           event.preventDefault();
           commit(true);

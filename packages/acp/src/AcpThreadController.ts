@@ -430,10 +430,15 @@ export class AcpThreadController {
     }
     if (!owned()) return undefined;
 
-    const blocks = threadContentToAcpBlocks([
-      ...user.content,
-      ...user.attachments.flatMap((attachment) => attachment.content ?? []),
-    ]);
+    const blocks = [
+      ...threadContentToAcpBlocks(user.content),
+      ...user.attachments.flatMap((attachment) =>
+        threadContentToAcpBlocks(
+          attachment.content ?? [],
+          attachment.contentType,
+        ),
+      ),
+    ];
     let prompt: Promise<AcpStopReason>;
     try {
       // the start lock is held until the prompt is on the wire, so the session

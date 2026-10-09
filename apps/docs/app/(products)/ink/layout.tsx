@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "assistant-ui for the Terminal";
-const description =
-  "Terminal Thread, Composer, and Message primitives for Ink. Same runtime as the web SDK. ANSI markdown.";
+const { title, description } = subProject("ink");
 
 export const metadata: Metadata = {
   title,
@@ -19,10 +18,7 @@ export default function InkLayout({
   children: ReactNode;
 }): React.ReactElement {
   return (
-    <SubProjectLayout
-      name="ink"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ink"
-    >
+    <SubProjectLayout name="ink" githubPath={subProjectGithubUrl("ink")}>
       {children}
     </SubProjectLayout>
   );

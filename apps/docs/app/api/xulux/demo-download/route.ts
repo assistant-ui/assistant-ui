@@ -5,6 +5,7 @@ import {
   getDemoArchiveFilename,
 } from "@/lib/xulux/demo-downloads/create-demo-zip";
 import { getDemoDownloadManifest } from "@/lib/xulux/demo-downloads/manifest";
+import { zipDownloadResponse } from "@/lib/xulux/demo-downloads/zip-response";
 
 export async function GET(req: Request) {
   if (!isAiPlaygroundEnabled) {
@@ -24,12 +25,9 @@ export async function GET(req: Request) {
 
   try {
     const zip = await createDemoZip(manifest.slug);
-    return new NextResponse(zip, {
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${getDemoArchiveFilename(manifest.slug)}"`,
-        "Cache-Control": "no-store",
-      },
+    return zipDownloadResponse({
+      filename: getDemoArchiveFilename(manifest.slug),
+      bytes: zip,
     });
   } catch (error) {
     return NextResponse.json(
