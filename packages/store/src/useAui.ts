@@ -53,13 +53,17 @@ import { useShallowStable } from "./utils/useShallowStable";
 import {
   createClientAccessor,
   getClientId,
+  isForwardingClient,
   isScopeAvailable,
   isScopeUnavailable,
 } from "./utils/client-accessor";
 import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import { isDevelopment } from "./utils/env";
-import { useTrackedSyncExternalStore } from "./utils/scoped-signal";
+import {
+  trackSignal,
+  useTrackedSyncExternalStore,
+} from "./utils/scoped-signal";
 
 export type ClientRef = {
   parent: AssistantClient;
@@ -226,6 +230,16 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   return useShallowStable({ source, query: useShallowStable(query) });
 };
 
+// A forwarding client can switch its target without rendering, so a read
+// through it keeps its reader on every notification
+const readScope = (client: ClientMethods) =>
+  isForwardingClient(client)
+    ? () => {
+        trackSignal(undefined);
+        return client;
+      }
+    : () => client;
+
 // Kept separate from useScopeMount: the building-client mutation there makes
 // the React Compiler bail, which would leave the resource element unmemoized
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
@@ -247,7 +261,7 @@ const useScopeMount = (
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createClientAccessor({ name, ...meta }, () => methods),
+    () => createClientAccessor({ name, ...meta }, readScope(methods)),
     [name, meta, methods],
   );
 
@@ -441,7 +455,7 @@ const useDerivedScopeMount = (
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createClientAccessor({ name, ...meta }, () => value),
+    () => createClientAccessor({ name, ...meta }, readScope(value)),
     [name, meta, value],
   );
 
