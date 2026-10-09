@@ -38,14 +38,14 @@ export const useMessageQueue = ({
   const interruptRef = useRef(interrupt);
   const onErrorRef = useRef(onError);
   const heldRef = useRef(!enabled || isSendDisabled);
-  const busyRef = useRef(isRunning);
+  const runningRef = useRef(isRunning);
   useInsertionEffect(() => {
     sendRef.current = send;
     cancelRef.current = cancel;
     interruptRef.current = interrupt;
     onErrorRef.current = onError;
     heldRef.current = !enabled || isSendDisabled;
-    busyRef.current = isRunning;
+    runningRef.current = isRunning;
   });
 
   const cancelsRef = useRef(0);
@@ -82,14 +82,18 @@ export const useMessageQueue = ({
             if (!mountedRef.current || generation !== generationRef.current) {
               if (
                 mountedRef.current &&
-                (!busyRef.current ||
+                (!runningRef.current ||
                   busyEdgesAtDispatch === busyEdgesRef.current)
               ) {
                 controller.notifyIdle();
               }
               return;
             }
-            if (heldRef.current || busyRef.current) {
+            if (
+              heldRef.current ||
+              runningRef.current ||
+              reportedRef.current.busy
+            ) {
               await new Promise<void>((resolve) => {
                 idleWaitersRef.current.push(resolve);
               });
@@ -119,7 +123,7 @@ export const useMessageQueue = ({
             }
             throw error;
           }
-          if (busyEdgesRef.current === busyEdges && !busyRef.current) {
+          if (busyEdgesRef.current === busyEdges && !runningRef.current) {
             controller.notifyIdle();
           }
         })();
