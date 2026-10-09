@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CDN_ORIGINS } from "../csp";
 import { DEFAULT_LIGHT_TOKENS, THEME_TOKENS } from "../theme";
 import {
-  buildModuleGuidance,
   buildWidgetGuidance,
   normalizeModules,
   WIDGET_MODULES,
@@ -103,14 +102,6 @@ describe("buildWidgetGuidance", () => {
     });
     expect(full).not.toContain("`sendPrompt(text)` sends");
     expect(full).toContain("genframe.callTool");
-  });
-});
-
-describe("buildModuleGuidance", () => {
-  it("returns one module's section", () => {
-    const text = buildModuleGuidance("elicitation");
-    expect(text.startsWith("## Module: elicitation")).toBe(true);
-    expect(text).toContain("sendPrompt");
   });
 });
 

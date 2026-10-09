@@ -338,11 +338,3 @@ Call \`read_me\` with the modules you need before your first widget of that kind
     ...modules.map((module) => MODULES[module](ctx)),
   ].join("\n\n");
 }
-
-/** One module's guidance on its own, for hosts that send the base rules separately. */
-export function buildModuleGuidance(
-  module: WidgetModule,
-  options: GuidanceOptions = {},
-): string {
-  return MODULES[module](createContext(options));
-}

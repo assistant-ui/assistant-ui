@@ -12,15 +12,6 @@ import "react-textarea-autosize";
 
 import "zustand";
 
-type AISDKModelOptions<Schema> = {
-  streamText: (options: never) => StreamResult;
-  jsonSchema: (schema: JsonSchema) => Schema;
-  model: unknown;
-  settings?: Record<string, unknown>;
-};
-
-declare const ASSISTANT_UI_TOKEN_SOURCES: ThemeTokenSources;
-
 type ActionBinding = {
   action: string;
   params?: Record<string, unknown>;
@@ -29,20 +20,6 @@ type ActionBinding = {
 type ActionDefinition = {
   description: string;
   params?: PropsSchema;
-};
-
-type ActionDispatcher = (bindings: ActionBinding | readonly ActionBinding[] | undefined, context: Omit<ExpressionContext, "event" | "state"> & ActionSource & {
-  payload?: unknown;
-}) => Promise<unknown[]>;
-
-type ActionDispatcherOptions = {
-  store: SpecStateStore;
-  catalog?: Catalog;
-  handlers?: Record<string, ActionHandler>;
-  onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
-    state: SpecStateStore;
-  }) => unknown;
-  onError?: (error: Error, binding: ActionBinding) => void;
 };
 
 type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
@@ -54,56 +31,9 @@ type ActionSource = {
   trigger?: string;
 };
 
-type AgentMessage = {
-  role: "system";
-  content: string;
-} | {
-  role: "user";
-  content: string;
-} | {
-  role: "assistant";
-  content: string;
-  toolCalls?: AgentToolCall[];
-} | {
-  role: "tool";
-  toolCallId: string;
-  name: string;
-  content: string;
-};
-
-type AgentModelEvent = {
-  type: "text-delta";
-  text: string;
-} | {
-  type: "tool-call-delta";
-  id: string;
-  name?: string;
-  argsTextDelta: string;
-} | {
-  type: "tool-call";
-  id: string;
-  name: string;
-  args: unknown;
-} | {
-  type: "finish";
-  reason?: string;
-};
-
-type AgentToolCall = {
-  id: string;
-  name: string;
-  args: unknown;
-};
-
-type AgentToolDeclaration = {
-  name: string;
-  description: string;
-  inputSchema: JsonSchema;
-};
-
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
 
-type AnyTool = ToolDefinition$1<never, unknown>;
+type AnyTool = ToolDefinition<never, unknown>;
 
 type ApplyEditsResult = {
   ok: true;
@@ -192,16 +122,6 @@ type BaseThreadMessage = {
   readonly attachments?: ThreadUserMessage["attachments"];
 };
 
-type BootstrapOptions = {
-  hostOrigin: string;
-  csp?: CspOptions | string;
-  tokens?: ThemeTokens;
-  compat?: readonly Compat[];
-  animate?: boolean;
-  css?: string;
-  runtime?: string;
-};
-
 type Catalog<TComponents extends Record<string, ComponentDefinition> = Record<string, ComponentDefinition>, TActions extends Record<string, ActionDefinition> = Record<string, ActionDefinition>> = {
   readonly components: TComponents;
   readonly actions: TActions;
@@ -263,19 +183,7 @@ type ClientScopes = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 };
 
-type CodeUpdate = {
-  type: "none";
-} | {
-  type: "append";
-  chunk: string;
-} | {
-  type: "replace";
-  code: string;
-};
-
 type ColorScheme = "dark" | "light";
-
-type Compat = "openai";
 
 type CompleteAttachment = BaseAttachment & {
   status: CompleteAttachmentStatus;
@@ -316,22 +224,6 @@ type CreateSpecToolsOptions = {
   }>;
 };
 
-type CreateWidgetAgentOptions = {
-  model: WidgetAgentModel;
-  tools?: WidgetTools & Partial<SpecTools>;
-  extraTools?: Record<string, ToolDefinition$1<never, unknown>>;
-  maxRounds?: number;
-  maxSteps?: number;
-  preview?: (code: string) => Promise<RenderReport>;
-  settleMs?: number;
-  instructions?: string;
-  onEvent?: (event: WidgetAgentEvent) => void;
-  createSink?: (info: {
-    title: string;
-    mode: WidgetMode;
-  }) => WidgetSink | undefined;
-};
-
 type CreateWidgetOptions = WidgetHandlers & {
   container: HTMLElement;
   product?: string;
@@ -340,7 +232,6 @@ type CreateWidgetOptions = WidgetHandlers & {
   csp?: CspOptions | string;
   tokens?: ThemeTokens;
   context?: HostContext;
-  compat?: Compat[];
   animate?: boolean;
   css?: string;
   maxHeight?: number;
@@ -371,13 +262,7 @@ declare const DEFAULT_CDN_ORIGINS: readonly string[];
 
 declare const DEFAULT_DARK_TOKENS: ThemeTokens;
 
-declare const DEFAULT_FONT_ORIGINS: readonly string[];
-
-declare const DEFAULT_FONT_STYLE_ORIGINS: readonly string[];
-
 declare const DEFAULT_LIGHT_TOKENS: ThemeTokens;
-
-declare const DEFAULT_TOKEN_SOURCES: Record<ThemeTokenName, readonly string[]>;
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
@@ -435,14 +320,6 @@ interface EventLog {
 
 type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
 
-type ExpressionContext = {
-  state: unknown;
-  item?: unknown;
-  index?: number;
-  itemPath?: string;
-  event?: unknown;
-};
-
 type FileMessagePart = {
   readonly type: "file";
   readonly id?: string;
@@ -474,40 +351,14 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   providerOptions?: ProviderOptions;
 };
 
-declare const GENFRAME_PROTOCOL_VERSION = "2026-01-26";
-
 type GenerateContext = {
   round: number;
   previousCode: string | undefined;
   feedback: RepairFeedback | undefined;
 };
 
-type GenerateOptions = {
-  signal?: AbortSignal;
-  sink?: WidgetSink;
-  onEvent?: (event: WidgetAgentEvent) => void;
-};
-
 type GenerateResult = string | {
   edits: WidgetEdit[];
-};
-
-type GenerateWidgetInput = {
-  brief: string;
-  data?: unknown;
-  mode?: WidgetMode;
-  title?: string;
-};
-
-type GenerateWidgetResult = {
-  ok: boolean;
-  title: string;
-  mode: WidgetMode;
-  summary: string;
-  errors: string[];
-  code?: string;
-  spec?: Spec;
-  rounds: number;
 };
 
 type GenerativeUIMessagePart = {
@@ -542,7 +393,6 @@ type GuidanceOptions = {
   connectOrigins?: readonly string[];
   allowEval?: boolean;
   width?: number;
-  compat?: readonly Compat[];
   hostApi?: HostApiOptions;
 };
 
@@ -587,34 +437,6 @@ type ImageMessagePart = {
   readonly providerMetadata?: PartProviderMetadata;
 };
 
-type JsonRpcId = string | number;
-
-type JsonRpcMessage = JsonRpcRequest | JsonRpcNotification | JsonRpcResponse;
-
-type JsonRpcNotification = {
-  jsonrpc: "2.0";
-  method: string;
-  params?: unknown;
-};
-
-type JsonRpcRequest = {
-  jsonrpc: "2.0";
-  id: JsonRpcId;
-  method: string;
-  params?: unknown;
-};
-
-type JsonRpcResponse = {
-  jsonrpc: "2.0";
-  id: JsonRpcId;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-};
-
 type JsonSchema = {
   type?: JsonSchemaType | readonly JsonSchemaType[];
   description?: string;
@@ -636,33 +458,6 @@ type JsonSchema = {
 };
 
 type JsonSchemaType = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-declare const METHODS: {
-  readonly write: "genframe/write";
-  readonly end: "genframe/end";
-  readonly replace: "genframe/replace";
-  readonly screenshot: "genframe/screenshot";
-  readonly inspect: "genframe/inspect";
-  readonly clearStorage: "genframe/clear-storage";
-  readonly hostContextChanged: "ui/notifications/host-context-changed";
-  readonly toolInputPartial: "ui/notifications/tool-input-partial";
-  readonly toolInput: "ui/notifications/tool-input";
-  readonly toolResult: "ui/notifications/tool-result";
-  readonly ready: "genframe/ready";
-  readonly initialize: "ui/initialize";
-  readonly initialized: "ui/notifications/initialized";
-  readonly sizeChanged: "ui/notifications/size-changed";
-  readonly openLink: "ui/open-link";
-  readonly message: "ui/message";
-  readonly callTool: "tools/call";
-  readonly requestDisplayMode: "ui/request-display-mode";
-  readonly updateModelContext: "ui/update-model-context";
-  readonly widgetState: "genframe/widget-state";
-  readonly log: "genframe/log";
-  readonly error: "genframe/error";
-};
-
-declare const MODULE_SUMMARIES: Record<WidgetModule, string>;
 
 type McpAppMetadata = {
   readonly resourceUri: string;
@@ -701,10 +496,6 @@ type McpTool = ToolBase<Record<string, unknown>, unknown> & {
 type MessageCommonProps = {
   readonly id: string;
   readonly createdAt: Date;
-};
-
-type MessageLike = {
-  readonly content: string | readonly unknown[];
 };
 
 type MessageModality = "voice";
@@ -800,7 +591,7 @@ type PatchOperation = {
 
 type Platform = "desktop" | "mobile";
 
-type PreviewOptions = Pick<CreateWidgetOptions, "compat" | "csp" | "css" | "frame" | "id" | "product" | "readyTimeoutMs"> & {
+type PreviewOptions = Pick<CreateWidgetOptions, "csp" | "css" | "frame" | "id" | "product" | "readyTimeoutMs"> & {
   width?: number;
   appearance?: ColorScheme;
   tokens?: CreateWidgetOptions["tokens"];
@@ -842,14 +633,6 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
   toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;
   providerOptions?: ProviderOptions;
-};
-
-declare const RPC_ERROR: {
-  readonly parseError: -32700;
-  readonly invalidRequest: -32600;
-  readonly methodNotFound: -32601;
-  readonly invalidParams: -32602;
-  readonly internalError: -32603;
 };
 
 type ReadMeInput = {
@@ -906,9 +689,7 @@ type RenderSpecResult = {
   feedback: string;
 };
 
-type RenderSpecTool = ToolDefinition$1<RenderSpecInput, RenderSpecResult> & {
-  streaming: SpecStreaming;
-};
+type RenderSpecTool = ToolDefinition<RenderSpecInput, RenderSpecResult>;
 
 interface RenderedFrame {
   iframe: HTMLIFrameElement;
@@ -955,40 +736,6 @@ type RepairRound = {
 type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
-
-type ResolvedProps = {
-  props: Record<string, unknown>;
-  bindings: Record<string, string>;
-};
-
-type RpcEndpoint = {
-  postMessage(message: unknown): void;
-  addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
-  removeEventListener(type: "message", listener: (event: MessageEvent) => void): void;
-  start?(): void;
-};
-
-declare class RpcError extends Error {
-  readonly code: number;
-  readonly data: unknown;
-  constructor(code: number, message: string, data?: unknown);
-}
-
-type RpcHandlers = {
-  onRequest?: (method: string, params: unknown) => unknown;
-  onNotification?: (method: string, params: unknown) => void;
-};
-
-type RpcPeer = {
-  request(method: string, params?: unknown, options?: {
-    timeoutMs?: number;
-  }): Promise<unknown>;
-  notify(method: string, params?: unknown): void;
-  receive(message: unknown, reply?: (message: JsonRpcMessage) => void): void;
-  dispose(): void;
-};
-
-declare const SET_STATE_ACTION: ActionDefinition;
 
 declare class SafeContentFrame {
   #private;
@@ -1187,11 +934,6 @@ type SpecStreamUpdate = {
   errors: SpecStreamError[];
 };
 
-type SpecStreaming = {
-  create(initial?: Spec): SpecStream;
-  parse(text: string, initial?: Spec): Spec;
-};
-
 type SpecToolkitOptions = {
   components: SpecComponents;
   handlers?: Record<string, ActionHandler>;
@@ -1250,42 +992,6 @@ type StandardSchemaLike = {
 
 type StateListener = (state: Record<string, unknown>) => void;
 
-type StreamPart = {
-  type: "text-delta";
-  text?: string;
-  delta?: string;
-  textDelta?: string;
-} | {
-  type: "tool-input-start";
-  id: string;
-  toolName: string;
-} | {
-  type: "tool-input-delta";
-  id: string;
-  delta: string;
-} | {
-  type: "tool-call";
-  toolCallId: string;
-  toolName: string;
-  input?: unknown;
-  args?: unknown;
-} | {
-  type: "finish";
-  finishReason?: string;
-} | {
-  type: "error";
-  error: unknown;
-} | {
-  type: string;
-};
-
-type StreamResult = {
-  stream?: AsyncIterable<StreamPart>;
-  fullStream?: AsyncIterable<StreamPart>;
-};
-
-declare const THEME_TOKENS: readonly ThemeTokenInfo[];
-
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
@@ -1299,12 +1005,6 @@ type TextMessagePart = {
 
 type ThemeObserveOptions = {
   observeBodyStyle?: boolean;
-};
-
-type ThemeTokenInfo = {
-  name: ThemeTokenName;
-  group: "accent" | "border" | "chart" | "shape" | "status" | "surface" | "text" | "type";
-  usage: string;
 };
 
 type ThemeTokenName = "--chart-1" | "--chart-2" | "--chart-3" | "--chart-4" | "--chart-5" | "--chart-6" | "--color-accent" | "--color-accent-text" | "--color-background" | "--color-border" | "--color-border-strong" | "--color-danger" | "--color-info" | "--color-success" | "--color-surface" | "--color-surface-muted" | "--color-text" | "--color-text-muted" | "--color-text-subtle" | "--color-warning" | "--font-mono" | "--font-sans" | "--radius-lg" | "--radius-md" | "--radius-sm";
@@ -1555,14 +1255,14 @@ type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = str
 
 type ToolCallTiming = MessagePartTiming;
 
-type ToolDefinition<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = WithRender<Tool<TArgs, TResult>, TArgs, TResult>;
-
-type ToolDefinition$1<Input, Output> = {
+type ToolDefinition<Input, Output> = {
   name: string;
   description: string;
   inputSchema: JsonSchema;
   execute(input: Input): Promise<Output>;
 };
+
+type ToolDefinition$1<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = WithRender<Tool<TArgs, TResult>, TArgs, TResult>;
 
 type ToolDisplay = "inline" | "standalone";
 
@@ -1618,7 +1318,7 @@ type ToolWithoutType<TArgs extends Record<string, unknown> = Record<string, unkn
   type?: undefined;
 };
 
-type Toolkit = Record<string, ToolDefinition<any, any>>;
+type Toolkit = Record<string, ToolDefinition$1<any, any>>;
 
 type ToolkitDisplay = "inline" | "standalone";
 
@@ -1722,10 +1422,6 @@ type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
 } ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
-type ValidateOptions = {
-  skip?: (value: unknown) => boolean;
-};
-
 type ValidateSpecOptions = {
   partial?: boolean;
 };
@@ -1741,51 +1437,6 @@ declare const WIDGET_MODULES: readonly [
 ];
 
 declare function Widget(_param2: WidgetProps): import("react").JSX.Element;
-
-type WidgetAgent = {
-  tool: ToolDefinition$1<GenerateWidgetInput, GenerateWidgetResult>;
-  generate(input: GenerateWidgetInput, options?: GenerateOptions): Promise<GenerateWidgetResult>;
-};
-
-type WidgetAgentEvent = {
-  type: "start";
-  title: string;
-  mode: WidgetMode;
-} | {
-  type: "status";
-  text: string;
-} | {
-  type: "text-delta";
-  text: string;
-} | {
-  type: "code-delta";
-  title: string;
-  delta: string;
-  code: string;
-} | {
-  type: "code";
-  title: string;
-  code: string;
-} | {
-  type: "spec";
-  title: string;
-  spec: Spec;
-  streaming: boolean;
-} | {
-  type: "feedback";
-  title: string;
-  ok: boolean;
-  text: string;
-  round: number;
-} | {
-  type: "done";
-  result: GenerateWidgetResult;
-};
-
-type WidgetAgentModel = (messages: readonly AgentMessage[], options: {
-  tools: readonly AgentToolDeclaration[];
-  signal?: AbortSignal;
-}) => AsyncIterable<AgentModelEvent>;
 
 type WidgetEdit = {
   old_string: string;
@@ -1856,8 +1507,6 @@ type WidgetInstructionsOptions = {
 
 type WidgetKind = "html" | "svg";
 
-type WidgetMode = "html" | "spec";
-
 type WidgetModule = (typeof WIDGET_MODULES)[number];
 
 type WidgetProps = UseWidgetOptions & {
@@ -1892,16 +1541,6 @@ type WidgetRenderReport = {
 } | {
   status: "timeout";
   feedback: string;
-};
-
-type WidgetSink = {
-  write?(chunk: string): void;
-  end?(): Promise<unknown>;
-  replace?(code: string): Promise<unknown>;
-  inspect?(): Promise<Pick<WidgetInspection, "blank" | "console" | "errors" | "size">>;
-  spec?(spec: Spec, info: {
-    streaming: boolean;
-  }): void;
 };
 
 type WidgetSize = {
@@ -1940,10 +1579,10 @@ type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry"> & {
 };
 
 type WidgetTools = {
-  read_me: ToolDefinition$1<ReadMeInput, string>;
-  show_widget: ToolDefinition$1<ShowWidgetInput, ShowWidgetResult>;
-  edit_widget: ToolDefinition$1<EditWidgetInput, EditWidgetResult>;
-  preview_widget: ToolDefinition$1<PreviewWidgetInput, PreviewResult>;
+  read_me: ToolDefinition<ReadMeInput, string>;
+  show_widget: ToolDefinition<ShowWidgetInput, ShowWidgetResult>;
+  edit_widget: ToolDefinition<EditWidgetInput, EditWidgetResult>;
+  preview_widget: ToolDefinition<PreviewWidgetInput, PreviewResult>;
 };
 
 type WildcardPayload = {
@@ -1973,29 +1612,19 @@ type WriteOptions = {
   createMissing?: boolean;
 };
 
-declare namespace entry_agent_exports {
-  export { AISDKModelOptions, AgentMessage, AgentModelEvent, AgentToolCall, AgentToolDeclaration, CreateWidgetAgentOptions, GenerateOptions, GenerateWidgetInput, GenerateWidgetResult, WidgetAgent, WidgetAgentEvent, WidgetAgentModel, WidgetMode, WidgetSink, createWidgetAgent, fromAISDK, parsePartialJson };
-}
-
 declare function applyPatch<T>(doc: T, operations: readonly PatchOperation[], options?: WriteOptions): T;
-
-declare function applyPatchOperation<T>(doc: T, operation: PatchOperation, options?: WriteOptions): T;
 
 declare function applyWidgetEdits(code: string, edits: readonly WidgetEdit[]): ApplyEditsResult;
 
 declare namespace entry_assistant_ui_exports {
-  export { ASSISTANT_UI_TOKEN_SOURCES, MessageLike, RenderReportOptions, ToolkitDisplay, ToolkitExecution, WidgetRenderReport, WidgetToolkit, WidgetToolkitExtension, WidgetToolkitOptions, createWidgetToolkit, resolveWidgetCode, resolveWidgetOrigin, useAssistantUiThemeTokens, useWidgetInstructions };
+  export { RenderReportOptions, ToolkitDisplay, ToolkitExecution, WidgetRenderReport, WidgetToolkit, WidgetToolkitExtension, WidgetToolkitOptions, createWidgetToolkit, useAssistantUiThemeTokens, useWidgetInstructions };
 }
 
 declare namespace entry_spec_assistant_ui_exports {
-  export { SpecToolkitOptions, createSpecToolkit, resolveSpecBase };
+  export { SpecToolkitOptions, createSpecToolkit };
 }
 
-declare function buildBootstrapHtml(options: BootstrapOptions): string;
-
 declare function buildCsp(options?: CspOptions): string;
-
-declare function buildModuleGuidance(module: WidgetModule, options?: GuidanceOptions): string;
 
 declare function buildRepairFeedback(report: RenderReport, options?: {
   round?: number;
@@ -2004,25 +1633,11 @@ declare function buildRepairFeedback(report: RenderReport, options?: {
   includeScreenshot?: boolean;
 }): RepairFeedback;
 
-declare function buildSpecPrompt(catalog: Catalog, options?: SpecPromptOptions): string;
-
 declare function buildWidgetGuidance(options?: GuidanceOptions): string;
 
 declare function buildWidgetInstructions(tools: WidgetTools & Record<string, AnyTool>, options?: WidgetInstructionsOptions): Promise<string>;
 
-declare function checkPatchOperation(value: unknown): {
-  ok: true;
-  op: PatchOperation;
-} | {
-  ok: false;
-  error: string;
-};
-
 declare function clearWidgetStorage(id: string, options?: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs">): Promise<ClearStorageResult>;
-
-declare function createActionDispatcher(options: ActionDispatcherOptions): ActionDispatcher;
-
-declare function createRpcPeer(endpoint: RpcEndpoint, handlers?: RpcHandlers): RpcPeer;
 
 declare function createSpecStream(options?: CreateSpecStreamOptions): SpecStream;
 
@@ -2033,8 +1648,6 @@ declare function createSpecTools(catalog: Catalog, options?: CreateSpecToolsOpti
 declare function createStateStore(initial?: Record<string, unknown>): SpecStateStore;
 
 declare function createWidget(options: CreateWidgetOptions): WidgetHandle;
-
-declare function createWidgetAgent(options: CreateWidgetAgentOptions): WidgetAgent;
 
 declare function createWidgetRegistry(initial?: Iterable<{
   title: string;
@@ -2051,23 +1664,9 @@ declare const defaultThemeTokens: (scheme: ColorScheme) => ThemeTokens;
 
 declare function defineCatalog<const TComponents extends Record<string, ComponentDefinition>, const TActions extends Record<string, ActionDefinition> = Record<never, ActionDefinition>>(definition: CatalogDefinition<TComponents, TActions>): Catalog<TComponents, TActions>;
 
-declare const describeSchema: (schema: JsonSchema | undefined) => string;
-
-declare function detectColorScheme(element: Element): ColorScheme;
-
-declare function detectWidgetKind(code: string): WidgetKind;
-
 declare const emptySpec: () => Spec;
 
-declare const escapePointerToken: (token: string | number) => string;
-
-declare function evaluateCondition(condition: Condition | undefined, ctx: ExpressionContext): boolean;
-
 declare function formatSpecIssues(issues: readonly SpecIssue[]): string;
-
-declare function fromAISDK<Schema>(options: AISDKModelOptions<Schema>): WidgetAgentModel;
-
-declare function getAtPointer(doc: unknown, pointer: string | string[]): unknown;
 
 declare function getToolDeclarations<T extends Record<string, AnyTool>>(tools: T): {
   [K in keyof T]: {
@@ -2090,33 +1689,19 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { BootstrapOptions, ClearStorageResult, ColorScheme, Compat, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_FONT_ORIGINS, DEFAULT_FONT_STYLE_ORIGINS, DEFAULT_LIGHT_TOKENS, DEFAULT_TOKEN_SOURCES, DisplayMode, EndResult, FrameInspection, GENFRAME_PROTOCOL_VERSION, HostContext, METHODS, PreviewOptions, PreviewResult, RPC_ERROR, RpcEndpoint, RpcError, RpcHandlers, RpcPeer, Screenshot, ScreenshotOptions, THEME_TOKENS, ThemeTokenInfo, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildBootstrapHtml, buildCsp, clearWidgetStorage, createRpcPeer, createWidget, defaultThemeTokens, detectColorScheme, detectWidgetKind, previewWidget, readThemeTokens, runtimeSource as runtime, themeContext, themeVariables, toMcpAppsVariables, widgetStorageSalt };
+  export { ClearStorageResult, ColorScheme, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS, DisplayMode, EndResult, FrameInspection, HostContext, PreviewOptions, PreviewResult, Screenshot, ScreenshotOptions, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildCsp, clearWidgetStorage, createWidget, defaultThemeTokens, previewWidget, readThemeTokens, widgetStorageSalt };
 }
 
-declare const isExpression: (value: unknown) => value is Record<string, unknown>;
-
-declare const itemPointer: (path: string, index: number) => string;
-
-declare const joinPointer: (tokens: readonly (string | number)[]) => string;
-
-declare function normalizeModules(modules?: readonly string[]): WidgetModule[];
-
-declare function parsePartialJson(text: string): unknown;
-
-declare function parsePointer(pointer: string): string[];
-
 declare function parseSpecStream(source: string, options?: CreateSpecStreamOptions): SpecStreamResult;
-
-declare function planCodeUpdate(current: string, next: string): CodeUpdate;
 
 declare function previewWidget(code: string, options?: PreviewOptions): Promise<PreviewResult>;
 
 declare namespace entry_prompts_exports {
-  export { GuidanceOptions, HostApiOptions, MODULE_SUMMARIES, Platform, WIDGET_MODULES, WidgetModule, buildModuleGuidance, buildWidgetGuidance, normalizeModules };
+  export { GuidanceOptions, HostApiOptions, Platform, WIDGET_MODULES, WidgetModule, buildWidgetGuidance };
 }
 
 declare namespace entry_react_exports {
-  export { CodeUpdate, ThemeObserveOptions, UseWidgetOptions, UseWidgetResult, Widget, WidgetProps, planCodeUpdate, syncWidgetCode, useThemeTokens, useWidget };
+  export { ThemeObserveOptions, UseWidgetOptions, UseWidgetResult, Widget, WidgetProps, useThemeTokens, useWidget };
 }
 
 declare namespace entry_spec_react_exports {
@@ -2125,37 +1710,17 @@ declare namespace entry_spec_react_exports {
 
 declare function readThemeTokens(element?: Element, sources?: ThemeTokenSources): ThemeTokens;
 
-declare function renderTemplate(template: string, ctx: ExpressionContext): string;
-
 declare function repairLoop(options: RepairLoopOptions): Promise<RepairLoopResult>;
 
 declare namespace entry_repair_exports {
   export { GenerateContext, GenerateResult, RenderReport, RepairFeedback, RepairLoopOptions, RepairLoopResult, RepairRound, buildRepairFeedback, repairLoop };
 }
 
-declare function resolveProps(props: Record<string, unknown> | undefined, ctx: ExpressionContext): ResolvedProps;
-
-declare function resolveSpecBase(messages: readonly MessageLike[], toolCallId: string, title: string): Spec | undefined;
-
-declare function resolveValue(value: unknown, ctx: ExpressionContext): unknown;
-
-declare function resolveWidgetCode(messages: readonly MessageLike[], toolCallId: string): string | undefined;
-
-declare function resolveWidgetOrigin(messages: readonly MessageLike[], toolCallId: string): string | undefined;
-
-declare const runtimeSource: string;
-
 declare function specGuidanceModule(catalog: Catalog, options?: Omit<SpecPromptOptions, "mode">): GuidanceModule;
 
 declare namespace entry_spec_exports {
-  export { ActionBinding, ActionDefinition, ActionDispatcher, ActionDispatcherOptions, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, ExpressionContext, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, ResolvedProps, SET_STATE_ACTION, SchemaIssue, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, ValidateSpecOptions, applyPatch, applyPatchOperation, buildSpecPrompt, checkPatchOperation, createActionDispatcher, createSpecStream, createStateStore, defineCatalog, describeSchema, emptySpec, escapePointerToken, evaluateCondition, formatSpecIssues, getAtPointer, isExpression, itemPointer, joinPointer, parsePointer, parseSpecStream, renderTemplate, resolveProps, resolveValue, validateJsonSchema, validateSchema, validateSpec };
+  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, validateSpec };
 }
-
-declare function syncWidgetCode(widget: Pick<WidgetHandle, "code" | "end" | "ended" | "replace" | "write">, code: string, streaming: boolean): void;
-
-declare function themeContext(tokens: ThemeTokens): HostContext;
-
-declare function themeVariables(tokens: ThemeTokens): Record<string, string>;
 
 declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: T, sdk: {
   jsonSchema: (schema: JsonSchema) => Schema;
@@ -2167,14 +1732,12 @@ declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: 
   };
 };
 
-declare function toMcpAppsVariables(tokens: ThemeTokens): Record<string, string>;
-
 declare namespace entry_spec_tools_exports {
-  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SpecStreaming, SpecTools, ToolDefinition$1 as ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
+  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
 }
 
 declare namespace entry_tools_exports {
-  export { AnyTool, ApplyEditsResult, CreateWidgetToolsOptions, EditWidgetInput, EditWidgetResult, GuidanceModule, JsonSchema, PreviewWidgetInput, ReadMeInput, ReadMeModule, ShowWidgetInput, ShowWidgetResult, ToolDefinition$1 as ToolDefinition, WidgetEdit, WidgetInstructionsOptions, WidgetRecord, WidgetRegistry, WidgetTools, applyWidgetEdits, buildWidgetInstructions, createWidgetRegistry, createWidgetTools, getToolDeclarations, toAISDKTools };
+  export { AnyTool, ApplyEditsResult, CreateWidgetToolsOptions, EditWidgetInput, EditWidgetResult, GuidanceModule, JsonSchema, PreviewWidgetInput, ReadMeInput, ReadMeModule, ShowWidgetInput, ShowWidgetResult, ToolDefinition, WidgetEdit, WidgetInstructionsOptions, WidgetRecord, WidgetRegistry, WidgetTools, applyWidgetEdits, buildWidgetInstructions, createWidgetRegistry, createWidgetTools, getToolDeclarations, toAISDKTools };
 }
 
 declare function useAssistantUiThemeTokens(element?: Element | null): ThemeTokens;
@@ -2187,12 +1750,8 @@ declare function useWidget(options?: UseWidgetOptions): UseWidgetResult;
 
 declare function useWidgetInstructions(tools: WidgetTools & Record<string, AnyTool>, options?: WidgetInstructionsOptions): void;
 
-declare function validateJsonSchema(schema: JsonSchema, value: unknown, options?: ValidateOptions, path?: string): SchemaIssue[];
-
-declare function validateSchema(schema: JsonSchema | StandardSchemaLike, value: unknown, options?: ValidateOptions): SchemaIssue[];
-
 declare function validateSpec(spec: Spec, catalog: Catalog, options?: ValidateSpecOptions): SpecValidation;
 
 declare const widgetStorageSalt: (id: string) => string;
 
-export { entry_agent_exports as entry_agent, entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_tools_exports as entry_tools };
+export { entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_tools_exports as entry_tools };

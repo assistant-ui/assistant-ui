@@ -23,7 +23,7 @@ Framework-agnostic; the React and assistant-ui bindings are optional.
 | `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
 | `generative-frame/spec/react` | `<SpecRenderer>`, `useSpecStream` |
 | `generative-frame/spec/tools` | `createSpecTools` (`render_spec`), `specGuidanceModule` |
-| `generative-frame/spec/assistant-ui` | `createSpecToolkit`, `resolveSpecBase` |
+| `generative-frame/spec/assistant-ui` | `createSpecToolkit` |
 
 The frame entries and the spec entries never import each other, so an app that only renders HTML widgets ships no spec code, and a spec-only app ships no frame, runtime, or Safe Content Frame. Combine them by passing values in, as shown under Spec mode. `src/bundle-boundary.test.ts` enforces this.
 

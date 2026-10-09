@@ -1,5 +1,4 @@
 export {
-  ASSISTANT_UI_TOKEN_SOURCES,
   createWidgetToolkit,
   useAssistantUiThemeTokens,
   useWidgetInstructions,
@@ -13,8 +12,3 @@ export type {
   ToolkitExecution,
   WidgetToolkitExtension,
 } from "./assistant-ui/extension";
-export {
-  resolveWidgetCode,
-  resolveWidgetOrigin,
-  type MessageLike,
-} from "./assistant-ui/history";

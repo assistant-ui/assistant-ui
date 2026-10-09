@@ -39,7 +39,7 @@ type ThemeTokens = {
 | `--font-mono` | code, tabular identifiers |
 | `--radius-sm`, `--radius-md`, `--radius-lg` | chips and inputs; buttons and cards; large panels |
 
-`THEME_TOKENS` exports this list with a usage note per token, and `buildWidgetGuidance` writes it into the model's guidance. Variables you add beyond these are listed to the model too when you pass your `tokens` to the guidance.
+`buildWidgetGuidance` writes this list, with a usage note per token, into the model's guidance. Variables you add beyond these are listed to the model too when you pass your `tokens` to the guidance.
 
 `DEFAULT_LIGHT_TOKENS` and `DEFAULT_DARK_TOKENS` (or `defaultThemeTokens(scheme)`) are the built-in palettes. A frame created without `tokens` uses the light one.
 
@@ -54,7 +54,7 @@ const panelTokens = readThemeTokens(panelElement);
 
 `readThemeTokens(element, sources)` reads the computed custom properties of `element` and detects its color scheme. Tokens the page does not define fall back to the built-in palette for that scheme.
 
-The color scheme comes from the nearest `.dark`, `.light`, `[data-theme]`, or `[data-mode]` ancestor, then the element's `color-scheme`, then the luminance of its background, then `prefers-color-scheme`. `detectColorScheme(element)` exposes that step on its own.
+The color scheme comes from the nearest `.dark`, `.light`, `[data-theme]`, or `[data-mode]` ancestor, then the element's `color-scheme`, then the luminance of its background, then `prefers-color-scheme`.
 
 ### Sources and shadcn/ui
 
@@ -87,11 +87,11 @@ const tokens = readThemeTokens(document.documentElement, {
 
 Map only design tokens. Every value you map is sent into the frame, where model-written or third-party widget code can read it.
 
-Tailwind v4 aliases `--color-accent` to shadcn's muted `--accent`, so in a Tailwind v4 app the canonical name holds the wrong color. `ASSISTANT_UI_TOKEN_SOURCES` from `generative-frame/assistant-ui` reads the shadcn variables first, and `useAssistantUiThemeTokens` uses it.
+Tailwind v4 aliases `--color-accent` to shadcn's muted `--accent`, so in a Tailwind v4 app the canonical name holds the wrong color. `useAssistantUiThemeTokens` from `generative-frame/assistant-ui` reads the shadcn variables first.
 
 ## MCP Apps names
 
-Each frame also receives the MCP Apps standard style variables, so widgets written for MCP Apps hosts pick up the theme. `toMcpAppsVariables(tokens)` returns them, and `themeVariables(tokens)` returns everything a frame receives. Examples:
+Each frame also receives the MCP Apps standard style variables, so widgets written for MCP Apps hosts pick up the theme. Examples:
 
 | MCP Apps variable | From |
 | --- | --- |

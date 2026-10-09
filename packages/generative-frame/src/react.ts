@@ -6,4 +6,3 @@ export {
 } from "./react/useWidget";
 export { useThemeTokens } from "./react/useThemeTokens";
 export type { ThemeObserveOptions } from "./react/themeStore";
-export { planCodeUpdate, syncWidgetCode, type CodeUpdate } from "./react/sync";

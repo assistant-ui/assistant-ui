@@ -82,22 +82,14 @@ Options and result are on [Repair loop and screenshots](/generative-frame/docs/r
 | Export | Description |
 | --- | --- |
 | `readThemeTokens(element?, sources?)` | Reads the page theme into `ThemeTokens`. |
-| `detectColorScheme(element)` | `"light"` or `"dark"`. |
-| `toMcpAppsVariables(tokens)` | The MCP Apps standard style variables. |
-| `themeVariables(tokens)` | Every variable a frame receives. |
 | `defaultThemeTokens(scheme)`, `DEFAULT_LIGHT_TOKENS`, `DEFAULT_DARK_TOKENS` | Built-in palettes. |
-| `THEME_TOKENS` | The canonical tokens with their groups and usage notes. |
-| `DEFAULT_TOKEN_SOURCES` | Where each token is read from by default. |
 
-### CSP and bootstrap
+### CSP
 
 | Export | Description |
 | --- | --- |
 | `buildCsp(options?)` | The policy string for `CspOptions`. See [Security model](/generative-frame/docs/security#the-default-policy). |
-| `DEFAULT_CDN_ORIGINS`, `DEFAULT_FONT_STYLE_ORIGINS`, `DEFAULT_FONT_ORIGINS` | The default allowlists. |
-| `buildBootstrapHtml({ hostOrigin, csp?, tokens?, animate?, css?, runtime? })` | The document every frame loads once. |
-| `runtime` | The in-frame runtime source as a string. |
-| `detectWidgetKind(code)` | `"svg"` when the code starts with an `<svg` element, otherwise `"html"`. |
+| `DEFAULT_CDN_ORIGINS` | The default CDN allowlist. |
 
 ## `generative-frame/react`
 
@@ -121,8 +113,6 @@ Options and result are on [Repair loop and screenshots](/generative-frame/docs/r
 | --- | --- |
 | `useWidget(options): { ref, widget }` | Mounts a frame into the element passed to `ref`. Options are read once per mount; handlers call their latest version; a new `tokens` object becomes `setTheme`. |
 | `useThemeTokens(element?, sources?, { observeBodyStyle? }?)` | Theme tokens that update with the page; one shared observer per element and sources. |
-| `syncWidgetCode(widget, code, streaming)` | The update logic behind `<Widget>`, for other bindings. |
-| `planCodeUpdate(current, next)` | Whether new code is `none`, an `append` of a chunk, or a `replace`. |
 
 ## `generative-frame/tools`
 
@@ -141,7 +131,6 @@ The `ToolDefinition`, `AnyTool`, `GuidanceModule`, and `JsonSchema` types are ex
 
 ```ts
 buildWidgetGuidance(options?: GuidanceOptions): string
-buildModuleGuidance(module: WidgetModule, options?: GuidanceOptions): string
 ```
 
 <ParametersTable
@@ -158,7 +147,7 @@ buildModuleGuidance(module: WidgetModule, options?: GuidanceOptions): string
   ]}
 />
 
-`WIDGET_MODULES`, `MODULE_SUMMARIES`, and `normalizeModules(modules)` are exported too.
+`WIDGET_MODULES` lists the module names.
 
 ## `generative-frame/repair`
 
@@ -195,7 +184,7 @@ useAssistantUiThemeTokens(element?): ThemeTokens
   ]}
 />
 
-`ASSISTANT_UI_TOKEN_SOURCES`, `resolveWidgetCode(messages, toolCallId)`, and `resolveWidgetOrigin(messages, toolCallId)` are exported too, along with the `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `ToolkitExecution`, and `ToolkitDisplay` types.
+The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `ToolkitExecution`, and `ToolkitDisplay` types are exported too.
 
 ## `generative-frame/spec`
 
@@ -205,16 +194,11 @@ useAssistantUiThemeTokens(element?): ThemeTokens
 | `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `parseSpecStream(source, options?)` | The same for a complete string. |
-| `applyPatch(doc, operations)`, `applyPatchOperation`, `checkPatchOperation` | RFC 6902 helpers. |
+| `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
 | `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
 | `formatSpecIssues(issues)` | Issues as model-readable text. |
 | `createStateStore(initial?)` | `{ getState, get, set, seed, subscribe }`. |
-| `createActionDispatcher(options)` | Runs action bindings against a store and handlers. |
-| `resolveValue`, `resolveProps`, `evaluateCondition`, `renderTemplate`, `isExpression` | The expression evaluator. |
-| `getAtPointer`, `parsePointer`, `joinPointer`, `escapePointerToken` | JSON Pointer helpers. |
-| `validateSchema`, `validateJsonSchema`, `describeSchema` | The JSON Schema subset used for props and params. |
-| `buildSpecPrompt(catalog, options?)` | The function behind `catalog.prompt`. |
-| `emptySpec()`, `SET_STATE_ACTION` | An empty spec and the built-in action. |
+| `emptySpec()` | An empty spec. |
 
 ## `generative-frame/spec/react`
 
@@ -252,7 +236,6 @@ useAssistantUiThemeTokens(element?): ThemeTokens
 
 ```ts
 createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension
-resolveSpecBase(messages, toolCallId, title): Spec | undefined
 ```
 
 Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
@@ -267,5 +250,3 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
     { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`)." },
   ]}
 />
-
-`resolveSpecBase` returns the spec a `render_spec` call's patches apply onto, built from earlier calls with the same title.

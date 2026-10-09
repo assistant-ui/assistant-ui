@@ -152,8 +152,6 @@ const tokens = useAssistantUiThemeTokens();
 
 The renderers derive their state from the thread, not from memory. `show_widget` renders from its arguments, `edit_widget` replays the edits of earlier calls with the same title, and `render_spec` applies its patches onto the spec built by earlier calls with that title. The registry is filled from rendered calls, so `edit_widget` also executes after a reload. Scripts run again when a widget mounts.
 
-`resolveWidgetCode(messages, toolCallId)` and `resolveWidgetOrigin(messages, toolCallId)` are exported for custom renderers, and `resolveSpecBase(messages, toolCallId, title)` from `generative-frame/spec/assistant-ui`.
-
 ## Storage
 
 Each widget's frame gets a [storage id](/generative-frame/docs/quickstart#persistent-storage) from the `toolCallId` of the `show_widget` call that created it, so its localStorage survives a reload and carries over to its `edit_widget` versions. Tool call ids come from the provider, not from arguments the model writes. To scope ids yourself, for example by thread, pass ``widgetId: ({ toolCallId }) => `${threadId}:${toolCallId}` ``; `widgetId: false` gives every frame a fresh origin.

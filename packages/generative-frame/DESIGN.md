@@ -131,10 +131,22 @@ The HTML/SVG frame and spec mode are separate halves that never import each othe
 
 | Fixture | Before the split | After |
 | --- | --- | --- |
-| Frame: `createWidget`, `<Widget>`, `createWidgetTools` | 75.3 kB / 27.4 kB (included `spec/{types,pointer,patch,stream,validate}` and the JSON Schema validator) | 64.8 kB / 23.9 kB, no spec modules |
+| Frame: `createWidget`, `<Widget>`, `createWidgetTools` | 75.3 kB / 27.4 kB (included `spec/{types,pointer,patch,stream,validate}` and the JSON Schema validator) | 63.7 kB / 23.5 kB, no spec modules |
 | Spec: `/spec`, `SpecRenderer` + `useSpecStream`, `render_spec` tool | 53.8 kB / 20.5 kB (included `csp.ts`, `theme.ts`, `prompts/guidance.ts`, the widget tools) | 28.9 kB / 10.6 kB, no frame modules |
-| `createWidgetToolkit` (frame assistant-ui) | not measured | 76.9 kB / 27.6 kB |
-| `createSpecToolkit` (spec assistant-ui) | not measured | 21.6 kB / 7.9 kB |
+| `createWidgetToolkit` (frame assistant-ui) | not measured | 75.8 kB / 27.3 kB |
+| `createSpecToolkit` (spec assistant-ui) | not measured | 21.5 kB / 7.8 kB |
 
 Before the split, the spec fixture used `SpecRenderer` from `/react` and `createWidgetTools({ catalog })` from `/tools`, the only way to get `render_spec` then.
+
+Sizes are after the minimal pass below.
+
+## Minimal pass
+
+Cut because nothing in the package or its documented uses needed them:
+
+- The `window.openai` shim and the `compat` option (`Compat` had one value). The MCP Apps bridge and `sendPrompt` cover the hosts we target.
+- The `/agent` entry (`createWidgetAgent`, `fromAISDK`, the model event interface, and the partial JSON parser, now a demo file). Delegation is a docs recipe on `/prompts`, `/repair`, and `previewWidget`; the agent mostly re-implemented a model loop that every SDK already has. `render_spec`'s `streaming` helpers existed only for it.
+- Internals that were public: the RPC peer and errors, `METHODS`, the protocol version, `buildBootstrapHtml`, `themeContext`, the runtime source string, `detectWidgetKind`, the font allowlists, `detectColorScheme`, `toMcpAppsVariables`, `themeVariables`, `THEME_TOKENS`, `DEFAULT_TOKEN_SOURCES`, `planCodeUpdate`, `syncWidgetCode`, `normalizeModules`, `MODULE_SUMMARIES`, `ASSISTANT_UI_TOKEN_SOURCES`, `resolveWidgetCode`, `resolveWidgetOrigin`, and `resolveSpecBase`. They stay as module internals.
+- From `/spec`: the pointer, expression, single-operation patch, action dispatcher, and JSON Schema validator helpers, `buildSpecPrompt` (a duplicate of `catalog.prompt`), and `SET_STATE_ACTION`.
+- `buildModuleGuidance`, which nothing called.
 
