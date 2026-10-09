@@ -23,6 +23,15 @@ const mocks = vi.hoisted(() => {
   });
 
   return {
+    sites: [
+      page(
+        "/safe-content-frame/docs/how-it-works",
+        "How Safe Content Frame works",
+        "How safe-content-frame gives every render its own domain.",
+        ["Every render gets its own domain"],
+        ["Every render runs on its own subdomain."],
+      ),
+    ],
     docs: [
       page(
         "/docs/ui/thread",
@@ -77,6 +86,7 @@ vi.mock("@/lib/source", () => ({
   design: { getPages: () => mocks.design },
   elementsDocs: { getPages: () => mocks.elements },
   examples: { getPages: () => mocks.examples },
+  docsSiteSources: { "safe-content-frame": { getPages: () => mocks.sites } },
 }));
 
 import { buildContentIndex } from "./content-index";
@@ -101,6 +111,18 @@ describe("search corpora", () => {
     );
     expect(content.map((record) => record.url)).toContain(
       "/examples/perplexity",
+    );
+  });
+
+  it("reaches a docs site page from both corpora", async () => {
+    const browser = await buildSearchIndex();
+    const content = await buildContentIndex();
+
+    expect(browser.map((record) => record.url)).toContain(
+      "/safe-content-frame/docs/how-it-works",
+    );
+    expect(content.map((record) => record.url)).toContain(
+      "/safe-content-frame/docs/how-it-works",
     );
   });
 

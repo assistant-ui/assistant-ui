@@ -48,7 +48,6 @@ const checkoutOf = (
       products: state?.products.map((product) => product.slug) ?? [],
       startedAt: 0,
       introSeen: true,
-      licenseAccepted: true,
       ...scene.session,
     },
     url: "https://checkout.test/viewer",
@@ -128,7 +127,7 @@ export function ComponentViewer() {
         <nav className="border-border overflow-y-auto border-r p-3 text-sm">
           {groups.map((group) => (
             <div key={group} className="mb-4">
-              <p className="text-muted-foreground mb-1 px-2 text-xs font-medium uppercase">
+              <p className="text-muted-foreground mb-1 px-2 text-xs font-medium">
                 {group}
               </p>
               {ENTRIES.filter((item) => item.group === group).map((item) => (

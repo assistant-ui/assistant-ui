@@ -14,7 +14,7 @@ A canvas split sets a document beside the thread instead of inside it: the conve
 
 ### Render the document from a tool call
 
-A tool whose result is the document, its arguments streaming in as the model writes it, is what the still-being-written half of this pattern is built on. Register a renderer for it through `MessagePrimitive.Parts`:
+The document comes from a tool call whose arguments stream in as the model writes it. Register a renderer for it through `MessagePrimitive.Parts`:
 
 ```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
@@ -43,7 +43,7 @@ function DocumentTool({ args, status }: ToolCallMessagePartProps<DocArgs>) {
 <MessagePrimitive.Parts components={{ tools: { by_name: { write_document: DocumentTool } } }} />
 ```
 
-`args` is a partial parse while the model is still streaming its call, fields can be missing or incomplete, so `useToolArgsStatus` is what tells you `content` specifically is still arriving rather than just checking the call's overall `status`.
+While the model is still streaming its call, `args` is a partial parse and fields can be missing or incomplete. `useToolArgsStatus` reports whether `content` itself is still arriving, which the call's overall `status` does not.
 
   </Step>
   <Step>
@@ -147,7 +147,7 @@ Toggle `writing` while your own generation is in progress; the caret appends aft
 </div>
 ```
 
-Below `md`, the thread and the document stack vertically instead of splitting side by side; at `md` and up the layout becomes a row. `CanvasSplitHeader`'s copy and close buttons both disable themselves the same way `ChatPanelComposer`'s send button does, whenever `onCopy` or `onClose` is left `undefined`. `CanvasSplitBody`'s blinking caret is purely presentational: it renders whenever `writing` is true, appended after whatever `children` you pass, so it always trails the last line.
+The layout follows the width of the canvas split itself, not the viewport: below 36rem (the `@xl` container size) the thread and the document stack vertically, and from 36rem up they split into a row, so it also stacks in a narrow sidebar or panel. `CanvasSplitHeader`'s copy and close buttons both disable themselves the same way `ChatPanelComposer`'s send button does, whenever `onCopy` or `onClose` is left `undefined`. `CanvasSplitBody`'s blinking caret is purely presentational: it renders whenever `writing` is true, appended after whatever `children` you pass, so it always trails the last line.
 
 ## Examples
 
@@ -188,14 +188,14 @@ The same is true with a runtime: `CanvasSplitDocument` and its children are plai
 | Part | Renders | Notes |
 |------|---------|-------|
 | `MessagePrimitive.Parts` | children | `components.tools.by_name[toolName]` registers a renderer for that tool's calls. |
-| `ThreadPrimitive.Viewport` / `.Messages` | `div` / children | The thread rail; the same primitives as any other thread, just narrower. |
+| `ThreadPrimitive.Viewport` / `.Messages` | `div` / children | The thread rail; the same primitives as any other thread, in a narrower column. |
 
 ### Tool call part
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `args` | `TArgs` (partial while streaming) | The model's arguments so far. |
-| `status.type` | `"running" \| "complete" \| "incomplete"` | The call's own lifecycle, not per field. |
+| `status.type` | `"running" \| "requires-action" \| "complete" \| "incomplete"` | The call's own lifecycle, not per field. |
 | `useToolArgsStatus().propStatus` | `Partial<Record<keyof TArgs, "streaming" \| "complete">>` | Per-argument streaming state; call from inside the tool renderer. |
 
 </RuntimeMode>
@@ -206,7 +206,7 @@ The same is true with a runtime: `CanvasSplitDocument` and its children are plai
 
 | Part | Renders | Props | Description |
 |------|---------|-------|-------------|
-| `CanvasSplit` | `div` | `className` | Root; stacks below `md`, splits row-wise at `md` and up. |
+| `CanvasSplit` | `div` | `className` | Root and size container; stacks below `@xl` (36rem of its own width), splits row-wise from `@xl` up. |
 | `CanvasSplitThread` | `div` | `className` | The narrow message rail. |
 | `CanvasSplitMessage` | `div` | `speaker: "user" \| "assistant"`, `className` | Right-aligned bubble for `"user"`, plain text for `"assistant"`. |
 | `CanvasSplitDocument` | `div` | `className` | The document column. |

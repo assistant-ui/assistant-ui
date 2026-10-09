@@ -35,7 +35,9 @@ export function MathBlock({
 
       {...props}
     >
-      {label && <span className={cn(mono, "text-foreground/30")}>{label}</span>}
+      {label && (
+        <span className={cn(mono, "text-muted-foreground")}>{label}</span>
+      )}
 
       {take(steps, visibleSteps).map((step, i) => (
         <div
@@ -46,7 +48,7 @@ export function MathBlock({
             {step.expression}
           </span>
           {step.note && (
-            <span className={cn(mono, "text-foreground/30 text-center")}>
+            <span className={cn(mono, "text-muted-foreground text-center")}>
               {step.note}
             </span>
           )}

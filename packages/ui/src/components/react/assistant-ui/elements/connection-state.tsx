@@ -54,11 +54,14 @@ export function ConnectionState({
 
       {phase === "reconnecting" && (
         <>
-          <Loader2Icon className="text-foreground/40 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
+          <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
           <span className="min-w-0 flex-1 text-[13px]">Reconnecting</span>
           {attempt !== undefined && (
             <span
-              className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
+              className={cn(
+                mono,
+                "text-muted-foreground shrink-0 tabular-nums",
+              )}
             >
               attempt {attempt}
             </span>
@@ -74,7 +77,10 @@ export function ConnectionState({
           </span>
           {resumedTokens !== undefined && (
             <span
-              className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
+              className={cn(
+                mono,
+                "text-muted-foreground shrink-0 tabular-nums",
+              )}
             >
               +{resumedTokens} tokens
             </span>

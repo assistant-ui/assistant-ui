@@ -4,7 +4,7 @@ description: Let the model compose an interface at runtime from a component voca
 platforms: ["react"]
 ---
 
-Generative UI inverts the usual tool-rendering relationship. Instead of writing one component per tool, you ship a **vocabulary** of components and let the model assemble them. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
+With generative UI, you ship a **vocabulary** of components and let the model assemble them, instead of writing one component per tool. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
 The package ships a default vocabulary of 29 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
@@ -144,11 +144,14 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -301,7 +304,11 @@ Any value inside `$action` can be a `{ "$field": name }` reference instead, whic
 }
 ```
 
-On Teams, `decodeSubmitData` resolves these references from the card's inputs; on Slack, a button click carries no other control's value, so the converter replaces them with their fallback and warns.
+On Teams, `decodeSubmitData` resolves these references from the card's inputs. On Slack, pass the interaction payload's `state.values` alongside its action to `decodeBlockAction` to resolve references from named controls; a missing field uses its fallback when provided.
+
+`Input` accepts an optional `inputType` of `"text"`, `"password"`, or `"number"` for a single line control, defaulting to text. A number input uses `step="any"` and keeps its value as a string, including decimal values such as `"12.5"` and `""` when cleared. Setting `multiline` renders a textarea instead.
+
+`DatePicker` accepts `inputType` `"date"` (the default), `"time"`, or `"datetime"`. Its own `$action` runs once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form. Date values use `YYYY-MM-DD`; time values use `HH:mm` or `HH:mm:ss`; datetime values use `YYYY-MM-DDTHH:mm` with optional seconds, fractional seconds, and an offset (`Z` or `±HH:mm`). A datetime with an offset displays in the viewer's time zone and submits with the same offset; one without an offset submits unchanged. The [A2UI converter](/docs/tools/a2ui#component-mapping) maps `DateTimeInput` to the matching type, and uses a text `Input` when its value cannot fit that type. A single choice A2UI `ChoicePicker` maps to `RadioGroup` even for a `chips` display hint, preserving an empty selection as `[]` and a selected value as a one item string array; `multipleSelection` maps to `CheckboxGroup`.
 
 A control resets to its initial value (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) whenever a re-render changes that value, and otherwise keeps what the user entered.
 
@@ -333,7 +340,7 @@ Carousel paging controls appear only when cards overflow the available width. Ea
 
 ## Styling
 
-The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it inherits nothing and collides with nothing. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
+The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it cannot conflict with your CSS. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
 
 A `Card` renders as a plain section by default, so several in a row read as one answer rather than a stack of boxes. It takes on a framed surface only where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
 
@@ -374,7 +381,7 @@ const generative = new JSONGenerativeUI({
 
 The library is the boundary on **which** components can render: the model can only name components you put in it, resolved by lookup with no `eval` and no dynamic import. Unknown names are dropped.
 
-Props are a separate question. Each component's zod schema validates what the model sends, so a component that declares only primitive, display-oriented props cannot receive anything else. When you add a component that takes a URL, a raw HTML string, or anything that becomes executable, validate it inside that component; the schema constrains shape, not intent.
+Props are a separate question. Each component's `properties` schema shapes the `present` tool parameters the model sees, but the renderer does not validate incoming props against that schema. Treat props as untrusted input: validate URLs and values passed to APIs, and sanitize content rendered as raw HTML. Components with `streamProperties: true` can also receive partial props while the model is streaming, so account for incomplete values.
 
 ## Beyond the browser
 

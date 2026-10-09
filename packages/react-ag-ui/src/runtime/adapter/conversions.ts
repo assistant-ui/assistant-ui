@@ -6,14 +6,13 @@ import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
   ReasoningMessagePart,
-  ThreadMessage,
-  ToolCallMessagePartMcpMetadata,
-  ToolModelContentPart,
 } from "@assistant-ui/core";
 import {
   getAutoStatus,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
+  walkToolCallTree,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -23,11 +22,10 @@ import {
   MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
-} from "./run-aggregator";
+} from "../types";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
@@ -99,28 +97,16 @@ export type AgUiMessage =
       error?: string;
     };
 
-type ToolCallPart = {
-  type: "tool-call";
-  toolCallId?: string;
-  toolName: string;
-  argsText?: string;
-  args?: ReadonlyJSONObject;
-  result?: unknown;
-  artifact?: unknown;
-  isError?: boolean;
-  modelContent?: readonly ToolModelContentPart[];
-  unstable_toolMessageId?: string;
-  mcp?: ToolCallMessagePartMcpMetadata;
-  messages?: readonly ThreadMessage[];
-  approval?: CoreToolCallPartApproval;
-};
-
-type CoreToolCallPartApproval = NonNullable<
-  Extract<
-    Exclude<CoreThreadMessageLike["content"], string>[number],
-    { type: "tool-call" }
-  >["approval"]
+type CoreToolCallPart = Extract<
+  Exclude<CoreThreadMessageLike["content"], string>[number],
+  { type: "tool-call" }
 >;
+
+type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
+  result?: unknown;
+  isError?: boolean | undefined;
+  unstable_toolMessageId?: string;
+};
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -215,6 +201,9 @@ function normalizeToolCall(part: ToolCallPart): {
   };
 }
 
+const isExportableNestedToolCall = (part: { readonly toolCallId?: unknown }) =>
+  typeof part.toolCallId === "string" && !part.toolCallId.startsWith("a2ui:");
+
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
@@ -287,9 +276,16 @@ function toInputContent(
     const image = getString(part, "image");
     if (image === undefined) return null;
     const metadata = buildInputMetadata(part, getString(part, "filename"));
+    const source = buildInputSource(image, fallbackMimeType);
     return {
       type: "image",
-      source: buildInputSource(image, fallbackMimeType),
+      source:
+        source.type === "data"
+          ? {
+              ...source,
+              mimeType: resolveImageMediaType(image, fallbackMimeType),
+            }
+          : source,
       ...(metadata && { metadata }),
     };
   }
@@ -513,7 +509,6 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
       : isObject(value.args) && !Array.isArray(value.args)
         ? (value.args as ReadonlyJSONObject)
         : undefined;
-
   const part: ToolCallPart = {
     type: "tool-call",
     ...(toolCallId !== undefined ? { toolCallId } : {}),
@@ -704,27 +699,17 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
-// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
-// assistant message from a bucket of rebuilt surface state, mirroring the
-// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
-// other tool calls) are preserved; existing a2ui parts are replaced wholesale
-// so create/update/delete within the bucket all converge on the rebuilt set.
 function attachA2uiSurfaces(
   message: CoreThreadMessageLike,
   state: A2uiState,
 ): CoreThreadMessageLike {
   const a2uiParts: ToolCallPart[] = [];
   for (const [surfaceId, surface] of state) {
-    const { spec } = convertSurfaceToUISpec(surface);
-    if (!spec) continue;
+    const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+    if (!toolCall) continue;
     a2uiParts.push({
       type: "tool-call",
-      toolCallId: `a2ui:${surfaceId}`,
-      toolName: "present",
-      args: spec as unknown as ReadonlyJSONObject,
-      argsText: JSON.stringify(spec),
-      result: {},
-      artifact: { a2ui: surfaceToOperations(surface) },
+      ...toolCall,
     });
   }
 
@@ -1316,7 +1301,16 @@ function convertAssistantMessage(
     part: ToolCallPart;
   }[] = [];
   for (const { part } of toolCalls) {
-    collectNestedToolCalls(part, nestedToolCalls);
+    for (const { part: nestedToolCall } of walkToolCallTree(
+      part.messages ?? [],
+      { shouldDescend: isExportableNestedToolCall },
+    )) {
+      if (!isExportableNestedToolCall(nestedToolCall)) continue;
+      nestedToolCalls.push({
+        ...normalizeToolCall(nestedToolCall),
+        part: nestedToolCall,
+      });
+    }
   }
 
   converted.push({
@@ -1345,28 +1339,6 @@ function convertAssistantMessage(
       part.approval.resolution === undefined;
     if (gateOpen) continue;
     emitToolResult(toolCallId, part, converted);
-  }
-}
-
-function collectNestedToolCalls(
-  part: ToolCallPart,
-  out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
-): void {
-  for (const nested of part.messages ?? []) {
-    if (!isObject(nested) || nested.role !== "assistant") continue;
-    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
-    for (const nestedPart of nestedContent) {
-      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
-      const nestedToolCall = nestedPart as ToolCallPart;
-      if (
-        typeof nestedToolCall.toolCallId !== "string" ||
-        nestedToolCall.toolCallId.startsWith("a2ui:")
-      ) {
-        continue;
-      }
-      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
-      collectNestedToolCalls(nestedToolCall, out);
-    }
   }
 }
 

@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * A/B concurrency tests for pending updates in tap-scheduled sub-roots.
  *
@@ -27,6 +28,7 @@ import {
   useReducer,
   useState,
   useSyncExternalStore,
+  version,
 } from "react";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import { useTapRoot } from "../../index";
@@ -67,6 +69,8 @@ const useCounters = () => {
     [a, b],
   );
 };
+
+const onReact18 = version.startsWith("18.");
 
 const ShouldNeverFallback = () => {
   throw new Error("should never fallback");
@@ -130,75 +134,79 @@ describe("pending updates under concurrent rendering (react vs tap)", () => {
     expect(tapLog).toEqual(reactLog);
   });
 
-  it("pending dispatches survive a render attempt discarded by suspense", async () => {
-    const run = async (world: WorldName): Promise<string[]> => {
-      const checkpoints: string[] = [];
-      let api!: ReturnType<typeof useCounters>;
-      let resolve!: (v: number) => void;
-      const gate = new Promise<number>((r) => {
-        resolve = r;
-      });
+  // Suspends through use(promise), which React 18 lacks.
+  it.skipIf(onReact18)(
+    "pending dispatches survive a render attempt discarded by suspense",
+    async () => {
+      const run = async (world: WorldName): Promise<string[]> => {
+        const checkpoints: string[] = [];
+        let api!: ReturnType<typeof useCounters>;
+        let resolve!: (v: number) => void;
+        const gate = new Promise<number>((r) => {
+          resolve = r;
+        });
 
-      function Suspender() {
-        return use(gate);
-      }
+        function Suspender() {
+          return use(gate);
+        }
 
-      function App() {
-        const counters = useInWorld(world, useCounters);
-        api = counters;
-        const [load, setLoad] = useState(false);
-        return (
-          <>
-            <button
-              type="button"
-              data-testid="suspend"
-              onClick={() => startTransition(() => setLoad(true))}
-            />
-            <div data-testid="out">
-              a={counters.a} b={counters.b}
-            </div>
-            <Suspense fallback={<ShouldNeverFallback />}>
-              <div data-testid="gated">{load ? <Suspender /> : "none"}</div>
-            </Suspense>
-          </>
+        function App() {
+          const counters = useInWorld(world, useCounters);
+          api = counters;
+          const [load, setLoad] = useState(false);
+          return (
+            <>
+              <button
+                type="button"
+                data-testid="suspend"
+                onClick={() => startTransition(() => setLoad(true))}
+              />
+              <div data-testid="out">
+                a={counters.a} b={counters.b}
+              </div>
+              <Suspense fallback={<ShouldNeverFallback />}>
+                <div data-testid="gated">{load ? <Suspender /> : "none"}</div>
+              </Suspense>
+            </>
+          );
+        }
+
+        render(
+          <StrictMode>
+            <App />
+          </StrictMode>,
         );
-      }
 
-      render(
-        <StrictMode>
-          <App />
-        </StrictMode>,
-      );
+        // Start a transition whose render attempt suspends (and is repeatedly
+        // discarded/retried while the gate is pending).
+        await act(async () => {
+          screen.getByTestId("suspend").click();
+        });
 
-      // Start a transition whose render attempt suspends (and is repeatedly
-      // discarded/retried while the gate is pending).
-      await act(async () => {
-        screen.getByTestId("suspend").click();
-      });
+        // Dispatch while the suspended transition is in flight; the urgent
+        // re-render and discarded transition attempts race the tap flush.
+        await act(async () => {
+          api.add(1);
+        });
+        checkpoints.push(screen.getByTestId("out").textContent!);
 
-      // Dispatch while the suspended transition is in flight; the urgent
-      // re-render and discarded transition attempts race the tap flush.
-      await act(async () => {
-        api.add(1);
-      });
-      checkpoints.push(screen.getByTestId("out").textContent!);
+        await act(async () => {
+          resolve(7);
+        });
+        checkpoints.push(screen.getByTestId("out").textContent!);
+        checkpoints.push(screen.getByTestId("gated").textContent!);
 
-      await act(async () => {
-        resolve(7);
-      });
-      checkpoints.push(screen.getByTestId("out").textContent!);
-      checkpoints.push(screen.getByTestId("gated").textContent!);
+        return checkpoints;
+      };
 
-      return checkpoints;
-    };
+      const reactLog = await run("react");
+      cleanup();
+      const tapLog = await run("tap");
 
-    const reactLog = await run("react");
-    cleanup();
-    const tapLog = await run("tap");
-
-    expect(reactLog).toEqual(["a=1 b=102", "a=1 b=102", "7"]);
-    expect(tapLog).toEqual(reactLog);
-  });
+      expect(reactLog).toEqual(["a=1 b=102", "a=1 b=102", "7"]);
+      expect(tapLog).toEqual(reactLog);
+    },
+  );
 
   it("suspension between chained reducer cells leaves no partial or double application", async () => {
     const run = async (world: WorldName): Promise<string[]> => {

@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Differential StrictMode parity suite.
  *
@@ -9,8 +10,8 @@
  *  2. bridge   — as a resource hosted via useResource inside <StrictMode>
  *  3. tap root — as a resource under createTapRoot (self-emulated strict mode)
  *
- * Each test runs the scenario in the react world to capture the expected event
- * log, then asserts the tap worlds produce the identical log. React is the
+ * Each scenario runs in the react world to capture the expected event log,
+ * then the tests assert the tap worlds produce the identical log. React is the
  * source of truth; there are no hand-maintained expected sequences to drift.
  */
 /* oxlint-disable react/exhaustive-deps -- intentional missing-dep patterns are part of the scenarios */
@@ -23,6 +24,7 @@ import {
   useReducer,
   useRef,
   useState,
+  version,
 } from "react";
 import { render, act, cleanup } from "@testing-library/react";
 import { resource } from "../../core/resource";
@@ -30,6 +32,8 @@ import { createTapRoot } from "../../core/createTapRoot";
 import { flushTapSync } from "../../core/scheduler";
 import { useResource } from "../../index";
 import { cleanupAllResources } from "../test-utils";
+
+const onReact18 = version.startsWith("18.");
 
 type Log = (event: string) => void;
 
@@ -56,6 +60,12 @@ type Scenario = {
    * multiset and final state must still match React exactly.
    */
   bridgeDefersEagerInvocation?: boolean;
+  /**
+   * React 18's StrictMode replay re-runs the updaters this scenario logs,
+   * which React 19's replay and the bridge do not, so the bridge's log
+   * differs on React 18.
+   */
+  react18ReplaysUpdaters?: boolean;
 };
 
 const settleDelay = () => new Promise<void>((r) => setTimeout(r, 30));
@@ -271,11 +281,16 @@ const scenarios: Scenario[] = [
       log(`render ${count}`);
       useEffect(() => {
         if (count === 0) {
-          setTimeout(() => {
+          // The cleanup matters: without it the strict double effect-mount
+          // schedules two timers, and whether their dispatches batch into one
+          // render is a race between the timer phase and the schedulers.
+          const timer = setTimeout(() => {
             log("timeout");
             setCount(1);
           }, 5);
+          return () => clearTimeout(timer);
         }
+        return undefined;
       }, [count]);
     },
     drive: ({ settle }) => settle(),
@@ -312,6 +327,7 @@ const scenarios: Scenario[] = [
   },
   {
     name: "updater setState from both strict effect mounts chains",
+    react18ReplaysUpdaters: true,
     use: (log) => {
       const [count, setCount] = useState(0);
       const runs = useRef(0);
@@ -339,6 +355,7 @@ const scenarios: Scenario[] = [
   },
   {
     name: "updater returning a different value per invocation",
+    react18ReplaysUpdaters: true,
     bridgeDefersEagerInvocation: true,
     use: (log) => {
       const [count, setCount] = useState(0);
@@ -375,22 +392,29 @@ describe("StrictMode parity (React vs tap)", () => {
 
   for (const scenario of scenarios) {
     describe(scenario.name, () => {
-      it("tap-in-React bridge matches React", async () => {
-        const reactLog = await runReact(scenario);
-        cleanup();
-        const bridgeLog = await runBridge(scenario);
-        if (scenario.bridgeDefersEagerInvocation) {
-          expect([...bridgeLog].sort()).toEqual([...reactLog].sort());
-        } else {
-          expect(bridgeLog).toEqual(reactLog);
-        }
-      });
+      let reactLog: Promise<string[]> | undefined;
+      const getReactLog = () => (reactLog ??= runReact(scenario));
 
-      it("tap root matches React", async () => {
-        const reactLog = await runReact(scenario);
+      it.skipIf(onReact18 && scenario.react18ReplaysUpdaters)(
+        "tap-in-React bridge matches React",
+        async () => {
+          const expected = await getReactLog();
+          cleanup();
+          const bridgeLog = await runBridge(scenario);
+          if (scenario.bridgeDefersEagerInvocation) {
+            expect([...bridgeLog].sort()).toEqual([...expected].sort());
+          } else {
+            expect(bridgeLog).toEqual(expected);
+          }
+        },
+      );
+
+      // The tap root emulates React 19's StrictMode replay, which reuses hook state that React 18's replay recomputes.
+      it.skipIf(onReact18)("tap root matches React", async () => {
+        const expected = await getReactLog();
         cleanup();
         const tapLog = await runTapRoot(scenario);
-        expect(tapLog).toEqual(reactLog);
+        expect(tapLog).toEqual(expected);
       });
     });
   }
@@ -408,7 +432,8 @@ describe("render-phase update: setState during render", () => {
     if (count === 0) setCount(1);
   };
 
-  it("React re-renders with the new state", async () => {
+  // React 18's StrictMode replay starts over from the initial state, so it repeats the render-phase update pass.
+  it.skipIf(onReact18)("React re-renders with the new state", async () => {
     const events = await runInReact({ name: "", use }, (log) => use(log));
     expect(events).toEqual(["render 0", "render 1", "render 1"]);
   });

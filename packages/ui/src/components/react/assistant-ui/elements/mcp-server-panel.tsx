@@ -66,7 +66,7 @@ export function McpServerPanel({
     >
       <div className="flex items-baseline justify-between px-1 pb-1">
         <span className="text-[13.5px] font-medium">Servers</span>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {connected} of {servers.length} connected
         </span>
       </div>
@@ -81,15 +81,15 @@ export function McpServerPanel({
           <>
             <ChevronRightIcon
               className={cn(
-                "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+                "text-muted-foreground size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
                 expanded && "rotate-90",
               )}
             />
-            <PlugIcon className="text-foreground/35 size-3.5 shrink-0" />
+            <PlugIcon className="text-muted-foreground size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate text-[13.5px]">
               {server.name}
             </span>
-            <span className={cn(mono, "text-foreground/30 shrink-0")}>
+            <span className={cn(mono, "text-muted-foreground shrink-0")}>
               {server.tools.length} tools
             </span>
             <span
@@ -120,10 +120,10 @@ export function McpServerPanel({
             {expanded && (
               <div className="fade-in slide-in-from-top-1 animate-in flex flex-col gap-1.5 px-1.5 ps-8 pb-2 duration-200">
                 <div className="flex items-center gap-2">
-                  <span className={cn(mono, "text-foreground/30")}>
+                  <span className={cn(mono, "text-muted-foreground")}>
                     {server.transport}
                   </span>
-                  <span className={cn(mono, "text-foreground/30")}>
+                  <span className={cn(mono, "text-muted-foreground")}>
                     · {LABEL[server.status]}
                   </span>
                   {server.status === "needs-auth" && onAuthorize && (
@@ -143,7 +143,7 @@ export function McpServerPanel({
                       className={cn(
                         field,
                         mono,
-                        "text-foreground/55 rounded-md px-1.5 py-0.5",
+                        "text-muted-foreground rounded-md px-1.5 py-0.5",
                       )}
                     >
                       {tool}

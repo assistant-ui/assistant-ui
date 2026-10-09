@@ -167,11 +167,11 @@ jobs:
 
           case "$status" in
             200)
-              latest=$(python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("version") or "")' < "$pypi_body")
+              highest=$(python3 -c 'import sys, json, re; vs = [tuple(map(int, v.split("."))) for v in json.load(sys.stdin).get("releases", {}) if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", v)]; print(".".join(map(str, max(vs))) if vs else "")' < "$pypi_body")
               exists=$(python3 -c 'import sys, json; d=json.load(sys.stdin); print("true" if sys.argv[1] in d.get("releases", {}) else "false")' "$version" < "$pypi_body")
               ;;
             404)
-              latest=""
+              highest=""
               exists="false"
               ;;
             *)
@@ -180,12 +180,18 @@ jobs:
               ;;
           esac
 
-          if [ -n "$latest" ] && [ "$version" != "$latest" ]; then
-            highest=$(printf '%s\n%s\n' "$latest" "$version" | sort -V | tail -n1)
-            if [ "$highest" != "$version" ]; then
-              echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: lower than current PyPI latest ($latest)" >&2
-              exit 1
-            fi
+          if [ -n "$highest" ] && [ "$version" != "$highest" ]; then
+            IFS=. read -r major minor patch <<< "$highest"
+            next_patch="$major.$minor.$((patch + 1))"
+            next_minor="$major.$((minor + 1)).0"
+            next_major="$((major + 1)).0.0"
+            case "$version" in
+              "$next_patch" | "$next_minor" | "$next_major") ;;
+              *)
+                echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: the highest release on PyPI is $highest, so the next release is $next_patch, $next_minor, or $next_major" >&2
+                exit 1
+                ;;
+            esac
           fi
 
           if [ "$exists" = "true" ]; then
@@ -239,7 +245,7 @@ jobs:
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # ratchet:astral-sh/setup-uv@v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
         with:
           # No cache - hardened against cache poisoning for sensitive publish operations
           enable-cache: false

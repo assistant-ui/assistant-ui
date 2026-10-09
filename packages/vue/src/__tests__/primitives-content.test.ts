@@ -22,6 +22,7 @@ import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
 import { ThreadPrimitiveViewportFooter } from "../primitives/ThreadPrimitiveViewportFooter";
+import { MessagePrimitiveRoot } from "../primitives/message";
 import {
   ThreadPrimitiveScrollToBottom,
   clearScrollToBottomWarningForTesting,
@@ -374,6 +375,85 @@ describe("ThreadPrimitiveViewport", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(scrollTo.mock.calls.length).toBe(callsAfterUnpin);
 
+    unmount();
+  });
+
+  it("pauses following when a message disclosure expands", async () => {
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          {
+            class: "viewport",
+            scrollToBottomOnInitialize: false,
+          },
+          {
+            default: () =>
+              h(ThreadPrimitiveMessages, null, {
+                default: () =>
+                  h(MessagePrimitiveRoot, null, {
+                    default: () =>
+                      h(
+                        "button",
+                        { class: "disclosure", "aria-expanded": "false" },
+                        "Expand",
+                      ),
+                  }),
+              }),
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    let scrollHeight = 500;
+    let scrollTop = 400;
+    Object.defineProperties(div, {
+      scrollHeight: {
+        get: () => scrollHeight,
+        configurable: true,
+      },
+      clientHeight: { value: 100, configurable: true },
+      scrollTop: {
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+        configurable: true,
+      },
+    });
+    const scrollTo = vi.fn(({ top }: { top: number }) => {
+      scrollTop = Math.max(0, Math.min(top, scrollHeight - 100));
+      div.dispatchEvent(new Event("scroll"));
+    });
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    flushTapSync(() =>
+      append({ role: "assistant", content: [{ type: "text", text: "one" }] }),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("[data-message-id]")).not.toBeNull();
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    scrollTo.mockClear();
+
+    const disclosure =
+      el.querySelector<HTMLButtonElement>("button.disclosure")!;
+    disclosure.addEventListener("click", (event) => {
+      disclosure.setAttribute("aria-expanded", "true");
+      event.stopPropagation();
+    });
+    disclosure.click();
+    scrollHeight = 600;
+    el.querySelector("[data-message-id]")!.append(document.createElement("p"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(400);
     unmount();
   });
 

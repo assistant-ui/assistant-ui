@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 import {
   highlightElementSource,
@@ -18,7 +20,7 @@ import {
   ShadcnInstallTabs,
 } from "@/components/pages/docs/fumadocs/install/package-manager-tabs";
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
-import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
+import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
 import { AgentSetup } from "@/components/shared/shop-entry";
@@ -91,7 +93,7 @@ function Figure({
   return (
     <figure className="mt-10">
       {children}
-      <figcaption className="text-muted-foreground mt-2.5 font-mono text-[11px]">
+      <figcaption className="text-muted-foreground mt-2.5 text-xs">
         {caption}
       </figcaption>
     </figure>
@@ -107,14 +109,16 @@ export default async function ElementPage({
   const element = getElement(slug);
   if (!element) notFound();
 
-  const doc = ELEMENT_DOCS[slug];
+  const doc = AUI_ELEMENT_DOCS[slug];
+  const mdxPage = elementsDocs.getPage([slug]);
   const generativeEntry = element.generative
     ? getGenerativeElement(slug)
     : undefined;
   const registryName =
     element.registryName ?? `elements-${element.installName ?? element.slug}`;
   const source = element.file ? await readElementSource(element.file) : null;
-  const highlightedUsage = doc ? await highlightElementSource(doc.usage) : null;
+  const highlightedUsage =
+    doc && !mdxPage ? await highlightElementSource(doc.usage) : null;
   const specJson = generativeEntry
     ? JSON.stringify(generativeEntry.template.tree, null, 2)
     : null;
@@ -125,7 +129,6 @@ export default async function ElementPage({
     ? await highlightElementSource(GENERATIVE_USAGE)
     : null;
 
-  const mdxPage = elementsDocs.getPage([slug]);
   const mdxData = mdxPage ? await mdxPage.data.load() : undefined;
   const MdxBody = mdxData?.body;
   const mdxHasApi = Boolean(
@@ -170,6 +173,50 @@ export default async function ElementPage({
 
   const showToc = toc.length >= 3;
 
+  const manualInstall = element.generative ? (
+    <PackageManagerTabs packages={["@assistant-ui/react-generative-ui"]} />
+  ) : hasModes ? (
+    <>
+      <ElementModeToggle className="mb-6" />
+      <RuntimeMode>
+        <ShadcnInstallTabs urls={[`"@assistant-ui/${registryName}"`]} />
+        <RuntimeSetup />
+      </RuntimeMode>
+      <StandaloneMode>
+        {runtimeComposedOnly ? (
+          <p className="text-muted-foreground text-sm">
+            This component is composed from runtime primitives and has no
+            standalone build.
+            {counterpart && (
+              <>
+                {" "}
+                The runtime-free design ships as{" "}
+                <Link
+                  href={`/elements/${counterpart.slug}`}
+                  className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
+                >
+                  {counterpart.title}
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        ) : (
+          <>
+            <ShadcnInstallTabs
+              urls={[`"@assistant-ui/${standaloneRegistryName}"`]}
+            />
+            <p className="text-muted-foreground mt-4 text-sm">
+              Props-driven: no runtime or provider required.
+            </p>
+          </>
+        )}
+      </StandaloneMode>
+    </>
+  ) : (
+    <ShadcnInstallTabs urls={[`"@assistant-ui/${registryName}"`]} />
+  );
+
   return (
     <ElementModeProvider
       native={Boolean(nativeRegistryName)}
@@ -200,18 +247,9 @@ export default async function ElementPage({
                 </Link>
               </p>
             )}
-            {(hasModes || nativeRegistryName) && (
-              <div className="border-border/60 mt-6 flex items-end justify-between gap-6 border-b">
-                {hasModes ? (
-                  <ReactLane>
-                    <ElementModeToggle className="border-b-0" />
-                  </ReactLane>
-                ) : (
-                  <span />
-                )}
-                {nativeRegistryName && (
-                  <ElementPlatformToggle className="ms-auto mb-2" />
-                )}
+            {nativeRegistryName && (
+              <div className="mt-6 flex justify-end">
+                <ElementPlatformToggle />
               </div>
             )}
           </header>
@@ -270,56 +308,30 @@ export default async function ElementPage({
                   </NativeLane>
                 )}
                 <ReactLane>
-                  <AgentSetup product={elementProductSlug(element.slug)} />
-                  {element.generative ? (
-                    <PackageManagerTabs
-                      packages={["@assistant-ui/react-generative-ui"]}
-                    />
-                  ) : hasModes ? (
+                  {checkoutEnabled ? (
                     <>
-                      <RuntimeMode>
-                        <ShadcnInstallTabs
-                          urls={[`"@assistant-ui/${registryName}"`]}
-                        />
-                        <RuntimeSetup />
-                      </RuntimeMode>
-                      <StandaloneMode>
-                        {runtimeComposedOnly ? (
-                          <p className="text-muted-foreground text-sm">
-                            This component is composed from runtime primitives
-                            and has no standalone build.
-                            {counterpart && (
-                              <>
-                                {" "}
-                                The runtime-free design ships as{" "}
-                                <Link
-                                  href={`/elements/${counterpart.slug}`}
-                                  className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
-                                >
-                                  {counterpart.title}
-                                </Link>
-                                .
-                              </>
-                            )}
-                          </p>
-                        ) : (
-                          <>
-                            <ShadcnInstallTabs
-                              urls={[
-                                `"@assistant-ui/${standaloneRegistryName}"`,
-                              ]}
-                            />
-                            <p className="text-muted-foreground mt-4 text-sm">
-                              Props-driven: no runtime or provider required.
-                            </p>
-                          </>
-                        )}
-                      </StandaloneMode>
+                      <AgentSetup
+                        product={elementProductSlug(element.slug)}
+                        prominent
+                      />
+                      <details className="group/manual">
+                        <summary
+                          className={cn(
+                            buttonVariants({ variant: "outline", size: "sm" }),
+                            "not-prose cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                          )}
+                        >
+                          Install manually
+                          <ChevronDownIcon
+                            aria-hidden
+                            className="transition-[rotate] group-open/manual:rotate-180 motion-reduce:transition-none"
+                          />
+                        </summary>
+                        <div className="mt-6">{manualInstall}</div>
+                      </details>
                     </>
                   ) : (
-                    <ShadcnInstallTabs
-                      urls={[`"@assistant-ui/${registryName}"`]}
-                    />
+                    manualInstall
                   )}
                 </ReactLane>
               </div>
@@ -422,7 +434,7 @@ export default async function ElementPage({
                 className="group text-muted-foreground hover:text-foreground flex items-center gap-2 text-[13px] transition-colors"
               >
                 <ArrowLeftIcon className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
-                <span className="font-mono text-[11px] tabular-nums">
+                <span className="text-xs tabular-nums">
                   {String(previous.index).padStart(2, "0")}
                 </span>
                 {previous.title}
@@ -436,7 +448,7 @@ export default async function ElementPage({
                 scroll={false}
                 className="group text-muted-foreground hover:text-foreground flex items-center gap-2 text-[13px] transition-colors"
               >
-                <span className="font-mono text-[11px] tabular-nums">
+                <span className="text-xs tabular-nums">
                   {String(next.index).padStart(2, "0")}
                 </span>
                 {next.title}
@@ -449,7 +461,7 @@ export default async function ElementPage({
         </div>
         {showToc && (
           <nav aria-label="On this page" className="hidden xl:block">
-            <div className="bg-background sticky top-12 -mt-20 flex max-h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
+            <div className="bg-background sticky top-12 -mt-20 flex max-h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 text-xs [&::-webkit-scrollbar]:hidden">
               <span className="text-foreground/40">On this page</span>
               {toc.map((item) => (
                 <a

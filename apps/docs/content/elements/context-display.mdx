@@ -9,7 +9,7 @@ Context display turns a model's token usage into a small gauge with three faces:
 
 <RuntimeMode>
 
-Runtime usage needs two things: your server actually returning token counts, and a preset mounted somewhere in the UI.
+Runtime usage needs two things: your server returning token counts, and a preset mounted somewhere in the UI.
 
 <Steps>
   <Step>
@@ -24,6 +24,7 @@ import { streamText, convertToModelMessages } from "ai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: getModel(),
     messages: await convertToModelMessages(messages),
   });
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Without this step there is no usage to read, and `Root` renders nothing at all: no preset, no trigger, no tooltip. The display appears with the first reply that reports usage.
+Without this step there is no usage to read, and the preset renders nothing, neither trigger nor tooltip. The display appears with the first reply that reports usage.
 
   </Step>
   <Step>
@@ -99,11 +100,11 @@ Every preset is the same shape: a trigger wrapped in a shared tooltip.
 
 ```tsx
 <button data-slot="context-display-trigger">
-  {/* Ring: SVG donut + percent. Bar: fill bar + token count. Text: "12k / 128k" */}
+  {/* Ring: SVG donut + percent. Bar: fill bar + token count and percent. Text: "12k / 128k" */}
 </button>
 <div data-slot="context-display-popover">
-  <div>Context         <span>{/* used / total, monospaced */}</span></div>
-  <div>{/* progress bar, min-width 1px once usage is nonzero */}</div>
+  <div>{/* "33% full" */} <span>{/* used / total, monospaced */}</span></div>
+  <div>{/* progress bar, min-width 4px once usage is nonzero */}</div>
   <div>Input           <span>{/* only when > 0 */}</span></div>
   <div>Cached input    <span>{/* only when > 0 */}</span></div>
   <div>Output          <span>{/* only when > 0 */}</span></div>
@@ -111,13 +112,13 @@ Every preset is the same shape: a trigger wrapped in a shared tooltip.
 </div>
 ```
 
-`Root` renders nothing until usage exists, so a thread that has not reported any yet shows no display rather than a zero placeholder. In Runtime mode an explicit `usage={undefined}` is not a way to hide the display: the `.aui` presets read it as "no usage was supplied" and fall back to `useThreadTokenUsage()`. Pass a usage object to control the display yourself, or omit the prop to let the thread drive it. The breakdown only lists segments with a nonzero token count, so a usage object that carries only `totalTokens` shows the summary line with no rows underneath it. Percent is clamped to 100 even when usage exceeds the context window. The running total is sticky rather than reactive to every update: it only moves when the incoming total is itself nonzero, or when `resetKey` changes. A momentary usage of `undefined` (or zero) between turns does not flash the number back down, but a changed `resetKey` snaps it immediately to whatever the new usage reports.
+`Root` renders nothing until usage exists, so a thread that has not reported any yet shows no display rather than a zero placeholder. In Runtime mode an explicit `usage={undefined}` is not a way to hide the display: the `.aui` presets read it as "no usage was supplied" and fall back to `useThreadTokenUsage()`. Pass a usage object to control the display yourself, or omit the prop to let the thread drive it. The breakdown only lists segments with a nonzero token count, so a usage object that carries only `totalTokens` shows the summary line with no rows underneath it. Percent is clamped to 100 even when usage exceeds the context window. The running total is sticky: it moves only when the incoming total is nonzero or when `resetKey` changes. A momentary usage of `undefined` (or zero) between turns does not flash the number back down, but a changed `resetKey` snaps it immediately to whatever the new usage reports.
 
 ## Examples
 
 ### Three presets
 
-Each preset wraps `Root`, `Trigger`, and `Content` with one specific visual. `Ring` draws an SVG donut with a percent label, `Bar` draws a fill bar with a token count beside it, and `Text` prints a plain fraction with no severity color at all. `Ring` and `Bar` both shift color at the same two thresholds: the default tone below 65% usage, amber from 65% to 85%, and red above 85%.
+Each preset wraps `Root`, `Trigger`, and `Content` with one specific visual. `Ring` draws an SVG donut with a percent label, `Bar` draws a fill bar with a token count and percent beside it, and `Text` prints a plain fraction with no severity color. `Ring` and `Bar` both shift color at the same two thresholds: the default tone below 65% usage, amber from 65% to 85%, and red above 85%.
 
 <RuntimeMode>
 
@@ -127,7 +128,7 @@ Each preset wraps `Root`, `Trigger`, and `Content` with one specific visual. `Ri
 <ContextDisplay.Text modelContextWindow={128000} />
 ```
 
-Any preset also accepts `usage` directly. Supplying it skips the internal `useThreadTokenUsage()` fetch and, along with it, the automatic thread-id reset key. This is useful when you already have usage from elsewhere and want to drive the badge yourself without giving up the runtime wiring for anything else on the page.
+Any preset also accepts `usage` directly. Supplying it skips the internal `useThreadTokenUsage()` fetch and, along with it, the automatic thread-id reset key. Use it when the usage comes from somewhere other than the thread's messages.
 
 </RuntimeMode>
 
@@ -193,13 +194,13 @@ Both lanes take `className` on the trigger, and `side` controls which edge the p
 | `children` | `ReactNode` | Required; typically `Trigger` and `Content`. |
 | `usage` | `TokenUsage` | Same override behavior as on the presets above. |
 
-`Trigger` and `Content` take the exact same props in both lanes; see their tables under Standalone below.
+`Trigger` and `Content` take the same props in both lanes; see their tables under Standalone below.
 
 ### Thread state
 
 | Selector | Type | Description |
 |----------|------|-------------|
-| `useThreadTokenUsage()` | `ThreadTokenUsage \| undefined` | Usage extracted from the latest assistant message that carries any, read from `metadata.usage`, a legacy `metadata.custom.usage`, or summed across `metadata.steps`. |
+| `useThreadTokenUsage()` | `ThreadTokenUsage \| undefined` | Usage extracted from the latest assistant message that carries any, read from `metadata.usage`, from `metadata.custom.usage` (where usage returned through `messageMetadata` lands), or summed across `metadata.steps`. |
 | `s.threadListItem.id` | `string` | Used internally as each preset's reset key, so switching threads restarts the running total. |
 
 </RuntimeMode>

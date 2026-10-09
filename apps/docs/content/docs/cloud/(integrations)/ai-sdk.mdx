@@ -11,7 +11,7 @@ description: Connect the AI SDK runtime to Assistant Cloud for persisted threads
 |---|---|
 | Cloud threads | The cloud thread-list adapter lists active and archived threads, creates a remote id when a thread initializes, and sends rename, archive, restore and delete actions to the project. |
 | Persistent message history | The AI SDK external-history layer stores messages in `ai-sdk/v6`, reloads a thread once when it is opened, and keeps local to cloud message ids so later writes target the stored row. |
-| Thread titles | The thread-list adapter can ask the cloud title assistant to name a thread. It sends only text and tool-call parts, so the project title feature can work from the conversation rather than from a client-only label. |
+| Thread titles | The thread-list adapter can ask the cloud title assistant to name a thread. It sends only text and tool-call parts. |
 | Run reports | A terminal assistant message becomes a report with message status, outcome, error, timings, steps, tool calls and the metadata your route supplied. |
 | Engagement events | The cloud history adapter subscribes to runtime interactions, then resolves the cloud thread and message ids before sending engagement data. |
 | Feedback | The default feedback adapter sends positive or negative feedback only after it can map the displayed message to its stored cloud row. |
@@ -96,14 +96,16 @@ import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
-  const { getToken } = useAuth();
+  const { getToken, userId, orgId } = useAuth();
+  const scope = userId === null ? null : `${userId ?? ""}:${orgId ?? ""}`;
   const cloud = useMemo(
     () =>
       new AssistantCloud({
         baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-        authToken: () => getToken({ template: "assistant-ui" }),
+        authToken: async () =>
+          scope === null ? null : getToken({ template: "assistant-ui" }),
       }),
-    [getToken],
+    [getToken, scope],
   );
 
   const runtime = useChatRuntime({ cloud });
@@ -273,6 +275,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const model = openai("gpt-6-luna");
   const result = streamText({
+    abortSignal: req.signal,
     model,
     messages: await convertToModelMessages(messages),
   });
@@ -303,6 +306,7 @@ export async function POST(req: Request) {
 | `useChatRuntime` option | Default | Behaviour |
 |---|---|---|
 | `cloud` | `undefined`, then on Next.js an anonymous client from `NEXT_PUBLIC_ASSISTANT_BASE_URL` when that environment variable exists | Supplies the remote list and registers the AI SDK identity with the client. Without a client or that environment variable, the thread list remains in memory. |
+| `scopeId` | `undefined` | Stable account or workspace identity for cached Cloud runtime state. Provide it from the first render and change it when the owning scope changes; defer mounting the runtime until an asynchronously resolved identity is available. |
 | `onThreadIdChange` | `undefined` | Receives the settled thread id whenever the remote thread list changes selection. Use it to keep a route or another store in sync. |
 | `transport` | The per-thread AI SDK transport configuration | Is forwarded to the chat for each thread. The cloud remote id is the chat id for the cloud-backed conversation. |
 | `adapters.history` | Cloud history adapter when a cloud client is available | Persists `ai-sdk/v6` messages and produces cloud run reports. A replacement used by this runtime must implement `withFormat`. |
@@ -312,14 +316,17 @@ export async function POST(req: Request) {
 | `toCreateMessage` | `undefined` | Converts an assistant-ui message to the AI SDK message the transport sends. Use it when outgoing metadata or content needs a transform. |
 | `onResumeError` | `undefined` | Receives an error when a resumable stream cannot reconnect. The runtime still clears the stale stream id. |
 
-`AISDKThreads` is the resource-tree entry for `AuiConfig` and `createAssistantClient`. Its cloud choices are deliberately different from the hook's environment fallback.
+`AISDKThreads` is the resource-tree entry for `AuiConfig` and `createAssistantClient`. Its cloud choices differ from the hook's environment fallback.
 
 | `AISDKThreads` option | Default | Behaviour |
 |---|---|---|
 | `cloud` | `undefined`, which keeps an in-memory list | When set, creates a remote cloud list. Every visited cloud thread stays mounted, so a run continues after a thread switch and is stopped if its thread is deleted. |
+| `scopeId` | `undefined` | Follows the same account and workspace rules as `useChatRuntime`. |
 | `threadId` | `undefined` | Controls the selected cloud thread. It is ignored without `cloud`. |
 | `onThreadIdChange` | `undefined` | Receives the settled remote id after a cloud list selection changes. |
 | `transport` | One `AssistantChatTransport` per thread | A transport factory runs once per thread. A plain `AssistantChatTransport` instance is cloned per thread, while another transport instance is shared. |
+
+Changing `AISDKThreads`' Cloud client or `scopeId` reloads the thread list and stops runs from the previous scope. A new controlled `threadId` requested with the replacement adapter is restored after loading, without reporting the temporary draft through `onThreadIdChange`. Keeping the previous scope's controlled id resets to a draft and emits `undefined`, so the host can clear its selection. A later manual thread switch takes precedence over restoration.
 
 ### Control reports and events
 

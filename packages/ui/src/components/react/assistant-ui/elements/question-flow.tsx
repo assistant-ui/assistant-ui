@@ -96,7 +96,7 @@ export function QuestionFlow({
             .join(", ");
           return (
             <div key={step.id} className="flex flex-col gap-0.5 px-2 py-1">
-              <span className="text-foreground/45 text-xs leading-4">
+              <span className="text-muted-foreground text-xs leading-4">
                 {step.question}
               </span>
               <span className="text-foreground/80 text-[13.5px] leading-5 break-words">
@@ -129,7 +129,7 @@ export function QuestionFlow({
                   {step.question}
                 </p>
                 {step.description ? (
-                  <p className="text-foreground/45 text-xs leading-4">
+                  <p className="text-muted-foreground text-xs leading-4">
                     {step.description}
                   </p>
                 ) : null}
@@ -198,7 +198,7 @@ export function QuestionFlow({
       className={cn(root, "gap-3")}
     >
       <div className="flex items-center justify-between gap-3 px-2 pt-1">
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {currentIndex + 1} of {steps.length}
         </span>
         {currentIndex > 0 ? (
@@ -222,11 +222,11 @@ export function QuestionFlow({
         aria-valuemin={1}
         aria-valuemax={steps.length}
         aria-valuetext={`Question ${currentIndex + 1} of ${steps.length}`}
-        className="bg-foreground/[0.08] mx-2 h-[3px] overflow-hidden rounded-full"
+        className="bg-foreground/[0.08] inset-ring-border mx-2 h-[3px] overflow-hidden rounded-full inset-ring forced-colors:outline"
       >
         <div
           style={{ width: `${((currentIndex + 1) / steps.length) * 100}%` }}
-          className="bg-foreground/80 h-full transition-[width] duration-200 motion-reduce:transition-none"
+          className="bg-foreground/80 h-full transition-[width] duration-200 forced-color-adjust-none motion-reduce:transition-none"
         />
       </div>
       <div className="flex flex-col gap-0.5 px-2">
@@ -234,7 +234,7 @@ export function QuestionFlow({
           {currentStep.question}
         </p>
         {currentStep.description ? (
-          <p className="text-foreground/45 text-xs leading-4">
+          <p className="text-muted-foreground text-xs leading-4">
             {currentStep.description}
           </p>
         ) : null}

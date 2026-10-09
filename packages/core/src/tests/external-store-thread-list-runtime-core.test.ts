@@ -16,6 +16,8 @@ const makeFactory = (overrides: Record<string, unknown> = {}) =>
       ({
         subscribe: () => () => {},
         capabilities: { cancel: false },
+        composer: { dictation: undefined },
+        messages: [],
         ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
@@ -71,6 +73,72 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     );
     expect(core.threadIds).toEqual(["thread-alpha", "thread-beta"]);
     expect(core.mainThreadId).toBe("thread-alpha");
+  });
+
+  it("lists only the adapter's threads and the main thread in threadItems", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({
+        threadId: "thread-alpha",
+        threads: [{ id: "thread-alpha", status: "regular" }],
+      }),
+      makeFactory(),
+    );
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("preserves the threadIds reference when only the selected thread changes", () => {
+    const threads = [
+      { id: "thread-alpha", status: "regular" as const },
+      { id: "thread-beta", status: "regular" as const },
+    ];
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha", threads }),
+      makeFactory(),
+    );
+    const threadIds = core.threadIds;
+
+    core.__internal_setAdapter(
+      makeAdapter({ threadId: "thread-beta", threads }),
+    );
+
+    expect(core.mainThreadId).toBe("thread-beta");
+    expect(core.threadIds).toBe(threadIds);
+  });
+
+  it("drops the placeholder list when an initially implicit selection becomes explicit", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+    expect(core.threadIds).toEqual([core.mainThreadId]);
+
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-alpha" }));
+
+    expect(core.threadIds).toEqual([]);
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("lists no default thread in threadIds when the adapter sets threadId without threads", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    expect(core.threadIds).toEqual([]);
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("keeps the synthesized main entry when the adapter lists threads without a threadId", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({
+        threads: [{ id: "thread-alpha", status: "regular" }],
+      }),
+      makeFactory(),
+    );
+    expect(Object.keys(core.threadItems).sort()).toEqual([
+      "DEFAULT_THREAD_ID",
+      "thread-alpha",
+    ]);
+    expect(core.mainThreadId).toBe("DEFAULT_THREAD_ID");
   });
 
   it("creates the main thread instance exactly once on construction", () => {
@@ -439,10 +507,8 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(core.getItemById("thread-alpha")).toBeUndefined();
     expect(core.getItemById("thread-beta")).toBeUndefined();
     expect(core.getItemById("thread-gamma")).toBeDefined();
-    expect(Object.keys(core.threadItems).sort()).toEqual([
-      "DEFAULT_THREAD_ID",
-      "thread-gamma",
-    ]);
+    expect(core.getItemById("DEFAULT_THREAD_ID")).toBeUndefined();
+    expect(Object.keys(core.threadItems)).toEqual(["thread-gamma"]);
   });
 
   it("dispatches an append before a thread switch", async () => {

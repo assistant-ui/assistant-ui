@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -19,8 +20,14 @@ import {
   readPageTool,
   searchDocsTool,
 } from "@/lib/mcp-tool-definitions";
-import { examples, source, design, elementsDocs } from "@/lib/source";
+import { examples, source, design, elementsDocs, siteTree } from "@/lib/source";
 import { rewriteLegacyTapDocsPath } from "@/lib/legacy-tap-docs";
+import {
+  DOCS_SITES,
+  docsSiteBaseUrl,
+  rewriteLegacyDocsSitePath,
+} from "@/lib/docs-sites";
+import { allDocsPages, resolveDocsUrl } from "@/lib/docs-pages";
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
 import {
   createTemplatePreview,
@@ -29,7 +36,6 @@ import {
 } from "@/lib/xulux/template-service";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
-export const revalidate = false;
 // One sandbox call bounds the template tools at 30s and the rest is in-process
 // rendering, so this sits well under the platform default and an overrun
 // surfaces here rather than at the CDN in front of it.
@@ -100,7 +106,7 @@ function pageSummary(page: {
 
 function allPages() {
   return [
-    ...source.getPages().map((page) => ({ kind: "docs" as const, page })),
+    ...allDocsPages().map((page) => ({ kind: "docs" as const, page })),
     ...examples.getPages().map((page) => ({
       kind: "examples" as const,
       page,
@@ -159,19 +165,36 @@ function normalizePathname(rawPath: string, requestUrl?: string) {
   return stripMarkdownSuffix(stripTrailingSlashes(stripLeadingSlashes(value)));
 }
 
+function rewriteLegacyPath(pathname: string) {
+  return (
+    rewriteLegacyTapDocsPath(pathname) ?? rewriteLegacyDocsSitePath(pathname)
+  );
+}
+
 function normalizePageUrlPrefix(rawPath: string) {
   const pathname = normalizePathname(rawPath);
-  return rewriteLegacyTapDocsPath(pathname) ?? (pathname ? `/${pathname}` : "");
+  return rewriteLegacyPath(pathname) ?? (pathname ? `/${pathname}` : "");
+}
+
+function isDocsSitePath(value: string) {
+  return DOCS_SITES.some((site) => {
+    const base = docsSiteBaseUrl(site.id).slice(1);
+    return value === base || value.startsWith(`${base}/`);
+  });
 }
 
 function normalizePath(rawPath: string, requestUrl: string) {
   const normalizedPath = normalizePathname(rawPath, requestUrl);
-  const legacyPath = rewriteLegacyTapDocsPath(normalizedPath);
+  const legacyPath = rewriteLegacyPath(normalizedPath);
   const value = legacyPath ? legacyPath.slice(1) : normalizedPath;
   if (!value) return { kind: "docs" as const, slugs: [] };
 
   if (value.includes("..")) {
     throw new Error("Parent directory segments are not supported");
+  }
+
+  if (isDocsSitePath(value)) {
+    return { kind: "site" as const, pathname: `/${value}` };
   }
 
   if (value === "docs") return { kind: "docs" as const, slugs: [] };
@@ -257,6 +280,11 @@ function getNavigation() {
     examples: examples.pageTree.children.map(serializeNode),
     design: design.pageTree.children.map(serializeNode),
     elements: elementsDocs.pageTree.children.map(serializeNode),
+    sites: DOCS_SITES.map((site) => ({
+      title: site.title,
+      url: docsSiteBaseUrl(site.id),
+      children: siteTree(site.id).children.map(serializeNode),
+    })),
   };
 }
 
@@ -284,13 +312,15 @@ async function readPage(path: string | undefined, requestUrl: string) {
 
   const normalized = normalizePath(path, requestUrl);
   const page =
-    normalized.kind === "examples"
-      ? examples.getPage(normalized.slugs)
-      : normalized.kind === "design"
-        ? design.getPage(normalized.slugs)
-        : normalized.kind === "elements"
-          ? elementsDocs.getPage(normalized.slugs)
-          : source.getPage(normalized.slugs);
+    normalized.kind === "site"
+      ? resolveDocsUrl(normalized.pathname)
+      : normalized.kind === "examples"
+        ? examples.getPage(normalized.slugs)
+        : normalized.kind === "design"
+          ? design.getPage(normalized.slugs)
+          : normalized.kind === "elements"
+            ? elementsDocs.getPage(normalized.slugs)
+            : source.getPage(normalized.slugs);
 
   if (!page) throw new Error(`Page not found: ${path}`);
 
@@ -612,6 +642,20 @@ function acceptsEventStream(request: NextRequest) {
     .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
 }
 
+async function getManifest() {
+  "use cache";
+  cacheLife("max");
+  return {
+    name: "assistant-ui-docs",
+    protocol: "mcp",
+    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
+    tools: toolDefinitions.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+    })),
+  };
+}
+
 export async function GET(request: NextRequest) {
   // `Accept: text/event-stream` opens the Streamable HTTP server-to-client
   // stream, which this stateless endpoint does not offer; a 200 reads as a
@@ -627,15 +671,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return jsonResponse({
-    name: "assistant-ui-docs",
-    protocol: "mcp",
-    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
-    tools: toolDefinitions.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-    })),
-  });
+  return jsonResponse(await getManifest());
 }
 
 export async function POST(request: NextRequest) {

@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  CopyIcon,
-  LoaderCircleIcon,
-} from "lucide-react";
+import { CheckIcon, CopyIcon, LoaderCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
@@ -89,10 +84,12 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 function AgentSnippet({
   url,
   products,
+  actions,
   aside,
 }: {
   url: string;
   products: string[];
+  actions?: ReactNode;
   aside?: ReactNode;
 }) {
   const text = agentPrompt(url, products);
@@ -102,7 +99,10 @@ function AgentSnippet({
         {text}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <CopyButton text={text} label="Copy prompt" />
+        <div className="flex items-center gap-2">
+          <CopyButton text={text} label="Copy prompt" />
+          {actions}
+        </div>
         {aside}
       </div>
     </div>
@@ -145,18 +145,25 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
 
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 
+/** The marks of the coding agents a setup can be handed to. */
+export function AgentMarks({ className }: { className?: string }) {
+  return (
+    <ul className="flex items-center gap-2">
+      {WORKS_WITH.map((kind) => (
+        <li key={kind} className="flex" title={agentKindName(kind)}>
+          <AgentKindIcon kind={kind} className={className} />
+          <span className="sr-only">{agentKindName(kind)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function WorksWith() {
   return (
     <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
       <span>Works with</span>
-      <ul className="flex items-center gap-2">
-        {WORKS_WITH.map((kind) => (
-          <li key={kind} className="flex" title={agentKindName(kind)}>
-            <AgentKindIcon kind={kind} className="size-3.5" />
-            <span className="sr-only">{agentKindName(kind)}</span>
-          </li>
-        ))}
-      </ul>
+      <AgentMarks className="size-3.5" />
     </div>
   );
 }
@@ -191,26 +198,22 @@ function ConnectBody({
   );
 }
 
-function QuietBody({ url, products }: { url: string; products: string[] }) {
-  const [open, setOpen] = useState(false);
+function QuietBody({
+  url,
+  products,
+  actions,
+}: {
+  url: string;
+  products: string[];
+  actions?: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground text-sm">
-        If it is still working, ask it to run the command again and it picks up
-        where it left off.
+        Paste this prompt into your coding agent and it picks up where it left
+        off.
       </p>
-      {open ? (
-        <AgentSnippet url={url} products={products} />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 self-start text-sm"
-        >
-          Show the prompt
-          <ChevronDownIcon className="size-3.5" />
-        </button>
-      )}
+      <AgentSnippet url={url} products={products} actions={actions} />
     </div>
   );
 }
@@ -326,9 +329,11 @@ export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
 export function AgentStatus({
   checkout,
   inline = false,
+  quietActions,
 }: {
   checkout: CheckoutContextValue;
   inline?: boolean;
+  quietActions?: ReactNode;
 }) {
   const phase = agentPhase(checkout);
   const name = useAgentName(checkout);
@@ -370,7 +375,11 @@ export function AgentStatus({
     ) : phase === "connected" && state?.status === "waiting" ? (
       <BeginPlanBody checkout={checkout} />
     ) : phase === "quiet" && !checkout.degraded ? (
-      <QuietBody url={checkout.url} products={products} />
+      <QuietBody
+        url={checkout.url}
+        products={products}
+        actions={quietActions}
+      />
     ) : null;
 
   if (inline && body)

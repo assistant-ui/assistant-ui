@@ -11,7 +11,10 @@ import {
 } from "@/lib/anonymous-session";
 import { claimConversation, resolveDemoIdentity } from "@/lib/demo-usage";
 import { PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE } from "@/lib/public-assistant-errors";
-import { validateGeneralChatInput } from "@/lib/validate-input";
+import {
+  validateFrontendToolsInput,
+  validateGeneralChatInput,
+} from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
@@ -97,6 +100,9 @@ export async function POST(req: Request) {
       return withCors(req, inputError);
     }
 
+    const toolsError = validateFrontendToolsInput(tools);
+    if (toolsError) return withCors(req, toolsError);
+
     const { model, providerOptions, reasoning } = resolveChatModel(config);
     const distinctId = getDistinctId(req);
     const origin = new URL(req.url).origin;
@@ -114,6 +120,7 @@ export async function POST(req: Request) {
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
         injectInteractableContext(injectQuoteContext(messages)),
+        { tools: frontendTools },
       ),
       reasoning: "none",
     });
@@ -147,6 +154,7 @@ export async function POST(req: Request) {
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const result = streamText({
+          abortSignal: req.signal,
           model,
           ...(providerOptions ? { providerOptions } : {}),
           ...(system ? { system } : {}),

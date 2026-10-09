@@ -66,7 +66,7 @@ export function ActivityHeatmap({
         <HeatGraph.MonthLabels>
           {({ label, totalWeeks }) => (
             <span
-              className="text-muted-foreground absolute text-[11px] leading-[14px]"
+              className="text-muted-foreground absolute text-xs leading-[14px]"
               style={{ left: `${(label.column / totalWeeks) * 100}%` }}
             >
               {HeatGraph.MONTH_SHORT[label.month]}
@@ -80,7 +80,7 @@ export function ActivityHeatmap({
           <HeatGraph.DayLabels>
             {({ label }) => (
               <span
-                className="text-muted-foreground relative text-[10px]"
+                className="text-muted-foreground relative text-xs"
                 style={{ height: 11 }}
               >
                 {label.row % 2 === 1 ? (
@@ -113,7 +113,7 @@ export function ActivityHeatmap({
       </div>
 
       <div
-        className="text-muted-foreground flex flex-wrap items-center justify-end text-[11px]"
+        className="text-muted-foreground flex flex-wrap items-center justify-end text-xs"
         style={{ marginTop: 10, gap: 12 }}
       >
         <div className="flex items-center" style={{ gap: 4 }}>
