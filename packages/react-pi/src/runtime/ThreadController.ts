@@ -446,6 +446,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private sendDispatchTail: Promise<void> = Promise.resolve();
   private readonly pendingSends = new Set<PendingSend>();
   private runStateRevision = 0;
+  private runGeneration = 0;
   private messageFlushScheduled = false;
   /** Fallback sequence for snapshots without a supervisor-provided sequence. */
   private readonly localSnapshotSeq = 0;
@@ -907,6 +908,12 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
+  public captureCancel(): () => Promise<void> {
+    const generation = this.runGeneration;
+    return () =>
+      this.runGeneration === generation ? this.cancel() : Promise.resolve();
+  }
+
   private abortPendingSendsBeforeDispatch() {
     for (const pending of this.pendingSends) {
       if (pending.accepted) continue;
@@ -1031,6 +1038,9 @@ export class PiThreadController implements PiThreadControllerLike {
     const next = reducePiThreadState(this.state, event);
     const changed = next !== this.state;
     if (changed) {
+      if (this.state.runStatus !== "running" && next.runStatus === "running") {
+        this.runGeneration += 1;
+      }
       this.state = next;
       if (RUN_STATE_EVENT_TYPES.has(event.type)) {
         this.runStateRevision += 1;
@@ -1064,6 +1074,9 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private setState(next: PiThreadState) {
     if (next === this.state) return;
+    if (this.state.runStatus !== "running" && next.runStatus === "running") {
+      this.runGeneration += 1;
+    }
     this.state = next;
     this.notifyMetadataListeners();
   }
