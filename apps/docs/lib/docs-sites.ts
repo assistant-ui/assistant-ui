@@ -1,25 +1,142 @@
+type SubProject = {
+  title: string;
+  description: string;
+  path: string;
+  metadataTitle?: string;
+  productLabel?: string;
+  productDescription: string;
+  oss?: {
+    name?: string;
+    description?: string;
+    tier: "major" | "minor";
+    npm: string;
+    footerOrder: number;
+    placement: "top" | "bottom";
+  };
+};
+
+export const SUB_PROJECT_REGISTRY = {
+  "tw-shimmer": {
+    title: "tw-shimmer",
+    description:
+      "Zero-dependency Tailwind v4 shimmer for text and skeleton loaders. Pure CSS.",
+    path: "packages/tw-shimmer",
+    metadataTitle: "tw-shimmer by assistant-ui",
+    productDescription: "Tailwind CSS shimmer effects",
+    oss: {
+      tier: "major",
+      npm: "tw-shimmer",
+      footerOrder: 0,
+      placement: "bottom",
+    },
+  },
+  "safe-content-frame": {
+    title: "Safe Content Frame",
+    description:
+      "Sandboxes for HTML. Render MCP Apps and Generative UI in isolated iframes with their own origins.",
+    path: "packages/safe-content-frame",
+    productDescription: "Sandboxes for HTML",
+    oss: {
+      description: "Sandboxes for HTML. Built for MCP Apps and Generative UI.",
+      tier: "major",
+      npm: "safe-content-frame",
+      footerOrder: 2,
+      placement: "top",
+    },
+  },
+  "generative-frame": {
+    title: "Generative Frame",
+    description:
+      "Render model-written HTML and SVG widgets as they stream, each in a sandboxed frame on its own domain.",
+    path: "packages/generative-frame",
+    productDescription: "Streaming widgets from model output",
+    oss: {
+      description:
+        "Stream model-written HTML and SVG widgets into sandboxed frames.",
+      tier: "major",
+      npm: "generative-frame",
+      footerOrder: 3,
+      placement: "top",
+    },
+  },
+  native: {
+    title: "assistant-ui for React Native",
+    description:
+      "Native Thread, Composer, and Message primitives for Expo. Same runtime as the web SDK.",
+    path: "packages/react-native",
+    productLabel: "React Native",
+    productDescription: "Build mobile apps with React Native",
+  },
+  ink: {
+    title: "assistant-ui for the Terminal",
+    description:
+      "Terminal Thread, Composer, and Message primitives for Ink. Same runtime as the web SDK. ANSI markdown.",
+    path: "packages/react-ink",
+    productLabel: "Ink",
+    productDescription: "Build interactive experiences with Ink",
+  },
+  "heat-graph": {
+    title: "Heat Graph",
+    description:
+      "Headless, composable activity heatmap components for React. Radix-style primitives you fully control.",
+    path: "packages/heat-graph",
+    productDescription: "Activity heatmap graph components",
+    oss: {
+      name: "heat-graph",
+      tier: "minor",
+      npm: "heat-graph",
+      footerOrder: 1,
+      placement: "bottom",
+    },
+  },
+  "react-o11y": {
+    title: "react-o11y",
+    description:
+      "Headless, composable observability span primitives for React. Render agent traces, sub-agent trees, and run timelines as collapsible waterfalls you fully control.",
+    path: "packages/react-o11y",
+    productDescription: "Observability span primitives",
+    oss: {
+      tier: "minor",
+      npm: "@assistant-ui/react-o11y",
+      footerOrder: 4,
+      placement: "bottom",
+    },
+  },
+  playground: {
+    title: "Playground",
+    description:
+      "Experiment with different configurations and settings using the Assistant UI Playground.",
+    path: "apps/docs/app/(demos)/playground",
+    productDescription: "Interactive playground",
+  },
+} as const satisfies Record<string, SubProject>;
+
+export type SubProjectSlug = keyof typeof SUB_PROJECT_REGISTRY;
+export const SUB_PROJECT_SLUGS = Object.keys(
+  SUB_PROJECT_REGISTRY,
+) as SubProjectSlug[];
+
+export function subProject(slug: SubProjectSlug): SubProject {
+  return SUB_PROJECT_REGISTRY[slug];
+}
+
+export function subProjectGithubUrl(slug: SubProjectSlug): string {
+  return `https://github.com/assistant-ui/assistant-ui/tree/main/${subProject(slug).path}`;
+}
+
 // A sub-project with its own docs site at /<id>/docs, built from
 // content/docs-sites/<id>. `legacy` maps a path the site's pages used to live
 // at onto its new url, so published links and MCP resource paths keep
 // resolving.
-export const DOCS_SITES = [
-  {
-    id: "safe-content-frame",
-    title: "Safe Content Frame",
-    landing: "/safe-content-frame",
-    github:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame",
-    legacy: [],
-  },
-  {
-    id: "generative-frame",
-    title: "Generative Frame",
-    landing: "/generative-frame",
-    github:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/packages/generative-frame",
-    legacy: [],
-  },
-] as const;
+export const DOCS_SITES = (
+  ["safe-content-frame", "generative-frame"] as const
+).map((id) => ({
+  id,
+  title: subProject(id).title,
+  landing: `/${id}`,
+  github: subProjectGithubUrl(id),
+  legacy: [] as ReadonlyArray<readonly [string, string]>,
+}));
 
 export type DocsSite = (typeof DOCS_SITES)[number];
 export type DocsSiteId = DocsSite["id"];

@@ -4,6 +4,7 @@ import {
   DOCS_SITE_REDIRECTS,
   docsSiteMarkdownFileRewrites,
   rewriteLegacyDocsSitePath,
+  subProjectGithubUrl,
 } from "./docs-sites";
 
 const follow = (
@@ -19,6 +20,12 @@ const follow = (
 };
 
 describe("docs sites", () => {
+  it("links the playground to its route source", () => {
+    expect(subProjectGithubUrl("playground")).toBe(
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(demos)/playground",
+    );
+  });
+
   it("adds no redirects while no site has moved pages", () => {
     expect(DOCS_SITE_REDIRECTS).toEqual([]);
     expect(

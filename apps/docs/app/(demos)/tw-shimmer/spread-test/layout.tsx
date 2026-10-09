@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
+
+const { metadataTitle } = subProject("tw-shimmer");
 
 export const metadata: Metadata = {
-  title: "Spread Test | tw-shimmer by assistant-ui",
+  title: `Spread Test | ${metadataTitle}`,
   robots: {
     index: false,
     follow: true,
@@ -18,7 +21,7 @@ export default function SpreadTestLayout({
   return (
     <SubProjectLayout
       name="tw-shimmer"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/tw-shimmer"
+      githubPath={subProjectGithubUrl("tw-shimmer")}
       breadcrumbs={[{ label: "spread-test", href: "/tw-shimmer/spread-test" }]}
     >
       {children}

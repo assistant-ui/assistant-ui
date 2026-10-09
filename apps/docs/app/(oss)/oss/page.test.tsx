@@ -47,5 +47,6 @@ describe("OssPage", () => {
       page.querySelector('a[aria-label="assistant-stream on npm"]'),
     ).toBeNull();
     link("tw-shimmer on website", "/tw-shimmer");
+    link("react-o11y on website", "/react-o11y");
   });
 });
