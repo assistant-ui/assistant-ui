@@ -15,6 +15,18 @@ If you depend on an unstable API:
 - **Isolate the call site** behind a small wrapper in your code so you can adapt to upstream changes in one place.
 - **Expect renames or removals** when the API stabilizes; the prefix gets dropped on the stable form.
 
+## In your editor
+
+Every experimental API carries a `@deprecated` tag in this form, so your editor strikes it through:
+
+```ts
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
+```
+
+Hover a struck-through API to see which kind of tag it carries. An experimental API reads `Experimental since <date>`; an API on its way out names its replacement instead.
+
+typescript-eslint's `@typescript-eslint/no-deprecated` rule, which its `strict-type-checked` config enables, reports experimental APIs as well. List the ones you use in the rule's `allow` option.
+
 ## Why we ship them
 
 Three reasons something stays `unstable_`:
