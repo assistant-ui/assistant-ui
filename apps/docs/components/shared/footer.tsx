@@ -33,6 +33,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "tw-shimmer", href: "/tw-shimmer" },
     { label: "Heat Graph", href: "/heat-graph" },
     { label: "Safe Content Frame", href: "/safe-content-frame" },
+    { label: "Generative Frame", href: "/generative-frame" },
     { label: "react-o11y", href: "/react-o11y" },
   ],
   Resources: [

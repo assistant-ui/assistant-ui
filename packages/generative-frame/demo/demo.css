@@ -1,0 +1,108 @@
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --destructive: #e11d48;
+  --aui-success: #16a34a;
+  --chart-1: #7c3aed;
+  --chart-2: #0d9488;
+  --chart-3: #d97706;
+  --radius: 10px;
+  color-scheme: light;
+}
+:root.dark {
+  --background: #0b1020;
+  --foreground: #e2e8f0;
+  --card: #111827;
+  --muted: #1f2937;
+  --muted-foreground: #94a3b8;
+  --border: #1f2937;
+  --input: #334155;
+  --primary: #a78bfa;
+  --primary-foreground: #0b1020;
+  --destructive: #fb7185;
+  --aui-success: #4ade80;
+  --chart-1: #a78bfa;
+  --chart-2: #2dd4bf;
+  --chart-3: #fbbf24;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+}
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.lead {
+  color: var(--muted-foreground);
+  margin: 0 0 16px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+}
+button.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.bubble {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.prose {
+  white-space: pre-wrap;
+  margin: 0 0 12px;
+}
+#log {
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+  white-space: pre-wrap;
+  background: var(--muted);
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 240px;
+  overflow: auto;
+}

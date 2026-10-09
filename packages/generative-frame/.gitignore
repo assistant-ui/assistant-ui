@@ -1,0 +1,3 @@
+# bundled from src/runtime by scripts/build-runtime.mjs on build, test, and typecheck
+src/runtime/generated.ts
+.screenshots/

@@ -11,6 +11,14 @@ export const DOCS_SITES = [
       "https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame",
     legacy: [],
   },
+  {
+    id: "generative-frame",
+    title: "Generative Frame",
+    landing: "/generative-frame",
+    github:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/packages/generative-frame",
+    legacy: [],
+  },
 ] as const;
 
 export type DocsSite = (typeof DOCS_SITES)[number];

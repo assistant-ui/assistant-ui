@@ -86,7 +86,10 @@ vi.mock("@/lib/source", () => ({
   design: { getPages: () => mocks.design },
   elementsDocs: { getPages: () => mocks.elements },
   examples: { getPages: () => mocks.examples },
-  docsSiteSources: { "safe-content-frame": { getPages: () => mocks.sites } },
+  docsSiteSources: {
+    "safe-content-frame": { getPages: () => mocks.sites },
+    "generative-frame": { getPages: () => [] },
+  },
 }));
 
 import { buildContentIndex } from "./content-index";
