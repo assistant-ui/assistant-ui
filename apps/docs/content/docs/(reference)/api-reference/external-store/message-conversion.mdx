@@ -20,13 +20,39 @@ import { useExternalMessageConverter } from "@/generated/typeDocs";
 const getExternalStoreMessages: <T>(input: { messages: readonly ThreadMessage[]; } | ThreadMessage | ThreadMessage["content"][number]) => T[];
 ```
 
+### useExternalMessageConverter
+
+<ParametersTable {...useExternalMessageConverter} />
+
+### bindExternalStoreMessage
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-02-25; it may change in any release.
+</Callout>
+
+Attach the original external store message(s) to a ThreadMessage or message part.
+This is a no-op if the target already has a bound message.
+Use `getExternalStoreMessages` to retrieve the bound messages later.
+
+```ts
+const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+```
+
 ### unstable_convertExternalMessages
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2025-01-26; it may change in any release.
+</Callout>
 
 ```ts
 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata, cache?: ExternalMessageConversionCache) => ThreadMessage[];
 ```
 
 ### unstable_createExternalMessageConversionCache
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-09-15; it may change in any release.
+</Callout>
 
 Creates a cache for plain external message conversion. Pass the same cache on every call for one message list, and a source message that has not changed since the previous call converts to the same `ThreadMessage` object.
 
@@ -38,25 +64,11 @@ const unstable_createExternalMessageConversionCache: () => ExternalMessageConver
 
 ### unstable_createMessageConverter
 
-```ts
-const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThreadMessages: ({ messages, isRunning, joinStrategy, metadata, }: { messages: T[]; isRunning: boolean; joinStrategy?: JoinStrategy | undefined; metadata?: useExternalMessageConverter.Metadata; }) => ThreadMessage[]; toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[]; toOriginalMessages: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => unknown[]; toOriginalMessage: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => {}; useOriginalMessage: () => {}; useOriginalMessages: () => unknown[]; };
-```
-
-### useExternalMessageConverter
-
-<ParametersTable {...useExternalMessageConverter} />
-
-### bindExternalStoreMessage
-
 <Callout type="tip">
-<strong>Experimental.</strong> This API is experimental and may change without notice.
+<strong>Experimental.</strong> Shipped 2025-02-02; it may change in any release.
 </Callout>
 
-Attach the original external store message(s) to a ThreadMessage or message part.
-This is a no-op if the target already has a bound message.
-Use `getExternalStoreMessages` to retrieve the bound messages later.
-
 ```ts
-const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThreadMessages: ({ messages, isRunning, joinStrategy, metadata, }: { messages: T[]; isRunning: boolean; joinStrategy?: JoinStrategy | undefined; metadata?: useExternalMessageConverter.Metadata; }) => ThreadMessage[]; toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[]; toOriginalMessages: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => unknown[]; toOriginalMessage: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => {}; useOriginalMessage: () => {}; useOriginalMessages: () => unknown[]; };
 ```
 {/* api-reference:end */}
