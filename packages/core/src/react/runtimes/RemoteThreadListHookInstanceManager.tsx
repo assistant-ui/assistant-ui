@@ -2,6 +2,7 @@ import {
   type FC,
   type RefObject,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   memo,
@@ -9,7 +10,6 @@ import {
   type ComponentType,
   Fragment,
 } from "react";
-import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { useResources, useTapHost, withKey } from "@assistant-ui/tap";
 import type { AssistantClient } from "@assistant-ui/store";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
@@ -80,7 +80,7 @@ type HostSnapshot = {
 const ProviderRenderDetector: FC<{
   detectorRef: RefObject<boolean>;
 }> = ({ detectorRef }) => {
-  useIsomorphicLayoutEffect(() => {
+  useLayoutEffect(() => {
     detectorRef.current = true;
   }, [detectorRef]);
   return null;
@@ -444,7 +444,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     });
     // Descendant layout effects may already dispatch to the thread resources,
     // and tap commits a hosted resource only when its host effects run.
-    useIsomorphicLayoutEffect(effects);
+    useLayoutEffect(effects);
     return null;
   };
 
@@ -489,7 +489,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> = ({ threadId, detectorRef }) => {
     const adapters = useRuntimeAdapters();
     this.pendingThreadAdapters.set(threadId, adapters);
-    useIsomorphicLayoutEffect(() => {
+    useLayoutEffect(() => {
       this.__internal_setThreadAdapters(threadId, adapters);
       return () => {
         if (this.pendingThreadAdapters.get(threadId) === adapters) {

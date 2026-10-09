@@ -3,14 +3,17 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { useIsomorphicLayoutEffect } from "../../assistant-ui/utils/useIsomorphicLayoutEffect";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export interface CodeBlockProps extends Omit<
   ComponentProps<"figure">,
