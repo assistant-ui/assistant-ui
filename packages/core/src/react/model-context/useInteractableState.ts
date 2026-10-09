@@ -58,7 +58,7 @@ const useInteractableState = <TState>(
  * registers with `unstable_useInteractable`, which returns state directly. Returns
  * `undefined` until the owning interactable is registered.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_useInteractableState: <TState>(id: string) => [
   TState | undefined,

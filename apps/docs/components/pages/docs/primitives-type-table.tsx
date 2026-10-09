@@ -17,6 +17,7 @@ type PropDef = {
   default?: string;
   required?: boolean;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ type?: string; parameters: PropDef[] }>;
 };
 
@@ -81,7 +82,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
             <span>{prop.deprecated}</span>
           </Fragment>
         ),
-        prop.name.startsWith("unstable_") && (
+        (prop.experimental || prop.name.startsWith("unstable_")) && (
           <StatusBadge key="unstable" variant="unstable" className="mr-1" />
         ),
         prop.description &&

@@ -30,12 +30,12 @@ import {
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -695,7 +695,7 @@ const offersInterruptAction = (
   approval != null ||
   interrupt != null;
 
-type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
+type ToolFallbackApprovalProps = React.ComponentPropsWithoutRef<"div"> &
   Partial<
     Pick<
       ToolCallMessagePartProps,
@@ -762,7 +762,7 @@ function ToolFallbackApprovalImpl({
     }
   }
   const pendingGroupRef = useRef<HTMLDivElement | null>(null);
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const receiptRef = useRef<HTMLDivElement | null>(null);
   const focusReceiptRef = useRef<string | null | undefined>(null);
   useLayoutEffect(() => {
     if (carryFocusRef.current) {

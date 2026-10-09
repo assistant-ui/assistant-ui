@@ -164,11 +164,17 @@ export { useExternalStoreRuntime } from "./legacy-runtime/runtime-cores/external
 export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
+  /** @deprecated Experimental since 2025-01-26. Not scheduled for removal; the API may change in any release. */
   convertExternalMessages as unstable_convertExternalMessages,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
 } from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
-export { createMessageConverter as unstable_createMessageConverter } from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
+export {
+  /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
+  createMessageConverter as unstable_createMessageConverter,
+} from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
 
 // --- local ---
 export type {
@@ -496,15 +502,23 @@ export type { ToolExecutionStatus } from "./internal";
 
 // Unstable - trigger popover (unified root for @ mentions, / slash commands, etc.)
 export {
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   type RegisteredTrigger as Unstable_RegisteredTrigger,
   type TriggerMatch,
   type TriggerMatcher,
+  /** @deprecated Experimental since 2026-04-15. Not scheduled for removal; the API may change in any release. */
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
 import type {
@@ -584,7 +598,10 @@ export {
   type Unstable_WebMcpProviderOptions,
   type Unstable_WebMcpProviderResult,
 } from "./unstable/webmcp/useWebMcpProvider";
-export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";
+export {
+  /** @deprecated Experimental since 2026-08-29. Not scheduled for removal; the API may change in any release. */
+  defaultWebMcpFilter as unstable_defaultWebMcpFilter,
+} from "./unstable/webmcp/convertTools";
 
 // Shared surface carried by every distribution (scripts/check-distribution-barrels.mjs)
 export type {

@@ -20,6 +20,7 @@ type ParameterDef = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<ParametersTableProps>;
 };
 
@@ -122,7 +123,7 @@ const Parameter: FC<{ parameter: ParameterDef }> = ({
           <DefinitionAnnotation>= {parameter.default}</DefinitionAnnotation>
         )}
         {parameter.deprecated && <StatusBadge variant="deprecated" />}
-        {parameter.name.startsWith("unstable_") && (
+        {(parameter.experimental || parameter.name.startsWith("unstable_")) && (
           <StatusBadge variant="unstable" />
         )}
       </DefinitionTerm>
@@ -197,6 +198,7 @@ export type DefLLM = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ parameters: DefLLM[] }>;
 };
 
@@ -252,6 +254,7 @@ const DefItemLLM: FC<
         </>
       ) : null}
       {def.deprecated ? <> (deprecated: {def.deprecated})</> : null}
+      {def.experimental ? <> (experimental)</> : null}
       {def.description ? <> — {renderDescription(def.description)}</> : null}
       {def.children?.map((child, i) => (
         <DefListLLM

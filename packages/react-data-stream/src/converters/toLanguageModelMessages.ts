@@ -97,7 +97,11 @@ function convertGenericToLanguageModel(
  */
 export function toLanguageModelMessages(
   messages: readonly ThreadMessage[],
-  options: { unstable_includeId?: boolean | undefined } = {},
+  options: {
+    /** @deprecated Experimental since 2024-10-24. Not scheduled for removal; the API may change in any release. */ unstable_includeId?:
+      | boolean
+      | undefined;
+  } = {},
 ): LanguageModelV2Message[] {
   const includeId = options.unstable_includeId ?? false;
 
