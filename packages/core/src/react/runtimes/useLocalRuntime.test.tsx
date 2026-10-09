@@ -553,4 +553,34 @@ describe("useLocalRuntime", () => {
       runtime!.thread.cancelRun();
     });
   });
+
+  it("keeps initial messages after an empty history load", async () => {
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    };
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const App = () => {
+      runtime = useLocalRuntime(chatModel, {
+        initialMessages: [
+          { role: "user", content: "seed" },
+          { role: "assistant", content: "reply" },
+        ],
+        adapters: { history },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(history.load).toHaveBeenCalledOnce();
+      expect(runtime!.thread.getState().isLoading).toBe(false);
+    });
+
+    expect(runtime!.thread.getState().messages).toHaveLength(2);
+  });
 });

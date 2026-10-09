@@ -49,6 +49,11 @@ import {
   supersedeThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
+type PendingInitialHistory = {
+  items: ExportedMessageRepositoryItem[];
+  generation: number;
+};
+
 class AbortError extends Error {
   override name = "AbortError";
   detach: boolean;
@@ -199,6 +204,51 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
+  private _pendingInitialHistory: PendingInitialHistory | undefined;
+  private _pendingInitialHistoryWrite:
+    | { pending: PendingInitialHistory; promise: Promise<void> }
+    | undefined;
+
+  private _persistPendingInitialHistory(): Promise<void> | undefined {
+    const pending = this._pendingInitialHistory;
+    const history = this._options.adapters.history;
+    if (!pending || !history) return undefined;
+    if (this._pendingInitialHistoryWrite?.pending === pending)
+      return this._pendingInitialHistoryWrite.promise;
+
+    const promise = (async () => {
+      while (
+        this._pendingInitialHistory === pending &&
+        pending.items.length > 0 &&
+        pending.generation === this._loadGeneration
+      ) {
+        const item = pending.items[0]!;
+        await this._chainHistoryWrite(item.message.id, () =>
+          this._writeHistory("append", [item.message.id], () =>
+            history.append(item),
+          ),
+        );
+        if (
+          this._pendingInitialHistory !== pending ||
+          pending.generation !== this._loadGeneration
+        )
+          return;
+        pending.items.shift();
+      }
+
+      if (this._pendingInitialHistory === pending)
+        this._pendingInitialHistory = undefined;
+    })();
+    const write = { pending, promise };
+    this._pendingInitialHistoryWrite = write;
+    const clear = () => {
+      if (this._pendingInitialHistoryWrite === write)
+        this._pendingInitialHistoryWrite = undefined;
+    };
+    void promise.then(clear, clear);
+    return promise;
+  }
+
   private async _writeHistory(
     operation: "append" | "update" | "delete",
     messageIds: readonly string[],
@@ -316,11 +366,16 @@ export class LocalThreadRuntimeCore
     const write = operation === "append" ? history.append : history.update;
     if (!write) return;
     const item = { parentId, message, runConfig: this._lastRunConfig };
-    return this._chainHistoryWrite(message.id, () =>
-      this._writeHistory(operation, [message.id], () =>
-        write.call(history, item),
-      ),
-    );
+    const persistInitialHistory = this._persistPendingInitialHistory();
+    const writeSettled = () =>
+      this._chainHistoryWrite(message.id, () =>
+        this._writeHistory(operation, [message.id], () =>
+          write.call(history, item),
+        ),
+      );
+    return persistInitialHistory
+      ? persistInitialHistory.then(writeSettled)
+      : writeSettled();
   }
 
   private _cancelPause(messageId: string | null) {
@@ -348,9 +403,16 @@ export class LocalThreadRuntimeCore
           message: snapshot,
           runConfig: this._lastRunConfig,
         };
-        return this._chainHistoryWrite(messageId, () =>
-          this._writeHistory("append", [messageId], () => history.append(item)),
-        );
+        const persistInitialHistory = this._persistPendingInitialHistory();
+        const appendPause = () =>
+          this._chainHistoryWrite(messageId, () =>
+            this._writeHistory("append", [messageId], () =>
+              history.append(item),
+            ),
+          );
+        return persistInitialHistory
+          ? persistInitialHistory.then(appendPause)
+          : appendPause();
       }
       return this._persistSettled(entry.parentId, snapshot);
     }
@@ -449,6 +511,7 @@ export class LocalThreadRuntimeCore
     if (resetHistoryScope) {
       this._loadGeneration++;
       this._historyWrites.clear();
+      this._pendingInitialHistory = undefined;
       this._deletedMessages.clear();
       this._roundtripsInFlight.clear();
       this._followedDuringRun.clear();
@@ -646,7 +709,19 @@ export class LocalThreadRuntimeCore
           repo.headId,
         );
       }
-      this.repository.import(withLocalPauseReasons(repository));
+      const localRepository = this.repository.export();
+      if (
+        repository.messages.length === 0 &&
+        localRepository.messages.length > 0
+      ) {
+        this._pendingInitialHistory = {
+          items: localRepository.messages,
+          generation,
+        };
+      } else {
+        this._pendingInitialHistory = undefined;
+        this.repository.import(withLocalPauseReasons(repository));
+      }
       if (repository.messages.length > 0) {
         this.ensureInitialized();
       }
@@ -752,13 +827,18 @@ export class LocalThreadRuntimeCore
       const settledWrite = this._cancelPause(parentId);
       this.repository.resetHead(message.id);
       const history = this._options.adapters.history;
-      const historyWrite = history
-        ? this._chainHistoryWrite(message.id, () =>
-            this._writeHistory("append", [message.id], () =>
-              history.append({ parentId, message }),
-            ),
-          )
-        : undefined;
+      const persistInitialHistory = this._persistPendingInitialHistory();
+      const appendMessage = () =>
+        history
+          ? this._chainHistoryWrite(message.id, () =>
+              this._writeHistory("append", [message.id], () =>
+                history.append({ parentId, message }),
+              ),
+            )
+          : undefined;
+      const historyWrite = persistInitialHistory
+        ? persistInitialHistory.then(appendMessage)
+        : appendMessage();
       void historyWrite?.catch(() => {});
       // The write lands whether or not the session still carries the message,
       // so the notification cannot ride on removing it: hanging up mid load
@@ -905,6 +985,8 @@ export class LocalThreadRuntimeCore
       if (initPromise) {
         await initPromise;
       }
+      const persistInitialHistory = this._persistPendingInitialHistory();
+      if (persistInitialHistory) await persistInitialHistory;
     } catch (error) {
       this._rollbackAppend(newMessage);
       if (generation.aborted) return;
@@ -1034,6 +1116,7 @@ export class LocalThreadRuntimeCore
     this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
     this._deletedMessages.clear();
+    this._pendingInitialHistory = undefined;
     super.import(withLocalPauseReasons(data));
   }
 
@@ -1051,6 +1134,10 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this._pendingInitialHistory) {
+      await this._getInitializePromise?.();
+      await this._persistPendingInitialHistory();
+    }
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))

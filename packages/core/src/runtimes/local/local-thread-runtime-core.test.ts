@@ -6466,6 +6466,147 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
   });
 
+  it("keeps initial messages when history is empty and appends them before the first send", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const stored: ExportedMessageRepositoryItem[] = [];
+    const history: ThreadHistoryAdapter = {
+      load: async () => ({ messages: stored }),
+      append: vi.fn(async (item) => {
+        stored.push(item);
+      }),
+    };
+    const core = new LocalRuntimeCore(
+      { adapters: { chatModel: adapter, history } },
+      [
+        { role: "user", content: "seed" },
+        { role: "assistant", content: "reply" },
+      ],
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    await thread.__internal_load();
+
+    const initialMessages = thread.messages;
+    expect(initialMessages).toHaveLength(2);
+    await thread.append({
+      ...userMessage("next"),
+      parentId: initialMessages.at(-1)!.id,
+    });
+
+    const writes = vi.mocked(history.append).mock.calls.map(([item]) => item);
+    expect(
+      writes
+        .slice(0, 3)
+        .map(({ parentId, message }) => [message.role, parentId]),
+    ).toEqual([
+      ["user", null],
+      ["assistant", initialMessages[0]!.id],
+      ["user", initialMessages[1]!.id],
+    ]);
+
+    const restoredCore = new LocalRuntimeCore(
+      { adapters: { chatModel: adapter, history } },
+      undefined,
+    );
+    const restoredThread = restoredCore.threads.getMainThreadRuntimeCore();
+    await restoredThread.__internal_load();
+
+    expect(restoredThread.messages.map(({ role }) => role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+  });
+
+  it("keeps the existing nonempty-history precedence over initial messages", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const history: ThreadHistoryAdapter = {
+      load: async () => ({
+        messages: [
+          {
+            parentId: null,
+            message: {
+              id: "remote",
+              role: "user",
+              content: [{ type: "text", text: "remote" }],
+              attachments: [],
+              createdAt: new Date(0),
+              metadata: { custom: {} },
+            },
+          },
+        ],
+      }),
+      append: async () => {},
+    };
+    const core = new LocalRuntimeCore(
+      { adapters: { chatModel: adapter, history } },
+      [{ role: "user", content: "seed" }],
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    await thread.__internal_load();
+
+    expect(thread.messages.map(({ id }) => id)).toEqual(["remote"]);
+  });
+
+  it("retries pending initial history after a partial write without duplicating its prefix", async () => {
+    const run = vi.fn(async () => ({ content: [] }));
+    const writes: ExportedMessageRepositoryItem[] = [];
+    let failAssistantWrite = true;
+    const history: ThreadHistoryAdapter = {
+      load: async () => ({ messages: [] }),
+      append: vi.fn(async (item) => {
+        if (item.message.role === "assistant" && failAssistantWrite) {
+          failAssistantWrite = false;
+          throw new Error("temporary write failure");
+        }
+        writes.push(item);
+      }),
+    };
+    const core = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, history } },
+      [
+        { role: "user", content: "seed" },
+        { role: "assistant", content: "reply" },
+      ],
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    await thread.__internal_load();
+    const initialMessages = thread.messages;
+    const nextMessage = {
+      ...userMessage("next"),
+      parentId: initialMessages.at(-1)!.id,
+    };
+
+    await expect(thread.append(nextMessage)).rejects.toSatisfy(
+      isMessageNotSentError,
+    );
+    expect(run).not.toHaveBeenCalled();
+    await thread.append(nextMessage);
+
+    const attempted = vi
+      .mocked(history.append)
+      .mock.calls.map(([item]) => item);
+    expect(
+      attempted.filter((item) => item.message.id === initialMessages[0]!.id),
+    ).toHaveLength(1);
+    expect(
+      writes
+        .slice(0, 3)
+        .map(({ parentId, message }) => [message.role, parentId]),
+    ).toEqual([
+      ["user", null],
+      ["assistant", initialMessages[0]!.id],
+      ["user", initialMessages[1]!.id],
+    ]);
+  });
+
   it("discards an in-flight load when the history adapter changes", async () => {
     const adapter: ChatModelAdapter = {
       run: async () => ({ content: [] }),
