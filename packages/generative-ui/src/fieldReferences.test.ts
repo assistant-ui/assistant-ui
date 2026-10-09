@@ -4,6 +4,22 @@ import * as rootEntry from "./index";
 import * as reactEntry from "./react";
 
 describe("field references", () => {
+  it("stop at the same depth when finding and resolving references", () => {
+    const nest = (levels: number, leaf: unknown): unknown =>
+      levels === 0 ? leaf : { a: nest(levels - 1, leaf) };
+    const reference = { $field: "note" };
+    const fields = { note: "hi" };
+
+    expect(hasFieldReference(nest(64, reference))).toBe(true);
+    expect(resolveFieldReferences(nest(64, reference), fields)).toEqual(
+      nest(64, "hi"),
+    );
+    expect(hasFieldReference(nest(65, reference))).toBe(false);
+    expect(resolveFieldReferences(nest(65, reference), fields)).toEqual(
+      nest(65, reference),
+    );
+  });
+
   it("are exported from the root and React entries", () => {
     for (const entry of [rootEntry, reactEntry]) {
       expect(entry.resolveFieldReferences).toBe(resolveFieldReferences);
