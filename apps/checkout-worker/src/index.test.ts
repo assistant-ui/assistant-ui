@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import worker, { CheckoutDO } from "./index";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
@@ -19,6 +19,7 @@ const createInstance = (snapshot?: Checkout.State) => {
     snapshot === undefined ? [] : [["statewire:snapshot", snapshot]],
   );
   const pending: Promise<unknown>[] = [];
+  const alarm = { at: null as number | null };
   let gate: Promise<unknown> = Promise.resolve();
   const context = {
     waitUntil: (promise: Promise<unknown>) => {
@@ -34,6 +35,13 @@ const createInstance = (snapshot?: Checkout.State) => {
       delete: async (key: string) => stored.delete(key),
       list: async ({ prefix }: { prefix: string }) =>
         new Map([...stored].filter(([key]) => key.startsWith(prefix))),
+      getAlarm: async () => alarm.at,
+      setAlarm: async (at: number) => {
+        alarm.at = at;
+      },
+      deleteAlarm: async () => {
+        alarm.at = null;
+      },
     },
     blockConcurrencyWhile: <T>(callback: () => Promise<T>) => {
       const promise = gate.then(callback);
@@ -52,7 +60,7 @@ const createInstance = (snapshot?: Checkout.State) => {
     },
   );
   instances.push(instance);
-  return { instance, stored, ready: () => Promise.all(pending) };
+  return { instance, stored, alarm, ready: () => Promise.all(pending) };
 };
 
 const request = (path: string, method = "GET", body?: string) =>
@@ -353,6 +361,73 @@ describe("CheckoutDO", () => {
       (await fixture.instance.fetch(request("secret/%ZZ?setup=setup-a")))
         .status,
     ).toBe(400);
+  });
+});
+
+describe("deposits", () => {
+  it("reads a deposit's body before blocking other requests", async () => {
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    let finish = () => {};
+    const body = new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        controller.enqueue(new TextEncoder().encode("slow-"));
+        finish = () => {
+          controller.enqueue(new TextEncoder().encode("key"));
+          controller.close();
+        };
+      },
+    });
+    const put = fixture.instance.fetch(
+      new Request(
+        `https://checkout.test/session/secret/q1?setup=setup-a&answer=${encodeURIComponent(modelAnswer)}`,
+        { method: "PUT", body, duplex: "half" } as RequestInit,
+      ),
+    );
+    expect((await fixture.instance.fetch(secretRequest())).status).toBe(404);
+    finish();
+    expect((await put).status).toBe(204);
+    expect(fixture.stored.get('secret:["setup-a","q1"]')).toEqual(
+      expect.objectContaining({ secret: "slow-key" }),
+    );
+  });
+
+  it("refuses an oversized key", async () => {
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    expect(
+      (
+        await fixture.instance.fetch(
+          secretRequest("setup-a", "PUT", "k".repeat(16 * 1024 + 1)),
+        )
+      ).status,
+    ).toBe(413);
+  });
+
+  it("deletes an unclaimed key at its expiry while the setup sits idle", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    const client = await connect(fixture);
+    expect(
+      (await fixture.instance.fetch(secretRequest("setup-a", "PUT", "key")))
+        .status,
+    ).toBe(204);
+    await client.commands["checkout/answer"]({
+      inputId: "q1",
+      answer: modelAnswer,
+    });
+    await fixture.ready();
+    const key = 'secret:["setup-a","q1"]';
+    const { expiresAt } = fixture.stored.get(key) as { expiresAt: number };
+    expect(fixture.alarm.at).toBe(expiresAt);
+    vi.setSystemTime(expiresAt);
+    fixture.alarm.at = null;
+    await fixture.instance.alarm();
+    expect(fixture.stored.has(key)).toBe(false);
+    expect(fixture.alarm.at).toBeNull();
   });
 });
 

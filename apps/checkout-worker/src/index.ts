@@ -38,6 +38,7 @@ const withCors = (response: Response) => {
 
 const SECRET_PATH = /\/secret\/([^/]+)$/;
 const SECRET_TTL_MS = 60 * 60 * 1000;
+const MAX_SECRET_LENGTH = 16 * 1024;
 
 export class CheckoutDO extends StatewireDurableObject<Env>() {
   #state: Checkout.State | undefined;
@@ -119,6 +120,24 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
     );
   }
 
+  async alarm() {
+    await this.ctx.blockConcurrencyWhile(async () => {
+      const now = Date.now();
+      let next: number | undefined;
+      const secrets = await this.ctx.storage.list({ prefix: "secret:" });
+      for (const [key, value] of secrets) {
+        const expiresAt = (value as Partial<SecretDeposit> | undefined)
+          ?.expiresAt;
+        if (typeof expiresAt !== "number" || expiresAt <= now) {
+          await this.ctx.storage.delete(key);
+        } else if (next === undefined || expiresAt < next) {
+          next = expiresAt;
+        }
+      }
+      if (next !== undefined) await this.ctx.storage.setAlarm(next);
+    });
+  }
+
   override async onRequest(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const match = SECRET_PATH.exec(url.pathname);
@@ -137,6 +156,10 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
     } catch {
       return new Response("invalid input ID", { status: 400 });
     }
+    const secret = request.method === "PUT" ? await request.text() : "";
+    if (secret.length > MAX_SECRET_LENGTH) {
+      return new Response("secret too large", { status: 413 });
+    }
     return this.ctx.blockConcurrencyWhile(async () => {
       const input = this.#currentInput(setupId, inputId);
       if (!input) return new Response("no model input", { status: 404 });
@@ -148,8 +171,8 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
         if (answer === null || !isValidModelAnswer(input, answer)) {
           return new Response("invalid deposit", { status: 400 });
         }
-        const secret = await request.text();
         if (secret === "") return new Response("empty secret", { status: 400 });
+        const expiresAt = Date.now() + SECRET_TTL_MS;
         await this.ctx.storage.put(key, {
           setupId,
           setupCreatedAt: this.#state!.createdAt!,
@@ -157,8 +180,12 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
           inputCreatedAt: input.createdAt,
           secret,
           answer,
-          expiresAt: Date.now() + SECRET_TTL_MS,
+          expiresAt,
         } satisfies SecretDeposit);
+        const alarm = await this.ctx.storage.getAlarm();
+        if (alarm === null || alarm > expiresAt) {
+          await this.ctx.storage.setAlarm(expiresAt);
+        }
         return new Response(null, { status: 204 });
       }
       if (
