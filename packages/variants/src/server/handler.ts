@@ -3,6 +3,7 @@ import { relative } from "node:path";
 import {
   appendRequest,
   ensureMailbox,
+  UnsafeMailboxError,
   presence,
   readEvents,
   type AgentNote,
@@ -255,7 +256,8 @@ export const handleNotesRequest = async (
     if (!url) return fail(400, "invalid path");
     const root = await realpath(options.root);
     if (method === "GET" && url.pathname === "/ping") {
-      await ensureMailbox(root);
+      // The note endpoints work without the agent link, so an unsafe mailbox only disables the link.
+      await ensureMailbox(root).catch(() => {});
       return { status: 200, body: { ok: true, version: 1 } };
     }
 
@@ -322,6 +324,11 @@ export const handleNotesRequest = async (
         const existing = listNotes(located.source, located.mdx).find(
           (item) => item.id === id,
         );
+        if (existing && existing.group !== group)
+          return fail(
+            409,
+            `note id ${existing.id} already belongs to another group`,
+          );
         if (existing)
           return {
             status: 201,
@@ -376,6 +383,7 @@ export const handleNotesRequest = async (
     return fail(mutation ? 405 : 404, "not found");
   } catch (error) {
     if (error instanceof BodyTooLargeError) return fail(413, error.message);
+    if (error instanceof UnsafeMailboxError) return fail(409, error.message);
     if (error instanceof SyntaxError) return fail(400, "invalid JSON body");
     return fail(500, error instanceof Error ? error.message : "failed");
   }

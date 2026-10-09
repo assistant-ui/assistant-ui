@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { appendFile, mkdir, open, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { constants } from "node:fs";
+import { lstat, mkdir, open, realpath } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 
 /** The mailbox directory at the project root; gitignored. */
 export const MAILBOX = ".variants";
@@ -41,31 +42,65 @@ export type AgentEvent = {
 
 const mailbox = (root: string, file: string) => join(root, MAILBOX, file);
 
+/** The mailbox is a symlink, or resolves outside the project root. */
+export class UnsafeMailboxError extends Error {
+  constructor(detail: string) {
+    super(`refusing to use .variants/: ${detail}`);
+  }
+}
+
 /** Time-ordered ids, so both sides can resume after the last one they saw. */
 export const newRequestId = () =>
   `r-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
 
-export const ensureMailbox = (root: string) =>
-  mkdir(join(root, MAILBOX), { recursive: true });
+/** Creates `.variants/` under `root` (already resolved) and refuses a symlinked or escaping one. */
+export const ensureMailbox = async (root: string) => {
+  const dir = join(root, MAILBOX);
+  const info = await lstat(dir).catch(() => undefined);
+  if (info && !info.isDirectory())
+    throw new UnsafeMailboxError("it is not a plain directory");
+  if (!info) await mkdir(dir);
+  if ((await realpath(dir)) !== dir)
+    throw new UnsafeMailboxError("it resolves outside the project root");
+};
+
+/** Opens a mailbox file inside a plain `.variants/` directory, never through a symlink. */
+const openFile = async (path: string, flags: number) => {
+  const dir = await lstat(dirname(path)).catch(() => undefined);
+  if (!dir?.isDirectory())
+    throw new UnsafeMailboxError("it is missing or not a plain directory");
+  try {
+    return await open(path, flags | constants.O_NOFOLLOW, 0o644);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ELOOP")
+      throw new UnsafeMailboxError(`${basename(path)} is a symlink`);
+    throw error;
+  }
+};
 
 export const presence = async (
   root: string,
   now = Date.now(),
 ): Promise<{ kind: string } | undefined> => {
-  const path = mailbox(root, PRESENCE);
+  let handle;
   try {
-    const info = await stat(path);
-    if (now - info.mtimeMs > PRESENCE_MS) return undefined;
+    handle = await openFile(mailbox(root, PRESENCE), constants.O_RDONLY);
+  } catch {
+    return undefined;
+  }
+  try {
+    const info = await handle.stat();
+    if (!info.isFile() || now - info.mtimeMs > PRESENCE_MS) return undefined;
     let kind: unknown;
     if (info.size < 4096) {
       try {
-        kind = (JSON.parse(await readFile(path, "utf8")) as { kind?: unknown })
+        kind = (JSON.parse(await handle.readFile("utf8")) as { kind?: unknown })
           .kind;
       } catch {}
     }
     return { kind: typeof kind === "string" ? kind.slice(0, 40) : "agent" };
-  } catch {
-    return undefined;
+  } finally {
+    await handle.close();
   }
 };
 
@@ -73,17 +108,20 @@ export const presence = async (
 const readTail = async (path: string): Promise<string[]> => {
   let handle;
   try {
-    handle = await open(path, "r");
+    handle = await openFile(path, constants.O_RDONLY);
   } catch {
     return [];
   }
   try {
     const { size } = await handle.stat();
     const length = Math.min(size, MAX_MAILBOX);
-    const buffer = Buffer.alloc(length);
-    await handle.read(buffer, 0, length, size - length);
-    const lines = buffer.toString("utf8").split("\n");
-    if (length < size) lines.shift();
+    // One byte before the window shows whether it starts mid-line.
+    const start = size - length;
+    const before = start > 0 ? 1 : 0;
+    const buffer = Buffer.alloc(length + before);
+    await handle.read(buffer, 0, length + before, start - before);
+    const lines = buffer.subarray(before).toString("utf8").split("\n");
+    if (before && buffer[0] !== 0x0a) lines.shift();
     return lines.filter((line) => line.trim());
   } finally {
     await handle.close();
@@ -124,29 +162,43 @@ export const readEvents = async (
   return events.slice(index + 1);
 };
 
-export const appendRequest = async (
+let appends: Promise<unknown> = Promise.resolve();
+
+export const appendRequest = (
   root: string,
   request: Omit<AgentRequest, "id" | "ts">,
 ): Promise<
   { ok: true; id: string } | { ok: false; status: number; error: string }
 > => {
-  await ensureMailbox(root);
-  const path = mailbox(root, INBOX);
-  const size = await stat(path).then(
-    (info) => info.size,
-    () => 0,
-  );
-  if (size > MAX_MAILBOX)
-    return {
-      ok: false,
-      status: 507,
-      error: "the inbox is full; reconnect the agent",
+  // One append at a time, so the size check and the write can't interleave.
+  const run = appends.then(async () => {
+    await ensureMailbox(root);
+    const line: AgentRequest = {
+      id: newRequestId(),
+      ts: new Date().toISOString(),
+      ...request,
     };
-  const line: AgentRequest = {
-    id: newRequestId(),
-    ts: new Date().toISOString(),
-    ...request,
-  };
-  await appendFile(path, `${JSON.stringify(line)}\n`, "utf8");
-  return { ok: true, id: line.id };
+    const bytes = Buffer.from(`${JSON.stringify(line)}\n`, "utf8");
+    const handle = await openFile(
+      mailbox(root, INBOX),
+      constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT,
+    );
+    try {
+      const info = await handle.stat();
+      if (!info.isFile())
+        throw new UnsafeMailboxError("inbox.jsonl is not a plain file");
+      if (info.size + bytes.byteLength > MAX_MAILBOX)
+        return {
+          ok: false as const,
+          status: 507,
+          error: "the inbox is full; reconnect the agent",
+        };
+      await handle.write(bytes);
+      return { ok: true as const, id: line.id };
+    } finally {
+      await handle.close();
+    }
+  });
+  appends = run.catch(() => {});
+  return run;
 };

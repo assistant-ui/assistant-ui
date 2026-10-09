@@ -3,6 +3,7 @@ import {
   readFile,
   rm,
   stat,
+  symlink,
   utimes,
   writeFile,
 } from "node:fs/promises";
@@ -116,10 +117,48 @@ describe("agent mailbox", () => {
     ]);
   });
 
-  it("refuses to grow a full inbox", async () => {
+  it("refuses a request that would push the inbox past the cap", async () => {
     await connect();
-    await writeFile(file("inbox.jsonl"), "x".repeat(MAX_MAILBOX + 1));
+    await writeFile(file("inbox.jsonl"), "x".repeat(MAX_MAILBOX - 10));
     expect((await call("POST", "/agent/requests", choose)).status).toBe(507);
+    expect((await stat(file("inbox.jsonl"))).size).toBe(MAX_MAILBOX - 10);
+  });
+
+  it("serializes concurrent appends into whole lines", async () => {
+    await connect();
+    const sent = await Promise.all(
+      Array.from({ length: 5 }, () => call("POST", "/agent/requests", choose)),
+    );
+    expect(sent.map((response) => response.status)).toEqual([
+      201, 201, 201, 201, 201,
+    ]);
+    const lines = (await readFile(file("inbox.jsonl"), "utf8"))
+      .trim()
+      .split("\n");
+    expect(lines.map((line) => JSON.parse(line).id).sort()).toEqual(
+      sent.map((response) => (response.body as { id: string }).id).sort(),
+    );
+  });
+
+  it("refuses a symlinked mailbox or inbox", async () => {
+    await connect();
+    const outside = await mkdtemp(join(tmpdir(), "variants-outside-"));
+    try {
+      await symlink(join(outside, "stolen.jsonl"), file("inbox.jsonl"));
+      const linked = await call("POST", "/agent/requests", choose);
+      expect(linked.status).toBe(409);
+      await expect(stat(join(outside, "stolen.jsonl"))).rejects.toThrow();
+
+      await rm(join(root, MAILBOX), { recursive: true });
+      await symlink(outside, join(root, MAILBOX));
+      expect((await call("GET", "/ping")).status).toBe(200);
+      expect((await call("GET", "/agent")).body).toMatchObject({
+        connected: false,
+      });
+      expect((await call("POST", "/agent/requests", choose)).status).toBe(409);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 
   it("lists outbox events after the last id the page saw, skipping malformed lines", async () => {
@@ -162,6 +201,20 @@ describe("agent mailbox", () => {
     expect((await call("GET", "/agent")).body).toMatchObject({
       events: [last],
     });
+    // A window that starts exactly at a line keeps that line.
+    const event = (text: string) =>
+      `${JSON.stringify({ id: "o-n", ts: "t", re: "r-1", type: "ack", text })}\n`;
+    const count = Math.floor(MAX_MAILBOX / event("").length);
+    const padding = MAX_MAILBOX - count * event("").length;
+    await writeFile(
+      file("outbox.jsonl"),
+      `junk\n${event("a".repeat(padding))}${event("").repeat(count - 1)}`,
+    );
+    const { events } = (await call("GET", "/agent")).body as {
+      events: { text: string }[];
+    };
+    expect(events).toHaveLength(count);
+    expect(events[0]!.text).toHaveLength(padding);
   });
 
   it("applies the same guards as the note endpoints", async () => {

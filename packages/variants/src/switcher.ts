@@ -871,21 +871,18 @@ export const mountSwitcher = (store: Store): (() => void) => {
           },
           "Save",
         ),
-        ...(store.getSnapshot().agent.connected
-          ? [
-              h(
-                "button",
-                {
-                  type: "button",
-                  class: "text-btn",
-                  "data-action": "save-send",
-                  "data-group": group,
-                  title: "Save, then ask the agent to apply this group's notes",
-                },
-                "Save & send",
-              ),
-            ]
-          : []),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "text-btn send",
+            "data-action": "save-send",
+            "data-group": group,
+            title: "Save, then ask the agent to apply this group's notes",
+            hidden: store.getSnapshot().agent.connected ? undefined : "",
+          },
+          "Save & send",
+        ),
       ),
     );
     editor.hidden = false;
@@ -1019,7 +1016,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       }
     }
     for (const element of root.querySelectorAll<HTMLElement>(
-      "[data-agent-badge], [data-action=send]",
+      "[data-agent-badge], [data-action=send], [data-action=save-send]",
     ))
       element.hidden = !snapshot.agent.connected;
     agent.setActive(

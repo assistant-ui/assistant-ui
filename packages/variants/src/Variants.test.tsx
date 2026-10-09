@@ -846,6 +846,7 @@ describe("switcher edge cases", () => {
   it("shows a linked agent, sends choices and notes, and shows its status per group", async () => {
     const original = globalThis.fetch;
     const requests: { kind: string; pairs: string[] }[] = [];
+    const order: string[] = [];
     globalThis.fetch = (async (
       input: RequestInfo | URL,
       init?: RequestInit,
@@ -856,6 +857,7 @@ describe("switcher edge cases", () => {
       if (url.endsWith("/ping")) return reply({ ok: true, version: 1 });
       if (url.includes("/agent/requests")) {
         requests.push(JSON.parse(String(init!.body)));
+        order.push(`agent:${requests.at(-1)!.kind}`);
         return reply({ id: `r-${requests.length}` }, 201);
       }
       if (url.includes("/agent"))
@@ -865,7 +867,10 @@ describe("switcher edge cases", () => {
             ? [{ id: "o-1", re: "r-1", type: "done", text: "Kept Split" }]
             : [],
         });
-      if (init?.method === "POST") return reply({ id: "n-00000001" }, 201);
+      if (init?.method === "POST") {
+        order.push(`note:${JSON.parse(String(init.body)).note}`);
+        return reply({ id: "n-00000001" }, 201);
+      }
       return reply({ notes: [] });
     }) as typeof fetch;
     try {
@@ -897,19 +902,24 @@ describe("switcher edge cases", () => {
       await settle();
       expect(status().textContent).toBe("Agent: Kept Split");
 
+      act(() => store.setAgent({ connected: false, status: {} }));
       fireEvent.click(
         switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
       );
+      const saveSend = () =>
+        switcherRoot().querySelector<HTMLElement>('[data-action="save-send"]')!;
+      expect(saveSend().hidden).toBe(true);
+      act(() => store.setAgent({ connected: true, status: {} }));
+      expect(saveSend().hidden).toBe(false);
       const field = switcher().ui.getByRole("textbox", {
         name: "Note for Hero",
       }) as HTMLTextAreaElement;
       fireEvent.input(Object.assign(field, { value: "tighter" }));
-      fireEvent.click(
-        switcher().ui.getByRole("button", { name: "Save & send" }),
-      );
+      fireEvent.click(saveSend());
       await settle();
       await settle();
       expect(requests[1]).toMatchObject({ kind: "apply", pairs: ["hero:b"] });
+      expect(order).toEqual(["agent:choose", "note:tighter", "agent:apply"]);
     } finally {
       globalThis.fetch = original;
     }

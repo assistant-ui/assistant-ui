@@ -158,6 +158,35 @@ describe("agent link", () => {
     }
   });
 
+  it("keeps events that arrive before send learns its request id", async () => {
+    let answer!: (response: Response) => void;
+    const fetcher = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "POST")
+          return new Promise<Response>((resolve) => (answer = resolve));
+        return json({
+          connected: true,
+          events: [
+            { id: "o-1", re: "r-1", type: "ack" },
+            { id: "o-2", re: "r-1", type: "done", ok: true, reload: true },
+          ],
+        });
+      },
+    );
+    const reload = vi.fn();
+    const link = createAgentLink(store, fetcher as typeof fetch, reload);
+    const sending = link.send("choose");
+    await link.poll();
+    answer(json({ id: "r-1" }, 201));
+    expect(await sending).toBeUndefined();
+    expect(store.getSnapshot().agent.status["demo-cta"]).toEqual({
+      type: "done",
+      text: "Done",
+      ok: true,
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it("describes failed and plain status events", async () => {
     const events = [
       { id: "o-1", re: "r-1", type: "status" },

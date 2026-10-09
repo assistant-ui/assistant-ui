@@ -36,6 +36,36 @@ export const createAgentLink = (
   let after: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const pending = new Map<string, string[]>();
+  // Events can arrive before `send` learns its request id; they wait here.
+  const unmatched = new Map<string, AgentEvent[]>();
+
+  const apply = (events: readonly AgentEvent[], connected: boolean) => {
+    const status: Record<string, AgentStatus> = {
+      ...store.getSnapshot().agent.status,
+    };
+    let shouldReload = false;
+    for (const event of events) {
+      const groups = pending.get(event.re);
+      if (!groups) {
+        unmatched.set(event.re, [...(unmatched.get(event.re) ?? []), event]);
+        if (unmatched.size > 50)
+          unmatched.delete(unmatched.keys().next().value!);
+        continue;
+      }
+      for (const group of groups)
+        status[group] = {
+          type: event.type,
+          text: describeEvent(event),
+          ok: event.ok,
+        };
+      if (event.type === "done") {
+        pending.delete(event.re);
+        shouldReload ||= event.reload === true;
+      }
+    }
+    store.setAgent({ connected, status });
+    if (shouldReload) reload();
+  };
 
   const poll = async () => {
     try {
@@ -48,27 +78,9 @@ export const createAgentLink = (
         connected?: boolean;
         events?: AgentEvent[];
       };
-      const status: Record<string, AgentStatus> = {
-        ...store.getSnapshot().agent.status,
-      };
-      let shouldReload = false;
-      for (const event of body.events ?? []) {
-        after = event.id;
-        const groups = pending.get(event.re);
-        if (!groups) continue;
-        for (const group of groups)
-          status[group] = {
-            type: event.type,
-            text: describeEvent(event),
-            ok: event.ok,
-          };
-        if (event.type === "done") {
-          pending.delete(event.re);
-          shouldReload ||= event.reload === true;
-        }
-      }
-      store.setAgent({ connected: body.connected === true, status });
-      if (shouldReload) reload();
+      const events = body.events ?? [];
+      after = events.at(-1)?.id ?? after;
+      apply(events, body.connected === true);
     } catch {}
   };
 
@@ -125,6 +137,9 @@ export const createAgentLink = (
         ok: undefined,
       };
     store.setAgent({ connected: true, status });
+    const early = unmatched.get(body.id);
+    unmatched.delete(body.id);
+    if (early) apply(early, true);
     return undefined;
   };
 

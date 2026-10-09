@@ -395,6 +395,20 @@ describe("body and concurrency", () => {
     expect(second).toEqual(first);
     const written = await readFile(join(root, "src", "page.tsx"), "utf8");
     expect(written.split("n-0000abcd")).toHaveLength(2);
+    await writeFile(
+      join(root, "src", "page.tsx"),
+      `${page}\nexport const B = () => <Variants id="demo-b">{/* @variants-note id="n-0000beef" ts="t" text="eyJub3RlIjoieCJ9" */}<Variant id="y">y</Variant></Variants>;\n`,
+    );
+    expect(
+      await call(
+        request("POST", "/notes", {
+          body: { group: "demo-cta", note: "clash", id: "n-0000beef" },
+        }),
+      ),
+    ).toEqual({
+      status: 409,
+      body: { error: "note id n-0000beef already belongs to another group" },
+    });
     expect(
       (
         await call(
