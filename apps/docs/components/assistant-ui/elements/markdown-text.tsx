@@ -5,7 +5,7 @@ import "katex/dist/katex.min.css";
 
 import {
   MarkdownTextPrimitive,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import rehypeKatex from "rehype-katex";

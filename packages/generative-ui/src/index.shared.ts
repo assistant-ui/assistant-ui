@@ -18,6 +18,7 @@ export {
 } from "./ir";
 export { defaultGenerativeUILibrary } from "./vocabulary";
 export { createActionRegistry, emptyActionRegistry } from "./actionRegistry";
+export { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
 export type {
   ActionHandler,
   ActionRegistry,

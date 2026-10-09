@@ -254,7 +254,7 @@ export function SidebarContent({
         <div className="shrink-0 px-3 pt-4 lg:hidden">
           <PlatformSwitcher
             tree={tree}
-            className="mb-3 h-8 w-full rounded-lg px-2.5 text-[13px] tracking-tight"
+            className="bg-muted/70 hover:bg-muted data-[popup-open]:bg-muted mx-0 mb-3 h-8 w-full rounded-lg px-2.5 text-[13px] font-medium tracking-tight"
           />
         </div>
       )}

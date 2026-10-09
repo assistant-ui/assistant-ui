@@ -10,7 +10,8 @@ export type {
 
 export { useIsMarkdownCodeBlock } from "./overrides/PreOverride";
 export {
-  /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
+  memoizeMarkdownComponents,
+  /** @deprecated Use `memoizeMarkdownComponents` instead. */
   memoizeMarkdownComponents as unstable_memoizeMarkdownComponents,
 } from "./memoization";
 
