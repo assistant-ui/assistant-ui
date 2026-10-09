@@ -52,6 +52,21 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
+  it("composerSendDisabled blocks a disabled thread", () => {
+    expect(
+      composerSendDisabled(
+        state({
+          composer: { canSend: true },
+          thread: {
+            isDisabled: true,
+            isRunning: false,
+            capabilities: { queue: false },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("composerSendDisabled leaves a spoken reply in progress to canSend while a voice session is connected", () => {
     const voice = { status: { type: "running" }, canSendText: true };
     expect(

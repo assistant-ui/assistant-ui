@@ -1,4 +1,5 @@
 import {
+  computed,
   defineComponent,
   h,
   mergeProps,
@@ -39,8 +40,8 @@ export const ComposerPrimitiveAttachments = defineComponent({
 
 /**
  * A button that opens a file picker and adds the selected files to the
- * composer. Disabled while the composer is not editable. The picker's accept
- * filter follows the composer's `attachmentAccept`.
+ * composer. Disabled while the thread is disabled or the composer is not
+ * editable. The picker's accept filter follows the composer's `attachmentAccept`.
  */
 export const ComposerPrimitiveAddAttachment = defineComponent({
   name: "ComposerPrimitiveAddAttachment",
@@ -54,7 +55,9 @@ export const ComposerPrimitiveAddAttachment = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { attrs, slots }) {
     const aui = useAui();
-    const disabled = useAuiState((s) => !s.composer.isEditing);
+    const disabled = useAuiState(
+      (s) => s.thread.isDisabled || !s.composer.isEditing,
+    );
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
         return;
@@ -116,20 +119,23 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
   setup(props, { attrs, slots }) {
     const aui = useAui();
     const isDragging = ref(false);
+    const threadDisabled = useAuiState((s) => s.thread.isDisabled);
+    const isDisabled = computed(() => props.disabled || threadDisabled.value);
 
-    watch(
-      () => props.disabled,
-      (disabled) => {
-        if (disabled) isDragging.value = false;
-      },
-    );
+    watch(isDisabled, (disabled) => {
+      if (disabled) isDragging.value = false;
+    });
 
     const isFileDrag = (event: DragEvent) =>
       event.dataTransfer?.types.includes("Files") === true;
 
     const onDragenterCapture = (event: DragEvent) => {
-      if (props.disabled || !isFileDrag(event)) return;
+      if (!isFileDrag(event)) return;
       event.preventDefault();
+      if (isDisabled.value) {
+        event.dataTransfer!.dropEffect = "none";
+        return;
+      }
       if (!aui.thread.getState().capabilities.attachments) {
         event.dataTransfer!.dropEffect = "none";
         return;
@@ -137,8 +143,12 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       isDragging.value = true;
     };
     const onDragoverCapture = (event: DragEvent) => {
-      if (props.disabled || !isFileDrag(event)) return;
+      if (!isFileDrag(event)) return;
       event.preventDefault();
+      if (isDisabled.value) {
+        event.dataTransfer!.dropEffect = "none";
+        return;
+      }
       if (!aui.thread.getState().capabilities.attachments) {
         event.dataTransfer!.dropEffect = "none";
         return;
@@ -146,16 +156,20 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       if (!isDragging.value) isDragging.value = true;
     };
     const onDragleaveCapture = (event: DragEvent) => {
-      if (props.disabled || !isFileDrag(event)) return;
+      if (!isFileDrag(event)) return;
+      if (isDisabled.value) {
+        isDragging.value = false;
+        return;
+      }
       const related = event.relatedTarget as Node | null;
       if (related && (event.currentTarget as Node).contains(related)) return;
       isDragging.value = false;
     };
     const onDropCapture = (event: DragEvent) => {
-      if (props.disabled) return;
       isDragging.value = false;
       if (!isFileDrag(event)) return;
       event.preventDefault();
+      if (isDisabled.value) return;
       const files = Array.from(event.dataTransfer?.files ?? []);
       if (!aui.thread.getState().capabilities.attachments || files.length === 0)
         return;
@@ -168,8 +182,9 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       h(
         "div",
         mergeProps(attrs, {
-          ...(!props.disabled &&
-            isDragging.value && { "data-dragging": "true" }),
+          ...(isDisabled.value
+            ? { "data-dragging": undefined }
+            : isDragging.value && { "data-dragging": "true" }),
           onDragenterCapture,
           onDragoverCapture,
           onDragleaveCapture,

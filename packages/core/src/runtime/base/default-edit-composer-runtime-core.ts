@@ -1,5 +1,8 @@
 import type { AppendMessage, ThreadMessage } from "../../types/message";
-import type { CompleteAttachment } from "../../types/attachment";
+import type {
+  CompleteAttachment,
+  CreateAttachment,
+} from "../../types/attachment";
 import type { QuoteInfo } from "../../types/quote";
 import { getThreadMessageText } from "../../utils/text";
 import { liftNonTextParts } from "../../adapters/attachment";
@@ -21,7 +24,17 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public get canSend() {
-    return !this.isEmpty && !this.runtime.voice && !this.isSubmitting;
+    return (
+      !this.runtime.isDisabled &&
+      !this.isEmpty &&
+      !this.runtime.voice &&
+      !this.isSubmitting
+    );
+  }
+
+  public override addAttachment(fileOrAttachment: File | CreateAttachment) {
+    if (this.runtime.isDisabled) return Promise.resolve();
+    return super.addAttachment(fileOrAttachment);
   }
 
   protected getAttachmentAdapter() {
@@ -61,10 +74,13 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     super();
     this.runtime = runtime;
     let lastHasVoice = runtime.voice !== undefined;
+    let lastIsDisabled = runtime.isDisabled;
     const unsubscribe = runtime.subscribe(() => {
       const hasVoice = runtime.voice !== undefined;
-      if (hasVoice === lastHasVoice) return;
+      const isDisabled = runtime.isDisabled;
+      if (hasVoice === lastHasVoice && isDisabled === lastIsDisabled) return;
       lastHasVoice = hasVoice;
+      lastIsDisabled = isDisabled;
       this._notifySubscribers();
     });
     this.endEditCallback = () => {

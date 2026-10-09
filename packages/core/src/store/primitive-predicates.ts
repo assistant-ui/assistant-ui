@@ -11,6 +11,7 @@ import type { AssistantState } from "@assistant-ui/store";
  */
 
 export const composerSendDisabled = (s: AssistantState): boolean =>
+  s.thread.isDisabled ||
   !s.composer.canSend ||
   (s.thread.isRunning &&
     !s.thread.capabilities.queue &&

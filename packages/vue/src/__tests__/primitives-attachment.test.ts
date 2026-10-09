@@ -86,12 +86,18 @@ const createTestAttachmentAdapter = (
 const createTestRuntime = ({
   withAttachments = true,
   accept = "*",
-}: { withAttachments?: boolean; accept?: string } = {}) => {
+  isDisabled = false,
+}: {
+  withAttachments?: boolean;
+  accept?: string;
+  isDisabled?: boolean;
+} = {}) => {
   let messages: DemoMessage[] = [];
   const attachmentAdapter = createTestAttachmentAdapter(accept);
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
     isRunning: false,
+    isDisabled,
     convertMessage: (message) => ({
       role: message.role,
       content: message.content,
@@ -290,6 +296,27 @@ describe("composer attachment primitives", () => {
 
     unmount();
   });
+
+  it("disables the file picker on a disabled thread", async () => {
+    const { runtime } = createTestRuntime({ isDisabled: true });
+    const view = defineComponent({
+      setup: () => () =>
+        h(
+          ComposerPrimitiveAddAttachment,
+          { class: "add" },
+          { default: () => "+" },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, view);
+    await nextTick();
+
+    const button = el.querySelector("button.add") as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    button.click();
+    expect(document.body.querySelector('input[type="file"]')).toBeNull();
+
+    unmount();
+  });
 });
 
 const dragEvent = (type: string, files: File[] = [], kinds = ["Files"]) => {
@@ -417,6 +444,30 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     await nextTick();
     dz.dispatchEvent(dragEvent("drop", [makeFile("ignored.txt")]));
     await nextTick();
+    expect(attachmentAdapter.added).toHaveLength(0);
+
+    unmount();
+  });
+
+  it("claims file drops but does not add them on a disabled thread", async () => {
+    const { runtime, attachmentAdapter } = createTestRuntime({
+      isDisabled: true,
+    });
+    const { el, unmount } = mountChat(runtime, DropzoneView);
+    await nextTick();
+    const dz = el.querySelector(".dz") as HTMLElement;
+
+    const enter = dragEvent("dragenter");
+    dz.dispatchEvent(enter);
+    await nextTick();
+    expect(enter.defaultPrevented).toBe(true);
+    expect((enter as any).dataTransfer.dropEffect).toBe("none");
+    expect(dz.dataset["dragging"]).toBeUndefined();
+
+    const drop = dragEvent("drop", [makeFile("ignored.txt")]);
+    dz.dispatchEvent(drop);
+    await nextTick();
+    expect(drop.defaultPrevented).toBe(true);
     expect(attachmentAdapter.added).toHaveLength(0);
 
     unmount();
