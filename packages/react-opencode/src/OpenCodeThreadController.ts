@@ -1140,9 +1140,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   public async revert(messageId: string) {
     const runGeneration = this.runGeneration;
+    const wasRunning = isOpenCodeStateRunning(this.state);
     // Reverting a finished turn leaves the session idle, so the server sends no
     // busy-to-idle transition and the transient state would never be left.
-    if (isOpenCodeStateRunning(this.state)) {
+    if (wasRunning) {
       this.dispatch({ type: "run.reverting" });
     }
     try {
@@ -1156,8 +1157,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     } catch (error) {
       if (
         runGeneration === this.runGeneration &&
-        this.state.runState.type !== "idle" &&
-        this.state.runState.type !== "error"
+        (!wasRunning || this.state.runState.type === "reverting")
       ) {
         this.dispatch({ type: "run.failed", error });
       }

@@ -5819,14 +5819,64 @@ describe("OpenCodeThreadController", () => {
         "ses_1",
       );
 
-      (
-        controller as unknown as { dispatch: (event: unknown) => void }
-      ).dispatch({ type: "run.started" });
-
       await expect(controller.revert("msg_1")).rejects.toThrow("revert failed");
 
       expect(controller.getState().runState).toMatchObject({ type: "error" });
     });
+
+    it.each(["idle", "running"] as const)(
+      "keeps a newer run active when a revert started while %s fails",
+      async (initialState) => {
+        const revert = createDeferred<unknown>();
+        const error = new Error("revert failed");
+        const client = {
+          session: {
+            revert: vi
+              .fn()
+              .mockImplementationOnce(() => revert.promise)
+              .mockResolvedValue({}),
+            promptAsync: vi.fn().mockResolvedValue({}),
+          },
+        };
+        const controller = new OpenCodeThreadController(
+          client as never,
+          () => ({ subscribe: () => () => {} }),
+          "ses_1",
+        );
+        const send = (text: string) =>
+          controller.sendMessage({
+            role: "user",
+            parentId: null,
+            sourceId: null,
+            content: [{ type: "text", text }],
+            attachments: [],
+            metadata: { custom: {} },
+            runConfig: {},
+            createdAt: new Date(),
+          });
+
+        if (initialState === "running") {
+          await send("run A");
+        }
+        const reverting = controller.revert("msg_1");
+        expect(controller.getState().runState.type).toBe(
+          initialState === "running" ? "reverting" : "idle",
+        );
+
+        await send("run B");
+        expect(controller.getState().runState.type).toBe("streaming");
+        if (initialState === "running") {
+          await controller.revert("msg_2");
+        }
+        const newerRunState =
+          initialState === "running" ? "reverting" : "streaming";
+        expect(controller.getState().runState.type).toBe(newerRunState);
+
+        revert.reject(error);
+        await expect(reverting).rejects.toBe(error);
+        expect(controller.getState().runState.type).toBe(newerRunState);
+      },
+    );
 
     it("keeps the run idle when revert fails after an idle status", async () => {
       const revert = createDeferred<unknown>();
