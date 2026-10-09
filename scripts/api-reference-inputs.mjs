@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 
 export const API_REFERENCE_INPUTS = [
   "packages/react",
@@ -36,7 +36,7 @@ export function hasApiReferenceInputs(changedFiles) {
   );
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   const changedFiles = readFileSync(0, "utf8")
     .split("\0")
     .filter((file) => file !== "");
