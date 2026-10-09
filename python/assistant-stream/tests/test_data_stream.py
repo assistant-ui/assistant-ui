@@ -122,6 +122,20 @@ def test_data_stream_encoder_error_metadata(code, severity, expected) -> None:
 
 
 @pytest.mark.anyio
+async def test_run_controller_add_error_carries_metadata() -> None:
+    async def run_callback(controller: RunController):
+        controller.add_error("slow", code="rate_limit", severity="warning")
+
+    lines = [
+        line async for line in DataStreamEncoder().encode_stream(create_run(run_callback))
+    ]
+
+    assert lines == [
+        '3:{"error": "slow", "code": "rate_limit", "severity": "warning"}\n'
+    ]
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize("severity", ["warning", "info"])
 async def test_data_stream_encoder_keeps_tool_args_open_across_noncritical_error(severity) -> None:
     async def stream():
@@ -252,6 +266,19 @@ async def test_tool_call_controller_closes_after_the_final_response() -> None:
         ("tool-call-args-text-finish", None),
     ]
     assert [chunk.is_preliminary for chunk in chunks[1:4]] == [True, True, False]
+
+
+@pytest.mark.anyio
+async def test_tool_call_controller_set_response_carries_messages() -> None:
+    messages = [{"role": "assistant", "content": [{"type": "text", "text": "done"}]}]
+    stream, controller = await create_tool_call("search", "t1")
+    controller.set_response("ok", messages=messages)
+
+    lines = [line async for line in DataStreamEncoder().encode_stream(stream)]
+
+    assert [json.loads(line[2:]) for line in lines if line.startswith("a:")] == [
+        {"toolCallId": "t1", "result": "ok", "messages": messages}
+    ]
 
 
 @pytest.mark.anyio
@@ -489,6 +516,23 @@ async def test_run_controller_add_tool_result_carries_error_and_artifact():
 
     assert lines == [
         'a:{"toolCallId": "t1", "result": {"message": "boom"}, "artifact": {"trace": 1}, "isError": true}\n'
+    ]
+
+
+@pytest.mark.anyio
+async def test_run_controller_add_tool_result_carries_messages() -> None:
+    messages = [{"role": "assistant", "content": [{"type": "text", "text": "done"}]}]
+
+    async def run_callback(controller: RunController):
+        controller.add_tool_result("t1", "ok", messages=messages)
+
+    lines = [
+        line async for line in DataStreamEncoder().encode_stream(create_run(run_callback))
+    ]
+
+    assert lines == [
+        'a:{"toolCallId": "t1", "result": "ok", "messages": '
+        '[{"role": "assistant", "content": [{"type": "text", "text": "done"}]}]}\n'
     ]
 
 
