@@ -43,6 +43,7 @@ minimumReleaseAgeExclude:
   - heat-graph
   - next
   - safe-content-frame
+  - scf-websandbox
   - tw-shimmer
   - typescript
 
