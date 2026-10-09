@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Host-type benchmark: mount+unmount and update cost of a body with N
  * hooks under each host. Runs against the BUILT package (dist), which the

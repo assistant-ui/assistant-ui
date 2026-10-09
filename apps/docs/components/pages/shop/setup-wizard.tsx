@@ -144,11 +144,24 @@ function EndSetupDialog({
   trigger: RefObject<HTMLButtonElement | null>;
 }) {
   const fromCart = checkout.session.fromCart === true;
+  const dropped = useRef<() => void>(undefined);
+  useEffect(() => {
+    if (checkout.degraded) dropped.current?.();
+  }, [checkout.degraded]);
   const end = async () => {
     analytics.setup.cancelled();
-    try {
-      await checkout.commands["checkout/cancel"]();
-    } catch {
+    const reached = checkout.commands["checkout/cancel"]().then(
+      () => true,
+      () => false,
+    );
+    // The client holds a command until it reconnects; a brief reconnect still delivers it, but once a drop outlasts the grace the page ends locally.
+    const lost = new Promise<false>((resolve) => {
+      dropped.current = () => resolve(false);
+    });
+    const delivered =
+      !checkout.degraded && (await Promise.race([reached, lost]));
+    dropped.current = undefined;
+    if (!delivered) {
       toast.warning(
         "Could not reach the session. Your agent may keep working until it times out.",
       );

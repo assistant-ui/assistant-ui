@@ -2,6 +2,8 @@ import {
   Node,
   Project,
   Scope,
+  ts,
+  type ExportSpecifier,
   type InterfaceDeclaration,
   type JSDoc,
   type JSDocableNode,
@@ -23,6 +25,7 @@ import {
   REPO_ROOT,
 } from "./paths.mts";
 import type { ExportInfo } from "./discover.mts";
+import { parseDeprecatedTag } from "../../../../scripts/lib/experimental-annotations.mjs";
 
 // ── Project (per-process shared instance) ──────────────────────────────────
 
@@ -90,15 +93,17 @@ export function getProject(): Project {
   if (_project) return _project;
   _project = new Project({
     tsConfigFilePath: path.join(DOCS_ROOT, "tsconfig.json"),
-    // The docs tsconfig `include`s the entire Next.js app + `.next/types/**`
-    // + every workspace package reachable through path mappings, which costs
-    // ~3.4 s of project bootstrap and loads ~1,100 source files we never look
-    // at. Skip the tsconfig auto-add and explicitly preload the package
-    // source trees this generator analyzes (see GENERATOR_SOURCE_GLOBS).
+    // The docs tsconfig also includes the Next.js app and generated routes.
     skipAddingFilesFromTsConfig: true,
   });
   for (const glob of GENERATOR_SOURCE_GLOBS) {
-    _project.addSourceFilesAtPaths(glob);
+    // Test module augmentations would otherwise change the documented public types.
+    _project.addSourceFilesAtPaths([
+      glob,
+      `!${path.join(REPO_ROOT, "packages/**/{tests,__tests__}/**")}`,
+      `!${path.join(REPO_ROOT, "packages/**/*.{test,spec,bench}.{ts,tsx}")}`,
+      `!${path.join(REPO_ROOT, "packages/**/testUtils.{ts,tsx}")}`,
+    ]);
   }
   // Note: do NOT eagerly add primitive source globs here. Doing so changes
   // ts-morph's intersection property iteration order (legacy api-surface
@@ -129,6 +134,7 @@ export type PropModel = {
   description?: string;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   /** undefined when the source has no required-ness signal (e.g. class
    *  members in a class shape). Projections that always want a boolean
    *  should default to `false`. */
@@ -353,12 +359,11 @@ function cleanJsDocTagText(text: string | undefined): string | undefined {
     .trim();
 }
 
-function deprecatedTagParts(doc: JSDoc | undefined): {
+function splitDeprecatedText(text: string | undefined): {
   deprecated?: string | undefined;
   trailingDescription?: string | undefined;
 } {
-  const tag = doc?.getTags().find((tag) => tag.getTagName() === "deprecated");
-  const cleaned = cleanJsDocTagText(tag?.getCommentText());
+  const cleaned = cleanJsDocTagText(text);
   if (!cleaned) return {};
 
   const [deprecated, ...rest] = cleaned.split(/\n\s*\n/);
@@ -367,6 +372,43 @@ function deprecatedTagParts(doc: JSDoc | undefined): {
     deprecated: deprecated?.trim() || undefined,
     trailingDescription: trailingDescription || undefined,
   };
+}
+
+function deprecatedTagParts(doc: JSDoc | undefined) {
+  const tag = doc?.getTags().find((tag) => tag.getTagName() === "deprecated");
+  return splitDeprecatedText(tag?.getCommentText());
+}
+
+export function exportSpecifierDeprecated(
+  specifier: ExportSpecifier,
+): string | undefined {
+  const seen = new Set<TsMorphSymbol>();
+  for (
+    let symbol = specifier.getSymbol();
+    symbol?.isAlias() && !seen.has(symbol);
+    symbol = symbol.getImmediatelyAliasedSymbol()
+  ) {
+    seen.add(symbol);
+    for (const declaration of symbol.getDeclarations()) {
+      if (!Node.isExportSpecifier(declaration)) continue;
+      const tag = ts.getJSDocDeprecatedTag(declaration.compilerNode);
+      if (!tag) continue;
+      return (
+        splitDeprecatedText(ts.getTextOfJSDocComment(tag.comment)).deprecated ??
+        "true"
+      );
+    }
+  }
+  return undefined;
+}
+
+function setDeprecation(model: PropModel, deprecated: string | undefined) {
+  if (!deprecated) return;
+  if (parseDeprecatedTag(deprecated).kind === "experimental") {
+    model.experimental = true;
+  } else {
+    model.deprecated = deprecated;
+  }
 }
 
 function jsDocSourceLabel(node: TsNode | undefined): string {
@@ -947,7 +989,7 @@ function parameterFromProperty(
   };
   if (jsDoc.description) model.description = jsDoc.description;
   if (jsDoc.default) model.default = jsDoc.default;
-  if (jsDoc.deprecated) model.deprecated = jsDoc.deprecated;
+  setDeprecation(model, jsDoc.deprecated);
   if (inheritedFrom) model.inheritedFrom = inheritedFrom;
   if (children) model.children = children;
 
@@ -1011,7 +1053,7 @@ function parameterFromSignatureParameter(
   };
   if (jsDoc.description) model.description = jsDoc.description;
   if (jsDoc.default) model.default = jsDoc.default;
-  if (jsDoc.deprecated) model.deprecated = jsDoc.deprecated;
+  setDeprecation(model, jsDoc.deprecated);
 
   if (shouldExpandChildType(parameterType, declaredType)) {
     const children = processTypeChildren(

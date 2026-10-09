@@ -165,12 +165,14 @@ export async function POST(req: Request) {
     const { model, providerOptions } = resolveChatModel();
     const distinctId = getDistinctId(req);
 
+    const aiSDKTools = frontendTools(tools ?? {});
     const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
       reasoning: "none",
     });
 
     const result = streamText({
+      abortSignal: req.signal,
       model,
       ...(providerOptions ? { providerOptions } : {}),
       system:
@@ -179,7 +181,7 @@ export async function POST(req: Request) {
       messages: prunedMessages,
       maxOutputTokens: 4000,
       stopWhen: stepCountIs(3),
-      tools: frontendTools(tools),
+      tools: aiSDKTools,
       ...posthogTelemetry({
         distinctId,
         spanName: "playground_chat",

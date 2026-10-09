@@ -1,18 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { StatewireSendError } from "statewire";
 import { CheckoutHost } from "./host";
-import { presetInput } from "./presets";
+import { isPresetId, presetInput } from "./presets";
 import {
   classifyChoiceAnswer,
   currentPlan,
+  followedUpSinceProposal,
   initialCheckoutState,
   isAgentPresent,
   openInputs,
+  parseChoiceAnswer,
   parseModelAnswer,
   planNeedsReview,
   stepProgress,
 } from "./protocol";
+import type { Checkout } from "./protocol";
 
 const mount = (restored?: unknown) => {
   const root = createTapRoot(() => useResource(CheckoutHost(restored)));
@@ -896,5 +899,91 @@ describe("product discovery", () => {
       status: "done",
     });
     expect(restored.state.products).toEqual(seed.products);
+  });
+});
+
+describe("closing", () => {
+  it("keeps a finished setup done when a late cancel arrives", async () => {
+    const host = await approvedHost();
+    await host.commands["agent/done"]();
+    await host.commands["checkout/finish"]();
+    await host.commands["checkout/cancel"]();
+    expect(host.state.status).toBe("done");
+  });
+
+  it("ignores a cancel before the setup exists", async () => {
+    const host = mount();
+    await host.commands["checkout/cancel"]();
+    expect(host.state.status).toBe(initialCheckoutState().status);
+  });
+
+  it("stops counting a follow-up once the agent acknowledges it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const host = await approvedHost();
+    await host.commands["agent/done"]();
+    vi.advanceTimersByTime(1);
+    await host.commands["checkout/message"]({ text: "One more thing" });
+    expect(followedUpSinceProposal(host.state)).toBe(true);
+    const message = host.state.log.at(-1)!;
+    await host.commands["agent/ack"]({ messageId: message.id });
+    expect(followedUpSinceProposal(host.state)).toBe(false);
+  });
+});
+
+describe("choice option ids", () => {
+  const ask = async (options: Checkout.ChoiceOption[], multiple = false) => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    return host.commands["agent/ask"]({
+      kind: "choice",
+      prompt: "Pick",
+      options,
+      ...(multiple && { multiple }),
+    });
+  };
+
+  it("accepts several answers when every option has an empty variant list", async () => {
+    await expect(
+      ask([{ id: "a", label: "A", variants: [] }], true),
+    ).resolves.toEqual({ inputId: "q1" });
+  });
+
+  it.each([
+    [[{ id: "a:b", label: "A" }]],
+    [[{ id: "a", label: "A", variants: [{ id: "x:y", label: "X" }] }]],
+    [
+      [
+        { id: "a", label: "A" },
+        { id: "a", label: "Again" },
+      ],
+    ],
+  ])("refuses option ids an answer cannot name: %j", async (options) => {
+    expect(await reason(ask(options))).toEqual({ reason: "invalid-input" });
+  });
+
+  it("treats an answer with more than one separator as the user's own text", async () => {
+    const host = await approvedHost();
+    const { inputId } = await host.commands["agent/ask"](
+      presetInput("framework"),
+    );
+    expect(parseChoiceAnswer("langgraph:python:other")).toEqual({
+      option: "langgraph:python:other",
+    });
+    await host.commands["checkout/answer"]({
+      inputId,
+      answer: "langgraph:python:other",
+    });
+    expect(
+      classifyChoiceAnswer(host.state.inputs[0]!, "langgraph:python:other"),
+    ).toBe("custom");
+  });
+
+  it("knows only its own presets", () => {
+    expect(isPresetId("framework")).toBe(true);
+    expect(isPresetId("toString")).toBe(false);
   });
 });

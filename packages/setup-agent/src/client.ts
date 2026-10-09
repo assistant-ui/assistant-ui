@@ -9,16 +9,23 @@ export type CheckoutClient = StatewireClient<
 /** Attach to a setup by its base URL and resolve once its state has arrived. */
 export const connectCheckout = (url: string): Promise<CheckoutClient> =>
   new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      unsubscribe();
+      client.dispose();
+      reject(error);
+    };
     const client: CheckoutClient = new StatewireClient({
       transport: StatewireHttp({ url }),
-      onError: (error) => reject(error),
+      onError: fail,
     });
     const settle = () => {
+      if (settled) return;
       if (client.state === undefined) {
         if (client.connection.status !== "stopped") return;
-        unsubscribe();
-        client.dispose();
-        reject(
+        fail(
           new Error(
             `setup unreachable: ${client.connection.reason}${
               client.connection.message ? ` (${client.connection.message})` : ""
@@ -27,6 +34,7 @@ export const connectCheckout = (url: string): Promise<CheckoutClient> =>
         );
         return;
       }
+      settled = true;
       unsubscribe();
       resolve(client);
     };

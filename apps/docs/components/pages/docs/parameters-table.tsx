@@ -20,6 +20,7 @@ type ParameterDef = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<ParametersTableProps>;
 };
 
@@ -122,7 +123,7 @@ const Parameter: FC<{ parameter: ParameterDef }> = ({
           <DefinitionAnnotation>= {parameter.default}</DefinitionAnnotation>
         )}
         {parameter.deprecated && <StatusBadge variant="deprecated" />}
-        {parameter.name.startsWith("unstable_") && (
+        {(parameter.experimental || parameter.name.startsWith("unstable_")) && (
           <StatusBadge variant="unstable" />
         )}
       </DefinitionTerm>
@@ -149,7 +150,7 @@ const ParametersGroup: FC<ParametersTableProps> = ({ type, parameters }) => {
   return (
     <div className="border-foreground/10 mt-3 border-s ps-4">
       {type && (
-        <div className="text-muted-foreground mb-2 font-mono text-[11px] font-medium tracking-wide">
+        <div className="text-muted-foreground mb-2 font-mono text-xs font-medium">
           {type}
         </div>
       )}
@@ -174,7 +175,7 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   return (
     <div className="not-prose my-6">
       {type && (
-        <div className="text-muted-foreground mb-2 font-mono text-[11px] font-medium tracking-wide">
+        <div className="text-muted-foreground mb-2 font-mono text-xs font-medium">
           {type}
         </div>
       )}
@@ -197,6 +198,7 @@ export type DefLLM = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ parameters: DefLLM[] }>;
 };
 
@@ -252,6 +254,7 @@ const DefItemLLM: FC<
         </>
       ) : null}
       {def.deprecated ? <> (deprecated: {def.deprecated})</> : null}
+      {def.experimental ? <> (experimental)</> : null}
       {def.description ? <> — {renderDescription(def.description)}</> : null}
       {def.children?.map((child, i) => (
         <DefListLLM

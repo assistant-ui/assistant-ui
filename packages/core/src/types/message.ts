@@ -2,10 +2,14 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
-import type { ToolCallTiming, ToolModelContentPart } from "assistant-stream";
+import type {
+  MessagePartTiming,
+  ToolCallTiming,
+  ToolModelContentPart,
+} from "assistant-stream";
 import type { CompleteAttachment } from "./attachment";
 
-export type { ToolCallTiming, ToolModelContentPart };
+export type { MessagePartTiming, ToolCallTiming, ToolModelContentPart };
 
 export type PartProviderMetadata = {
   readonly [providerName: string]: ReadonlyJSONObject;
@@ -27,7 +31,10 @@ export type ReasoningMessagePart = {
   readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   readonly unstable_summary?: string;
+  /** Wall-clock timing for this reasoning part, when the runtime or host tracks it. */
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -204,17 +211,53 @@ export type ToolApprovalOption = {
  * Unlike {@link ToolApprovalOptionKind} the set is closed, because a renderer
  * that cannot cover every mode exhaustively is back to guessing the affordance.
  */
-export type ToolApprovalDisplay = "decision" | "select" | "text";
+export type ToolApprovalDisplay = "decision" | "select" | "text" | "questions";
+
+/** A choice offered by one question of a `display: "questions"` request. */
+export type ToolApprovalQuestionOption = {
+  /** Host-defined identifier, unique within its question; answers record it. */
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
+
+/**
+ * One question of a `display: "questions"` request. With options it is a
+ * single choice, or several when `multiple` is set; without options it takes
+ * a typed answer.
+ */
+export type ToolApprovalQuestion = {
+  /** Host-defined identifier, unique within the request; answers are keyed by it. */
+  readonly id: string;
+  /** The question put to the user. */
+  readonly prompt: string;
+  /** A short label for the question, such as a chip or tab title. */
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  /** Whether more than one option may be chosen. */
+  readonly multiple?: boolean;
+  /** Whether a typed answer is accepted alongside the options. */
+  readonly allowFreeform?: boolean;
+};
+
+/** The answer to one question: the chosen option ids, a typed answer, or both. */
+export type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
 
 /**
  * Whether the request asks for a free-form answer, on its own or alongside its
  * options. Renderers read this to decide whether to offer a text affordance,
  * and the runtime reads it to reject a `text` response the host cannot record.
+ * A `display: "questions"` request takes its answers per question instead.
  */
 export const toolApprovalAcceptsText = (approval: {
   readonly display?: ToolApprovalDisplay;
   readonly allowFreeform?: boolean;
-}): boolean => approval.display === "text" || approval.allowFreeform === true;
+}): boolean =>
+  approval.display === "text" ||
+  (approval.display !== "questions" && approval.allowFreeform === true);
 
 export type ToolApprovalResponse =
   | {
@@ -237,9 +280,18 @@ export type ToolApprovalResponse =
       /** Answer to a request that asks a question rather than for a decision. */
       readonly text: string;
       readonly reason?: string;
+    }
+  | {
+      /** Answers to a `display: "questions"` request, keyed by question id. */
+      readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
+      readonly reason?: string;
     };
 
-/** One thing a user did in a tool call's rendered UI, stored with the call. */
+/**
+ * One thing a user did in a tool call's rendered UI, stored with the call.
+ *
+ * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ToolInteraction =
   | {
       /** A generative UI action the user fired, with the user's input under `$input`. */
@@ -259,13 +311,19 @@ export type Unstable_ToolInteraction =
 /**
  * The interactions recorded on a tool call, oldest first. `omitted` counts
  * earlier entries dropped to keep the log within its size limit.
+ *
+ * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_ToolInteractionLog = {
   readonly entries: readonly Unstable_ToolInteraction[];
   readonly omitted?: number;
 };
 
-/** An interaction to record; the runtime validates the payload and stamps the time. */
+/**
+ * An interaction to record; the runtime validates the payload and stamps the time.
+ *
+ * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ToolInteractionInput = {
   readonly type: Unstable_ToolInteraction["type"];
   readonly payload: unknown;
@@ -335,6 +393,10 @@ export type ToolCallMessagePart<
     readonly optionId?: string;
     /** The free-form answer recorded at resolution, when one was given. */
     readonly text?: string;
+    /** The questions of a `display: "questions"` request, answered together. */
+    readonly questions?: readonly ToolApprovalQuestion[];
+    /** The answers recorded at resolution of a `display: "questions"` request, keyed by question id. */
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host, or by `LocalRuntime` once a later turn follows the message. */
     readonly resolution?: "cancelled" | "expired";
   };
@@ -348,6 +410,8 @@ export type ToolCallMessagePart<
   /**
    * What the user did in this call's rendered UI, recorded so a stored
    * conversation shows the answer beside the question.
+   *
+   * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
    */
   readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
@@ -473,8 +537,11 @@ export type ThreadSystemMessage = MessageCommonProps & {
   readonly role: "system";
   readonly content: readonly [TextMessagePart];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: undefined;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations?: undefined;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
@@ -489,8 +556,11 @@ export type ThreadUserMessage = MessageCommonProps & {
   readonly content: readonly ThreadUserMessagePart[];
   readonly attachments: readonly CompleteAttachment[];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: undefined;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations?: undefined;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
@@ -507,8 +577,11 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state: ReadonlyJSONValue;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
@@ -530,8 +603,11 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: ReadonlyJSONValue | undefined;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?:

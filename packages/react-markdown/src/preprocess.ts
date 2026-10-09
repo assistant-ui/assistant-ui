@@ -1,7 +1,7 @@
 import { htmlBlockNames, htmlRawNames } from "micromark-util-html-tag-name";
 
 /**
- * Text transforms for the `preprocess` prop of `MarkdownTextPrimitive`.
+ * Text transforms for the `preprocess` prop of `MarkdownTextPrimitive` and `StreamdownTextPrimitive`.
  *
  * Language models routinely emit math in delimiters that remark-math does not
  * recognize (LaTeX `\(...\)` / `\[...\]` brackets, `[/math]` / `[/inline]` tags),
@@ -33,6 +33,9 @@ const APOSTROPHE = 39;
 const DIGIT_ONE = 49;
 const COLON = 58;
 const EQUALS = 61;
+const LBRACKET = 91;
+const RBRACKET = 93;
+const CARET = 94;
 const QUESTION = 63;
 const UNDERSCORE = 95;
 
@@ -275,8 +278,28 @@ function htmlBlockEnds(
   return RAW_END_TAGS.some((tag) => lower.includes(tag));
 }
 
-function htmlBlockRanges(text: string): number[] {
+function htmlBlockRanges(text: string): {
+  ranges: number[];
+  blockStarts: number[];
+} {
   const ranges: number[] = [];
+  const blockStarts: number[] = [];
+  const listItems: { content: number; depth: number; footnote: boolean }[] = [];
+  const closeLists = (depth: number, indent = Number.POSITIVE_INFINITY) => {
+    while (
+      listItems.length > 0 &&
+      (depth < listItems[listItems.length - 1]!.depth ||
+        (depth === listItems[listItems.length - 1]!.depth &&
+          indent < listItems[listItems.length - 1]!.content))
+    )
+      listItems.pop();
+  };
+  let codeStart = -1;
+  let codeIndent = 0;
+  let codeQuoteDepth = 0;
+  let previousBlank = true;
+  let previousHeading = false;
+  let previousFenceClose = false;
   let htmlKind = 0;
   let htmlStart = 0;
   let htmlQuoteDepth = 0;
@@ -317,25 +340,43 @@ function htmlBlockRanges(text: string): number[] {
     let quoteStart = lineStart;
     let blockContentStart = lineStart;
     let contentStart = lineStart;
+    let column = 0;
+    let contentColumn = 0;
     let indentedMarker = false;
+    let literalQuoteDepth = -1;
     const quoteIndents: number[] = [];
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
-        const quoteIndent = columns(text, contentStart, i);
+        const quoteIndent = column - contentColumn;
+        const item = listItems.findLast((item) => item.depth === depth);
+        const itemIndent =
+          item && quoteIndent >= item.content ? item.content : 0;
+        if (
+          literalQuoteDepth === -1 &&
+          !item?.footnote &&
+          quoteIndent >= itemIndent + 4
+        ) {
+          literalQuoteDepth = depth;
+        }
         quoteIndents.push(quoteIndent);
         if (quoteIndent > 3) indentedMarker = true;
         if (depth === blockQuoteDepth) quoteStart = i;
         depth += 1;
         contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
+        const padding = text.charCodeAt(i + 1);
+        contentColumn = column + (padding === SPACE || padding === TAB ? 2 : 1);
         if (depth === blockQuoteDepth) blockContentStart = contentStart;
       } else if (!isSpace(c)) {
         break;
       }
+      column += c === TAB ? 4 - (column % 4) : 1;
       i += 1;
     }
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
-    const indent = columns(text, contentStart, i);
+    const indent = column - contentColumn;
+    const codeDepth = literalQuoteDepth === -1 ? depth : literalQuoteDepth;
+    const codeLineIndent = quoteIndents[codeDepth] ?? indent;
     if (
       htmlKind !== 0 &&
       (depth < htmlQuoteDepth ||
@@ -362,6 +403,9 @@ function htmlBlockRanges(text: string): number[] {
           ranges.push(htmlStart, lineEnd);
           htmlKind = 0;
         }
+        previousBlank = false;
+        previousHeading = false;
+        previousFenceClose = false;
         lineStart = nextLine;
         continue;
       }
@@ -375,13 +419,15 @@ function htmlBlockRanges(text: string): number[] {
     if (fenceChar !== 0) {
       let end = i;
       while (end < lineEnd && text.charCodeAt(end) === fenceChar) end += 1;
-      if (
+      const closesFence =
         depth === fenceQuoteDepth &&
         (fenceChar === DOLLAR ? indent : i - contentStart) <= fenceIndent + 3 &&
         end - i >= fenceRun &&
-        onlyWhitespace(text, end, lineEnd)
-      )
-        fenceChar = 0;
+        onlyWhitespace(text, end, lineEnd);
+      if (closesFence) fenceChar = 0;
+      previousBlank = false;
+      previousHeading = false;
+      previousFenceClose = closesFence;
       lineStart = nextLine;
       continue;
     }
@@ -398,14 +444,69 @@ function htmlBlockRanges(text: string): number[] {
       ) {
         mathEnd = 0;
       } else {
+        previousBlank = false;
+        previousHeading = false;
+        previousFenceClose = false;
         lineStart = nextLine;
         continue;
       }
     }
+    if (codeStart !== -1) {
+      const continuationIndent = quoteIndents[codeQuoteDepth] ?? indent;
+      if (
+        first === -1 ||
+        (depth >= codeQuoteDepth && continuationIndent >= codeIndent)
+      ) {
+        previousBlank = first === -1;
+        lineStart = nextLine;
+        continue;
+      }
+      ranges.push(codeStart, lineStart);
+      codeStart = -1;
+    }
+    if (!inParagraph) closeLists(codeDepth);
+    if (previousBlank && first !== -1) {
+      while (listItems.length > 0) {
+        const item = listItems[listItems.length - 1]!;
+        if (codeDepth !== item.depth || codeLineIndent >= item.content) break;
+        listItems.pop();
+      }
+    }
+    const listItem = listItems[listItems.length - 1];
+    const codeColumn = listItem?.footnote
+      ? Number.POSITIVE_INFINITY
+      : (listItem?.content ?? 0) + 4;
+    const nestedQuote =
+      codeDepth > 0 &&
+      !listItem?.footnote &&
+      (listItem == null || listItem.depth < codeDepth);
+    const requiredCodeIndent = nestedQuote ? 4 : codeColumn;
+    if (
+      first !== -1 &&
+      codeLineIndent >= requiredCodeIndent &&
+      (previousBlank || previousHeading || previousFenceClose) &&
+      !(first === TILDE && opensTildeFence(text, i)) &&
+      !(first === BACKTICK && opensBacktickFence(text, i))
+    ) {
+      codeStart = lineStart;
+      codeIndent = requiredCodeIndent;
+      codeQuoteDepth = codeDepth;
+      previousBlank = false;
+      previousHeading = false;
+      previousFenceClose = false;
+      lineStart = nextLine;
+      continue;
+    }
+    const containerIndent =
+      listItems.findLast(
+        (item) => item.depth === depth && indent >= item.content,
+      )?.content ?? 0;
     let blockStart = skipListMarkers(text, i, lineEnd);
     let blockItemIndent =
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
-    const shallow = !indentedMarker && indent < 4;
+    const outerListIndent = blockItemIndent;
+    const outerListDepth = depth;
+    const shallow = !indentedMarker && indent - containerIndent < 4;
     const markersInProse: boolean =
       blockStart !== i &&
       inParagraph &&
@@ -431,6 +532,48 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
+
+    if (first !== -1 && !markersInProse) {
+      if (blockStart !== i) closeLists(outerListDepth);
+      if (outerListIndent !== 0 && depth > outerListDepth) {
+        while (
+          listItems.length > 0 &&
+          outerListDepth === listItems[listItems.length - 1]!.depth &&
+          indent < listItems[listItems.length - 1]!.content
+        )
+          listItems.pop();
+        listItems.push({
+          content: outerListIndent,
+          depth: outerListDepth,
+          footnote: false,
+        });
+      }
+      const footnote = isFootnoteDef(text, i, lineEnd);
+      const bareMarker = bareMarkerWidth(text, i, lineEnd);
+      if (
+        blockItemIndent !== 0 ||
+        (outerListIndent !== 0 && depth === outerListDepth) ||
+        bareMarker !== 0 ||
+        footnote
+      ) {
+        closeLists(depth);
+        while (
+          listItems.length > 0 &&
+          depth === listItems[listItems.length - 1]!.depth &&
+          indent < listItems[listItems.length - 1]!.content
+        )
+          listItems.pop();
+        listItems.push({
+          content: footnote
+            ? 4
+            : blockStart !== i
+              ? blockItemIndent || outerListIndent
+              : indent + bareMarker + 1,
+          depth,
+          footnote,
+        });
+      }
+    }
 
     const itemIndent =
       blockItemIndent ||
@@ -503,25 +646,39 @@ function htmlBlockRanges(text: string): number[] {
       }
     }
     const continued: boolean = inParagraph;
+    const ruleLine: boolean =
+      shallow &&
+      (isRuleLine(text, i, lineEnd, continued && depth === lastQuoteDepth) ||
+        (blockStart !== i &&
+          !markersInProse &&
+          isRuleLine(text, listMarkerEnd(text, i, lineEnd), lineEnd, false)));
     inParagraph =
       first !== -1 &&
       fenceChar === 0 &&
       mathEnd <= lineEnd &&
       htmlKind === 0 &&
       !closesBlock &&
+      !ruleLine &&
       !(
-        shallow &&
-        (isAtxHeading(text, markersInProse ? i : blockStart, lineEnd) ||
-          isRuleLine(
-            text,
-            i,
-            lineEnd,
-            inParagraph && depth === lastQuoteDepth,
-          ) ||
-          (blockStart !== i &&
-            !markersInProse &&
-            isRuleLine(text, listMarkerEnd(text, i, lineEnd), lineEnd, false)))
+        shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd)
       );
+    if (!inParagraph) {
+      closeLists(
+        depth,
+        first === -1 ? Number.POSITIVE_INFINITY : blockItemIndent || indent,
+      );
+    }
+    if (
+      first !== -1 &&
+      !(
+        continued &&
+        inParagraph &&
+        codeDepth <= lastQuoteDepth &&
+        (blockStart === i || markersInProse || indent >= containerIndent + 4)
+      )
+    ) {
+      blockStarts.push(lineStart);
+    }
     if (inParagraph) {
       paragraphItemIndent =
         blockStart !== i && !markersInProse
@@ -537,26 +694,42 @@ function htmlBlockRanges(text: string): number[] {
       paragraphItemIndent = 0;
     }
     lastQuoteDepth = depth;
+    previousBlank = first === -1;
+    previousHeading =
+      ruleLine ||
+      (shallow && isAtxHeading(text, markersInProse ? i : blockStart, lineEnd));
+    previousFenceClose = false;
     lineStart = nextLine;
   }
   if (htmlKind !== 0) ranges.push(htmlStart, text.length);
-  return ranges;
+  if (codeStart !== -1) ranges.push(codeStart, text.length);
+  return { ranges, blockStarts };
 }
 
-function rewriteOutsideHtml(
+function rewriteOutsideBlocks(
   text: string,
-  rewrite: (text: string) => string,
+  rewrite: (text: string, blockStarts: number[]) => string,
 ): string {
-  const ranges = htmlBlockRanges(text);
+  const { ranges, blockStarts } = htmlBlockRanges(text);
+  let next = 0;
+  const rewriteSlice = (from: number, to: number) => {
+    while (next < blockStarts.length && blockStarts[next]! <= from) next += 1;
+    const sliceStarts: number[] = [];
+    while (next < blockStarts.length && blockStarts[next]! < to) {
+      sliceStarts.push(blockStarts[next]! - from);
+      next += 1;
+    }
+    return rewrite(text.slice(from, to), sliceStarts);
+  };
   let out = "";
   let cursor = 0;
   for (let i = 0; i < ranges.length; i += 2) {
     const from = ranges[i]!;
     const to = ranges[i + 1]!;
-    out += rewrite(text.slice(cursor, from)) + text.slice(from, to);
+    out += rewriteSlice(cursor, from) + text.slice(from, to);
     cursor = to;
   }
-  return out + rewrite(text.slice(cursor));
+  return out + rewriteSlice(cursor, text.length);
 }
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
@@ -678,14 +851,18 @@ function opensTildeFence(text: string, index: number): boolean {
  * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
  * -1 when a span never closes.
  */
-function backtickEnd(text: string, start: number): number {
+function backtickEnd(
+  text: string,
+  start: number,
+  blockStarts: number[],
+): number {
   return opensBacktickFence(text, start)
     ? fenceEnd(text, start, "`")
-    : codeSpanEnd(text, start);
+    : codeSpanEnd(text, start, blockStarts);
 }
 
 /**
- * Applies `rewrite` to the stretches of `text` outside HTML blocks, code spans and fences,
+ * Applies `rewrite` to the stretches of `text` outside HTML blocks, indented code, code spans and fences,
  * copying their contents through verbatim, so a delimiter shown as code is never
  * rewritten. `\x` escapes are stepped over when scanning so an escaped
  * backtick does not open a span, and a delimiter pair straddling a code
@@ -711,7 +888,7 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
   ) => string,
 ): string {
-  return rewriteOutsideHtml(text, (text) => {
+  return rewriteOutsideBlocks(text, (text, blockStarts) => {
     let out = "";
     let index = 0;
     let plainStart = 0;
@@ -741,7 +918,7 @@ function rewriteOutsideCode(
       if (char === "\\") {
         index += 2;
       } else if (char === "`") {
-        const end = backtickEnd(text, index);
+        const end = backtickEnd(text, index, blockStarts);
         if (end !== -1) copyVerbatim(end);
         else index += runLength(text, index, "`");
       } else if (opensTildeFence(text, index)) {
@@ -910,7 +1087,7 @@ export function rewriteCustomMathTags(text: string): string {
  * Normalizes the alternative math delimiters language models commonly emit (LaTeX
  * `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags) to the `$...$` /
  * `$$...$$` delimiters remark-math parses. Pass it to the `preprocess` prop of
- * `MarkdownTextPrimitive`.
+ * `MarkdownTextPrimitive` or `StreamdownTextPrimitive`.
  *
  * It does not touch currency. Compose it with {@link escapeCurrencyDollars} when
  * single-dollar math is enabled and your content includes prices.
@@ -941,17 +1118,32 @@ function runLength(text: string, start: number, char: string): number {
  * End index (exclusive) of the code span whose backtick run starts at `start`,
  * or -1 when that run is never closed and its backticks read as literal text. A
  * span closes on a run of exactly its own length, wherever on a line that run
- * sits; a shorter or longer run is content, and a blank line ends the search
- * with the paragraph.
+ * sits; a shorter or longer run is content, and the search ends with the
+ * paragraph, at a blank line or at the next line in `blockStarts`, where a
+ * list item, heading, blockquote or other block starts instead of continuing it.
  */
-function codeSpanEnd(text: string, start: number): number {
+function codeSpanEnd(
+  text: string,
+  start: number,
+  blockStarts: number[],
+): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
   // A span is an inline construct, so it cannot reach past the paragraph it
   // opens in and a run left open in prose does not swallow a later fence.
   PARAGRAPH_BREAK.lastIndex = start;
   const blank = PARAGRAPH_BREAK.exec(text);
-  const limit = blank ? blank.index : text.length;
+  let low = 0;
+  let high = blockStarts.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (blockStarts[middle]! > start) high = middle;
+    else low = middle + 1;
+  }
+  const limit = Math.min(
+    blank ? blank.index : text.length,
+    blockStarts[low] ?? text.length,
+  );
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
   while (closed !== -1 && closed < limit) {
@@ -968,14 +1160,18 @@ function codeSpanEnd(text: string, start: number): number {
  * -1 when none does. Escapes and code spans are stepped over so that a `$` inside
  * them is not mistaken for the closing delimiter.
  */
-function findClosingDollar(text: string, openIndex: number): number {
+function findClosingDollar(
+  text: string,
+  openIndex: number,
+  blockStarts: number[],
+): number {
   let index = openIndex + 1;
   while (index < text.length) {
     const char = text[index];
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = backtickEnd(text, index);
+      const end = backtickEnd(text, index, blockStarts);
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -1019,16 +1215,57 @@ function opensCurrencyAmount(text: string, index: number): boolean {
 }
 
 /**
+ * The width of the bare list marker on the line `[from, to)` (`-` or `1.`
+ * alone), or 0 when anything else is on it: an empty list item whose content
+ * follows on later lines, one column past the marker. `listMarkerEnd`
+ * requires a trailing space, so this covers the end-of-line case it misses.
+ */
+function bareMarkerWidth(text: string, from: number, to: number): number {
+  let end = to;
+  while (end > from) {
+    const code = text.charCodeAt(end - 1);
+    if (code !== SPACE && code !== TAB && code !== CR) break;
+    end -= 1;
+  }
+  const rest = text.slice(from, end);
+  return /^([-*+]|\d{1,9}[.)])$/.test(rest) ? rest.length : 0;
+}
+
+/**
+ * Whether `[from, to)` starts a GFM footnote definition (`[^label]:`).
+ * Indented content under a footnote definition is footnote prose, not an
+ * indented code block.
+ */
+function isFootnoteDef(text: string, from: number, to: number): boolean {
+  if (
+    from + 3 >= to ||
+    text.charCodeAt(from) !== LBRACKET ||
+    text.charCodeAt(from + 1) !== CARET
+  ) {
+    return false;
+  }
+  let i = from + 2;
+  const labelStart = i;
+  while (i < to && text.charCodeAt(i) !== RBRACKET) i += 1;
+  if (i === labelStart || i >= to) return false;
+  return text.charCodeAt(i + 1) === COLON;
+}
+
+/**
  * End index (exclusive) of the run at `index` that must be copied unchanged: a `\x`
  * escape, a code span or fence, a `$$` display delimiter, an inline math span, or a
  * plain character. Returns `index` itself for a single `$`, which the caller has to
  * decide.
  */
-function endOfVerbatimRun(text: string, index: number): number {
+function endOfVerbatimRun(
+  text: string,
+  index: number,
+  blockStarts: number[],
+): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = backtickEnd(text, index);
+    const end = backtickEnd(text, index, blockStarts);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
@@ -1037,7 +1274,7 @@ function endOfVerbatimRun(text: string, index: number): number {
   const dollars = runLength(text, index, "$");
   if (dollars >= 2) return index + dollars;
 
-  const close = findClosingDollar(text, index);
+  const close = findClosingDollar(text, index, blockStarts);
   const opensMath =
     close !== -1 &&
     !opensCurrencyAmount(text, close) &&
@@ -1049,7 +1286,7 @@ function endOfVerbatimRun(text: string, index: number): number {
  * Escapes a `$` that opens a currency amount (`$5`, `$19.99`, `$1,299`) so that
  * remark-math with single-dollar math enabled does not consume prices in prose as
  * math delimiters. The `$$` of display math is left intact, an already-escaped `\$`
- * is not escaped twice, and HTML blocks, code spans and fences are never rewritten.
+ * is not escaped twice, and HTML blocks, indented code, code spans and fences are never rewritten.
  *
  * A `$` followed by a digit is only currency when it does not open a plausible math
  * span, so the text up to the next `$` is inspected first: `$0$` and `$5x = 10$`
@@ -1059,18 +1296,18 @@ function endOfVerbatimRun(text: string, index: number): number {
  * shift every delimiter that follows it.
  */
 export function escapeCurrencyDollars(text: string): string {
-  return rewriteOutsideHtml(text, (text) => {
+  return rewriteOutsideBlocks(text, (slice, blockStarts) => {
     let out = "";
     let index = 0;
 
-    while (index < text.length) {
-      const verbatimEnd = endOfVerbatimRun(text, index);
+    while (index < slice.length) {
+      const verbatimEnd = endOfVerbatimRun(slice, index, blockStarts);
       if (verbatimEnd > index) {
-        out += text.slice(index, verbatimEnd);
+        out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;
         continue;
       }
-      out += opensCurrencyAmount(text, index) ? "\\$" : "$";
+      out += opensCurrencyAmount(slice, index) ? "\\$" : "$";
       index += 1;
     }
 

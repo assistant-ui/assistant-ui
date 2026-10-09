@@ -46,7 +46,7 @@ const input: Checkout.Input = {
 };
 
 const checkout = (): CheckoutContextValue => ({
-  state: initialCheckoutState(),
+  state: { ...initialCheckoutState(), id: "setup-a", createdAt: 1 },
   session: { id: "test", products: ["assistant-ui"], startedAt: 1 },
   url: "https://checkout.example.test/session",
   degraded: false,
@@ -161,7 +161,7 @@ describe("ModelInputCard", () => {
       }),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://checkout.example.test/session/secret/model",
+      `https://checkout.example.test/session/secret/model?setup=setup-a&answer=${encodeURIComponent(JSON.stringify({ provider: "openai", model: "gpt-5" }))}`,
       { method: "PUT", body: "openai-key" },
     );
     vi.unstubAllGlobals();

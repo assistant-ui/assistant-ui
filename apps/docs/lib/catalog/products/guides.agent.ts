@@ -82,11 +82,11 @@ Verify: open a new thread, confirm the prompts show on the empty state, click on
   ],
   [
     "guides/mentions",
-    `${needsRuntime} The mention APIs are prefixed \`unstable_\`; tell the user.
+    `${needsRuntime} The trigger popover primitives and types are stable. The \`unstable_useMentionAdapter\`, \`unstable_useLiveCompletionAdapter\`, and trigger popover context helper hooks remain unstable; tell the user.
 
 1. ${registryStep}
 2. Run \`npx shadcn@latest add @assistant-ui/composer-trigger-popover @assistant-ui/directive-text --yes\`.
-3. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.Unstable_TriggerPopoverRoot\`. If a slash-command trigger already added that wrapper, reuse it.
+3. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.TriggerPopoverRoot\`. If a slash-command trigger already added that wrapper, reuse it.
 4. Inside the composer root, render a trigger: \`const mention = unstable_useMentionAdapter(); return <ComposerTriggerPopover char="@" {...mention} />;\`. With no options it lists the tools registered in model context. If the user wants to mention users, documents, or other items, pass \`items\` or \`categories\` as "Built-in Mention Adapter" on the docs page above shows; for a server search use \`unstable_useLiveCompletionAdapter\`. Use the project's real data source and ask the user when none is obvious.
 5. Render sent mentions as chips: follow /elements/directive-text to register \`DirectiveText\` as the \`Text\` component for user messages.
 6. The backend receives \`:type[label]{name=id}\` text. If the user wants the server to act on mentions, add \`parseMentions\` from "Processing Mentions on the Backend" to the chat route.
@@ -95,16 +95,16 @@ Verify: type @ in the composer, confirm the popover lists items, pick one with E
   ],
   [
     "guides/slash-commands",
-    `${needsRuntime} The slash-command APIs are prefixed \`unstable_\`; tell the user.
+    `${needsRuntime} The trigger popover primitives and types are stable. The \`unstable_useSlashCommandAdapter\` and trigger popover context helper hooks remain unstable; tell the user.
 
 1. Ask the user which commands they want and what each should do, if they have not said. Do not ship the docs' \`console.log\` placeholders as the final commands.
 2. ${registryStep}
 3. Run \`npx shadcn@latest add @assistant-ui/composer-trigger-popover --yes\`.
-4. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.Unstable_TriggerPopoverRoot\`. If a mention trigger already added that wrapper, reuse it.
+4. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.TriggerPopoverRoot\`. If a mention trigger already added that wrapper, reuse it.
 5. Define \`const SLASH_COMMANDS: readonly Unstable_SlashCommand[]\` at module scope with \`id\`, \`description\`, optional \`icon\`, and \`execute\`. Inside the composer root, render \`const slash = unstable_useSlashCommandAdapter({ commands: SLASH_COMMANDS }); return <ComposerTriggerPopover char="/" {...slash} />;\`. Both names come from @assistant-ui/react.
 6. Pass \`removeOnExecute: true\` for commands that act immediately and should not leave a chip in the message. Pass \`iconMap\` and \`fallbackIcon\` with lucide-react icons if commands set \`icon\`.
 
-Verify: type / in the composer, confirm the popover lists the commands, pick one with Enter, and confirm its \`execute\` effect happens. If nothing opens, the composer is not inside \`Unstable_TriggerPopoverRoot\`.`,
+Verify: type / in the composer, confirm the popover lists the commands, pick one with Enter, and confirm its \`execute\` effect happens. If nothing opens, the composer is not inside \`TriggerPopoverRoot\`.`,
   ],
   [
     "guides/chain-of-thought",

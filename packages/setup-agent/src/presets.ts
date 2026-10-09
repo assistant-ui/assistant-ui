@@ -139,7 +139,8 @@ export const INPUT_PRESETS: Record<PresetId, Preset> = {
   },
 };
 
-export const isPresetId = (id: string): id is PresetId => id in INPUT_PRESETS;
+export const isPresetId = (id: string): id is PresetId =>
+  Object.hasOwn(INPUT_PRESETS, id);
 
 /** Build the seed for a standard input, throwing on an unknown preset, option or default. */
 export const presetInput = (

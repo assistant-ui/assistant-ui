@@ -137,7 +137,11 @@ const knownEventBodies = {
     },
   },
   agent_start: { type: "agent_start" },
-  agent_end: { type: "agent_end", willRetry: false },
+  agent_end: {
+    type: "agent_end",
+    willRetry: false,
+    cancelledBeforeStart: true,
+  },
   agent_settled: { type: "agent_settled" },
   turn_start: { type: "turn_start", turnIndex: 1 },
   turn_end: { type: "turn_end", turnIndex: 1 },
@@ -577,6 +581,58 @@ describe("openPiEventStream", () => {
     });
 
     expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("terminates instead of reconnecting after a decoder limit failure", async () => {
+    const fetchImpl = vi.fn(async () =>
+      sseResponse(["data: " + "x".repeat(64) + "\n\n"]),
+    ) as unknown as typeof fetch;
+    const reconnectDelay = vi.fn(() => Promise.resolve());
+    const onError = vi.fn();
+    const connection = createPiEventStreamConnection({
+      url: "/events",
+      fetchImpl,
+      reconnectDelay,
+      maxStreamLineLength: 32,
+      onEvent: vi.fn(),
+      onError,
+    });
+
+    await connection.finished;
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(reconnectDelay).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]![0]).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("SSE line exceeds maxLineLength"),
+      }),
+    );
+  });
+
+  it("rejects invalid decoder limits before fetching", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const reconnectDelay = vi.fn(() => Promise.resolve());
+    const onError = vi.fn();
+    const connection = createPiEventStreamConnection({
+      url: "/events",
+      fetchImpl,
+      reconnectDelay,
+      maxStreamLineLength: 0,
+      onEvent: vi.fn(),
+      onError,
+    });
+
+    await connection.finished;
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(reconnectDelay).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]![0]).toEqual(
+      expect.objectContaining({
+        message: "maxLineLength must be a positive safe integer",
+      }),
+    );
   });
 
   it("settles when closed during a pending reconnect delay", async () => {

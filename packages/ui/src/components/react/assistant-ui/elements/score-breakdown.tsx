@@ -47,7 +47,7 @@ export function ScoreBreakdown({
         <span className="text-2xl font-medium tracking-tight tabular-nums">
           {total.toFixed(1)}
         </span>
-        <span className={cn(mono, "text-foreground/30 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           / {outOf}
         </span>
         <span
@@ -74,11 +74,14 @@ export function ScoreBreakdown({
               <span className="text-foreground/75 min-w-0 flex-1 truncate text-[13px]">
                 {criterion.label}
               </span>
-              <span className={cn(mono, "text-foreground/25 shrink-0")}>
+              <span className={cn(mono, "text-muted-foreground shrink-0")}>
                 ×{criterion.weight}
               </span>
               <span
-                className={cn(mono, "text-foreground/55 shrink-0 tabular-nums")}
+                className={cn(
+                  mono,
+                  "text-muted-foreground shrink-0 tabular-nums",
+                )}
               >
                 {criterion.score.toFixed(1)}
               </span>
@@ -90,17 +93,17 @@ export function ScoreBreakdown({
               aria-valuemax={100}
               aria-valuenow={announced(pct(criterion.score, outOf))}
               aria-valuetext={`${criterion.score.toFixed(1)} of ${outOf}`}
-              className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+              className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
             >
               <span
-                className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none dark:bg-blue-400"
+                className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 forced-color-adjust-none motion-reduce:transition-none dark:bg-blue-400"
                 style={{
                   width: `${pct(criterion.score, outOf)}%`,
                 }}
               />
             </span>
             {criterion.note && (
-              <span className="text-foreground/40 text-xs leading-relaxed break-words">
+              <span className="text-muted-foreground text-xs leading-relaxed break-words">
                 {criterion.note}
               </span>
             )}

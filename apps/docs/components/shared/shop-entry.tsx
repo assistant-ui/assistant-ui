@@ -9,6 +9,12 @@ const LazyCartButton = lazy(() =>
   })),
 );
 
+const LazyAddToCartButton = lazy(() =>
+  import("@/components/pages/shop/add-to-cart-button").then((module) => ({
+    default: module.AddToCartButton,
+  })),
+);
+
 const LazyAgentSetup = lazy(() =>
   import("@/components/shared/agent-setup").then((module) => ({
     default: module.AgentSetup,
@@ -30,6 +36,17 @@ export function AgentSetup(props: ComponentProps<typeof LazyAgentSetup>) {
   return (
     <Suspense fallback={null}>
       <LazyAgentSetup {...props} />
+    </Suspense>
+  );
+}
+
+export function AddToCartButton(
+  props: ComponentProps<typeof LazyAddToCartButton>,
+) {
+  if (!checkoutEnabled) return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyAddToCartButton {...props} />
     </Suspense>
   );
 }

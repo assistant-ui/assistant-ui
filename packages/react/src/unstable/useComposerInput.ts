@@ -12,6 +12,7 @@ import {
   useTriggerPopoverAriaProps,
 } from "../primitives/composer/useComposerInputState";
 
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_UseComposerInputOptions = {
   /**
    * Disables the input in addition to the composer's own disabled sources
@@ -21,6 +22,7 @@ export type Unstable_UseComposerInputOptions = {
   disabled?: boolean | undefined;
 };
 
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_ComposerInput = {
   /** Current composer text, or `""` when the composer is not editing. */
   value: string;
@@ -49,14 +51,14 @@ export type Unstable_ComposerInput = {
 };
 
 /**
- * @deprecated Under active development and might change without notice.
- *
  * Headless bridge to the composer's text value and send action, for building a
  * custom composer input without `ComposerPrimitive.Input`. It is a thin bridge,
  * not a second input: it does not own keyboard behavior, autosize, IME or
  * contentEditable sync, paste/drop attachments, focus management, or rich-text
  * state. Spread `unstable_useTriggerPopoverAriaProps()` onto your element for
  * trigger-popover combobox semantics.
+ *
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  *
  * @example
  * ```tsx
@@ -104,16 +106,17 @@ export function unstable_useComposerInput(
   return { value, setText, send, isDisabled, canSend };
 }
 
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_TriggerPopoverAriaProps = TriggerPopoverAriaProps;
 
 /**
- * @deprecated Under active development and might change without notice.
- *
  * ARIA combobox attributes for the focused element (typically the composer
  * input) describing the open trigger popover, per the WAI-ARIA editable
  * combobox pattern. Returns an empty object outside a `TriggerPopoverRoot` or
  * when no popover is open. Spread these last so they take precedence over any
  * matching ARIA props you set yourself, mirroring `ComposerPrimitive.Input`.
+ *
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  *
  * @example
  * ```tsx

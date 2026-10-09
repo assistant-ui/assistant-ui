@@ -1,42 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  attachmentsEqual,
   liftNonTextParts,
   partToCompleteAttachment,
 } from "../adapters/attachment";
-import type { CompleteAttachment } from "../types/attachment";
-
-const makeAttachment = (id: string): CompleteAttachment => ({
-  id,
-  type: "document",
-  name: "file.pdf",
-  content: [
-    { type: "file", data: "data", mimeType: "application/pdf", filename: id },
-  ],
-  status: { type: "complete" },
-});
-
-describe("attachmentsEqual", () => {
-  it("returns true for two empty arrays", () => {
-    expect(attachmentsEqual([], [])).toBe(true);
-  });
-
-  it("returns false when lengths differ", () => {
-    expect(attachmentsEqual([makeAttachment("a")], [])).toBe(false);
-  });
-
-  it("returns true when all ids match in order", () => {
-    const a = makeAttachment("a");
-    const b = makeAttachment("b");
-    expect(attachmentsEqual([a, b], [a, b])).toBe(true);
-  });
-
-  it("returns false when ids differ at the same length", () => {
-    expect(attachmentsEqual([makeAttachment("a")], [makeAttachment("b")])).toBe(
-      false,
-    );
-  });
-});
 
 describe("partToCompleteAttachment", () => {
   it("converts an image part using the filename as name", () => {

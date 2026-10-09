@@ -120,6 +120,7 @@ export async function POST(req: Request) {
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
         injectInteractableContext(injectQuoteContext(messages)),
+        { tools: frontendTools },
       ),
       reasoning: "none",
     });
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const result = streamText({
+          abortSignal: req.signal,
           model,
           ...(providerOptions ? { providerOptions } : {}),
           ...(system ? { system } : {}),

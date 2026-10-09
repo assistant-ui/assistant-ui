@@ -174,7 +174,7 @@ Register the renderer on a toolkit entry's `render` field. See [Tool UI](/docs/t
 | `routes` | `readonly GeoMapRoute[]` | | Supplied paths to draw through valid coordinates. |
 | `selectedId` | `string` | | The controlled current place. |
 | `onSelect` | `(id: string) => void` | | Called from a marker or list button. |
-| `theme` | `"light" \| "dark" \| "auto"` | `"auto"` | How the default tiles are inked. Auto follows the document's `dark` class and the system preference. |
+| `theme` | `"light" \| "dark" \| "auto"` | `"auto"` | How the default tiles are inked. Auto follows Tailwind's `dark` variant, like the rest of the kit, so the tiles switch with the page's theme. |
 | `tileUrl` | `string` | OpenStreetMap | A tile URL template for your provider, shown as the provider draws it. |
 | `attribution` | `string` | | Replaces the default tile attribution. Rendered as HTML, so pass trusted text only. |
 | `height` | `number` | `260` | Map height in pixels. |

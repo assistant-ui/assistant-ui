@@ -3,13 +3,18 @@
   "version": "0.0.3",
   "description": "A live setup shared between a browser and the coding agent installing the products in it, on Statewire",
   "license": "MIT",
+  "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
     "directory": "packages/setup-agent"
   },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "type": "module",
   "bin": {
@@ -44,7 +49,7 @@
   },
   "dependencies": {
     "@assistant-ui/tap": "^0.9.7",
-    "statewire": "^0.20.0"
+    "statewire": "^0.19.4"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -52,7 +57,7 @@
     "@types/react": "^19.2.17",
     "react": "^19.2.8",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": ">=20"

@@ -60,7 +60,7 @@ export function WebPreview({
             "flex min-w-0 flex-1 items-center gap-1.5 rounded-full px-2.5 py-1",
           )}
         >
-          <span className={cn(mono, "text-foreground/45 min-w-0 truncate")}>
+          <span className={cn(mono, "text-muted-foreground min-w-0 truncate")}>
             {origin}
           </span>
         </span>
@@ -87,7 +87,7 @@ export function WebPreview({
         </div>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <ShimmerLabel className="text-foreground/40 relative inline-block text-xs leading-none">
+            <ShimmerLabel className="text-muted-foreground relative inline-block text-xs leading-none">
               Loading preview
             </ShimmerLabel>
           </div>

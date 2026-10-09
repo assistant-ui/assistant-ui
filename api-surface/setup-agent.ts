@@ -354,7 +354,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart };
+  export { HELP, INSTRUCTIONS, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -430,5 +430,7 @@ declare const stepProgress: (state: Checkout.State) => {
 declare const upsertEnvLine: (content: string, key: string, value: string) => string;
 
 declare const waitForStart: (client: Pick<CheckoutClient, "state" | "subscribe">) => Promise<Checkout.Status>;
+
+declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>) => Promise<void>;
 
 export { entry_cli_exports as entry_cli, entry_host_exports as entry_host, entry_root_exports as entry_root };
