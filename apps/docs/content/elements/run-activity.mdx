@@ -65,7 +65,12 @@ Keep one stable assistant message ID for each application-defined run, and give 
 
 ```tsx title="Abridged external-store adapter"
 const transcript: readonly ActivityMessage[] = [
-  { id: "user-1", role: "user", content: "Check the files." },
+  {
+    id: "user-1",
+    role: "user",
+    content: "Check the files.",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  },
   run,
 ];
 
