@@ -4,6 +4,7 @@ import { useId, type ComponentProps } from "react";
 import { CheckIcon, PlugIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
+import { useReceiptFocus } from "./receipt-focus";
 
 export type ElicitationState = "request" | "accepted" | "declined";
 
@@ -71,6 +72,7 @@ export function ElicitationForm({
   onDecline?: () => void;
 }) {
   const fieldPrefix = useId();
+  const { receiptRef, focusHandlers } = useReceiptFocus(props);
   const interactive = state === "request" && onFieldChange !== undefined;
   const missingRequired =
     interactive &&
@@ -91,6 +93,7 @@ export function ElicitationForm({
       )}
 
       {...props}
+      {...focusHandlers}
     >
       <div className="flex items-center gap-2.5">
         <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-lg">
@@ -246,6 +249,8 @@ export function ElicitationForm({
         ) : (
           <span
             key={state}
+            ref={receiptRef}
+            tabIndex={-1}
             className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300"
           >
             {state === "accepted" ? (

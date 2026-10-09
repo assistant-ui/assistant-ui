@@ -1,4 +1,4 @@
-import { getDistinctId } from "@/lib/posthog-server";
+import { prepareChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
 import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
@@ -17,16 +17,12 @@ import {
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
-import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
 import {
-  convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  pruneMessages,
   stepCountIs,
-  streamText,
 } from "ai";
 
 export const maxDuration = 300;
@@ -103,8 +99,7 @@ export async function POST(req: Request) {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return withCors(req, toolsError);
 
-    const { model, providerOptions, reasoning } = resolveChatModel(config);
-    const distinctId = getDistinctId(req);
+    const modelConfig = resolveChatModel(config);
     const origin = new URL(req.url).origin;
 
     const frontendTools = await aiToolkit.tools({ frontend: tools });
@@ -117,13 +112,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(
-        injectInteractableContext(injectQuoteContext(messages)),
-        { tools: frontendTools },
-      ),
-      reasoning: "none",
-    });
+    const prunedMessages = await prepareChatMessages(
+      injectInteractableContext(injectQuoteContext(messages)),
+      frontendTools,
+    );
 
     // Every docs surface shares this route, so only the one that opts in draws
     // on the budget, and only after the deterministic rejections, so a request
@@ -153,47 +145,31 @@ export async function POST(req: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
-        const result = streamText({
-          abortSignal: req.signal,
-          model,
-          ...(providerOptions ? { providerOptions } : {}),
-          ...(system ? { system } : {}),
-          messages: prunedMessages,
-          maxOutputTokens: reasoning ? 16384 : 4096,
-          stopWhen: stepCountIs(10),
-          tools: groundInDocs
-            ? {
-                ...frontendTools,
-                search_docs: createSearchDocsTool({ writer, origin }),
-              }
-            : frontendTools,
-          ...posthogTelemetry({
-            distinctId,
+        const { result, messageMetadata } = streamDocsChat(
+          req,
+          modelConfig,
+          {
             spanName: "general_chat",
             source: "general_chat",
-          }),
-          onError: ({ error }) => {
-            console.error(error);
           },
-        });
+          {
+            ...(system ? { system } : {}),
+            messages: prunedMessages,
+            maxOutputTokens: modelConfig.reasoning ? 16384 : 4096,
+            stopWhen: stepCountIs(10),
+            tools: groundInDocs
+              ? {
+                  ...frontendTools,
+                  search_docs: createSearchDocsTool({ writer, origin }),
+                }
+              : frontendTools,
+          },
+        );
 
         writer.merge(
           result.toUIMessageStream({
             sendReasoning: true,
-            // Sends traceId, usage, and modelId for assistant-cloud telemetry reports.
-            messageMetadata: withAssistantCloudTraceMetadata(({ part }) => {
-              if (part.type === "finish-step") {
-                return {
-                  modelId: part.response.modelId,
-                };
-              }
-              if (part.type === "finish") {
-                return {
-                  usage: part.totalUsage,
-                };
-              }
-              return undefined;
-            }),
+            messageMetadata: withAssistantCloudTraceMetadata(messageMetadata),
           }),
         );
       },
