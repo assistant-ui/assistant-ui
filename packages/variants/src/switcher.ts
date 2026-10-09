@@ -76,10 +76,29 @@ code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, m
 }
 .offscreen:hover { color: var(--fg); background: var(--bg-hover); }
 .offscreen[hidden] { display: none; }
-.row { display: flex; align-items: flex-start; gap: 4px; }
+.row { display: flex; align-items: center; gap: 4px; }
+.rail { position: relative; flex: 1 1 auto; min-width: 0; border-radius: 8px; background: var(--bg-subtle); }
 .track {
-  position: relative; flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 2px;
-  min-height: 28px; padding: 2px; border-radius: 8px; background: var(--bg-subtle);
+  position: relative; display: flex; flex-wrap: nowrap; gap: 2px; height: 28px; padding: 2px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain;
+}
+.track::-webkit-scrollbar { display: none; }
+.rail[data-overflow-start] .track { mask-image: linear-gradient(to right, transparent 0, #000 28px); }
+.rail[data-overflow-end] .track { mask-image: linear-gradient(to left, transparent 0, #000 28px); }
+.rail[data-overflow-start][data-overflow-end] .track {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+.nudge {
+  position: absolute; top: 2px; bottom: 2px; width: 20px; display: none; place-items: center;
+  border-radius: 6px; color: var(--fg-muted); background: var(--bg-subtle); z-index: 1; font-size: 13px; line-height: 1;
+}
+.nudge:hover { color: var(--fg); }
+.nudge[data-side="start"] { left: 2px; }
+.nudge[data-side="end"] { right: 2px; }
+.rail[data-overflow-start] .nudge[data-side="start"], .rail[data-overflow-end] .nudge[data-side="end"] { display: grid; }
+.desc {
+  height: 16px; margin-top: 4px; padding-left: 2px; font-size: 11px; line-height: 16px; color: var(--fg-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .thumb {
   position: absolute; top: 0; left: 0; width: 0; height: 0; border-radius: 6px; pointer-events: none;
@@ -88,7 +107,7 @@ code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, m
 .slot[data-highlight] .thumb { box-shadow: inset 0 0 0 1px var(--border); }
 .seg {
   position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 1 0 auto;
-  height: 24px; padding: 0 10px; border-radius: 6px; white-space: nowrap; color: var(--fg-segment);
+  min-width: 32px; height: 24px; padding: 0 8px; border-radius: 6px; white-space: nowrap; color: var(--fg-segment);
 }
 .seg .stack > [data-main] { font-weight: 400; }
 .seg .stack > [data-alt] { font-weight: 500; }
@@ -153,7 +172,8 @@ const rowSignature = (meta: GroupMeta, groups: readonly GroupMeta[]) =>
 let nextLabel = 0;
 
 const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
-  const labelId = `group-label-${nextLabel++}`;
+  const labelId = `group-label-${nextLabel}`;
+  const descId = `group-desc-${nextLabel++}`;
   const depth = depthOf(meta, groups);
   const group = h(
     "div",
@@ -176,38 +196,71 @@ const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
       { class: "row" },
       h(
         "div",
-        {
-          class: "track",
-          role: "radiogroup",
-          "aria-labelledby": labelId,
-          "data-track": meta.id,
-        },
-        h("span", { class: "thumb", "aria-hidden": "true" }),
-        ...meta.variants.map((variant) =>
-          h(
-            "button",
-            {
-              type: "button",
-              role: "radio",
-              class: "seg",
-              tabindex: "-1",
-              "data-action": "select",
-              "data-group": meta.id,
-              "data-value": variant.id,
-              "data-key": `${meta.id}:${variant.id}`,
-              title: `?variant=${meta.id}:${variant.id}`,
-            },
+        { class: "rail", "data-rail": meta.id },
+        h(
+          "button",
+          {
+            type: "button",
+            class: "nudge",
+            "data-action": "nudge",
+            "data-side": "start",
+            "data-group": meta.id,
+            tabindex: "-1",
+            "aria-hidden": "true",
+          },
+          "‹",
+        ),
+        h(
+          "div",
+          {
+            class: "track",
+            role: "radiogroup",
+            "aria-labelledby": labelId,
+            "aria-describedby": descId,
+            "data-track": meta.id,
+          },
+          h("span", { class: "thumb", "aria-hidden": "true" }),
+          ...meta.variants.map((variant, index) =>
             h(
-              "span",
-              { class: "stack" },
-              h("span", { "data-main": "" }, variant.label),
+              "button",
+              {
+                type: "button",
+                role: "radio",
+                class: "seg",
+                tabindex: "-1",
+                "aria-label": `${index + 1}: ${variant.label}`,
+                "data-action": "select",
+                "data-group": meta.id,
+                "data-value": variant.id,
+                "data-label": variant.label,
+                "data-key": `${meta.id}:${variant.id}`,
+                title: `${variant.label} (?variant=${meta.id}:${variant.id})`,
+              },
               h(
                 "span",
-                { "data-alt": "", "aria-hidden": "true" },
-                variant.label,
+                { class: "stack" },
+                h("span", { "data-main": "" }, `${index + 1}`),
+                h(
+                  "span",
+                  { "data-alt": "", "aria-hidden": "true" },
+                  `${index + 1}`,
+                ),
               ),
             ),
           ),
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "nudge",
+            "data-action": "nudge",
+            "data-side": "end",
+            "data-group": meta.id,
+            tabindex: "-1",
+            "aria-hidden": "true",
+          },
+          "›",
         ),
       ),
       iconButton(
@@ -221,6 +274,7 @@ const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
         `Copy /variants choose for ${meta.label} only`,
       ),
     ),
+    h("div", { class: "desc", id: descId, "data-desc": meta.id }),
   );
   return h(
     "div",
@@ -544,6 +598,54 @@ export const mountSwitcher = (store: Store): (() => void) => {
     }
   };
 
+  const rowPart = (group: string, selector: string) =>
+    rows.get(group)?.element.querySelector<HTMLElement>(selector) ?? undefined;
+  const shownActive = new Map<string, string | undefined>();
+  const preview = new Map<string, HTMLElement>();
+
+  const describe = (group: string) => {
+    const desc = rowPart(group, "[data-desc]");
+    if (!desc) return;
+    const segment =
+      preview.get(group) ?? rowPart(group, "[role=radio][aria-checked=true]");
+    desc.textContent = segment?.dataset["label"] ?? "";
+    desc.toggleAttribute("data-preview", preview.has(group));
+  };
+
+  const updateRail = (group: string) => {
+    const rail = rowPart(group, "[data-rail]");
+    const track = rowPart(group, "[data-track]");
+    if (!rail || !track) return;
+    const max = track.scrollWidth - track.clientWidth;
+    rail.toggleAttribute(
+      "data-overflow-start",
+      max > 1 && track.scrollLeft > 1,
+    );
+    rail.toggleAttribute(
+      "data-overflow-end",
+      max > 1 && track.scrollLeft < max - 1,
+    );
+  };
+
+  // Keeps the selected number visible inside a row that scrolls sideways;
+  // only scrollLeft changes, so the row's vertical position is untouched.
+  const revealSegment = (track: HTMLElement, segment: HTMLElement) => {
+    const inset = 24;
+    const start = segment.offsetLeft - inset;
+    const end = segment.offsetLeft + segment.offsetWidth + inset;
+    let left = track.scrollLeft;
+    if (start < left) left = start;
+    else if (end > left + track.clientWidth) left = end - track.clientWidth;
+    left = Math.max(0, left);
+    if (left === track.scrollLeft) return;
+    if (typeof track.scrollTo === "function")
+      track.scrollTo({
+        left,
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
+    else track.scrollLeft = left;
+  };
+
   const sync = (snapshot: Snapshot) => {
     host.hidden =
       snapshot.hideUI || snapshot.clean || snapshot.groups.length === 0;
@@ -572,10 +674,15 @@ export const mountSwitcher = (store: Store): (() => void) => {
           segment.dataset["value"] === activeId ? "true" : "false",
         );
       }
-      placeThumb(
-        track,
-        segments.find((segment) => segment.dataset["value"] === activeId),
+      const checked = segments.find(
+        (segment) => segment.dataset["value"] === activeId,
       );
+      placeThumb(track, checked);
+      const changed = shownActive.get(meta.id) !== activeId;
+      shownActive.set(meta.id, activeId);
+      if (changed && checked) revealSegment(track, checked);
+      updateRail(meta.id);
+      describe(meta.id);
     }
     for (const [id, row] of rows) {
       row.element.toggleAttribute(
@@ -703,6 +810,19 @@ export const mountSwitcher = (store: Store): (() => void) => {
     if (action === "select" && group && value) {
       setRoving(button);
       select(button, group, value);
+    } else if (action === "nudge" && group) {
+      const track = rowPart(group, "[data-track]");
+      if (!track) return;
+      const step =
+        Math.max(track.clientWidth * 0.7, 40) *
+        (button.dataset["side"] === "start" ? -1 : 1);
+      if (typeof track.scrollBy === "function")
+        track.scrollBy({
+          left: step,
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+        });
+      else track.scrollLeft += step;
+      updateRail(group);
     } else if (action === "outline") store.setOutline(!snapshot.outline);
     else if (action === "canvas") store.setCanvas(true);
     else if (action === "collapse") store.setCollapsed(!snapshot.collapsed);
@@ -792,13 +912,36 @@ export const mountSwitcher = (store: Store): (() => void) => {
     focusRadio(byKey(rovingKey) ?? radios()[0]);
   };
 
+  const segmentOf = (target: EventTarget | null) =>
+    (target as Element | null)?.closest?.<HTMLElement>("[role=radio]") ??
+    undefined;
   const onPointerOver = (event: Event) => {
     hoverGroup = panelGroup(event.target);
     updateLink();
+    const segment = segmentOf(event.target);
+    const group = segment?.dataset["group"];
+    if (segment && group) {
+      preview.set(group, segment);
+      describe(group);
+    }
   };
   const onPointerOut = (event: Event) => {
-    hoverGroup = panelGroup((event as PointerEvent).relatedTarget);
+    const related = (event as PointerEvent).relatedTarget;
+    hoverGroup = panelGroup(related);
     updateLink();
+    const segment = segmentOf(event.target);
+    const group = segment?.dataset["group"];
+    if (segment && group && segmentOf(related) !== segment) {
+      preview.delete(group);
+      describe(group);
+    }
+  };
+  const onScroll = (event: Event) => {
+    const group = (event.target as HTMLElement | null)?.dataset?.["track"];
+    if (group) updateRail(group);
+  };
+  const onResize = () => {
+    for (const id of rows.keys()) updateRail(id);
   };
   const onFocusIn = (event: Event) => {
     focusGroup = panelGroup(event.target);
@@ -817,6 +960,8 @@ export const mountSwitcher = (store: Store): (() => void) => {
   root.addEventListener("focusin", onFocusIn);
   root.addEventListener("focusout", onFocusOut);
   root.addEventListener("wheel", onWheel, { passive: true });
+  root.addEventListener("scroll", onScroll, { capture: true, passive: true });
+  window.addEventListener("resize", onResize, { passive: true });
   document.addEventListener("keydown", onGlobalKeyDown);
   const onSheetChange = () => render();
   sheet?.addEventListener?.("change", onSheetChange);
@@ -834,6 +979,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     sheet?.removeEventListener?.("change", onSheetChange);
     highlightGroup(undefined);
     document.removeEventListener("keydown", onGlobalKeyDown);
+    window.removeEventListener("resize", onResize);
     pushPage(false);
     pageStyle.remove();
     host.remove();

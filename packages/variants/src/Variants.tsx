@@ -247,10 +247,11 @@ export function Variants({
       {slot &&
         createPortal(
           <InsideCanvas.Provider value>
-            {items.map((item) => (
+            {items.map((item, position) => (
               <CanvasCard
                 key={item.id}
                 group={id}
+                number={position + 1}
                 item={item}
                 current={item.id === activeId}
                 ancestors={readSlotAncestors(slot)}
@@ -321,11 +322,13 @@ const setInert = (element: HTMLElement | null) => {
 
 function CanvasCard({
   group,
+  number,
   item,
   current,
   ancestors,
 }: {
   group: string;
+  number: number;
   item: Item;
   current: boolean;
   ancestors: readonly string[];
@@ -343,7 +346,7 @@ function CanvasCard({
       className="cc-card"
       role="group"
       aria-roledescription="variant"
-      aria-label={current ? `${item.label} (current)` : item.label}
+      aria-label={`${number}: ${item.label}${current ? " (current)" : ""}`}
       tabIndex={0}
       data-canvas-card=""
       data-canvas-group={group}
@@ -351,7 +354,9 @@ function CanvasCard({
       data-current={current ? "" : undefined}
     >
       <div className="cc-card-head">
-        <span className="cc-card-label">{item.label}</span>
+        <span className="cc-card-label">
+          {number} · {item.label}
+        </span>
         {item.label !== item.id && <code>{item.id}</code>}
         {current && <span className="cc-current">Current</span>}
         <button type="button" className="cc-use" data-canvas-use="">

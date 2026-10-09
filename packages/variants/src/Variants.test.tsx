@@ -53,7 +53,10 @@ const switcher = () => {
     ui: within(root as unknown as HTMLElement),
   };
 };
-const radio = (name: string) => switcher().ui.getByRole("radio", { name });
+const radio = (name: string) =>
+  switcher().ui.getByRole("radio", {
+    name: (accessible) => accessible.replace(/^\d+: /, "") === name,
+  });
 const active = () => switcherRoot().activeElement as HTMLElement | null;
 
 const shown = (container: HTMLElement) =>
@@ -328,7 +331,7 @@ describe("switcher", () => {
     const { ui } = switcher();
     expect(ui.getByRole("region", { name: "Design variants" })).toBeTruthy();
     const group = ui.getByRole("radiogroup", { name: "Hero" });
-    const split = within(group).getByRole("radio", { name: "Split" });
+    const split = within(group).getByRole("radio", { name: "2: Split" });
     expect(split.getAttribute("aria-checked")).toBe("false");
 
     fireEvent.click(split);
@@ -345,8 +348,8 @@ describe("switcher", () => {
     const segment = radio("Split");
     const labels = segment.querySelectorAll(".stack > span");
     expect(Array.from(labels).map((label) => label.textContent)).toEqual([
-      "Split",
-      "Split",
+      "2",
+      "2",
     ]);
     expect(labels[1]!.getAttribute("aria-hidden")).toBe("true");
     const normalize = (html: string) =>
@@ -399,7 +402,7 @@ describe("switcher", () => {
     radio("Big headline").focus();
     fireEvent.keyDown(active()!, { key: "ArrowRight" });
     expect(shown(container)).toEqual(["b", "x"]);
-    expect(active()?.textContent).toContain("Split");
+    expect(active()?.getAttribute("aria-label")).toBe("2: Split");
     fireEvent.keyDown(active()!, { key: "End" });
     expect(shown(container)).toEqual(["c", "x"]);
     fireEvent.keyDown(active()!, { key: "Home" });
@@ -499,6 +502,108 @@ describe("switcher", () => {
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
     expect(shown(container)).toEqual(["c"]);
+  });
+});
+
+describe("numbered segments", () => {
+  const desc = (group = "hero") =>
+    switcherRoot().querySelector<HTMLElement>(`[data-desc="${group}"]`)!;
+  const rail = (group = "hero") =>
+    switcherRoot().querySelector<HTMLElement>(`[data-rail="${group}"]`)!;
+  const track = (group = "hero") =>
+    switcherRoot().querySelector<HTMLElement>(`[data-track="${group}"]`)!;
+
+  it("shows numbers with the label as name, tooltip and description", () => {
+    renderWithStore(<Hero default="b" />);
+    const segments = switcher().ui.getAllByRole("radio");
+    expect(
+      segments.map(
+        (segment) => segment.querySelector("[data-main]")!.textContent,
+      ),
+    ).toEqual(["1", "2", "3"]);
+    expect(
+      segments.map((segment) => segment.getAttribute("aria-label")),
+    ).toEqual(["1: Big headline", "2: Split", "3: c"]);
+    expect(segments[1]!.title).toBe("Split (?variant=hero:b)");
+    expect(desc().textContent).toBe("Split");
+    expect(track().getAttribute("aria-describedby")).toBe(desc().id);
+  });
+
+  it("updates the description on click, keyboard and hover preview", () => {
+    renderWithStore(<Hero />);
+    expect(desc().textContent).toBe("Big headline");
+    fireEvent.click(radio("c"));
+    expect(desc().textContent).toBe("c");
+    fireEvent.keyDown(radio("c"), { key: "ArrowLeft" });
+    expect(desc().textContent).toBe("Split");
+
+    fireEvent.pointerOver(radio("Big headline"));
+    expect(desc().textContent).toBe("Big headline");
+    expect(desc().hasAttribute("data-preview")).toBe(true);
+    fireEvent.pointerOut(radio("Big headline"), {
+      relatedTarget: document.body,
+    });
+    expect(desc().textContent).toBe("Split");
+    expect(desc().hasAttribute("data-preview")).toBe(false);
+  });
+
+  it("shows arrows only when the row overflows and scrolls with them", () => {
+    renderWithStore(<Hero />);
+    const row = track();
+    let left = 0;
+    Object.defineProperty(row, "scrollWidth", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(row, "clientWidth", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(row, "scrollLeft", {
+      configurable: true,
+      get: () => left,
+      set: (value: number) => {
+        left = value;
+      },
+    });
+    row.scrollBy = ((options: ScrollToOptions) => {
+      left += options.left ?? 0;
+    }) as typeof row.scrollBy;
+    fireEvent.scroll(row);
+    expect(rail().hasAttribute("data-overflow-start")).toBe(false);
+    expect(rail().hasAttribute("data-overflow-end")).toBe(true);
+
+    fireEvent.click(rail().querySelector<HTMLElement>('[data-side="end"]')!);
+    expect(left).toBe(140);
+    expect(rail().hasAttribute("data-overflow-start")).toBe(true);
+
+    left = 200;
+    fireEvent.scroll(row);
+    expect(rail().hasAttribute("data-overflow-end")).toBe(false);
+  });
+
+  it("scrolls the selected number into view when the selection changes", () => {
+    renderWithStore(<Hero />);
+    const row = track();
+    const segment = radio("c");
+    Object.defineProperty(row, "clientWidth", {
+      configurable: true,
+      value: 100,
+    });
+    Object.defineProperty(segment, "offsetLeft", {
+      configurable: true,
+      value: 300,
+    });
+    Object.defineProperty(segment, "offsetWidth", {
+      configurable: true,
+      value: 32,
+    });
+    const scrollTo = vi.fn();
+    row.scrollTo = scrollTo as typeof row.scrollTo;
+    fireEvent.click(segment);
+    expect(scrollTo).toHaveBeenCalledWith(
+      expect.objectContaining({ left: 300 + 32 + 24 - 100 }),
+    );
   });
 });
 

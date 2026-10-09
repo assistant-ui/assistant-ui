@@ -106,12 +106,29 @@ describe("layoutFrames", () => {
     expect(inner!.tab).toEqual({ left: 93 + tab.width + 6, top: 74 });
   });
 
-  it("moves the tab inside when the edge above is off screen", () => {
+  it("moves the tab below when the edge above is off screen", () => {
     const [placed] = layoutFrames(
       [frame("a", rect(10, 100, 600, 300))],
       viewport,
     );
-    expect(placed!.tab).toEqual({ left: 101, top: 11 });
+    expect(placed!.tab).toEqual({ left: 97, top: 306 });
+  });
+
+  it("puts the tab below rather than over a neighbour's content", () => {
+    const { lower } = layout([
+      frame("upper", rect(100, 0, 600, 180)),
+      frame("lower", rect(184, 0, 300, 220)),
+    ]);
+    expect(lower!.tab.top).toBeGreaterThan(220);
+  });
+
+  it("goes inside its own frame when neighbours surround it", () => {
+    const { middle } = layout([
+      frame("upper", rect(100, 0, 600, 180)),
+      frame("middle", rect(184, 0, 300, 220)),
+      frame("lower", rect(224, 0, 600, 400)),
+    ]);
+    expect(middle!.tab).toEqual({ left: 1, top: 187 });
   });
 
   it("lets hover-only tabs share a spot because only one shows at a time", () => {
@@ -123,6 +140,14 @@ describe("layoutFrames", () => {
       viewport,
     );
     expect(placed.map((item) => item.tab.left)).toEqual([93, 97]);
+  });
+
+  it("lets a narrow frame's tab slide past its right edge instead of covering content", () => {
+    const { narrow } = layout([
+      frame("wide", rect(100, 0, 100, 200)),
+      frame("narrow", rect(100, 110, 140, 200)),
+    ]);
+    expect(narrow!.tab).toEqual({ left: -3 + tab.width + 6, top: 74 });
   });
 
   it("keeps a tab inside the viewport at the top edge", () => {

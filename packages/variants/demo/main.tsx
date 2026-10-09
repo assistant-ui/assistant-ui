@@ -4,6 +4,21 @@ import { Variant, Variants } from "../src/index";
 
 const features = ["Typed", "Inline", "Guarded"];
 
+const accents = [
+  { id: "amber", label: "Amber, the construction default", color: "#d97706" },
+  { id: "blue", label: "Blue", color: "#2563eb" },
+  { id: "green", label: "Green", color: "#16a34a" },
+  { id: "rose", label: "Rose", color: "#e11d48" },
+  { id: "violet", label: "Violet", color: "#7c3aed" },
+  { id: "teal", label: "Teal", color: "#0d9488" },
+  { id: "slate", label: "Slate", color: "#475569" },
+  { id: "orange", label: "Orange", color: "#ea580c" },
+  { id: "pink", label: "Pink", color: "#db2777" },
+  { id: "lime", label: "Lime", color: "#65a30d" },
+  { id: "sky", label: "Sky", color: "#0284c7" },
+  { id: "indigo", label: "Indigo", color: "#4f46e5" },
+];
+
 const demoState = new URLSearchParams(window.location.search).get("demo");
 if (demoState) {
   window.sessionStorage.clear();
@@ -81,6 +96,16 @@ function App() {
           </Variant>
         </Variants>
       </div>
+
+      <Variants id="accent" label="Accent color" default="amber">
+        {accents.map((accent) => (
+          <Variant key={accent.id} id={accent.id} label={accent.label}>
+            <p className="swatch" style={{ color: accent.color }}>
+              ● {accent.label}
+            </p>
+          </Variant>
+        ))}
+      </Variants>
     </main>
   );
 }

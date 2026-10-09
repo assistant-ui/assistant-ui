@@ -189,7 +189,10 @@ The sidebar's behaviour:
 
 What it contains:
 
-- **Groups:** one section per group, with nested groups indented. Each group is a radio group with one segment per variant. The selected segment uses full-strength text, medium weight, and a faint sliding background. Every label reserves the medium weight's width, so selecting never changes a segment's size.
+- **Groups:** one section per group, with nested groups indented. Each group is a radio group of numbered segments, `1`, `2`, `3` and so on, kept on a single line. A segment's accessible name is `1: <label>`, and its tooltip is the label.
+- **Selection:** the selected number uses full-strength text, medium weight and a faint sliding background. Every number reserves the medium weight's width, so selecting never changes a segment's size.
+- **Description:** a muted line under the row names the selected variant. It updates on click and keyboard selection, and previews the label of whichever number you hover.
+- **Overflow:** when the numbers don't fit, the row scrolls sideways. Faded edges and small ‹ › arrows appear only on the side that has more to show, and the selected number is scrolled into view whenever the selection changes.
 - **Header:** buttons for the **Canvas** and **Outline** toggles, and to collapse the sidebar.
 - **Copy:** a **Copy prompt** button in the footer and a copy icon on each group. See [Hand off to a coding agent](#hand-off-to-a-coding-agent).
 
@@ -211,7 +214,7 @@ The shortcut is matched on `KeyboardEvent.code`, so it works on every keyboard l
 
 The **Canvas** button, or `?variants=canvas`, compares every variant side by side in the area beside the sidebar.
 
-**Layout:** there's one row per mounted group, in page order, and one card per variant in declaration order. Each card has a header with the variant label, its id, and a **Current** marker on the selected variant.
+**Layout:** there's one row per mounted group, in page order, and one card per variant in declaration order. Each card has a header with the variant's number and label (for example `2 · Split`), its id, and a **Current** marker on the selected variant.
 
 **Matching the page:** each card renders its variant the way the page would:
 

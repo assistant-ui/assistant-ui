@@ -149,23 +149,46 @@ export const layoutFrames = (
     });
     const offscreen = (rect: Rect) =>
       rect.top < 0 || (viewport.height > 0 && rect.top > viewport.height);
-    const limit = Math.max(box.right, box.left + width) + 0.5;
-    const slide = (top: number, start: number) => {
+    // A tab outside the frame may slide past the frame's right edge up to the
+    // viewport; one inside it stays within the frame.
+    const within = Math.max(box.right, box.left + TAB_INSET + width) + 0.5;
+    const outside = Math.max(within, viewport.width > 0 ? viewport.width : 0);
+    const neighbours = frames
+      .filter((other) => other !== frame && !related(frame, other))
+      .map((other) => other.content);
+    const slide = (
+      top: number,
+      start: number,
+      limit: number,
+      avoidContent: boolean,
+    ) => {
       let left = start;
       for (let tries = 0; tries < 50; tries++) {
         const rect = rectOf({ left, top });
         if (offscreen(rect) || rect.right > limit) return undefined;
-        const hit = placed.find((other) => intersects(rect, other, 2));
-        if (!hit) return { left, top };
-        left = hit.right + 6;
+        const tabHit = placed.find((other) => intersects(rect, other, 2));
+        const contentHit = avoidContent
+          ? neighbours.find((other) => intersects(rect, other))
+          : undefined;
+        if (!tabHit && !contentHit) return { left, top };
+        left =
+          Math.max(tabHit?.right ?? -Infinity, contentHit?.right ?? -Infinity) +
+          6;
+        // Sliding past content keeps the tab over its own frame.
+        if (contentHit && left + width > within) return undefined;
       }
       return undefined;
     };
     const inside = { left: box.left + TAB_INSET, top: box.top + TAB_INSET };
+    const above = box.top - height - TAB_GAP;
+    const below = box.bottom + TAB_GAP;
+    // A tab never covers another group's content when it can avoid it: above,
+    // then below, then inside its own frame, and only then over a neighbour.
     let spot =
-      slide(box.top - height - TAB_GAP, box.left) ??
-      slide(inside.top, inside.left) ??
-      slide(box.bottom + TAB_GAP, box.left);
+      slide(above, box.left, outside, true) ??
+      slide(below, box.left, outside, true) ??
+      slide(inside.top, inside.left, within, false) ??
+      slide(above, box.left, outside, false);
     if (!spot) {
       const fallback = { ...inside };
       for (

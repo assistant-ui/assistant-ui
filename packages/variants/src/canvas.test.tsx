@@ -153,7 +153,7 @@ describe("canvas", () => {
     expect(card("hero", "centered").textContent).toContain("centered in dark");
     expect(card("hero", "split").hasAttribute("data-current")).toBe(true);
     expect(card("hero", "split").getAttribute("aria-label")).toBe(
-      "Split (current)",
+      "2: Split (current)",
     );
     expect(card("hero", "centered").hasAttribute("data-current")).toBe(false);
     expect(
@@ -335,7 +335,7 @@ describe("canvas", () => {
     expect(dialog()!.hasAttribute("data-clean")).toBe(true);
     expect(
       card("hero", "split").querySelector(".cc-card-label")!.textContent,
-    ).toBe("Split");
+    ).toBe("2 · Split");
   });
 
   it("follows popstate", () => {
