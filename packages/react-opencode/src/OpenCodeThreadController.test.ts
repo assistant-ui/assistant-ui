@@ -5824,6 +5824,53 @@ describe("OpenCodeThreadController", () => {
       expect(controller.getState().runState).toMatchObject({ type: "error" });
     });
 
+    it("keeps an idle thread free of errors when an older revert fails", async () => {
+      const first = createDeferred<unknown>();
+      const second = createDeferred<unknown>();
+      const { client, controller } = createRevertController();
+      client.session.revert
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise);
+
+      const olderRevert = controller.revert("msg_1");
+      const newerRevert = controller.revert("msg_2");
+
+      first.reject(new Error("older revert failed"));
+      await expect(olderRevert).rejects.toThrow("older revert failed");
+      expect(controller.getState().runState.type).toBe("idle");
+
+      second.resolve({});
+      await newerRevert;
+      expect(controller.getState().runState.type).toBe("idle");
+    });
+
+    it("surfaces the latest idle revert failure despite an older pending revert", async () => {
+      const first = createDeferred<unknown>();
+      const second = createDeferred<unknown>();
+      const { client, controller } = createRevertController();
+      client.session.revert
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise);
+
+      const olderRevert = controller.revert("msg_1");
+      const newerRevert = controller.revert("msg_2");
+      const latestError = new Error("latest revert failed");
+
+      second.reject(latestError);
+      await expect(newerRevert).rejects.toBe(latestError);
+      expect(controller.getState().runState).toEqual({
+        type: "error",
+        error: latestError,
+      });
+
+      first.reject(new Error("older revert failed"));
+      await expect(olderRevert).rejects.toThrow("older revert failed");
+      expect(controller.getState().runState).toEqual({
+        type: "error",
+        error: latestError,
+      });
+    });
+
     it.each(["idle", "running"] as const)(
       "keeps a newer run active when a revert started while %s fails",
       async (initialState) => {

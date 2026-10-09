@@ -366,6 +366,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
   private runGeneration = 0;
+  private revertGeneration = 0;
   private readonly permissionRecoveryFence = new Map<
     string,
     "asked" | "settled"
@@ -1140,6 +1141,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   public async revert(messageId: string) {
     const runGeneration = this.runGeneration;
+    const revertGeneration = ++this.revertGeneration;
     const wasRunning = isOpenCodeStateRunning(this.state);
     // Reverting a finished turn leaves the session idle, so the server sends no
     // busy-to-idle transition and the transient state would never be left.
@@ -1157,6 +1159,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     } catch (error) {
       if (
         runGeneration === this.runGeneration &&
+        revertGeneration === this.revertGeneration &&
         (!wasRunning || this.state.runState.type === "reverting")
       ) {
         this.dispatch({ type: "run.failed", error });
