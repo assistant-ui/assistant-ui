@@ -117,6 +117,48 @@ describe("convertFlueMessages", () => {
     });
   });
 
+  it("maps tool errors onto error results", () => {
+    const [converted] = convertFlueMessages([
+      {
+        id: "assistant-2",
+        role: "assistant",
+        purpose: "assistant",
+        display: "visible",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "run_demo",
+            toolCallId: "tool-2",
+            state: "output-error",
+            input: { target: "demo" },
+            errorText: "Demo failed",
+          },
+        ],
+      },
+    ]);
+
+    expect(converted?.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tool-2",
+      args: { target: "demo" },
+      result: { error: "Demo failed" },
+      isError: true,
+    });
+  });
+
+  it("reads createdAt from the Flue timestamp unless getCreatedAt overrides it", () => {
+    const assistant = messages[1]!;
+    const override = new Date("2026-09-24T08:00:00.000Z");
+
+    expect(convertFlueMessages([assistant])[0]?.createdAt).toEqual(
+      new Date("2026-09-23T12:00:00.000Z"),
+    );
+    expect(
+      convertFlueMessages([assistant], { getCreatedAt: () => override })[0]
+        ?.createdAt,
+    ).toEqual(override);
+  });
+
   it("maps the active Flue error onto the last assistant message", () => {
     const converted = convertFlueMessages(messages.slice(0, 2), {
       error: new Error("stream failed"),
