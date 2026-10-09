@@ -98,7 +98,7 @@ decode. The persistence parameter is typed structurally, so a caller does
 not need to import the class.
 
 ```ts
-const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject) => Promise<void>; load: (threadId: string, format?: string) => Promise<any[]>; isPersisted: (messageId: string) => boolean; update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>; }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => { append: (threadId: string, item: { parentId: string | null; message: TMessage; }) => Promise<void>; update: ((threadId: string, item: { parentId: string | null; message: TMessage; }, messageId: string) => Promise<void>) | undefined; load: (threadId: string) => Promise<{ messages: { parentId: string | null; message: TMessage; }[]; }>; isPersisted: (messageId: string) => boolean; };
+const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: Pick<CloudMessagePersistence, "append" | "load" | "isPersisted"> & Partial<Pick<CloudMessagePersistence, "update">>, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => { append: (threadId: string, item: { parentId: string | null; message: TMessage; }) => Promise<void>; update: ((threadId: string, item: { parentId: string | null; message: TMessage; }, messageId: string) => Promise<void>) | undefined; load: (threadId: string) => Promise<{ messages: { parentId: string | null; message: TMessage; }[]; }>; isPersisted: (messageId: string) => boolean; };
 ```
 
 ### createRunReport

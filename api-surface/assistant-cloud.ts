@@ -214,7 +214,6 @@ declare class AssistantCloudRuns {
     api: string;
     protocol: "ui-message-stream";
     headers: () => Promise<{
-      Accept: string;
       "Aui-Sdk": string;
     }>;
     body: (options?: {
@@ -799,12 +798,7 @@ declare function createAssistantCloudSpanProcessor(exporter: SpanExporter, optio
 
 declare function createAssistantCloudTraceExporter(options: AssistantCloudTraceExportOptions): SpanExporter;
 
-declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: {
-  append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject) => Promise<void>;
-  load: (threadId: string, format?: string) => Promise<any[]>;
-  isPersisted: (messageId: string) => boolean;
-  update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>;
-}, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => {
+declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: Pick<CloudMessagePersistence, "append" | "isPersisted" | "load"> & Partial<Pick<CloudMessagePersistence, "update">>, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => {
   append: (threadId: string, item: {
     parentId: string | null;
     message: TMessage;
