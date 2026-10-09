@@ -450,7 +450,7 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     expect(requests).toHaveLength(2);
   });
 
-  it("keeps a steer that a cancel overtook in the thread without sending it", async () => {
+  it("keeps a cancelled steer queued alongside the restored unanswered draft", async () => {
     const { requests, hold, release, send, queued, isRunning, runtime } =
       setup();
 
@@ -466,21 +466,23 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     await act(async () => {
       release();
     });
-    await waitFor(() =>
-      expect(
-        runtime()
-          .thread.getState()
-          .messages.map(
-            (m) => m.content[0]?.type === "text" && m.content[0].text,
-          ),
-      ).toContain("second"),
-    );
+    await waitFor(() => expect(queued()).toBe("second"));
     expect(requests).toHaveLength(1);
     expect(isRunning()).toBe(false);
+    expect(runtime().thread.getState().messages).toEqual([]);
+    expect(runtime().thread.composer.getState().text).toBe("first");
+    expect(screen.getByTestId("queue-error").textContent).toBe("");
 
     await send("third");
     await waitFor(() => expect(requests).toHaveLength(2));
-    expect(requests[1]!.prompt).toBe("third");
+    expect(requests[1]!.prompt).toBe("second");
+    expect(queued()).toBe("third");
+    await act(async () => {
+      requests[1]!.stream("two");
+      requests[1]!.finish();
+    });
+    await waitFor(() => expect(requests).toHaveLength(3));
+    expect(requests[2]!.prompt).toBe("third");
     expect(queued()).toBe("");
   });
 

@@ -112,9 +112,12 @@ export const useMessageQueue = ({
           const busyEdges = busyEdgesRef.current;
           onErrorRef.current?.(undefined);
           try {
-            await sendRef.current(
-              overtaken ? { ...message, startRun: false } : message,
-            );
+            if (overtaken) {
+              const error = new Error("Queued send cancelled before dispatch");
+              error.name = "AbortError";
+              throw error;
+            }
+            await sendRef.current(message);
           } catch (error) {
             if (mountedRef.current && generation === generationRef.current) {
               onErrorRef.current?.(

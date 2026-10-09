@@ -753,6 +753,8 @@ A message sent while a run is in progress steers by default: the run stops, clie
 
 If a queued send fails before the request starts, its prompt remains queued and later prompts pause. `useAISDKError()` exposes the error. A normal send resumes the failed prompt before later follow-ups; steering keeps its usual priority.
 
+If you stop while a steer is waiting to send, that steer stays queued until the next send. An unanswered prompt restored by cancellation stays in the composer; the waiting steer is not added to the transcript prematurely. This cancellation does not report a runtime error.
+
 Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
 
 ## Advanced: useAISDKRuntime

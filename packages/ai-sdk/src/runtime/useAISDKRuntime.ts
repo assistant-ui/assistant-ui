@@ -1078,7 +1078,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   };
 
   const messageQueue = useMessageQueue({
-    onError: setQueueError,
+    onError: (error) => {
+      if (error?.name === "AbortError") {
+        steeredAnswerIdRef.current = undefined;
+        setQueueError(undefined);
+      } else {
+        setQueueError(error);
+      }
+    },
     enabled: unstable_enableMessageQueue === true,
     isRunning,
     isSendDisabled: adapter.isSendDisabled === true,
