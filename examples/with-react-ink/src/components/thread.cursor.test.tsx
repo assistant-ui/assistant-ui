@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { act, useState } from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -10,6 +10,13 @@ import {
 } from "@assistant-ui/react-ink";
 import { Thread } from "./thread";
 import { ThreadShell } from "./thread-shell";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const settle = () =>
+  act(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
 
 afterEach(() => {
   cleanup();
@@ -43,15 +50,23 @@ it.each([42, 100])(
         </AssistantRuntimeProvider>
       );
     }
-    const { stdin, stdout } = render(<App />);
+    let result!: ReturnType<typeof render>;
+    await act(async () => {
+      result = render(<App />);
+    });
+    const { stdin, stdout } = result;
     const press = async (value: string) => {
-      stdin.write(value);
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await act(async () => {
+        stdin.write(value);
+      });
+      await settle();
     };
     await vi.waitFor(() => expect(client).toBeDefined());
     vi.spyOn(stdout, "columns", "get").mockReturnValue(columns);
-    stdout.emit("resize");
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await act(async () => {
+      stdout.emit("resize");
+    });
+    await settle();
     await press("abcd");
     await press("\x1b[D");
     await press("\x1b[D");
