@@ -1232,9 +1232,8 @@ describe("SetupWizard", () => {
         checkout={{
           ...context(connected({ status: "planning" }), true, true),
           connection: {
-            status: "retrying",
+            status: "connecting",
             degraded: false,
-            attempt: 1,
             reconnect: () => {},
           },
         }}
