@@ -328,6 +328,7 @@ export {
 export type {
   AssistantTransportProtocol,
   EnrichedPartState,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
   GenerativeUIComponentRegistry,
   GenerativeUIMessagePartComponent,
@@ -342,8 +343,11 @@ export type {
 } from "@assistant-ui/core/react";
 export {
   CloudFileAttachmentAdapter,
+  /** @deprecated Experimental since 2025-01-26. Not scheduled for removal; the API may change in any release. */
   convertExternalMessages as unstable_convertExternalMessages,
+  /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
   createMessageConverter as unstable_createMessageConverter,
   GenerativeUIRender,
   GenerativeUIRenderError,

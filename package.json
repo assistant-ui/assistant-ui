@@ -25,6 +25,8 @@
     "declarations:test": "node --test scripts/check-built-declarations.test.mjs",
     "distributions:check": "node scripts/check-distribution-barrels.mjs",
     "distributions:test": "node --test scripts/check-distribution-barrels.test.mjs",
+    "experimental:check": "node scripts/check-experimental.mjs",
+    "experimental:test": "node --test scripts/check-experimental.test.mjs scripts/lib/experimental-annotations.test.mjs",
     "deploy-examples:test": "node --test scripts/deploy-examples-changes.test.mjs",
     "workspace-ranges:check": "node scripts/check-workspace-ranges.mjs",
     "workspace-ranges:test": "node --test scripts/check-workspace-ranges.test.mjs",

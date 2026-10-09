@@ -146,6 +146,7 @@ export type ExternalThreadProps = {
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => void | Promise<void>;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -163,6 +164,7 @@ type MessageClientProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -359,6 +361,7 @@ type PartResourceProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
