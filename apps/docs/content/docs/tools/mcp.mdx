@@ -178,9 +178,9 @@ export async function POST(req: Request) {
 
   const aiToolkit = new AISDKToolkit({ toolkit });
 
-  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
-
   try {
+    const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
     const result = streamText({
       model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
@@ -192,7 +192,7 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    await aiToolkit.close();
+    await aiToolkit.close().catch(() => {});
     throw error;
   }
 }
@@ -205,7 +205,7 @@ export async function POST(req: Request) {
 
 For manual MCP client control, `mcpClient.tools()` returns an object shaped
 exactly like the `tools` argument of `streamText`. Spread it in alongside any of
-your own tools, and close the client when the response finishes:
+your own tools, and close the client when the response finishes or setup fails:
 
 ```ts title="app/api/chat/route.ts"
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -226,18 +226,23 @@ export async function POST(req: Request) {
     },
   });
 
-  const tools = await mcpClient.tools();
+  try {
+    const tools = await mcpClient.tools();
 
-  const result = streamText({
-    model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages, { tools }),
-    tools,
-    onFinish: async () => {
-      await mcpClient.close();
-    },
-  });
+    const result = streamText({
+      model: openai("gpt-6-luna"),
+      messages: await convertToModelMessages(messages, { tools }),
+      tools,
+      onFinish: async () => {
+        await mcpClient.close();
+      },
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    await mcpClient.close().catch(() => {});
+    throw error;
+  }
 }
 ```
 
