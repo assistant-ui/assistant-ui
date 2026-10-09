@@ -1,0 +1,8 @@
+{
+  "title": "Getting Started",
+  "description": "Install assistant-ui in a React app, then the CLI, RTL, component flavors, and DevTools.",
+  "icon": "Rocket",
+  "root": true,
+  "platforms": ["react"],
+  "pages": ["installation", "cli", "rtl", "base-ui", "devtools"]
+}

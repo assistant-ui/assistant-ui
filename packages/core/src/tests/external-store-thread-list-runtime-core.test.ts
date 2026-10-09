@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadListRuntimeCore } from "../runtimes/external-store/external-store-thread-list-runtime-core";
 import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
+import { ExternalStoreThreadRuntimeCore as ExternalStoreThreadRuntimeCoreImpl } from "../runtimes/external-store/external-store-thread-runtime-core";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ModelContextProvider } from "../model-context/types";
+import type { ThreadAssistantMessage, ThreadMessage } from "../types/message";
+import type { AttachmentAdapter } from "../adapters/attachment";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
 const makeFactory = (overrides: Record<string, unknown> = {}) =>
@@ -10,6 +16,8 @@ const makeFactory = (overrides: Record<string, unknown> = {}) =>
       ({
         subscribe: () => () => {},
         capabilities: { cancel: false },
+        composer: { dictation: undefined },
+        messages: [],
         ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
@@ -17,6 +25,21 @@ const makeFactory = (overrides: Record<string, unknown> = {}) =>
 const makeAdapter = (
   overrides: Partial<ExternalStoreThreadListAdapter> = {},
 ): ExternalStoreThreadListAdapter => ({ ...overrides });
+
+const mockContextProvider: ModelContextProvider = {
+  getModelContext: () => ({}),
+};
+
+const appendMessage = () => ({
+  parentId: null,
+  sourceId: null,
+  runConfig: {},
+  role: "user" as const,
+  content: [{ type: "text" as const, text: "hello" }],
+  attachments: [],
+  metadata: { custom: {} },
+  createdAt: new Date(0),
+});
 
 describe("ExternalStoreThreadListRuntimeCore - construction", () => {
   it("assigns a resolvable fallback mainThreadId when adapter has no threadId", () => {
@@ -50,6 +73,72 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     );
     expect(core.threadIds).toEqual(["thread-alpha", "thread-beta"]);
     expect(core.mainThreadId).toBe("thread-alpha");
+  });
+
+  it("lists only the adapter's threads and the main thread in threadItems", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({
+        threadId: "thread-alpha",
+        threads: [{ id: "thread-alpha", status: "regular" }],
+      }),
+      makeFactory(),
+    );
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("preserves the threadIds reference when only the selected thread changes", () => {
+    const threads = [
+      { id: "thread-alpha", status: "regular" as const },
+      { id: "thread-beta", status: "regular" as const },
+    ];
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha", threads }),
+      makeFactory(),
+    );
+    const threadIds = core.threadIds;
+
+    core.__internal_setAdapter(
+      makeAdapter({ threadId: "thread-beta", threads }),
+    );
+
+    expect(core.mainThreadId).toBe("thread-beta");
+    expect(core.threadIds).toBe(threadIds);
+  });
+
+  it("drops the placeholder list when an initially implicit selection becomes explicit", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+    expect(core.threadIds).toEqual([core.mainThreadId]);
+
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-alpha" }));
+
+    expect(core.threadIds).toEqual([]);
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("lists no default thread in threadIds when the adapter sets threadId without threads", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    expect(core.threadIds).toEqual([]);
+    expect(Object.keys(core.threadItems)).toEqual(["thread-alpha"]);
+  });
+
+  it("keeps the synthesized main entry when the adapter lists threads without a threadId", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({
+        threads: [{ id: "thread-alpha", status: "regular" }],
+      }),
+      makeFactory(),
+    );
+    expect(Object.keys(core.threadItems).sort()).toEqual([
+      "DEFAULT_THREAD_ID",
+      "thread-alpha",
+    ]);
+    expect(core.mainThreadId).toBe("DEFAULT_THREAD_ID");
   });
 
   it("creates the main thread instance exactly once on construction", () => {
@@ -91,10 +180,186 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     // Two empty-adapter constructions should share the frozen DEFAULT_THREAD_DATA
     // singleton rather than each getting a fresh `{ ... }` clone.
     expect(a.threadItems).toBe(b.threadItems);
+    expect(Object.getPrototypeOf(a.threadItems)).toBeNull();
   });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "returns undefined for an absent prototype-named thread id %s",
+    (threadId) => {
+      const core = new ExternalStoreThreadListRuntimeCore(
+        makeAdapter(),
+        makeFactory(),
+      );
+
+      expect(core.getItemById(threadId)).toBeUndefined();
+      expect(Object.hasOwn(core.threadItems, threadId)).toBe(false);
+    },
+  );
 });
 
 describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
+  it("drops a pending attachment send when the external thread id changes", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn<AttachmentAdapter["send"]>(
+      (attachment) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            });
+        }),
+    );
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send,
+    };
+    const onNew = vi.fn(async () => {});
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew,
+      adapters: { attachments, threadList: { threadId: "old" } },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const oldComposer = core.threads.getMainThreadRuntimeCore().composer;
+    oldComposer.setText("hello");
+    await oldComposer.addAttachment(
+      new File(["hello"], "notes.txt", { type: "text/plain" }),
+    );
+
+    const pending = oldComposer.send();
+    expect(send).toHaveBeenCalledOnce();
+    const signal = send.mock.lastCall?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    core.setAdapter({
+      ...adapter,
+      adapters: { attachments, threadList: { threadId: "new" } },
+    });
+    expect(signal?.aborted).toBe(true);
+    resolveSend();
+    await pending;
+
+    expect(onNew).not.toHaveBeenCalled();
+    expect(oldComposer.submission).toBeUndefined();
+    expect(oldComposer.text).toBe("");
+    expect(oldComposer.attachments).toEqual([]);
+  });
+
+  it("does not restore an attachment still being added when its thread changes", async () => {
+    let finishAdd!: () => void;
+    const adding = new Promise<void>((resolve) => {
+      finishAdd = resolve;
+    });
+    const send = vi.fn<AttachmentAdapter["send"]>(async (attachment) => ({
+      ...attachment,
+      status: { type: "complete" },
+      content: [],
+    }));
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      async *add({ file }) {
+        const attachment = {
+          id: "attachment-1",
+          type: "document" as const,
+          name: file.name,
+          contentType: file.type,
+          file,
+        };
+        yield {
+          ...attachment,
+          status: {
+            type: "running" as const,
+            reason: "uploading" as const,
+            progress: 0,
+          },
+        };
+        await adding;
+        yield {
+          ...attachment,
+          status: {
+            type: "requires-action" as const,
+            reason: "composer-send" as const,
+          },
+        };
+      },
+      remove: async () => {},
+      send,
+    };
+    const onNew = vi.fn(async () => {});
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew,
+      adapters: { attachments, threadList: { threadId: "old" } },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const oldComposer = core.threads.getMainThreadRuntimeCore().composer;
+    oldComposer.setText("hello");
+    const added = oldComposer.addAttachment(
+      new File(["hello"], "notes.txt", { type: "text/plain" }),
+    );
+    await vi.waitFor(() =>
+      expect(oldComposer.attachments[0]?.status.type).toBe("running"),
+    );
+    const pending = oldComposer.send();
+
+    core.setAdapter({
+      ...adapter,
+      adapters: { attachments, threadList: { threadId: "new" } },
+    });
+    finishAdd();
+    await added;
+    await pending;
+
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+    expect(oldComposer.submission).toBeUndefined();
+    expect(oldComposer.text).toBe("");
+    expect(oldComposer.attachments).toEqual([]);
+  });
+
+  it("updates subscribed loading state when thread ids and arrays stay unchanged", () => {
+    const threadList = makeAdapter({
+      threadId: "thread-alpha",
+      threads: [{ id: "thread-alpha", status: "regular" }],
+      archivedThreads: [],
+      isLoading: true,
+    });
+    const adapter: ExternalStoreAdapter = {
+      messages: [],
+      onNew: async () => {},
+      adapters: { threadList },
+    };
+    const core = new ExternalStoreRuntimeCore(adapter);
+    const runtime = new ThreadListRuntimeImpl(core.threads);
+    const seen: boolean[] = [];
+    const unsubscribe = runtime.subscribe(() => {
+      seen.push(runtime.getState().isLoading);
+    });
+    expect(runtime.getState().isLoading).toBe(true);
+
+    for (const isLoading of [false, true, undefined, false]) {
+      core.setAdapter({
+        ...adapter,
+        adapters: { threadList: { ...threadList, isLoading } },
+      });
+    }
+
+    expect(seen).toEqual([false, true, false]);
+    expect(runtime.getState().isLoading).toBe(false);
+    unsubscribe();
+  });
+
   it("updates mainThreadId when adapter.threadId changes", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
@@ -113,6 +378,22 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     const constructionCalls = factory.mock.calls.length;
     core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
     expect(factory.mock.calls.length).toBe(constructionCalls + 1);
+  });
+
+  it("disconnects voice on the thread replaced by a threadId change", () => {
+    const disconnectVoice = vi.fn();
+    const factory = makeFactory({
+      voice: { status: { type: "running" } },
+      disconnectVoice,
+    });
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      factory,
+    );
+
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+
+    expect(disconnectVoice).toHaveBeenCalledOnce();
   });
 
   it("does not rebuild the main thread when only threads array changes", () => {
@@ -149,6 +430,26 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(callback).toHaveBeenCalled();
   });
 
+  it("notifies later subscribers when an earlier subscriber throws", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+
+    core.subscribe(() => {
+      throw error;
+    });
+    core.subscribe(laterSubscriber);
+
+    expect(() =>
+      core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" })),
+    ).toThrow(error);
+    expect(core.mainThreadId).toBe("thread-beta");
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
   it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
@@ -160,6 +461,42 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(item?.id).toBe("thread-beta");
   });
 
+  it.each(["__proto__", "constructor", "toString"])(
+    "synthesizes a main entry for a prototype-named thread id %s",
+    (threadId) => {
+      const core = new ExternalStoreThreadListRuntimeCore(
+        makeAdapter({ threadId }),
+        makeFactory(),
+      );
+
+      expect(core.getItemById(threadId)).toEqual(
+        expect.objectContaining({ id: threadId, status: "regular" }),
+      );
+      expect(Object.hasOwn(core.threadItems, threadId)).toBe(true);
+      expect(Object.getPrototypeOf(core.threadItems)).toBeNull();
+    },
+  );
+
+  it.each(["regular", "archived"] as const)(
+    "preserves a prototype-named %s adapter entry",
+    (status) => {
+      const adapter: ExternalStoreThreadListAdapter =
+        status === "regular"
+          ? { threads: [{ id: "__proto__", status }] }
+          : { archivedThreads: [{ id: "__proto__", status }] };
+      const core = new ExternalStoreThreadListRuntimeCore(
+        makeAdapter(adapter),
+        makeFactory(),
+      );
+
+      expect(core.getItemById("__proto__")).toEqual(
+        expect.objectContaining({ id: "__proto__", status }),
+      );
+      expect(Object.hasOwn(core.threadItems, "__proto__")).toBe(true);
+      expect(Object.getPrototypeOf(core.threadItems)).toBeNull();
+    },
+  );
+
   it("does not retain stale synthesized entries across mainThreadId switches", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
@@ -170,10 +507,71 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(core.getItemById("thread-alpha")).toBeUndefined();
     expect(core.getItemById("thread-beta")).toBeUndefined();
     expect(core.getItemById("thread-gamma")).toBeDefined();
-    expect(Object.keys(core.threadItems).sort()).toEqual([
-      "DEFAULT_THREAD_ID",
-      "thread-gamma",
-    ]);
+    expect(core.getItemById("DEFAULT_THREAD_ID")).toBeUndefined();
+    expect(Object.keys(core.threadItems)).toEqual(["thread-gamma"]);
+  });
+
+  it("dispatches an append before a thread switch", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const firstRuntime = new ExternalStoreThreadRuntimeCoreImpl(
+      mockContextProvider,
+      { messages: [], onNew } as ExternalStoreAdapter,
+    );
+    firstRuntime.__internal_setGetInitializePromise(() => initialization);
+    const secondRuntime = new ExternalStoreThreadRuntimeCoreImpl(
+      mockContextProvider,
+      { messages: [], onNew: vi.fn() } as ExternalStoreAdapter,
+    );
+    const factory = vi
+      .fn()
+      .mockReturnValueOnce(firstRuntime)
+      .mockReturnValueOnce(secondRuntime);
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      factory,
+    );
+
+    const appendPromise = firstRuntime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+    resolveInitialization();
+
+    await appendPromise;
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ExternalStoreThreadListRuntimeCore - detach", () => {
+  it("leaves the main thread's pending append alone when an item detaches", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCoreImpl(
+      mockContextProvider,
+      { messages: [], onNew } as ExternalStoreAdapter,
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      vi.fn(() => runtime),
+    );
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    await core.detach();
+    resolveInitialization();
+
+    await appendPromise;
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -280,5 +678,99 @@ describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
     );
 
     await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
+  });
+});
+
+describe("ExternalStoreRuntimeCore - thread switch", () => {
+  const userMessage = (id: string): ThreadMessage => ({
+    id,
+    role: "user",
+    createdAt: new Date(0),
+    content: [{ type: "text", text: "hi" }],
+    attachments: [],
+    metadata: { custom: {} },
+  });
+
+  const assistantMessage = (
+    id: string,
+    content: ThreadAssistantMessage["content"] = [{ type: "text", text: "yo" }],
+  ): ThreadAssistantMessage => ({
+    id,
+    role: "assistant",
+    createdAt: new Date(0),
+    content,
+    status: { type: "complete", reason: "stop" },
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  });
+
+  it("builds the switched-to thread from the current store's messages", () => {
+    const runtime = new ExternalStoreRuntimeCore({
+      messages: [userMessage("A"), assistantMessage("B")],
+      onNew: async () => {},
+      adapters: { threadList: { threadId: "thread-alpha" } },
+    });
+
+    runtime.setAdapter({
+      messages: [userMessage("X"), assistantMessage("Y")],
+      onNew: async () => {},
+      adapters: { threadList: { threadId: "thread-beta" } },
+    });
+
+    const main = runtime.threads.getMainThreadRuntimeCore();
+    expect(main.messages.map((m) => m.id)).toEqual(["X", "Y"]);
+    expect(main.getBranches("X")).toEqual(["X"]);
+  });
+
+  it("does not execute a tool call from the switched-to thread's history", async () => {
+    const execute = vi.fn(async () => "sunny");
+    const store = (
+      threadId: string,
+      messages: readonly ThreadMessage[],
+    ): ExternalStoreAdapter => ({
+      messages,
+      isRunning: false,
+      onNew: async () => {},
+      unstable_enableToolInvocations: true,
+      onAddToolResult: vi.fn(),
+      adapters: { threadList: { threadId } },
+    });
+    const runtime = new ExternalStoreRuntimeCore(store("thread-alpha", []));
+    runtime.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+      }),
+    });
+
+    runtime.setAdapter(
+      store("thread-beta", [
+        userMessage("u1"),
+        {
+          ...assistantMessage("a1", [
+            {
+              type: "tool-call",
+              toolCallId: "tc1",
+              toolName: "weatherSearch",
+              args: {},
+              argsText: "{}",
+            },
+          ]),
+          status: { type: "requires-action", reason: "tool-calls" },
+        },
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(execute).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { type ReactElement, useCallback } from "react";
 import { FlatList, type FlatListProps } from "react-native";
 import { useAuiState } from "@assistant-ui/store";
+import { ThreadListItemByIndexProvider } from "@assistant-ui/core/react";
 
 export type ThreadListItemsProps = Omit<
   FlatListProps<string>,
@@ -17,7 +18,11 @@ export const ThreadListItems = ({
 
   const renderFlatListItem = useCallback(
     ({ item, index }: { item: string; index: number }) => {
-      return renderItem({ threadId: item, index });
+      return (
+        <ThreadListItemByIndexProvider index={index} archived={false}>
+          {renderItem({ threadId: item, index })}
+        </ThreadListItemByIndexProvider>
+      );
     },
     [renderItem],
   );

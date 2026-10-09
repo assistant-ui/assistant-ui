@@ -25,10 +25,12 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
 ```sh
-npm run dev
+npm run dev:frontend
 ```
 
-Skip ahead to [streaming](/docs/runtimes/langgraph/streaming) to start adding features.
+`npm run dev` also starts the template's bundled agent with `langgraphjs dev`, which needs `ANTHROPIC_API_KEY`.
+
+The template connects to LangGraph through `useStreamRuntime` from [`@assistant-ui/react-langchain`](/docs/runtimes/langchain); continue on that page to add features. To use `useLangGraphRuntime`, follow the manual setup below.
 
 </Tab>
 <Tab value="React Native">
@@ -129,7 +131,7 @@ export const createClient = () => {
 "use client";
 
 import { useMemo } from "react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import {
   unstable_createLangGraphStream,
@@ -189,7 +191,7 @@ import {
   useLangGraphRuntime,
   type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 import { createClient } from "@/lib/chatApi";
 
@@ -381,7 +383,7 @@ LANGGRAPH_ASSISTANT_ID=your_graph_id
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
 
 </Tab>
 <Tab value="React Native">
@@ -403,54 +405,108 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 For development, the client above hits LangGraph Cloud directly using `NEXT_PUBLIC_LANGGRAPH_API_URL`. For production, proxy through your own backend so your API key never reaches the client. Limit the proxy to the endpoints you actually need.
 
-```ts title="@/app/api/[...path]/route.ts"
-import { NextRequest, NextResponse } from "next/server";
+```ts title="@/app/api/[..._path]/route.ts"
+import { type NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
+const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "*",
-  };
+function isAllowedRequestContext(req: NextRequest) {
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === req.nextUrl.origin;
+  } catch {
+    return false;
+  }
+}
+
+function crossOriginResponse() {
+  return NextResponse.json(
+    { error: "Cross-origin requests are not allowed." },
+    { status: 403 },
+  );
 }
 
 async function handleRequest(req: NextRequest, method: string) {
+  if (!isAllowedRequestContext(req)) return crossOriginResponse();
+
   try {
+    const apiUrl = process.env.LANGGRAPH_API_URL?.trim();
+    if (!apiUrl) {
+      return NextResponse.json(
+        { error: "LANGGRAPH_API_URL is not configured." },
+        { status: 503 },
+      );
+    }
+
     const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
-    const url = new URL(req.url);
-    const searchParams = new URLSearchParams(url.search);
+    const searchParams = new URLSearchParams(req.nextUrl.search);
     searchParams.delete("_path");
     searchParams.delete("nxtP_path");
     const queryString = searchParams.toString()
       ? `?${searchParams.toString()}`
       : "";
 
+    const headers = new Headers();
+    const apiKey = process.env.LANGCHAIN_API_KEY?.trim();
+    if (apiKey) headers.set("x-api-key", apiKey);
+
+    const accept = req.headers.get("accept");
+    if (accept) headers.set("accept", accept);
+
+    const contentType = req.headers.get("content-type");
+    if (contentType) headers.set("content-type", contentType);
+
     const options: RequestInit = {
       method,
-      headers: { "x-api-key": process.env["LANGCHAIN_API_KEY"] ?? "" },
+      headers,
+      redirect: "manual",
       signal: req.signal,
     };
+
     if (["POST", "PUT", "PATCH"].includes(method)) {
       options.body = await req.text();
     }
 
-    const res = await fetch(
-      `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
-      options,
-    );
-    const headers = new Headers(res.headers);
-    headers.delete("content-encoding");
-    headers.delete("content-length");
-    headers.delete("transfer-encoding");
-    for (const [key, value] of Object.entries(getCorsHeaders())) {
-      headers.set(key, value);
+    const res = await fetch(`${apiUrl}/${path}${queryString}`, options);
+
+    if (
+      res.status === 0 ||
+      (res.status >= 300 && res.status < 400 && res.status !== 304) ||
+      res.type === "opaqueredirect"
+    ) {
+      await res.body?.cancel().catch(() => undefined);
+      return NextResponse.json(
+        { error: "LangGraph returned an unexpected redirect." },
+        { status: 502 },
+      );
     }
+
+    const responseHeaders = new Headers(res.headers);
+    for (const name of [
+      "access-control-allow-credentials",
+      "access-control-allow-headers",
+      "access-control-allow-methods",
+      "access-control-allow-origin",
+      "content-encoding",
+      "content-length",
+      "set-cookie",
+      "transfer-encoding",
+    ]) {
+      responseHeaders.delete(name);
+    }
+    responseHeaders.set("Cache-Control", "no-store");
+
     return new NextResponse(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers,
+      headers: responseHeaders,
     });
   } catch (e: unknown) {
     if (e instanceof Error) {
@@ -469,9 +525,20 @@ export const POST = (req: NextRequest) => handleRequest(req, "POST");
 export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
 export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
 export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
-export const OPTIONS = () =>
-  new NextResponse(null, { status: 204, headers: getCorsHeaders() });
+export const OPTIONS = (req: NextRequest) =>
+  isAllowedRequestContext(req)
+    ? new NextResponse(null, {
+        status: 204,
+        headers: { Allow: ALLOWED_METHODS },
+      })
+    : crossOriginResponse();
 ```
+
+The route accepts a request only when `Sec-Fetch-Site` is `same-origin` or `none`, falls back to comparing the `Origin` header against the request URL for clients that omit Fetch Metadata, and does not follow upstream redirects. Behind a reverse proxy, that fallback needs the public scheme and host preserved in the request URL.
+
+<Callout type="warn">
+  A request-context check is not authentication: requests that send neither header still pass. Before deploying with a cloud API key, require your application session in the proxy route and apply a durable rate limit.
+</Callout>
 
 With this route in place, drop `NEXT_PUBLIC_LANGGRAPH_API_URL` from production env vars; the client helper falls back to the same-origin `/api` path. Set `LANGCHAIN_API_KEY` and `LANGGRAPH_API_URL` server-side instead.
 

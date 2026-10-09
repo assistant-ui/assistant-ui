@@ -7,7 +7,7 @@
 
 Framework-agnostic streaming primitives for AI assistant backends. Defines a chunked stream of typed events (text, tool calls, tool results, data parts, message metadata), encoders/decoders for several wire formats, and a server-side tool execution pipeline. Runs in any standard JavaScript runtime; no React or DOM dependencies.
 
-Most apps reach `assistant-stream` indirectly through `@assistant-ui/react-ai-sdk` or `@assistant-ui/react-data-stream`, which handle the wire format for you. Install it directly when you are building a custom backend or a new integration package.
+Most apps reach `assistant-stream` indirectly through `@assistant-ui/ai-sdk` or `@assistant-ui/react-data-stream`, which handle the wire format for you. Install it directly when you are building a custom backend or a new integration package.
 
 ## Installation
 
@@ -39,6 +39,6 @@ For tool execution, pipe through `ToolExecutionStream`; for resumable streams (c
 
 ## Sub-paths
 
-`.`, `./utils`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
+`.`, `./utils`, `./ai-sdk`, `./internal`, `./resumable`, `./resumable/redis`, `./resumable/ioredis`. `./ai-sdk` exports `frontendTools`, which converts the tool schemas an assistant-ui client uploads into AI SDK tools; it works with `ai@6` or `ai@7`, install it alongside (declared as an optional peer). `./internal` is an internal-use entry: it is published like every other export, but it only carries the helpers `@assistant-ui/ai-sdk` shares with `./ai-sdk` and is not a supported surface. The two Redis adapters are optional peer dependencies; install whichever client your stack already uses.
 
 Full reference for encoders, tool execution, message conversion, and resumable streams at [assistant-ui.com/docs/architecture](https://www.assistant-ui.com/docs/architecture).

@@ -1,4 +1,12 @@
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -43,7 +51,33 @@ describe("FileStorage", () => {
     );
 
     const files = await readdir(dir);
-    expect(files).toEqual(["%40assistant-ui%3Athreads.json"]);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatch(/^v2-[0-9a-f]{64}\.json$/);
+  });
+
+  it("keeps keys that differ only by case in separate files", async () => {
+    const dir = await createTempDir();
+    const storage = new FileStorage(dir);
+
+    await storage.setItem("thread:A", "upper");
+    await storage.setItem("thread:a", "lower");
+
+    await expect(storage.getItem("thread:A")).resolves.toBe("upper");
+    await expect(storage.getItem("thread:a")).resolves.toBe("lower");
+    const files = await readdir(dir);
+    expect(new Set(files.map((file) => file.toLowerCase())).size).toBe(2);
+  });
+
+  it("reads and removes files written with the previous filename format", async () => {
+    const dir = await createTempDir();
+    const storage = new FileStorage(dir);
+    const legacyPath = join(dir, "thread%3AA.json");
+    await writeFile(legacyPath, "legacy", "utf8");
+
+    await expect(storage.getItem("thread:A")).resolves.toBe("legacy");
+    await expect(storage.getItem("thread:a")).resolves.toBeNull();
+    await storage.removeItem("thread:A");
+    await expect(storage.getItem("thread:A")).resolves.toBeNull();
   });
 
   it("removes existing keys and ignores missing ones", async () => {
@@ -70,7 +104,19 @@ describe("FileStorage", () => {
     expect(["first", "second"]).toContain(finalValue);
 
     const files = await readdir(dir);
-    expect(files).toEqual(["thread-1.json"]);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatch(/^v2-[0-9a-f]{64}\.json$/);
+  });
+
+  it("recreates its directory after it is removed", async () => {
+    const dir = await createTempDir();
+    const storage = new FileStorage(dir);
+
+    await storage.setItem("thread-1", "first");
+    await rm(dir, { recursive: true });
+    await storage.setItem("thread-1", "second");
+
+    await expect(storage.getItem("thread-1")).resolves.toBe("second");
   });
 });
 
@@ -95,8 +141,67 @@ describe("createFileStorageAdapter", () => {
       title: undefined,
     });
 
-    const threadsFile = join(dir, "%40assistant-ui%3Atest%3Athreads.json");
+    const [filename] = await readdir(dir);
+    const threadsFile = join(dir, filename!);
     await expect(readFile(threadsFile, "utf8")).resolves.toContain("thread-1");
+  });
+
+  it("preserves concurrent mutations from adapters for the same directory", async () => {
+    const dir = await createTempDir();
+    const firstAdapter = createFileStorageAdapter({ dir });
+    const secondAdapter = createFileStorageAdapter({ dir });
+
+    await Promise.all([
+      firstAdapter.initialize("thread-1"),
+      secondAdapter.initialize("thread-2"),
+    ]);
+
+    await expect(createFileStorageAdapter({ dir }).list()).resolves.toEqual({
+      threads: [
+        {
+          remoteId: "thread-2",
+          externalId: undefined,
+          status: "regular",
+          title: undefined,
+          custom: undefined,
+        },
+        {
+          remoteId: "thread-1",
+          externalId: undefined,
+          status: "regular",
+          title: undefined,
+          custom: undefined,
+        },
+      ],
+    });
+  });
+
+  it("preserves concurrent mutations through symlinked directories", async () => {
+    const rootDir = await createTempDir();
+    const storageRoot = join(rootDir, "storage-root");
+    const storageRootAlias = join(rootDir, "storage-root-alias");
+    await mkdir(storageRoot);
+    await symlink(
+      storageRoot,
+      storageRootAlias,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const storageDir = join(storageRoot, "storage");
+    const storageAlias = join(storageRootAlias, "storage");
+
+    const firstAdapter = createFileStorageAdapter({ dir: storageDir });
+    const secondAdapter = createFileStorageAdapter({ dir: storageAlias });
+
+    await Promise.all([
+      firstAdapter.initialize("thread-1"),
+      secondAdapter.initialize("thread-2"),
+    ]);
+
+    const result = await createFileStorageAdapter({ dir: storageDir }).list();
+    expect(result.threads.map(({ remoteId }) => remoteId).sort()).toEqual([
+      "thread-1",
+      "thread-2",
+    ]);
   });
 
   it("persists rename, archive, unarchive, and delete across reloads", async () => {

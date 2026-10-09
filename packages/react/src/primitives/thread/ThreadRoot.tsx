@@ -1,11 +1,20 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import {
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
+  type KeyboardEventHandler,
+  useEffect,
+  useRef,
 } from "react";
+import { useAui } from "@assistant-ui/store";
+import { useComposedRefs } from "radix-ui/internal";
+import { ThreadRootElementContext } from "./ThreadRootElementContext";
+
+const escapeEventThreadRoots = new WeakMap<KeyboardEvent, Element>();
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -22,6 +31,10 @@ export namespace ThreadPrimitiveRoot {
  * This component serves as the foundational wrapper for all thread-related components.
  * It provides the basic structure and context needed for thread functionality.
  *
+ * While this component is mounted, an unhandled Escape keydown inside this thread stops its
+ * active speech, even if the action bar that started it is no longer mounted. Escape outside
+ * every thread retains the document-level fallback.
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.Root>
@@ -37,7 +50,66 @@ export const ThreadPrimitiveRoot = forwardRef<
   ThreadPrimitiveRoot.Element,
   ThreadPrimitiveRoot.Props
 >((props, ref) => {
-  return <Primitive.div {...props} ref={ref} />;
+  const aui = useAui();
+  const rootRef = useRef<ThreadPrimitiveRoot.Element>(null);
+  const composedRef = useComposedRefs(ref, rootRef);
+  const handleRootKeyDown: KeyboardEventHandler<ThreadPrimitiveRoot.Element> = (
+    event,
+  ) => {
+    if (event.key === "Escape" && rootRef.current) {
+      escapeEventThreadRoots.set(event.nativeEvent, rootRef.current);
+    }
+    props.onKeyDown?.(event);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // An Escape that ends an IME composition belongs to the input method.
+      if (isCompositionKey(event)) return;
+      if (event.defaultPrevented || aui.thread.source === null) return;
+      const eventThreadRoot =
+        escapeEventThreadRoots.get(event) ??
+        event
+          .composedPath()
+          .find(
+            (target) =>
+              target instanceof Element &&
+              target.hasAttribute("data-aui-thread-root"),
+          );
+      if (eventThreadRoot && eventThreadRoot !== rootRef.current) return;
+      if (aui.thread.getState().speech == null) return;
+      event.preventDefault();
+      try {
+        aui.thread.stopSpeaking();
+      } catch (error) {
+        // getState() is the last rendered snapshot, so speech can finish before this call.
+        if (
+          !(error instanceof Error) ||
+          error.message !== "No message is being spoken"
+        ) {
+          throw error;
+        }
+      }
+    };
+
+    // Bubble phase lets capture-phase Escape handlers consume the event first.
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [aui]);
+
+  return (
+    <ThreadRootElementContext.Provider value={rootRef}>
+      <Primitive.div
+        {...props}
+        data-aui-thread-root=""
+        ref={composedRef}
+        onKeyDown={handleRootKeyDown}
+      />
+    </ThreadRootElementContext.Provider>
+  );
 });
 
 ThreadPrimitiveRoot.displayName = "ThreadPrimitive.Root";

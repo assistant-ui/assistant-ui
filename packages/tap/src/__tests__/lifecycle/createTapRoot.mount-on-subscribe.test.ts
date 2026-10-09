@@ -180,6 +180,35 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(events).toEqual([]);
   });
 
+  it("absorbs an unsubscribe/resubscribe when another lazy root mounts in between", async () => {
+    const { root, events } = createCounterRoot();
+    const other = createCounterRoot();
+
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
+
+    unsubscribe();
+    other.root.subscribe(() => {});
+    root.subscribe(() => {});
+    await flushUpdates();
+    expect(events).toEqual([]);
+  });
+
+  it("absorbs an unsubscribe/resubscribe when a root is created in between", async () => {
+    const { root, events } = createCounterRoot();
+
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
+
+    unsubscribe();
+    createTapRoot(function Other() {
+      return 1;
+    });
+    root.subscribe(() => {});
+    await flushUpdates();
+    expect(events).toEqual([]);
+  });
+
   it("unsubscribe is idempotent", async () => {
     const { root, events } = createCounterRoot();
 
@@ -481,11 +510,18 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(root.getValue().count).toBe(5);
   });
 
-  it("throws on unmount()", () => {
-    const { root } = createCounterRoot();
+  it("supports permanent unmount without recommitting on a later subscribe", () => {
+    const { root, events } = createCounterRoot();
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
 
-    expect(() => root.unmount()).toThrow(
-      "unmount() is not supported with mountOnSubscribe",
-    );
+    root.unmount();
+    root.unmount();
+    expect(events).toEqual(["unmount"]);
+    unsubscribe();
+
+    const unsubscribeLater = root.subscribe(() => {});
+    expect(events).toEqual(["unmount"]);
+    unsubscribeLater();
   });
 });

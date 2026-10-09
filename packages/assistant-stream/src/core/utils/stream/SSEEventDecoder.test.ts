@@ -1,10 +1,51 @@
 import { describe, expect, it } from "vitest";
-import { SSEEventDecoder } from "./SSEEventDecoder";
+import { SSEEventDecoder, SSEEventDecoderError } from "./SSEEventDecoder";
 
 describe("SSEEventDecoder", () => {
   it("decodes LF terminated events", () => {
     const decoder = new SSEEventDecoder();
     expect(decoder.push("data: x\n\n")).toEqual([{ data: "x" }]);
+  });
+
+  it("ignores one initial BOM across chunk boundaries and empty pushes", () => {
+    const text = "\uFEFFdata: hello\n\n";
+    for (let split = 0; split <= text.length; split++) {
+      const decoder = new SSEEventDecoder();
+      const events = [
+        ...decoder.push(""),
+        ...decoder.push(text.slice(0, split)),
+        ...decoder.push(""),
+        ...decoder.push(text.slice(split)),
+      ];
+      expect(events).toEqual([{ data: "hello" }]);
+    }
+  });
+
+  it("preserves a later BOM at the start of a data chunk", () => {
+    const decoder = new SSEEventDecoder();
+    expect(decoder.push("data: ")).toEqual([]);
+    expect(decoder.push("\uFEFFhello\n\n")).toEqual([{ data: "\uFEFFhello" }]);
+  });
+
+  it("does not strip a second BOM or leading whitespace from field names", () => {
+    for (const prefix of ["\uFEFF\uFEFF", " ", "\n\uFEFF"]) {
+      const decoder = new SSEEventDecoder();
+      expect(decoder.push(`${prefix}data: ignored\ndata: kept\n\n`)).toEqual([
+        { data: "kept" },
+      ]);
+    }
+  });
+
+  it("does not strip a BOM from later frames or after flush", () => {
+    const decoder = new SSEEventDecoder();
+    expect(decoder.push("\uFEFFdata: first\n\n")).toEqual([{ data: "first" }]);
+    expect(decoder.push("\uFEFFdata: ignored\ndata: second\n\n")).toEqual([
+      { data: "second" },
+    ]);
+    expect(decoder.flush()).toBeNull();
+    expect(decoder.push("\uFEFFdata: ignored\ndata: third\n\n")).toEqual([
+      { data: "third" },
+    ]);
   });
 
   it("decodes CRLF terminated events", () => {
@@ -143,4 +184,99 @@ describe("SSEEventDecoder", () => {
     expect(decoder.flush()).toEqual({ data: "x" });
     expect(decoder.flush()).toBeNull();
   });
+
+  it("rejects an unterminated line that exceeds the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxLineLength: 8 });
+    expect(decoder.push("data: ")).toEqual([]);
+    expect(() => decoder.push("abc")).toThrow(
+      "SSE line exceeds maxLineLength (9 > 8)",
+    );
+  });
+
+  it("rejects a complete line that exceeds the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxLineLength: 8 });
+    expect(() => decoder.push("data: abc\n")).toThrow(
+      "SSE line exceeds maxLineLength (9 > 8)",
+    );
+  });
+
+  it("rejects an event whose data lines exceed the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 2 });
+    expect(decoder.push("data: a\n")).toEqual([]);
+    expect(() => decoder.push("data: b\n")).toThrow(
+      "SSE event exceeds maxEventLength (3 > 2)",
+    );
+  });
+
+  it("counts parsed data values toward the configured event limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 3 });
+    expect(decoder.push("data: abc\n\n")).toEqual([{ data: "abc" }]);
+  });
+
+  it("rejects an unfinished data line that exceeds the event limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 3 });
+    expect(decoder.push("data: ab")).toEqual([]);
+    expect(() => decoder.push("cd")).toThrow(
+      "SSE event exceeds maxEventLength (4 > 3)",
+    );
+  });
+
+  it("does not dispatch a partial frame after event overflow", () => {
+    const decoder = new SSEEventDecoder({
+      trailing: "dispatch",
+      maxEventLength: 2,
+    });
+    expect(decoder.push("data: a\n")).toEqual([]);
+    expect(() => decoder.push("data: b\n")).toThrow(
+      "SSE event exceeds maxEventLength (3 > 2)",
+    );
+    expect(decoder.flush()).toBeNull();
+  });
+
+  it("validates configured limits", () => {
+    expect(() => new SSEEventDecoder({ maxLineLength: 0 })).toThrowError(
+      SSEEventDecoderError,
+    );
+    expect(() => new SSEEventDecoder({ maxEventLength: Infinity })).toThrow(
+      "maxEventLength must be a positive safe integer",
+    );
+  });
+
+  it.each(["\n", "\r", "\r\n"])(
+    "decodes fragmented events with %j delimiters",
+    (newline) => {
+      const data = "x".repeat(4 * 1024);
+      const wire = `\uFEFFid: 7${newline}retry: 1000${newline}event: update${newline}data: ${data}${newline}data: end${newline}${newline}data: next${newline}${newline}`;
+      for (const chunkSize of [1, 1024, 4093]) {
+        const decoder = new SSEEventDecoder();
+        const events = [];
+        for (let i = 0; i < wire.length; i += chunkSize) {
+          events.push(...decoder.push(wire.slice(i, i + chunkSize)));
+          events.push(...decoder.push(""));
+        }
+        expect(events).toEqual([
+          { id: "7", retry: 1000, event: "update", data: `${data}\nend` },
+          { id: "7", retry: 1000, data: "next" },
+        ]);
+        expect(decoder.flush()).toBeNull();
+      }
+    },
+  );
+
+  it.each(["drop", "dispatch"] as const)(
+    "clears fragmented trailing data with the %s policy",
+    (trailing) => {
+      const decoder = new SSEEventDecoder({ trailing });
+      const data = "x".repeat(8192);
+      decoder.push("data: ");
+      for (let i = 0; i < data.length; i += 128) {
+        expect(decoder.push(data.slice(i, i + 128))).toEqual([]);
+      }
+      expect(decoder.flush()).toEqual(
+        trailing === "dispatch" ? { data } : null,
+      );
+      expect(decoder.flush()).toBeNull();
+      expect(decoder.push("data: fresh\n\n")).toEqual([{ data: "fresh" }]);
+    },
+  );
 });

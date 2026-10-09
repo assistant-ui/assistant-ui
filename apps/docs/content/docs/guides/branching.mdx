@@ -4,14 +4,14 @@ description: Edit messages or regenerate AI responses, then switch between alter
 platforms: ["react"]
 ---
 
-import { BranchingSample } from "@/components/docs/samples/branching";
+import { BranchingSample } from "@/components/pages/docs/samples/branching";
 
 Branching lets users navigate between alternative versions of a message. A new branch is created when:
 
 - A user message is edited
 - An assistant message is reloaded (reload creates a new branch on the same message)
 
-Branches are automatically tracked by assistant-ui by observing changes to the `messages` array.
+assistant-ui tracks branches by observing changes to the `messages` array.
 
 ## Shortest Working Pattern
 

@@ -2,6 +2,10 @@
 
 import type { ToolCallMessagePart } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import {
+  ADK_REQUEST_CONFIRMATION,
+  type AdkToolApproval,
+} from "./adkToolApproval";
 import type { AdkMessage, AdkMessageContentPart } from "./types";
 
 type ContentPart =
@@ -23,22 +27,45 @@ const contentToParts = (
 ): ContentPart[] => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
+  if (!Array.isArray(content)) return [];
 
-  return (content as AdkMessageContentPart[])
+  return content
+    .filter(
+      (part): part is AdkMessageContentPart =>
+        typeof part === "object" && part !== null,
+    )
     .map((part): ContentPart | null => {
       switch (part.type) {
         case "text":
-          return { type: "text", text: part.text };
+          return {
+            type: "text",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          if (role === "user") return null;
+          return {
+            type: "reasoning",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "image":
+          if (
+            typeof part.mimeType !== "string" ||
+            typeof part.data !== "string"
+          )
+            return null;
           return {
             type: "image",
             image: `data:${part.mimeType};base64,${part.data}`,
           };
         case "image_url":
+          if (typeof part.url !== "string") return null;
           return { type: "image", image: part.url };
         case "file":
+          if (
+            typeof part.mimeType !== "string" ||
+            typeof part.data !== "string"
+          )
+            return null;
           return {
             type: "file",
             data: part.data,
@@ -46,6 +73,7 @@ const contentToParts = (
             ...(part.filename != null && { filename: part.filename }),
           };
         case "file_url":
+          if (typeof part.url !== "string") return null;
           if (role === "user") {
             return {
               type: "file",
@@ -74,6 +102,11 @@ const contentToParts = (
             name: "code_execution_result",
             data: { output: part.output, outcome: part.outcome },
           };
+        case "activity":
+          return {
+            type: "text",
+            text: typeof part.message === "string" ? part.message : "",
+          };
         default:
           return null;
       }
@@ -81,50 +114,81 @@ const contentToParts = (
     .filter((p): p is NonNullable<typeof p> => p !== null);
 };
 
-export const convertAdkMessage: useExternalMessageConverter.Callback<
-  AdkMessage
-> = (message) => {
-  switch (message.type) {
-    case "human":
-      return {
-        role: "user",
-        id: message.id,
-        content: contentToParts(message.content, "user"),
-      };
+const EMPTY_APPROVALS: ReadonlyMap<string, AdkToolApproval> = new Map();
 
-    case "ai": {
-      const toolCallParts: ToolCallMessagePart[] =
-        message.tool_calls?.map((tc) => ({
-          type: "tool-call",
-          toolCallId: tc.id,
-          toolName: tc.name,
-          args: tc.args,
-          argsText: tc.argsText ?? JSON.stringify(tc.args),
-        })) ?? [];
+export const createAdkMessageConverter =
+  (
+    approvals: ReadonlyMap<string, AdkToolApproval>,
+  ): useExternalMessageConverter.Callback<AdkMessage> =>
+  (message) => {
+    switch (message.type) {
+      case "human":
+        return {
+          role: "user",
+          id: message.id,
+          content: contentToParts(message.content, "user"),
+        };
 
-      return {
-        role: "assistant",
-        id: message.id,
-        content: [
-          ...contentToParts(message.content, "assistant"),
-          ...toolCallParts,
-        ],
-        ...(message.status && { status: message.status }),
-        ...(message.author && {
-          metadata: {
-            custom: { author: message.author, branch: message.branch },
-          },
-        }),
-      };
+      case "ai": {
+        const toolCallParts: ToolCallMessagePart[] =
+          message.tool_calls?.flatMap((tc) => {
+            if (typeof tc?.name !== "string" || tc.name.length === 0) return [];
+            const approval = approvals.get(tc.id);
+            return {
+              type: "tool-call",
+              toolCallId: tc.id,
+              toolName: tc.name,
+              args: tc.args,
+              argsText: tc.argsText ?? JSON.stringify(tc.args),
+              ...(approval && { approval }),
+            };
+          }) ?? [];
+
+        return {
+          role: "assistant",
+          id: message.id,
+          content: [
+            ...contentToParts(message.content, "assistant"),
+            ...toolCallParts,
+          ],
+          ...(message.status && { status: message.status }),
+          ...(message.author && {
+            metadata: {
+              custom: { author: message.author, branch: message.branch },
+            },
+          }),
+        };
+      }
+
+      case "tool": {
+        // A confirmation reply ADK could not read leaves its gate undecided.
+        // The reply is not the agent's output, so it is dropped rather than
+        // shown as the call's result while the gate waits to be answered again.
+        // Only a reply to the confirmation itself is dropped: the gated call
+        // carries the same approval, and its own result is the agent's real
+        // output.
+        const approval = approvals.get(message.tool_call_id);
+        if (
+          message.name === ADK_REQUEST_CONFIRMATION &&
+          approval !== undefined &&
+          approval.approved === undefined
+        )
+          return [];
+
+        return {
+          role: "tool",
+          toolCallId: message.tool_call_id,
+          toolName: message.name,
+          result: message.content,
+          isError: message.status === "error",
+        };
+      }
+
+      default:
+        message satisfies never;
+        return [];
     }
+  };
 
-    case "tool":
-      return {
-        role: "tool",
-        toolCallId: message.tool_call_id,
-        toolName: message.name,
-        result: message.content,
-        isError: message.status === "error",
-      };
-  }
-};
+export const convertAdkMessage: useExternalMessageConverter.Callback<AdkMessage> =
+  createAdkMessageConverter(EMPTY_APPROVALS);

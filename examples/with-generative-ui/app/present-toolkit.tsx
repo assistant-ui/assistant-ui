@@ -6,7 +6,7 @@ import {
   defaultGenerativeUILibrary,
   defineGenerativeComponents,
 } from "@assistant-ui/react-generative-ui";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { z } from "zod";
 

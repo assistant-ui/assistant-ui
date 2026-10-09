@@ -1,7 +1,11 @@
 import type { MetadataRoute } from "next";
-import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
-import { ELEMENTS } from "@/components/elements/registry";
+import { blog, examples, careers } from "@/lib/source";
+import { allDocsPages } from "@/lib/docs-pages";
+import { ELEMENTS } from "@/components/pages/elements/registry";
 import { DEMOS } from "@/lib/demos";
+import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
+import { CATALOG } from "@/lib/catalog";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -10,6 +14,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/careers`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
+    {
+      url: `${BASE_URL}/privacy-policy`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${BASE_URL}/terms-of-service`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
     { url: `${BASE_URL}/showcase`, changeFrequency: "weekly", priority: 0.7 },
     {
       url: `${BASE_URL}/elements`,
@@ -21,6 +35,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.6,
     },
+    {
+      url: `${BASE_URL}/design`,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/design/components`,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
     { url: `${BASE_URL}/oss`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/packages`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/changelog`, changeFrequency: "weekly", priority: 0.6 },
@@ -31,7 +55,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.6,
     },
-    { url: `${BASE_URL}/tap`, changeFrequency: "monthly", priority: 0.6 },
   ];
 
   const productPages: MetadataRoute.Sitemap = PRODUCTS.filter(
@@ -42,38 +65,53 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.4,
   }));
 
-  const docsPages: MetadataRoute.Sitemap = source.getPages().map((page) => ({
+  const catalogPages: MetadataRoute.Sitemap = checkoutEnabled
+    ? [
+        {
+          url: `${BASE_URL}/components`,
+          changeFrequency: "weekly",
+          priority: 0.8,
+        },
+        ...CATALOG.map((product) => ({
+          url: `${BASE_URL}${product.href}`,
+          changeFrequency: "weekly" as const,
+          priority: 0.7,
+        })),
+      ]
+    : [];
+
+  const docsPages: MetadataRoute.Sitemap = allDocsPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
-    changeFrequency: "weekly",
+    changeFrequency: "weekly" as const,
     priority: 0.9,
   }));
 
-  const tapDocsPages: MetadataRoute.Sitemap = getTapDocsPages().map((page) => ({
-    url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
-    changeFrequency: "weekly",
-    priority: 0.7,
-  }));
-
-  const blogPages: MetadataRoute.Sitemap = blog.getPages().map((page) => ({
-    url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }));
+  const blogPages: MetadataRoute.Sitemap = blog
+    .getPages()
+    .filter((page) => page.data.externalUrl === undefined)
+    .map((page) => ({
+      url: `${BASE_URL}${page.url}`,
+      lastModified: page.data.date,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }));
 
   const examplePages: MetadataRoute.Sitemap = examples
     .getPages()
     .map((page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.lastModified,
-      changeFrequency: "monthly",
+      changeFrequency: "monthly" as const,
       priority: 0.6,
     }));
 
   const elementPages: MetadataRoute.Sitemap = ELEMENTS.map((element) => ({
     url: `${BASE_URL}/elements/${element.slug}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
+  const designPages: MetadataRoute.Sitemap = DESIGN_COMPONENTS.map((item) => ({
+    url: `${BASE_URL}/design/components/${item.slug}`,
     changeFrequency: "weekly" as const,
     priority: 0.6,
   }));
@@ -86,7 +124,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const careerPages: MetadataRoute.Sitemap = careers.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
     changeFrequency: "monthly",
     priority: 0.5,
   }));
@@ -94,11 +131,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...staticPages,
     ...productPages,
+    ...catalogPages,
     ...docsPages,
-    ...tapDocsPages,
     ...blogPages,
     ...examplePages,
     ...elementPages,
+    ...designPages,
     ...demoPages,
     ...careerPages,
   ];

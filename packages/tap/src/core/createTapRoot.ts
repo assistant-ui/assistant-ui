@@ -14,18 +14,28 @@ export const createTapRoot = <R>(
   render: () => R,
   options?: { mountOnSubscribe?: boolean },
 ): useTapRoot.Root<R> & { unmount: () => void } => {
+  let isUnmounted = false;
   const fiber = createResourceFiber(
     useTapRoot,
-    createResourceFiberRoot(() => {
-      throw new Error("Unexpected update on createTapRoot outer fiber");
+    createResourceFiberRoot((evaluate, apply) => {
+      if (!evaluate()) return;
+      apply();
+      scheduleTask(() => {
+        if (isUnmounted || !fiber.isMounted) return;
+        if (isDevelopment && fiber.devStrictMode) {
+          void renderResourceFiber(fiber, [render]);
+        }
+        void renderResourceFiber(fiber, [render]);
+        commitResourceFiber(fiber);
+      });
     }),
     undefined,
     isDevelopment ? "root" : null,
   );
 
-  // In strict mode, render twice to detect side effects
   const renderFiber = () => {
     try {
+      // In strict mode, render twice to detect side effects
       if (isDevelopment && fiber.devStrictMode) {
         void renderResourceFiber(fiber, [render]);
       }
@@ -42,7 +52,16 @@ export const createTapRoot = <R>(
   };
 
   const commitFiber = () =>
-    flushTapSync(() => scheduleTask(() => commitResourceFiber(fiber)));
+    flushTapSync(() =>
+      scheduleTask(() => {
+        if (!isUnmounted) commitResourceFiber(fiber);
+      }),
+    );
+  const unmount = () => {
+    if (isUnmounted) return;
+    isUnmounted = true;
+    unmountResourceFiber(fiber);
+  };
 
   let root: useTapRoot.Root<R> | undefined;
   const ensureRoot = () => (root ??= renderFiber());
@@ -53,26 +72,27 @@ export const createTapRoot = <R>(
 
     return {
       ...root,
-      unmount: () => unmountResourceFiber(fiber),
+      unmount,
     };
   }
 
   let subscriberCount = 0;
   const scheduleUnmount = () =>
     scheduleTask(() => {
-      if (subscriberCount === 0 && fiber.isMounted) unmountResourceFiber(fiber);
+      if (subscriberCount === 0 && fiber.isMounted)
+        unmountResourceFiber(fiber, false);
     });
 
   return {
     getValue: () => ensureRoot().getValue(),
     subscribe: (listener) => {
       const unsubscribe = ensureRoot().subscribe(listener);
-      if (subscriberCount++ === 0 && !fiber.isMounted) {
+      if (subscriberCount++ === 0 && !fiber.isMounted && !isUnmounted) {
         try {
           commitFiber();
         } catch (error) {
           try {
-            unmountResourceFiber(fiber);
+            unmountResourceFiber(fiber, false);
           } finally {
             subscriberCount--;
             unsubscribe();
@@ -89,8 +109,6 @@ export const createTapRoot = <R>(
         if (--subscriberCount === 0) scheduleUnmount();
       };
     },
-    unmount: () => {
-      throw new Error("unmount() is not supported with mountOnSubscribe");
-    },
+    unmount,
   };
 };

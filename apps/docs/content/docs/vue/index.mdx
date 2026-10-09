@@ -1,0 +1,35 @@
+---
+title: Introduction
+description: Build streaming AI chat interfaces with Vue, Nuxt, and the AI SDK.
+---
+
+`@assistant-ui/vue` brings assistant-ui to Vue 3.5 and Nuxt. It runs the same runtime as `@assistant-ui/react` and exposes it through a provider, composables, and unstyled primitives. Styled chat components install from the assistant-ui registry with shadcn-vue, and the AI SDK runtime streams from a Nitro route or any server that returns an AI SDK UI message stream.
+
+## Start here
+
+<Cards>
+  <Card title="Quickstart" description="Add a streaming Nuxt chat with AISDKChat and the registry thread." href="/docs/vue/quickstart" />
+  <Card title="Installation" description="Add the packages to an existing Nuxt or Vite app, with or without the AI SDK." href="/docs/vue/installation" />
+  <Card title="Styled components" description="Install and customize the registry thread and thread list." href="/docs/vue/components" />
+  <Card title="Architecture" description="How the provider, the assistant client, and its scopes fit together." href="/docs/vue/architecture" />
+</Cards>
+
+## What the package covers
+
+| Area | In the Vue package |
+|---|---|
+| Provider and composables | `AuiProvider`, `AuiIf`, `useAui`, `useAuiState`, `useAuiEvent`, and `useScrollLock`. See [State and actions](/docs/vue/state). |
+| Primitives | Thread, message, composer, action bar, branch picker, thread list, attachment, suggestion, error, and chain-of-thought parts. See [Primitives](/docs/vue/primitives). |
+| Runtimes | `AISDKChat` and `AISDKThreads` from `@assistant-ui/ai-sdk`, threads persisted in [assistant-cloud](/docs/vue/cloud), and your own store through `RuntimeAdapter`. See [Runtimes](/docs/vue/runtimes). |
+| Tools | Frontend and backend tools, Vue tool UIs, answers to tool calls that wait for the user, and data part renderers. See [Tools](/docs/vue/tools) and [Tool UI](/docs/vue/tool-ui). |
+| Styled components | The registry items `thread` and `thread-list`. See [Styled components](/docs/vue/components). |
+
+## How it fits together
+
+`AuiProvider` creates an assistant client from an `AuiConfig`. The config's runtime, such as `AISDKChat()`, owns the messages, and the client exposes them as scopes that the primitives and composables read. With the AI SDK runtime, the browser posts to a server route, and the route returns the streamed response.
+
+Render the provider only in the browser: in Nuxt, inside a `.client.vue` component. Keep model credentials and `streamText` in a Nitro route. The [quickstart](/docs/vue/quickstart) builds the whole path, and [Server rendering](/docs/vue/ssr) explains the boundary.
+
+## Not in the Vue package
+
+Voice, dictation, and speech controls, mentions and slash commands, quoting, the assistant modal and selection toolbar, and DevTools are React only. The `assistant-ui` CLI does not scaffold Vue projects. A tool renderer written as a React component, for example in a toolkit shared with a React app, does not render in Vue; register a Vue component for it instead.

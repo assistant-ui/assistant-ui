@@ -5,7 +5,7 @@ import type {
 } from "../core/types";
 import {
   discardWipRender,
-  unmountResourceFiber,
+  unmountResourceFibers,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
@@ -14,7 +14,11 @@ import {
   hasChangedContexts,
   hasContextDepsChanged,
 } from "../core/context";
-import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
+import { peekResourceFiber } from "../core/helpers/execution-context";
+import {
+  useHostLifecycle,
+  useResourceFiberHost,
+} from "./utils/useResourceFiberHostUtils";
 import { useEffect, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
@@ -27,6 +31,7 @@ type Pending =
   | {
       value: any;
       deps: readonly unknown[] | undefined;
+      element: ResourceElement<any>;
       remount?: ResourceFiber<unknown>;
     }
   | "skip"
@@ -39,6 +44,7 @@ type FiberState = {
   isDirty: boolean;
   // Last committed deps + value, used to decide and serve a bailout.
   committedDeps: readonly unknown[] | undefined;
+  committedElement: ResourceElement<any> | undefined;
   committedValue: unknown;
 };
 
@@ -51,13 +57,13 @@ const markChildDirty = (
   if (state) state.isDirty = true;
 };
 
-// A child is reused when its deps are unchanged and it has no pending work.
-const canReuse = (state: FiberState, deps: readonly unknown[] | undefined) =>
+const canReuse = (state: FiberState, element: ResourceElement<any>) =>
   !state.isDirty &&
   !hasContextDepsChanged(state.fiber) &&
-  deps !== undefined &&
-  state.committedDeps !== undefined &&
-  depsShallowEqual(state.committedDeps, deps);
+  (state.committedElement === element ||
+    (element.deps !== undefined &&
+      state.committedDeps !== undefined &&
+      depsShallowEqual(state.committedDeps, element.deps)));
 
 const hasAnyChildContextDepsChanged = (
   fibers: Map<string | number, FiberState>,
@@ -79,8 +85,10 @@ export function useResources<E extends ResourceElement<any>>(
   // Process each element
 
   const { version, createFiber } = useResourceFiberHost();
+  const isRefreshing = peekResourceFiber()?.isRefreshing ?? false;
   const hasAnyContextDepsChanged = hasAnyChildContextDepsChanged(fibers);
 
+  let releases = false;
   const val = useRenderMemo(
     () => {
       void version;
@@ -111,9 +119,10 @@ export function useResources<E extends ResourceElement<any>>(
           const value = renderResourceFiber(fiber, element.args);
           state = {
             fiber,
-            next: { value: value, deps: element.deps },
+            next: { value: value, deps: element.deps, element },
             isDirty: false,
             committedDeps: undefined,
+            committedElement: undefined,
             committedValue: undefined,
           };
           newCount++;
@@ -123,8 +132,14 @@ export function useResources<E extends ResourceElement<any>>(
             markChildDirty(fibers, elementKey),
           );
           const value = renderResourceFiber(fiber, element.args);
-          state.next = { value: value, deps: element.deps, remount: fiber };
-        } else if (canReuse(state, element.deps)) {
+          state.next = {
+            value: value,
+            deps: element.deps,
+            element,
+            remount: fiber,
+          };
+          releases = true;
+        } else if (!isRefreshing && canReuse(state, element)) {
           if (typeof state.next === "object") {
             discardWipRender(state.fiber);
           }
@@ -134,7 +149,7 @@ export function useResources<E extends ResourceElement<any>>(
           state.next = "skip";
         } else {
           const value = renderResourceFiber(state.fiber, element.args);
-          state.next = { value: value, deps: element.deps };
+          state.next = { value: value, deps: element.deps, element };
         }
 
         values.push(
@@ -149,6 +164,7 @@ export function useResources<E extends ResourceElement<any>>(
         for (const key of fibers.keys()) {
           if (!seenKeys.has(key)) {
             fibers.get(key)!.next = "delete";
+            releases = true;
           }
         }
       }
@@ -156,44 +172,47 @@ export function useResources<E extends ResourceElement<any>>(
       return values;
     },
     [elements, fibers, createFiber, version],
-    hasAnyContextDepsChanged,
+    isRefreshing || hasAnyContextDepsChanged,
   );
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      for (const key of fibers.keys()) {
-        unmountResourceFiber(fibers.get(key)!.fiber);
-      }
-    };
-  }, [fibers]);
+  useHostLifecycle(fibers);
 
   useEffect(() => {
     void val; // as a performance optimization, we only run if the results have changed
 
-    for (const [key, state] of fibers.entries()) {
+    if (releases) {
+      const released: ResourceFiber<unknown>[] = [];
+      for (const [key, state] of fibers.entries()) {
+        const next = state.next;
+        if (next === "delete") {
+          released.push(state.fiber);
+          fibers.delete(key);
+        } else if (next !== "skip" && next.remount) {
+          released.push(state.fiber);
+          state.fiber = next.remount;
+        }
+      }
+      for (const fiber of released) fiber.isReleased = true;
+      unmountResourceFibers(released);
+    }
+
+    for (const state of fibers.values()) {
       const next = state.next;
-      if (next === "delete") {
-        unmountResourceFiber(state.fiber);
-        fibers.delete(key);
-      } else if (next === "skip") {
+      if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
         if (!state.fiber.isNeverMounted && !state.fiber.isMounted) {
           commitResourceFiber(state.fiber);
         }
-      } else {
-        if (next.remount) {
-          unmountResourceFiber(state.fiber);
-          state.fiber = next.remount;
-        }
+      } else if (next !== "delete") {
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
+        state.committedElement = next.element;
         state.committedValue = next.value;
         state.isDirty = false;
         state.next = "skip";
       }
     }
-  }, [val, fibers]);
+  }, [val, fibers, releases]);
 
-  return val;
+  return isRefreshing ? val.slice() : val;
 }

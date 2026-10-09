@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -13,6 +14,11 @@ export type Unstable_UseLiveCompletionAdapterOptions = {
    * next render.
    */
   readonly fetcher: (query: string) => Promise<readonly Unstable_TriggerItem[]>;
+  /**
+   * Identifies the fetcher's data source. Change this when switching accounts,
+   * workspaces, or another boundary that should invalidate cached results.
+   */
+  readonly cacheKey?: string | number | undefined;
   /** Debounce applied before a fetch fires, in milliseconds. @default 60 */
   readonly debounceMs?: number | undefined;
   /** When `false`, no fetch is scheduled and the adapter stays empty. @default true */
@@ -52,7 +58,7 @@ const NO_QUERY = "\u0000";
 export function unstable_useLiveCompletionAdapter(
   options: Unstable_UseLiveCompletionAdapterOptions,
 ): { adapter: Unstable_TriggerAdapter; isLoading: boolean } {
-  const { fetcher, debounceMs = 60, enabled = true } = options;
+  const { fetcher, cacheKey, debounceMs = 60, enabled = true } = options;
 
   const [state, setState] = useState<{
     query: string;
@@ -62,13 +68,18 @@ export function unstable_useLiveCompletionAdapter(
   const [isLoading, setIsLoading] = useState(false);
 
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  // The debounce timer must only observe fetchers from committed renders.
+  useIsomorphicLayoutEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef(0);
   const pendingQueryRef = useRef<string | null>(null);
   const retryableQueryRef = useRef<string | null>(null);
   const pendingRetryQueryRef = useRef<string | null>(null);
+  const inactiveRef = useRef(true);
+  const deferredQueryRef = useRef<string | null>(null);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -87,6 +98,10 @@ export function unstable_useLiveCompletionAdapter(
   const scheduleFetch = useCallback(
     (query: string) => {
       if (!enabled) return;
+      if (inactiveRef.current) {
+        deferredQueryRef.current = query;
+        return;
+      }
       if (pendingQueryRef.current === query) return;
       rearmPendingRetry();
       if (retryableQueryRef.current === query) {
@@ -121,6 +136,11 @@ export function unstable_useLiveCompletionAdapter(
     [enabled, debounceMs, cancelTimer, rearmPendingRetry],
   );
 
+  const scheduleFetchRef = useRef(scheduleFetch);
+  useIsomorphicLayoutEffect(() => {
+    scheduleFetchRef.current = scheduleFetch;
+  }, [scheduleFetch]);
+
   const invalidatePending = useCallback(() => {
     rearmPendingRetry();
     cancelTimer();
@@ -128,6 +148,16 @@ export function unstable_useLiveCompletionAdapter(
     tokenRef.current += 1;
     setIsLoading(false);
   }, [cancelTimer, rearmPendingRetry]);
+
+  const cacheKeyRef = useRef(cacheKey);
+  useIsomorphicLayoutEffect(() => {
+    if (cacheKeyRef.current === cacheKey) return;
+    cacheKeyRef.current = cacheKey;
+    invalidatePending();
+    retryableQueryRef.current = null;
+    pendingRetryQueryRef.current = null;
+    setState({ query: NO_QUERY, items: [], failed: false });
+  }, [cacheKey, invalidatePending]);
 
   useEffect(() => {
     if (enabled) return;
@@ -137,7 +167,18 @@ export function unstable_useLiveCompletionAdapter(
     );
   }, [enabled, invalidatePending]);
 
-  useEffect(() => cancelTimer, [cancelTimer]);
+  // Render-time searches can outlive an abandoned render, so they only arm
+  // request work after this hook commits.
+  useIsomorphicLayoutEffect(() => {
+    inactiveRef.current = false;
+    const deferredQuery = deferredQueryRef.current;
+    deferredQueryRef.current = null;
+    if (deferredQuery !== null) scheduleFetchRef.current(deferredQuery);
+    return () => {
+      inactiveRef.current = true;
+      invalidatePending();
+    };
+  }, [invalidatePending]);
 
   // Arm retries only after the failed state commits. Arming during rejection
   // would let the failure render immediately schedule another request.
@@ -154,13 +195,21 @@ export function unstable_useLiveCompletionAdapter(
         // queueMicrotask so they are not dispatched while another component renders.
         if (query !== state.query || retryableQueryRef.current === query) {
           queueMicrotask(() => scheduleFetch(query));
-        } else if (
-          pendingQueryRef.current !== null &&
-          pendingQueryRef.current !== query
-        ) {
-          // the query returned to a cached value while a fetch for a different
-          // query is in flight; drop it so its result cannot overwrite the cache
-          queueMicrotask(invalidatePending);
+        } else {
+          queueMicrotask(() => {
+            if (
+              deferredQueryRef.current !== null &&
+              deferredQueryRef.current !== query
+            ) {
+              deferredQueryRef.current = null;
+            }
+            if (
+              pendingQueryRef.current !== null &&
+              pendingQueryRef.current !== query
+            ) {
+              invalidatePending();
+            }
+          });
         }
         return state.items;
       },

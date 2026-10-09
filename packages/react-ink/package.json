@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink",
-  "version": "0.0.37",
+  "version": "0.0.48",
   "description": "React Ink (terminal UI) bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -34,18 +34,22 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
+    "bench": "vitest bench --run src/primitives/textInput/useTextBuffer.bench.ts",
     "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.12",
-    "@assistant-ui/store": "^0.3.8",
-    "@assistant-ui/tap": "^0.9.11",
-    "assistant-stream": "^0.3.37",
+    "@assistant-ui/core": "^0.3.24",
+    "@assistant-ui/store": "^0.3.17",
+    "@assistant-ui/tap": "^0.9.21",
+    "assistant-cloud": "workspace:^",
+    "assistant-stream": "^0.3.48",
     "diff": "^9.0.0",
     "ink-spinner": "^5.0.0",
     "parse-diff": "^0.12.0",
-    "zustand": "^5.0.14"
+    "string-width": "^8.3.0"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -59,13 +63,14 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.2.0",
-    "@types/react": "^19.2.18",
-    "ink": "^7.1.1",
+    "@assistant-ui/x-performance": "workspace:*",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "ink": "^8.0.0",
     "ink-testing-library": "^4.0.0",
-    "react": "^19.2.8",
-    "tsx": "^4.23.11",
-    "vitest": "^4.1.10"
+    "react": "^19.3.0",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

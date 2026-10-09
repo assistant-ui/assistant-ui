@@ -5,7 +5,7 @@ import { createOgMetadata } from "@/lib/og";
 
 const title = "Safe Content Frame";
 const description =
-  "Render untrusted HTML content securely in sandboxed iframes with unique origins per render.";
+  "Sandboxes for HTML. Render MCP Apps and Generative UI in isolated iframes with their own origins.";
 
 export const metadata: Metadata = {
   title,
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-export default function SafeContentFrameLayout({
+export default function SandboxLayout({
   children,
 }: {
   children: ReactNode;

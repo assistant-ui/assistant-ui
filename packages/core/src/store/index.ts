@@ -1,10 +1,11 @@
-/// <reference path="./scope-registration.ts" />
-/// <reference path="../react/types/store-augmentation.ts" />
+/// <reference path="./scope-registration.ts" preserve="true" />
+/// <reference path="../react/types/store-augmentation.ts" preserve="true" />
 
 // scopes
 export type {
   ThreadsState,
   ThreadsMethods,
+  ThreadsEvents,
   ThreadsClientSchema,
 } from "./scopes/threads";
 export type {
@@ -48,6 +49,12 @@ export type {
   QueueItemClientSchema,
 } from "./scopes/queue-item";
 export type {
+  TaskState,
+  TaskMethods,
+  TaskMeta,
+  TaskClientSchema,
+} from "./scopes/task";
+export type {
   AttachmentState,
   AttachmentMethods,
   AttachmentMeta,
@@ -79,10 +86,24 @@ export type {
 } from "./scopes/chain-of-thought";
 
 // runtime wiring
-export { RuntimeAdapter } from "../react/RuntimeAdapter";
+export {
+  RuntimeAdapter,
+  runtimeAdapterTransformScopes,
+} from "../react/RuntimeAdapter";
+export {
+  InMemoryThreadList,
+  inMemoryThreadListTransformScopes,
+  type InMemoryThreadListProps,
+} from "../react/client/InMemoryThreadList";
+export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
+} from "../react/client/RemoteThreadList";
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
+  type ExternalMessageConversionCache,
   type JoinStrategy,
 } from "../react/runtimes/external-message-converter";
 export {
@@ -95,6 +116,10 @@ export {
   createRuntimeExtrasBrand,
   type RuntimeExtrasBrand,
 } from "../runtime/utils/runtime-extras-brand";
+export {
+  resolveToolCallText,
+  type ToolCallText,
+} from "../model-context/tool-call-text";
 export { defineToolkit } from "../react/model-context/define-toolkit";
 export {
   defineMcpToolkit,

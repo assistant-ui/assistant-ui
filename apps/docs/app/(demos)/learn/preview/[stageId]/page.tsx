@@ -1,21 +1,22 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import {
   DEFAULT_LEARN_COURSE_ID,
   listLearnStageIds,
 } from "@/lib/xulux/learn/registry";
 import { getLearnPreview } from "@/lib/xulux/learn/preview-registry";
+import { PublicAssistantSessionBoundary } from "@/components/xulux/learn/PublicAssistantSessionBoundary";
 
-// Each preview needs its own server-side usage-budget session.
-export const dynamic = "force-dynamic";
-
-// The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the preview iframe that reserves a permanent 6px scrollbar strip along the right edge.
+// The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the preview iframe that reserves a permanent scrollbar strip along the right edge wherever the platform draws classic scrollbars.
 const PreviewShell = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-background h-dvh overflow-hidden">
     <style>{`html { overflow: hidden; }`}</style>
     {children}
   </div>
 );
+
+export const instant = false;
 
 export function generateStaticParams() {
   return listLearnStageIds(DEFAULT_LEARN_COURSE_ID).map((stageId) => ({
@@ -29,6 +30,8 @@ export default async function LearnStagePreviewPage({
   params: Promise<{ stageId: string }>;
 }) {
   if (!isAiPlaygroundEnabled) notFound();
+  // Each preview needs its own server-side usage-budget session.
+  await connection();
 
   const { stageId } = await params;
   let previewDefinition;
@@ -50,12 +53,14 @@ export default async function LearnStagePreviewPage({
 
   return (
     <PreviewShell>
-      <RuntimeProvider
-        api={`/api/xulux/learn/preview/${stageId}/chat?sessionId=${previewSessionId}`}
-        storagePrefix={`generative-ui-course:${stageId}:`}
-      >
-        {preview}
-      </RuntimeProvider>
+      <PublicAssistantSessionBoundary>
+        <RuntimeProvider
+          api={`/api/xulux/learn/preview/${stageId}/chat?sessionId=${previewSessionId}`}
+          storagePrefix={`generative-ui-course:${stageId}:`}
+        >
+          {preview}
+        </RuntimeProvider>
+      </PublicAssistantSessionBoundary>
     </PreviewShell>
   );
 }

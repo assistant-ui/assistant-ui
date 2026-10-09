@@ -1,6 +1,6 @@
 import type { ComputedRef } from "vue";
-import type {} from "@assistant-ui/core/store";
 import { useAui } from "../useAui";
+import { composerSendDisabled } from "@assistant-ui/core/store/internal";
 import { useAuiState } from "../useAuiState";
 
 export const useComposerSendState = (): {
@@ -8,10 +8,6 @@ export const useComposerSendState = (): {
   send: () => void;
 } => {
   const aui = useAui();
-  const disabled = useAuiState(
-    (s) =>
-      !s.composer.canSend ||
-      (s.thread.isRunning && !s.thread.capabilities.queue),
-  );
+  const disabled = useAuiState(composerSendDisabled);
   return { disabled, send: () => aui.composer.send() };
 };

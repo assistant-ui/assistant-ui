@@ -6,11 +6,22 @@ const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/__tests__/**"],
+      thresholds: {
+        lines: 94,
+        functions: 86,
+        branches: 86,
+        statements: 94,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     projects: [
       {
         test: {
           name: "dev",
-          environment: "jsdom",
+          environment: "node",
           include: ["src/**/*.test.{ts,tsx}"],
           globals: true,
         },
@@ -37,6 +48,7 @@ export default defineConfig({
           name: "standalone",
           environment: "node",
           include: ["src/__tests__/**/*.e2e.ts"],
+          benchmark: { include: [] },
           globals: true,
         },
       },

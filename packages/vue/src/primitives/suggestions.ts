@@ -5,13 +5,20 @@ import {
   mergeProps,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
+import { getSuggestionKeys } from "@assistant-ui/core/internal";
+import {
+  suggestionSendMode,
+  suggestionTriggerDisabled,
+} from "@assistant-ui/core/store/internal";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
+import { useStableKeys } from "./stableKeys";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -27,7 +34,7 @@ export const SuggestionByIndexProvider = defineComponent({
       required: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;
@@ -71,14 +78,17 @@ export const SuggestionByIndexProvider = defineComponent({
  */
 export const ThreadPrimitiveSuggestions = defineComponent({
   name: "ThreadPrimitiveSuggestions",
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.suggestions.suggestions.length);
+    const suggestions = useAuiState((s) => s.suggestions.suggestions);
+    const suggestionKeys = useStableKeys(() =>
+      getSuggestionKeys(suggestions.value),
+    );
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      suggestionKeys.value.map((key, index) =>
         h(
           SuggestionByIndexProvider,
-          { index, key: index },
+          { index, key },
           { default: () => slots.default?.() },
         ),
       );
@@ -104,14 +114,12 @@ export const SuggestionPrimitiveTrigger = defineComponent({
       default: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { attrs, slots }) {
     const aui = useAui();
     const prompt = useAuiState((s) => s.suggestion.prompt);
-    const disabled = useAuiState(
-      (s) =>
-        s.thread.isDisabled ||
-        (props.send && s.thread.isRunning && !s.thread.capabilities.queue),
+    const disabled = useAuiState((s) =>
+      suggestionTriggerDisabled(s, props.send),
     );
 
     const onClick = (event: MouseEvent) => {
@@ -119,13 +127,13 @@ export const SuggestionPrimitiveTrigger = defineComponent({
         return;
       flushTapSync(() => {
         if (props.send) {
-          const { isRunning, capabilities } = aui.thread.getState();
-          if (isRunning && !capabilities.queue) return;
+          const mode = suggestionSendMode(aui.thread.getState());
+          if (mode === "blocked") return;
           aui.thread.append({
             content: [{ type: "text", text: prompt.value }],
             runConfig: aui.composer.getState().runConfig,
           });
-          if (props.clearComposer && !isRunning) {
+          if (props.clearComposer && mode === "now") {
             aui.composer.setText("");
           }
         } else if (props.clearComposer) {
@@ -133,9 +141,7 @@ export const SuggestionPrimitiveTrigger = defineComponent({
         } else {
           const currentText = aui.composer.getState().text;
           aui.composer.setText(
-            currentText.trim()
-              ? `${currentText} ${prompt.value}`
-              : prompt.value,
+            [currentText, prompt.value].filter((part) => part.trim()).join(" "),
           );
         }
       });

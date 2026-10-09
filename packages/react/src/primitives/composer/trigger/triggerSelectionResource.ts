@@ -37,7 +37,6 @@ const useTriggerSelectionResource = ({
   behavior,
   trigger,
   aui,
-  triggerChar,
   setCursorPosition,
   onSelected,
 }: {
@@ -74,15 +73,14 @@ const useTriggerSelectionResource = ({
 
     const currentText = aui.composer.getState().text;
     const before = currentText.slice(0, trigger.offset);
-    const after = currentText.slice(
-      trigger.offset + triggerChar.length + trigger.query.length,
-    );
+    const after = currentText.slice(trigger.endOffset);
 
     const insertDirective = () => {
       const directive = behavior.formatter.serialize(item);
       aui.composer.setText(
         before + directive + (after.startsWith(" ") ? after : ` ${after}`),
       );
+      setCursorPosition(before.length + directive.length + 1);
     };
 
     if (behavior.kind === "directive") {
@@ -93,6 +91,7 @@ const useTriggerSelectionResource = ({
         aui.composer.setText(
           before + (after.startsWith(" ") ? after.slice(1) : after),
         );
+        setCursorPosition(before.length);
       } else {
         // Leave directive chip in the composer as an audit trail
         insertDirective();

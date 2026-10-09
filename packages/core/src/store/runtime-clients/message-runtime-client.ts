@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import {
+  useAssistantEmit,
+  useClientLookup,
+  useClientResource,
+} from "@assistant-ui/store/client";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { liveRef } from "./liveRef";
@@ -9,6 +13,7 @@ import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
 import type { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
+import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 
 const useMessageAttachmentClientByIndex = ({
   runtime,
@@ -47,11 +52,17 @@ const MessagePartByIndex = resource(useMessagePartByIndex);
 const useMessageClient = ({
   runtime,
   threadIdRef,
+  threadId,
+  isLast,
 }: {
   runtime: MessageRuntime;
   threadIdRef: { current: string };
+  threadId: string;
+  /** False when the thread renders a message the runtime does not hold after this one. */
+  isLast?: false | undefined;
 }): ClientOutput<"message"> => {
   const runtimeState = useSubscribable(runtime);
+  const emit = useAssistantEmit();
 
   const [isCopiedState, setIsCopied] = useState(false);
   const [isHoveringState, setIsHovering] = useState(false);
@@ -60,6 +71,33 @@ const useMessageClient = ({
     () => liveRef(() => runtime.getState().id),
     [runtime],
   );
+  const previousStatus = useRef(runtimeState.status);
+  const emitMessageEvent = (
+    event:
+      | "message.reload"
+      | "message.speak"
+      | "message.branchSwitched"
+      | "message.copied",
+  ) => {
+    emit(event, { threadId, messageId: runtime.getState().id });
+  };
+
+  useEffect(() => {
+    const status = runtimeState.status;
+    const previous = previousStatus.current;
+    previousStatus.current = status;
+    if (
+      status?.type === "incomplete" &&
+      status.reason === "error" &&
+      (previous?.type !== "incomplete" || previous.reason !== "error")
+    ) {
+      emit("message.error", {
+        threadId,
+        messageId: runtimeState.id,
+        reason: "error",
+      });
+    }
+  }, [runtimeState.status, runtimeState.id, emit, threadId]);
 
   const composer = useClientResource(
     ComposerClient({
@@ -69,14 +107,8 @@ const useMessageClient = ({
     }),
   );
   const parts = useClientLookup(
-    runtimeState.content.map((part, idx) =>
-      withKey(
-        "toolCallId" in part && part.toolCallId != null
-          ? `toolCallId-${part.toolCallId}`
-          : `index-${idx}`,
-        MessagePartByIndex({ runtime, index: idx }),
-        [runtime, idx],
-      ),
+    getMessagePartKeys(runtimeState.content).map((key, idx) =>
+      withKey(key, MessagePartByIndex({ runtime, index: idx }), [runtime, idx]),
     ),
   );
 
@@ -93,6 +125,7 @@ const useMessageClient = ({
   const state = useMemo<MessageState>(() => {
     return {
       ...(runtimeState as MessageState),
+      ...(isLast === false ? { isLast } : {}),
 
       parts: parts.state,
       composer: composer.state,
@@ -102,6 +135,7 @@ const useMessageClient = ({
     };
   }, [
     runtimeState,
+    isLast,
     parts.state,
     composer.state,
     isCopiedState,
@@ -114,17 +148,31 @@ const useMessageClient = ({
     composer: () => composer.methods,
 
     delete: () => runtime.delete(),
-    reload: (config) => runtime.reload(config),
-    speak: () => runtime.speak(),
+    reload: (config) => {
+      emitMessageEvent("message.reload");
+      return runtime.reload(config);
+    },
+    speak: () => {
+      emitMessageEvent("message.speak");
+      return runtime.speak();
+    },
     stopSpeaking: () => runtime.stopSpeaking(),
     submitFeedback: (feedback) => runtime.submitFeedback(feedback),
-    switchToBranch: (options) => runtime.switchToBranch(options),
+    switchToBranch: (options) => {
+      emitMessageEvent("message.branchSwitched");
+      return runtime.switchToBranch(options);
+    },
     getCopyText: () => runtime.unstable_getCopyText(),
     part: (selector) => {
       if ("index" in selector) {
         return parts.get({ index: selector.index });
       } else {
-        return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        const index = runtimeState.content.findIndex(
+          (part) =>
+            part.type === "tool-call" &&
+            part.toolCallId === selector.toolCallId,
+        );
+        return parts.get({ index });
       }
     },
 
@@ -136,7 +184,12 @@ const useMessageClient = ({
       }
     },
 
-    setIsCopied,
+    setIsCopied: (value) => {
+      if (value) {
+        emitMessageEvent("message.copied");
+      }
+      setIsCopied(value);
+    },
     setIsHovering,
 
     __internal_getRuntime: () => runtime,

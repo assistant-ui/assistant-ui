@@ -188,6 +188,35 @@ describe("useLangGraphStreamingTiming", () => {
     );
   });
 
+  it("counts the reasoning fallback when summary is empty", () => {
+    const messages: LangChainMessage[] = [
+      {
+        id: "msg-1",
+        type: "ai",
+        content: [
+          {
+            type: "reasoning",
+            summary: [],
+            reasoning: "deduced",
+          },
+        ],
+      } as never,
+    ];
+
+    const { result, rerender } = renderHook(
+      ({ msgs, running }) => useLangGraphStreamingTiming(msgs, running),
+      { initialProps: { msgs: messages, running: true } },
+    );
+
+    act(() => {
+      rerender({ msgs: messages, running: false });
+    });
+
+    expect(result.current["msg-1"]?.tokenCount).toBe(
+      Math.ceil("deduced".length / 4),
+    );
+  });
+
   it("tracks multiple content updates as chunks", () => {
     const messages: LangChainMessage[] = [
       { id: "msg-1", type: "ai", content: "a" } as never,

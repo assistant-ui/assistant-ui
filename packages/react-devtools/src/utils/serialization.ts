@@ -1,6 +1,30 @@
 import type { ModelContext } from "@assistant-ui/react";
 import type { SerializedModelContext } from "../types";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
+import { readProperty, UNSERIALIZABLE } from "./unserializable";
+
+const setOwnProperty = (
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void => {
+  if (key === "__proto__") {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  } else {
+    target[key] = value;
+  }
+};
+
+// An Error from an iframe or worker fails `instanceof`, so the brand check is
+// what keeps a cross-realm error from serializing as an empty object.
+const isErrorLike = (value: object): boolean =>
+  value instanceof Error ||
+  Object.prototype.toString.call(value) === "[object Error]";
 
 export const sanitizeForMessage = (
   value: unknown,
@@ -15,42 +39,120 @@ export const sanitizeForMessage = (
   ) {
     return value;
   }
+  if (typeof value === "bigint" || typeof value === "symbol") {
+    return String(value);
+  }
   if (typeof value === "function") {
     return "[Function]";
   }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (value instanceof Map) {
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of value.entries()) {
-      result[String(key)] = sanitizeForMessage(entry, seen);
-    }
-    return result;
-  }
-  if (value instanceof Set) {
-    return Array.from(value).map((entry) => sanitizeForMessage(entry, seen));
-  }
-  if (Array.isArray(value)) {
-    if (seen.has(value as unknown as object)) return "[Circular]";
-    seen.add(value as unknown as object);
-    const result = value
-      .map((entry) => sanitizeForMessage(entry, seen))
-      .filter((item) => item !== undefined);
-    seen.delete(value as unknown as object);
-    return result;
-  }
   if (typeof value === "object") {
-    if (seen.has(value as object)) return "[Circular]";
-    seen.add(value as object);
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
-      result[key] = sanitizeForMessage(entry, seen);
+    if (seen.has(value)) return "[Circular]";
+    seen.add(value);
+    try {
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime())
+          ? String(value)
+          : value.toISOString();
+      }
+      if (value instanceof Map) {
+        const result: Record<string, unknown> = {};
+        const nextSuffixByKey = new Map<string, number>();
+        for (const [key, entry] of value.entries()) {
+          let serializedKey: string;
+          try {
+            serializedKey = String(key);
+          } catch {
+            serializedKey = UNSERIALIZABLE;
+          }
+
+          if (Object.hasOwn(result, serializedKey)) {
+            const baseKey = serializedKey;
+            let suffix = nextSuffixByKey.get(baseKey) ?? 2;
+            do {
+              serializedKey = `${baseKey} (${suffix})`;
+              suffix += 1;
+            } while (Object.hasOwn(result, serializedKey));
+            nextSuffixByKey.set(baseKey, suffix);
+          } else {
+            nextSuffixByKey.set(serializedKey, 2);
+          }
+
+          setOwnProperty(
+            result,
+            serializedKey,
+            sanitizeForMessage(entry, seen),
+          );
+        }
+        return result;
+      }
+      if (value instanceof Set) {
+        return Array.from(value).map((entry) =>
+          sanitizeForMessage(entry, seen),
+        );
+      }
+      if (Array.isArray(value)) {
+        const result: unknown[] = [];
+        const length = value.length;
+        for (let index = 0; index < length; index++) {
+          try {
+            if (!(index in value)) continue;
+            const item = sanitizeForMessage(value[index], seen);
+            if (item !== undefined) result.push(item);
+          } catch {
+            result.push(UNSERIALIZABLE);
+          }
+        }
+        return result;
+      }
+
+      // `name`, `message` and `stack` are not enumerable, so the branch below
+      // would render every Error as an empty object. Each is sanitized like any
+      // other value, since an Error carries whatever its author assigned.
+      if (isErrorLike(value)) {
+        const error: Record<string, unknown> = {
+          name: sanitizeForMessage(readProperty(value, "name"), seen),
+          message: sanitizeForMessage(readProperty(value, "message"), seen),
+        };
+        const stack = readProperty(value, "stack");
+        if (stack !== undefined) {
+          error["stack"] = sanitizeForMessage(stack, seen);
+        }
+        const cause = readProperty(value, "cause");
+        if (cause !== undefined) {
+          error["cause"] = sanitizeForMessage(cause, seen);
+        }
+        for (const key of Object.keys(value)) {
+          try {
+            setOwnProperty(
+              error,
+              key,
+              sanitizeForMessage(readProperty(value, key), seen),
+            );
+          } catch {
+            setOwnProperty(error, key, UNSERIALIZABLE);
+          }
+        }
+        return error;
+      }
+
+      const result: Record<string, unknown> = {};
+      for (const key of Object.keys(value)) {
+        try {
+          setOwnProperty(
+            result,
+            key,
+            sanitizeForMessage((value as Record<string, unknown>)[key], seen),
+          );
+        } catch {
+          setOwnProperty(result, key, UNSERIALIZABLE);
+        }
+      }
+      return result;
+    } catch {
+      return UNSERIALIZABLE;
+    } finally {
+      seen.delete(value);
     }
-    seen.delete(value as object);
-    return result;
   }
   return value;
 };
@@ -105,10 +207,13 @@ export const redactSensitive = (value: unknown, maskAll = false): unknown => {
       value as Record<string, unknown>,
     )) {
       const normalized = normalizeKey(key);
-      result[key] =
+      setOwnProperty(
+        result,
+        key,
         maskAll || SENSITIVE_KEYS.has(normalized)
           ? REDACTED
-          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized));
+          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized)),
+      );
     }
     return result;
   }
@@ -128,12 +233,12 @@ export const serializeModelContext = (
   const modelContext = context as Record<string, unknown>;
   const result: SerializedModelContext = {};
 
-  const systemValue = modelContext.system;
+  const systemValue = readProperty(modelContext, "system");
   if (typeof systemValue === "string" && systemValue.length > 0) {
     result.system = systemValue;
   }
 
-  const tools = normalizeToolList(modelContext.tools);
+  const tools = normalizeToolList(readProperty(modelContext, "tools"));
   if (tools.length > 0) {
     result.tools = tools.map((tool): NormalizedTool => {
       return {
@@ -155,8 +260,9 @@ export const serializeModelContext = (
     });
   }
 
-  if (modelContext.callSettings !== undefined) {
-    const callSettings = sanitizeAndRedact(modelContext.callSettings);
+  const callSettingsValue = readProperty(modelContext, "callSettings");
+  if (callSettingsValue !== undefined) {
+    const callSettings = sanitizeAndRedact(callSettingsValue);
     if (
       callSettings &&
       typeof callSettings === "object" &&
@@ -166,8 +272,9 @@ export const serializeModelContext = (
     }
   }
 
-  if (modelContext.config !== undefined) {
-    const config = sanitizeAndRedact(modelContext.config);
+  const configValue = readProperty(modelContext, "config");
+  if (configValue !== undefined) {
+    const config = sanitizeAndRedact(configValue);
     if (config && typeof config === "object" && !Array.isArray(config)) {
       result.config = config as Record<string, unknown>;
     }

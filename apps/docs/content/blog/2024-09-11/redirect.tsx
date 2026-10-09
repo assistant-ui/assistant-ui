@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export const Redirect = () => {
-  redirect("https://medium.com/relta/github-assistant-49ae388ad758");
+  redirect("https://www.langchain.com/blog/assistant-ui");
 };

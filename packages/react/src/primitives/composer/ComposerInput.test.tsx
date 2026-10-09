@@ -26,6 +26,7 @@ const threadState = {
   isDisabled: false,
   isRunning: false,
   capabilities: { queue: false, attachments: false },
+  voice: undefined as undefined | { status: { type: "running" } },
 };
 
 const plugin = {
@@ -81,7 +82,8 @@ vi.mock("./trigger/TriggerPopoverRootContext", () => ({
 
 let escapeKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
-vi.mock("@radix-ui/react-use-escape-keydown", () => ({
+vi.mock("radix-ui/internal", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("radix-ui/internal")>()),
   useEscapeKeydown: (handler: (event: KeyboardEvent) => void) => {
     escapeKeydownHandler = handler;
   },
@@ -131,6 +133,7 @@ const fireKeyDown = (
     ctrlKey?: boolean;
     metaKey?: boolean;
     isComposing?: boolean;
+    keyCode?: number;
   } = {},
 ): KeyboardEvent => {
   const event = new KeyboardEvent("keydown", {
@@ -141,6 +144,7 @@ const fireKeyDown = (
     ctrlKey: opts.ctrlKey ?? false,
     metaKey: opts.metaKey ?? false,
     isComposing: opts.isComposing ?? false,
+    keyCode: opts.keyCode ?? 0,
   });
   textarea.dispatchEvent(event);
   return event;
@@ -196,6 +200,7 @@ describe("ComposerPrimitiveInput", () => {
     threadState.isDisabled = false;
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
+    threadState.voice = undefined;
     pluginRegistry = null;
     activeAria = null;
     escapeKeydownHandler = null;
@@ -238,6 +243,28 @@ describe("ComposerPrimitiveInput", () => {
     expect(textarea).not.toBeNull();
     return textarea;
   };
+
+  it("composes a render element with the computed input props", async () => {
+    await act(async () => {
+      root.render(
+        <form>
+          <ComposerPrimitiveInput
+            render={<textarea data-testid="custom" className="child" />}
+            className="parent"
+          />
+        </form>,
+      );
+    });
+
+    const textarea = container.querySelector(
+      "textarea[data-testid='custom']",
+    ) as HTMLTextAreaElement;
+    expect(textarea).not.toBeNull();
+    expect(textarea.className).toContain("parent");
+    expect(textarea.className).toContain("child");
+    expect(textarea.name).toBe("input");
+    expect(textarea.hasAttribute("render")).toBe(false);
+  });
 
   it("syncs setText during active composition so React 19 cannot reset the textarea", async () => {
     const textarea = await mount();
@@ -376,6 +403,22 @@ describe("ComposerPrimitiveInput", () => {
       expect(event.defaultPrevented).toBe(true);
     });
 
+    it("blocks Enter while a run is in progress without a queue, except during a voice session", async () => {
+      threadState.isRunning = true;
+      const textarea = await mount();
+
+      await act(async () => {
+        fireKeyDown(textarea, { key: "Enter" });
+      });
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+
+      threadState.voice = { status: { type: "running" } };
+      await act(async () => {
+        fireKeyDown(textarea, { key: "Enter" });
+      });
+      expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
+    });
+
     it("inserts a newline on Shift+Enter without submitting", async () => {
       const textarea = await mount();
 
@@ -394,6 +437,20 @@ describe("ComposerPrimitiveInput", () => {
       let event!: KeyboardEvent;
       await act(async () => {
         event = fireKeyDown(textarea, { key: "Enter", isComposing: true });
+      });
+
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("ignores the Enter that commits an IME composition after compositionend (Safari)", async () => {
+      const textarea = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        fireCompositionStart(textarea);
+        fireCompositionEnd(textarea, "日本語");
+        event = fireKeyDown(textarea, { key: "Enter", keyCode: 229 });
       });
 
       expect(requestSubmitSpy).not.toHaveBeenCalled();
@@ -525,13 +582,14 @@ describe("ComposerPrimitiveInput", () => {
   describe("escape behavior", () => {
     const fireEscape = (
       textarea: HTMLTextAreaElement,
-      opts: { isComposing?: boolean } = {},
+      opts: { isComposing?: boolean; keyCode?: number } = {},
     ): KeyboardEvent => {
       const event = new KeyboardEvent("keydown", {
         bubbles: true,
         cancelable: true,
         key: "Escape",
         isComposing: opts.isComposing ?? false,
+        keyCode: opts.keyCode ?? 0,
       });
       textarea.dispatchEvent(event);
       escapeKeydownHandler?.(event);
@@ -558,6 +616,21 @@ describe("ComposerPrimitiveInput", () => {
       let event!: KeyboardEvent;
       await act(async () => {
         event = fireEscape(textarea, { isComposing: true });
+      });
+
+      expect(cancelSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("ignores the Escape that cancels an IME composition after compositionend (Safari)", async () => {
+      composerState.canCancel = true;
+      const textarea = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        fireCompositionStart(textarea);
+        fireCompositionEnd(textarea, "");
+        event = fireEscape(textarea, { keyCode: 229 });
       });
 
       expect(cancelSpy).not.toHaveBeenCalled();

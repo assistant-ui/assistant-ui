@@ -1,7 +1,4 @@
-import {
-  defaultGenerativeUILibrary,
-  type UISpec,
-} from "@assistant-ui/react-generative-ui";
+import type { UISpec } from "@assistant-ui/generative-ui";
 
 export type ComponentCategory = {
   label: string;
@@ -33,7 +30,9 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
       "Input",
       "DatePicker",
       "Checkbox",
+      "Slider",
       "RadioGroup",
+      "CheckboxGroup",
       "Form",
     ],
   },
@@ -346,6 +345,17 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
     defaultChecked: true,
     $action: { type: "toggle_reminder" },
   },
+  Slider: {
+    $type: "Slider",
+    name: "holdMinutes",
+    label: "Hold the table for",
+    min: 5,
+    max: 30,
+    step: 5,
+    defaultValue: 15,
+    unit: "min",
+    $action: { type: "set_table_hold" },
+  },
   RadioGroup: {
     $type: "RadioGroup",
     name: "seating",
@@ -357,6 +367,18 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
       { label: "Bar", value: "bar" },
     ],
     $action: { type: "set_seating" },
+  },
+  CheckboxGroup: {
+    $type: "CheckboxGroup",
+    name: "dietary",
+    label: "Dietary needs",
+    defaultValue: ["vegetarian"],
+    options: [
+      { label: "Vegetarian", value: "vegetarian" },
+      { label: "Gluten-free", value: "gluten_free" },
+      { label: "Nut allergy", value: "nut_allergy" },
+    ],
+    $action: { type: "set_dietary_needs" },
   },
   Form: {
     $type: "Form",
@@ -550,75 +572,3 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
     ],
   },
 };
-
-{
-  const libraryNames = Object.keys(defaultGenerativeUILibrary);
-  const librarySet = new Set(libraryNames);
-  const categoryNames = COMPONENT_CATEGORIES.flatMap(
-    (category) => category.components,
-  );
-  const exampleNames = Object.keys(COMPONENT_EXAMPLES);
-
-  const categorySeen = new Set<string>();
-  const categoryDuplicates: string[] = [];
-  for (const name of categoryNames) {
-    if (categorySeen.has(name)) categoryDuplicates.push(name);
-    categorySeen.add(name);
-  }
-
-  const exampleSeen = new Set<string>();
-  const exampleDuplicates: string[] = [];
-  for (const name of exampleNames) {
-    if (exampleSeen.has(name)) exampleDuplicates.push(name);
-    exampleSeen.add(name);
-  }
-
-  const missingFromCategories = libraryNames.filter(
-    (name) => !categorySeen.has(name),
-  );
-  const extraInCategories = categoryNames.filter(
-    (name) => !librarySet.has(name),
-  );
-  const missingFromExamples = libraryNames.filter(
-    (name) => !(name in COMPONENT_EXAMPLES),
-  );
-  const extraInExamples = exampleNames.filter((name) => !librarySet.has(name));
-
-  const problems: string[] = [];
-  if (categoryDuplicates.length > 0) {
-    problems.push(
-      `duplicated in COMPONENT_CATEGORIES: ${categoryDuplicates.join(", ")}`,
-    );
-  }
-  if (exampleDuplicates.length > 0) {
-    problems.push(
-      `duplicated in COMPONENT_EXAMPLES: ${exampleDuplicates.join(", ")}`,
-    );
-  }
-  if (missingFromCategories.length > 0) {
-    problems.push(
-      `in defaultGenerativeUILibrary but missing from COMPONENT_CATEGORIES: ${missingFromCategories.join(", ")}`,
-    );
-  }
-  if (extraInCategories.length > 0) {
-    problems.push(
-      `in COMPONENT_CATEGORIES but missing from defaultGenerativeUILibrary: ${extraInCategories.join(", ")}`,
-    );
-  }
-  if (missingFromExamples.length > 0) {
-    problems.push(
-      `in defaultGenerativeUILibrary but missing from COMPONENT_EXAMPLES: ${missingFromExamples.join(", ")}`,
-    );
-  }
-  if (extraInExamples.length > 0) {
-    problems.push(
-      `in COMPONENT_EXAMPLES but missing from defaultGenerativeUILibrary: ${extraInExamples.join(", ")}`,
-    );
-  }
-
-  if (problems.length > 0) {
-    throw new Error(
-      `[@assistant-ui/docs] generative UI component reference drift:\n- ${problems.join("\n- ")}`,
-    );
-  }
-}

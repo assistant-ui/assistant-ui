@@ -39,7 +39,6 @@ import { Pressable } from "../primitives/internal/Pressable";
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandler = undefined;
   inputOptions = undefined;
 });

@@ -5,6 +5,8 @@ description: Connect MCP servers as a tool catalog in your assistant-ui app.
 
 [MCP](https://modelcontextprotocol.io/) is an open protocol for exposing tools, resources, and prompts to LLMs. One MCP server can publish many tools (file system, GitHub, Slack, your own service) and any MCP-aware client can use them. The AI SDK has a built-in MCP client; this page is the wiring guide for plugging it into an assistant-ui app.
 
+<AgentSetup product="guides/mcp" />
+
 ## How it works
 
 ```mermaid
@@ -18,7 +20,7 @@ The MCP client lives on the server inside your AI SDK route handler. It connects
 <Callout type="info">
   If you use a `"use generative"` toolkit, spread `defineMcpToolkit({ ... })`
   in the toolkit and use `AISDKToolkit` in your route. It opens the MCP clients,
-  merges their tools with your toolkit, and closes them for you.
+  merges their tools with your toolkit, and closes them when you call `close()`.
 </Callout>
 
 ## Setup
@@ -156,15 +158,15 @@ export default defineToolkit({
 If both servers publish `search`, the model receives `docs_search` and
 `github_search` instead of an ambiguous duplicate.
 
-Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
-with the rest of your toolkit, and closes them when you call `close()`:
-
 `connectionTimeout` is optional and measured in milliseconds. Set it to fail
 the server-side MCP readiness flow (`createMCPClient()` plus `tools()`) before
 a bad URL or hanging local process can stall the route.
 
+Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
+with the rest of your toolkit, and closes them when you call `close()`:
+
 ```ts title="app/api/chat/route.ts"
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 import type { UIMessage } from "ai";
@@ -176,16 +178,27 @@ export async function POST(req: Request) {
 
   const aiToolkit = new AISDKToolkit({ toolkit });
 
-  const result = streamText({
-    model: openai("gpt-5.6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: await aiToolkit.tools({ frontend: tools }),
-    onFinish: async () => {
-      await aiToolkit.close();
-    },
-  });
+  try {
+    const aiSDKTools = await aiToolkit.tools({ frontend: tools });
 
-  return result.toUIMessageStreamResponse();
+    const result = streamText({
+      abortSignal: req.signal,
+      model: openai("gpt-6-luna"),
+      messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+      tools: aiSDKTools,
+      onFinish: async () => {
+        await aiToolkit.close();
+      },
+      onAbort: async () => {
+        await aiToolkit.close();
+      },
+    });
+
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    await aiToolkit.close().catch(() => {});
+    throw error;
+  }
 }
 ```
 
@@ -196,7 +209,7 @@ export async function POST(req: Request) {
 
 For manual MCP client control, `mcpClient.tools()` returns an object shaped
 exactly like the `tools` argument of `streamText`. Spread it in alongside any of
-your own tools, and close the client when the response finishes:
+your own tools, and close the client when the response finishes or setup fails:
 
 ```ts title="app/api/chat/route.ts"
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -217,22 +230,31 @@ export async function POST(req: Request) {
     },
   });
 
-  const tools = await mcpClient.tools();
+  try {
+    const tools = await mcpClient.tools();
 
-  const result = streamText({
-    model: openai("gpt-5.6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools,
-    onFinish: async () => {
-      await mcpClient.close();
-    },
-  });
+    const result = streamText({
+      abortSignal: req.signal,
+      model: openai("gpt-6-luna"),
+      messages: await convertToModelMessages(messages, { tools }),
+      tools,
+      onFinish: async () => {
+        await mcpClient.close();
+      },
+      onAbort: async () => {
+        await mcpClient.close();
+      },
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    await mcpClient.close().catch(() => {});
+    throw error;
+  }
 }
 ```
 
-`onFinish` is the right place to call `close()`: it fires after the stream completes, so the connection stays open as long as the model is still calling tools.
+`onFinish` is the right place to call `close()`: it fires after the stream completes, so the connection stays open as long as the model is still calling tools. A cancelled request skips `onFinish` and runs `onAbort`, so the route closes the client there too.
 
 </Step>
 <Step>
@@ -370,10 +392,10 @@ Register the toolkit once with `Tools({ toolkit })`. Renderer keys such as
 "use client";
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import type { ReactNode } from "react";
 
-import { toolkit } from "./GitHubIssueToolUI";
+import toolkit from "../toolkit";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime();
@@ -402,13 +424,17 @@ MCP tools execute on the server, so approval is a server-side tool gate, not a `
 const tools = await mcpClient.tools();
 
 const result = streamText({
-  model: openai("gpt-5.6-luna"),
-  messages: await convertToModelMessages(messages),
+  abortSignal: req.signal,
+  model: openai("gpt-6-luna"),
+  messages: await convertToModelMessages(messages, { tools }),
   tools,
   toolApproval: {
     github_delete_repository: "user-approval",
   },
   onFinish: async () => {
+    await mcpClient.close();
+  },
+  onAbort: async () => {
     await mcpClient.close();
   },
 });
@@ -447,7 +473,7 @@ Start the app and trigger a tool call (e.g., ask the assistant to do something t
 
 - **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in client code.
 - **Per-request lifecycle.** A fresh client per request keeps connection state simple. For high-throughput servers, pool clients yourself with care: the AI SDK's `tools()` call assumes the connection is alive when `streamText` runs.
-- **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can instrument it via [`instrumentMcpSampling`](/docs/cloud) for observability. This is independent of the wiring above.
+- **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can use [`wrapSamplingHandler`](/docs/cloud/traces) and [`createSamplingCollector`](/docs/cloud/traces) for observability. This is independent of the wiring above.
 - **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP. stdio is for local development against an MCP server in your monorepo.
 
 ## Related

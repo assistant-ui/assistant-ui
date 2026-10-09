@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef } from "react";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useComposedRefs } from "radix-ui/internal";
 import {
   type ActionButtonElement,
   type ActionButtonProps,

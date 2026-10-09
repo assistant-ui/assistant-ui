@@ -10,6 +10,10 @@ observe via `setState(snapshot)` and what the current behavior is.
 > first observation — args regress, args change after first completion,
 > result is replaced, result is cleared, key order shuffles — the tracker
 > never invokes the host's tool callback a second time.
+>
+> `reset()` starts a new execution boundary, and so does the single
+> pipeline restart after a stream failure (F.4). A reused `toolCallId` in
+> the next boundary gets a new execution identity and may fire once there.
 
 This guarantees host-side side effects (the typical reason `streamCall` /
 `execute` exists at all) can't double-run. The cost: post-completion
@@ -60,20 +64,152 @@ The tracker does **not** restart the stream and does **not** invoke
 `streamCall` a second time. Logs the divergence in non-prod. The host's
 existing `streamCall` keeps its original args view.
 
-### A.5. First resolution (`result` becomes defined)
+The tracked `argsText` advances to the new value, so a snapshot that
+re-observes the same change logs once rather than on every rebuild. This
+is safe only because the stream is already closed; A.2 must keep the
+pre-regression value, since it still drives delta calculation. It also
+means a demoted entry (F.4) carries the changed text, so a pipeline
+restart no longer promotes it and re-fires `streamCall` for a change the
+host's original args view already excluded.
+
+### A.5. First resolution (a final `result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
 The backend result is emitted before the args stream closes, so a stale
 args parse failure cannot replace it. `reader.response.get()` resolves.
 If the tool also had a frontend `execute`, the executor is short-circuited
-via `_skipExecuteStreamIds`. Single fire.
+via the entry's per-execution skip marker. Single fire.
 
 ### A.6. Previously-resolved tool's `result` is replaced
-Silently ignored — `entry.hasResult` short-circuits both the
-re-`setResponse` path and the downstream result-chunk handler. The host
-sees only the first result.
+Silently ignored. A restored entry with a result remains historical even when a live snapshot reserializes its `argsText` or replaces its result. For active entries, `entry.hasResult` short-circuits both the re-`setResponse` path and the downstream result-chunk handler. The host sees only the first result.
 
 ### A.7. Previously-resolved tool loses its `result` (back to undefined)
 Silently ignored. The entry stays in the resolved phase internally.
+
+### A.8. Tool call carries a provider `approval`
+The entry is marked `skipExecute`, exactly like a call observed with
+a `result`, whether the gate is present when the call is first observed
+or lands on an already-active entry. A gate belongs to the provider:
+`approved === true` means the provider is producing the result, `false`
+means it records the denial, so the frontend `execute` never fires for
+that `toolCallId` once the gate is present. `streamCall` still fires
+once and the backend result flows through A.5 when it lands.
+
+If the gate lands after the args stream has closed but before an
+in-flight `execute` resolves, the execute runs to completion (its side
+effects happen) but its result chunk is dropped: `onResult` never fires,
+and the `executing` status, plus any `human()` interrupt the execution
+parked, stays up until the promise settles. Only a gate that lands after
+the result chunk has already been emitted is fully too late.
+
+A call the adapter reports as client-owned reaches that window while the
+run is still open; a call whose ownership is unknown reaches it when the
+run settles before the gate arrives (A.10). Either way the client was
+meant to run it, so nothing but the gate's arrival says otherwise and the
+gate is late by construction.
+
+### A.9. Adapter reports the tool call as provider-owned
+The entry is marked `skipExecute` at creation, exactly like a call
+observed with a `result`. `unstable_isClientToolCall` is read once, when
+the call is first observed live, and never re-read: ownership is fixed
+when the provider emits the call, so a later snapshot cannot revoke it
+and drop the result of an execute already in flight. `streamCall` still
+fires once, as under A.8; only the wrapped `execute` and its result
+chunk are withheld.
+
+Outside production, a provider-owned call whose name resolves to a tool
+with an `execute` logs a `console.warn`. The two together are a
+misconfiguration: the provider answers the call, so the registered
+`execute` would never run and the skip is otherwise silent.
+
+The predicate is also what licenses running a frontend tool before the
+provider's run ends, so an adapter that supplies it keeps the overlap
+between a client tool's work and the run tail (A.10).
+
+### A.10. Args complete while the provider's run is still open
+Closing the args stream hands the call to the client executor, so it may
+only happen once the provider can no longer speak about that call. A
+provider may still answer the call (A.5) or gate it (A.8) one or more
+snapshots after its arguments complete, and a protocol can carry the
+outcome no earlier: AG-UI projects an interrupt only from `RUN_FINISHED`.
+The run ending is the only universal signal, so a call whose ownership is
+unknown closes when the snapshot's `isRunning` goes false.
+
+`ExternalStoreThreadRuntimeCore` feeds the tracker
+`store.isRunning || _hasExecutingTools(store)`, so that condition also covers
+a client tool mid-`execute`. That defers an unknown-ownership sibling only
+while a client-owned call is actually executing, which no shipped adapter
+produces: every entry pending in a snapshot closes in the same
+`_processMessages` pass, an adapter that supplies the predicate classifies
+every call, and an execution parked on `human()` reports `interrupt` rather
+than `executing`, which `_hasExecutingTools` does not count.
+
+That holds even when `execute` opens with `await human()`. The stream
+fires `onExecutionStart` only after `execute` returns, because until then
+it cannot tell a frontend tool from one without an `execute`, so by the
+time the callback runs the body has already parked its resolver and set
+`interrupt`. `_onExecutionStart` still registers the execution for
+`_onExecutionEnd` but leaves the status alone when this execution's own
+request is pending. The check is keyed on the request's execution id,
+not on the status map: a pipeline restart (F.4) clears `_executing` and
+abandoned execution statuses while preserving pending human-input statuses.
+A stale `interrupt` must not stop the fresh execution from reporting
+`executing` (#6763).
+
+A call the adapter reports as client-owned (A.9) closes as soon as its
+arguments parse, because the adapter has already said the provider will
+not answer it. Ownership says who answers a call, not whether it is
+gated, so a gate on such a call is still late and A.8 governs it
+(#6677).
+
+### A.11. The turn is discarded before a call's `execute` starts
+`abort({ discardPending: true })` records every active entry that holds
+no result and whose `execute` has not started in `_discardedToolCallIds`,
+and marks it `skipExecute`. A call whose `execute` already started keeps
+its result.
+
+The abort signal alone does not cover these. A call waiting on the run to
+settle (A.10) has not reached the executor, so there is nothing to signal,
+and `abort()` installs a fresh `AbortController` before the settled
+snapshot arrives; without the record, cancelling a run would be what
+starts the call it was meant to stop. The same holds for a call whose args
+closed in the tick the turn was discarded (the settled snapshot and the
+user's next action landing together): the executor calls `execute` only
+after `abort()` has installed the fresh controller.
+
+The record covers only calls the tracker has already observed. A call
+first seen in a snapshot that arrives after the discard, such as a store
+that publishes the assistant message only when its run resolves and still
+publishes it after `cancelRun`, gets a fresh entry and runs.
+
+`discardPending` is the caller's claim that the turn is over, not that it
+is being interrupted, so only the three callers that end it pass it: a new
+turn starting, a reload, and `cancelRun`. `deleteMessage` does not: its
+`setMessages` fallback aborts while the provider run continues, and
+discarding there would strand that run's remaining calls result-less,
+while its `onDelete` path never aborts at all. `reset()` is unaffected
+either way: it clears `_entries` and the recorded ids before aborting,
+because it opens a new execution boundary.
+
+An id is forgotten once a live snapshot observes the call with a final result,
+which bounds the set to the open calls of a discarded turn. That is all
+it does: an id re-emitted inside the same execution boundary keeps its
+existing entry, so A.4 and A.7 govern it rather than this set, and a new
+boundary clears the set outright. The residual is a call that is
+discarded, answered, and then loses its result (A.7) across a pipeline
+restart; it is left to A.7 rather than pinned here, because holding the
+id past the answer would trade a five-step chain for a set that grows for
+the life of the tracker.
+
+The record lives on the tracker rather than the entry because it is the one
+reason to skip that no later snapshot carries: an `approval` is re-read at
+each snapshot and provider ownership is recomputed, while a rebuilt entry
+would otherwise come back clean. That is what lets F.4 drop a waiting entry
+without a special case.
+
+### A.12. An interim result (`isPreliminary`)
+A result flagged `isPreliminary` marks the entry `skipExecute` like any backend result and reaches the active controller as a preliminary response, which keeps the part open. `entry.hasResult` stays false, so each later snapshot hands the controller its current interim value, while the skip marker keeps the frontend `execute` from running and drops the echo of each value at the result-chunk handler, so `onResult` never fires for it. `reader.response.get()` resolves only when the final result lands, which is A.5 for that call.
+
+A restored or demoted (F.4) entry holding an interim result counts as unresolved, so C.3 promotes it only when its final result lands or its `argsText` changes.
 
 ## B. Tool call disappears from snapshot
 
@@ -98,9 +234,7 @@ Silently kept as restored. Recursion into `content.messages` still
 happens so any nested live tool calls are processed.
 
 ### C.3. Restored entry observed in a live snapshot, signature changed
-The restored entry is deleted and a new active entry starts via
-`_startActiveEntry`. This is PR #4057's promotion path. `streamCall`
-fires once — its first and only fire for this `toolCallId`.
+A restored entry with a final result remains historical regardless of later `argsText` or result changes. An unresolved restored entry, with no result or only an interim one (A.12), is promoted only when a final result lands or its `argsText` changes. Complete `argsText` values that parse to equivalent JSON are unchanged. Promotion deletes the restored entry and starts a new active entry via `_startActiveEntry`. `streamCall` fires once, its first and only fire for this `toolCallId`.
 
 ### C.4. `isLoading` transitions `true → false` while messages are stable
 The next `setState` call sees `isLoading === false` and processes
@@ -153,15 +287,16 @@ tracker's view of "what we last observed". The next snapshot retries.
 
 ### F.1. `reset()` called while `execute()` invocations are in flight
 `abort()` is invoked, in-flight executions reject with
-`Tool execution aborted`. Once they settle, the cleanup logic clears
-`_executing`. The settled-resolver promises fire so the abort promise
-resolves.
+`Tool execution aborted`. Once they settle, the cleanup logic removes their
+execution identities from `_executing`. The settled-resolver promises fire so
+the abort promise resolves.
 
 ### F.2. `setState` called during `reset()`'s in-flight abort
 The new snapshot is processed against an empty `_entries`. Tool calls
 in it are seeded as restored (because `reset()` re-armed
-`_pendingRestore`). Eventual cancellation `result` chunks for the
-aborted executions are dropped via `_skipExecuteStreamIds`.
+`_pendingRestore`). Eventual cancellation `result` chunks for the aborted
+executions are dropped when their execution identity no longer matches the
+current entry.
 
 ### F.3. `resume(toolCallId, payload)` for an unknown id
 Silently no-ops. (The pre-class hook *threw*; the tracker softens this
@@ -172,8 +307,38 @@ The `.pipeTo(...).catch(...)` handler logs and flips `_pipelineDead`.
 The next `setState` call recreates the pipeline once per tracker
 lifetime: existing active entries are *demoted to restored* (so the
 rebuilt pipeline does not re-fire `streamCall` for them) and the
-snapshot is processed against the fresh pipeline. Repeated failures
+snapshot is processed against the fresh pipeline. An active entry that
+neither closed its args stream nor holds a result is dropped instead of
+demoted: a restored entry is promoted only when its signature changes,
+and a call waiting on the run to settle (A.10) already holds its final
+args, so demoting it would strand it unexecuted.
+
+Restart clears abandoned execution statuses and releases pending `abort()`
+waiters before processing the replacement snapshot. Pending human-input
+requests retain their `interrupt` status and can still be resumed or aborted.
+The outgoing abort signal is cancelled only when no human-input request is
+pending, because every tool in that run shares the signal. With a pending
+request, the tracker retains the outgoing controller so a later `abort()` or
+`reset()` cancels its signal as well as the replacement pipeline's signal.
+Resuming a request leaves its signal live so the tool can continue. Sibling
+executions share that signal; restart drops their statuses and ignores their
+late completions, and a later abort still reaches them.
+
+Restarting a dropped entry re-fires `streamCall`, which the restart path already
+does for any demoted entry whose signature later changes. A change that
+already happened after completion (A.4) is not such a change: the demoted
+entry carries the changed text, so the restart does not promote it. The rebuilt
+pipeline holds no part for the call, so nothing can reach the executor
+without adding one; a restart is an execution boundary in the same sense
+`reset()` is. Repeated failures
 keep the tracker dead with a visible error to avoid restart loops.
+
+### F.5. Reset followed by same-id reuse
+The assistant-stream pipeline assigns each streamed tool part an opaque
+execution identity. Human-input callbacks, lifecycle callbacks, result chunks,
+and pending execution cleanup are accepted only when that identity is still
+current for the `toolCallId`. A late callback from before `reset()` is therefore
+dropped even when the next session reuses the id.
 
 ## Known limitations
 

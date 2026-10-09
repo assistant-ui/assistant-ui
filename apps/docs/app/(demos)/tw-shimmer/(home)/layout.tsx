@@ -1,11 +1,16 @@
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
+
+const title = "tw-shimmer";
+const description =
+  "Zero-dependency Tailwind v4 shimmer for text and skeleton loaders. Pure CSS.";
 
 export const metadata: Metadata = {
   title: "tw-shimmer by assistant-ui",
-  description:
-    "A zero-dependency Tailwind CSS v4 plugin for beautiful shimmer effects. Fully customizable, performant, and easy to use.",
+  description,
+  ...createOgMetadata(title, description),
 };
 
 export default function TwShimmerHomeLayout({

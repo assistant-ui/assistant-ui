@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 export {
   convertEveMessage,
@@ -9,6 +9,9 @@ export {
 export type {
   ConvertEveMessagesOptions,
   EveAuthorizationData,
+  EveMessageContent,
 } from "./convertEveMessages";
 export { useEveAgentRuntime } from "./useEveAgentRuntime";
 export type { UseEveAgentRuntimeOptions } from "./useEveAgentRuntime";
+export { useEveError, useEveEvents, useEveReset, useEveSession } from "./hooks";
+export type { EveRuntimeExtras } from "./eveExtras";

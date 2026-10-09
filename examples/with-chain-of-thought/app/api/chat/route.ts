@@ -9,7 +9,7 @@ import {
   JsonToSseTransformStream,
 } from "ai";
 import type { UIMessage, UIMessageStreamWriter } from "ai";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { z } from "zod";
 import toolkit from "../../toolkit";
 
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         await streamFallback(writer, messages);
         return;
       }
-      await streamModel(writer, messages, tools);
+      await streamModel(writer, messages, tools, req.signal);
     },
   });
 
@@ -101,6 +101,7 @@ async function streamModel(
   writer: UIMessageStreamWriter,
   messages: UIMessage[],
   frontendToolDefs: Record<string, any>,
+  abortSignal: AbortSignal,
 ) {
   const toolNameByCall = new Map<string, string>();
   const openai = createOpenAI({
@@ -112,25 +113,27 @@ async function streamModel(
 
   const toolkitTools = await aiToolkit.tools({ frontend: frontendToolDefs });
 
+  const aiSDKTools = {
+    ...toolkitTools,
+    get_current_weather: tool({
+      description: "Get the current weather for a city",
+      inputSchema: zodSchema(z.object({ city: z.string() })),
+      execute: async ({ city }) => `The weather in ${city} is sunny, 72°F`,
+    }),
+    search_web: tool({
+      description:
+        "Search the web for citations on a topic. Returns a list of source URLs and titles the assistant should consult.",
+      inputSchema: zodSchema(z.object({ query: z.string() })),
+      execute: async ({ query }) => ({ sources: searchSources(query) }),
+    }),
+  };
   const result = streamText({
+    abortSignal,
     // Reasoning model so the chain-of-thought group has real content.
-    model: openai("gpt-5.4-mini"),
-    messages: await convertToModelMessages(messages),
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
-    tools: {
-      ...toolkitTools,
-      get_current_weather: tool({
-        description: "Get the current weather for a city",
-        inputSchema: zodSchema(z.object({ city: z.string() })),
-        execute: async ({ city }) => `The weather in ${city} is sunny, 72°F`,
-      }),
-      search_web: tool({
-        description:
-          "Search the web for citations on a topic. Returns a list of source URLs and titles the assistant should consult.",
-        inputSchema: zodSchema(z.object({ query: z.string() })),
-        execute: async ({ query }) => ({ sources: searchSources(query) }),
-      }),
-    },
+    tools: aiSDKTools,
     providerOptions: {
       openai: {
         reasoningEffort: "high",

@@ -22,7 +22,10 @@ export interface ChangelogRecord {
 
   hasEagerState: boolean;
   eagerState: any;
+  prevState: any;
+  settled: boolean;
   queued: boolean;
+  logged: boolean;
 }
 
 export type ReducerCell = {
@@ -44,11 +47,23 @@ export type MemoCell<T = any> = {
   currentDeps: readonly unknown[];
   wip: T;
   wipDeps: readonly unknown[];
+  wipIsRefreshing: boolean;
   isDirty: boolean;
 };
 
+export type RefCell<T = any> = {
+  readonly type: "ref";
+  readonly ref: { current: T };
+};
+
+export type RefreshCell = {
+  readonly type: "refresh";
+  token: unknown;
+  isCommitted: boolean;
+};
+
 export type EffectCell = {
-  readonly type: "effect";
+  readonly type: "effect" | "insertion";
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
@@ -57,7 +72,22 @@ export type EffectCell = {
   generation: number;
 };
 
-export type Cell = ReducerCell | MemoCell | EffectCell;
+export type HostCell = {
+  readonly type: "host";
+  fiber: ResourceFiber<unknown> | null;
+  readonly fibers: Map<
+    string | number,
+    { fiber: ResourceFiber<unknown> }
+  > | null;
+};
+
+export type Cell =
+  | ReducerCell
+  | MemoCell
+  | RefCell
+  | RefreshCell
+  | EffectCell
+  | HostCell;
 
 export type CommitCallback = () => void;
 export type CommitCallbacks = CommitCallback[];
@@ -74,6 +104,8 @@ export interface TapRoot {
   version: number;
   committedVersion: number;
   readonly changelog: ChangelogRecord[];
+  readonly committedLog: ChangelogRecord[];
+  unsettledCount: number;
   readonly dispatchUpdate: (
     evaluate: () => boolean,
     apply: () => boolean,
@@ -90,21 +122,29 @@ export interface ResourceFiber<R> {
 
   cells: Cell[];
   effectCells: EffectCell[];
+  insertionCells: EffectCell[] | null;
+  hostCells: HostCell[] | null;
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
+  isRefreshing: boolean;
+  // workInProgress persists across uncommitted renders: a StrictMode double
+  // invoke reaches tap as separate renderResourceFiber calls with no attempt
+  // boundary, so an entry discard would re-run every compiled memo factory.
   memoCache: {
     current: unknown[][] | null;
     workInProgress: unknown[][] | null;
+    refreshedIndices: Set<number> | null;
     index: number;
   };
 
   renderPendingCells: Set<ReducerCell> | null;
 
   isMounted: boolean;
+  isReleased: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;
 }

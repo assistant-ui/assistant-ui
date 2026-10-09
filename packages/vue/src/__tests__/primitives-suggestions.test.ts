@@ -3,7 +3,11 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter, Suggestions } from "@assistant-ui/core/store";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ExternalStoreAdapter,
+  RealtimeVoiceAdapter,
+} from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -20,7 +24,9 @@ type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
 
 const createSuggestingRuntime = () => {
   let isRunning = false;
-  const onNew = vi.fn(async () => {});
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages: [],
     isRunning,
@@ -37,6 +43,45 @@ const createSuggestingRuntime = () => {
   const setRunning = (value: boolean) => {
     isRunning = value;
     sync();
+  };
+  return { runtime, onNew, setRunning };
+};
+
+const createVoiceSuggestingRuntime = (
+  sendText?: RealtimeVoiceAdapter.Session["sendText"],
+) => {
+  let isRunning = false;
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect: () => {},
+    mute: () => {},
+    unmute: () => {},
+    ...(sendText && { sendText }),
+    onStatusChange: () => () => {},
+    onTranscript: () => () => {},
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
+    messages: [],
+    isRunning,
+    convertMessage: (message) => ({
+      id: message.id,
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    }),
+    onNew,
+    adapters: { voice: { connect: () => session } },
+  });
+  const core = new ExternalStoreRuntimeCore(makeAdapter());
+  const runtime = new AssistantRuntimeImpl(core);
+  const setRunning = (value: boolean) => {
+    isRunning = value;
+    core.setAdapter(makeAdapter());
   };
   return { runtime, onNew, setRunning };
 };
@@ -80,6 +125,11 @@ const mountSuggestions = (
                   label: "small talk",
                   prompt: "What time is it?",
                 },
+                {
+                  title: "Empty",
+                  label: "no prompt",
+                  prompt: "",
+                },
               ]),
             }),
           },
@@ -99,16 +149,18 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     const chips = [...el.querySelectorAll("button.chip")];
     expect(chips.map((chip) => chip.querySelector("b")!.textContent)).toEqual([
       "Say hello",
       "Ask the time",
+      "Empty",
     ]);
     expect(chips.map((chip) => chip.querySelector("i")!.textContent)).toEqual([
       "a friendly opener",
       "small talk",
+      "no prompt",
     ]);
 
     unmount();
@@ -120,7 +172,7 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     el.querySelectorAll<HTMLButtonElement>("button.chip")[1]!.click();
 
@@ -140,7 +192,7 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
     await vi.waitFor(() => {
@@ -155,7 +207,7 @@ describe("suggestions primitives", () => {
     });
     await vi.waitFor(async () => {
       await nextTick();
-      expect(mounted.el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(mounted.el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     flushTapSync(() =>
       appending.runtime.thread.composer.setText("Existing draft"),
@@ -167,13 +219,25 @@ describe("suggestions primitives", () => {
       );
     });
 
+    flushTapSync(() =>
+      appending.runtime.thread.composer.setText("Existing draft"),
+    );
+    mounted.el.querySelectorAll<HTMLButtonElement>("button.chip")[2]!.click();
+    await vi.waitFor(() => {
+      expect(appending.runtime.thread.composer.getState().text).toBe(
+        "Existing draft",
+      );
+    });
+
     mounted.unmount();
   });
 
   it("queues a send during a run without clearing the draft and forwards runConfig", async () => {
     let isRunning = false;
-    const onNew = vi.fn(async () => {});
-    const steer = vi.fn();
+    const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+      async () => {},
+    );
+    const steer = vi.fn<(message: AppendMessage) => void>();
     const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
       messages: [],
       isRunning,
@@ -203,7 +267,7 @@ describe("suggestions primitives", () => {
     const { el, unmount } = mountSuggestions(runtime, { send: true });
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
 
     flushTapSync(() => {
@@ -238,7 +302,7 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     expect(
       el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
@@ -252,6 +316,59 @@ describe("suggestions primitives", () => {
       ).toBe(true);
     });
 
+    unmount();
+  });
+
+  it("sends into a voice session that takes typed text while a spoken reply is running", async () => {
+    const sendText = vi.fn<(text: string) => void>();
+    const { runtime, onNew, setRunning } =
+      createVoiceSuggestingRuntime(sendText);
+    const { el, unmount } = mountSuggestions(runtime, { send: true });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
+    });
+
+    flushTapSync(() => {
+      runtime.thread.connectVoice();
+      runtime.thread.composer.setText("half-typed draft");
+      setRunning(true);
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
+      ).toBe(false);
+    });
+
+    el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Hello there!");
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(runtime.thread.composer.getState().text).toBe("");
+
+    runtime.thread.disconnectVoice();
+    unmount();
+  });
+
+  it("disables sending chips while a voice session cannot take typed text", async () => {
+    const { runtime } = createVoiceSuggestingRuntime();
+    const { el, unmount } = mountSuggestions(runtime, { send: true });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
+    });
+
+    flushTapSync(() => runtime.thread.connectVoice());
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
+      ).toBe(true);
+    });
+
+    runtime.thread.disconnectVoice();
     unmount();
   });
 });

@@ -2,7 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
-import { getAutoStatus } from "./auto-status";
+import { getRepositoryContentAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
 
 export type ExportedMessageRepositoryItem = {
@@ -27,8 +27,8 @@ export const ExportedMessageRepository = {
     const conv = messages.map((m) =>
       fromThreadMessageLike(
         m,
-        generateId(),
-        getAutoStatus(false, false, false, false, undefined),
+        m.id ?? generateId(),
+        getRepositoryContentAutoStatus(m.content),
       ),
     );
 
@@ -47,7 +47,6 @@ export const ExportedMessageRepository = {
     }[],
     options?: { headId?: string | null },
   ): ExportedMessageRepository => {
-    const fallbackStatus = getAutoStatus(false, false, false, false, undefined);
     return {
       ...(options?.headId !== undefined
         ? { headId: options.headId }
@@ -60,7 +59,11 @@ export const ExportedMessageRepository = {
         }
         return {
           parentId,
-          message: fromThreadMessageLike(message, message.id, fallbackStatus),
+          message: fromThreadMessageLike(
+            message,
+            message.id,
+            getRepositoryContentAutoStatus(message.content),
+          ),
         };
       }),
     };
@@ -81,9 +84,99 @@ type RepositoryMessage = RepositoryParent & {
 const findHead = (
   message: RepositoryMessage | RepositoryParent,
 ): RepositoryMessage | null => {
-  if (message.next) return findHead(message.next);
-  if ("current" in message) return message;
-  return null;
+  let current = message;
+  while (current.next) current = current.next;
+  return "current" in current ? current : null;
+};
+
+// A history may store a message before its parent, for example one that
+// commits appends concurrently, so such a message is added after its parent.
+export const withParentsFirst = (
+  messages: ExportedMessageRepository["messages"],
+  isStored: (id: string) => boolean,
+) => {
+  const listed = new Set(messages.map((item) => item.message.id));
+  const added = new Set<string>();
+  const waiting = new Map<string, ExportedMessageRepository["messages"]>();
+  const ordered: ExportedMessageRepository["messages"] = [];
+  for (const item of messages) {
+    const { parentId } = item;
+    if (
+      parentId !== null &&
+      listed.has(parentId) &&
+      !added.has(parentId) &&
+      !isStored(parentId)
+    ) {
+      const children = waiting.get(parentId);
+      if (children) children.push(item);
+      else waiting.set(parentId, [item]);
+      continue;
+    }
+    for (let i = ordered.push(item) - 1; i < ordered.length; i++) {
+      const { id } = ordered[i]!.message;
+      if (added.has(id)) continue;
+      added.add(id);
+      const children = waiting.get(id);
+      if (!children) continue;
+      waiting.delete(id);
+      ordered.push(...children);
+    }
+  }
+  for (const children of waiting.values()) ordered.push(...children);
+  return ordered;
+};
+
+export const withoutOrphanedMessages = (
+  repository: ExportedMessageRepository,
+): { repository: ExportedMessageRepository; droppedIds: string[] } => {
+  const listed = new Set(repository.messages.map((item) => item.message.id));
+  const children = new Map<string, string[]>();
+  const pending: string[] = [];
+  for (const { message, parentId } of repository.messages) {
+    if (parentId === null) continue;
+    const siblings = children.get(parentId);
+    if (siblings) siblings.push(message.id);
+    else children.set(parentId, [message.id]);
+    if (!listed.has(parentId)) pending.push(message.id);
+  }
+
+  const dropped = new Set<string>();
+  for (let i = 0; i < pending.length; i++) {
+    const id = pending[i]!;
+    if (dropped.has(id)) continue;
+    dropped.add(id);
+    for (const child of children.get(id) ?? []) pending.push(child);
+  }
+  const headMissing =
+    repository.headId != null && !listed.has(repository.headId);
+  if (dropped.size === 0 && !headMissing) return { repository, droppedIds: [] };
+
+  const droppedIds: string[] = [];
+  const keptParents = new Set<string>();
+  const messages = repository.messages.filter(({ message, parentId }) => {
+    if (dropped.has(message.id)) {
+      droppedIds.push(message.id);
+      return false;
+    }
+    if (parentId !== null) keptParents.add(parentId);
+    return true;
+  });
+  let { headId } = repository;
+  if (headId != null && (headMissing || dropped.has(headId))) {
+    headId = null;
+    for (const { message } of messages) {
+      if (!keptParents.has(message.id)) headId = message.id;
+    }
+  }
+
+  return {
+    repository: {
+      ...repository,
+      messages,
+      ...(headId !== undefined && { headId }),
+    },
+    droppedIds,
+  };
 };
 
 class CachedValue<T> {
@@ -116,12 +209,28 @@ export class MessageRepository {
   };
 
   private updateLevels(message: RepositoryMessage, newLevel: number) {
-    message.level = newLevel;
-    for (const childId of message.children) {
-      const childMessage = this.messages.get(childId);
-      if (childMessage) {
-        this.updateLevels(childMessage, newLevel + 1);
+    const pending = [{ message, level: newLevel }];
+
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      current.message.level = current.level;
+
+      for (const childId of current.message.children) {
+        const childMessage = this.messages.get(childId);
+        if (childMessage) {
+          pending.push({ message: childMessage, level: current.level + 1 });
+        }
       }
+    }
+  }
+
+  private selectPathTo(message: RepositoryMessage) {
+    for (
+      let current: RepositoryMessage | null = message;
+      current;
+      current = current.prev
+    ) {
+      (current.prev ?? this.root).next = current;
     }
   }
 
@@ -135,7 +244,8 @@ export class MessageRepository {
 
     if (operation === "relink" && parentOrRoot === newParentOrRoot) return;
 
-    if (operation !== "cut") {
+    // `link` receives a fresh ID from `addOrUpdateMessage`; only `relink` can introduce a cycle.
+    if (operation === "relink") {
       for (
         let current: RepositoryMessage | null = newParent;
         current;
@@ -143,7 +253,7 @@ export class MessageRepository {
       ) {
         if (current.current.id === child.current.id) {
           throw new Error(
-            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+            "MessageRepository(performOp/relink): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
           );
         }
       }
@@ -172,11 +282,16 @@ export class MessageRepository {
         child.current.id,
       ];
 
-      if (findHead(child) === this.head || newParentOrRoot.next === null) {
-        newParentOrRoot.next = child;
-      }
-
       child.prev = newParent;
+
+      if (findHead(child) === this.head) {
+        this.selectPathTo(child);
+      } else if (newParentOrRoot.next === null) {
+        newParentOrRoot.next = child;
+        if (this.head === newParentOrRoot) {
+          this.head = findHead(child);
+        }
+      }
 
       const newLevel = newParent ? newParent.level + 1 : 0;
       this.updateLevels(child, newLevel);
@@ -237,8 +352,8 @@ export class MessageRepository {
       );
 
     if (existingItem) {
-      existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
+      existingItem.current = message;
       this._messages.dirty();
       return;
     }
@@ -294,6 +409,13 @@ export class MessageRepository {
         "MessageRepository(deleteMessage): Replacement not found. This is likely an internal bug in assistant-ui.",
       );
 
+    for (let current = replacement; current; current = current.prev) {
+      if (current === message)
+        throw new Error(
+          "MessageRepository(deleteMessage): Replacement is the deleted message or one of its descendants. This is likely an internal bug in assistant-ui.",
+        );
+    }
+
     for (const child of message.children) {
       const childMessage = this.messages.get(child);
       if (!childMessage)
@@ -313,6 +435,10 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
+  hasChildren(messageId: string) {
+    return (this.messages.get(messageId)?.children.length ?? 0) > 0;
+  }
+
   getBranches(messageId: string) {
     const message = this.messages.get(messageId);
     if (!message)
@@ -325,12 +451,12 @@ export class MessageRepository {
   }
 
   /**
-   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
-   * away from. Since eviction runs on every head move, the only optimistic
-   * messages in the repository live on the branch the head previously pointed
-   * at — so we walk just that branch rather than the whole repository. Keeps a
-   * client→server id swap from leaving a phantom sibling, and drops off-branch
-   * placeholders.
+   * Evicts optimistic messages (`metadata.isOptimistic`) on the branch the head
+   * just moved away from. Only that branch is walked, so an optimistic message
+   * added off the head branch (such as the server-id copy that replaces a
+   * client-id placeholder before the head moves to it) is kept until a
+   * `switchToBranch` or `resetHead` moves the head off the branch it is on.
+   * Keeps a client→server id swap from leaving a phantom sibling.
    */
   private evictOffBranchOptimisticMessages(
     previousHead: RepositoryMessage | null,
@@ -371,8 +497,7 @@ export class MessageRepository {
       );
 
     const previousHead = this.head;
-    const prevOrRoot = message.prev ?? this.root;
-    prevOrRoot.next = message;
+    this.selectPathTo(message);
 
     this.head = findHead(message);
 
@@ -396,33 +521,24 @@ export class MessageRepository {
     const previousHead = this.head;
 
     if (message.children.length > 0) {
-      const deleteDescendants = (msg: RepositoryMessage) => {
-        for (const childId of msg.children) {
-          const childMessage = this.messages.get(childId);
-          if (childMessage) {
-            deleteDescendants(childMessage);
-            this.messages.delete(childId);
+      const pending = [...message.children];
+      while (pending.length > 0) {
+        const childId = pending.pop()!;
+        const childMessage = this.messages.get(childId);
+        if (childMessage) {
+          for (const descendantId of childMessage.children) {
+            pending.push(descendantId);
           }
+          this.messages.delete(childId);
         }
-      };
-      deleteDescendants(message);
+      }
 
       message.children = [];
       message.next = null;
     }
 
     this.head = message;
-    for (
-      let current: RepositoryMessage | null = message;
-      current;
-      current = current.prev
-    ) {
-      if (current.prev) {
-        current.prev.next = current;
-      } else {
-        this.root.next = current;
-      }
-    }
+    this.selectPathTo(message);
 
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
@@ -445,7 +561,15 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
-    for (const [, message] of this.messages) {
+    // External-state conversion requires parents before children, so the tree
+    // is walked in pre-order rather than iterated in insertion order.
+    const pending = [...this.root.children].reverse();
+    while (pending.length > 0) {
+      const message = this.messages.get(pending.pop()!);
+      if (!message) continue;
+      for (let i = message.children.length - 1; i >= 0; i--) {
+        pending.push(message.children[i]!);
+      }
       if (message.current.metadata?.isOptimistic) continue;
       let prev = message.prev;
       while (prev && prev.current.metadata?.isOptimistic) {
@@ -458,16 +582,59 @@ export class MessageRepository {
     }
 
     return {
-      headId: this.canonicalHeadId,
+      headId: this.exportedHeadId(),
       messages: exportItems,
     };
   }
 
+  /**
+   * The head as it would be if the optimistic messages were deleted. Import
+   * resets to the exported head and drops its descendants, so an optimistic
+   * head resolves to a leaf of the exported tree rather than to its persisted
+   * ancestor, whose other children would be lost.
+   */
+  private exportedHeadId(): string | null {
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) head = head.prev;
+    if (head === this.head) return head?.current.id ?? null;
+
+    for (;;) {
+      const next = this.exportedChild(head ?? this.root);
+      if (!next) return head?.current.id ?? null;
+      head = next;
+    }
+  }
+
+  private exportedChild(parent: RepositoryParent): RepositoryMessage | null {
+    const selected = parent.next;
+    if (selected) {
+      if (!selected.current.metadata?.isOptimistic) return selected;
+      const descendant = this.exportedChild(selected);
+      if (descendant) return descendant;
+    }
+    const selectedIndex = selected
+      ? parent.children.indexOf(selected.current.id)
+      : parent.children.length;
+    const siblings = [
+      ...parent.children.slice(0, selectedIndex).reverse(),
+      ...parent.children.slice(selectedIndex + 1).reverse(),
+    ];
+    for (const id of siblings) {
+      const child = this.messages.get(id);
+      if (!child) continue;
+      if (!child.current.metadata?.isOptimistic) return child;
+      const descendant = this.exportedChild(child);
+      if (descendant) return descendant;
+    }
+    return null;
+  }
+
   import({ headId, messages }: ExportedMessageRepository) {
-    for (const { message, parentId } of messages) {
+    const ordered = withParentsFirst(messages, (id) => this.messages.has(id));
+    for (const { message, parentId } of ordered) {
       this.addOrUpdateMessage(parentId, message);
     }
 
-    this.resetHead(headId ?? messages.at(-1)?.message.id ?? null);
+    this.resetHead(headId ?? ordered.at(-1)?.message.id ?? null);
   }
 }

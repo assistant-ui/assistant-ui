@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { useAui } from "@assistant-ui/store";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
-export type QueueItemSteerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type QueueItemSteerProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const QueueItemSteer = ({

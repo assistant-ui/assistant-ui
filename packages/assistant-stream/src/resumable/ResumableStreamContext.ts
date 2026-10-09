@@ -2,6 +2,8 @@ import { ResumableStreamError } from "./errors";
 import { withPromiseOrValue } from "../core/utils/withPromiseOrValue";
 import type {
   ResumableStreamRole,
+  ResumableStreamAcquisition,
+  ResumableStreamLease,
   ResumableStreamStatus,
   ResumableStreamStore,
 } from "./types";
@@ -68,15 +70,30 @@ export function createResumableStreamContext(
 
   return {
     async run(streamId, makeStream) {
-      const role = await store.acquire(streamId, acquireOptions);
-      invokeObservabilityHook("onAcquire", onAcquire, streamId, role);
-      if (role === "producer") {
-        startProducerTask(store, streamId, makeStream, {
-          waitUntil,
-          onAppend,
-          onFinalize,
-          onError,
-        });
+      const acquisition:
+        | ResumableStreamAcquisition
+        | { role: ResumableStreamRole; lease?: undefined } = store.acquireLease
+        ? await store.acquireLease(streamId, acquireOptions)
+        : { role: await store.acquire(streamId, acquireOptions) };
+      invokeObservabilityHook(
+        "onAcquire",
+        onAcquire,
+        streamId,
+        acquisition.role,
+      );
+      if (acquisition.role === "producer") {
+        startProducerTask(
+          store,
+          streamId,
+          makeStream,
+          {
+            waitUntil,
+            onAppend,
+            onFinalize,
+            onError,
+          },
+          acquisition.lease,
+        );
       }
       return readFromStore(store, streamId);
     },
@@ -124,17 +141,17 @@ function startProducerTask(
   streamId: string,
   makeStream: () => ReadableStream<Uint8Array>,
   hooks: ProducerHooks,
+  lease: ResumableStreamLease | undefined,
 ): void {
   const { waitUntil, onAppend, onFinalize, onError } = hooks;
   const task = (async () => {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-    let cancelled = false;
     try {
       reader = makeStream().getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        await store.append(streamId, value);
+        await store.append(streamId, value, lease);
         invokeObservabilityHook(
           "onAppend",
           onAppend,
@@ -142,10 +159,26 @@ function startProducerTask(
           value.byteLength,
         );
       }
-      await store.finalize(streamId, "done");
+      const finalized = await store.finalize(
+        streamId,
+        "done",
+        undefined,
+        lease,
+      );
+      if (finalized === false) {
+        invokeObservabilityHook(
+          "onError",
+          onError,
+          streamId,
+          new ResumableStreamError(
+            "missing",
+            `Stream no longer owned by this producer: ${streamId}`,
+          ),
+        );
+        return;
+      }
       invokeObservabilityHook("onFinalize", onFinalize, streamId, "done");
     } catch (err) {
-      cancelled = true;
       invokeObservabilityHook("onError", onError, streamId, err);
       const message = err instanceof Error ? err.message : String(err);
       try {
@@ -154,7 +187,13 @@ function startProducerTask(
         console.error("resumable stream reader cancel failed:", cancelErr);
       }
       try {
-        await store.finalize(streamId, "error", message);
+        const finalized = await store.finalize(
+          streamId,
+          "error",
+          message,
+          lease,
+        );
+        if (finalized === false) return;
         invokeObservabilityHook(
           "onFinalize",
           onFinalize,
@@ -166,7 +205,7 @@ function startProducerTask(
         console.error("resumable stream finalize failed:", finalizeErr);
       }
     } finally {
-      if (!cancelled) reader?.releaseLock();
+      reader?.releaseLock();
     }
   })();
 

@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /* oxlint-disable react/exhaustive-deps -- intentional patterns are part of the scenarios */
 import { describe, it, expect } from "vitest";
 import { useEffect, useState } from "react";

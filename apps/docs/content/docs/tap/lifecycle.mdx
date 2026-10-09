@@ -1,0 +1,104 @@
+---
+title: Lifecycle
+description: How resources render, mount, update, and unmount.
+---
+
+## Render and commit
+
+Like React, tap splits work into two phases:
+
+1. **Render**: the resource function runs, hooks record their data, and a return value is produced. This phase has no side effects.
+2. **Commit**: effects whose dependencies changed run. If an effect is re-running, its previous cleanup executes first. The resource is considered mounted after this phase.
+
+```ts
+import { resource } from "@assistant-ui/tap";
+import { useState, useEffect } from "react";
+
+const useApp = () => {
+  // --- render phase ---
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    // --- commit phase ---
+    console.log(`Mounted with count: ${count}`);
+    return () => console.log("Cleaned up");
+  }, [count]);
+
+  return { count };
+};
+
+const App = resource(useApp);
+```
+
+### Effect ordering
+
+In React, effects run children-first, then parents (inside-out). This is because components can only render children by returning them, so a parent has no way to run an effect before a child's effects.
+
+In tap, **effects run in the exact order they are called during the render pass**. Since `useResource` is a hook, you can place `useEffect` calls before or after it:
+
+```ts
+import { resource, useResource } from "@assistant-ui/tap";
+import { useEffect } from "react";
+
+const useParent = () => {
+  useEffect(() => {
+    console.log("1: before child");
+  });
+
+  const child = useResource(Child());
+
+  useEffect(() => {
+    console.log("3: after child");
+  });
+
+  return child;
+};
+
+const Parent = resource(useParent);
+
+const useChild = () => {
+  useEffect(() => {
+    console.log("2: child");
+  });
+};
+
+const Child = resource(useChild);
+// Mount order: 1, 2, 3
+```
+
+This is intentional: it lets you run setup logic both before and after children, which is useful when a parent needs to react to data provided by a child.
+
+Cleanup on unmount runs in the same order as mount (FIFO), matching the order effects were originally registered.
+
+## Mount and unmount
+
+A resource is **mounted** after its first commit. At this point, effects have run and the resource is live.
+
+A resource is **released** when its owner removes it for good: every effect cleanup runs and the resource is disposed. Across the released tree, insertion effects clean up first, parents before children, and then the other effects. This happens when:
+
+- A parent resource stops rendering the child via `useResource`
+- A React component hosting the resource is removed from the tree
+- `root.unmount()` is called on a `createTapRoot` root
+
+A **soft unmount** keeps the resource: its effects clean up except for insertion effects, its state is preserved, and the effects set up again when it mounts again. A hidden `<Activity>`, a Strict Mode effect replay, and a `mountOnSubscribe` root losing its last subscriber each soft-unmount the resources they host.
+
+## Concurrent mode
+
+Resources rendered via `useResource` work with `startTransition`, `useDeferredValue`, `<Suspense>`, and other concurrent features. State updates are applied consistently, without tearing.
+
+<Callout type="warn">
+The `@assistant-ui/store` layer currently relies on `useSyncExternalStore` to bridge tap resources into React. This means store subscriptions always trigger synchronous re-renders, opting out of concurrent scheduling for those reads. This may change in a future release.
+</Callout>
+
+## Offscreen / Activity
+
+When a resource is hidden by `<Activity mode="hidden">`, it soft-unmounts, and state updates that arrive while it's hidden are tracked and replayed once it becomes visible again. This requires no configuration.
+
+A `createTapRoot` root with `mountOnSubscribe: true` follows the same model: when its subscriber count drops to zero it soft-unmounts, and the next subscriber mounts it again, like an Activity going hidden and visible again.
+
+## Strict mode
+
+In development, resources render twice on mount to surface side effects in render, the same as React's `<StrictMode>`. Their effects also set up, clean up, and set up again on mount; insertion effects set up once, as in React.
+
+- **`useResource`** inherits the surrounding `<StrictMode>`.
+- **`createTapRoot`** enables it automatically in development.

@@ -6,7 +6,7 @@ import {
   forwardRef,
 } from "react";
 import { Popover as PopoverPrimitive } from "radix-ui";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import type { WithRenderPropProps } from "../../utils/Primitive";
 import { PopoverRenderContent } from "./popoverRenderPrimitives";
 import { type ScopedProps, usePopoverScope } from "./scope";

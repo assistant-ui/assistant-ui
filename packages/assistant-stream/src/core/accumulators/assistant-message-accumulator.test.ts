@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
+import {
+  AssistantMessageAccumulator,
+  createInitialMessage,
+} from "./assistant-message-accumulator";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage } from "../utils/types";
 
@@ -65,6 +68,152 @@ describe("AssistantMessageAccumulator reasoning summaries", () => {
   });
 });
 
+describe("AssistantMessageAccumulator tool argument status", () => {
+  it("marks arguments complete before the result and preserves a settled result", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "result", path: [0], result: "found", isError: false },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(messages[1]?.parts[0]).toMatchObject({
+      state: "partial-call",
+      status: { type: "running", isArgsComplete: false },
+    });
+    expect(messages[2]?.parts[0]).toMatchObject({
+      state: "call",
+      args: { q: "test" },
+      status: { type: "running", isArgsComplete: true },
+    });
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "found",
+      status: { type: "complete", reason: "stop" },
+    });
+  });
+
+  it("preserves completed status when argument text finishes after the part", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "part-finish", path: [0] },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(messages[3]?.parts[0]).toMatchObject({
+      state: "call",
+      status: { type: "complete", reason: "unknown" },
+    });
+  });
+
+  it("keeps a preliminary result running until a final result arrives", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: "{}" },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "interim",
+        isError: false,
+        isPreliminary: true,
+      },
+      { type: "part-finish", path: [0] },
+      { type: "result", path: [0], result: "done", isError: false },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    const preliminaryMessage = messages.find(
+      (message) =>
+        message.parts[0]?.type === "tool-call" &&
+        message.parts[0].isPreliminary,
+    );
+    expect(preliminaryMessage?.parts[0]).toMatchObject({
+      state: "call",
+      result: "interim",
+      isPreliminary: true,
+      status: { type: "running", isArgsComplete: true },
+    });
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      status: { type: "complete" },
+    });
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("isPreliminary");
+  });
+
+  it("ignores a preliminary result after the final one", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "result", path: [0], result: "done", isError: false },
+      {
+        type: "result",
+        path: [0],
+        result: "late",
+        isError: false,
+        isPreliminary: true,
+      },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      status: { type: "complete", reason: "stop" },
+    });
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("isPreliminary");
+  });
+
+  it("keeps a preliminary result pending when the stream ends", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "interim",
+        isError: false,
+        isPreliminary: true,
+      },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    expect(messages.at(-1)).toMatchObject({
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          state: "call",
+          result: "interim",
+          isPreliminary: true,
+          status: { type: "running", isArgsComplete: true },
+        },
+      ],
+    });
+  });
+});
+
 describe("AssistantMessageAccumulator timing", () => {
   it("should include timing on message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [
@@ -100,6 +249,70 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(timing.firstTokenTime).toBeTypeOf("number");
     expect(timing.totalStreamTime).toBeTypeOf("number");
     expect(timing.totalStreamTime).toBeGreaterThanOrEqual(0);
+  });
+
+  it.each([
+    { stepTokens: [], finalTokens: 20, expected: 20 },
+    { stepTokens: [7], finalTokens: 20, expected: 20 },
+    { stepTokens: [3, 4], finalTokens: 0, expected: 7 },
+    { stepTokens: [3, 4], finalTokens: undefined, expected: 7 },
+  ])(
+    "uses $expected tokens for steps $stepTokens and final usage $finalTokens",
+    async ({ stepTokens, finalTokens, expected }) => {
+      const chunks: AssistantStreamChunk[] = [
+        { type: "part-start", path: [], part: { type: "text" } },
+        { type: "text-delta", path: [0], textDelta: "test" },
+        { type: "part-finish", path: [0] },
+      ];
+      for (const outputTokens of stepTokens) {
+        chunks.push({
+          type: "step-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 5, outputTokens },
+          isContinued: false,
+        });
+      }
+      if (finalTokens !== undefined) {
+        chunks.push({
+          type: "message-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 5, outputTokens: finalTokens },
+        });
+      }
+      chunks.push({ type: "annotations", path: [], annotations: ["done"] });
+
+      const messages = await collectStream(chunks);
+      const timed = messages.filter((m) => m.metadata.timing !== undefined);
+
+      expect(timed.length).toBeGreaterThan(0);
+      for (const message of timed) {
+        expect(message.metadata.timing?.tokenCount).toBe(expected);
+      }
+    },
+  );
+
+  it("falls back to the step total when message-finish omits usage", async () => {
+    const messages = await collectStream([
+      { type: "part-start", path: [], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "test" },
+      { type: "part-finish", path: [0] },
+      {
+        type: "step-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 5, outputTokens: 9 },
+        isContinued: false,
+      },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+      } as unknown as AssistantStreamChunk,
+    ]);
+
+    expect(messages.at(-1)?.metadata.timing?.tokenCount).toBe(9);
   });
 
   it("should track tool calls in timing", async () => {
@@ -186,6 +399,47 @@ describe("AssistantMessageAccumulator timing", () => {
       settledPart.timing!.startedAt,
     );
     expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
+  });
+
+  it("should record reasoning timing on the part", async () => {
+    const before = Date.now();
+    const chunks: AssistantStreamChunk[] = [
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "text-delta", path: [0], textDelta: "thinking" },
+      { type: "part-finish", path: [0] },
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "text-delta", path: [1], textDelta: "answer" },
+      { type: "part-finish", path: [1] },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const after = Date.now();
+
+    const streamingPart = messages
+      .find((m) =>
+        m.parts.some(
+          (p) => p.type === "reasoning" && p.status.type === "running",
+        ),
+      )!
+      .parts.find((p) => p.type === "reasoning")!;
+    expect(streamingPart.timing!.startedAt).toBeGreaterThanOrEqual(before);
+    expect(streamingPart.timing!.completedAt).toBeUndefined();
+
+    const last = messages.at(-1)!;
+    const settledPart = last.parts.find((p) => p.type === "reasoning")!;
+    expect(settledPart.timing!.completedAt).toBeGreaterThanOrEqual(
+      settledPart.timing!.startedAt,
+    );
+    expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
+    expect(last.parts.find((p) => p.type === "text")).not.toHaveProperty(
+      "timing",
+    );
   });
 
   it("should include timing on flush when stream closes without message-finish", async () => {
@@ -695,5 +949,154 @@ describe("AssistantMessageAccumulator warn dedup key independence", () => {
 
     expect(warn).toHaveBeenCalledTimes(16);
     warn.mockRestore();
+  });
+});
+
+describe("AssistantMessageAccumulator content alias", () => {
+  const contentIsAccessor = (message: AssistantMessage) =>
+    Object.getOwnPropertyDescriptor(message, "content")?.get !== undefined;
+
+  it("aliases content to parts on every message it emits", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const messages = await collectStream([
+        { type: "part-start", path: [0], part: { type: "text" } },
+        { type: "text-delta", path: [0], textDelta: "hi" },
+        {
+          type: "part-start",
+          path: [1],
+          part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+        },
+        {
+          type: "part-start",
+          path: [2],
+          part: {
+            type: "source",
+            sourceType: "url",
+            id: "s-1",
+            url: "https://example.com",
+          },
+        },
+        {
+          type: "part-start",
+          path: [3],
+          part: { type: "file", mimeType: "image/png", data: "AAAA" },
+        },
+        {
+          type: "part-start",
+          path: [4],
+          part: { type: "data", name: "chart", data: { a: 1 } },
+        },
+        {
+          type: "part-start",
+          path: [5],
+          part: { type: "totally-unknown" },
+        } as unknown as AssistantStreamChunk,
+      ]);
+
+      expect(messages.at(-1)?.parts).toHaveLength(6);
+      for (const message of messages) {
+        expect(message.content).toBe(message.parts);
+      }
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("aliases content to parts on the initial message", () => {
+    const message = createInitialMessage();
+    expect(contentIsAccessor(message)).toBe(true);
+    expect(message.content).toBe(message.parts);
+    // Published as unstable_createInitialMessage, so key order is observable
+    // through Object.keys and JSON serialization.
+    expect(Object.keys(message)).toEqual([
+      "role",
+      "status",
+      "parts",
+      "content",
+      "metadata",
+    ]);
+  });
+
+  it("keeps content pointing at parts across status and metadata updates", async () => {
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+      { type: "annotations", path: [], annotations: ["a"] },
+      { type: "step-start", path: [], messageId: "m-1" },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 1, outputTokens: 1 },
+      },
+    ]);
+
+    for (const message of messages) {
+      expect(message.content).toBe(message.parts);
+    }
+  });
+});
+
+describe("AssistantMessageAccumulator tool arguments", () => {
+  it("keeps nested values and partial arguments across small deltas", async () => {
+    const input = '{"query":"pizza","filters":{"limit":2}}';
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "search" },
+      },
+      ...[...input].map((text) => ({
+        type: "text-delta" as const,
+        path: [0],
+        textDelta: text,
+      })),
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    const partial = messages.slice(0, -1).find((message) => {
+      const part = message.parts[0];
+      return (
+        part?.type === "tool-call" &&
+        part.args.query === "pizza" &&
+        part.argsText !== input
+      );
+    });
+
+    expect(partial?.parts[0]).toMatchObject({
+      type: "tool-call",
+      args: { query: "pizza" },
+    });
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      type: "tool-call",
+      argsText: input,
+      args: { query: "pizza", filters: { limit: 2 } },
+    });
+  });
+
+  it("exposes tool arguments as plain cloneable objects", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "call-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"query":"pizza",' },
+      { type: "text-delta", path: [0], textDelta: '"limit":2}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    const part = messages.at(-1)?.parts[0];
+    expect(part?.type).toBe("tool-call");
+    if (part?.type !== "tool-call") throw new Error("Expected a tool call");
+
+    expect(Object.getPrototypeOf(part.args)).toBe(Object.prototype);
+    expect(structuredClone(part.args)).toEqual({ query: "pizza", limit: 2 });
+
+    const mutableArgs = part.args as Record<string, unknown>;
+    mutableArgs.query = "updated";
+    expect(mutableArgs.query).toBe("updated");
   });
 });

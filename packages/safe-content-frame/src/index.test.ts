@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SafeContentFrame } from "./index";
+import { isShimLoadError, SafeContentFrame } from "./index";
 
 class MockMessagePort {
   onmessage: ((event: MessageEvent) => void) | null = null;
@@ -21,6 +21,23 @@ class MockMessageChannel {
   constructor() {
     MockMessageChannel.instances.push(this);
   }
+}
+
+function setContentWindow(iframe: HTMLIFrameElement) {
+  const contentWindow = { postMessage: vi.fn() } as unknown as Window;
+  Object.defineProperty(iframe, "contentWindow", {
+    configurable: true,
+    value: contentWindow,
+  });
+  return contentWindow;
+}
+
+function emitWindowMessage(
+  data: unknown,
+  origin: string,
+  source: MessageEventSource | null,
+) {
+  window.dispatchEvent(new MessageEvent("message", { data, origin, source }));
 }
 
 describe("SafeContentFrame", () => {
@@ -66,18 +83,45 @@ describe("SafeContentFrame", () => {
     });
 
     const iframe = shadowRoot!.querySelector("iframe")!;
-    Object.defineProperty(iframe, "contentWindow", {
-      configurable: true,
-      value: { postMessage: vi.fn() },
-    });
+    setContentWindow(iframe);
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
+    const removeMessageListener = vi.spyOn(window, "removeEventListener");
     frame.dispose();
     frame.dispose();
 
     expect(container.childElementCount).toBe(0);
     expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(removeMessageListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
+  });
+
+  it("accepts raw multibyte pathnames from custom location providers", async () => {
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      pathname: "/café",
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      enableBrowserCaching: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = container.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    await expect(framePromise).resolves.toBeDefined();
+    frame.dispose();
   });
 
   it("cleans up the mounted frame and message channel after a load error", async () => {
@@ -101,6 +145,80 @@ describe("SafeContentFrame", () => {
     expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
   });
 
+  it("cancels a pending render before the iframe loads", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", { salt: "fixed" });
+    const controller = new AbortController();
+    const removeMessageListener = vi.spyOn(window, "removeEventListener");
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container, {
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    controller.abort();
+
+    await expect(framePromise).rejects.toMatchObject({ name: "AbortError" });
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
+    expect(removeMessageListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
+  });
+
+  it("does not mount a frame when the render is already aborted", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", { salt: "fixed" });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      renderer.renderHtml("<p>Hello</p>", container, {
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances).toHaveLength(0);
+  });
+
+  it("keeps a resolved frame alive when the render signal aborts", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", { salt: "fixed" });
+    const controller = new AbortController();
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container, {
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = container.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    controller.abort();
+
+    expect(container.contains(iframe)).toBe(true);
+    expect(MockMessageChannel.instances[0]!.port1.close).not.toHaveBeenCalled();
+    frame.sendMessage({ type: "ping" });
+    expect(iframe.contentWindow?.postMessage).toHaveBeenCalledWith(
+      { type: "ping" },
+      frame.origin,
+      undefined,
+    );
+
+    frame.dispose();
+  });
+
   it("surfaces shim errors reported after the iframe loads", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -115,10 +233,7 @@ describe("SafeContentFrame", () => {
     });
 
     const iframe = shadowRoot!.querySelector("iframe")!;
-    Object.defineProperty(iframe, "contentWindow", {
-      configurable: true,
-      value: { postMessage: vi.fn() },
-    });
+    setContentWindow(iframe);
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
@@ -133,5 +248,247 @@ describe("SafeContentFrame", () => {
     );
     expect(container.childElementCount).toBe(0);
     expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+  });
+
+  it("reports when the loaded shim does not acknowledge readiness", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      {
+        code: "shim-unavailable",
+        message: `Failed to load shim: ${iframe.src}`,
+      },
+    );
+    frame.dispose();
+  });
+
+  it("ignores readiness messages from untrusted sources", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    const iframeOrigin = new URL(iframe.src).origin;
+    emitWindowMessage(
+      { type: "ready" },
+      "https://attacker.example",
+      contentWindow,
+    );
+    emitWindowMessage({ type: "ready" }, iframeOrigin, window);
+    emitWindowMessage({ type: "unknown" }, iframeOrigin, contentWindow);
+    emitWindowMessage(
+      { type: "error", message: "forged" },
+      "https://attacker.example",
+      contentWindow,
+    );
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      {
+        code: "shim-unavailable",
+        message: `Failed to load shim: ${iframe.src}`,
+      },
+    );
+    frame.dispose();
+  });
+
+  it("reports a shim initialization failure with the shim's own message", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    const iframeOrigin = new URL(iframe.src).origin;
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    emitWindowMessage(
+      { type: "error", message: "Product name was either invalid or null" },
+      iframeOrigin,
+      contentWindow,
+    );
+
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      {
+        code: "shim-error",
+        message: "Product name was either invalid or null",
+      },
+    );
+    expect(container.childElementCount).toBe(1);
+    expect(MockMessageChannel.instances[0]!.port1.close).not.toHaveBeenCalled();
+    frame.dispose();
+  });
+
+  it("rejects and cleans up a shim initialization failure before iframe load", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+    const removeMessageListener = vi.spyOn(window, "removeEventListener");
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    emitWindowMessage(
+      { type: "error", message: "Product name was either invalid or null" },
+      new URL(iframe.src).origin,
+      contentWindow,
+    );
+
+    await expect(framePromise).rejects.toMatchObject({
+      code: "shim-error",
+      message: "Product name was either invalid or null",
+    });
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
+    expect(removeMessageListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
+  });
+
+  it("waits for render completion after shim readiness", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    const iframeOrigin = new URL(iframe.src).origin;
+    emitWindowMessage({ type: "ready" }, iframeOrigin, contentWindow);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    vi.useFakeTimers();
+    try {
+      const fullyLoaded = frame.fullyLoadedPromiseWithTimeout(100);
+      MockMessageChannel.instances[0]!.port1.emit({ type: "msg" });
+
+      await expect(fullyLoaded).resolves.toBeUndefined();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      frame.dispose();
+    }
+  });
+
+  it("keeps render completion compatible without a readiness message", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    const fullyLoaded = frame.fullyLoadedPromiseWithTimeout(100);
+    MockMessageChannel.instances[0]!.port1.emit({ type: "msg" });
+
+    await expect(fullyLoaded).resolves.toBeUndefined();
+    frame.dispose();
+  });
+
+  it("reports a render timeout after shim readiness", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    const iframeOrigin = new URL(iframe.src).origin;
+    emitWindowMessage({ type: "ready" }, iframeOrigin, contentWindow);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      { code: "render-timeout", message: "Timeout" },
+    );
+    frame.dispose();
+  });
+});
+
+describe("isShimLoadError", () => {
+  it.each(["shim-unavailable", "shim-error", "render-timeout"])(
+    "accepts a rejection carrying the %s code",
+    (code) => {
+      expect(isShimLoadError(Object.assign(new Error("x"), { code }))).toBe(
+        true,
+      );
+    },
+  );
+
+  it("rejects the plain errors the same promise can also reject with", () => {
+    expect(isShimLoadError(new Error("Failed to load iframe"))).toBe(false);
+    expect(
+      isShimLoadError(Object.assign(new Error("x"), { code: "enoent" })),
+    ).toBe(false);
+    expect(isShimLoadError({ code: "shim-error" })).toBe(false);
+    expect(isShimLoadError(undefined)).toBe(false);
   });
 });

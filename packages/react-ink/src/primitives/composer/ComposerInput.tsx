@@ -1,8 +1,9 @@
 import { type ComponentProps } from "react";
 
 import { Box } from "ink";
+import { composerInputDisabled } from "@assistant-ui/core/store/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { TextInput } from "../textInput/TextInput";
+import { ComposerTextInput } from "../textInput/TextInput";
 
 export type ComposerInputProps = ComponentProps<typeof Box> & {
   submitOnEnter?: boolean | undefined;
@@ -22,6 +23,7 @@ export const ComposerInput = ({
 }: ComposerInputProps) => {
   const aui = useAui();
   const storeText = useAuiState((s) => s.composer.text);
+  const isInputDisabled = useAuiState(composerInputDisabled);
 
   const submit = (submittedText: string) => {
     if (onSubmit) {
@@ -30,14 +32,20 @@ export const ComposerInput = ({
     }
 
     const threadState = aui.thread.getState();
-    if (threadState.isRunning && !threadState.capabilities.queue) return;
+    if (
+      threadState.isRunning &&
+      !threadState.capabilities.queue &&
+      threadState.voice === undefined
+    )
+      return;
 
     aui.composer.send();
   };
 
   return (
-    <TextInput
+    <ComposerTextInput
       {...boxProps}
+      isDisabled={isInputDisabled}
       value={storeText}
       onChange={(text) => aui.composer.setText(text)}
       onSubmit={submit}

@@ -11,12 +11,12 @@ import {
  * The default transport: reads the in-process DevToolsHooks registry and
  * re-projects it on every change.
  *
- * Projection runs inside the subscribe/change callbacks (outside React render)
- * because the scope accessors throw when invoked during a render, and
- * getSnapshot returns the cached result.
+ * Projection runs inside the subscribe/change callbacks and getSnapshot returns the cached result, because useSyncExternalStore requires a referentially stable snapshot and rebuilding it per call would loop.
  */
 export const createInProcessClient = (): DevToolsClient => {
   let snapshot: DevToolsSnapshot = EMPTY_SNAPSHOT;
+  const listeners = new Set<() => void>();
+  let unsubscribeRegistry: (() => void) | undefined;
 
   const rebuild = () => {
     const apis = DevToolsHooks.getApis();
@@ -34,11 +34,32 @@ export const createInProcessClient = (): DevToolsClient => {
 
   return {
     subscribe(listener) {
-      rebuild();
-      return DevToolsHooks.subscribe(() => {
+      const notify = () => listener();
+      listeners.add(notify);
+      if (listeners.size === 1) {
         rebuild();
-        listener();
-      });
+        unsubscribeRegistry = DevToolsHooks.subscribe(() => {
+          rebuild();
+          for (const notify of [...listeners]) {
+            if (!listeners.has(notify)) continue;
+            try {
+              notify();
+            } catch (error) {
+              console.error(
+                "[assistant-ui] DevTools listener threw an error",
+                error,
+              );
+            }
+          }
+        });
+      }
+      return () => {
+        listeners.delete(notify);
+        if (listeners.size === 0) {
+          unsubscribeRegistry?.();
+          unsubscribeRegistry = undefined;
+        }
+      };
     },
     getSnapshot: () => snapshot,
     getServerSnapshot: () => EMPTY_SNAPSHOT,

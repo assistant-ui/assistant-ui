@@ -1,4 +1,4 @@
-import { frontendTools, type FrontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { tool, zodSchema } from "ai";
 import { z } from "zod";
 import { resolveNextCourseStep } from "@/lib/xulux/learn/next-step-result";

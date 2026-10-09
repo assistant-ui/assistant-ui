@@ -42,7 +42,7 @@ async function ghFetch(
 ): Promise<Response> {
   const { next: initNext, ...rest } = init ?? {};
   const cache = cacheInit(revalidate);
-  return withTimeout(
+  const res = await withTimeout(
     fetch(`${base}${path}`, {
       ...rest,
       headers: ghHeaders(init?.headers),
@@ -51,6 +51,11 @@ async function ghFetch(
         : cache),
     }),
   );
+  // Every caller degrades to a placeholder, so an outage is otherwise invisible.
+  if (!res.ok) {
+    console.warn(`GitHub responded ${res.status} for ${base}${path}.`);
+  }
+  return res;
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
@@ -239,17 +244,12 @@ export async function getCommitCoAuthors(
     for (let i = 0; i < rest.length; i += COMMIT_PAGE_CONCURRENCY) {
       const batch = await Promise.all(
         rest.slice(i, i + COMMIT_PAGE_CONCURRENCY).map(async (page) => {
-          try {
-            const res = await ghFetch(
-              `/commits?per_page=100&page=${page}`,
-              revalidate,
-            );
-            return res.ok
-              ? ((await withTimeout(res.json())) as CommitListItem[])
-              : [];
-          } catch {
-            return [];
-          }
+          const res = await ghFetch(
+            `/commits?per_page=100&page=${page}`,
+            revalidate,
+          );
+          if (!res.ok) throw new Error(`Commit page ${page} failed`);
+          return (await withTimeout(res.json())) as CommitListItem[];
         }),
       );
       pages.push(...batch);
@@ -292,36 +292,59 @@ export type GitHubUser = {
   htmlUrl: string;
 };
 
+async function fetchGitHubUserOrThrow(
+  path: string,
+  revalidate: number,
+): Promise<GitHubUser | null> {
+  const res = await withTimeout(
+    fetch(`https://api.github.com/${path}`, {
+      headers: ghHeaders(),
+      ...cacheInit(revalidate),
+    }),
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub user lookup failed: ${res.status}`);
+  const data = await withTimeout(res.json());
+  if (
+    typeof data?.login !== "string" ||
+    typeof data.type !== "string" ||
+    typeof data.avatar_url !== "string" ||
+    typeof data.html_url !== "string"
+  ) {
+    throw new Error("GitHub user lookup returned an invalid account");
+  }
+  return {
+    login: data.login,
+    type: data.type,
+    avatarUrl: data.avatar_url,
+    htmlUrl: data.html_url,
+  };
+}
+
 async function fetchGitHubUser(
   path: string,
   revalidate: number,
 ): Promise<GitHubUser | null> {
   try {
-    const res = await withTimeout(
-      fetch(`https://api.github.com/${path}`, {
-        headers: ghHeaders(),
-        ...cacheInit(revalidate),
-      }),
-    );
-    if (!res.ok) return null;
-    const data = await withTimeout(res.json());
-    if (typeof data?.login !== "string") return null;
-    return {
-      login: data.login,
-      type: data.type,
-      avatarUrl: data.avatar_url,
-      htmlUrl: data.html_url,
-    };
+    return await fetchGitHubUserOrThrow(path, revalidate);
   } catch {
     return null;
   }
 }
 
+export const getCoAuthorUser = (
+  identifier: number | string,
+  revalidate: number = REVALIDATE.COOL,
+) =>
+  fetchGitHubUserOrThrow(
+    typeof identifier === "number"
+      ? `user/${identifier}`
+      : `users/${encodeURIComponent(identifier)}`,
+    revalidate,
+  );
+
 export const getUser = (login: string, revalidate: number = REVALIDATE.COOL) =>
   fetchGitHubUser(`users/${encodeURIComponent(login)}`, revalidate);
-
-export const getUserById = (id: number, revalidate: number = REVALIDATE.COOL) =>
-  fetchGitHubUser(`user/${id}`, revalidate);
 
 export type GitHubContributor = {
   login: string;
@@ -342,41 +365,67 @@ export async function getContributors(
         `/contributors?per_page=100&page=${page}`,
         revalidate,
       );
-      if (!res.ok) {
-        if (page === 1) return null;
-        break;
-      }
+      if (!res.ok) return null;
       const batch = (await withTimeout(res.json())) as GitHubContributor[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
     }
   } catch {
-    if (all.length === 0) return null;
+    return null;
   }
   return all;
 }
 
-export type StargazerEntry = { starred_at: string };
+export type StarHistoryWeek = { week: number; total: number; days: number[] };
 
-export async function getStargazersPage(
-  page: number,
+// The endpoint caps per_page at 30 and clamps anything larger without saying so.
+const STAR_HISTORY_PAGE_SIZE = 30;
+const MAX_STAR_HISTORY_PAGES = 60;
+
+/** Privacy-safe weekly star counts, newest first, back to the creation week. */
+export async function getStarHistory(
   revalidate: number = REVALIDATE.COOL,
-): Promise<{
-  data: StargazerEntry[];
-  lastPage: number | null;
-}> {
+): Promise<StarHistoryWeek[] | null> {
+  const path = (page: number) =>
+    `/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}&page=${page}`;
+  // A 200 carrying anything but real buckets would otherwise reach the caller
+  // and throw, on the one path where every other fetcher degrades.
+  const parse = (value: unknown): StarHistoryWeek[] | null =>
+    Array.isArray(value) &&
+    value.every(
+      (bucket) =>
+        typeof bucket?.week === "number" && typeof bucket?.total === "number",
+    )
+      ? (value as StarHistoryWeek[])
+      : null;
+
   try {
-    const res = await ghFetch(
-      `/stargazers?per_page=100&page=${page}`,
-      revalidate,
-      { headers: { Accept: "application/vnd.github.star+json" } },
+    const first = await ghFetch(path(1), revalidate);
+    if (!first.ok) return null;
+    const weeks = parse(await withTimeout(first.json()));
+    if (!weeks) return null;
+    const linked = parseLastPage(first.headers.get("Link"));
+    // Page 1 holds the newest weeks while the series accumulates from the oldest,
+    // so a listing truncated here is a rebased curve, not a shorter one.
+    if (linked === null && weeks.length >= STAR_HISTORY_PAGE_SIZE) return null;
+    if (linked !== null && linked > MAX_STAR_HISTORY_PAGES) return null;
+    const lastPage = linked ?? 1;
+
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(0, lastPage - 1) }, async (_, i) => {
+        const res = await ghFetch(path(i + 2), revalidate);
+        if (!res.ok) return null;
+        return parse(await withTimeout(res.json()));
+      }),
     );
-    if (!res.ok) return { data: [], lastPage: null };
-    const data = (await withTimeout(res.json())) as StargazerEntry[];
-    return { data, lastPage: parseLastPage(res.headers.get("Link")) };
+    // A lost page would flatten the curve across the weeks it covers rather
+    // than fail, so the series is all or nothing.
+    if (rest.some((page) => page === null)) return null;
+    for (const page of rest) weeks.push(...page!);
+    return weeks;
   } catch {
-    return { data: [], lastPage: null };
+    return null;
   }
 }
 

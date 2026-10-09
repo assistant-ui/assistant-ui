@@ -1,0 +1,64 @@
+name: Axiom deploy annotation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  annotate:
+    # A fork's own main pushes never carry the secret, so without this the job
+    # would fail on every one of them.
+    if: github.repository == 'assistant-ui/assistant-ui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      # The docs app runs the same script as its Vercel ignore command, so a
+      # commit Vercel declines to build must not be marked as shipped either.
+      - name: Decide whether this commit ships
+        id: ships
+        env:
+          VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+          VERCEL_GIT_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if bash scripts/vercel-ignore-changeset-release.sh; then
+            echo "ships=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ships=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Marks the deploy on every Axiom chart this repository's telemetry lands
+      # on, so a latency or error step can be lined up against what shipped.
+      - name: Record the deploy
+        if: steps.ships.outputs.ships == 'true'
+        env:
+          AXIOM_TOKEN: ${{ secrets.AXIOM_API_TOKEN }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AXIOM_TOKEN:-}" ]; then
+            echo "AXIOM_API_TOKEN is not set, so this deploy would go unmarked." >&2
+            exit 1
+          fi
+          jq -nc \
+            --arg time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg title "${REPOSITORY}@${SHA:0:7}" \
+            --arg description "${COMMIT_MESSAGE%%$'\n'*}" \
+            --arg url "${COMMIT_URL}" \
+            --argjson datasets '["vercel","traces"]' \
+            '{type: "deploy", time: $time, title: $title, description: $description, url: $url, datasets: $datasets}' \
+          | curl --fail-with-body --silent --show-error \
+              -X POST https://api.axiom.co/v2/annotations \
+              -H "Authorization: Bearer ${AXIOM_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data @-

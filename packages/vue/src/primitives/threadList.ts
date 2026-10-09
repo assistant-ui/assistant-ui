@@ -5,6 +5,7 @@ import {
   mergeProps,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ThreadListItemMethods } from "@assistant-ui/core/store";
@@ -13,6 +14,7 @@ import { isAttrDisabled } from "./attrDisabled";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
+export { ThreadListItemPrimitiveTrigger } from "./ThreadListItemPrimitiveTrigger";
 
 /**
  * Scopes the subtree to the thread-list item at `index`: descendants read it
@@ -30,7 +32,7 @@ export const ThreadListItemByIndexProvider = defineComponent({
       default: false,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;
@@ -90,18 +92,16 @@ export const ThreadListPrimitiveItems = defineComponent({
       default: false,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
-    const count = useAuiState((s) =>
-      props.archived
-        ? s.threads.archivedThreadIds.length
-        : s.threads.threadIds.length,
+    const threadIds = useAuiState((s) =>
+      props.archived ? s.threads.archivedThreadIds : s.threads.threadIds,
     );
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      threadIds.value.map((threadId, index) =>
         h(
           ThreadListItemByIndexProvider,
-          { index, archived: props.archived, key: index },
+          { index, archived: props.archived, key: threadId },
           { default: () => slots.default?.() },
         ),
       );
@@ -115,7 +115,7 @@ export const ThreadListPrimitiveItems = defineComponent({
 export const ThreadListPrimitiveNew = defineComponent({
   name: "ThreadListPrimitiveNew",
   inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
     const active = useAuiState(
@@ -124,38 +124,6 @@ export const ThreadListPrimitiveNew = defineComponent({
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || isAttrDisabled(attrs)) return;
       aui.threads.switchToNewThread();
-    };
-    return () =>
-      h(
-        "button",
-        mergeProps(attrs, {
-          type: "button",
-          disabled: isAttrDisabled(attrs),
-          ...(active.value && {
-            "data-active": "true",
-            "aria-current": "true",
-          }),
-          onClick,
-        }),
-        slots.default?.(),
-      );
-  },
-});
-
-/**
- * A button that switches to the current thread-list item's thread. Carries
- * `data-active` and `aria-current` while that thread is the main one.
- */
-export const ThreadListItemPrimitiveTrigger = defineComponent({
-  name: "ThreadListItemPrimitiveTrigger",
-  inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
-  setup(_, { attrs, slots }) {
-    const aui = useAui();
-    const active = useAuiState((s) => s.threadListItem.isMain);
-    const onClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || isAttrDisabled(attrs)) return;
-      aui.threadListItem.switchTo();
     };
     return () =>
       h(
@@ -186,7 +154,7 @@ export const ThreadListItemPrimitiveTitle = defineComponent({
       default: "",
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const title = useAuiState((s) => s.threadListItem.title);
     return () =>

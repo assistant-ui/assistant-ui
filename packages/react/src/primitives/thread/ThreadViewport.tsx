@@ -1,13 +1,12 @@
 "use client";
 
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useComposedRefs } from "radix-ui/internal";
 import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
   useCallback,
-  useLayoutEffect,
   useMemo,
 } from "react";
 import { useAuiState } from "@assistant-ui/store";
@@ -20,6 +19,7 @@ import {
   useThreadViewportStore,
 } from "../../context/react/ThreadViewportContext";
 import { useTopAnchorReserve } from "./topAnchor/useTopAnchorReserve";
+import { useIsomorphicLayoutEffect } from "../../utils/useIsomorphicLayoutEffect";
 import {
   getActiveTopAnchorAnchorId,
   getActiveTopAnchorTargetId,
@@ -124,13 +124,13 @@ const useTopAnchorTurn = (enabled: boolean) => {
       isTopAnchorTurnValid(topAnchorTurn, s.thread.messages),
   );
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!topAnchorTurn || topAnchorTurnIsValid) return;
 
     threadViewportStore.getState().setTopAnchorTurn(null);
   }, [threadViewportStore, topAnchorTurn, topAnchorTurnIsValid]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!activeTurn) return;
 
     const state = threadViewportStore.getState();

@@ -1,5 +1,86 @@
 # create-assistant-ui
 
+## 0.0.84
+
+### Patch Changes
+
+- Updated dependencies [[`cae68a4`](https://github.com/assistant-ui/assistant-ui/commit/cae68a45bf24b528151d182e657979053910bec5), [`880d66a`](https://github.com/assistant-ui/assistant-ui/commit/880d66af8cdb171cd5eee1b1159e35df5b0d9919), [`a73237b`](https://github.com/assistant-ui/assistant-ui/commit/a73237b277793c9b9e56cd638357fc57005c07e1)]:
+  - assistant-ui@0.0.121
+
+## 0.0.83
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - assistant-ui@0.0.120
+
+## 0.0.82
+
+### Patch Changes
+
+- Updated dependencies [[`cec9fd4`](https://github.com/assistant-ui/assistant-ui/commit/cec9fd4bf1d17aeff969f5ff57e4c5b34ea3ea61), [`3104efa`](https://github.com/assistant-ui/assistant-ui/commit/3104efa20a6659919fb230b8b5d4e6ecf0ed7c63)]:
+  - assistant-ui@0.0.119
+
+## 0.0.81
+
+### Patch Changes
+
+- Updated dependencies [[`2de8c2f`](https://github.com/assistant-ui/assistant-ui/commit/2de8c2f7679cf2902feafe5e29de591ab470c9af), [`412bdb7`](https://github.com/assistant-ui/assistant-ui/commit/412bdb76b17cb2682b16a73f531176128c09de9e), [`687895a`](https://github.com/assistant-ui/assistant-ui/commit/687895abc7bbcce0ca8a7b8cfa5ad6f0466fce00), [`de54fb0`](https://github.com/assistant-ui/assistant-ui/commit/de54fb00e391b4d062248dbe62aa0f16926968a6), [`76e0656`](https://github.com/assistant-ui/assistant-ui/commit/76e0656bf21a5e11b958bdd6f0d67e6edfee6444), [`57f96f9`](https://github.com/assistant-ui/assistant-ui/commit/57f96f970088f93a93e3aaf4a2eaaaeffb7746af), [`609bf8d`](https://github.com/assistant-ui/assistant-ui/commit/609bf8d4a30abfb544a5472e9c74fc5f2ff661bf), [`9c2a9ec`](https://github.com/assistant-ui/assistant-ui/commit/9c2a9ec03403c3081549d15fa21469904c8926e6), [`e859b3a`](https://github.com/assistant-ui/assistant-ui/commit/e859b3ac649902e73bfe1fe06940aa7794f8fb51), [`6d8011d`](https://github.com/assistant-ui/assistant-ui/commit/6d8011d87473b16f24ad7aa21721de4dbbcc87b6), [`2de8c2f`](https://github.com/assistant-ui/assistant-ui/commit/2de8c2f7679cf2902feafe5e29de591ab470c9af), [`359f73c`](https://github.com/assistant-ui/assistant-ui/commit/359f73ce8d4d550d51ce865c12baef900d11d213)]:
+  - assistant-ui@0.0.118
+
+## 0.0.80
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`b240715`](https://github.com/assistant-ui/assistant-ui/commit/b24071515c0abc8c903a073dbbdd347d9a1bb2d7), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`d41cbf7`](https://github.com/assistant-ui/assistant-ui/commit/d41cbf7786c60398977174b254be1ee345605916)]:
+  - assistant-ui@0.0.117
+
+## 0.0.79
+
+### Patch Changes
+
+- Updated dependencies [[`1a1865c`](https://github.com/assistant-ui/assistant-ui/commit/1a1865c530f389145def6dae3bfb9c608cace43c), [`b8e5cf4`](https://github.com/assistant-ui/assistant-ui/commit/b8e5cf4a5ffd864b14e03b425cef4361889651f0), [`9594178`](https://github.com/assistant-ui/assistant-ui/commit/959417838ec64de719eeb4de40776da0fdd092fe)]:
+  - assistant-ui@0.0.116
+
+## 0.0.78
+
+### Patch Changes
+
+- Updated dependencies [[`238d94a`](https://github.com/assistant-ui/assistant-ui/commit/238d94ab4366d342416ce164d0fc58d1a661a0f8), [`eedcf16`](https://github.com/assistant-ui/assistant-ui/commit/eedcf16b5e0e36282137d588990e8c9c417ea240), [`1cd905f`](https://github.com/assistant-ui/assistant-ui/commit/1cd905fa5da0a9c2b196ead7c3fe8f31822d3722), [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`a08b330`](https://github.com/assistant-ui/assistant-ui/commit/a08b330a4d06921265f8e209e90b887e74386365), [`9af436c`](https://github.com/assistant-ui/assistant-ui/commit/9af436c16792cce10ea4eebd647ee9e88e126dc8)]:
+  - assistant-ui@0.0.115
+
+## 0.0.77
+
+### Patch Changes
+
+- [#6631](https://github.com/assistant-ui/assistant-ui/pull/6631) [`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292) - fix: publish workspace dependencies as caret ranges so they dedupe ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292), [`0a2a599`](https://github.com/assistant-ui/assistant-ui/commit/0a2a599c3b02cce6023321eaca343031720be9fb), [`418f922`](https://github.com/assistant-ui/assistant-ui/commit/418f922d5f4ed2a7a33c8c29715e9fa282a1fa73), [`7730e8c`](https://github.com/assistant-ui/assistant-ui/commit/7730e8cac04cc049dcc4bab3bcfa94e7fb89d33f), [`48e12ab`](https://github.com/assistant-ui/assistant-ui/commit/48e12ab0692f5f252c8ae57993fecb3520e2bae3), [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8), [`f9390cd`](https://github.com/assistant-ui/assistant-ui/commit/f9390cd330cba84b025b3db6a7366718ba0df22b), [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794)]:
+  - assistant-ui@0.0.114
+
+## 0.0.76
+
+### Patch Changes
+
+- [#6354](https://github.com/assistant-ui/assistant-ui/pull/6354) [`8ee4660`](https://github.com/assistant-ui/assistant-ui/commit/8ee4660e1fd217588afdaf70ed535ca491fbceb2) - fix: propagate termination signals to the spawned CLI. cancelling now exits by the signal (130 for `SIGINT`, 143 for `SIGTERM`) instead of reporting success, so a cancelled scaffold no longer looks like a completed one to CI. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d), [`34a31cb`](https://github.com/assistant-ui/assistant-ui/commit/34a31cb82257ddd186d048d779b84946ba2ad423), [`71f76b1`](https://github.com/assistant-ui/assistant-ui/commit/71f76b17623923a6ac6eefa82b2762027c056ca0), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`b70a714`](https://github.com/assistant-ui/assistant-ui/commit/b70a714a5569710e2ea87c81bc1a652a5161d4f1)]:
+  - assistant-ui@0.0.113
+
+## 0.0.75
+
+### Patch Changes
+
+- Updated dependencies []:
+  - assistant-ui@0.0.112
+
+## 0.0.74
+
+### Patch Changes
+
+- Updated dependencies [[`4a1e7b6`](https://github.com/assistant-ui/assistant-ui/commit/4a1e7b60fb9be53b21645ba52def3d240514c5a5), [`abea286`](https://github.com/assistant-ui/assistant-ui/commit/abea286d275c53588d9acf0f30648a0eef0b3980), [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e)]:
+  - assistant-ui@0.0.111
+
 ## 0.0.73
 
 ### Patch Changes

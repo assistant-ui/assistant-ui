@@ -56,7 +56,7 @@ If you do not have an existing store, use [`LocalRuntime`](/docs/runtimes/custom
   </Flow.Canvas>
 </Flow.Root>
 
-Key idea: you own the state, the adapter translates between your format and assistant-ui's. UI features are capability-based; if you provide `setMessages`, branching turns on; if you provide `onEdit`, editing turns on; etc.
+You own the state, and the adapter translates between your format and assistant-ui's. UI features are capability-based: providing `setMessages` turns on branching, and providing `onEdit` turns on editing.
 
 ## Quickstart
 
@@ -83,7 +83,12 @@ import {
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 
-type MyMessage = { role: "user" | "assistant"; content: string };
+type MyMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+};
 
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   role: message.role,
@@ -91,7 +96,12 @@ const convertMessage = (message: MyMessage): ThreadMessageLike => ({
 });
 
 const backendApi = async (input: string): Promise<MyMessage> => {
-  return { role: "assistant", content: "Hello, world!" };
+  return {
+    id: crypto.randomUUID(),
+    role: "assistant",
+    content: "Hello, world!",
+    timestamp: new Date().toISOString(),
+  };
 };
 
 export function MyRuntimeProvider({
@@ -105,7 +115,15 @@ export function MyRuntimeProvider({
       throw new Error("Only text messages are supported");
     }
     const input = message.content[0].text;
-    setMessages((prev) => [...prev, { role: "user", content: input }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: input,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     setIsRunning(true);
     const assistant = await backendApi(input);
@@ -134,7 +152,7 @@ export function MyRuntimeProvider({
 ### Use in your app
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
 
 export default function Page() {
@@ -151,14 +169,14 @@ export default function Page() {
 
 ## Message conversion
 
-Two approaches.
+There are two approaches.
 
 ### Inline `convertMessage`
 
 ```tsx
 const convertMessage = (message: MyMessage): ThreadMessageLike => ({
   role: message.role,
-  content: [{ type: "text", text: message.text }],
+  content: [{ type: "text", text: message.content }],
   id: message.id,
   createdAt: new Date(message.timestamp),
 });
@@ -180,7 +198,7 @@ import { useExternalMessageConverter } from "@assistant-ui/react";
 const convertedMessages = useExternalMessageConverter({
   callback: (message: MyMessage): ThreadMessageLike => ({
     role: message.role,
-    content: [{ type: "text", text: message.text }],
+    content: [{ type: "text", text: message.content }],
     id: message.id,
   }),
   messages,
@@ -194,7 +212,48 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-`joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate.
+`joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate. A message carrying `metadata.modality: "voice"` never joins under either strategy, so a voice transcript stays its own thread message.
+
+When shared metadata changes frequently but each message reads only a small part
+of it, use `getMetadataKey` to keep unrelated messages cached. The returned key
+must change whenever the metadata read by `callback` changes for that message.
+Return a primitive or a value whose identity stays stable while that metadata is
+unchanged:
+
+```tsx
+type MyMetadata = useExternalMessageConverter.Metadata & {
+  labelById: Record<string, string>;
+};
+
+const convertWithMetadata: useExternalMessageConverter.Callback<MyMessage> = (
+  message,
+  metadata,
+) => {
+  const { labelById } = metadata as MyMetadata;
+  return {
+    role: message.role,
+    content: [
+      {
+        type: "text",
+        text: `${message.content} ${labelById[message.id] ?? ""}`,
+      },
+    ],
+  };
+};
+
+const getMetadataKey: useExternalMessageConverter.GetMetadataKey<MyMessage> = (
+  message,
+  metadata,
+) => (metadata as MyMetadata).labelById[message.id];
+
+const convertedMessages = useExternalMessageConverter({
+  callback: convertWithMetadata,
+  messages,
+  isRunning,
+  metadata: { labelById } as MyMetadata,
+  getMetadataKey,
+});
+```
 
 ## Handler matrix
 
@@ -208,7 +267,8 @@ Each handler enables a specific UI feature.
 | `onReload` | Regenerate button |
 | `onCancel` | Cancel button while generating |
 | `onRefetchThread` | `threads.reloadMainThread()` refetching the open thread in place |
-| `onAddToolResult` | Client-side tool result handoff |
+| `onAddToolResult` | Client-side tool result handoff. Any of `onAddToolResult`, `onResumeToolCall`, and `onRespondToToolApproval` turns on `s.thread.capabilities.answerToolCall`, which the tool fallback's answer controls need |
+| `onVoiceTranscript` | Persist finalized voice transcripts. Convert the `ThreadMessage` to the host message type when one is used and retain its id. A transcript that finalizes while `isLoading` is true arrives once loading ends, and is not delivered at all when the conversation changed while it waited, which is recognized by a new `unstable_messageRepositoryInstance`. |
 | `queue` | Queueing messages sent while a run is in progress |
 
 ## Streaming responses
@@ -273,7 +333,7 @@ const onEdit = async (message: AppendMessage) => {
 
 ## Branching
 
-The linear `messages` array assumes each message's parent is the previous one. For branching (e.g. multiple regenerations), use `ExportedMessageRepository.fromBranchableArray()` and import via `thread.import()`:
+The linear `messages` array assumes each message's parent is the previous one. For branching (e.g. multiple regenerations), build the tree with `ExportedMessageRepository.fromBranchableArray()` and pass it to the store as `messageRepository`:
 
 ```tsx
 import {
@@ -295,7 +355,11 @@ const repo = ExportedMessageRepository.fromBranchableArray(
   { headId: "asst-1" },
 );
 
-runtime.thread.import(repo);
+const runtime = useExternalStoreRuntime({
+  messageRepository: repo,
+  setMessages, // performs branch switches
+  onNew,
+});
 ```
 
 Each message must have an explicit `id` and `parentId`; messages with the same `parentId` create branches. Parents must appear before children in the array.
@@ -314,6 +378,8 @@ runtime.thread.import(repo);
 ```
 
 The exported shape round-trips through `thread.import()` directly, so the same value is both your persistence format and what you load back.
+
+On an external store, `thread.import()` hands the imported messages to `onImport`, which writes them back into your store. A store without `onImport` rejects the import instead of letting the runtime's copy drift from the store, so implement `onImport`, or pass the snapshot back as `messageRepository`.
 
 ### Persisting branch selection
 
@@ -398,13 +464,51 @@ By default, sending while the thread is running is disabled. Provide a `queue` a
 
 The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
 
-A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors — unknown ids or anchors throw rather than being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
+The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. A rejected dispatch that never reported busy needs no idle notification, including when a steer cancelled it. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue logs failures other than aborts.
+
+Call `notifyBusy()` synchronously before committing a message or starting work that can fail. A busy notification from a later React effect can arrive after a fast failure and is too late to establish that the message was already accepted. After accepting a message, the driver owns failure handling and must eventually report `notifyIdle()` when that run settles.
+
+A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors: unknown ids or anchors throw instead of being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
+
+The example below expects `onNew` to resolve or reject only when its run settles. If it starts work and returns early, such as dispatching a socket message, keep busy and idle notifications tied to the store's actual run lifecycle and omit the idle notification in the driver's `finally` block.
 
 ```tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createMessageQueue, useExternalStoreRuntime } from "@assistant-ui/react";
 
-const [queue] = useState(() => createMessageQueue({ run: onNew }));
+const onNewRef = useRef(onNew);
+const busyEdges = useRef(0);
+const wasRunning = useRef(isRunning);
+useLayoutEffect(() => {
+  onNewRef.current = onNew;
+}, [onNew]);
+
+const [queue] = useState(() => {
+  const controller = createMessageQueue({
+    run: async (message) => {
+      const edgesAtDispatch = busyEdges.current;
+      controller.notifyBusy();
+      try {
+        await onNewRef.current(message);
+      } finally {
+        if (busyEdges.current === edgesAtDispatch && !wasRunning.current) {
+          controller.notifyIdle();
+        }
+      }
+    },
+  });
+  if (isRunning) controller.notifyBusy();
+  return controller;
+});
+
+useEffect(() => {
+  if (!wasRunning.current && isRunning) {
+    busyEdges.current++;
+    queue.notifyBusy();
+  }
+  if (wasRunning.current && !isRunning) queue.notifyIdle();
+  wasRunning.current = isRunning;
+}, [isRunning, queue]);
 
 const runtime = useExternalStoreRuntime({
   messages,
@@ -412,13 +516,6 @@ const runtime = useExternalStoreRuntime({
   onNew,
   queue: queue.adapter,
 });
-
-const wasRunning = useRef(isRunning);
-useEffect(() => {
-  if (!wasRunning.current && isRunning) queue.notifyBusy();
-  if (wasRunning.current && !isRunning) queue.notifyIdle();
-  wasRunning.current = isRunning;
-}, [isRunning, queue]);
 ```
 
 With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
@@ -441,11 +538,39 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
+## Paging earlier messages
+
+A long thread can open on its latest page and fetch older messages on demand. Report whether older messages exist with `hasEarlier`, and load the page before the first message in `onLoadEarlier`:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew,
+  hasEarlier: cursor !== null,
+  onLoadEarlier: async () => {
+    const page = await fetchMessagesBefore(cursor);
+    setMessages((current) => [...page.messages, ...current]);
+    setCursor(page.previousCursor);
+  },
+});
+```
+
+The runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()`. `ThreadPrimitive.LoadEarlier` is a button that loads the next page and is disabled while none exists (a press while one loads joins it, so the button keeps keyboard focus), `ThreadPrimitive.Viewport` keeps the visible messages in place when the page lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` loads one when the list nears its start.
+
+- Give every message a stable `id`; a message without one is renumbered when earlier ones arrive, which remounts it.
+- Merge the page into the latest `messages`, not a copy taken when the request started, so tokens that streamed meanwhile are kept.
+- With `messageRepository`, publish the full merged repository with its head; a repository replaces the previous one rather than extending it.
+
 ## Multi-thread
 
 `ExternalStoreRuntime` uses `ExternalStoreThreadListAdapter` (synchronous, inline). See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter) for the contract and best practices on keeping `currentThreadId` in sync with your store.
 
 ## Integration examples
+
+<Callout type="info">
+**Real-world example:** the [Claude Managed Agents guide](/docs/runtimes/claude-managed-agents) maps Anthropic-hosted agent sessions onto this runtime, with Anthropic's official [quickstart](https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui) as the runnable reference.
+</Callout>
 
 ### Redux
 
@@ -723,9 +848,9 @@ useExternalStoreRuntime({
 });
 ```
 
-**State not updating.** check for: array mutation instead of new arrays, missing `setMessages`, broken async handling, or invalid `convertMessage` output.
+**State not updating.** Check for: array mutation instead of new arrays, missing `setMessages`, broken async handling, or invalid `convertMessage` output.
 
-**Messages going to the wrong thread.** the runtime's `currentThreadId` and your store's selected thread must stay in sync. Centralize thread id in a context, never in component-local state. See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter).
+**Messages going to the wrong thread.** The runtime's `currentThreadId` and your store's selected thread must stay in sync. Centralize thread id in a context, never in component-local state. See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter).
 
 ## API reference
 
@@ -774,6 +899,19 @@ useExternalStoreRuntime({
         "Whether the adapter is in a loading state. Displays a loading indicator instead of the composer.",
     },
     {
+      name: "hasEarlier",
+      type: "boolean",
+      description:
+        "Whether messages exist before the first one in messages. Surfaces as thread.hasEarlier, but only together with onLoadEarlier.",
+      default: "false",
+    },
+    {
+      name: "onLoadEarlier",
+      type: "() => Promise<void>",
+      description:
+        "Loads the page before the first message; prepend it to messages. One call runs at a time, thread.isLoadingEarlier stays true until the promise settles, and a rejection is logged rather than passed on.",
+    },
+    {
       name: "suggestions",
       type: "readonly ThreadSuggestion[]",
       description: "Suggested prompts to display.",
@@ -801,7 +939,7 @@ useExternalStoreRuntime({
     },
     {
       name: "onReload",
-      type: "(parentId: string | Null, config: StartRunConfig) => Promise<void>",
+      type: "(parentId: string | null, config: StartRunConfig) => Promise<void>",
       description:
         "Handler for regenerating messages (required for reload feature).",
     },
@@ -818,7 +956,7 @@ useExternalStoreRuntime({
     },
     {
       name: "onAddToolResult",
-      type: "(options: AddToolResultOptions) => Promise<void> | Void",
+      type: "(options: AddToolResultOptions) => Promise<void> | void",
       description: "Handler for adding tool call results.",
     },
     {
@@ -826,6 +964,12 @@ useExternalStoreRuntime({
       type: "(config: ResumeRunConfig) => Promise<void>",
       description:
         "Handler for resuming an interrupted run (e.g. after a page reload mid-generation). For AI SDK reload-safe streaming, see the [Resumable Streams](/docs/guides/resumable-streams) guide.",
+    },
+    {
+      name: "onVoiceTranscript",
+      type: "(message: ThreadMessage) => void",
+      description:
+        "Receives each finalized voice transcript message; when your host uses its own message type, convert the `ThreadMessage` while keeping its id, then append it so it persists. Without it, transcripts stay for the session only. A transcript that finalizes while `isLoading` is true arrives once loading ends, and is not delivered at all when the conversation changed while it waited, which is recognized by a new `unstable_messageRepositoryInstance`.",
     },
     {
       name: "onResumeToolCall",
@@ -849,7 +993,7 @@ useExternalStoreRuntime({
       name: "onImport",
       type: "(messages: readonly ThreadMessage[]) => void",
       description:
-        "Called when the runtime imports messages into the external store (e.g. on thread switch).",
+        "Called when the runtime imports messages into the external store (e.g. on thread switch). `thread.import()` throws when it is missing.",
     },
     {
       name: "onExportExternalState",
@@ -873,7 +1017,7 @@ useExternalStoreRuntime({
       name: "adapters",
       type: "object",
       description:
-        "Capability adapters: attachments, speech, dictation, feedback, threadList. See /docs/runtimes/concepts/adapters.",
+        "Capability adapters: attachments, speech, dictation, voice, feedback, threadList. See /docs/runtimes/concepts/adapters.",
     },
     {
       name: "unstable_capabilities",
@@ -897,9 +1041,9 @@ useExternalStoreRuntime({
     },
     {
       name: "content",
-      type: "string | Readonly MessagePart[]",
+      type: "string | readonly ThreadMessageLikePart[]",
       description:
-        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart.",
+        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart. A part's optional id, including on data-* parts, keys the part when it is non-empty and no other part of the same type in the message shares it, preserving component state when parts are reordered or updated with the same id. Every part with a missing or empty id, or an id shared by another part of the same type, is keyed by its type and position.",
       required: true,
     },
     {

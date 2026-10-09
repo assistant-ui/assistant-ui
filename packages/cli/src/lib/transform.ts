@@ -1,25 +1,30 @@
-import { execFileSync, spawnSync } from "node:child_process";
 import debug from "debug";
 import path from "node:path";
 import type { TransformOptions } from "./transform-options";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
-import { sync as globSync } from "glob";
+import { runSpawnCapture, SpawnExitError, SpawnSignalError } from "./run-spawn";
+import { readProjectFiles } from "./utils/file-scanner";
 
 const log = debug("codemod:transform");
-const error = debug("codemod:transform:error");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Gets the list of files that need to be processed in the codebase
- * Only includes files that contain "assistant-ui" to optimize performance
+ * Gets relevant source files from an explicit file or directory target.
+ * Directory scans only include files containing "assistant-ui".
  */
-export function getRelevantFiles(cwd: string): string[] {
+export function getRelevantFiles(source: string): string[] {
+  const target = path.resolve(source);
+  if (fs.statSync(target).isFile()) {
+    return /\.(js|jsx|ts|tsx)$/.test(target) ? [target] : [];
+  }
+
   const pattern = "**/*.{js,jsx,ts,tsx}";
-  const files = globSync(pattern, {
-    cwd,
+  const relevantFiles: string[] = [];
+  for (const { fullPath, content } of readProjectFiles(pattern, {
+    cwd: target,
     ignore: [
       "**/node_modules/**",
       "**/dist/**",
@@ -27,26 +32,10 @@ export function getRelevantFiles(cwd: string): string[] {
       "**/*.min.js",
       "**/*.bundle.js",
     ],
-  });
-
-  // Filter files to only include those containing "assistant-ui"
-  const relevantFiles = files.filter((file) => {
-    try {
-      const content = fs.readFileSync(path.join(cwd, file), "utf8");
-      return content.includes("assistant-ui");
-    } catch {
-      return false;
-    }
-  });
-
-  return relevantFiles.map((file) => path.join(cwd, file));
-}
-
-/**
- * Counts the number of files that need to be processed
- */
-export function countFilesToProcess(cwd: string): number {
-  return getRelevantFiles(cwd).length;
+  })) {
+    if (content.includes("assistant-ui")) relevantFiles.push(fullPath);
+  }
+  return relevantFiles;
 }
 
 function buildCommand(
@@ -62,6 +51,7 @@ function buildCommand(
     ...targetFiles,
     "--parser",
     "tsx",
+    "--fail-on-error",
   ];
 
   if (options.dry) {
@@ -89,24 +79,7 @@ export type TransformErrors = {
   summary: string;
 }[];
 
-function parseErrors(transform: string, output: string): TransformErrors {
-  const errors: TransformErrors = [];
-  const errorRegex = /ERR (.+) Transformation error/g;
-  const syntaxErrorRegex = /SyntaxError: .+/g;
-
-  for (const match of output.matchAll(errorRegex)) {
-    const filename = match[1]!;
-    const syntaxErrorMatch = syntaxErrorRegex.exec(output);
-    if (syntaxErrorMatch) {
-      const summary = syntaxErrorMatch[0];
-      errors.push({ transform, filename, summary });
-    }
-  }
-
-  return errors;
-}
-
-export function transform(
+export async function transform(
   codemod: string,
   source: string,
   transformOptions: TransformOptions,
@@ -115,7 +88,7 @@ export function transform(
     onProgress?: (processedFiles: number) => void;
     relevantFiles?: string[];
   } = { logStatus: true },
-): TransformErrors {
+): Promise<TransformErrors> {
   if (options.logStatus) {
     log(`Applying codemod '${codemod}': ${source}`);
   }
@@ -133,44 +106,26 @@ export function transform(
 
   const command = buildCommand(codemodPath, targetFiles, transformOptions);
 
-  // Use spawn instead of execFileSync to capture output in real-time
-  if (options.onProgress) {
-    const result = spawnSync(command[0]!, command.slice(1), {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const stdout = result.stdout || "";
-
-    // Count the number of processed files from the output
-    const processedFiles = (stdout.match(/Processing file/g) || []).length;
-    if (options.onProgress) {
-      options.onProgress(processedFiles);
-    }
-
-    const errors = parseErrors(codemod, stdout);
-    if (options.logStatus && errors.length > 0) {
-      errors.forEach(({ transform, filename, summary }) => {
-        error(
-          `Error applying codemod [codemod=${transform}, path=${filename}, summary=${summary}]`,
-        );
-      });
-    }
-    return errors;
-  } else {
-    // Use the original synchronous approach if no progress callback
-    const stdout = execFileSync(command[0]!, command.slice(1), {
-      encoding: "utf8",
-      stdio: "pipe",
-    });
-    const errors = parseErrors(codemod, stdout);
-    if (options.logStatus && errors.length > 0) {
-      errors.forEach(({ transform, filename, summary }) => {
-        error(
-          `Error applying codemod [codemod=${transform}, path=${filename}, summary=${summary}]`,
-        );
-      });
-    }
-    return errors;
+  const result = await runSpawnCapture(command[0]!, command.slice(1));
+  if (result.signal !== null) {
+    throw new SpawnSignalError(result.signal, false);
   }
+  if (result.code !== 0) {
+    const failure = new SpawnExitError(
+      result.code || 1,
+      result.stderr,
+      result.stdout,
+    );
+    failure.message = `Codemod '${codemod}' failed\n${failure.message}`;
+    throw failure;
+  }
+
+  const { stdout } = result;
+
+  if (options.onProgress) {
+    const processedFiles = (stdout.match(/Processing file/g) || []).length;
+    options.onProgress(processedFiles);
+  }
+
+  return [];
 }

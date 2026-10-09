@@ -10,6 +10,7 @@ import {
   type AssistantClient,
 } from "@assistant-ui/store";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
+import type { ThreadMessage } from "../../types/message";
 import { Suggestions } from "../../store/clients/suggestions";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
@@ -25,20 +26,26 @@ const Consumer = () => {
 
 const App = ({
   suggestions,
+  isSendDisabled,
   config,
   strict,
 }: {
   suggestions?: ThreadSuggestion[];
+  isSendDisabled?: boolean;
   config?: AuiConfig;
   strict?: boolean;
 }) => {
-  const runtime = useExternalStoreRuntime({
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
     messages: [],
     onNew: async () => {},
+    ...(isSendDisabled === undefined ? {} : { isSendDisabled }),
     ...(suggestions && { suggestions }),
   });
   const tree = (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      {...(config === undefined ? {} : { config })}
+    >
       <Consumer />
     </AssistantRuntimeProvider>
   );
@@ -52,20 +59,30 @@ afterEach(() => {
 describe("useExternalStoreRuntime suggestions scope", () => {
   it("exposes runtime suggestions on the suggestions scope", () => {
     render(
-      <App suggestions={[{ prompt: "Tell me a joke" }, { prompt: "Help" }]} />,
+      <App
+        suggestions={[
+          { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+          { prompt: "Help" },
+        ]}
+      />,
     );
 
     expect(scopeSuggestions).toEqual([
-      { title: "Tell me a joke", label: "", prompt: "Tell me a joke" },
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
       { title: "Help", label: "", prompt: "Help" },
     ]);
+    expect(aui.suggestions.suggestion({ index: 0 }).getState()).toEqual({
+      title: "Weather",
+      label: "in SF",
+      prompt: "What's the weather?",
+    });
     expect(aui.suggestions.suggestion({ index: 1 }).getState()).toEqual({
       title: "Help",
       label: "",
       prompt: "Help",
     });
     expect(aui.thread.getState().suggestions).toEqual([
-      { prompt: "Tell me a joke" },
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
       { prompt: "Help" },
     ]);
   });
@@ -82,6 +99,16 @@ describe("useExternalStoreRuntime suggestions scope", () => {
     render(<App />);
 
     expect(scopeSuggestions).toEqual([]);
+  });
+
+  it("projects the external send policy onto thread state", async () => {
+    const view = render(<App isSendDisabled={false} />);
+    expect(aui.thread.getState().isSendDisabled).toBe(false);
+
+    view.rerender(<App isSendDisabled />);
+    await waitFor(() => {
+      expect(aui.thread.getState().isSendDisabled).toBe(true);
+    });
   });
 
   it("follows runtime suggestion updates", async () => {

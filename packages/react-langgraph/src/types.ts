@@ -1,4 +1,5 @@
 import type {
+  MessageModality,
   MessageStatus,
   AttachmentAdapter,
   DictationAdapter,
@@ -36,6 +37,8 @@ export type LangChainToolCall = {
 export type MessageContentText = {
   type: "text" | "text_delta";
   text: string;
+  index?: number;
+  citations?: readonly unknown[];
 };
 
 export type MessageContentImageUrl = {
@@ -46,17 +49,22 @@ export type MessageContentImageUrl = {
 export type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  signature?: string;
+  index?: number;
 };
 
 export type MessageContentReasoningSummaryText = {
   type: "summary_text";
   text?: string;
+  index?: number;
 };
 
 export type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  signature?: string;
+  index?: number;
 };
 
 type MessageContentToolUse = {
@@ -135,6 +143,7 @@ type AssistantMessageContentComplex =
   | MessageContentImageUrl
   | MessageContentToolUse
   | MessageContentFile
+  | MessageContentAudio
   | MessageContentReasoning
   | MessageContentThinking
   | MessageContentComputerCall;
@@ -182,6 +191,7 @@ export type LangChainMessage =
         reasoning?: MessageContentReasoning;
         tool_outputs?: MessageContentComputerCall[];
         metadata?: Record<string, unknown>;
+        modality?: MessageModality;
         audio?: {
           id?: string;
           data?: string;
@@ -431,6 +441,11 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
       }
     | undefined;
   cloud?: AssistantCloud | undefined;
+  /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the first render and change it when that scope changes.
+   */
+  scopeId?: string | undefined;
   /**
    * A `RemoteThreadListAdapter` to use instead of the cloud adapter. Provide
    * this to back the thread list with a custom store (e.g. LangGraph

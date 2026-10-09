@@ -32,16 +32,35 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
+export { getMessagePartKeys } from "./utils/getMessagePartKeys";
+export { getSuggestionKeys } from "./utils/getSuggestionKeys";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
+export { notifyEventListeners } from "./utils/notify-event-listeners";
+export {
+  createExternalMessageMetadataKey,
+  shallowArrayEqual,
+  type ExternalMessageMetadataKeySelector,
+} from "./runtime/utils/external-message-conversion";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
+export {
+  TOOL_INTERACTION_LIMITS,
+  appendToolInteraction,
+  createToolInteraction,
+  readToolInteractionLog,
+} from "./runtime/utils/tool-interactions";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";
+export { nullProtoRecord } from "./utils/record";
 
 // Shared attachment data-URL encoder, reused by framework adapters so the
 // FileReader fallback lives in one place.
-export { getFileDataURL, fileMatchesAccept } from "./adapters/attachment";
+export {
+  bytesToBase64,
+  getFileDataURL,
+  fileMatchesAccept,
+} from "./adapters/attachment";
 export { isCreateAttachment } from "./types/attachment";
 
 // Streaming-stable tool-args stringifier, reused by framework adapters so the
@@ -54,21 +73,49 @@ export {
 // JSON type guards, reused by framework bindings so the depth-guarded
 // validation lives in one place.
 export { isJSONValue, isRecord } from "./utils/json/is-json";
+export { isJSONValueEqual } from "./utils/json/is-json-equal";
 
 // Data-URL decoder and http(s) matcher, reused by framework adapters so the
 // outbound part conversion lives in one place.
 export {
   dataUrlMediaType,
+  type FilePartSource,
   httpUrlPattern,
   isParsableUrl,
   parseDataUrl,
+  resolveFilePartSource,
 } from "./utils/data-url";
+export { invokeUserCallback } from "./utils/invoke-user-callback";
+export {
+  abortableIterable,
+  openAbortableIterable,
+} from "./utils/abortable-iterable";
+export { raceWithAbortSignal } from "./utils/abortable-promise";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,
   resolveImageMediaType,
   toMediaWireUrl,
 } from "./utils/wire-media";
+export {
+  createToolCallCancellationStub,
+  scanPendingToolCalls,
+} from "./runtime/utils/pending-tool-calls";
+// Nested tool-call traversal, reused by framework adapters so the
+// ToolCallMessagePart.messages tree is walked one way.
+export {
+  iterateToolCallParts,
+  mapToolCallPartsDeep,
+  type ToolCallTreeEntry,
+  walkToolCallTree,
+} from "./runtime/utils/tool-call-tree";
+export {
+  createAbortableThreadLoad,
+  type AbortableThreadLoadPurpose,
+} from "./runtime/utils/abortable-thread-load";
+export { createCloudThreadListAdapterCreateFallback } from "./react/runtimes/cloud/createCloudThreadListAdapterCreateFallback";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";
+
+export { resolveToolRender } from "./utils/resolveToolRender";

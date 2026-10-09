@@ -4,6 +4,7 @@ import type {
   ThreadAssistantMessagePart,
   ToolApprovalResponse,
   ToolCallMessagePartStatus,
+  Unstable_ToolInteractionInput,
 } from "../../types/message";
 import type { MessagePartStatus } from "../../types/message";
 import type { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
@@ -29,10 +30,20 @@ export type PartMethods = {
   resumeToolCall(payload: unknown): void;
   /**
    * Respond to a server-side tool approval gate. The approval id is read from
-   * the part. Accepts a boolean decision or the id of one of the approval's
-   * options.
+   * the part. Accepts a boolean decision, the id of one of the approval's
+   * options, or a free-form answer when the request asks for one.
+   *
+   * Resolves once the runtime has accepted the response, and rejects when it
+   * could not be recorded, so a renderer can leave its controls retryable.
    */
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  /**
+   * Record a user interaction on a tool call part. Resolves once recorded and
+   * rejects when it cannot be.
+   */
+  unstable_recordInteraction?(
+    input: Unstable_ToolInteractionInput,
+  ): Promise<void>;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 

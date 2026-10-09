@@ -1,0 +1,51 @@
+---
+title: Context
+description: Pass values through resource boundaries without prop drilling.
+---
+
+Context lets you pass values through the resource tree without threading props through every level, the same idea as React's `createContext` / `useContext`.
+
+## createContext
+
+Create a context with a default value.
+
+```ts
+import { createContext } from "react";
+
+const ThemeContext = createContext("light");
+```
+
+## Reading context
+
+Read the current value of a context inside a resource with `use` imported from `"react"`.
+
+```ts
+import { use } from "react";
+
+const useButton = () => {
+  const theme = use(ThemeContext);
+  // ...
+};
+
+const Button = resource(useButton);
+```
+
+## useContextProvider
+
+Provide a context value to all resources rendered within the callback.
+
+```ts
+import { useContextProvider, useResource } from "@assistant-ui/tap";
+
+const useApp = () => {
+  const child = useContextProvider(ThemeContext, "dark", () => {
+    return useResource(Button());
+  });
+
+  return child;
+};
+
+const App = resource(useApp);
+```
+
+Any resource rendered inside the callback (including deeply nested children) reads `"dark"` from `ThemeContext`.

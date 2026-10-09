@@ -33,6 +33,41 @@ const createAbortableStream = (signal: AbortSignal) =>
   })();
 
 describe("OpenCodeEventSource", () => {
+  it("reconnects immediately when a listener returns during backoff", async () => {
+    const client = {
+      event: {
+        subscribe: vi
+          .fn()
+          .mockRejectedValueOnce(new Error("offline"))
+          .mockImplementation((_: unknown, options: { signal: AbortSignal }) =>
+            Promise.resolve({
+              stream: createAbortableStream(options.signal),
+            }),
+          ),
+      },
+    };
+    const source = new OpenCodeEventSource(client as never);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const unsubscribe = source.subscribe(vi.fn());
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+      });
+
+      unsubscribe();
+      source.subscribe(vi.fn());
+
+      await waitFor(() => {
+        expect(client.event.subscribe).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      source.dispose();
+      warnSpy.mockRestore();
+    }
+  });
+
   it("reconnects immediately when a listener returns after disconnect", async () => {
     const client = {
       event: {
@@ -56,6 +91,7 @@ describe("OpenCodeEventSource", () => {
     });
 
     unsubscribe();
+    await Promise.resolve();
     source.subscribe(vi.fn());
 
     await waitFor(() => {
@@ -84,6 +120,7 @@ describe("OpenCodeEventSource", () => {
     expect(firstListener).not.toHaveBeenCalled();
 
     unsubscribe();
+    await Promise.resolve();
     const secondListener = vi.fn();
     source.subscribe(secondListener);
 

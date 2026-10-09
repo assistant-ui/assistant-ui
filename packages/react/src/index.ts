@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export from @assistant-ui/store
 export {
@@ -22,11 +22,13 @@ export type {
   AssistantRuntime,
   ThreadRuntime,
   ThreadState,
+  ThreadRuntimeState,
   CreateAppendMessage,
   CreateStartRunConfig,
   CreateResumeRunConfig,
   MessageRuntime,
   MessageState,
+  MessageRuntimeState,
   MessagePartRuntime,
   MessagePartState,
   ComposerRuntime,
@@ -35,16 +37,21 @@ export type {
   EditComposerState,
   ThreadComposerState,
   ComposerState,
+  ComposerRuntimeState,
   AttachmentRuntime,
   AttachmentState,
+  AttachmentRuntimeState,
   ThreadListRuntime,
   ThreadListState,
   ThreadListItemRuntime,
   ThreadListItemState,
+  ThreadListItemRuntimeState,
 } from "@assistant-ui/core";
 
-export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
-export { AssistantCloud } from "assistant-cloud";
+export { toolApprovalAcceptsText } from "@assistant-ui/core";
+
+export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
+export { AssistantCloud, readAnonymousRefreshToken } from "assistant-cloud";
 
 // --- adapters/attachment ---
 export type { AttachmentAdapter } from "@assistant-ui/core";
@@ -83,7 +90,12 @@ export {
 } from "@assistant-ui/core";
 
 // --- adapters/suggestion ---
-export type { SuggestionAdapter } from "@assistant-ui/core";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // --- adapters/RuntimeAdapterProvider ---
 export {
@@ -107,19 +119,20 @@ export {
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
-} from "./legacy-runtime/runtime-cores/assistant-transport/useAssistantTransportRuntime";
+} from "./assistant-transport";
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,
   AssistantTransportProtocol,
   SendCommandsRequestBody,
-} from "./legacy-runtime/runtime-cores/assistant-transport/types";
+} from "./assistant-transport";
 
 // --- core ---
 export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
+  ComposerSubmission,
   DictationState,
 } from "@assistant-ui/core";
 
@@ -152,6 +165,8 @@ export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
 } from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
 export { createMessageConverter as unstable_createMessageConverter } from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
 
@@ -271,6 +286,8 @@ export { tool } from "@assistant-ui/core";
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
 export type {
   QueueItemState,
+  TaskState,
+  TaskMethods,
   QueueItemMethods,
 } from "@assistant-ui/core/store";
 export type { ComposerSendOptions } from "@assistant-ui/core/store";
@@ -316,6 +333,11 @@ export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
 
 export { groupPartByType, type GroupByContext } from "@assistant-ui/core/react";
+export {
+  createThreadRowsSelector,
+  type ThreadRow,
+  type ThreadRowsOptions,
+} from "@assistant-ui/core/react";
 export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";
@@ -355,10 +377,15 @@ export type {
   GenerativeUISpec,
   Unstable_AudioMessagePart,
   RespondToToolApprovalOptions,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
+  ToolApprovalAnswer,
+  ToolApprovalQuestion,
+  ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   ToolModelContentPart,
   MessageStatus,
@@ -366,6 +393,7 @@ export type {
   MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
+  MessageModality,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,
@@ -430,7 +458,11 @@ export {
 export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
-} from "./client/InMemoryThreadList";
+} from "@assistant-ui/core/store";
+export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
+} from "@assistant-ui/core/store";
 export { SingleThreadList } from "@assistant-ui/core/store";
 
 export * as INTERNAL from "./internal";
@@ -471,14 +503,32 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
+  type TriggerMatch,
+  type TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
+import type {
+  TriggerMatch,
+  TriggerMatcher,
+} from "./primitives/composer/trigger";
+/** @deprecated Use `TriggerMatch` instead. */
+export type Unstable_TriggerMatch = TriggerMatch;
+/** @deprecated Use `TriggerMatcher` instead. */
+export type Unstable_TriggerMatcher = TriggerMatcher;
 export type {
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
-export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "@assistant-ui/core";
 
 // Unstable - composer input history (terminal-style ArrowUp/ArrowDown recall)
 export {
@@ -499,11 +549,17 @@ export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
 export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
+export {
   McpAppRenderer,
   McpAppsRemoteHost,
   getMcpAppFromToolPart,
 } from "./mcp-apps";
 export type {
+  McpAppPartOptions,
   McpAppRendererOptions,
   McpAppMetadata,
   McpAppResource,
@@ -516,6 +572,33 @@ export type {
   McpAppsHost,
   McpAppsRemoteHostOptions,
   McpAppToolCallParams,
+  McpAppBridgeHandlers,
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";
+export type { ShimLoadError, ShimLoadErrorCode } from "safe-content-frame";
+
+// Unstable - WebMCP provider (exposes frontend tools to a WebMCP-capable browser)
+export {
+  unstable_useWebMcpProvider,
+  type Unstable_WebMcpProviderOptions,
+  type Unstable_WebMcpProviderResult,
+} from "./unstable/webmcp/useWebMcpProvider";
+export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";
+
+// Shared surface carried by every distribution (scripts/check-distribution-barrels.mjs)
+export type {
+  JoinStrategy,
+  TitleGenerationAdapter,
+} from "@assistant-ui/core/react";
+export {
+  ChainOfThoughtPartByIndexProvider,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/core/react";
+export type { ThreadsState } from "@assistant-ui/core/store";
+export type {
+  MessageRole,
+  RemoteThreadListOptions,
+  RunConfig,
+  RuntimeCapabilities,
+} from "@assistant-ui/core";

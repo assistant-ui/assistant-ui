@@ -1,0 +1,414 @@
+// @vitest-environment jsdom
+
+import { act, render, screen, waitFor } from "@testing-library/react";
+import type { FC, PropsWithChildren } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { AssistantRuntimeProvider } from "../../context";
+import { useLocalRuntime } from "../../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import type {
+  ChatModelAdapter,
+  SpeechSynthesisAdapter,
+  ThreadMessageLike,
+} from "../../index";
+import { ComposerPrimitiveInput } from "../composer/ComposerInput";
+import { ThreadPrimitiveRoot } from "./ThreadRoot";
+
+const noOpAdapter: ChatModelAdapter = {
+  async *run() {},
+};
+
+const waitForAbortAdapter: ChatModelAdapter = {
+  async *run({ abortSignal }) {
+    await new Promise<void>((resolve) => {
+      if (abortSignal.aborted) {
+        resolve();
+        return;
+      }
+      abortSignal.addEventListener("abort", () => resolve(), { once: true });
+    });
+  },
+};
+
+const initialMessages: ThreadMessageLike[] = [
+  {
+    role: "assistant",
+    content: [{ type: "text", text: "Hello" }],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
+const createSpeechAdapter = () => {
+  const cancel = vi.fn();
+  const subscribers = new Set<() => void>();
+  const utterance: SpeechSynthesisAdapter.Utterance = {
+    status: { type: "running" },
+    cancel,
+    subscribe: (callback) => {
+      subscribers.add(callback);
+      return () => subscribers.delete(callback);
+    },
+  };
+  const adapter: SpeechSynthesisAdapter = {
+    speak: vi.fn(() => utterance),
+  };
+  const finish = () => {
+    utterance.status = { type: "ended", reason: "finished" };
+    for (const subscriber of subscribers) subscriber();
+  };
+
+  return { adapter, cancel, finish };
+};
+
+type RuntimeRef = {
+  current: ReturnType<typeof useLocalRuntime> | null;
+};
+
+const RuntimeProvider: FC<
+  PropsWithChildren<{
+    runtimeRef: RuntimeRef;
+    speech: SpeechSynthesisAdapter;
+    chatModel?: ChatModelAdapter | undefined;
+  }>
+> = ({ children, runtimeRef, speech, chatModel = noOpAdapter }) => {
+  const runtime = useLocalRuntime(chatModel, {
+    initialMessages,
+    adapters: { speech },
+  });
+  runtimeRef.current = runtime;
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
+const startSpeaking = (runtimeRef: RuntimeRef) => {
+  act(() => {
+    runtimeRef.current!.thread.getMessageByIndex(0).speak();
+  });
+};
+
+const dispatchEscape = (target: EventTarget) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  });
+  act(() => target.dispatchEvent(event));
+  return event;
+};
+
+describe("ThreadPrimitiveRoot", () => {
+  it("stops active speech after the initiating control unmounts", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    const App = ({ showControl }: { showControl: boolean }) => (
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot>
+          {showControl && <button data-testid="speak-control" />}
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>
+    );
+    const view = render(<App showControl />);
+
+    const control = screen.getByTestId("speak-control");
+    control.focus();
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    view.rerender(<App showControl={false} />);
+    const event = dispatchEscape(document.body);
+
+    expect(speech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("does not consume Escape when no speech is active", () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot>
+          <button data-testid="thread-control" />
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>,
+    );
+
+    const event = dispatchEscape(screen.getByTestId("thread-control"));
+
+    expect(speech.cancel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("does not stop speech in another mounted thread", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider
+          runtimeRef={firstRuntimeRef}
+          speech={firstSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="first-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+        <RuntimeProvider
+          runtimeRef={secondRuntimeRef}
+          speech={secondSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="second-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+      </>,
+    );
+    startSpeaking(firstRuntimeRef);
+    await waitFor(() => {
+      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("second-thread-control"));
+
+    expect(firstSpeech.cancel).not.toHaveBeenCalled();
+    expect(secondSpeech.cancel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("stops speech in the thread containing the Escape target", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider
+          runtimeRef={firstRuntimeRef}
+          speech={firstSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="first-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+        <RuntimeProvider
+          runtimeRef={secondRuntimeRef}
+          speech={secondSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="second-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+      </>,
+    );
+    startSpeaking(firstRuntimeRef);
+    startSpeaking(secondRuntimeRef);
+    await waitFor(() => {
+      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+      expect(secondRuntimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("second-thread-control"));
+
+    expect(firstSpeech.cancel).not.toHaveBeenCalled();
+    expect(secondSpeech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("stops speech in a thread mounted inside a closed shadow root", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider
+        runtimeRef={firstRuntimeRef}
+        speech={firstSpeech.adapter}
+      >
+        <ThreadPrimitiveRoot />
+      </RuntimeProvider>,
+    );
+    const shadowHost = document.createElement("div");
+    const shadowRoot = shadowHost.attachShadow({ mode: "closed" });
+    const shadowContainer = document.createElement("div");
+    shadowRoot.append(shadowContainer);
+    document.body.append(shadowHost);
+    const shadowView = render(
+      <RuntimeProvider
+        runtimeRef={secondRuntimeRef}
+        speech={secondSpeech.adapter}
+      >
+        <ThreadPrimitiveRoot>
+          <button data-testid="shadow-thread-control" />
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>,
+      { container: shadowContainer },
+    );
+
+    try {
+      startSpeaking(firstRuntimeRef);
+      startSpeaking(secondRuntimeRef);
+      await waitFor(() => {
+        expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+        expect(
+          secondRuntimeRef.current!.thread.getState().speech,
+        ).toBeDefined();
+      });
+
+      const event = dispatchEscape(
+        shadowContainer.querySelector("[data-testid=shadow-thread-control]")!,
+      );
+
+      expect(firstSpeech.cancel).not.toHaveBeenCalled();
+      expect(secondSpeech.cancel).toHaveBeenCalledOnce();
+      expect(event.defaultPrevented).toBe(true);
+    } finally {
+      shadowView.unmount();
+      shadowHost.remove();
+    }
+  });
+
+  it("stops speech from outside the only mounted thread", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+          <ThreadPrimitiveRoot />
+        </RuntimeProvider>
+        <button data-testid="outside-control" />
+      </>,
+    );
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("outside-control"));
+
+    expect(speech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("ignores speech ending between the rendered state and Escape", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot />
+      </RuntimeProvider>,
+    );
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    expect(() => {
+      act(() => {
+        speech.finish();
+        document.body.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      });
+    }).not.toThrow();
+    expect(speech.cancel).not.toHaveBeenCalled();
+  });
+
+  it("lets a composer mounted after the root consume Escape first", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    const App = ({ showComposer }: { showComposer: boolean }) => (
+      <RuntimeProvider
+        runtimeRef={runtimeRef}
+        speech={speech.adapter}
+        chatModel={waitForAbortAdapter}
+      >
+        <ThreadPrimitiveRoot>
+          {showComposer && <ComposerPrimitiveInput data-testid="composer" />}
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>
+    );
+    const view = render(<App showComposer={false} />);
+    startSpeaking(runtimeRef);
+    act(() => {
+      runtimeRef.current!.thread.append("Run");
+    });
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+      expect(runtimeRef.current!.thread.getState().isRunning).toBe(true);
+    });
+
+    view.rerender(<App showComposer />);
+    const event = dispatchEscape(screen.getByTestId("composer"));
+
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().isRunning).toBe(false);
+    });
+    expect(speech.cancel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ["during the composition", { isComposing: true }],
+    ["after compositionend (Safari)", { keyCode: 229 }],
+  ])(
+    "keeps speech playing when Escape ends an IME composition %s",
+    async (_, init) => {
+      const speech = createSpeechAdapter();
+      const runtimeRef: RuntimeRef = { current: null };
+      render(
+        <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+          <ThreadPrimitiveRoot>
+            <ComposerPrimitiveInput data-testid="composer" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>,
+      );
+      startSpeaking(runtimeRef);
+      await waitFor(() => {
+        expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+      });
+
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
+      act(() => screen.getByTestId("composer").dispatchEvent(event));
+
+      expect(speech.cancel).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    },
+  );
+
+  it("lets an idle composer fall through so Escape still stops speech", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot>
+          <ComposerPrimitiveInput data-testid="composer" />
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>,
+    );
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("composer"));
+
+    expect(speech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+    expect(runtimeRef.current!.thread.getState().isRunning).toBe(false);
+  });
+});

@@ -6,10 +6,23 @@ import {
   MessagePrimitivePartByIndex as MessagePrimitivePartByIndexBase,
   messagePartsDefaultComponents,
 } from "@assistant-ui/core/react";
+import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
+
+// React Native derives no intrinsic size from a remote or data URI, so an
+// Image with no dimensions lays out at zero. The default fills the available
+// width and keeps the picture whole inside a square box; a consumer that knows
+// its own aspect ratio overrides `components.Image`.
+const DEFAULT_IMAGE_STYLE = { width: "100%", aspectRatio: 1 } as const;
 
 const rnDefaultComponents = {
   ...messagePartsDefaultComponents,
   Text: ({ text }: { text: string }) => <Text>{text}</Text>,
+  Image: () => (
+    <MessagePartPrimitiveImage
+      style={DEFAULT_IMAGE_STYLE}
+      resizeMode="contain"
+    />
+  ),
 } satisfies MessagePrimitiveParts.Props["components"];
 
 export namespace MessagePrimitiveParts {
@@ -31,28 +44,9 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
   const { components, ...rest } = props;
   const merged = components
     ? {
+        ...components,
         Text: components.Text ?? rnDefaultComponents.Text,
-        Image: components.Image ?? messagePartsDefaultComponents.Image,
-        Reasoning:
-          components.Reasoning ?? messagePartsDefaultComponents.Reasoning,
-        Source: components.Source ?? messagePartsDefaultComponents.Source,
-        File: components.File ?? messagePartsDefaultComponents.File,
-        Unstable_Audio:
-          components.Unstable_Audio ??
-          messagePartsDefaultComponents.Unstable_Audio,
-        ...("ChainOfThought" in components
-          ? { ChainOfThought: components.ChainOfThought }
-          : {
-              tools: components.tools,
-              data: components.data,
-              ToolGroup:
-                components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
-              ReasoningGroup:
-                components.ReasoningGroup ??
-                messagePartsDefaultComponents.ReasoningGroup,
-            }),
-        Empty: components.Empty,
-        Quote: components.Quote,
+        Image: components.Image ?? rnDefaultComponents.Image,
       }
     : rnDefaultComponents;
 

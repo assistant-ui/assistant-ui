@@ -8,6 +8,12 @@ const h = vi.hoisted(() => ({
   sendSpy: vi.fn<() => void>(),
   flushTapSyncSpy: vi.fn(<T,>(fn: () => T) => fn()),
   composerState: { text: "" },
+  threadState: {
+    isRunning: false,
+    queue: false,
+    voice: false,
+    isDisabled: false,
+  },
   platform: { os: "web" as "web" | "ios" | "android" },
 }));
 
@@ -16,16 +22,31 @@ vi.mock("@assistant-ui/store", () => {
     setText: h.setText,
     send: h.sendSpy,
   });
-  const aui = { composer };
+  const thread = {
+    getState: () => ({
+      isRunning: h.threadState.isRunning,
+      capabilities: { queue: h.threadState.queue },
+      voice: h.threadState.voice ? { status: { type: "running" } } : undefined,
+    }),
+  };
+  const aui = { composer, thread };
   return {
     useAui: () => aui,
     useAuiState: <T,>(
-      selector: (s: { composer: typeof h.composerState }) => T,
-    ) => selector({ composer: h.composerState }),
+      selector: (s: {
+        composer: typeof h.composerState;
+        thread: { isDisabled: boolean };
+      }) => T,
+    ) =>
+      selector({
+        composer: h.composerState,
+        thread: { isDisabled: h.threadState.isDisabled },
+      }),
   };
 });
 
-vi.mock("@assistant-ui/tap", () => ({
+vi.mock("@assistant-ui/tap", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/tap")>()),
   flushTapSync: h.flushTapSyncSpy,
 }));
 
@@ -100,6 +121,10 @@ describe("ComposerInput", () => {
     h.sendSpy.mockReset();
     h.flushTapSyncSpy.mockClear();
     h.composerState.text = "";
+    h.threadState.isRunning = false;
+    h.threadState.queue = false;
+    h.threadState.voice = false;
+    h.threadState.isDisabled = false;
     h.platform.os = "web";
 
     container = document.createElement("div");
@@ -167,6 +192,57 @@ describe("ComposerInput", () => {
 
       expect(h.sendSpy).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("does not submit while the thread runs without queue support", async () => {
+      h.threadState.isRunning = true;
+      const input = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("submits while running when the thread supports queueing", async () => {
+      h.threadState.isRunning = true;
+      h.threadState.queue = true;
+      const input = await mount();
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("submits while a spoken reply runs during a voice session", async () => {
+      h.threadState.isRunning = true;
+      h.threadState.voice = true;
+      const input = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("blocks submission when the thread starts running after mount", async () => {
+      const input = await mount();
+
+      h.threadState.isRunning = true;
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).not.toHaveBeenCalled();
     });
 
     it("ignores Enter while isComposing is set", async () => {
@@ -358,5 +434,51 @@ describe("ComposerInput", () => {
       expect(event.defaultPrevented).toBe(false);
       expect(onKeyPress).toHaveBeenCalledTimes(1);
     });
+  });
+
+  describe("disabled thread", () => {
+    beforeEach(() => {
+      h.threadState.isDisabled = true;
+    });
+
+    it("makes the input non-editable", async () => {
+      const input = await mount();
+      expect(input.disabled || input.readOnly).toBe(true);
+    });
+
+    it("does not let editable props override the disabled thread", async () => {
+      const input = await mount({ editable: true, readOnly: false });
+      expect(input.readOnly).toBe(true);
+    });
+
+    it("ignores text changes", async () => {
+      const input = await mount();
+      await act(async () => fireInput(input, "hello"));
+      expect(h.setText).not.toHaveBeenCalled();
+    });
+
+    it("does not submit on Enter", async () => {
+      const input = await mount();
+      await act(async () => fireKeyDown(input, { key: "Enter" }));
+      expect(h.sendSpy).not.toHaveBeenCalled();
+    });
+
+    it("forwards caller key handlers while blocking submission", async () => {
+      const onKeyPress = vi.fn();
+      const input = await mount({ onKeyPress });
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Escape" });
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(onKeyPress).toHaveBeenCalledTimes(2);
+      expect(h.sendSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it("preserves a caller-provided non-editable setting", async () => {
+    const input = await mount({ editable: false });
+    expect(input.readOnly).toBe(true);
   });
 });

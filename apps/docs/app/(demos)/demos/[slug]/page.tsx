@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { DEMOS, getDemo } from "@/lib/demos";
 import { createOgMetadata } from "@/lib/og";
 import { DemoHeader } from "./demo-header";
@@ -41,6 +41,7 @@ export default async function DemoPage({
     <div className="bg-background flex h-dvh flex-col overflow-hidden">
       <DemoHeader slug={demo.slug} />
       <main className="min-h-0 flex-1">
+        <h1 className="sr-only">{demo.name} demo</h1>
         <DocsRuntimeProvider>
           <DemoComponent />
         </DocsRuntimeProvider>

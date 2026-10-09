@@ -4,6 +4,10 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
+import {
+  disposeThreadRuntime,
+  invalidateThreadRuntime,
+} from "../runtime/utils/thread-runtime-lifecycle";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -868,6 +872,270 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(withoutQueue.capabilities.queue).toBe(false);
   });
 
+  it("waits for thread initialization before enqueueing into the queue adapter", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew, queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when the thread is invalidated during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew: vi.fn(), queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    invalidateThreadRuntime(runtime);
+    resolveInitialization();
+
+    await appendPromise;
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
+  it("sends through onNew when the host drops its queue during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    const onNew = vi.fn(async () => {});
+    runtime.__internal_setAdapter(makeStore({ onNew }));
+    resolveInitialization();
+
+    await expect(appendPromise).resolves.toBeUndefined();
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue on a disposed thread with no initialization to wait for", async () => {
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+    disposeThreadRuntime(runtime);
+
+    await runtime.append(appendMessage());
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("stamps a queued send with the composer metadata of the moment it was sent", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    let state = "sent";
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: {
+            interactables: [{ id: "n1", name: "note", state }],
+          },
+        }),
+      },
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    state = "changed";
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue.mock.calls[0]![0].metadata.custom).toEqual({
+      interactables: [{ id: "n1", name: "note", state: "sent" }],
+    });
+  });
+
+  it("enqueues into the queue the host swaps in during initialization, stamped only when it leaves that queue", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    let state = "sent";
+    const initialQueue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: {
+            interactables: [{ id: "n1", name: "note", state }],
+          },
+        }),
+      },
+      makeStore({ queue: initialQueue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    let dispatchTransform!: (message: AppendMessage) => AppendMessage;
+    const replacementQueue = {
+      ...makeQueue(),
+      __internal_setDispatchTransform: (
+        transform: (message: AppendMessage) => AppendMessage,
+      ) => {
+        dispatchTransform = transform;
+      },
+    };
+    runtime.__internal_setAdapter(makeStore({ queue: replacementQueue }));
+    resolveInitialization();
+    await appendPromise;
+
+    expect(initialQueue.enqueue).not.toHaveBeenCalled();
+    expect(replacementQueue.enqueue).toHaveBeenCalledTimes(1);
+    const queued = replacementQueue.enqueue.mock.calls[0]![0];
+    expect(queued.metadata.custom).toEqual({});
+
+    state = "flushed";
+    expect(dispatchTransform(queued).metadata.custom).toEqual({
+      interactables: [{ id: "n1", name: "note", state: "flushed" }],
+    });
+  });
+
+  it("stamps a send for a stamp-at-flush queue before sending it through onNew when the host drops that queue during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = {
+      ...makeQueue(),
+      __internal_setDispatchTransform: vi.fn(),
+    };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: {
+            interactables: [{ id: "n1", name: "note", state: "open" }],
+          },
+        }),
+      },
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    const onNew = vi.fn(async (_message: AppendMessage) => {});
+    runtime.__internal_setAdapter(makeStore({ onNew }));
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(onNew.mock.calls[0]![0].metadata.custom).toEqual({
+      interactables: [{ id: "n1", name: "note", state: "open" }],
+    });
+  });
+
+  it("dispatches an append without waiting for thread initialization", async () => {
+    const initialization = new Promise<void>(() => {});
+    const getInitializePromise = vi.fn(() => initialization);
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(getInitializePromise);
+
+    await runtime.append(appendMessage());
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(getInitializePromise).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches concurrent appends without waiting for initialization", async () => {
+    const initialization = new Promise<void>(() => {});
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await Promise.all([
+      runtime.append(appendMessage()),
+      runtime.append(appendMessage()),
+    ]);
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fail the append when thread initialization rejects", async () => {
+    const initialization = Promise.reject(new Error("initialization failed"));
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await runtime.append(appendMessage());
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops an append disposed while aborting client-side tools", async () => {
+    let resolveAbort!: () => void;
+    const abortPromise = new Promise<void>((resolve) => {
+      resolveAbort = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => Promise.resolve());
+    const abort = vi.fn(() => abortPromise);
+    (
+      runtime as unknown as { _toolInvocations: { abort: typeof abort } }
+    )._toolInvocations = {
+      abort,
+    };
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    expect(abort).toHaveBeenCalledOnce();
+
+    invalidateThreadRuntime(runtime);
+    resolveAbort();
+
+    await appendPromise;
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
   it("routes a tail append through the queue adapter instead of onNew", async () => {
     const queue = makeQueue();
     const onNew = vi.fn();
@@ -1029,5 +1297,936 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     runtime.removeQueueItem("q1");
     expect(queue.move).toHaveBeenCalledWith("q1", { lane: "steer" });
     expect(queue.remove).toHaveBeenCalledWith("q1");
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () => {
+  const message = (id: string, role: "user" | "assistant", text: string) =>
+    ({
+      id,
+      role,
+      content: [{ type: "text", text }],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      ...(role === "assistant"
+        ? { status: { type: "complete", reason: "stop" } }
+        : {}),
+    }) as unknown as import("../types/message").ThreadMessage;
+
+  const setup = (initial: import("../types/message").ThreadMessage[]) => {
+    let current = initial;
+    const setMessages = vi.fn(
+      (m: import("../types/message").ThreadMessage[]) => {
+        current = m;
+      },
+    );
+    const store = () => makeStore({ messages: current, setMessages });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    return {
+      runtime,
+      setMessages,
+      setStoreMessages: (m: import("../types/message").ThreadMessage[]) => {
+        current = m;
+      },
+      syncSnapshot: () => runtime.__internal_setAdapter(store()),
+    };
+  };
+
+  it("leaves no sibling branch behind", async () => {
+    const { runtime, syncSnapshot } = setup([
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ]);
+
+    await runtime.deleteMessage("u1");
+    syncSnapshot();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
+  it("relinks children when deleting mid-thread", async () => {
+    const { runtime, syncSnapshot } = setup([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    await runtime.deleteMessage("u2");
+    syncSnapshot();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("relinks every child branch when deleting a message with siblings", async () => {
+    const { runtime, syncSnapshot, setStoreMessages } = setup([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    setStoreMessages([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a3", "assistant", "five"),
+    ]);
+    syncSnapshot();
+    expect(runtime.getBranches("a3")).toEqual(["a2", "a3"]);
+
+    await runtime.deleteMessage("u2");
+    syncSnapshot();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a3"]);
+    expect(runtime.getBranches("a3")).toEqual(["a2", "a3"]);
+  });
+
+  it("does not resurrect deleted content through switchToBranch", async () => {
+    const { runtime, setMessages, syncSnapshot } = setup([
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ]);
+
+    await runtime.deleteMessage("u1");
+    syncSnapshot();
+    setMessages.mockClear();
+
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+    expect(setMessages).not.toHaveBeenCalled();
+  });
+
+  it("exposes a consistent messages/branch view at notify time", async () => {
+    const { runtime } = setup([
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ]);
+
+    const observed: { ids: string[]; branches: readonly string[] }[] = [];
+    runtime.subscribe(() => {
+      observed.push({
+        ids: runtime.messages.map((m) => m.id),
+        branches: runtime.getBranches(runtime.messages.at(-1)!.id),
+      });
+    });
+
+    await runtime.deleteMessage("u1");
+
+    expect(observed).toContainEqual({ ids: ["a1"], branches: ["a1"] });
+    for (const snapshot of observed) {
+      expect(snapshot.ids).not.toContain("u1");
+      expect(snapshot.branches).not.toContain("u1");
+    }
+  });
+
+  it("notifies the eviction when the host resyncs synchronously", async () => {
+    let current = [
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ];
+    const store = (): ExternalStoreAdapter =>
+      makeStore({
+        messages: current,
+        setMessages: (m: import("../types/message").ThreadMessage[]) => {
+          current = m;
+          runtime.__internal_setAdapter(store());
+        },
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    const observed: (readonly string[])[] = [];
+    runtime.subscribe(() => {
+      observed.push(runtime.getBranches("a2"));
+    });
+
+    await runtime.deleteMessage("u2");
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+    expect(observed.at(-1)).toEqual(["a2"]);
+  });
+
+  it("evicts the deleted message on the onDelete path too", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    await runtime.deleteMessage("u1");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
+  it("evicts a deleted message when a frontend tool settles before the host's next snapshot", async () => {
+    let current = [
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+    ];
+    let finishTool!: () => void;
+    const contextProvider: ModelContextProvider = {
+      getModelContext: () => ({
+        tools: {
+          send_email: {
+            parameters: { type: "object", properties: {} },
+            execute: () =>
+              new Promise((resolve) => {
+                finishTool = () => resolve("sent");
+              }),
+          },
+        },
+      }),
+    };
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = () =>
+      makeStore({
+        messages: current,
+        onDelete,
+        onAddToolResult: vi.fn(),
+        isRunning: false,
+        unstable_enableToolInvocations: true,
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store(),
+    );
+    current = [
+      ...current,
+      {
+        id: "a2",
+        role: "assistant",
+        createdAt: new Date(0),
+        status: { type: "requires-action", reason: "tool-calls" },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-1",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+      } as unknown as import("../types/message").ThreadMessage,
+    ];
+    runtime.__internal_setAdapter(store());
+    await vi.waitFor(() => expect(runtime.isRunning).toBe(true));
+
+    await runtime.deleteMessage("u1");
+    finishTool();
+    await vi.waitFor(() => expect(runtime.isRunning).toBe(false));
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1", "u2", "a2"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
+  it("keeps an off-branch sibling the host declined to delete", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "one"),
+    ];
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = () => makeStore({ messages: current, onDelete });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    current = [current[0]!, message("a2", "assistant", "two")];
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
+
+    await runtime.deleteMessage("a1");
+    current = [...current];
+    runtime.__internal_setAdapter(store());
+
+    expect(onDelete).toHaveBeenCalledWith("a1");
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
+  });
+
+  it("keeps the eviction when a send races an in-flight delete", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    let resolveDelete!: () => void;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve) => {
+          resolveDelete = () => {
+            current = current.filter((m) => m.id !== id);
+            resolve();
+          };
+        }),
+    );
+    const onNew = vi.fn();
+    const store = () =>
+      makeStore({ messages: current, onDelete, onNew, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    const deletePromise = runtime.deleteMessage("u1");
+    await runtime.append({
+      role: "user",
+      content: [{ type: "text", text: "while deleting" }],
+      attachments: [],
+      createdAt: new Date(0),
+      parentId: "a1",
+      sourceId: null,
+      runConfig: {},
+      metadata: { custom: {} },
+    });
+    resolveDelete();
+    await deletePromise;
+    runtime.__internal_setAdapter(store());
+
+    expect(onNew).toHaveBeenCalled();
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
+  const deferredDeleteStore = (
+    initial: import("../types/message").ThreadMessage[],
+  ) => {
+    let current = initial;
+    let isRunning = false;
+    let confirmDelete!: () => void;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve) => {
+          confirmDelete = () => {
+            current = current.filter((m) => m.id !== id);
+            resolve();
+          };
+        }),
+    );
+    const onReload = vi.fn(async (parentId: string | null) => {
+      isRunning = true;
+      current = current.slice(
+        0,
+        current.findIndex((m) => m.id === parentId) + 1,
+      );
+    });
+    const store = () =>
+      makeStore({
+        messages: current,
+        onDelete,
+        onReload,
+        isRunning,
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    return {
+      runtime,
+      confirmDelete: () => confirmDelete(),
+      rerender: () => {
+        current = [...current];
+        runtime.__internal_setAdapter(store());
+      },
+      setStoreMessages: (m: import("../types/message").ThreadMessage[]) => {
+        current = m;
+        isRunning = false;
+        runtime.__internal_setAdapter(store());
+      },
+    };
+  };
+
+  it("keeps the eviction when the host re-renders while onDelete is in flight", async () => {
+    const { runtime, confirmDelete, rerender } = deferredDeleteStore([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    const deletion = runtime.deleteMessage("u2");
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("keeps the eviction when the thread reloads while onDelete is in flight", async () => {
+    const { runtime, confirmDelete, rerender } = deferredDeleteStore([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    const deletion = runtime.deleteMessage("u1");
+    await runtime.startRun({ parentId: "u2", sourceId: "a2", runConfig: {} });
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
+  it("keeps the eviction of a reload's parent deleted while onDelete is in flight", async () => {
+    const { runtime, confirmDelete, rerender, setStoreMessages } =
+      deferredDeleteStore([
+        message("u1", "user", "one"),
+        message("a1", "assistant", "two"),
+      ]);
+
+    const deletion = runtime.deleteMessage("u1");
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+    setStoreMessages([message("a1b", "assistant", "regenerated")]);
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1b"]);
+    expect(runtime.getBranches("a1b")).toEqual(["a1", "a1b"]);
+  });
+
+  it.each([
+    ["resolves", () => Promise.resolve()],
+    ["rejects", () => Promise.reject(new Error("already deleting"))],
+  ])(
+    "keeps the eviction while another onDelete for the id is in flight when one %s",
+    async (_, settleDuplicate) => {
+      let current = [
+        message("u1", "user", "one"),
+        message("a1", "assistant", "two"),
+        message("u2", "user", "three"),
+        message("a2", "assistant", "four"),
+      ];
+      let confirmDelete!: () => void;
+      let calls = 0;
+      const onDelete = vi.fn((id: string) =>
+        ++calls > 1
+          ? settleDuplicate()
+          : new Promise<void>((resolve) => {
+              confirmDelete = () => {
+                current = current.filter((m) => m.id !== id);
+                resolve();
+              };
+            }),
+      );
+      const store = () => makeStore({ messages: current, onDelete });
+      const rerender = () => {
+        current = [...current];
+        runtime.__internal_setAdapter(store());
+      };
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        store(),
+      );
+
+      const deletion = runtime.deleteMessage("u2");
+      await runtime.deleteMessage("u2").catch(() => {});
+      rerender();
+      confirmDelete();
+      await deletion;
+      rerender();
+
+      expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+      expect(runtime.getBranches("a2")).toEqual(["a2"]);
+    },
+  );
+
+  it("keeps the eviction when a second onDelete for the id rejects after the host dropped it", async () => {
+    let current = [
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+    ];
+    const settlers: Array<() => void> = [];
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve, reject) => {
+          settlers.push(
+            settlers.length === 0
+              ? () => {
+                  current = current.filter((m) => m.id !== id);
+                  resolve();
+                }
+              : () => reject(new Error("already deleted")),
+          );
+        }),
+    );
+    const store = () => makeStore({ messages: current, onDelete });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    const first = runtime.deleteMessage("u1");
+    const second = runtime.deleteMessage("u1");
+    settlers[0]!();
+    await first;
+    settlers[1]!();
+    await expect(second).rejects.toThrow("already deleted");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
+  it("keeps a pending eviction across a branch switch swallowed mid-run", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = (isRunning: boolean) =>
+      makeStore({
+        messages: current,
+        onDelete,
+        setMessages: vi.fn(),
+        isRunning,
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(true),
+    );
+
+    await runtime.deleteMessage("u1");
+    runtime.switchToBranch("a1");
+    runtime.__internal_setAdapter(store(true));
+
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+
+    runtime.__internal_setAdapter(store(false));
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
+  it("keeps a visible message the host declined to delete", async () => {
+    const current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async () => {});
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    await runtime.deleteMessage("u1");
+    runtime.__internal_setAdapter(store());
+
+    expect(onDelete).toHaveBeenCalledWith("u1");
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [...current], onDelete, setMessages: vi.fn() }),
+    );
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+  });
+
+  it("evicts when the host publishes the confirming snapshot before onDelete resolves", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    let syncSnapshot!: () => void;
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+      syncSnapshot();
+      await Promise.resolve();
+    });
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    syncSnapshot = () => runtime.__internal_setAdapter(store());
+
+    await runtime.deleteMessage("u1");
+
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
+  it("keeps the message when onDelete rejects", async () => {
+    const current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async () => {
+      throw new Error("server down");
+    });
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    await expect(runtime.deleteMessage("u1")).rejects.toThrow("server down");
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [...current], onDelete, setMessages: vi.fn() }),
+    );
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [
+          message("u1b", "user", "other"),
+          message("a1b", "assistant", "branch"),
+        ],
+        onDelete,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.getBranches("u1b")).toEqual(["u1", "u1b"]);
+  });
+
+  it("does not evict a declined delete when a later mutation changes the branch", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "one"),
+    ];
+    const onDelete = vi.fn(async () => {});
+    const setMessages = vi.fn((m: unknown[]) => {
+      current = m as typeof current;
+    });
+    const store = () => makeStore({ messages: current, onDelete, setMessages });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    current = [current[0]!, message("a2", "assistant", "two")];
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
+
+    await runtime.deleteMessage("a2");
+
+    runtime.switchToBranch("a1");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1", "a2"]);
+  });
+
+  it("leaves positional fallback ids for the snapshot remapping to prune", async () => {
+    const convertMessage = (m: { text: string }): ThreadMessageLike => ({
+      role: "user",
+      content: [{ type: "text", text: m.text }],
+    });
+    let current = [{ text: "first" }, { text: "second" }];
+    const setMessages = vi.fn((m: typeof current) => {
+      current = m;
+    });
+    const store = () =>
+      makeStore({ messages: current, convertMessage, setMessages });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    const firstId = runtime.messages[0]!.id;
+
+    await runtime.deleteMessage(firstId);
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages).toHaveLength(1);
+    expect(runtime.getBranches(runtime.messages[0]!.id)).toEqual([
+      runtime.messages[0]!.id,
+    ]);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
+  const convertMessage = (m: {
+    role?: "user" | "assistant";
+    text: string;
+  }): ThreadMessageLike => ({
+    role: m.role ?? "user",
+    content: [{ type: "text", text: m.text }],
+  });
+
+  const storeWith = (
+    messages: { role?: "user" | "assistant"; text: string }[],
+    isRunning = false,
+  ) => makeStore({ messages, convertMessage, isRunning });
+
+  const textOf = (message: { content: readonly { type: string }[] }) => {
+    const part = message.content[0];
+    return part && part.type === "text" && "text" in part
+      ? part.text
+      : undefined;
+  };
+
+  it("keeps a prepended history message", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const m0 = { text: "older-user" };
+      const m1 = { text: "newer-user" };
+      const m2 = { role: "assistant" as const, text: "newer-assistant" };
+
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        storeWith([m1, m2]),
+      );
+      expect(runtime.messages).toHaveLength(2);
+
+      runtime.__internal_setAdapter(storeWith([m0, m1, m2]));
+
+      expect(warn).not.toHaveBeenCalled();
+      expect(runtime.messages).toHaveLength(3);
+      expect(runtime.messages.map(textOf)).toEqual([
+        "older-user",
+        "newer-user",
+        "newer-assistant",
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps the last message id when its host object is replaced while running", () => {
+    const user = { text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith([user, { role: "assistant", text: "he" }], true),
+    );
+    const assistantId = runtime.messages[1]!.id;
+
+    runtime.__internal_setAdapter(
+      storeWith([user, { role: "assistant", text: "hel" }], true),
+    );
+    runtime.__internal_setAdapter(
+      storeWith([user, { role: "assistant", text: "hello" }], true),
+    );
+
+    expect(runtime.messages[1]!.id).toBe(assistantId);
+    expect(runtime.getBranches(assistantId)).toEqual([assistantId]);
+    expect(textOf(runtime.messages[1]!)).toBe("hello");
+  });
+
+  it("does not rewrite an explicit host id when the list shifts", () => {
+    const convertWithId = (m: {
+      id?: string;
+      text: string;
+    }): ThreadMessageLike => ({
+      ...(m.id !== undefined ? { id: m.id } : {}),
+      role: "user",
+      content: [{ type: "text", text: m.text }],
+    });
+
+    const explicit = { id: "host-a", text: "kept" };
+    const idLess = { text: "id-less" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [explicit],
+        convertMessage: convertWithId,
+      }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [idLess, explicit],
+        convertMessage: convertWithId,
+      }),
+    );
+
+    expect(runtime.messages.map((m) => m.id)).toEqual([
+      expect.stringMatching(/^__external_store_fallback_/),
+      "host-a",
+    ]);
+    expect(runtime.messages.map(textOf)).toEqual(["id-less", "kept"]);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore - convertMessage auto status", () => {
+  const toolCall = (extra?: Record<string, unknown>) => ({
+    type: "tool-call" as const,
+    toolCallId: "t1",
+    toolName: "search",
+    args: {},
+    argsText: "{}",
+    ...extra,
+  });
+
+  const makeRuntime = (assistant: ThreadMessageLike, isRunning = false) =>
+    new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        isRunning,
+        messages: [{ role: "user", content: "run it" }, assistant],
+        convertMessage: (m: ThreadMessageLike) => m,
+        setMessages: vi.fn(),
+      }),
+    );
+
+  it("reports requires-action for a tool call without a result", () => {
+    const runtime = makeRuntime({ role: "assistant", content: [toolCall()] });
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("reports an interrupt for an unresolved approval", () => {
+    const runtime = makeRuntime({
+      role: "assistant",
+      content: [toolCall({ approval: { id: "a1" } })],
+    });
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("reports an interrupt for a human interrupt", () => {
+    const runtime = makeRuntime({
+      role: "assistant",
+      content: [toolCall({ interrupt: { type: "human", payload: {} } })],
+    });
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("reports complete once the tool call has a result", () => {
+    const runtime = makeRuntime({
+      role: "assistant",
+      content: [toolCall({ result: "ok" })],
+    });
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "complete" });
+  });
+
+  it("keeps the last message running while a tool call is still pending", () => {
+    const runtime = makeRuntime(
+      { role: "assistant", content: [toolCall()] },
+      true,
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "running" });
+  });
+
+  it("reuses the converted message until its auto status changes", () => {
+    const pending: ThreadMessageLike = {
+      role: "assistant",
+      content: [toolCall()],
+    };
+    const user: ThreadMessageLike = { role: "user", content: "run it" };
+    const convertMessage = vi.fn((m: ThreadMessageLike) => m);
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        isRunning: false,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    const first = runtime.messages[1]!;
+    expect(convertMessage).toHaveBeenCalledTimes(2);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        isRunning: false,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]).toBe(first);
+    expect(convertMessage).toHaveBeenCalledTimes(2);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        isRunning: false,
+        messages: [user, { ...pending, content: [toolCall({ result: "ok" })] }],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "complete" });
+  });
+
+  it("recomputes a cached message's status when the run ends", () => {
+    const pending: ThreadMessageLike = {
+      role: "assistant",
+      content: [toolCall()],
+    };
+    const user: ThreadMessageLike = { role: "user", content: "run it" };
+    const convertMessage = vi.fn((m: ThreadMessageLike) => m);
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        isRunning: true,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "running" });
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        isRunning: false,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
   });
 });

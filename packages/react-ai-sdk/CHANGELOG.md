@@ -1,5 +1,93 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.16
+
+### Patch Changes
+
+- Updated dependencies [[`fd444e4`](https://github.com/assistant-ui/assistant-ui/commit/fd444e4e94c4b49aba0ad734e0f8a0a3cde1bb22), [`ddb04de`](https://github.com/assistant-ui/assistant-ui/commit/ddb04deec5c1010042f99befb934c3b895ec3fc8), [`cb58bf9`](https://github.com/assistant-ui/assistant-ui/commit/cb58bf9de1ab789af81efeb8a2b991c99d9c4aa1)]:
+  - @assistant-ui/ai-sdk@0.0.11
+
+## 1.4.15
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9)]:
+  - @assistant-ui/ai-sdk@0.0.10
+
+## 1.4.14
+
+### Patch Changes
+
+- Updated dependencies [[`3bec0dc`](https://github.com/assistant-ui/assistant-ui/commit/3bec0dccecb9b845c0ed35f21a5ec93a627e9df5), [`60c7137`](https://github.com/assistant-ui/assistant-ui/commit/60c71373e5c5463f6c701eda93dc59299397cf38), [`e558705`](https://github.com/assistant-ui/assistant-ui/commit/e55870543c1a3f1c8c4971c5283fd9d6ed9ea8f5), [`7583ee3`](https://github.com/assistant-ui/assistant-ui/commit/7583ee330a3f0ad5e71d490b4dadd27574537a4c), [`dabe34f`](https://github.com/assistant-ui/assistant-ui/commit/dabe34fca8a31bf7f8afac89827bf3bf683942e6), [`2875042`](https://github.com/assistant-ui/assistant-ui/commit/2875042512e52fbbeeee8984194596485aa67ae0), [`e01a6d5`](https://github.com/assistant-ui/assistant-ui/commit/e01a6d52802d26fad1bf06484773cfaf6bad8cdd), [`e73db99`](https://github.com/assistant-ui/assistant-ui/commit/e73db990bfb860f428da6b5979f07ef416ab3fd4), [`237e16f`](https://github.com/assistant-ui/assistant-ui/commit/237e16fd2e242bfcd2e5e3a1aa92f01936e70249)]:
+  - @assistant-ui/ai-sdk@0.0.9
+
+## 1.4.13
+
+### Patch Changes
+
+- [#8071](https://github.com/assistant-ui/assistant-ui/pull/8071) [`42b9600`](https://github.com/assistant-ui/assistant-ui/commit/42b960075bb2c0eed76daeaa5eef96f43f0c639a) - fix: `ai` (7.0.101 or newer) is now a peer dependency, so the adapter shares the app's `ai` and upgrading it no longer splits `assistant-cloud` into two copies whose `AssistantCloud` types reject each other ([@Sthreal](https://github.com/Sthreal))
+- Updated dependencies [[`42b9600`](https://github.com/assistant-ui/assistant-ui/commit/42b960075bb2c0eed76daeaa5eef96f43f0c639a), [`c142395`](https://github.com/assistant-ui/assistant-ui/commit/c142395c03c489a8c6356023b632ccab1c9529e9), [`c42426e`](https://github.com/assistant-ui/assistant-ui/commit/c42426e4deccea6752fa62ffd0c2230d3bbe0dd3), [`8cf7462`](https://github.com/assistant-ui/assistant-ui/commit/8cf746269fd2395ba710f7bad21f4f6f77438848), [`d9992c6`](https://github.com/assistant-ui/assistant-ui/commit/d9992c6a87dd1a23e9ff737b6c3aedd58a90c1d6), [`b8d3dc3`](https://github.com/assistant-ui/assistant-ui/commit/b8d3dc3d5def6dbaf6560ef8e53fc960a7c7c028), [`c42426e`](https://github.com/assistant-ui/assistant-ui/commit/c42426e4deccea6752fa62ffd0c2230d3bbe0dd3), [`d8394bc`](https://github.com/assistant-ui/assistant-ui/commit/d8394bc4de01a1d65527a8328b74f07764938f05), [`d403574`](https://github.com/assistant-ui/assistant-ui/commit/d403574c2eb2223ebad560f52130461482689e4a), [`84e0cf4`](https://github.com/assistant-ui/assistant-ui/commit/84e0cf4c9b7fc92a85d1360b37e2e20b73bed650), [`21f8bdf`](https://github.com/assistant-ui/assistant-ui/commit/21f8bdfd8c5c0541cf6d0541eec07fb9e88c3ad3), [`11f9648`](https://github.com/assistant-ui/assistant-ui/commit/11f96489de16f3485b81a833af7e6b3257a14689), [`3a67fa8`](https://github.com/assistant-ui/assistant-ui/commit/3a67fa8ebcee339216b292723da445444cca064a), [`75bd488`](https://github.com/assistant-ui/assistant-ui/commit/75bd48844f69e61d2e8e09a20b3003cd75f6adc0), [`9da3697`](https://github.com/assistant-ui/assistant-ui/commit/9da3697fcf98b60acdb347064e533e5cd438d7ec), [`c51ba8f`](https://github.com/assistant-ui/assistant-ui/commit/c51ba8fb3014375ae62784084aaefe3ecc6d72fa)]:
+  - @assistant-ui/ai-sdk@0.0.8
+
+## 1.4.12
+
+### Patch Changes
+
+- Updated dependencies [[`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0), [`f1c4a27`](https://github.com/assistant-ui/assistant-ui/commit/f1c4a27ddc346f38a856a10e9e4112ef1298471d), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc)]:
+  - @assistant-ui/ai-sdk@0.0.7
+
+## 1.4.11
+
+### Patch Changes
+
+- Updated dependencies [[`09d5925`](https://github.com/assistant-ui/assistant-ui/commit/09d592523e33961e6c032379d78ad6b3d6a2e8a5), [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3), [`e54bf9a`](https://github.com/assistant-ui/assistant-ui/commit/e54bf9aacd73a2431e3194aaced86dfdff67ed2d), [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45), [`f6b7ba9`](https://github.com/assistant-ui/assistant-ui/commit/f6b7ba98cbd88154e5e7b8e51de5729d2b950c4e)]:
+  - @assistant-ui/ai-sdk@0.0.6
+
+## 1.4.10
+
+### Patch Changes
+
+- Updated dependencies [[`9d218b3`](https://github.com/assistant-ui/assistant-ui/commit/9d218b33513eb0b71f9854604bda72a833bc071e), [`be61444`](https://github.com/assistant-ui/assistant-ui/commit/be614442ba1d6a0152aed5c639fb0b29292e2ac3), [`37eaa19`](https://github.com/assistant-ui/assistant-ui/commit/37eaa1951a5ea393e50058cff5d48933b206f192), [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`1d371db`](https://github.com/assistant-ui/assistant-ui/commit/1d371db254fae7b15fa93e34f10369d61a0fc301), [`cf6fac8`](https://github.com/assistant-ui/assistant-ui/commit/cf6fac8764dd0defb81d0ad26de70c4cdf6b096e), [`6c85699`](https://github.com/assistant-ui/assistant-ui/commit/6c85699526007e2febe3add80515af16ae84111f), [`40f0978`](https://github.com/assistant-ui/assistant-ui/commit/40f0978744647043bac9089d63ab4a777d29d5ec), [`5febc06`](https://github.com/assistant-ui/assistant-ui/commit/5febc06a6af98ed4aa48eea8f7737d890bd35015)]:
+  - @assistant-ui/ai-sdk@0.0.5
+
+## 1.4.9
+
+### Patch Changes
+
+- Updated dependencies [[`9fa3778`](https://github.com/assistant-ui/assistant-ui/commit/9fa3778ed84ee3a43cbdc6cf57d0b323c51adb08), [`bc75ef5`](https://github.com/assistant-ui/assistant-ui/commit/bc75ef57f40b50f3ab5f6fa47cdc4d761849f564), [`9322628`](https://github.com/assistant-ui/assistant-ui/commit/9322628c36d8dc86fa66359445aacfd2a00dc75a), [`65d449b`](https://github.com/assistant-ui/assistant-ui/commit/65d449bf225e190f308de00f85196420b72dc6d4), [`dabe8f2`](https://github.com/assistant-ui/assistant-ui/commit/dabe8f21f5cea21fa7fdd1b9c1987e0ac7367c07), [`dc2cab3`](https://github.com/assistant-ui/assistant-ui/commit/dc2cab3aecc0466c6c2274974e42b3196e0763bc), [`1fa3e09`](https://github.com/assistant-ui/assistant-ui/commit/1fa3e099eeab5c19e414da25fcae1b213da3ff10), [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794), [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449)]:
+  - @assistant-ui/ai-sdk@0.0.4
+
+## 1.4.8
+
+### Patch Changes
+
+- Updated dependencies [[`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d), [`d7ec59b`](https://github.com/assistant-ui/assistant-ui/commit/d7ec59b91668f961cfd90b4b53328b45b5c26505), [`8f76003`](https://github.com/assistant-ui/assistant-ui/commit/8f7600310b5c1f9695dfe764cb8a303aabbc6fdf), [`cd23a05`](https://github.com/assistant-ui/assistant-ui/commit/cd23a05b62dab99cc51594d13b463e40d153b862), [`8217a6e`](https://github.com/assistant-ui/assistant-ui/commit/8217a6e7105b682871211e5c93b1965f25198624), [`7e03b66`](https://github.com/assistant-ui/assistant-ui/commit/7e03b669d08b4cadaf4b381a4d1e57c2fc22d139), [`c4b39b5`](https://github.com/assistant-ui/assistant-ui/commit/c4b39b507c2ae6f371d205f7264bff6145cb2cdf), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d)]:
+  - @assistant-ui/ai-sdk@0.0.3
+
+## 1.4.7
+
+### Patch Changes
+
+- Updated dependencies [[`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2)]:
+  - @assistant-ui/ai-sdk@0.0.2
+
+## 1.4.6
+
+### Patch Changes
+
+- [#6071](https://github.com/assistant-ui/assistant-ui/pull/6071) [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148) - feat: host assistant-cloud thread lists on AISDKThreads via RemoteThreadList ([@okisdev](https://github.com/okisdev))
+  
+  AISDKThreads({ cloud }) uses RemoteThreadList and remounts each thread like useChatRuntime. Cloud history withFormat resolves persistence per call so one adapter can serve many threads. useExternalHistory waits for threadListItem.remoteId instead of latching on the first empty paint.
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5923](https://github.com/assistant-ui/assistant-ui/pull/5923) [`ab2ee15`](https://github.com/assistant-ui/assistant-ui/commit/ab2ee155f70e93a713daf151f4f50957e0420675) - refactor: the package now re-exports `@assistant-ui/ai-sdk`. all existing imports keep working unchanged. ([@okisdev](https://github.com/okisdev))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`d68918e`](https://github.com/assistant-ui/assistant-ui/commit/d68918ee5c862ca6a261a01ea0b961e7b2b66af2), [`ab2ee15`](https://github.com/assistant-ui/assistant-ui/commit/ab2ee155f70e93a713daf151f4f50957e0420675), [`833fbe8`](https://github.com/assistant-ui/assistant-ui/commit/833fbe84f12a23a8caebd121d60a32528e33378d), [`9d920cc`](https://github.com/assistant-ui/assistant-ui/commit/9d920cc89c25459e602ee0c3037b5f84fd626e01), [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148), [`bec0753`](https://github.com/assistant-ui/assistant-ui/commit/bec075348dbdcd377c38074dd179d2751463ba35), [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0), [`9ad48f4`](https://github.com/assistant-ui/assistant-ui/commit/9ad48f40006c9d05fcd5a44c1bc47ae1f2e63754), [`be0f698`](https://github.com/assistant-ui/assistant-ui/commit/be0f698c766bff1a667d9ea3ef1f897cee54c540), [`f44163f`](https://github.com/assistant-ui/assistant-ui/commit/f44163f8030e8a12d33f1412de96ecdda4000f7c), [`9bb4735`](https://github.com/assistant-ui/assistant-ui/commit/9bb4735bbec2a22507e4dcad6aa8c691caef0a74)]:
+  - @assistant-ui/ai-sdk@0.0.1
+
 ## 1.4.5
 
 ### Patch Changes

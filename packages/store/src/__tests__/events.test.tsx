@@ -86,6 +86,44 @@ describe("scope-filtered on", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m0", value: "mine" });
   });
 
+  it("delivers events through a derived forwarding proxy", async () => {
+    let aui!: AnyClient;
+    const wrappers = new WeakMap<AnyClient, AnyClient>();
+    const Harness = () => {
+      aui = useAui({
+        thread: ThreadClient(),
+        message: Derived({
+          source: "thread",
+          query: {},
+          get: (parent: AnyClient) => {
+            const client = parent.thread.message({ index: 0 }) as AnyClient;
+            let wrapper = wrappers.get(client);
+            if (!wrapper) {
+              wrapper = new Proxy(client, {
+                get: (target, prop, receiver) =>
+                  Reflect.get(target, prop, receiver),
+              });
+              wrappers.set(client, wrapper);
+            }
+            return wrapper;
+          },
+        } as never),
+      } as unknown as useAui.Props);
+      return null;
+    };
+    render(<Harness />);
+    const cb = vi.fn();
+    aui.on("message.pinged", cb);
+
+    aui.thread.message({ index: 0 }).ping("forwarded");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "forwarded",
+    });
+  });
+
   it("a thread-scoped listener receives events emitted by descendant clients", async () => {
     const { getAui } = setup();
     const aui = getAui();
@@ -132,6 +170,35 @@ describe("scope-filtered on", () => {
       event: "message.pinged",
       payload: { id: "m0", value: "m" },
     });
+  });
+
+  it("logs a rejecting async listener registered through aui.on", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { getAui } = setup();
+      const aui = getAui();
+      const failure = new Error("async listener failed");
+      const later = vi.fn();
+      aui.on({ scope: "thread", event: "thread.pinged" }, async () => {
+        throw failure;
+      });
+      aui.on({ scope: "thread", event: "thread.pinged" }, later);
+
+      act(() => {
+        aui.thread.ping("boom");
+      });
+      await flushEvents();
+
+      expect(later).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        "NotificationManager: event listener error",
+        failure,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("on throws for a scope that is not available", () => {
@@ -194,7 +261,7 @@ describe("scope-filtered on", () => {
           ? { thread: ThreadClient(), message: messageDerived() }
           : { thread: ThreadClient() }) as unknown as useAui.Props,
       );
-      return <AuiProvider value={aui as never} />;
+      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
     };
     const view = render(<Harness hasMessage />);
     const cb = vi.fn();
@@ -220,6 +287,30 @@ describe("scope-filtered on", () => {
     aui.thread.ping("second");
     await flushEvents();
     expect(cb).toHaveBeenCalledExactlyOnceWith({ value: "first" });
+  });
+
+  it("a stale unsubscribe preserves a replacement listener", async () => {
+    const { getAui } = setup();
+    const aui = getAui();
+    const removed = vi.fn();
+    const unsub = aui.on("thread.pinged", removed);
+    unsub();
+
+    const replacement = vi.fn();
+    const unsubReplacement = aui.on("thread.pinged", replacement);
+    unsub();
+    aui.thread.ping("replacement");
+    await flushEvents();
+
+    expect(removed).not.toHaveBeenCalled();
+    expect(replacement).toHaveBeenCalledExactlyOnceWith({
+      value: "replacement",
+    });
+
+    unsubReplacement();
+    aui.thread.ping("removed");
+    await flushEvents();
+    expect(replacement).toHaveBeenCalledTimes(1);
   });
 });
 

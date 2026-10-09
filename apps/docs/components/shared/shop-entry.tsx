@@ -1,0 +1,52 @@
+"use client";
+
+import { Suspense, lazy, type ComponentProps } from "react";
+import { checkoutEnabled } from "@/lib/checkout/config";
+
+const LazyCartButton = lazy(() =>
+  import("@/components/shared/cart-button").then((module) => ({
+    default: module.CartButton,
+  })),
+);
+
+const LazyAddToCartButton = lazy(() =>
+  import("@/components/pages/shop/add-to-cart-button").then((module) => ({
+    default: module.AddToCartButton,
+  })),
+);
+
+const LazyAgentSetup = lazy(() =>
+  import("@/components/shared/agent-setup").then((module) => ({
+    default: module.AgentSetup,
+  })),
+);
+
+/** The shop's entry points load the catalog only on a build that has a checkout worker, and only where one renders. */
+export function CartButton(props: ComponentProps<typeof LazyCartButton>) {
+  if (!checkoutEnabled) return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyCartButton {...props} />
+    </Suspense>
+  );
+}
+
+export function AgentSetup(props: ComponentProps<typeof LazyAgentSetup>) {
+  if (!checkoutEnabled) return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyAgentSetup {...props} />
+    </Suspense>
+  );
+}
+
+export function AddToCartButton(
+  props: ComponentProps<typeof LazyAddToCartButton>,
+) {
+  if (!checkoutEnabled) return null;
+  return (
+    <Suspense fallback={null}>
+      <LazyAddToCartButton {...props} />
+    </Suspense>
+  );
+}

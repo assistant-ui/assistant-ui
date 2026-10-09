@@ -1,4 +1,6 @@
+import type { WizardPageId } from "@/components/pages/shop/setup-wizard-page";
 import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
+import type { WebMcpToolName } from "@/lib/webmcp-tools";
 
 declare global {
   interface Window {
@@ -6,12 +8,6 @@ declare global {
       capture?: (
         event: string,
         properties?: Record<string, string | number | boolean>,
-      ) => void;
-    };
-    umami?: {
-      track: (
-        event: string,
-        data?: Record<string, string | number | boolean>,
       ) => void;
     };
   }
@@ -45,15 +41,17 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
 
   // Vercel Analytics
   void getVercelTrack().then((track) => track?.(event, properties));
-
-  // Umami
-  window.umami?.track?.(event, properties);
 };
 
 export const analytics = {
   cta: {
     clicked: (
-      cta: "get_started" | "contact_sales" | "why_us",
+      cta:
+        | "get_started"
+        | "contact_sales"
+        | "why_us"
+        | "start_setup_agent"
+        | "start_setup_manual",
       location: string,
     ) => trackEvent("cta_clicked", { cta, location }),
 
@@ -66,12 +64,20 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
-  outbound: {
-    linkClicked: (
-      href: string,
-      label: string,
-      properties?: Record<string, string | number | boolean>,
-    ) => trackEvent("outbound_link_clicked", { ...properties, href, label }),
+  shop: {
+    cartToggled: (product: string, added: boolean) =>
+      trackEvent("shop_cart_toggled", { product, added }),
+  },
+
+  setup: {
+    stepViewed: (step: WizardPageId) =>
+      trackEvent("setup_step_viewed", { step }),
+
+    agentConnected: () => trackEvent("setup_agent_connected"),
+
+    installFinished: () => trackEvent("setup_install_finished"),
+
+    cancelled: () => trackEvent("setup_cancelled"),
   },
 
   search: {
@@ -98,27 +104,6 @@ export const analytics = {
       trackEvent("code_block_copied", { language, source }),
   },
 
-  example: {
-    tabSwitched: (example: string) =>
-      trackEvent("example_tab_switched", { example }),
-  },
-
-  docs: {
-    navigationClicked: (pageName: string, pageUrl: string, depth: number) =>
-      trackEvent("doc_navigation_clicked", {
-        page_name: pageName,
-        page_url: pageUrl,
-        depth,
-      }),
-
-    folderToggled: (folderName: string, isOpen: boolean, depth: number) =>
-      trackEvent("doc_folder_toggled", {
-        folder_name: folderName,
-        is_open: isOpen,
-        depth,
-      }),
-  },
-
   builder: {
     presetSelected: (preset: string) =>
       trackEvent("builder_preset_selected", { preset }),
@@ -135,14 +120,13 @@ export const analytics = {
   },
 
   toc: {
-    linkClicked: (headingTitle: string, headingDepth: number) =>
-      trackEvent("toc_link_clicked", {
-        heading_title: headingTitle,
-        heading_depth: headingDepth,
-      }),
-
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
+  },
+
+  pageActions: {
+    actionClicked: (action: "copy" | "markdown" | "claude" | "codex" | "mcp") =>
+      trackEvent("page_action_clicked", { action }),
   },
 
   install: {
@@ -154,6 +138,7 @@ export const analytics = {
     feedbackShown: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       user_question_length: number;
       assistant_response_length: number;
       tool_calls_count: number;
@@ -165,6 +150,7 @@ export const analytics = {
     feedbackClicked: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       type: "positive" | "negative";
       category?:
         | "wrong_information"
@@ -184,6 +170,7 @@ export const analytics = {
     feedbackSubmitFailed: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       type: "positive" | "negative";
       category?:
         | "wrong_information"
@@ -265,6 +252,7 @@ export const analytics = {
     feedbackSubmitted: (props: {
       threadId: string;
       messageId: string;
+      surface?: "docs_assistant" | "home_thread";
       type: "positive" | "negative";
       category?:
         | "wrong_information"
@@ -328,7 +316,6 @@ export const analytics = {
       thread_id?: string;
       pathname?: string;
       course_id: string;
-      consent: boolean;
     }) => trackEvent("learn_certificate_submitted", props),
 
     playgroundViewed: (props: {
@@ -378,7 +365,7 @@ export const analytics = {
       session_id: string;
       thread_id?: string;
       pathname?: string;
-      source: "template" | "agent_template" | "agent_sandbox";
+      source: "template" | "agent_template";
       template_id?: string;
     }) => trackEvent("xulux_preview_shown", props),
 
@@ -388,8 +375,24 @@ export const analytics = {
       pathname?: string;
       action: "copy_prompt" | "download";
       surface: "open_in_card" | "canvas" | "detail_modal";
-      download_type?: "template" | "sandbox" | "demo";
+      download_type?: "template" | "demo";
       template_id?: string;
     }) => trackEvent("xulux_converted", props),
+  },
+
+  webmcp: {
+    hostDetected: () => trackEvent("webmcp_host_detected"),
+
+    toolRegistered: (
+      props:
+        | { tool: WebMcpToolName; status: "ok" }
+        | { tool: WebMcpToolName; status: "failed"; error_name: string },
+    ) => trackEvent("webmcp_tool_registered", props),
+
+    toolCalled: (props: {
+      tool: WebMcpToolName;
+      status: "ok" | "error" | "aborted";
+      latency_ms: number;
+    }) => trackEvent("webmcp_tool_called", props),
   },
 };

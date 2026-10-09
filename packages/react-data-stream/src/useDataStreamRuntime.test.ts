@@ -29,13 +29,17 @@ const userMessage: ThreadMessage = {
   metadata: { custom: {} },
 };
 
-const createRunOptions = (abortSignal = new AbortController().signal) =>
+const createRunOptions = (
+  abortSignal = new AbortController().signal,
+  threadId?: string,
+) =>
   ({
     messages: [],
     runConfig: {},
     abortSignal,
     context: {},
     unstable_getMessage: () => userMessage,
+    ...(threadId === undefined ? {} : { unstable_threadId: threadId }),
   }) satisfies ChatModelRunOptions;
 
 const createAdapter = (options: UseDataStreamRuntimeOptions) => {
@@ -50,16 +54,53 @@ const runToCompletion = async (
   adapter: ChatModelAdapter,
   options: ChatModelRunOptions,
 ) => {
-  for await (const _ of adapter.run(options)) void _;
+  const result = adapter.run(options);
+  if (Symbol.asyncIterator in result) {
+    for await (const _ of result) void _;
+  } else {
+    await result;
+  }
 };
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  vi.clearAllMocks();
 });
 
 describe("useDataStreamRuntime request errors", () => {
+  it.each([
+    {
+      name: "line",
+      response: "data: [DONE]\n\n",
+      limits: { maxStreamLineLength: 5 },
+      expectedError: "maxLineLength",
+    },
+    {
+      name: "event",
+      response: "data: a\ndata: b\n\n",
+      limits: { maxStreamLineLength: 7, maxStreamEventLength: 2 },
+      expectedError: "maxEventLength",
+    },
+  ])("forwards the configured $name limit", async (testCase) => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(testCase.response)),
+    );
+
+    const adapter = createAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      ...testCase.limits,
+      onError,
+    });
+
+    await expect(runToCompletion(adapter, createRunOptions())).rejects.toThrow(
+      testCase.expectedError,
+    );
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
   it.each(["headers", "body"] as const)(
     "reports async %s resolution failures",
     async (option) => {
@@ -90,6 +131,80 @@ describe("useDataStreamRuntime request errors", () => {
 
     await expect(runOnce(adapter, createRunOptions())).rejects.toBe(error);
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+  });
+
+  it("keeps mid-stream cancellation separate from stream errors", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
+    const onCancel = vi.fn();
+    const onError = vi.fn();
+    const encoder = new TextEncoder();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(streamController) {
+            streamController.enqueue(encoder.encode('0:"Hello"\n'));
+            init?.signal?.addEventListener(
+              "abort",
+              () => streamController.error(init.signal?.reason),
+              { once: true },
+            );
+          },
+        });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "x-vercel-ai-data-stream": "v1" },
+          }),
+        );
+      }),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onCancel, onError });
+    const run = async () => {
+      for await (const _ of adapter.run(
+        createRunOptions(controller.signal),
+      ) as AsyncGenerator) {
+        void _;
+        controller.abort(abortError);
+      }
+    };
+
+    await expect(run()).rejects.toBe(abortError);
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("normalizes non-Error stream failures for onError", async () => {
+    const onError = vi.fn();
+    const encoder = new TextEncoder();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        const body = new ReadableStream<Uint8Array>({
+          start(streamController) {
+            streamController.enqueue(encoder.encode('0:"Hello"\n'));
+            streamController.error("wire failure");
+          },
+        });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "x-vercel-ai-data-stream": "v1" },
+          }),
+        );
+      }),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onError });
+
+    await expect(runToCompletion(adapter, createRunOptions())).rejects.toBe(
+      "wire failure",
+    );
+    expect(onError).toHaveBeenCalledExactlyOnceWith(new Error("wire failure"));
   });
 
   it.each(["throws", "rejects"] as const)(
@@ -124,15 +239,54 @@ describe("useDataStreamRuntime request errors", () => {
 
   it("keeps response callback failures separate from request errors", async () => {
     const error = new Error("response callback failed");
+    const cancel = vi.fn().mockRejectedValue(new Error("cancel failed"));
     const onResponse = vi.fn().mockRejectedValue(error);
     const onError = vi.fn();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response()));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
 
     const adapter = createAdapter({ api: "/api/chat", onResponse, onError });
 
     await expect(runOnce(adapter, createRunOptions())).rejects.toBe(error);
     expect(onResponse).toHaveBeenCalledOnce();
     expect(onError).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("settles cancellation while the response callback is pending", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
+    const cancel = vi.fn();
+    const onResponse = vi.fn(() => new Promise<void>(() => {}));
+    const onCancel = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onResponse, onCancel });
+    const result = runOnce(adapter, createRunOptions(controller.signal));
+    await vi.waitFor(() => expect(onResponse).toHaveBeenCalledOnce());
+
+    controller.abort(abortError);
+
+    await expect(result).rejects.toBe(abortError);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
   });
 
   it.each(["throws", "rejects"] as const)(
@@ -171,8 +325,9 @@ describe("useDataStreamRuntime request errors", () => {
     },
   );
 
-  it("reports resolver failures that race with cancellation", async () => {
+  it("keeps cancellation when a request resolver later fails", async () => {
     const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
     const error = new Error("headers failed");
     const onError = vi.fn();
     let rejectHeaders: ((reason: Error) => void) | undefined;
@@ -189,44 +344,42 @@ describe("useDataStreamRuntime request errors", () => {
     });
     const result = runOnce(adapter, createRunOptions(controller.signal));
 
-    controller.abort();
+    controller.abort(abortError);
     rejectHeaders?.(error);
 
-    await expect(result).rejects.toBe(error);
-    expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+    await expect(result).rejects.toBe(abortError);
+    expect(onError).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("reports cancellation while resolving request options", async () => {
-    const controller = new AbortController();
-    const abortError = new DOMException("Cancelled", "AbortError");
-    const onCancel = vi.fn();
-    const onError = vi.fn();
-    let resolveHeaders: ((headers: Headers) => void) | undefined;
-    const headers = new Promise<Headers>((resolve) => {
-      resolveHeaders = resolve;
-    });
-    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
-      Promise.reject(init?.signal?.reason),
-    );
-    vi.stubGlobal("fetch", fetchMock);
+  it.each(["headers", "body"] as const)(
+    "settles cancellation while resolving request %s",
+    async (option) => {
+      const controller = new AbortController();
+      const abortError = new DOMException("Cancelled", "AbortError");
+      const onCancel = vi.fn();
+      const onError = vi.fn();
+      const pending = vi.fn(() => new Promise<never>(() => {}));
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
 
-    const adapter = createAdapter({
-      api: "/api/chat",
-      headers: () => headers,
-      onCancel,
-      onError,
-    });
-    const result = runOnce(adapter, createRunOptions(controller.signal));
+      const adapter = createAdapter({
+        api: "/api/chat",
+        ...(option === "headers" ? { headers: pending } : { body: pending }),
+        onCancel,
+        onError,
+      });
+      const result = runOnce(adapter, createRunOptions(controller.signal));
+      await vi.waitFor(() => expect(pending).toHaveBeenCalledOnce());
 
-    controller.abort(abortError);
-    resolveHeaders?.(new Headers());
+      controller.abort(abortError);
 
-    await expect(result).rejects.toBe(abortError);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(onError).not.toHaveBeenCalled();
-  });
+      await expect(result).rejects.toBe(abortError);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(onCancel).toHaveBeenCalledOnce();
+      expect(onError).not.toHaveBeenCalled();
+    },
+  );
 
   it("normalizes non-Error resolver failures for onError", async () => {
     const onError = vi.fn();
@@ -320,6 +473,32 @@ describe("useDataStreamRuntime request errors", () => {
       });
     },
   );
+});
+
+describe("useDataStreamRuntime request body", () => {
+  it("passes the active thread ID to body callbacks", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("failed", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const body = vi.fn(async ({ threadId }: { threadId?: string }) => ({
+      thread_id: threadId,
+    }));
+    const adapter = createAdapter({ api: "/api/chat", body });
+
+    await expect(
+      runOnce(adapter, createRunOptions(undefined, "remote-thread")),
+    ).rejects.toThrow("Status 500");
+
+    expect(body).toHaveBeenCalledExactlyOnceWith({
+      threadId: "remote-thread",
+    });
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(JSON.parse(request?.body as string)).toMatchObject({
+      threadId: "remote-thread",
+      thread_id: "remote-thread",
+    });
+  });
 });
 
 describe("useDataStreamRuntime lifecycle callbacks", () => {

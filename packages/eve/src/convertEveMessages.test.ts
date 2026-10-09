@@ -1,12 +1,48 @@
 import { describe, expect, it } from "vitest";
-import type { EveMessageData } from "eve/react";
-import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
+import type { EveMessageData, EveMessageInputRequest } from "eve/react";
 import {
+  defaultMessageReducer,
+  type EveAgentReducerEvent,
+  type MessageStreamEvent,
+} from "eve/client";
+import {
+  collectInterruptedTurnEvents,
   convertEveMessages,
+  type InterruptedTurnEventCache,
+  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
 import type { AppendMessage } from "@assistant-ui/core";
+
+const withApprovalPart = (eve?: {
+  kind: "tool-call";
+  name: string;
+  inputRequest?: EveMessageInputRequest;
+}): EveMessageData => ({
+  messages: [
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          state: "approval-requested",
+          toolCallId: "call_1",
+          toolName: "send_email",
+          input: {},
+          approval: { id: "req_1" },
+          ...(eve && { toolMetadata: { eve } }),
+        },
+      ],
+    },
+  ],
+});
+
+const eventMeta = (sequence: number) => ({
+  at: "2026-01-01T00:00:00.000Z",
+  id: `evt_${sequence}`,
+});
 
 describe("convertEveMessages", () => {
   it("converts text and reasoning parts", () => {
@@ -48,6 +84,75 @@ describe("convertEveMessages", () => {
     });
   });
 
+  it("omits the part status when the part state is still streaming", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          metadata: { status: "streaming" },
+          parts: [
+            { type: "reasoning", text: "Thinking", state: "streaming" },
+            { type: "text", text: "Hi", state: "streaming" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const messages = convertEveMessages(data, { isRunning: true });
+
+    for (const part of messages[0]!.content) {
+      expect(part).not.toHaveProperty("status");
+    }
+  });
+
+  it("maps a done part state to a complete part status", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          metadata: { status: "complete" },
+          parts: [
+            { type: "reasoning", text: "Thinking", state: "done" },
+            { type: "text", text: "Hi", state: "done" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const messages = convertEveMessages(data);
+
+    expect(messages[0]!.content).toEqual([
+      expect.objectContaining({
+        type: "reasoning",
+        status: { type: "complete" },
+      }),
+      expect.objectContaining({ type: "text", status: { type: "complete" } }),
+    ]);
+  });
+
+  it("omits the part status when the part state is absent", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "reasoning", text: "Thinking" },
+            { type: "text", text: "Hi" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const messages = convertEveMessages(data);
+
+    for (const part of messages[0]!.content) {
+      expect(part).not.toHaveProperty("status");
+    }
+  });
+
   it("converts dynamic tool parts with approval options", () => {
     const data = {
       messages: [
@@ -68,11 +173,12 @@ describe("convertEveMessages", () => {
                   name: "send_email",
                   inputRequest: {
                     requestId: "req_1",
+                    kind: "tool-approval",
                     prompt: "Send the email?",
                     display: "confirmation",
                     options: [
                       { id: "approve", label: "Approve" },
-                      { id: "deny", label: "Deny", style: "danger" },
+                      { id: "cancel", label: "Cancel", style: "danger" },
                       { id: "escalate", label: "Escalate" },
                     ],
                   },
@@ -98,13 +204,261 @@ describe("convertEveMessages", () => {
             id: "req_1",
             options: [
               { id: "approve", kind: "allow-once", label: "Approve" },
-              { id: "deny", kind: "reject-once", label: "Deny" },
+              { id: "cancel", kind: "reject-once", label: "Cancel" },
               { id: "escalate", kind: "_escalate", label: "Escalate" },
             ],
           },
         },
       ],
     });
+  });
+
+  it("keeps streaming dynamic tool args incomplete until input is available", () => {
+    const streamingData = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "input-streaming",
+              toolCallId: "call_1",
+              toolName: "search",
+              input: undefined,
+              inputText: "",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [streamingMessage] = convertEveMessages(streamingData);
+
+    expect(streamingMessage?.content[0]).toMatchObject({
+      type: "tool-call",
+      args: {},
+      argsText: "",
+    });
+
+    const availableData = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "input-available",
+              toolCallId: "call_1",
+              toolName: "search",
+              input: { query: "badge" },
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [availableMessage] = convertEveMessages(availableData);
+
+    expect(availableMessage?.content[0]).toMatchObject({
+      type: "tool-call",
+      args: { query: "badge" },
+      argsText: '{"query":"badge"}',
+    });
+  });
+
+  it.each([
+    [
+      "a confirmation request",
+      {
+        requestId: "req_1",
+        kind: "tool-approval",
+        prompt: "Send the email?",
+        display: "confirmation",
+        options: [
+          { id: "approve", label: "Approve" },
+          { id: "cancel", label: "Cancel" },
+        ],
+      },
+      { prompt: "Send the email?", display: "decision" },
+    ],
+    [
+      "a select question that also takes a typed answer",
+      {
+        requestId: "req_1",
+        kind: "question",
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+        options: [{ id: "staging", label: "Staging" }],
+      },
+      {
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+      },
+    ],
+    [
+      "a text question",
+      {
+        requestId: "req_1",
+        kind: "question",
+        prompt: "What should the subject line be?",
+        display: "text",
+      },
+      {
+        prompt: "What should the subject line be?",
+        display: "text",
+        allowFreeform: true,
+      },
+    ],
+    [
+      "a question with neither a display nor options",
+      { requestId: "req_1", kind: "question", prompt: "Anything else?" },
+      { prompt: "Anything else?", display: "text", allowFreeform: true },
+    ],
+  ] satisfies [string, EveMessageInputRequest, object][])(
+    "describes %s on the approval itself",
+    (_label, inputRequest, expected) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest,
+        }),
+      );
+
+      expect(message!.content[0]).toMatchObject({ approval: expected });
+    },
+  );
+
+  it.each([
+    ["no display", undefined],
+    ["a text display", "text" as const],
+    ["a select display", "select" as const],
+  ])(
+    "projects a tool approval whose options were dropped as a decision, with %s",
+    (_label, display) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest: {
+            requestId: "req_1",
+            kind: "tool-approval",
+            prompt: "Send the email?",
+            ...(display && { display }),
+          },
+        }),
+      );
+
+      expect(message!.content[0]).toMatchObject({
+        approval: { display: "decision" },
+      });
+      expect(
+        (message!.content[0] as { approval?: object }).approval,
+      ).not.toHaveProperty("allowFreeform");
+    },
+  );
+
+  it("does not offer a typed answer on a tool approval whose options were dropped", () => {
+    const [message] = convertEveMessages(
+      withApprovalPart({
+        kind: "tool-call",
+        name: "send_email",
+        inputRequest: {
+          requestId: "req_1",
+          kind: "tool-approval",
+          prompt: "Send the email?",
+        },
+      }),
+    );
+
+    // The mapper answers this shape with its approve/cancel branch before it
+    // ever reads a text answer, so the renderer must not offer one.
+    expect(
+      (message!.content[0] as { approval?: object }).approval,
+    ).not.toHaveProperty("allowFreeform");
+  });
+
+  it("does not offer a typed answer on a confirmation request", () => {
+    const [message] = convertEveMessages(
+      withApprovalPart({
+        kind: "tool-call",
+        name: "send_email",
+        inputRequest: {
+          requestId: "req_1",
+          kind: "tool-approval",
+          prompt: "Send the email?",
+          display: "confirmation",
+          options: [
+            { id: "approve", label: "Approve" },
+            { id: "cancel", label: "Cancel" },
+          ],
+        },
+      }),
+    );
+
+    expect(
+      (message!.content[0] as { approval?: object }).approval,
+    ).not.toHaveProperty("allowFreeform");
+  });
+
+  it.each([
+    [
+      "the full input request",
+      {
+        requestId: "req_1",
+        prompt: "Which environment?",
+        kind: "question",
+        display: "select",
+        allowFreeform: true,
+        options: [
+          { id: "staging", label: "Staging", description: "Safe" },
+          { id: "production", label: "Production", style: "danger" },
+        ],
+      },
+    ],
+    [
+      "only the fields the request defines",
+      {
+        requestId: "req_1",
+        prompt: "What should the subject line be?",
+        kind: "question",
+      },
+    ],
+  ] satisfies [string, EveMessageInputRequest][])(
+    "projects %s onto providerMetadata.eve",
+    (_label, inputRequest) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest,
+        }),
+      );
+      const part = message!.content[0];
+
+      expect(part).toMatchObject({ type: "tool-call" });
+      expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual(
+        {
+          eve: { inputRequest },
+        },
+      );
+    },
+  );
+
+  it.each([
+    [
+      "eve metadata without an input request",
+      { kind: "tool-call" as const, name: "send_email" },
+    ],
+    ["no eve metadata at all", undefined],
+  ])("omits providerMetadata for a tool part with %s", (_label, eve) => {
+    const [message] = convertEveMessages(withApprovalPart(eve));
+
+    expect(message!.content[0]).not.toHaveProperty("providerMetadata");
   });
 
   it("handles denied tool parts without an approval reason", () => {
@@ -406,7 +760,7 @@ describe("convertEveMessages", () => {
     ]);
   });
 
-  it("defaults a file part with a missing mediaType to unknown/unknown", () => {
+  it("defaults a file part with a missing mediaType to application/octet-stream", () => {
     const data = {
       messages: [
         {
@@ -423,7 +777,7 @@ describe("convertEveMessages", () => {
       {
         type: "file",
         data: "https://example.com/blob",
-        mimeType: "unknown/unknown",
+        mimeType: "application/octet-stream",
         sourceType: "url",
       },
     ]);
@@ -436,14 +790,64 @@ describe("convertEveMessages", () => {
           {
             type: "file",
             data: "https://example.com/blob",
-            mimeType: "unknown/unknown",
+            mimeType: "application/octet-stream",
             sourceType: "url",
           },
         ],
-        contentType: "unknown/unknown",
+        contentType: "application/octet-stream",
         status: { type: "complete" },
       },
     ]);
+  });
+
+  it("reads the media type from a data URL when eve omits mediaType", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "file", url: "data:image/png;base64,iVBORw0KGgo=" }],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "data:image/png;base64,iVBORw0KGgo=",
+        mimeType: "image/png",
+      },
+    ]);
+    expect(message?.attachments?.map((a) => [a.type, a.contentType])).toEqual([
+      ["image", "image/png"],
+    ]);
+  });
+
+  it("prefers an explicit mediaType over the data URL declaration", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "data:application/octet-stream;base64,JVBERi0=",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "application/pdf",
+    });
   });
 
   it("converts an assistant file part into a file content part", () => {
@@ -846,6 +1250,7 @@ describe("convertEveMessages", () => {
       const events: readonly EveAgentReducerEvent[] = [
         {
           type: "authorization.required",
+          meta: eventMeta(0),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -856,6 +1261,7 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.cancelled",
+          meta: eventMeta(1),
           data: { turnId: "turn_1", sequence: 1 },
         },
       ];
@@ -1010,20 +1416,27 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.started",
+          meta: eventMeta(0),
           data: { turnId: "turn_1", sequence: 0 },
         },
         {
           type: "step.started",
-          data: { turnId: "turn_1", stepIndex: 0, sequence: 1 },
+          meta: eventMeta(1),
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 1,
+            modelId: "test-model",
+          },
         },
         {
           type: "message.appended",
+          meta: eventMeta(2),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
             sequence: 2,
             messageDelta: "Let me th",
-            messageSoFar: "Let me th",
           },
         },
       ];
@@ -1033,6 +1446,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1073,6 +1487,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1083,6 +1498,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1112,6 +1528,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1122,6 +1539,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.required",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1132,6 +1550,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(5),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1145,6 +1564,256 @@ describe("convertEveMessages", () => {
         expect(
           convertEveMessages(state, { isRunning: false }).at(-1)?.status,
         ).toEqual({ type: "requires-action", reason: "interrupt" });
+      });
+
+      it("projects the input request onto the approval part it gates", () => {
+        const events: readonly EveAgentReducerEvent[] = [
+          ...midStreamEvents,
+          {
+            type: "input.requested",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              requests: [
+                {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  kind: "question",
+                  display: "text",
+                  action: {
+                    kind: "tool-call",
+                    callId: "call_1",
+                    toolName: "ask_question",
+                    input: {},
+                  },
+                },
+              ],
+            },
+            meta: eventMeta(3),
+          },
+        ];
+
+        // Rehydration replays the *stored* event log, which has been through
+        // the wire and back, so the reloaded case is the serialized payload
+        // rather than the same objects a second time.
+        const rehydrated = JSON.parse(
+          JSON.stringify(events),
+        ) as readonly EveAgentReducerEvent[];
+
+        for (const state of [replay(events), replay(rehydrated)]) {
+          const part = state.messages
+            .find((message) => message.role === "assistant")
+            ?.parts.find((candidate) => candidate.type === "dynamic-tool");
+
+          expect(part).toMatchObject({
+            state: "approval-requested",
+            approval: { id: "req_1" },
+          });
+          expect(findEveInputRequest(state, "req_1")).toMatchObject({
+            requestId: "req_1",
+            prompt: "What should the subject line be?",
+            display: "text",
+          });
+        }
+      });
+
+      it("leaves a reasoning part unsettled when a tool call follows it", () => {
+        const state = replay([
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "reasoning.appended",
+            meta: eventMeta(2),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              reasoningDelta: "Think",
+            },
+          },
+          {
+            type: "actions.requested",
+            meta: eventMeta(3),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              actions: [
+                {
+                  kind: "tool-call",
+                  callId: "call_1",
+                  toolName: "search",
+                  input: {},
+                },
+              ],
+            },
+          },
+        ]);
+
+        const message = state.messages.find((m) => m.role === "assistant");
+        expect(message?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "reasoning", state: "streaming" }),
+            expect.objectContaining({ type: "dynamic-tool" }),
+          ]),
+        );
+
+        const content = convertEveMessages(state, { isRunning: true }).at(
+          -1,
+        )?.content;
+        expect(content).toEqual([
+          expect.objectContaining({ type: "reasoning" }),
+          expect.objectContaining({ type: "tool-call" }),
+        ]);
+        expect(content?.[0]).not.toHaveProperty("status");
+      });
+
+      it("settles leftover reasoning after the model stream completes a tool call", () => {
+        const state = replay([
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "reasoning.appended",
+            meta: eventMeta(2),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              reasoningDelta: "Think",
+            },
+          },
+          {
+            type: "actions.requested",
+            meta: eventMeta(3),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              actions: [
+                {
+                  kind: "tool-call",
+                  callId: "call_1",
+                  toolName: "search",
+                  input: {},
+                },
+              ],
+            },
+          },
+          {
+            type: "reasoning.completed",
+            meta: eventMeta(4),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              reasoning: "Think",
+            },
+          },
+        ]);
+
+        const message = state.messages.find((m) => m.role === "assistant");
+        expect(message?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "reasoning", state: "done" }),
+            expect.objectContaining({ type: "dynamic-tool" }),
+          ]),
+        );
+
+        const content = convertEveMessages(state, { isRunning: true }).at(
+          -1,
+        )?.content;
+        expect(content).toEqual([
+          expect.objectContaining({
+            type: "reasoning",
+            status: { type: "complete" },
+          }),
+          expect.objectContaining({ type: "tool-call" }),
+        ]);
+      });
+
+      it("keeps a later step's live text part unsettled after an earlier step completed", () => {
+        const state = replay([
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "message.appended",
+            meta: eventMeta(2),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              messageDelta: "First",
+            },
+          },
+          {
+            type: "message.completed",
+            meta: eventMeta(3),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              finishReason: "tool-calls",
+              message: "First",
+            },
+          },
+          {
+            type: "step.completed",
+            meta: eventMeta(4),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              finishReason: "tool-calls",
+            },
+          },
+          {
+            type: "step.started",
+            meta: eventMeta(5),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 1,
+              sequence: 5,
+              modelId: "test-model",
+            },
+          },
+          {
+            type: "message.appended",
+            meta: eventMeta(6),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 1,
+              sequence: 6,
+              messageDelta: "Sec",
+            },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.parts).toEqual([
+          expect.objectContaining({ type: "step-start" }),
+          expect.objectContaining({
+            type: "text",
+            text: "First",
+            state: "done",
+          }),
+          expect.objectContaining({ type: "step-start" }),
+          expect.objectContaining({
+            type: "text",
+            text: "Sec",
+            state: "streaming",
+          }),
+        ]);
+
+        const content = convertEveMessages(state, { isRunning: true }).at(
+          -1,
+        )?.content;
+        expect(content).toEqual([
+          expect.objectContaining({
+            type: "text",
+            text: "First",
+            status: { type: "complete" },
+          }),
+          expect.objectContaining({ type: "text", text: "Sec" }),
+        ]);
+        expect(content?.[1]).not.toHaveProperty("status");
       });
 
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
@@ -1165,6 +1834,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "session.failed",
+            meta: eventMeta(3),
             data: { sessionId: "session_1", code: "internal", message: "boom" },
           },
         ]);
@@ -1183,25 +1853,47 @@ describe("convertEveMessages", () => {
         });
       });
 
-      it("a failed turn converts to cancelled because the store surfaces no error for turn.failed", () => {
-        const state = replay([
-          ...midStreamEvents,
-          {
-            type: "turn.failed",
-            data: {
-              turnId: "turn_1",
-              sequence: 3,
-              code: "internal",
-              message: "boom",
-            },
+      it("a failed turn stays incomplete after Eve settles its message", () => {
+        const failureEvent = {
+          type: "turn.failed",
+          meta: eventMeta(3),
+          data: {
+            turnId: "turn_1",
+            sequence: 3,
+            code: "internal",
+            message: "boom",
           },
-        ]);
+        } as const satisfies MessageStreamEvent;
+        const state = replay([...midStreamEvents, failureEvent]);
 
-        const converted = convertEveMessages(state, { isRunning: false });
+        const converted = convertEveMessages(state, {
+          isRunning: false,
+          events: [failureEvent],
+        });
         expect(converted.at(-1)?.status).toEqual({
           type: "incomplete",
-          reason: "cancelled",
+          reason: "error",
+          error: { code: "internal", message: "boom" },
         });
+      });
+
+      it("a cancelled turn stays cancelled after Eve settles its message", () => {
+        const cancelEvent = {
+          type: "turn.cancelled",
+          meta: eventMeta(3),
+          data: { turnId: "turn_1", sequence: 3 },
+        } as const satisfies MessageStreamEvent;
+        const state = replay([...midStreamEvents, cancelEvent]);
+
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "complete", reason: "stop" });
+        expect(
+          convertEveMessages(state, {
+            isRunning: false,
+            events: [cancelEvent],
+          }).at(-1)?.status,
+        ).toEqual({ type: "incomplete", reason: "cancelled" });
       });
 
       it("a completed turn terminalizes the streaming marker and converts to complete", () => {
@@ -1209,6 +1901,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "message.completed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1219,18 +1912,32 @@ describe("convertEveMessages", () => {
           },
           {
             type: "turn.completed",
+            meta: eventMeta(4),
             data: { turnId: "turn_1", sequence: 4 },
           },
         ]);
 
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.metadata?.status).toBe("complete");
+        expect(assistant?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "text", state: "done" }),
+          ]),
+        );
 
         const converted = convertEveMessages(state, { isRunning: false });
         expect(converted.at(-1)?.status).toEqual({
           type: "complete",
           reason: "stop",
         });
+        expect(converted.at(-1)?.content).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "text",
+              status: { type: "complete" },
+            }),
+          ]),
+        );
       });
     });
   });
@@ -1275,6 +1982,174 @@ describe("getEveMessageContent", () => {
     expect(getEveMessageContent(message)).toBe("Hello");
   });
 
+  it("declares the data URL subtype of an image part", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [{ type: "image", image: "data:image/jpeg;base64,/9j/4AAQ" }],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:image/jpeg;base64,/9j/4AAQ",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
+  it("sniffs an image part behind a generic envelope and rebuilds it", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "image",
+          image:
+            "data:application/octet-stream;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
+        mediaType: "image/png",
+      },
+    ]);
+  });
+
+  it("floors an http image part to image/png instead of a wildcard", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "image",
+          image: "https://example.com/photo",
+          filename: "photo",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo",
+        mediaType: "image/png",
+        filename: "photo",
+      },
+    ]);
+  });
+
+  it("declares an image attachment's content type for a url payload", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "1",
+          type: "image",
+          name: "photo.jpg",
+          contentType: "image/jpeg",
+          content: [{ type: "image", image: "https://example.com/photo.jpg" }],
+          status: { type: "complete" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo.jpg",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      name: "an untyped URL",
+      data: "https://example.com/file",
+      mimeType: "",
+      mediaType: "application/octet-stream",
+      wireData: "https://example.com/file",
+    },
+    {
+      name: "a data URL without an explicit type",
+      data: "data:application/pdf;base64,JVBERi0=",
+      mimeType: "",
+      mediaType: "application/pdf",
+      wireData: "data:application/pdf;base64,JVBERi0=",
+    },
+    {
+      name: "a data URL with a conflicting envelope",
+      data: "data:application/octet-stream;base64,JVBERi0=",
+      mimeType: "application/pdf",
+      mediaType: "application/pdf",
+      wireData: "data:application/pdf;base64,JVBERi0=",
+    },
+  ])(
+    "resolves file media types for $name",
+    ({ data, mimeType, mediaType, wireData }) => {
+      const message = {
+        ...baseAppendMessage,
+        content: [{ type: "file", data, mimeType, filename: "report.pdf" }],
+      } satisfies AppendMessage;
+
+      expect(getEveMessageContent(message)).toEqual([
+        { type: "file", data: wireData, mediaType, filename: "report.pdf" },
+      ]);
+    },
+  );
+
+  it("uses a file attachment's content type when its part has none", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "file-1",
+          type: "file",
+          name: "report.pdf",
+          contentType: "application/pdf",
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/report.pdf",
+              mimeType: "",
+            },
+          ],
+          status: { type: "complete" },
+        },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mediaType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("preserves opaque file references", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "file",
+          data: "file_abc123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+        },
+      ],
+    } satisfies AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      { type: "file", data: "file_abc123", mediaType: "application/pdf" },
+    ]);
+  });
+
   it("converts an audio part into a file part with the format-derived media type", () => {
     const message = {
       ...baseAppendMessage,
@@ -1312,6 +2187,26 @@ describe("getEveMessageContent", () => {
         {
           type: "audio",
           audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("rebuilds a media-less audio data URL from the typed format", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "data:;base64,QUJD", format: "mp3" },
         },
       ],
     } as unknown as AppendMessage;
@@ -1418,18 +2313,351 @@ describe("getEveMessageContent", () => {
   });
 });
 
+const approveCancel = [
+  { id: "approve", label: "Approve" },
+  { id: "cancel", label: "Cancel" },
+];
+const environments = [
+  { id: "staging", label: "Staging" },
+  { id: "production", label: "Production" },
+];
+
+const withInputRequest = (
+  overrides: Partial<EveMessageInputRequest> = {},
+): EveMessageInputRequest => ({
+  requestId: "req_1",
+  prompt: "Send the email?",
+  kind: "question",
+  ...overrides,
+});
+
 describe("toEveInputResponse", () => {
   it("maps assistant-ui approval responses to eve input responses", () => {
+    expect(
+      toEveInputResponse(
+        {
+          approvalId: "req_1",
+          approved: false,
+          reason: "Not yet",
+        },
+        withInputRequest({ display: "confirmation", options: approveCancel }),
+      ),
+    ).toEqual({
+      requestId: "req_1",
+      optionId: "cancel",
+      text: "Not yet",
+    });
+  });
+
+  it("keeps the shipped one-argument mapping when no request is available", () => {
+    expect(toEveInputResponse({ approvalId: "req_1", approved: true })).toEqual(
+      {
+        requestId: "req_1",
+        optionId: "approve",
+      },
+    );
+
     expect(
       toEveInputResponse({
         approvalId: "req_1",
         approved: false,
         reason: "Not yet",
       }),
+    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "Not yet" });
+
+    expect(
+      toEveInputResponse({
+        approvalId: "req_1",
+        approved: true,
+        optionId: "staging",
+      }),
+    ).toEqual({ requestId: "req_1", optionId: "staging" });
+  });
+
+  it("keeps the confirmation mapping when the request carries approve/cancel options", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        withInputRequest({ display: "confirmation", options: approveCancel }),
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+  });
+
+  it("maps a select response to the chosen option id", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "staging" },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "staging" });
+  });
+
+  it.each([
+    ["a text display", { display: "text", allowFreeform: true }],
+    ["allowFreeform and no options", { allowFreeform: true }],
+    ["neither a display nor allowFreeform", {}],
+    [
+      "a select display that allows freeform",
+      { display: "select", allowFreeform: true, options: environments },
+    ],
+  ] satisfies [string, Partial<EveMessageInputRequest>][])(
+    "answers a request with %s as free-form text, not a fabricated option id",
+    (_label, overrides) => {
+      const response = toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Quarterly results" },
+        withInputRequest(overrides),
+      );
+
+      expect(response).toEqual({
+        requestId: "req_1",
+        text: "Quarterly results",
+      });
+      expect(response).not.toHaveProperty("optionId");
+    },
+  );
+
+  it("keeps a denial off the free-form path, which carries no answer", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, reason: "not this one" },
+        withInputRequest(),
+      ),
+    ).toThrow(/a refusal carries no answer for a free-form request/);
+  });
+
+  it("submits the response text as the free-form answer", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, text: "staging" },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toEqual({ requestId: "req_1", text: "staging" });
+  });
+
+  it("prefers the response text over the reason it used to be smuggled in", () => {
+    expect(
+      toEveInputResponse(
+        {
+          approvalId: "req_1",
+          approved: true,
+          text: "staging",
+          reason: "picked the safe one",
+        },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toEqual({ requestId: "req_1", text: "staging" });
+  });
+
+  it("never fabricates approve for a text-display request without an answer", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toThrow(/pass the answer as the response text/);
+  });
+
+  it("never fabricates approve for a select request without a chosen option", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toThrow(/respond with one of: staging, production/);
+  });
+
+  it("throws when the response names an option the request does not carry", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, optionId: "sandbox" },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toThrow(/no option with id "sandbox".*staging, production/s);
+
+    // A named option the request does not carry outranks the decision, even
+    // when the decision names an option the request does carry: substituting
+    // the literal deny here would discard the choice the caller made.
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, optionId: "schedule-later" },
+        withInputRequest({ display: "confirmation", options: approveCancel }),
+      ),
+    ).toThrow(/no option with id "schedule-later"/);
+  });
+
+  it("prefers a literal approve option over the free-form path on a text-display request", () => {
+    const inputRequest = withInputRequest({
+      display: "text",
+      options: approveCancel,
+    });
+
+    expect(
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Quarterly results" },
+        inputRequest,
+      ),
     ).toEqual({
       requestId: "req_1",
-      optionId: "deny",
-      text: "Not yet",
+      optionId: "approve",
+      text: "Quarterly results",
     });
+  });
+
+  it("answers a tool-approval by kind even when its options are missing", () => {
+    const inputRequest = withInputRequest({
+      kind: "tool-approval",
+      display: "confirmation",
+    });
+
+    expect(
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, reason: "not now" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "not now" });
+  });
+
+  it("still requires a declared option when a tool-approval carries its own", () => {
+    const inputRequest = withInputRequest({
+      kind: "tool-approval",
+      display: "confirmation",
+      options: [{ id: "schedule-later", label: "Schedule later" }],
+    });
+
+    expect(() =>
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toThrow(/respond with one of: schedule-later/);
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "schedule-later" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "schedule-later" });
+  });
+
+  it("never answers an optionless confirmation as free-form text", () => {
+    const inputRequest = withInputRequest({ display: "confirmation" });
+
+    for (const response of [
+      { approvalId: "req_1", approved: true },
+      { approvalId: "req_1", approved: false, reason: "not now" },
+      { approvalId: "req_1", approved: true, reason: "go ahead" },
+    ]) {
+      expect(() => toEveInputResponse(response, inputRequest)).toThrow(
+        /declares no options to respond with/,
+      );
+    }
+  });
+});
+
+describe("findEveInputRequest", () => {
+  const data = {
+    messages: [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "ask_question",
+            input: {},
+            approval: { id: "req_1" },
+            toolMetadata: {
+              eve: {
+                kind: "tool-call",
+                name: "ask_question",
+                inputRequest: {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  kind: "question",
+                  display: "text",
+                  allowFreeform: true,
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  } satisfies EveMessageData;
+
+  it("finds the input request by approval id", () => {
+    expect(findEveInputRequest(data, "req_1")).toMatchObject({
+      requestId: "req_1",
+      display: "text",
+    });
+  });
+
+  it("returns undefined for unknown approval ids", () => {
+    expect(findEveInputRequest(data, "req_404")).toBeUndefined();
+  });
+
+  it.each([
+    ["carries no input request", { eve: { kind: "tool-call", name: "ask" } }],
+    ["carries no eve tool metadata at all", undefined],
+  ])("returns undefined when the matching part %s", (_label, toolMetadata) => {
+    const part = { ...data.messages[0]!.parts[0]!, toolMetadata };
+    const bare = { messages: [{ ...data.messages[0]!, parts: [part] }] };
+
+    expect(
+      findEveInputRequest(bare as EveMessageData, "req_1"),
+    ).toBeUndefined();
+  });
+});
+
+describe("collectInterruptedTurnEvents", () => {
+  const started = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.started",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence },
+    }) as const satisfies MessageStreamEvent;
+  const failed = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.failed",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence, code: "internal", message: "boom" },
+    }) as const satisfies MessageStreamEvent;
+  const cancelled = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.cancelled",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence },
+    }) as const satisfies MessageStreamEvent;
+
+  it("scans only appended events and keeps the array until an interruption arrives", () => {
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
+    const first = [started("t1", 0), failed("t1", 1)];
+    const interruptions = collectInterruptedTurnEvents(first, cache);
+    expect(interruptions).toEqual([first[1]]);
+    const quiet = [...cache.lastEvents, started("t2", 2)];
+    expect(collectInterruptedTurnEvents(quiet, cache)).toBe(interruptions);
+    const appended = [...cache.lastEvents, cancelled("t2", 3)];
+    const next = collectInterruptedTurnEvents(appended, cache);
+    expect(next).toEqual([first[1], appended[3]]);
+    expect(next[0]).toBe(interruptions[0]);
+  });
+
+  it("rescans a log that does not extend the scanned one", () => {
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
+    collectInterruptedTurnEvents([started("t1", 0), failed("t1", 1)], cache);
+    expect(collectInterruptedTurnEvents([started("t2", 0)], cache)).toEqual([]);
   });
 });

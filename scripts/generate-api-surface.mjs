@@ -5,14 +5,21 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { optionValues } from "./lib/script-options.mjs";
+import {
+  apiSurfaceFileName,
+  collectPackages,
+  collectTurboFilteredPackageNames,
+  posixPath,
+} from "./lib/workspace.mjs";
 
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
@@ -27,20 +34,8 @@ const requireFromBuildUtils = createRequire(
 const { build } = await import(requireFromBuildUtils.resolve("tsdown"));
 const ts = requireFromBuildUtils("typescript");
 
-function readJson(file) {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
-function packageFileName(packageName) {
-  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
-}
-
 function packageEntryName(packageName) {
-  return packageFileName(packageName).replace(/\.ts$/, "");
-}
-
-function posixPath(file) {
-  return file.replaceAll("\\", "/");
+  return apiSurfaceFileName(packageName).replace(/\.ts$/, "");
 }
 
 function relativeImport(fromDir, toFile) {
@@ -112,66 +107,6 @@ function declarationFilesForTarget(packageDir, typePath) {
     );
   }
   return files;
-}
-
-function collectPackages() {
-  const filteredPackageNames = turboFilters.length
-    ? collectTurboFilteredPackageNames(turboFilters)
-    : undefined;
-
-  return readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
-    .filter((packageJsonPath) => existsSync(packageJsonPath))
-    .map((packageJsonPath) => {
-      const pkg = readJson(packageJsonPath);
-      return {
-        packageDir: path.dirname(packageJsonPath),
-        pkg,
-      };
-    })
-    .filter(({ pkg }) => !pkg.private)
-    .filter(
-      ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),
-    )
-    .sort((a, b) => compareStrings(a.pkg.name, b.pkg.name));
-}
-
-function collectTurboFilteredPackageNames(filters) {
-  const result = spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "turbo",
-      "ls",
-      ...optionArgs("--filter", filters),
-      "--output=json",
-    ],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to list packages for API surface filter:\n${result.stdout}${result.stderr}`,
-    );
-  }
-
-  const jsonStart = result.stdout.indexOf("{");
-  if (jsonStart === -1) {
-    throw new Error(`Turbo did not return JSON output:\n${result.stdout}`);
-  }
-
-  const output = JSON.parse(result.stdout.slice(jsonStart));
-  return new Set(
-    output.packages.items.map((item) => {
-      if (typeof item.name !== "string") {
-        throw new Error("Turbo package list included an item without a name.");
-      }
-      return item.name;
-    }),
-  );
 }
 
 function collectDeclarationEntries(packageDir, pkg) {
@@ -537,6 +472,107 @@ function stringLiteralUnionMemberValue(type) {
   return undefined;
 }
 
+function hasModifier(node, kind) {
+  return Boolean(node.modifiers?.some((modifier) => modifier.kind === kind));
+}
+
+function isPrivateIdentifierMember(node) {
+  return Boolean(node.name && ts.isPrivateIdentifier(node.name));
+}
+
+function shouldStripClassMember(member) {
+  if (ts.isConstructorDeclaration(member)) return false;
+  return (
+    hasModifier(member, ts.SyntaxKind.PrivateKeyword) ||
+    isPrivateIdentifierMember(member)
+  );
+}
+
+function publicizeConstructor(member, factory) {
+  let changed = false;
+  const parameters = member.parameters.map((parameter) => {
+    if (!hasModifier(parameter, ts.SyntaxKind.PrivateKeyword)) {
+      return parameter;
+    }
+    changed = true;
+    const modifiers = parameter.modifiers?.filter(
+      (modifier) =>
+        modifier.kind !== ts.SyntaxKind.PrivateKeyword &&
+        modifier.kind !== ts.SyntaxKind.ReadonlyKeyword,
+    );
+    return factory.updateParameterDeclaration(
+      parameter,
+      modifiers && modifiers.length > 0 ? modifiers : undefined,
+      parameter.dotDotDotToken,
+      parameter.name,
+      parameter.questionToken,
+      parameter.type,
+      parameter.initializer,
+    );
+  });
+  return changed
+    ? factory.updateConstructorDeclaration(
+        member,
+        member.modifiers,
+        parameters,
+        member.body,
+      )
+    : member;
+}
+
+function privateIdentityMarker(factory) {
+  return factory.createPropertyDeclaration(
+    undefined,
+    factory.createPrivateIdentifier("#private"),
+    undefined,
+    undefined,
+    undefined,
+  );
+}
+
+function stripPrivateClassMembers(node, factory, visit, context) {
+  const visited = ts.visitEachChild(node, visit, context);
+  const members = [];
+  let strippedAny = false;
+  let changed = visited !== node;
+  for (const member of visited.members) {
+    if (shouldStripClassMember(member)) {
+      if (!hasModifier(member, ts.SyntaxKind.StaticKeyword)) {
+        strippedAny = true;
+      }
+      changed = true;
+      continue;
+    }
+    const nextMember = ts.isConstructorDeclaration(member)
+      ? publicizeConstructor(member, factory)
+      : member;
+    if (nextMember !== member) changed = true;
+    members.push(nextMember);
+  }
+  if (strippedAny) {
+    members.unshift(privateIdentityMarker(factory));
+  }
+  if (!changed) return visited;
+  if (ts.isClassDeclaration(visited)) {
+    return factory.updateClassDeclaration(
+      visited,
+      visited.modifiers,
+      visited.name,
+      visited.typeParameters,
+      visited.heritageClauses,
+      members,
+    );
+  }
+  return factory.updateClassExpression(
+    visited,
+    visited.modifiers,
+    visited.name,
+    visited.typeParameters,
+    visited.heritageClauses,
+    members,
+  );
+}
+
 function normalizeStringLiteralUnionType(node, factory) {
   const memberValues = node.types.map(stringLiteralUnionMemberValue);
   if (memberValues.some((value) => value === undefined)) return node;
@@ -575,6 +611,14 @@ export function normalizeBundledDeclaration(content) {
     (context) => {
       let bindingParameterIndex = 0;
       const visit = (node) => {
+        if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+          return stripPrivateClassMembers(
+            node,
+            context.factory,
+            visit,
+            context,
+          );
+        }
         if (ts.isUnionTypeNode(node)) {
           const attachmentNormalized = normalizeAttachmentUnionType(
             ts.visitEachChild(node, visit, context),
@@ -642,7 +686,7 @@ export function normalizeBundledDeclaration(content) {
   return `${printed.trim()}\n`;
 }
 
-async function bundlePackageSurface(packageInfo) {
+async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
   const { packageDir, pkg } = packageInfo;
   const entries = collectDeclarationEntries(packageDir, pkg);
   if (entries.length === 0) return undefined;
@@ -676,11 +720,13 @@ async function bundlePackageSurface(packageInfo) {
     cwd: repoRoot,
     platform: "neutral",
     format: "esm",
-    dts: true,
+    // The synthetic entry only contains namespace re-exports, so isolated declaration generation avoids a workspace-wide TypeScript program.
+    dts: { generator: "oxc" },
     sourcemap: false,
     clean: true,
     logLevel: "silent",
-    deps: { neverBundle: /^node:/, skipNodeModulesBundle: true },
+    // Workspace packages are inlined so a distribution package's surface carries the declarations it re-exports; every other package stays an import.
+    deps: { neverBundle: true, alwaysBundle: workspacePackagePatterns },
   });
 
   const outputFile = path.join(tempOut, `${entryName}.d.mts`);
@@ -809,8 +855,38 @@ function writeOrCheck(file, content, changedFiles) {
   if (!checkMode) writeFileSync(file, content);
 }
 
+// A filtered run cannot judge files for unselected packages, but a file
+// matching no current publishable package (deleted, renamed, privatized) is
+// stale under any filter. A selected package may no longer expose declarations.
+export function selectStaleSurfaceFiles({
+  files,
+  generatedFiles,
+  knownFiles,
+  filtered,
+  selectedFiles = new Set(),
+}) {
+  return files.filter(
+    (file) =>
+      file.endsWith(".ts") &&
+      !generatedFiles.has(file) &&
+      !(filtered && knownFiles.has(file) && !selectedFiles.has(file)),
+  );
+}
+
 async function main() {
-  const packages = collectPackages();
+  const allPackages = collectPackages(repoRoot, undefined, compareStrings);
+  const packages = turboFilters.length
+    ? collectPackages(
+        repoRoot,
+        collectTurboFilteredPackageNames(repoRoot, turboFilters, {
+          failureMessage: "Failed to list packages for API surface filter",
+        }),
+        compareStrings,
+      )
+    : allPackages;
+  const workspacePackagePatterns = allPackages.map(
+    ({ pkg }) => new RegExp(`^${escapeRegExp(pkg.name)}(?:/|$)`),
+  );
   const generatedFiles = new Set();
   const changedFiles = [];
 
@@ -826,21 +902,42 @@ async function main() {
 
     for (const packageInfo of packages) {
       const { pkg } = packageInfo;
-      const bundledSurface = await bundlePackageSurface(packageInfo);
+      const bundledSurface = await bundlePackageSurface(
+        packageInfo,
+        workspacePackagePatterns,
+      );
       const cliPackageSurface = cliSurface[pkg.name];
       if (!bundledSurface && !cliPackageSurface) continue;
       const content = bundledSurface ?? renderCliSurface(cliPackageSurface);
 
-      const outputFile = path.join(apiSurfaceRoot, packageFileName(pkg.name));
+      const outputFile = path.join(
+        apiSurfaceRoot,
+        apiSurfaceFileName(pkg.name),
+      );
       generatedFiles.add(outputFile);
       writeOrCheck(outputFile, content, changedFiles);
     }
 
-    // Filtered checks only know about selected packages; stale cleanup needs the full package set.
-    if (turboFilters.length === 0 && existsSync(apiSurfaceRoot)) {
-      for (const entry of readdirSync(apiSurfaceRoot)) {
-        const file = path.join(apiSurfaceRoot, entry);
-        if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
+    if (existsSync(apiSurfaceRoot)) {
+      const knownFiles = new Set(
+        allPackages.map(({ pkg }) =>
+          path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
+        ),
+      );
+      const stale = selectStaleSurfaceFiles({
+        files: readdirSync(apiSurfaceRoot).map((entry) =>
+          path.join(apiSurfaceRoot, entry),
+        ),
+        generatedFiles,
+        knownFiles,
+        filtered: turboFilters.length > 0,
+        selectedFiles: new Set(
+          packages.map(({ pkg }) =>
+            path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
+          ),
+        ),
+      });
+      for (const file of stale) {
         if (checkMode) {
           changedFiles.push({
             file: path.relative(repoRoot, file).replaceAll("\\", "/"),
@@ -870,6 +967,20 @@ async function main() {
   }
 }
 
-if (import.meta.main) {
+// import.meta.main requires Node >= 24.2; on older runtimes it is undefined
+// and the script would silently no-op with exit code 0. Both sides are
+// realpath'd because Node resolves the main module through symlinks while
+// argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
+const realPath = (file) => {
+  try {
+    return realpathSync.native(file);
+  } catch {
+    return path.resolve(file);
+  }
+};
+const isMainEntry =
+  process.argv[1] !== undefined &&
+  realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
+if (isMainEntry) {
   await main();
 }

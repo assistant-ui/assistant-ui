@@ -1,5 +1,17 @@
 # tw-shimmer
 
+## 0.4.13
+
+### Patch Changes
+
+- [#6830](https://github.com/assistant-ui/assistant-ui/pull/6830) [`f8c4334`](https://github.com/assistant-ui/assistant-ui/commit/f8c43340fb97892240e755fa5d76947e9149fd38) - perf: run the text shimmer on the compositor without duplicate markup ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  where `-webkit-mask-clip: text` is supported the host is masked and an additive band moves on `translate`, so a shimmering label no longer repaints its glyphs every frame; other browsers keep the gradient fallback. the band travels the same distance as the fallback, so `shimmer-speed`, `shimmer-duration`, `shimmer-repeat-delay`, `shimmer-angle`, and `shimmer-container` produce the same sweep on both paths. it defaults to white and takes `--shimmer-color`, `shimmer-color-*`, and `shimmer-invert`, which matches the fallback on white and dark surfaces and can differ on tinted ones. the host mask clips every descendant, so a text shimmer host must contain text only. text shimmer now holds still under `prefers-reduced-motion: reduce` on both paths; `shimmer-bg` is unchanged.
+
+- [#7083](https://github.com/assistant-ui/assistant-ui/pull/7083) [`4e5d2b3`](https://github.com/assistant-ui/assistant-ui/commit/4e5d2b394872968b6a47b58273a66d33214731e4) - docs: align the documented utilities and defaults with the shipped CSS ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6829](https://github.com/assistant-ui/assistant-ui/pull/6829) [`5d6638f`](https://github.com/assistant-ui/assistant-ui/commit/5d6638f61b904a63ad2a6c7f9cffffb4dd82246f) - fix: gate the text clip behind the same capability check as the gradient, so shimmer text stays readable below the browser support floor ([@MFA-G](https://github.com/MFA-G))
+
 ## 0.4.12
 
 ### Patch Changes

@@ -1,13 +1,7 @@
 ---
 title: Grok Clone
-description: Open-source Grok clone in React — pill composer with paperclip, animated Mic↔Send, functional model picker dropdown, and message timing tooltip.
+description: Open-source Grok clone in React. Pill composer with paperclip, animated Mic and Send swap, functional model picker dropdown, and message timing tooltip.
 ---
-
-import { Grok } from "@/components/examples/grok";
-
-<div className="not-prose h-[600px]">
-  <Grok />
-</div>
 
 ## Overview
 
@@ -17,12 +11,12 @@ The Grok Clone demonstrates how to customize assistant-ui to match xAI's Grok in
 
 - **Centered Grok Wordmark**: Empty state shows the SVG wordmark above the composer
 - **Pill Composer**: `rounded-4xl` with thin ring border, paperclip on the leading edge
-- **Functional Model Picker**: Fast / Grok 4.1 / Think dropdown with descriptions, plus "Subscribe to SuperGrok"
-- **Expand/Collapse Model Pill**: When the composer is empty the pill shows the model name; when typing it collapses to just the model icon
-- **Animated Send Slot**: Mic when empty, Send (white-on-dark) when typing, Cancel while running — all via `group-data-[empty]` / `group-data-[running]`
+- **Functional Model Picker**: Fast / Grok 4.7 / Think dropdown with descriptions, plus "Subscribe to SuperGrok"
+- **Expand/Collapse Model Pill**: When the composer is empty the pill shows the model name; when typing it collapses to the model icon
+- **Animated Send Slot**: Mic when empty, Send (white-on-dark) when typing, Cancel while running, all driven by `group-data-[empty]` / `group-data-[running]`
 - **Inverted Primary**: Dark button on light mode, light button on dark mode
 - **Message Timing**: Streaming responses show a hover tooltip with first-token, total time, tokens/sec, chunk count
-- **Hover-only Action Bars**: Edit/Copy on user messages, Reload/Copy/👍/👎 on assistant messages
+- **Hover-only Action Bars**: Edit/Copy on user messages, Reload/Copy/Good response/Bad response on assistant messages
 
 ## Quick Start
 
@@ -86,7 +80,7 @@ const Composer = () => {
 ```tsx
 const MODELS = [
   { id: "fast", name: "Fast", description: "Default. Quick responses", Icon: Zap },
-  { id: "grok-4.1", name: "Grok 4.1", description: "Standard reasoning", Icon: Moon },
+  { id: "grok-4.7", name: "Grok 4.7", description: "Standard reasoning", Icon: Moon },
   { id: "think", name: "Think", description: "Multi-step reasoning", Icon: Moon },
 ];
 
@@ -101,7 +95,7 @@ const MODELS = [
   </DropdownMenuTrigger>
   <DropdownMenuContent>
     {MODELS.map((m) => (
-      <DropdownMenuItem onSelect={() => setModel(m.id)}>
+      <DropdownMenuItem onClick={() => setModel(m.id)}>
         {m.id === model ? <Check /> : <m.Icon />}
         {m.name} — {m.description}
       </DropdownMenuItem>
@@ -147,8 +141,8 @@ The composer uses `data-*` attributes for state-based animations:
 </ComposerPrimitive.Root>
 ```
 
-This drives the Mic↔Send transition and the model pill expand/collapse on the same gesture.
+The same attributes drive the Mic and Send transition and the model pill expand/collapse.
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/grok.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/grok.tsx" />

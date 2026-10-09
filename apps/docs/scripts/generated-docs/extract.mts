@@ -90,15 +90,17 @@ export function getProject(): Project {
   if (_project) return _project;
   _project = new Project({
     tsConfigFilePath: path.join(DOCS_ROOT, "tsconfig.json"),
-    // The docs tsconfig `include`s the entire Next.js app + `.next/types/**`
-    // + every workspace package reachable through path mappings, which costs
-    // ~3.4 s of project bootstrap and loads ~1,100 source files we never look
-    // at. Skip the tsconfig auto-add and explicitly preload the package
-    // source trees this generator analyzes (see GENERATOR_SOURCE_GLOBS).
+    // The docs tsconfig also includes the Next.js app and generated routes.
     skipAddingFilesFromTsConfig: true,
   });
   for (const glob of GENERATOR_SOURCE_GLOBS) {
-    _project.addSourceFilesAtPaths(glob);
+    // Test module augmentations would otherwise change the documented public types.
+    _project.addSourceFilesAtPaths([
+      glob,
+      `!${path.join(REPO_ROOT, "packages/**/{tests,__tests__}/**")}`,
+      `!${path.join(REPO_ROOT, "packages/**/*.{test,spec,bench}.{ts,tsx}")}`,
+      `!${path.join(REPO_ROOT, "packages/**/testUtils.{ts,tsx}")}`,
+    ]);
   }
   // Note: do NOT eagerly add primitive source globs here. Doing so changes
   // ts-morph's intersection property iteration order (legacy api-surface
@@ -166,7 +168,8 @@ export function cleanTypeText(typeText: string): string {
 }
 
 export function cleanSignatureText(text: string): string {
-  return cleanTypeText(text)
+  return rawTypeText(text)
+    .replace(/^\s*\|\s*/, "")
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -656,12 +659,16 @@ function referencedLocalTypes(node: TsNode, typeText: string): string[] {
   ];
   if (referencedNames.length === 0) return [];
   const declarationsByName = getLocalTypeDeclarations(node.getSourceFile());
-  return referencedNames.flatMap((name) =>
-    (declarationsByName.get(name) ?? [])
-      .map(resolveAliasedDeclaration)
-      .map(localTypeSignature)
-      .filter((line): line is string => Boolean(line)),
-  );
+  return [
+    ...new Set(
+      referencedNames.flatMap((name) =>
+        (declarationsByName.get(name) ?? [])
+          .map(resolveAliasedDeclaration)
+          .map(localTypeSignature)
+          .filter((line): line is string => Boolean(line)),
+      ),
+    ),
+  ];
 }
 
 function variableSignature(node: TsNode, name: string): string | undefined {
@@ -1080,14 +1087,13 @@ export function processComponentDeclaration(
   );
 }
 
-function classExtractedShape(
+export function processClassDeclaration(
   declaration: TsNode,
   typeName: string,
+  options?: JsDocRenderOptions,
 ): PropModel[] | undefined {
   if (!Node.isClassDeclaration(declaration)) return undefined;
   const parameters: PropModel[] = [];
-  // Class members carry no per-member required-ness or JSDoc here. Match
-  // legacy api-surface output exactly: empty description, required omitted.
   for (const ctor of declaration.getConstructors()) {
     if (!isPublicClassMember(ctor)) continue;
     const t = `(${ctor.getParameters().map(parameterSignature).join(", ")}) => ${typeName}`;
@@ -1095,7 +1101,7 @@ function classExtractedShape(
       name: "constructor",
       rawType: t,
       declaredType: t,
-      description: "",
+      description: propertyJsDocMeta(ctor, options).description ?? "",
     });
   }
   for (const property of declaration.getProperties()) {
@@ -1105,7 +1111,7 @@ function classExtractedShape(
       name: `${classMemberPrefix(property)}${property.getName()}`,
       rawType: t,
       declaredType: t,
-      description: "",
+      description: propertyJsDocMeta(property, options).description ?? "",
     });
   }
   for (const method of declaration.getMethods()) {
@@ -1115,7 +1121,7 @@ function classExtractedShape(
       name: `${classMemberPrefix(method)}${method.getName()}`,
       rawType: t,
       declaredType: t,
-      description: "",
+      description: propertyJsDocMeta(method, options).description ?? "",
     });
   }
   if (parameters.length === 0) return undefined;
@@ -1167,7 +1173,7 @@ function shapeForDeclaration(
   }
   // Match legacy: only attempt class extraction here, no callable fallback for
   // "value" kind exports (those render their signature in MDX, not a table).
-  const params = classExtractedShape(declaration, name);
+  const params = processClassDeclaration(declaration, name, options);
   return params ? { kind: "class", name, parameters: params } : undefined;
 }
 

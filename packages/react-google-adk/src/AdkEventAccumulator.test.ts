@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkEvent, AdkMessage, AdkMessageContentPart } from "./types";
 
 const makeEvent = (overrides: Partial<AdkEvent> = {}): AdkEvent => ({
@@ -17,6 +18,41 @@ const makeTextEvent = (
     partial,
     content: { role: "model", parts: [{ text }] },
   });
+
+describe.each(["user", "agent"])("%s function response status", (author) => {
+  it.each([
+    [{ error: "denied" }, "error"],
+    [{ error: { message: "denied" }, output: "partial" }, "error"],
+    [{ error: null }, "error"],
+    [{ error: false }, "error"],
+    [{ error: "" }, "error"],
+    [{ output: { error: "application data" } }, "success"],
+    [{ result: "done" }, "success"],
+    [{}, "success"],
+  ] as const)("classifies response %j as %s", (response, status) => {
+    const acc = new AdkEventAccumulator();
+    const messages = acc.processEvent(
+      makeEvent({
+        author,
+        content: {
+          parts: [
+            {
+              functionResponse: { id: "tc-1", name: "search", response },
+            },
+          ],
+        },
+      }),
+    );
+    expect(messages).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        status,
+        content: JSON.stringify(response),
+      },
+    ]);
+  });
+});
 
 describe("AdkEventAccumulator - text handling", () => {
   it("accumulates a single non-partial text event into an AI message", () => {
@@ -117,7 +153,7 @@ describe("AdkEventAccumulator - function calls", () => {
     });
   });
 
-  it("generates a UUID for functionCall without an id", () => {
+  it("generates an ID for functionCall without an id", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -210,6 +246,78 @@ describe("AdkEventAccumulator - function calls", () => {
     );
     expect(acc.getToolConfirmations()).toHaveLength(0);
   });
+
+  const requestEvent = (name: string) =>
+    makeEvent({
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [{ functionCall: { name, id: "rc-1" } }, { text: "still here" }],
+      },
+    });
+
+  it("keeps an args-less confirmation call answerable", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(requestEvent("adk_request_confirmation"));
+
+    expect(acc.getToolConfirmations()).toEqual([
+      {
+        toolCallId: "rc-1",
+        toolName: "",
+        args: {},
+        hint: "",
+        confirmed: false,
+      },
+    ]);
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
+
+  it("keeps an args-less credential call answerable", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(requestEvent("adk_request_credential"));
+
+    expect(acc.getAuthRequests()).toEqual([
+      { toolCallId: "rc-1", authConfig: undefined },
+    ]);
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
+
+  it("defaults an ordinary call without args to empty args", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [{ functionCall: { name: "search", id: "tc-1" } }],
+        },
+      }),
+    );
+
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      { id: "tc-1", name: "search", args: {}, argsText: "{}" },
+    ]);
+  });
 });
 
 describe("AdkEventAccumulator - function responses", () => {
@@ -238,6 +346,29 @@ describe("AdkEventAccumulator - function responses", () => {
       name: "search",
       content: JSON.stringify({ results: [] }),
     });
+  });
+
+  it("skips a user function response that answers no call", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    // Without an id it answers no call: core drops it as an orphan, and
+    // keeping it would let it settle the confirmation batch it grouped into.
+    expect(msgs.filter((m) => m.type === "tool")).toEqual([]);
   });
 
   // A session load replays the stored events through a fresh accumulator.
@@ -815,6 +946,27 @@ describe("AdkEventAccumulator - actions tracking", () => {
     expect(acc.getArtifactDelta()).toEqual({ "file.txt": 1 });
   });
 
+  it("preserves prototype-named state and artifact keys", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        actions: {
+          stateDelta: JSON.parse('{"__proto__":"session"}'),
+          artifactDelta: JSON.parse('{"__proto__":1}'),
+        },
+        author: "agent",
+        content: { parts: [{ text: "x" }] },
+      }),
+    );
+
+    const stateDelta = acc.getStateDelta();
+    const artifactDelta = acc.getArtifactDelta();
+    expect(Object.hasOwn(stateDelta, "__proto__")).toBe(true);
+    expect(stateDelta["__proto__"]).toBe("session");
+    expect(Object.hasOwn(artifactDelta, "__proto__")).toBe(true);
+    expect(artifactDelta["__proto__"]).toBe(1);
+  });
+
   it("tracks escalation flag", () => {
     const acc = new AdkEventAccumulator();
     expect(acc.isEscalated()).toBe(false);
@@ -889,6 +1041,99 @@ describe("AdkEventAccumulator - actions tracking", () => {
     );
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
   });
+
+  it("settles a long-running id when a user-authored response answers it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1", "lrt-2"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-2", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "approved" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
+  });
+
+  it("keeps a long-running id pending through the interim response ADK authors", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "pending" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
+  });
+
+  it("seeds and settles longRunningToolIds from a user response", () => {
+    const acc = new AdkEventAccumulator([], ["lrt-1", "lrt-2"]);
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "lrt-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
+  });
 });
 
 describe("AdkEventAccumulator - special function calls", () => {
@@ -929,21 +1174,208 @@ describe("AdkEventAccumulator - special function calls", () => {
     });
   });
 
-  it("records auth request from adk_request_credential", () => {
+  it.each([
+    [
+      "snake_case",
+      { function_call_id: "tc-original", auth_config: { type: "oauth2" } },
+    ],
+    [
+      "camelCase",
+      { functionCallId: "tc-original", authConfig: { type: "oauth2" } },
+    ],
+  ])(
+    "records an auth request under its adk_request_credential call id (%s args)",
+    (_, args) => {
+      const acc = new AdkEventAccumulator();
+      acc.processEvent(
+        makeEvent({
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "cred-1",
+                  args,
+                },
+              },
+            ],
+          },
+        }),
+      );
+      expect(acc.getAuthRequests()).toEqual([
+        { toolCallId: "cred-1", authConfig: { type: "oauth2" } },
+      ]);
+    },
+  );
+
+  it("skips null tool_calls entries when collecting confirmation and credential requests", () => {
+    const acc = new AdkEventAccumulator([
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [
+          null,
+          {
+            id: "tc-1",
+            name: "adk_request_confirmation",
+            args: {
+              originalFunctionCall: { name: "delete_file", args: {} },
+              toolConfirmation: { hint: "Are you sure?" },
+            },
+          },
+          {
+            id: "cred-1",
+            name: "adk_request_credential",
+            args: { auth_config: { type: "oauth2" } },
+          },
+        ],
+      } as unknown as AdkMessage,
+    ]);
+    expect(acc.getToolConfirmations()).toMatchObject([
+      { toolCallId: "tc-1", toolName: "delete_file" },
+    ]);
+    expect(acc.getAuthRequests()).toEqual([
+      { toolCallId: "cred-1", authConfig: { type: "oauth2" } },
+    ]);
+  });
+});
+
+describe.each([
+  {
+    name: "adk_request_confirmation",
+    args: {
+      originalFunctionCall: { id: "gated", name: "transfer", args: {} },
+      toolConfirmation: { hint: "Transfer?" },
+    },
+    actions: {
+      requestedToolConfirmations: { gated: { hint: "Transfer?" } },
+    },
+    reply: { confirmed: true },
+    pending: (acc: AdkEventAccumulator) =>
+      acc.getToolConfirmations().map((c) => c.toolCallId),
+  },
+  {
+    name: "adk_request_credential",
+    args: { function_call_id: "gated", auth_config: { credentialKey: "k" } },
+    actions: {
+      requestedAuthConfigs: {
+        gated: { credentialKey: "k" },
+        "gated-2": { credentialKey: "k" },
+      },
+    },
+    reply: { exchangedAuthCredential: { authType: "apiKey", apiKey: "key" } },
+    pending: (acc: AdkEventAccumulator) =>
+      acc.getAuthRequests().map((r) => r.toolCallId),
+  },
+])("AdkEventAccumulator - pending $name requests", (request) => {
+  const requestEvents: AdkEvent[] = [
+    makeEvent({
+      id: "call",
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [
+          { functionCall: { name: "transfer", id: "gated", args: {} } },
+          { functionCall: { name: "transfer", id: "gated-2", args: {} } },
+        ],
+      },
+    }),
+    makeEvent({
+      id: "request",
+      author: "agent",
+      longRunningToolIds: ["req"],
+      actions: request.actions,
+      content: {
+        role: "user",
+        parts: [
+          {
+            functionCall: { name: request.name, id: "req", args: request.args },
+          },
+        ],
+      },
+    }),
+    makeEvent({
+      id: "interim",
+      author: "agent",
+      actions: request.actions,
+      content: {
+        role: "user",
+        parts: [
+          {
+            functionResponse: {
+              id: "gated",
+              name: "transfer",
+              response: { status: "pending" },
+            },
+          },
+        ],
+      },
+    }),
+  ];
+  const replyPart = {
+    functionResponse: {
+      id: "req",
+      name: request.name,
+      response: request.reply,
+    },
+  };
+
+  it("lists the request once, under its call, until the user replies to that call", () => {
+    const acc = new AdkEventAccumulator();
+    for (const event of requestEvents) acc.processEvent(event);
+    expect(request.pending(acc)).toEqual(["req"]);
+
+    acc.processEvent(
+      makeEvent({
+        id: "reply",
+        author: "user",
+        content: { role: "user", parts: [replyPart] },
+      }),
+    );
+    expect(request.pending(acc)).toEqual([]);
+  });
+
+  it("carries the request into an accumulator seeded with the thread, which an optimistic reply settles", () => {
+    const replayed = new AdkEventAccumulator();
+    let messages: AdkMessage[] = [];
+    for (const event of requestEvents) messages = replayed.processEvent(event);
+
+    const acc = new AdkEventAccumulator(messages);
+    expect(request.pending(acc)).toEqual(["req"]);
+
+    acc.processEvent(
+      makeEvent({
+        id: "optimistic",
+        content: { role: "user", parts: [replyPart] },
+      }),
+    );
+    expect(request.pending(acc)).toEqual([]);
+  });
+});
+
+describe("AdkEventAccumulator - confirmation replies", () => {
+  it.each([
+    [["req"], "an unreadable reply", { response: "not json" }],
+    [[], "a denial", { confirmed: false }],
+  ])("lists %j after %s", (pending, _, response) => {
     const acc = new AdkEventAccumulator();
     acc.processEvent(
       makeEvent({
+        id: "request",
         author: "agent",
+        longRunningToolIds: ["req"],
         content: {
           role: "model",
           parts: [
             {
               functionCall: {
-                name: "adk_request_credential",
-                id: "cred-1",
+                name: "adk_request_confirmation",
+                id: "req",
                 args: {
-                  function_call_id: "tc-original",
-                  auth_config: { type: "oauth2" },
+                  originalFunctionCall: { id: "gated", name: "transfer" },
                 },
               },
             },
@@ -951,12 +1383,27 @@ describe("AdkEventAccumulator - special function calls", () => {
         },
       }),
     );
-    const reqs = acc.getAuthRequests();
-    expect(reqs).toHaveLength(1);
-    expect(reqs[0]).toMatchObject({
-      toolCallId: "tc-original",
-      authConfig: { type: "oauth2" },
-    });
+    acc.processEvent(
+      makeEvent({
+        id: "reply",
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "req",
+                name: "adk_request_confirmation",
+                response,
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getToolConfirmations().map((c) => c.toolCallId)).toEqual(
+      pending,
+    );
   });
 });
 
@@ -1000,6 +1447,153 @@ describe("AdkEventAccumulator - author/agent tracking", () => {
 });
 
 describe("AdkEventAccumulator - snake_case normalization", () => {
+  describe.each(["user", "agent"])("%s media", (author) => {
+    it.each([
+      {
+        part: { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" },
+        },
+        expected: {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "aGVsbG8=",
+        },
+      },
+      {
+        part: {
+          file_data: {
+            mime_type: "image/png",
+            file_uri: "https://example.test/image.png",
+          },
+        },
+        expected: { type: "image_url", url: "https://example.test/image.png" },
+      },
+      {
+        part: {
+          file_data: {
+            mime_type: "application/pdf",
+            file_uri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+      {
+        part: { inlineData: { mime_type: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          fileData: {
+            mime_type: "application/pdf",
+            file_uri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+      {
+        part: { inline_data: { mimeType: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          file_data: {
+            mimeType: "application/pdf",
+            fileUri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+    ])(
+      "normalizes media aliases without mutating the event: $part",
+      ({ part, expected }) => {
+        const input = { id: "media", author, content: { parts: [part] } };
+        const original = structuredClone(input);
+        const event = parseAdkEventValue(input, "test");
+        const messages = new AdkEventAccumulator().processEvent(event);
+        expect(messages).toMatchObject([
+          { type: author === "user" ? "human" : "ai", content: [expected] },
+        ]);
+        expect(input).toEqual(original);
+      },
+    );
+  });
+
+  it("prefers camelCase media containers and nested values when both exist", () => {
+    const event = parseAdkEventValue(
+      {
+        id: "media",
+        author: "agent",
+        content: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                mime_type: "application/pdf",
+                data: "aGVsbG8=",
+              },
+              inline_data: { mime_type: "text/plain", data: "wrong" },
+            },
+            {
+              fileData: {
+                mimeType: "application/pdf",
+                mime_type: "image/png",
+                fileUri: "https://example.test/right.pdf",
+                file_uri: "https://example.test/wrong.png",
+              },
+              file_data: { file_uri: "https://example.test/other.png" },
+            },
+          ],
+        },
+      },
+      "test",
+    );
+    expect(new AdkEventAccumulator().processEvent(event)).toMatchObject([
+      {
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/right.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("leaves similarly named tool arguments untouched", () => {
+    const args = { inline_data: { mime_type: "custom", file_uri: "opaque" } };
+    const event = parseAdkEventValue(
+      {
+        id: "call",
+        author: "agent",
+        content: {
+          parts: [{ function_call: { name: "test", id: "tc-1", args } }],
+        },
+      },
+      "test",
+    );
+    expect(new AdkEventAccumulator().processEvent(event)).toMatchObject([
+      { tool_calls: [{ args }] },
+    ]);
+  });
+
   it("normalizes function_call to functionCall in parts", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
@@ -1089,6 +1683,60 @@ describe("AdkEventAccumulator - user message handling", () => {
       type: "human",
       content: "hello",
     });
+  });
+
+  it("creates a tool message for a user-authored function response", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "tc-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "tool",
+      tool_call_id: "tc-1",
+      name: "adk_request_confirmation",
+      content: JSON.stringify({ confirmed: true }),
+      status: "success",
+    });
+  });
+
+  it("orders function responses from one user event before its text", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            { text: "go ahead" },
+            {
+              functionResponse: {
+                id: "tc-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0]).toMatchObject({ type: "tool", tool_call_id: "tc-1" });
+    expect(msgs[1]).toMatchObject({ type: "human", content: "go ahead" });
   });
 
   it("creates separate human and AI messages for a user/agent turn", () => {
@@ -1317,6 +1965,65 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
+  it.each([
+    {
+      name: "inlineData without mimeType",
+      part: { inlineData: { data: "abc123" } },
+    },
+    {
+      name: "inlineData without data",
+      part: { inlineData: { mimeType: "image/png" } },
+    },
+    {
+      name: "fileData without fileUri",
+      part: { fileData: { mimeType: "image/png" } },
+    },
+  ])("skips malformed $name while preserving valid content", ({ part }) => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [part as any, { text: "still here" }],
+        },
+      }),
+    );
+
+    expect(msgs).toMatchObject([
+      { type: "ai", content: [{ type: "text", text: "still here" }] },
+    ]);
+  });
+
+  it("skips malformed user media without creating an empty human message", () => {
+    const acc = new AdkEventAccumulator();
+    const malformedMedia = [
+      { inlineData: { data: "abc123" } },
+      { fileData: { mimeType: "application/pdf" } },
+    ] as any[];
+
+    expect(
+      acc.processEvent(
+        makeEvent({
+          author: "user",
+          content: { role: "user", parts: malformedMedia },
+        }),
+      ),
+    ).toEqual([]);
+
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [...malformedMedia, { text: "still here" }],
+        },
+      }),
+    );
+
+    expect(msgs).toMatchObject([{ type: "human", content: "still here" }]);
+  });
+
   it("tool result events (no author, role:'user') still create tool messages", () => {
     // Regression: the user-author check must not hijack tool events.
     // messageToEvent for `type:'tool'` emits events without `author`,
@@ -1398,5 +2105,88 @@ describe("AdkEventAccumulator - user message handling", () => {
       type: "ai",
       content: [{ type: "text", text: "What do you need help with?" }],
     });
+  });
+});
+
+describe("AdkEventAccumulator - multiple parts in one event", () => {
+  it("keeps every text part of a single non-partial event in order", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: { role: "model", parts: [{ text: "A" }, { text: "B" }] },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "text", text: "A" },
+      { type: "text", text: "B" },
+    ]);
+  });
+
+  it("preserves the Gemini code-execution shape", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "Here is the code:" },
+            { executableCode: { code: "print(1)", language: "python" } },
+            { codeExecutionResult: { outcome: "OUTCOME_OK", output: "1" } },
+            { text: "The result is 1." },
+          ],
+        },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "text", text: "Here is the code:" },
+      { type: "code", code: "print(1)", language: "python" },
+      { type: "code_result", output: "1", outcome: "OUTCOME_OK" },
+      { type: "text", text: "The result is 1." },
+    ]);
+  });
+
+  it("keeps every reasoning part of a single non-partial event", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "First thought", thought: true },
+            { text: "Second thought", thought: true },
+          ],
+        },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "reasoning", text: "First thought" },
+      { type: "reasoning", text: "Second thought" },
+    ]);
+  });
+
+  it("still replaces the streamed buffer with the final text", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeTextEvent("Hel", true));
+    acc.processEvent(makeTextEvent("lo", true));
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [{ text: "Hello" }, { text: "Again" }],
+        },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "text", text: "Hello" },
+      { type: "text", text: "Again" },
+    ]);
   });
 });

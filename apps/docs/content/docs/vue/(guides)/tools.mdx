@@ -1,0 +1,162 @@
+---
+title: Defining tools
+description: Give the model tools that run on your server or in the browser, and tools that wait for the user.
+---
+
+Tools let the model request work and receive a result. A backend tool runs in your server route. A frontend tool runs in the browser. A tool that waits for the user renders a prompt in the browser and receives its result from that UI. All three arrive in the thread as tool calls, which you can render with [Tool UI](/docs/vue/tool-ui).
+
+## Backend tools
+
+Define a backend tool in the server route's `streamText` `tools` object. Its `execute` runs on the server; the browser receives the resulting tool call and can render it. This is the `weather` tool from `examples/with-nuxt/server/api/chat.post.ts`, abridged:
+
+```ts
+tools: {
+  weather: tool({
+    description: "Get the current weather for a city",
+    inputSchema: jsonSchema<{ city: string }>({
+      type: "object",
+      properties: {
+        city: { type: "string", description: "City name" },
+      },
+      required: ["city"],
+      additionalProperties: false,
+    }),
+    execute: async ({ city }) => ({
+      city,
+      temperature: Math.round(8 + Math.random() * 20),
+      condition: "sunny",
+    }),
+  }),
+},
+```
+
+The route returns `result.toUIMessageStreamResponse()`. To render the call, register a Vue component for `weather` as shown in [Tool UI](/docs/vue/tool-ui). The tool's server implementation does not need a browser toolkit entry.
+
+## Frontend tools
+
+Put a browser tool in a toolkit with `type: "frontend"`, a `parameters` schema, and `execute`. Register the toolkit with `Tools({ toolkit })` from `@assistant-ui/core/react` under `tools` in `AuiConfig`. `parameters` accepts a Standard Schema such as Zod or a JSON Schema object. This example uses Zod, so add it to your app (`pnpm add zod`), and reads the browser's time zone:
+
+```ts title="app/toolkit.ts"
+import { z } from "zod";
+import type { Toolkit } from "@assistant-ui/core/react";
+
+export const toolkit = {
+  get_timezone: {
+    type: "frontend",
+    description: "Get the user's current time zone.",
+    parameters: z.object({}),
+    execute: async () => ({
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }),
+    renderText: {
+      running: "Reading time zone…",
+      complete: "Time zone ready",
+    },
+  },
+} satisfies Toolkit;
+```
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import { Tools } from "@assistant-ui/core/react";
+import { toolkit } from "~/toolkit";
+import Thread from "~/components/assistant-ui/thread.vue";
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+  tools: Tools({ toolkit }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <Thread />
+  </AuiProvider>
+</template>
+```
+
+`AssistantChatTransport` sends the frontend tool's name, description, and JSON Schema parameters in the request body. The server route turns those uploaded schemas into AI SDK tools with `frontendTools(tools)`. Keep server tools in the same `streamText` map:
+
+```ts title="server/api/chat.post.ts"
+import { openai } from "@ai-sdk/openai";
+import { frontendTools, type FrontendTools } from "@assistant-ui/ai-sdk";
+import {
+  convertToModelMessages,
+  jsonSchema,
+  stepCountIs,
+  streamText,
+  tool,
+  type UIMessage,
+} from "ai";
+
+export default defineEventHandler(async (event) => {
+  const { messages, system, tools } = await readBody<{
+    messages: UIMessage[];
+    system?: string;
+    tools?: FrontendTools;
+  }>(event);
+
+  const aiSDKTools = {
+    ...frontendTools(tools ?? {}),
+    weather: tool({
+      description: "Get the current weather for a city",
+      inputSchema: jsonSchema<{ city: string }>({
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name" },
+        },
+        required: ["city"],
+        additionalProperties: false,
+      }),
+      execute: async ({ city }) => ({
+        city,
+        temperature: Math.round(8 + Math.random() * 20),
+        condition: "sunny",
+      }),
+    }),
+  };
+
+  const result = streamText({
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    system,
+    stopWhen: stepCountIs(3),
+    tools: aiSDKTools,
+  });
+
+  return result.toUIMessageStreamResponse({
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
+  });
+});
+```
+
+The shared runtime's `ToolInvocationTracker` handles frontend `execute` calls in the browser and records their results. `frontendTools` gives the server a schema for that call; it does not run the browser function on the server.
+
+## Tools that wait for the user
+
+A toolkit entry with `type: "human"` has `parameters` and a renderer, but no `execute`. The call stays in `requires-action` until the rendered tool UI calls `tool.addResult(result)`. The renderer receives one `tool` prop in Vue. See [Tool UI](/docs/vue/tool-ui) for a component that collects the result.
+
+## Toolkit entry fields
+
+These fields come from `ToolDefinition`. The Vue column describes what the Vue binding renders or receives through the shared runtime.
+
+| Field | Vue use | Description |
+|---|---|---|
+| `type` | Shared runtime | `"frontend"` runs in the browser; `"human"` waits for a UI result. Server tools live in the route. |
+| `description` | Sent to server | Describes the tool to the model. |
+| `parameters` | Sent to server | Standard Schema or JSON Schema for the model's arguments. Required for frontend and human entries. |
+| `execute` | Shared runtime | Runs a frontend tool in the browser. Human entries omit it. |
+| `render` | Vue rendering | Vue component shown for a matching call. Cast it to `ToolCallMessagePartComponent`, the shared registry's declared type. |
+| `renderText` | Vue rendering | Running and complete text. Vue renders string or number results. |
+| `display` | Stored in tools scope | Inline or standalone presentation hint. Human entries default to standalone; `MessagePrimitiveParts` does not read the hint. |
+| `disabled` | Request filtering | Hides the entry from the uploaded tool schemas. |
+| `providerOptions` | Sent to server | Provider options included alongside the uploaded schema. |
+
+`ToolDefinition` declares `render` with a React component type because the tools scope is shared. Pass a Vue component with `as unknown as ToolCallMessagePartComponent`, as the Nuxt example does in `RegisterToolUIs.vue`. The Vue renderer receives `tool.part` and `tool.addResult` through its required `tool` prop.
+
+## Register renderers without a toolkit
+
+For a server tool that needs only a Vue renderer, use `aui.tools.setToolUI(name, component)` from a component under `AuiProvider` and unregister it on unmount. [Tool UI](/docs/vue/tool-ui) shows the full registration and component contract.

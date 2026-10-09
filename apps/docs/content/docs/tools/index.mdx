@@ -1,22 +1,22 @@
 ---
 title: Tools
-description: Give the model callable capabilities with assistant-ui toolkits — define frontend, backend, human, and provider tools, render tool calls as interactive UI, and connect MCP servers.
+description: Give the model callable capabilities with assistant-ui toolkits. Define frontend, backend, human, and provider tools, render tool calls as interactive UI, and connect MCP servers.
 platforms: ["react"]
 ---
 
-Tools are how the model takes action: fetch data, call an API, query a database, drive your UI, or run a workflow. In assistant-ui you declare tools in a **toolkit** — a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders in the chat.
+Tools are how the model takes action: fetch data, call an API, query a database, drive your UI, or run a workflow. In assistant-ui you declare tools in a **toolkit**, a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders in the chat.
 
 ## Start here
 
 <Cards>
   <Card title="Defining Tools" href="/docs/tools/defining-tools">
-    Author a toolkit with the `"use generative"` directive — frontend, backend, human, and provider tools, with the schema, executor, and renderer in one file.
+    Author a toolkit with the `"use generative"` directive: frontend, backend, human, and provider tools, with the schema, executor, and renderer in one file.
   </Card>
   <Card title="Backend Tools" href="/docs/tools/backend">
     Wire a toolkit into your AI SDK route with `AISDKToolkit` / `frontendTools`, mix client and server tools, and round-trip multi-modal results.
   </Card>
   <Card title="Tool UI" href="/docs/tools/tool-ui">
-    Render tool calls as custom components — loading and result states, human-in-the-loop, approvals, and streaming.
+    Render tool calls as custom components: loading and result states, human-in-the-loop, approvals, and streaming.
   </Card>
   <Card title="Dynamic Tools" href="/docs/tools/dynamic-tools">
     Tools whose executor closes over React state, via `stubTool()` + `useAuiToolOverrides`.
@@ -45,6 +45,7 @@ assistant-ui has a few ways to turn model output into React UI. Pick by **who de
 | Persistent, out-of-thread state the AI can read and write | [Interactables](/docs/tools/interactables) | the **model + the user**, bidirectionally |
 | UI composed from a component vocabulary you ship | [Generative UI](/docs/tools/generative-ui) — the `present` tool | the **model**, composing a tree |
 | UI pushed by a LangGraph node alongside messages | [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — `makeAssistantDataUI` | the **backend / orchestrator** |
+| UI composed in OpenUI Lang, rendered by OpenUI's kit (third-party) | [OpenUI](/docs/tools/openui) — `@openuidev/assistant-ui` | the **model**, composing a tree |
 
 ## Connect external tools
 
@@ -65,7 +66,7 @@ assistant-ui has a few ways to turn model output into React UI. Pick by **who de
 
 ## Reference & components
 
-- [Tools API Reference](/docs/api-reference/tools) — `tool`, `Toolkit`, `Tools`, and the tool-status hooks.
-- [`ToolFallback`](/docs/ui/tool-fallback) — a default tool card for tools with no custom UI.
-- [`ToolGroup`](/docs/ui/tool-group) — collapse consecutive tool calls into one container.
-- [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools) — move off the deprecated `makeAssistantTool` / `useAssistantToolUI` APIs.
+- [Tools API Reference](/docs/api-reference/tools): `tool`, `Toolkit`, `Tools`, and the tool-status hooks.
+- [`ToolFallback`](/elements/tool-fallback): a default tool card for tools with no custom UI.
+- [`ToolGroup`](/elements/tool-group): collapse consecutive tool calls into one container.
+- [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools): move off the deprecated `makeAssistantTool` / `useAssistantToolUI` APIs.

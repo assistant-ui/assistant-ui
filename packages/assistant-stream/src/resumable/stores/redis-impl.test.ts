@@ -1,0 +1,558 @@
+import { describe, expect, it } from "vitest";
+import {
+  RedisResumableStreamStore,
+  type RedisAppendOptions,
+  type RedisDeleteOptions,
+  type RedisFinalizeOptions,
+  type PipelineCommand,
+  type RedisLikeClient,
+} from "./redis-impl";
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+class FakeRedisClient implements RedisLikeClient {
+  readonly strings = new Map<string, string>();
+  readonly streams = new Map<
+    string,
+    Array<{
+      id: string;
+      fields: Record<string, string | Uint8Array>;
+    }>
+  >();
+  onFirstAcquire: (() => Promise<void>) | undefined;
+  onNextGet: (() => Promise<void>) | undefined;
+  private nextStreamId = 0;
+
+  async setNX(key: string, value: string): Promise<boolean> {
+    if (this.strings.has(key)) return false;
+    this.strings.set(key, value);
+    const onFirstAcquire = this.onFirstAcquire;
+    this.onFirstAcquire = undefined;
+    await onFirstAcquire?.();
+    return true;
+  }
+
+  private setString(key: string, value: string): void {
+    this.strings.set(key, value);
+  }
+
+  async get(key: string): Promise<string | null> {
+    const value = this.strings.get(key) ?? null;
+    const onNextGet = this.onNextGet;
+    this.onNextGet = undefined;
+    await onNextGet?.();
+    return value;
+  }
+
+  async del(keys: string[]): Promise<void> {
+    for (const key of keys) {
+      this.strings.delete(key);
+      this.streams.delete(key);
+    }
+  }
+
+  async xAdd(
+    key: string,
+    fields: Record<string, string | Uint8Array>,
+  ): Promise<string> {
+    const id = `${++this.nextStreamId}-0`;
+    const entries = this.streams.get(key) ?? [];
+    entries.push({ id, fields });
+    this.streams.set(key, entries);
+    return id;
+  }
+
+  async xRange(
+    key: string,
+    start: string,
+  ): Promise<
+    Array<{
+      id: string;
+      fields: Record<string, string | Uint8Array>;
+    }>
+  > {
+    const entries = this.streams.get(key) ?? [];
+    if (start === "-") return entries;
+    const exclusiveId = start.startsWith("(") ? start.slice(1) : start;
+    const sequence = (id: string) => Number(id.split("-")[0]);
+    return entries.filter(
+      (entry) => sequence(entry.id) > sequence(exclusiveId),
+    );
+  }
+
+  async pipeline(commands: readonly PipelineCommand[]): Promise<void> {
+    for (const command of commands) {
+      switch (command.type) {
+        case "xAdd":
+          await this.xAdd(command.key, command.fields);
+          break;
+        case "expire":
+          break;
+      }
+    }
+  }
+
+  async appendIfUnchanged(options: RedisAppendOptions): Promise<boolean> {
+    if (this.strings.get(options.metaKey) !== options.expectedMeta)
+      return false;
+    await this.xAdd(options.dataKey, options.fields);
+    return true;
+  }
+
+  async finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean> {
+    if (this.strings.get(options.metaKey) !== options.expectedMeta)
+      return false;
+    await this.xAdd(options.dataKey, options.fields);
+    this.setString(options.metaKey, options.nextMeta);
+    return true;
+  }
+
+  async deleteIfUnchanged(options: RedisDeleteOptions): Promise<boolean> {
+    if (this.strings.get(options.metaKey) !== options.expectedMeta)
+      return false;
+    await this.del([options.metaKey, ...options.dataKeys]);
+    return true;
+  }
+}
+
+const withoutFencedMutations = (client: FakeRedisClient): RedisLikeClient => ({
+  setNX: (key, value) => client.setNX(key, value),
+  get: (...args) => client.get(...args),
+  del: (...args) => client.del(...args),
+  xRange: (key, start) => client.xRange(key, start),
+  pipeline: (...args) => client.pipeline(...args),
+  finalizeIfUnchanged: (...args) => client.finalizeIfUnchanged(...args),
+});
+
+describe("RedisResumableStreamStore", () => {
+  it("does not expose stale data while a stream id is reacquired", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "stream";
+    const legacyDataKey = `${keyPrefix}:{${streamId}}:data`;
+    await client.xAdd(legacyDataKey, { c: encoder.encode("stale") });
+
+    const store = new RedisResumableStreamStore(client, {
+      keyPrefix,
+      pollIntervalMs: 1,
+    });
+    let firstChunk: string | undefined;
+
+    client.onFirstAcquire = async () => {
+      await expect(store.acquire(streamId)).resolves.toBe("consumer");
+      await store.append(streamId, encoder.encode("fresh"));
+
+      const abort = new AbortController();
+      const iterator = store
+        .read(streamId, "", abort.signal)
+        [Symbol.asyncIterator]();
+      const result = await iterator.next();
+      firstChunk = result.done ? undefined : decoder.decode(result.value.chunk);
+      abort.abort();
+      await iterator.return?.();
+    };
+
+    await expect(store.acquire(streamId)).resolves.toBe("producer");
+    expect(firstChunk).toBe("fresh");
+  });
+
+  it("continues reading legacy streams without a generation", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "legacy";
+    client.strings.set(
+      `${keyPrefix}:{${streamId}}:meta`,
+      JSON.stringify({ status: "streaming", ttlSec: 60 }),
+    );
+
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    await store.append(streamId, encoder.encode("legacy"));
+    await store.finalize(streamId, "done");
+
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+
+    expect(chunks).toEqual(["legacy"]);
+  });
+
+  it("supports custom clients without fenced mutation capabilities", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "custom-client";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const legacyDataKey = `${keyPrefix}:{${streamId}}:data`;
+    const store = new RedisResumableStreamStore(
+      withoutFencedMutations(client),
+      { keyPrefix },
+    );
+
+    await store.acquire(streamId);
+    const generation = (
+      JSON.parse(client.strings.get(metaKey)!) as { generation: string }
+    ).generation;
+    const dataKey = `${keyPrefix}:{${streamId}}:data:${generation}`;
+    await client.xAdd(legacyDataKey, { c: encoder.encode("legacy") });
+
+    await store.append(streamId, encoder.encode("current"));
+    expect(client.streams.get(dataKey)?.[0]?.fields.c).toEqual(
+      encoder.encode("current"),
+    );
+
+    await store.delete(streamId);
+    expect(client.strings.has(metaKey)).toBe(false);
+    expect(client.streams.has(dataKey)).toBe(false);
+    expect(client.streams.has(legacyDataKey)).toBe(false);
+  });
+
+  it("finalizes and replays generation-scoped streams", async () => {
+    const client = new FakeRedisClient();
+    const store = new RedisResumableStreamStore(client, {
+      keyPrefix: "test",
+    });
+    await store.acquire("current");
+    await store.append("current", encoder.encode("current"));
+    await store.finalize("current", "done");
+
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      "current",
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+
+    expect(chunks).toEqual(["current"]);
+    await expect(store.status("current")).resolves.toBe("done");
+  });
+
+  it("does not resurrect a stream whose metadata expired mid-finalize", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "expired";
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    await store.acquire(streamId);
+
+    let resumeFinalizer!: () => void;
+    const finalizerPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeFinalizer = resume;
+          resolve();
+        });
+    });
+    const finalizing = store.finalize(streamId, "done");
+    await finalizerPaused;
+
+    client.strings.delete(`${keyPrefix}:{${streamId}}:meta`);
+    resumeFinalizer();
+    await finalizing;
+
+    await expect(store.status(streamId)).resolves.toBe("missing");
+  });
+
+  it("fences a superseded producer out of the reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "fenced";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await expect(staleStore.acquire(streamId)).resolves.toBe("producer");
+    await staleStore.append(streamId, encoder.encode("before"));
+
+    client.strings.delete(metaKey);
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    await freshStore.append(streamId, encoder.encode("fresh"));
+
+    await expect(
+      staleStore.append(streamId, encoder.encode("stale")),
+    ).rejects.toThrow(`Stream superseded by a new acquisition: ${streamId}`);
+    await expect(staleStore.finalize(streamId, "done")).resolves.toBe(false);
+    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+
+    await expect(freshStore.finalize(streamId, "done")).resolves.toBe(true);
+    const chunks: string[] = [];
+    for await (const entry of freshStore.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+  });
+
+  it("does not let a stale finalizer overwrite a reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "finalize-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await staleStore.acquire(streamId);
+
+    let resumeFinalizer!: () => void;
+    const finalizerPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeFinalizer = resume;
+          resolve();
+        });
+    });
+    const finalizing = staleStore.finalize(streamId, "done");
+    await finalizerPaused;
+
+    client.strings.delete(metaKey);
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    resumeFinalizer();
+    await expect(finalizing).resolves.toBe(false);
+
+    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+    await expect(
+      staleStore.append(streamId, encoder.encode("stale")),
+    ).rejects.toThrow(/superseded/);
+  });
+
+  it("does not let an in-flight append mutate a reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "append-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await staleStore.acquire(streamId);
+
+    let resumeAppend!: () => void;
+    const appendPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeAppend = resume;
+          resolve();
+        });
+    });
+    const appending = staleStore.append(streamId, encoder.encode("stale"));
+    await appendPaused;
+
+    client.strings.delete(metaKey);
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    resumeAppend();
+
+    await expect(appending).rejects.toThrow(/superseded/);
+    await freshStore.append(streamId, encoder.encode("fresh"));
+    await freshStore.finalize(streamId, "done");
+
+    const chunks: string[] = [];
+    for await (const entry of freshStore.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+  });
+
+  it("reports a leased in-flight append on the reacquiring instance as superseded", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "leased-append-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    const stale = await store.acquireLease(streamId);
+    if (stale.role !== "producer") throw new Error("Expected producer");
+
+    let resumeAppend!: () => void;
+    const appendPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeAppend = resume;
+          resolve();
+        });
+    });
+    const appending = store.append(
+      streamId,
+      encoder.encode("stale"),
+      stale.lease,
+    );
+    await appendPaused;
+
+    client.strings.delete(metaKey);
+    const fresh = await store.acquireLease(streamId);
+    if (fresh.role !== "producer") throw new Error("Expected producer");
+    resumeAppend();
+
+    await expect(appending).rejects.toMatchObject({
+      code: "missing",
+      message: `Stream superseded by a new acquisition: ${streamId}`,
+    });
+  });
+
+  it("does not let an in-flight delete remove a reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "delete-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await staleStore.acquire(streamId);
+    const generation = (
+      JSON.parse(client.strings.get(metaKey)!) as { generation: string }
+    ).generation;
+    const staleDataKey = `${keyPrefix}:{${streamId}}:data:${generation}`;
+    await staleStore.append(streamId, encoder.encode("stale"));
+
+    let resumeDelete!: () => void;
+    const deletePaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeDelete = resume;
+          resolve();
+        });
+    });
+    const deleting = staleStore.delete(streamId);
+    await deletePaused;
+
+    client.strings.delete(metaKey);
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    resumeDelete();
+    await deleting;
+
+    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+    expect(client.streams.has(staleDataKey)).toBe(false);
+    await staleStore.delete(streamId);
+    await expect(freshStore.status(streamId)).resolves.toBe("missing");
+  });
+
+  it("does not clear a same-store acquisition completed during delete", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "same-store-delete-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    await store.acquire(streamId);
+    const generation = (
+      JSON.parse(client.strings.get(metaKey)!) as { generation: string }
+    ).generation;
+    const staleDataKey = `${keyPrefix}:{${streamId}}:data:${generation}`;
+    await store.append(streamId, encoder.encode("stale"));
+
+    client.strings.delete(metaKey);
+    let resumeDelete!: () => void;
+    const deletePaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeDelete = resume;
+          resolve();
+        });
+    });
+    const deleting = store.delete(streamId);
+    await deletePaused;
+
+    await expect(store.acquire(streamId)).resolves.toBe("producer");
+    await store.append(streamId, encoder.encode("fresh"));
+    resumeDelete();
+    await deleting;
+    expect(client.streams.has(staleDataKey)).toBe(false);
+    await store.finalize(streamId, "done");
+
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+  });
+
+  it("stops an existing reader when the stream generation changes", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "reused";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const store = new RedisResumableStreamStore(client, {
+      keyPrefix,
+      pollIntervalMs: 1,
+    });
+    await store.acquire(streamId);
+
+    const abort = new AbortController();
+    const iterator = store
+      .read(streamId, "", abort.signal)
+      [Symbol.asyncIterator]();
+    const next = iterator.next();
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    client.strings.delete(metaKey);
+    await store.acquire(streamId);
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      next,
+      new Promise<"timeout">((resolve) => {
+        timeout = setTimeout(() => resolve("timeout"), 100);
+      }),
+    ]);
+    if (timeout !== undefined) clearTimeout(timeout);
+    abort.abort();
+    await iterator.return?.();
+
+    expect(result).not.toBe("timeout");
+    expect(result).toMatchObject({ done: true });
+  });
+  it("keeps a superseded producer out of a stream reacquired on the same instance", async () => {
+    const client = new FakeRedisClient();
+    const store = new RedisResumableStreamStore(client, { keyPrefix: "test" });
+    const a = await store.acquireLease("s");
+    if (a.role !== "producer") throw new Error("Expected producer");
+    await store.append("s", encoder.encode("before"), a.lease);
+    client.strings.delete("test:{s}:meta");
+    const b = await store.acquireLease("s");
+    if (b.role !== "producer") throw new Error("Expected producer");
+    await expect(store.acquireLease("s")).resolves.toEqual({
+      role: "consumer",
+    });
+    await store.append("s", encoder.encode("fresh"), b.lease);
+    await expect(
+      store.append("s", encoder.encode("stale"), a.lease),
+    ).rejects.toMatchObject({
+      code: "missing",
+      message: "Stream superseded by a new acquisition: s",
+    });
+    await expect(store.finalize("s", "done", undefined, a.lease)).resolves.toBe(
+      false,
+    );
+    await expect(store.status("s")).resolves.toBe("streaming");
+    await expect(store.finalize("s", "done", undefined, b.lease)).resolves.toBe(
+      true,
+    );
+    await expect(store.finalize("s", "done", undefined, b.lease)).resolves.toBe(
+      false,
+    );
+    await expect(
+      store.append("s", encoder.encode("late"), a.lease),
+    ).rejects.toMatchObject({
+      code: "missing",
+    });
+    const chunks: string[] = [];
+    for await (const entry of store.read(
+      "s",
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
+    await store.delete("s");
+    await expect(store.finalize("s", "done")).rejects.toThrow(/not found/);
+  });
+});

@@ -1,0 +1,191 @@
+---
+title: "File"
+description: "File message parts with type-aware icons, inline media playback, filename, size, and download actions."
+---
+
+File renders one file message part. Playable `audio/*` and `video/*` files stay inline with their player, filename, optional size, and download link. Every other file remains the compact icon row. With a runtime it renders straight from a message's file part; standalone you hand it the part yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Render files from a message
+
+Register `File` as the `File` renderer on `MessagePrimitive.Parts`.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { File } from "@/components/assistant-ui/elements/file";
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts components={{ File }} />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+The `Thread` element already renders both assistant and user file parts through `File`, so installing `@assistant-ui/thread` gives you this without any of the above.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `File` is a plain function of one part object: no context, no runtime.
+
+<Steps>
+  <Step>
+
+### Render a file directly
+
+```tsx title="app/answer.tsx"
+import { File } from "@/components/assistant-ui/elements/file";
+
+export function Attachment() {
+  return (
+    <File
+      type="file"
+      filename="report.pdf"
+      mimeType="application/pdf"
+      data="https://example.com/report.pdf"
+      sourceType="url"
+      status={{ type: "complete" }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div>
+  <div data-slot="file-player">
+    <div data-slot="audio-player | video-player" />
+  </div>
+  <div>
+    <span data-slot="file-size" />
+    <a data-slot="file-download" />
+  </div>
+</div>
+```
+
+The player shows the filename as its title.
+
+The icon row remains for non-media files. `File.Player` routes playable audio and video data to the matching player: `http(s)`, `blob:`, and `data:` URLs are safe to play, and raw base64 becomes a data URI with the part's MIME type. An `id` or another URL scheme keeps the plain row. The icon depends on `mimeType`: images get an image icon, PDFs and other text get a document icon, JSON gets a braces icon, audio and video get their own icons, and everything else gets a generic file icon. `sourceType` states how `data` is encoded on the wire: `"url"` for a link, `"id"` for an opaque reference the download link can't resolve on its own, or omitted to infer it. The size row only appears for inline data (base64 or a `data:` URI), since a URL or id reference carries no byte count to read.
+
+## Examples
+
+### Variants and sizes
+
+`variant` and `size` are props of `File.Root`. `File` itself renders the defaults.
+
+```tsx
+<File.Root variant="muted" size="sm">
+  <File.Icon mimeType={part.mimeType} />
+  <File.Name>{part.filename}</File.Name>
+</File.Root>
+```
+
+| Variant | Description |
+|---------|-------------|
+| `outline` | Border, background on hover (default) |
+| `ghost` | No border, background on hover |
+| `muted` | Muted background |
+
+| Size | Description |
+|------|-------------|
+| `sm` | Compact padding, smaller text |
+| `default` | Standard padding |
+| `lg` | Larger padding and text |
+
+### Restyle the row
+
+`File.Root`, `File.Icon`, `File.Name`, `File.Size`, `File.Download`, and `File.Player` are exported individually for a custom layout:
+
+```tsx
+import { File } from "@/components/assistant-ui/elements/file";
+
+export function CustomFileRow() {
+  return (
+    <File.Root variant="ghost">
+      <File.Icon mimeType={part.mimeType} />
+      <File.Name>{part.filename}</File.Name>
+      <File.Download
+        data={part.data}
+        mimeType={part.mimeType}
+        filename={part.filename}
+        sourceType={part.sourceType}
+      />
+    </File.Root>
+  );
+}
+
+export function CustomMediaFile() {
+  return (
+    <File.Player
+      data={part.data}
+      mimeType={part.mimeType}
+      filename={part.filename}
+      sourceType={part.sourceType}
+    />
+  );
+}
+```
+
+## API reference
+
+<RuntimeMode>
+
+### File
+
+| Export | Renders | Notes |
+|--------|---------|-------|
+| `File` | `div` | The `File` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.File`. |
+| `File.Root` | `div` | Row with `variant` and `size`. |
+| `File.Icon` | `span` | Icon chosen from `mimeType`. |
+| `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. `File`'s own row passes it the `mimeType` label instead. |
+| `File.Size` | `span` | Formatted byte size; you supply `bytes`. |
+| `File.Download` | `a` | Download link; `null` when `data` can't produce a safe `href`. |
+| `File.Player` | `div` | Routes playable audio and video files to the matching inline player; `null` otherwise. |
+
+### File part
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filename` | `string` | Optional display name; without one, the icon row of a non-media file shows a label derived from `mimeType`, such as "PDF file". |
+| `data` | `string` | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
+| `mimeType` | `string` | Drives the icon and, for base64/`data:` payloads, the download `href`. |
+| `sourceType` | `"url" \| "id"` | Optional. States how to interpret `data`; omitted infers from its shape. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### File props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `type` | `"file"` | required | Required by the part type. |
+| `filename` | `string` | | Display name; the icon row of a non-media file falls back to a label derived from `mimeType`, such as "PDF file". |
+| `data` | `string` | required | The file payload: base64, a `data:` URI, or a URL/id per `sourceType`. |
+| `mimeType` | `string` | required | Drives the icon and, for base64/`data:` payloads, the download `href`. |
+| `sourceType` | `"url" \| "id"` | | States how to interpret `data`; omitted infers from its shape. |
+| `status` | `MessagePartStatus` | | Required by the type; not read by the renderer. |
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Row style. A prop of `File.Root`, not of `File`. |
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Row size. A prop of `File.Root`, not of `File`. |
+
+`File.Root`, `File.Icon`, `File.Name`, `File.Size`, `File.Download`, and `File.Player` are exported individually for a custom layout, as shown in [Restyle the row](#restyle-the-row).
+
+</StandaloneMode>

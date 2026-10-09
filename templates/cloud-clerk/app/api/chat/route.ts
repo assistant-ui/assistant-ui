@@ -1,11 +1,13 @@
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   type JSONSchema7,
   streamText,
   convertToModelMessages,
   type UIMessage,
 } from "ai";
+
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const {
@@ -18,13 +20,13 @@ export async function POST(req: Request) {
     tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
   } = await req.json();
 
+  const aiSDKTools = { ...frontendTools(tools ?? {}) };
   const result = streamText({
-    model: openai.responses("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
+    abortSignal: req.signal,
+    model: openai.responses("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: {
-      ...frontendTools(tools ?? {}),
-    },
+    tools: aiSDKTools,
     providerOptions: {
       openai: {
         reasoningEffort: "low",

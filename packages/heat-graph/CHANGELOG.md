@@ -1,5 +1,55 @@
 # heat-graph
 
+## 0.0.23
+
+### Patch Changes
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.22
+
+### Patch Changes
+
+- [#8638](https://github.com/assistant-ui/assistant-ui/pull/8638) [`d424f50`](https://github.com/assistant-ui/assistant-ui/commit/d424f507faf065f0cd29582e9c110be821581547) - fix: render heat-graph's contexts through `.Provider` so `Root` works on React 18 ([@bnb](https://github.com/bnb))
+
+## 0.0.21
+
+### Patch Changes
+
+- [#7927](https://github.com/assistant-ui/assistant-ui/pull/7927) [`e8477bf`](https://github.com/assistant-ui/assistant-ui/commit/e8477bf27101bfc2aca1da6b7c9fce4003c509c2) - fix(heat-graph): keep the last day of the range in a midnight-DST timezone ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.20
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.19
+
+### Patch Changes
+
+- [#7334](https://github.com/assistant-ui/assistant-ui/pull/7334) [`b6fabc0`](https://github.com/assistant-ui/assistant-ui/commit/b6fabc015cd0881f67f8cdf8d2fe3894f998b677) - fix: accept full ISO timestamps in heat graph date inputs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7247](https://github.com/assistant-ui/assistant-ui/pull/7247) [`b23c505`](https://github.com/assistant-ui/assistant-ui/commit/b23c50501cb03a40d6b72201ee04b9ce08bd9663) - fix: preserve tooltip behavior when cells define hover handlers ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.18
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.17
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.0.16
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.15
 
 ### Patch Changes

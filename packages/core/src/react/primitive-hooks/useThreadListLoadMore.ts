@@ -1,11 +1,10 @@
 import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { threadListLoadMoreDisabled } from "../../store/primitive-predicates";
 
 export const useThreadListLoadMore = () => {
   const aui = useAui();
-  const disabled = useAuiState(
-    (s) => !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore,
-  );
+  const disabled = useAuiState(threadListLoadMoreDisabled);
 
   const loadMore = useCallback(() => {
     aui.threads.loadMore();

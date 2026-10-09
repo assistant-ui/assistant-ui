@@ -7,6 +7,7 @@ import type { AssistantClient, Unsubscribe } from "./types/client";
 import type { AuiConfig } from "./AuiConfig";
 import { DefaultAssistantClient } from "./utils/react-assistant-context";
 import { createNotificationManager } from "./utils/NotificationManager";
+import { useDestroySignalProvider } from "./utils/destroy-signal-context";
 import {
   applyTransformScopes,
   useAuiRoot,
@@ -52,12 +53,30 @@ const isConfigSource = (
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
+// getConfig doubles as a useSyncExternalStore getSnapshot, which requires a
+// stable result between notifications; a live source's thunk may build its
+// config inline, so the result is cached until the source notifies. The cache
+// is also dropped on subscribe, so a change that happened while nobody was
+// subscribed is picked up on the post-subscribe check.
 const toConfigSource = (
   config: AuiConfig.Input | AssistantConfigSource,
-): AssistantConfigSource =>
-  isConfigSource(config)
-    ? config
-    : { getConfig: () => config, subscribe: NO_OP_SUBSCRIBE };
+): AssistantConfigSource => {
+  if (!isConfigSource(config)) {
+    return { getConfig: () => config, subscribe: NO_OP_SUBSCRIBE };
+  }
+
+  let cache: { value: AuiConfig.Input } | null = null;
+  return {
+    getConfig: () => (cache ??= { value: config.getConfig() }).value,
+    subscribe: (listener) => {
+      cache = null;
+      return config.subscribe(() => {
+        cache = null;
+        listener();
+      });
+    },
+  };
+};
 
 // A client (including the sentinel proxies, whose property reads all resolve)
 // always carries `on`; a source or handle never does, so its absence is the
@@ -86,7 +105,10 @@ const toClientSource = (
  * bindings: a framework bridge creates the handle, reads the current client
  * with `getClient`, re-reads it whenever `subscribe` fires (a structural
  * change produces a new client object, a value-only update keeps its
- * identity), and calls `destroy` on teardown.
+ * identity), and holds a subscription for as long as it needs the client
+ * alive.
+ *
+ * The handle's lifecycle rides its subscriber count. Scopes render lazily on the first read and mount when the first subscriber attaches; state updates before that throw, so an imperative consumer without a reactive framework holds a no-op subscription. When the last subscriber releases, the root soft-unmounts on the next task: effects other than insertion effects clean up, state is retained, and a later subscriber remounts the same scopes. `destroy` is the permanent teardown: it aborts the destroy signal and synchronously releases every scope, insertion effects included, whether or not subscribers are attached. A bridge that only releases its subscriptions keeps insertion effects mounted until `destroy`.
  *
  * The parent may be a plain client or another source/handle. Passing a source
  * keeps the child bound to the parent's current client across the parent's
@@ -112,30 +134,38 @@ export const createAssistantClient = (
     parent: parentSource.getClient(),
     current: null,
   };
+  const destroyController = new AbortController();
   const notifications = createNotificationManager();
 
-  const root = createTapRoot(function AssistantClientRoot() {
-    const parent = useSyncExternalStore(
-      parentSource.subscribe,
-      parentSource.getClient,
-      parentSource.getClient,
-    );
-    const currentConfig = useSyncExternalStore(
-      configSource.subscribe,
-      configSource.getConfig,
-      configSource.getConfig,
-    );
-    const entries = Object.entries(
-      applyTransformScopes(currentConfig, parent),
-    ) as ScopeEntry[];
-    const result = useAuiRoot({ parent, entries, clientRef, notifications });
-    // Seeded during render, before the commit runs mount effects that read it
-    if (clientRef.current === null) {
-      clientRef.current = result.client;
-    }
-    return result;
-  });
-  clientRef.current = root.getValue().client;
+  const root = createTapRoot(
+    function AssistantClientRoot() {
+      const parent = useSyncExternalStore(
+        parentSource.subscribe,
+        parentSource.getClient,
+        parentSource.getClient,
+      );
+      const currentConfig = useSyncExternalStore(
+        configSource.subscribe,
+        configSource.getConfig,
+        configSource.getConfig,
+      );
+      const entries = Object.entries(
+        applyTransformScopes(currentConfig, parent),
+      ) as ScopeEntry[];
+      const result = useDestroySignalProvider(
+        destroyController.signal,
+        function useRootClient() {
+          return useAuiRoot({ parent, entries, clientRef, notifications });
+        },
+      );
+      // Seeded during render, before the commit runs mount effects that read it
+      if (clientRef.current === null) {
+        clientRef.current = result.client;
+      }
+      return result;
+    },
+    { mountOnSubscribe: true },
+  );
 
   // flushTapSync makes structural rebinds triggered by a notification land
   // before the notification returns
@@ -144,16 +174,68 @@ export const createAssistantClient = (
     clientRef.current = root.getValue().client;
     flushTapSync(notifications.notifySubscribers);
   };
-  const unsubscribeRoot = root.subscribe(notify);
-  const unsubscribeParent = parentSource.subscribe(notify);
+
+  let subscriberCount = 0;
+  let unwire: Unsubscribe | null = null;
+  let destroyed = false;
+
+  const wire = () => {
+    const unsubscribeParent = parentSource.subscribe(notify);
+    let unsubscribeRoot: Unsubscribe;
+    try {
+      // Commits the first mount; tap rolls the fiber back if it throws
+      unsubscribeRoot = root.subscribe(notify);
+    } catch (error) {
+      unsubscribeParent();
+      throw error;
+    }
+    clientRef.parent = parentSource.getClient();
+    clientRef.current = root.getValue().client;
+    unwire = () => {
+      unwire = null;
+      unsubscribeRoot();
+      unsubscribeParent();
+    };
+  };
+
+  const release = () => {
+    unwire?.();
+    root.unmount();
+  };
 
   return {
     getClient: () => root.getValue().client,
-    subscribe: notifications.subscribe,
+    subscribe: (listener) => {
+      if (destroyed) return () => {};
+      const unsubscribe = notifications.subscribe(listener);
+      if (subscriberCount++ === 0) {
+        try {
+          wire();
+        } catch (error) {
+          subscriberCount--;
+          unsubscribe();
+          throw error;
+        }
+        // A mount notification can destroy the handle before wire() assigns
+        // unwire; complete that destroy now
+        if (destroyed) release();
+      }
+      let isSubscribed = true;
+      return () => {
+        if (!isSubscribed) return;
+        isSubscribed = false;
+        unsubscribe();
+        if (--subscriberCount === 0) unwire?.();
+      };
+    },
     destroy: () => {
-      unsubscribeRoot();
-      unsubscribeParent();
-      root.unmount();
+      if (destroyed) return;
+      destroyed = true;
+      destroyController.abort();
+      // A destroy from a mount notification lands while wire() is still
+      // mounting; subscribe completes it
+      if (subscriberCount > 0 && unwire === null) return;
+      release();
     },
   };
 };

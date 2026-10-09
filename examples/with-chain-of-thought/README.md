@@ -36,6 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 |---|---|
 | Real chat flow with `useChatRuntime` | `app/page.tsx` |
 | Reasoning, tool calls, source citations streamed as message parts | `app/api/chat/route.ts` |
+| Type-safe client-side Fibonacci tool | `app/toolkit.tsx` |
 | Nested adjacency-based grouping with `MessagePrimitive.GroupedParts` | `app/MyThread.tsx` |
 | `Sources` component rendering `source` parts | `app/MyThread.tsx` |
 | Fallback path that runs without an API key | `app/api/chat/route.ts` (`streamFallback`) |
@@ -61,7 +62,7 @@ This is the canonical pattern. For non-adjacent clustering (parts that share an 
 
 ## How sources are emitted
 
-The route emits structured `source-url` chunks; `@assistant-ui/react-ai-sdk` converts them to `source` message parts that the `Sources` component renders as badges. They are not URLs scraped from assistant text.
+The route emits structured `source-url` chunks; `@assistant-ui/ai-sdk` converts them to `source` message parts that the `Sources` component renders as badges. They are not URLs scraped from assistant text.
 
 ```ts
 writer.write({

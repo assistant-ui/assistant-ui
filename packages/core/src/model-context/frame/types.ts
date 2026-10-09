@@ -14,7 +14,9 @@ export type FrameMessageType =
   | "model-context-request"
   | "model-context-update"
   | "tool-call"
-  | "tool-result";
+  | "tool-cancel"
+  | "tool-result"
+  | "provider-disposed";
 
 export type FrameMessage =
   | {
@@ -31,10 +33,17 @@ export type FrameMessage =
       args: unknown;
     }
   | {
+      type: "tool-cancel";
+      id: string;
+    }
+  | {
       type: "tool-result";
       id: string;
       result?: unknown;
       error?: string;
+    }
+  | {
+      type: "provider-disposed";
     };
 
 export const FRAME_MESSAGE_CHANNEL = "assistant-ui-frame";

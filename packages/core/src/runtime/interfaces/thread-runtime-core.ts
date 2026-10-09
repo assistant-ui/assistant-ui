@@ -2,8 +2,12 @@ import type { ToolModelContentPart } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ModelContext } from "../../model-context/types";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import type { AppendMessage, ThreadMessage } from "../../types/message";
-import type { RunConfig } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  Unstable_ToolInteraction,
+} from "../../types/message";
+import type { RunConfig, ToolApprovalAnswer } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
@@ -16,7 +20,7 @@ import type {
   EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "../queue/queue-item";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type RuntimeCapabilities = {
@@ -35,6 +39,8 @@ export type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  /** Whether the thread can answer a waiting tool call by adding its result, resuming it, or responding to its approval. */
+  readonly answerToolCall: boolean;
 };
 
 export type AddToolResultOptions = {
@@ -58,20 +64,36 @@ export type ResumeToolCallOptions = {
   payload: unknown;
 };
 
+export type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
 export type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
   /** The approval option that produced this decision, when the request carried options. */
   optionId?: string;
+  /** The free-form answer, when the request asked for one. */
+  text?: string;
+  /** The answers to a `display: "questions"` request, keyed by question id. */
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
 export type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 export type ThreadSuggestion = {
+  /** Display heading for the suggestion. Falls back to the prompt when absent. */
+  title?: string;
+  /** Secondary display text shown alongside the title. */
+  label?: string;
+  /** The message text sent when the suggestion is selected. */
   prompt: string;
 };
 
@@ -84,13 +106,33 @@ export type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  /**
+   * Whether the running session takes typed text. While true, `append` routes a plain text user message into the session and the thread composer can send.
+   */
+  readonly canSendText: boolean;
 };
 
 export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
+  readonly comment?: string;
 };
 
 export type ThreadRuntimeEventPayload = {
+  /**
+   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well, and the runtime logs every failed write with console.error.
+   */
+  historyWriteError: {
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
    * @deprecated State-derivable. Observe `state.isRunning` flipping to `true`
    * via `subscribe` + `getState` instead. Note: this event fires at the
@@ -156,10 +198,32 @@ export type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
-  respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+  /**
+   * Records a decision on a tool approval gate. Resolves once the runtime has
+   * accepted the response and rejects when it could not be recorded, so a
+   * caller can leave the gate retryable rather than spending it. A capability
+   * or state precondition still throws synchronously; a failure to record
+   * arrives as a rejection, including one an adapter raises synchronously.
+   *
+   * Acceptance is as far as the runtime can see the response: one that records
+   * the decision locally settles on the record, while one that answers by
+   * resuming a run settles on the resume. A failure of the work the decision
+   * unblocks is reported through the runtime's own error channel, not here.
+   */
+  respondToToolApproval: (
+    options: RespondToToolApprovalOptions,
+  ) => Promise<void>;
+  /**
+   * Appends a validated interaction to a tool call part and persists it where
+   * the runtime persists messages. Rejects when the runtime cannot record it.
+   */
+  unstable_recordToolInteraction?: (
+    options: Unstable_RecordToolInteractionOptions,
+  ) => Promise<void>;
 
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
@@ -175,6 +239,12 @@ export type ThreadRuntimeCore = Readonly<{
 
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  /**
+   * Every edit composer the runtime retains, including those whose message is
+   * off the visible branch. Thread disposal uses it to end their sessions; a
+   * runtime without it only has the edit composers of visible messages ended.
+   */
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
 
   getQueueItems?: () => readonly QueueItemState[];
@@ -194,6 +264,15 @@ export type ThreadRuntimeCore = Readonly<{
    */
   isSendDisabled: boolean;
   isLoading: boolean;
+  /** Whether messages exist before the first one; absent on runtimes that load whole threads. */
+  hasEarlier?: boolean;
+  /** Whether a `loadEarlier` call is in flight. */
+  isLoadingEarlier?: boolean;
+  /**
+   * Loads the page before the first message, sharing one in-flight call.
+   * Never rejects: a failed load is logged and ends the load.
+   */
+  loadEarlier?(): Promise<void>;
   /**
    * Optional explicit thread-level running flag. When provided, takes
    * precedence over the last-message-status heuristic. When omitted, falls

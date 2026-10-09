@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Primitive, withRenderProp } from "./Primitive";
+import { Primitive, renderSlot, withRenderProp } from "./Primitive";
 
 const ALL_NODES = [
   "a",
@@ -101,5 +101,50 @@ describe("Primitive", () => {
       expect(html).toContain("<p>A</p>");
       expect(html).toContain("<p>B</p>");
     });
+  });
+});
+
+describe("renderSlot", () => {
+  it("lets supplied children replace the render element's own", () => {
+    expect(
+      renderToStaticMarkup(renderSlot(<em>Original</em>, "Override", {})),
+    ).toBe("<em>Override</em>");
+  });
+
+  it("falls back to the render element's own children", () => {
+    expect(
+      renderToStaticMarkup(renderSlot(<em>Fallback</em>, undefined, {})),
+    ).toBe("<em>Fallback</em>");
+  });
+
+  it("treats null children as supplied rather than absent", () => {
+    expect(renderToStaticMarkup(renderSlot(<em>Fallback</em>, null, {}))).toBe(
+      "<em></em>",
+    );
+  });
+
+  it("merges call-site props into the render element", () => {
+    const html = renderToStaticMarkup(
+      renderSlot(<em className="child" id="kept" />, "text", {
+        className: "parent",
+        id: "dropped",
+      }),
+    );
+
+    expect(html).toContain('id="kept"');
+    expect(html).toContain("parent");
+    expect(html).toContain("child");
+  });
+
+  it("applies the same precedence as withRenderProp", () => {
+    expect(
+      renderToStaticMarkup(
+        renderSlot(<em>Fallback</em>, undefined, { className: "parent" }),
+      ),
+    ).toBe(
+      renderToStaticMarkup(
+        <Primitive.span className="parent" render={<em>Fallback</em>} />,
+      ),
+    );
   });
 });

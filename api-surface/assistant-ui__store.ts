@@ -206,8 +206,31 @@ type ScopeStates = {
   } ? S : never;
 };
 
+type ScopedAuiClient = {
+  client: AssistantClient;
+  effects?: () => void;
+};
+
 type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+};
+
+type ThreadViewportAutoScroll = {
+  attach(element: HTMLElement): () => void;
+  readonly isAtBottom: boolean;
+  scrollToBottom(behavior?: ScrollBehavior): void;
+  setContentInset(inset: number): void;
+  setHasMessages(hasMessages: boolean): void;
+  runStarted(): void;
+  threadSwitched(): void;
+  dispose(): void;
+};
+
+type ThreadViewportAutoScrollOptions = {
+  readonly autoScroll: boolean;
+  readonly scrollToBottomOnInitialize: boolean;
+  readonly scrollToBottomOnRunStart: boolean;
+  readonly scrollToBottomOnThreadSwitch: boolean;
 };
 
 type TransformScopesFn = (scopes: ScopesConfig, parent: AssistantClient) => void;
@@ -226,6 +249,12 @@ type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
 } ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
+type ViewportMetrics = {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+};
+
 type WildcardPayload = {
   [K in keyof ClientEventMap]: {
     event: K;
@@ -240,12 +269,30 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, createAssistantClient, getProxiedAssistantState, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, ThreadViewportAutoScroll, ThreadViewportAutoScrollOptions, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, createThreadViewportAutoScroll, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, shallowEqual, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, useDestroySignalProvider, viewportOverflows };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
   parent?: AssistantClient | AssistantClientSource | undefined;
 }) => AssistantClientHandle;
+
+declare const createClientFacade: (source: AssistantClientSource) => AssistantClient;
+
+declare const createLastValidCache: <T>(reportStale: (() => void) | null, scheduleExpiry: (callback: () => void) => void) => {
+  resolve: (valid: boolean, resolveItem: () => T) => T;
+};
+
+declare const createStaleReporter: (options: {
+  name: string;
+  index: number | string;
+  isCurrent: () => boolean;
+  isValid: () => boolean;
+}) => () => void;
+
+declare const createThreadViewportAutoScroll: (input: {
+  getOptions: () => ThreadViewportAutoScrollOptions;
+  onAtBottomChange: (isAtBottom: boolean) => void;
+}) => ThreadViewportAutoScroll;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
 
@@ -263,15 +310,36 @@ declare namespace entry_root_exports {
   export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiConfig, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getClientId, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
 }
 
+declare namespace entry_internal_exports {
+  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
+}
+
+declare const isUserScrollUp: (previous: {
+  scrollTop: number;
+  scrollHeight: number;
+}, current: ViewportMetrics) => boolean;
+
+declare const isViewportAtBottom: (metrics: ViewportMetrics, contentInset?: number) => boolean;
+
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
   scope: AssistantEventScope<TEvent>;
   event: TEvent;
 };
 
+declare const observeContentResize: (el: HTMLElement, callback: () => void) => (() => void);
+
+declare const shallowEqual: (a: object, b: object) => boolean;
+
+declare const useAssistantClientDestroySignal: () => AbortSignal | undefined;
+
 declare const useAssistantClientRef: () => {
   parent: AssistantClient;
   current: AssistantClient | null;
 };
+
+declare const useAssistantContextProvider: <T>(value: AssistantClient, fn: () => T) => T;
+
+declare const useAssistantContextValue: () => AssistantClient;
 
 declare const useAssistantEmit: () => <TEvent extends Exclude<AssistantEventName, "*">>(event: TEvent, payload: AssistantEventPayload[TEvent]) => void;
 
@@ -329,4 +397,27 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
   key: string | number | undefined;
 };
 
-export { entry_client_exports as entry_client, entry_root_exports as entry_root };
+declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input, destroySignal?: AbortSignal) => ScopedAuiClient;
+
+declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
+
+declare const useHostDestroySignal: () => AbortSignal;
+
+declare const useOptionalAssistantClientRef: () => {
+  parent: AssistantClient;
+  current: AssistantClient | null;
+} | undefined;
+
+declare const useOptionalAssistantEmit: () => <TEvent extends Exclude<AssistantEventName, "*">>(event: TEvent, payload: AssistantEventPayload[TEvent]) => void;
+
+declare const useOptionalAssistantScopeEffect: (scope: ClientNames, effect: () => (() => void) | void, deps: readonly unknown[]) => void;
+
+declare const useReplaySafeEffect: (effect: () => (() => void) | void, deps: readonly unknown[]) => void;
+
+declare const useShallowSelector: <TState, TResult extends object>(select: (state: TState) => TResult) => ((state: TState) => TResult);
+
+declare const useShallowStable: <T extends object>(value: T) => T;
+
+declare const viewportOverflows: (metrics: ViewportMetrics, contentInset?: number) => boolean;
+
+export { entry_client_exports as entry_client, entry_internal_exports as entry_internal, entry_root_exports as entry_root };

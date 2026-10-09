@@ -22,6 +22,58 @@ const threadResponse = {
 };
 
 describe("AssistantCloudThreads responses", () => {
+  it("validates created thread IDs", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValueOnce({ thread_id: "thread-1" });
+
+    await expect(
+      threads.create({ last_message_at: new Date() }),
+    ).resolves.toEqual({ thread_id: "thread-1" });
+
+    makeRequest.mockResolvedValueOnce({});
+
+    await expect(
+      threads.create({ last_message_at: new Date() }),
+    ).rejects.toThrow(
+      'Invalid Assistant Cloud response for "thread_id": expected a string',
+    );
+  });
+
+  it("sends upsert with the external id when creating a thread", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValueOnce({ thread_id: "thread-1" });
+    const last_message_at = new Date("2026-09-25T09:30:00.000Z");
+
+    await expect(
+      threads.create({ last_message_at, external_id: "crm:42", upsert: true }),
+    ).resolves.toEqual({ thread_id: "thread-1" });
+    expect(makeRequest).toHaveBeenCalledWith("/threads", {
+      method: "POST",
+      body: { last_message_at, external_id: "crm:42", upsert: true },
+    });
+  });
+
+  it("claims anonymous threads and validates the moved count", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValueOnce({ moved: 2 });
+
+    await expect(
+      threads.claim({ refresh_token: "anonymous-refresh" }),
+    ).resolves.toEqual({ moved: 2 });
+    expect(makeRequest).toHaveBeenLastCalledWith("/threads/claim", {
+      method: "POST",
+      body: { refresh_token: "anonymous-refresh" },
+    });
+
+    makeRequest.mockResolvedValueOnce({ moved: 1.5 });
+
+    await expect(
+      threads.claim({ refresh_token: "anonymous-refresh" }),
+    ).rejects.toThrow(
+      'Invalid Assistant Cloud response for "moved": expected an integer',
+    );
+  });
+
   it("forwards both archive filter values", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValue({ threads: [] });

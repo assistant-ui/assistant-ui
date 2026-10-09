@@ -1,0 +1,431 @@
+import { describe, expect, it } from "vitest";
+import {
+  applyInitialThreadPage,
+  appendThreadPage,
+  classifyThreads,
+  createEmptyRemoteThreadState,
+  createThreadMappingId,
+  deleteThreadReducer,
+  LOCAL_THREAD_ID_PREFIX,
+  getThreadData,
+  mergeFetchedThread,
+  promoteNewThreadReducer,
+  reconcileInitializedThread,
+  seedNewThread,
+  statusSnapshot,
+  updateStatusReducer,
+} from "./remote-thread-state";
+import type {
+  RemoteThreadData,
+  RemoteThreadState,
+} from "./remote-thread-state";
+
+const initializedDraft = () => {
+  const seeded = seedNewThread(createEmptyRemoteThreadState());
+  const initializeTask = Promise.resolve({
+    remoteId: "remote-1",
+    externalId: "remote-1",
+  });
+  const regular = promoteNewThreadReducer(
+    seeded.state,
+    seeded.id,
+    initializeTask,
+  );
+  const mappingId = regular.threadIdMap[seeded.id]!;
+  return {
+    id: seeded.id,
+    mappingId,
+    initializeTask,
+    state: {
+      ...regular,
+      threadIdMap: { ...regular.threadIdMap, "remote-1": mappingId },
+      threadData: {
+        ...regular.threadData,
+        [mappingId]: {
+          ...regular.threadData[mappingId]!,
+          remoteId: "remote-1",
+          externalId: "remote-1",
+          initializeTask,
+        } as RemoteThreadData,
+      },
+    } as RemoteThreadState,
+  };
+};
+
+const expectOneSlotPerIdentity = (state: RemoteThreadState) => {
+  const remoteIds = Object.values(state.threadData)
+    .map((data) => data.remoteId)
+    .filter((remoteId) => remoteId !== undefined);
+  expect(new Set(remoteIds).size).toBe(remoteIds.length);
+
+  for (const id of [...state.threadIds, ...state.archivedThreadIds]) {
+    expect(state.threadData[state.threadIdMap[id]!]?.id).toBe(id);
+  }
+};
+
+describe("remote thread state", () => {
+  it("creates an empty state", () => {
+    expect(createEmptyRemoteThreadState()).toEqual({
+      isLoading: true,
+      loadError: undefined,
+      isLoadingMore: false,
+      cursor: undefined,
+      newThreadId: undefined,
+      threadIds: [],
+      archivedThreadIds: [],
+      threadIdMap: {},
+      threadData: {},
+    });
+  });
+
+  it("seeds unique local threads with matching mapping ids", () => {
+    const first = seedNewThread(createEmptyRemoteThreadState());
+    const second = seedNewThread(first.state);
+
+    expect(second.id).not.toBe(first.id);
+    expect(first.state.newThreadId).toBe(first.id);
+    expect(second.state.newThreadId).toBe(second.id);
+    expect(first.state.threadIdMap[first.id]).toBe(
+      createThreadMappingId(first.id),
+    );
+    expect(second.state.threadIdMap[second.id]).toBe(
+      createThreadMappingId(second.id),
+    );
+    expect(Object.keys(second.state.threadData)).toEqual([first.id, second.id]);
+  });
+
+  it("applies an initial page and preserves local transitions from the request", () => {
+    const listed = appendThreadPage(createEmptyRemoteThreadState(), {
+      threads: [
+        { status: "regular", remoteId: "stale" },
+        { status: "regular", remoteId: "kept" },
+        { status: "archived", remoteId: "old-archive" },
+      ],
+      nextCursor: "old",
+    });
+    const regularDraft = seedNewThread(listed, "regular");
+    const archivedDraft = seedNewThread(regularDraft.state, "archived");
+    const statusAtRequest = statusSnapshot(archivedDraft.state);
+    const promotedRegular = promoteNewThreadReducer(
+      archivedDraft.state,
+      regularDraft.id,
+      Promise.resolve({ remoteId: "regular-remote" }),
+    );
+    const promotedArchived = promoteNewThreadReducer(
+      promotedRegular,
+      archivedDraft.id,
+      Promise.resolve({ remoteId: "archived-remote" }),
+    );
+    const state = {
+      ...updateStatusReducer(promotedArchived, archivedDraft.id, "archived"),
+      isLoading: true,
+      loadError: new Error("previous load"),
+    };
+
+    const result = applyInitialThreadPage(
+      state,
+      {
+        threads: [
+          { status: "regular", remoteId: "kept" },
+          { status: "archived", remoteId: "old-archive" },
+        ],
+        nextCursor: "",
+      },
+      statusAtRequest,
+    );
+
+    expect(result.threadIds).toEqual([regularDraft.id, "kept"]);
+    expect(result.archivedThreadIds).toEqual([archivedDraft.id, "old-archive"]);
+    expect(result.cursor).toBeUndefined();
+    expect(result.isLoading).toBe(false);
+    expect(result.loadError).toBeUndefined();
+    expect(state.threadIds).toContain("stale");
+    expect(state.cursor).toBe("old");
+  });
+
+  it("appends a page, deduplicates slots, and moves changed statuses", () => {
+    const listed = appendThreadPage(createEmptyRemoteThreadState(), {
+      threads: [
+        { status: "regular", remoteId: "a", title: "old" },
+        { status: "archived", remoteId: "b" },
+      ],
+      nextCursor: "next",
+    });
+    const state = { ...listed, isLoadingMore: true };
+
+    const result = appendThreadPage(state, {
+      threads: [
+        { status: "archived", remoteId: "a", title: "updated" },
+        { status: "regular", remoteId: "c" },
+      ],
+      nextCursor: "",
+    });
+
+    expect(result.threadIds).toEqual(["c"]);
+    expect(result.archivedThreadIds).toEqual(["b", "a"]);
+    expect(result.threadData[result.threadIdMap.a!]?.title).toBe("updated");
+    expect(result.isLoadingMore).toBe(false);
+    expect(result.cursor).toBeUndefined();
+    expect(state.threadIds).toEqual(["a"]);
+    expect(state.archivedThreadIds).toEqual(["b"]);
+    expect(state.cursor).toBe("next");
+  });
+
+  it("uses a supplied seed once and generates an id if it collides", () => {
+    const first = seedNewThread(createEmptyRemoteThreadState(), ":R1:");
+    const second = seedNewThread(first.state, ":R1:");
+
+    expect(first.id).toBe(`${LOCAL_THREAD_ID_PREFIX}:R1:`);
+    expect(second.id).not.toBe(first.id);
+    expect(second.id).toMatch(new RegExp(`^${LOCAL_THREAD_ID_PREFIX}`));
+  });
+
+  it("carries the initialization task onto the promoted slot", () => {
+    const seeded = seedNewThread(createEmptyRemoteThreadState());
+    const initializeTask = Promise.resolve({
+      remoteId: "remote-1",
+      externalId: "external-1",
+    });
+
+    const promoted = promoteNewThreadReducer(
+      seeded.state,
+      seeded.id,
+      initializeTask,
+    );
+    const data = getThreadData(promoted, seeded.id);
+
+    expect(data?.status).toBe("regular");
+    expect(data?.status === "new" ? undefined : data?.initializeTask).toBe(
+      initializeTask,
+    );
+    expect(promoted.newThreadId).toBeUndefined();
+    expect(promoted.threadIds).toEqual([seeded.id]);
+  });
+
+  it.each(["regular", "archived"] as const)(
+    "leaves a new thread untouched when moved to %s without an initialization task",
+    (newStatus) => {
+      const seeded = seedNewThread(createEmptyRemoteThreadState());
+
+      expect(updateStatusReducer(seeded.state, seeded.id, newStatus)).toBe(
+        seeded.state,
+      );
+    },
+  );
+
+  it("refreshes the local slot when a listed thread already has a mapping", () => {
+    const draft = initializedDraft();
+
+    const merged = classifyThreads(
+      [
+        {
+          status: "regular",
+          remoteId: "remote-1",
+          externalId: "remote-1",
+          title: "from the server",
+        },
+      ],
+      {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: { ...draft.state.threadIdMap },
+        threadData: { ...draft.state.threadData },
+      },
+    );
+
+    expect(Object.keys(merged.threadData)).toEqual([draft.mappingId]);
+    expect(merged.threadIds).toEqual([draft.id]);
+    expect(merged.threadIdMap["remote-1"]).toBe(draft.mappingId);
+    expect(merged.threadData[draft.mappingId]?.id).toBe(draft.id);
+    expect(merged.threadData[draft.mappingId]?.title).toBe("from the server");
+    expect(merged.threadData[draft.mappingId]?.localOrigin).toBe(true);
+    const refreshed = merged.threadData[draft.mappingId]!;
+    expect(
+      refreshed.status === "new" ? undefined : refreshed.initializeTask,
+    ).toBe(draft.initializeTask);
+    expectOneSlotPerIdentity({ ...draft.state, ...merged });
+  });
+
+  it("lists a repeated remote id once", () => {
+    const listed = classifyThreads(
+      [
+        { status: "regular", remoteId: "a", externalId: "a", title: "first" },
+        { status: "regular", remoteId: "a", externalId: "a", title: "second" },
+      ],
+      {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: {},
+        threadData: {},
+      },
+    );
+
+    expect(listed.threadIds).toEqual(["a"]);
+    expect(listed.threadData[createThreadMappingId("a")]?.title).toBe("second");
+  });
+
+  it("retains a listed external id when that slot survives reconciliation", async () => {
+    const seeded = seedNewThread(createEmptyRemoteThreadState());
+    const regular = promoteNewThreadReducer(
+      seeded.state,
+      seeded.id,
+      Promise.resolve({ remoteId: "remote-1", externalId: "external-1" }),
+    );
+    const classified = classifyThreads(
+      [
+        {
+          status: "regular",
+          remoteId: "remote-1",
+          externalId: "external-1",
+        },
+      ],
+      {
+        threadIds: [...regular.threadIds],
+        archivedThreadIds: [...regular.archivedThreadIds],
+        threadIdMap: { ...regular.threadIdMap },
+        threadData: { ...regular.threadData },
+      },
+    );
+    const state = { ...regular, ...classified };
+
+    const reconciled = reconcileInitializedThread(
+      state,
+      seeded.id,
+      "remote-1",
+      undefined,
+      "remote-1",
+    );
+    const survivor = reconciled.state.threadData[reconciled.survivorMappingId]!;
+
+    expect(survivor.externalId).toBe("external-1");
+    if (survivor.status === "new") throw new Error("Expected initialized slot");
+    await expect(survivor.initializeTask).resolves.toEqual({
+      remoteId: "remote-1",
+      externalId: "external-1",
+    });
+  });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "handles a prototype-named remote id %s",
+    (remoteId) => {
+      const classified = classifyThreads(
+        [
+          {
+            status: "regular",
+            remoteId,
+            externalId: undefined,
+            title: `title-${remoteId}`,
+          },
+          {
+            status: "regular",
+            remoteId: "ok",
+            externalId: undefined,
+            title: "title-ok",
+          },
+        ],
+        {
+          threadIds: [],
+          archivedThreadIds: [],
+          threadIdMap: {},
+          threadData: {},
+        },
+      );
+      const listed: RemoteThreadState = {
+        ...createEmptyRemoteThreadState(),
+        threadIds: classified.threadIds,
+        archivedThreadIds: classified.archivedThreadIds,
+        threadIdMap: classified.threadIdMap,
+        threadData: classified.threadData,
+      };
+
+      expect(Object.keys(listed.threadIdMap)).toEqual([remoteId, "ok"]);
+      expect(typeof listed.threadIdMap[remoteId]).toBe("string");
+      expect(Object.keys(listed.threadData)).toEqual([remoteId, "ok"]);
+
+      const deleted = updateStatusReducer(listed, remoteId, "deleted");
+      expect(Object.keys(deleted.threadIdMap)).toEqual(["ok"]);
+      expect(Object.keys(deleted.threadData)).toEqual(["ok"]);
+      expect(deleted.threadIds).toEqual(["ok"]);
+    },
+  );
+
+  it("deletes every alias of an identity, by either id", () => {
+    for (const target of ["remote-1", "local"] as const) {
+      const draft = initializedDraft();
+      const deleted = updateStatusReducer(
+        draft.state,
+        target === "local" ? draft.id : target,
+        "deleted",
+      );
+
+      expect(deleted.threadData).toEqual({});
+      expect(deleted.threadIdMap).toEqual({});
+      expect(deleted.threadIds).toEqual([]);
+      expect(deleted.archivedThreadIds).toEqual([]);
+    }
+  });
+
+  it("deletes a local thread a stale listing re-minted under its remote id", () => {
+    const draft = initializedDraft();
+    const deleted = updateStatusReducer(draft.state, draft.id, "deleted");
+    const relisted = {
+      ...deleted,
+      ...classifyThreads([{ status: "regular", remoteId: "remote-1" }], {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: deleted.threadIdMap,
+        threadData: deleted.threadData,
+      }),
+    };
+    expect(
+      getThreadData(
+        updateStatusReducer(relisted, draft.id, "deleted"),
+        "remote-1",
+      ),
+    ).toBeDefined();
+
+    const replayed = deleteThreadReducer(relisted, draft.id, "remote-1");
+
+    expect(getThreadData(replayed, "remote-1")).toBeUndefined();
+    expect(replayed.threadIds).toEqual([]);
+  });
+
+  it("refreshes the slot a fetched remote id already resolves to", () => {
+    const draft = initializedDraft();
+
+    const merged = mergeFetchedThread(draft.state, {
+      status: "regular",
+      remoteId: "remote-1",
+      title: "Fetched",
+    });
+
+    expect(Object.keys(merged.threadData)).toEqual([draft.mappingId]);
+    expect(merged.threadIds).toEqual([draft.id]);
+    expect(getThreadData(merged, "remote-1")).toMatchObject({
+      id: draft.id,
+      title: "Fetched",
+    });
+    expectOneSlotPerIdentity(merged);
+  });
+
+  it("appends a fetched thread the state does not know", () => {
+    const listed = {
+      ...createEmptyRemoteThreadState(),
+      ...classifyThreads([{ status: "regular", remoteId: "t1" }], {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: {},
+        threadData: {},
+      }),
+    };
+
+    const merged = mergeFetchedThread(listed, {
+      status: "archived",
+      remoteId: "t9",
+    });
+
+    expect(merged.threadIds).toEqual(["t1"]);
+    expect(merged.archivedThreadIds).toEqual(["t9"]);
+    expect(getThreadData(merged, "t9")?.status).toBe("archived");
+  });
+});

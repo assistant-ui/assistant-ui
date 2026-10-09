@@ -1,4 +1,4 @@
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, MessageRole } from "../../types/message";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type {
@@ -6,24 +6,50 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import { getThreadRuntimeCoreIsRunning } from "../api/thread-runtime";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "../queue/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+
+const isCancelable = (runtime: Omit<ThreadRuntimeCore, "composer">) => {
+  // capabilities is a subclass field assigned after this composer is constructed
+  if (!runtime.capabilities?.cancel) return false;
+  return getThreadRuntimeCoreIsRunning(runtime);
+};
 
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
   implements ThreadComposerRuntimeCore
 {
-  private _canCancel = false;
   public get canCancel() {
-    return this._canCancel;
+    return this.isSubmitting || isCancelable(this.runtime);
   }
 
   public get canSend() {
-    return !this.isEmpty && !this.runtime.isSendDisabled && !this._isSending;
+    if (this.isEmpty || this.runtime.isSendDisabled || this.isSubmitting)
+      return false;
+    const voice = this.runtime.voice;
+    if (!voice) return true;
+    return (
+      voice.canSendText && this.role === "user" && this.attachments.length === 0
+    );
+  }
+
+  public override cancel() {
+    if (!this.isSubmitting) {
+      super.cancel();
+      return;
+    }
+    // Stopping takes a send still being prepared back into the draft and
+    // still stops a run that is going, so the one control never loses either.
+    this.cancelSubmission();
+    if (isCancelable(this.runtime)) super.cancel();
+  }
+
+  protected override threadMessageIds(role: MessageRole) {
+    return this.runtime.messages
+      .filter((message) => message.role === role)
+      .map((message) => message.id);
   }
 
   private _queueCache:
@@ -94,16 +120,25 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public connect() {
+    let lastCanCancel = false;
     let lastIsSendDisabled = this.runtime.isSendDisabled;
+    let lastVoiceInput = this.runtime.voice?.canSendText;
     let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
+      this.settleInTransit();
       let changed = false;
-      if (this.canCancel !== this.runtime.capabilities.cancel) {
-        this._canCancel = this.runtime.capabilities.cancel;
+      const nextCanCancel = this.canCancel;
+      if (lastCanCancel !== nextCanCancel) {
+        lastCanCancel = nextCanCancel;
         changed = true;
       }
       if (lastIsSendDisabled !== this.runtime.isSendDisabled) {
         lastIsSendDisabled = this.runtime.isSendDisabled;
+        changed = true;
+      }
+      const nextVoiceInput = this.runtime.voice?.canSendText;
+      if (lastVoiceInput !== nextVoiceInput) {
+        lastVoiceInput = nextVoiceInput;
         changed = true;
       }
       if (lastQueue !== this.queue) {

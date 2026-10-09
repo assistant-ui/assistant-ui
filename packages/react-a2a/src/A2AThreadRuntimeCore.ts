@@ -7,28 +7,52 @@ import type {
   ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
+  ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
+  ToolCallMessagePart,
+  Unstable_RecordToolInteractionOptions,
 } from "@assistant-ui/core";
-import { MessageRepository } from "@assistant-ui/core/internal";
+import {
+  appendToolInteraction,
+  createMessageRepositorySession,
+  invokeUserCallback,
+} from "@assistant-ui/core/internal";
+import {
+  applyA2uiOperations,
+  surfaceToPresentToolCall,
+  type A2uiState,
+} from "@assistant-ui/generative-ui/a2ui";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
   A2AAgentCard,
   A2AMessage,
-  A2APart,
   A2ASendMessageConfiguration,
   A2AStreamEvent,
   A2ATask,
   A2ATaskArtifactUpdateEvent,
   A2ATaskStatusUpdateEvent,
 } from "./types";
+
 import {
   a2aMessageToContent,
-  contentPartsToA2AParts,
+  a2uiPartsToOperations,
   isTerminalTaskState,
+  threadMessageToA2AMessage,
   taskStateToMessageStatus,
 } from "./conversions";
+
+const INITIAL_AGENT_CARD_RETRY_DELAY_MS = 5_000;
+const MAX_AGENT_CARD_RETRY_DELAY_MS = 5 * 60_000;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const storedArtifact = (artifact: A2AArtifact): A2AArtifact => ({
+  ...artifact,
+  parts: artifact.parts.map(({ raw: _raw, ...part }) => part),
+});
 
 export type A2AThreadRuntimeCoreOptions = {
   client: A2AClient;
@@ -48,33 +72,20 @@ const FALLBACK_USER_STATUS = {
 
 type A2ARuntimeCallbackName = "onError" | "onCancel" | "onArtifactComplete";
 
-const reportCallbackError = (name: A2ARuntimeCallbackName, error: unknown) => {
-  console.error(`[react-a2a] ${name} callback threw an error`, error);
-};
-
-const invokeRuntimeCallback = <TArgs extends unknown[]>(
+const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: A2ARuntimeCallbackName,
-  callback: ((...args: TArgs) => void) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    const result = callback(...args) as unknown;
-    if (
-      result !== null &&
-      (typeof result === "object" || typeof result === "function") &&
-      "then" in result &&
-      typeof result.then === "function"
-    ) {
-      void Promise.resolve(result).catch((error) => {
-        reportCallbackError(name, error);
-      });
-    }
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-a2a", name, callback, ...args);
 };
+
+function normalizeArtifact(artifact: A2AArtifact): A2AArtifact {
+  return {
+    ...artifact,
+    parts: Array.isArray(artifact.parts) ? artifact.parts : [],
+  };
+}
 
 export class A2AThreadRuntimeCore {
   private client: A2AClient;
@@ -87,26 +98,38 @@ export class A2AThreadRuntimeCore {
   private readonly notifyUpdate: () => void;
 
   private runtime: AssistantRuntime | undefined;
-  private readonly repository = new MessageRepository();
-  private exportedRepository: ExportedMessageRepository | undefined;
+  private readonly session = createMessageRepositorySession();
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  private runGeneration = 0;
   private pendingError: Error | null = null;
 
   // A2A-specific state
   private currentTask: A2ATask | undefined;
   private currentArtifacts: A2AArtifact[] = [];
+  private a2uiState: A2uiState = new Map();
+  private readonly a2uiMessageIds = new Set<string>();
   private agentCardValue: A2AAgentCard | undefined;
 
   // History tracking
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _historyLoadGeneration = 0;
+  private _loadRequested = false;
+  private _agentCardPromise: Promise<void> | undefined;
+  private _agentCardRetryAfter = 0;
+  private _agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+  private _agentCardDiscoveryFailed = false;
+
+  private lastOptionsContextId: string | undefined;
 
   constructor(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
     this.contextId = options.contextId;
+    this.lastOptionsContextId = options.contextId;
     this.configuration = options.configuration;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -117,12 +140,48 @@ export class A2AThreadRuntimeCore {
 
   updateOptions(options: Omit<A2AThreadRuntimeCoreOptions, "notifyUpdate">) {
     this.client = options.client;
-    this.contextId = options.contextId;
+    // The hook re-applies options on every render, including renders caused
+    // by this core's own notifyUpdate. The option only seeds the context: a
+    // re-render with the same value must not clobber a server-assigned
+    // contextId learned from the stream.
+    if (options.contextId !== this.lastOptionsContextId) {
+      this.contextId = options.contextId;
+      this.lastOptionsContextId = options.contextId;
+    }
     this.configuration = options.configuration;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
+    const previousHistory = this.history;
     this.history = options.history;
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.history &&
+      this.session.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
+  }
+
+  /** Thread-boundary reset: applyExternalMessages alone also serves branch
+   * switches, deletes, and cancel resyncs, which must keep the live context. */
+  resetContext(): void {
+    this._historyLoadGeneration++;
+    this._isLoading = false;
+    // Restore the seed before aborting: an onCancel callback that starts a
+    // new run must not pick up the old thread's context, and its controller
+    // must not be discarded.
+    const controller = this.abortController;
+    this.contextId = this.lastOptionsContextId;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
+    }
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -132,9 +191,12 @@ export class A2AThreadRuntimeCore {
   detachRuntime() {
     this.runtime = undefined;
     // Abort in-flight requests on unmount
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+    const controller = this.abortController;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -143,69 +205,59 @@ export class A2AThreadRuntimeCore {
   }
 
   getMessages(): readonly ThreadMessage[] {
-    return this.repository.getMessages();
+    return this.session.getMessages();
   }
 
   getMessageRepository(): ExportedMessageRepository {
-    this.exportedRepository ??= this.repository.export();
-    return this.exportedRepository;
+    return this.session.export();
   }
 
-  private tryGetMessage(messageId: string) {
-    try {
-      return this.repository.getMessage(messageId);
-    } catch {
-      return undefined;
+  public async recordToolInteraction({
+    messageId,
+    toolCallId,
+    interaction,
+  }: Unstable_RecordToolInteractionOptions): Promise<void> {
+    const message = this.session.tryGetMessage(messageId)?.message;
+    if (!message) {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing message",
+      );
     }
-  }
-
-  private tryGetMessages(
-    messageId: string,
-  ): readonly ThreadMessage[] | undefined {
-    try {
-      return this.repository.getMessages(messageId);
-    } catch {
-      return undefined;
+    if (message.role !== "assistant") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-assistant message",
+      );
     }
-  }
+    const target = message.content.find(
+      (part) => part.type === "tool-call" && part.toolCallId === toolCallId,
+    );
+    if (!target || target.type !== "tool-call") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
 
-  private hasMessage(messageId: string): boolean {
-    return this.tryGetMessage(messageId) !== undefined;
-  }
-
-  private addOrUpdateMessage(
-    parentId: string | null,
-    message: ThreadMessage,
-  ): void {
-    this.repository.addOrUpdateMessage(parentId, message);
-    this.exportedRepository = undefined;
-  }
-
-  private switchToBranch(messageId: string): void {
-    this.repository.switchToBranch(messageId);
-    this.exportedRepository = undefined;
-  }
-
-  private resetRepositoryHead(messageId: string | null): void {
-    this.repository.resetHead(messageId);
-    this.exportedRepository = undefined;
-  }
-
-  private clearRepository(): void {
-    this.repository.clear();
-    this.exportedRepository = undefined;
-  }
-
-  private updateMessage(
-    messageId: string,
-    updater: (message: ThreadMessage) => ThreadMessage,
-  ): boolean {
-    const item = this.tryGetMessage(messageId);
-    if (!item) return false;
-    const message = updater(item.message);
-    if (message === item.message) return false;
-    this.addOrUpdateMessage(item.parentId, message);
-    return true;
+    const touched = this.session.updateMessage(messageId, (current) => {
+      if (current.role !== "assistant") return current;
+      return {
+        ...current,
+        content: current.content.map((part) =>
+          part.type === "tool-call" && part.toolCallId === toolCallId
+            ? {
+                ...part,
+                unstable_interactions: appendToolInteraction(
+                  part.unstable_interactions,
+                  interaction,
+                ),
+              }
+            : part,
+        ),
+      };
+    });
+    if (touched) {
+      this.notifyUpdate();
+      this.persistAssistantHistory(messageId);
+    }
   }
 
   getTask(): A2ATask | undefined {
@@ -228,24 +280,72 @@ export class A2AThreadRuntimeCore {
     return this._isLoading;
   }
 
+  private loadAgentCard(): Promise<void> {
+    if (Date.now() < this._agentCardRetryAfter) return Promise.resolve();
+
+    this._agentCardPromise ??= this.client.getAgentCard().then(
+      (agentCard) => {
+        this.agentCardValue = agentCard;
+        this._agentCardRetryAfter = 0;
+        this._agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+        this._agentCardDiscoveryFailed = false;
+        this.notifyUpdate();
+      },
+      () => {
+        this._agentCardDiscoveryFailed = true;
+        this._agentCardRetryAfter = Date.now() + this._agentCardRetryDelay;
+        this._agentCardRetryDelay = Math.min(
+          this._agentCardRetryDelay * 2,
+          MAX_AGENT_CARD_RETRY_DELAY_MS,
+        );
+        this._agentCardPromise = undefined;
+      },
+    );
+    return this._agentCardPromise;
+  }
+
+  private async waitForAgentCard(signal: AbortSignal): Promise<boolean> {
+    const shouldWait = !this._agentCardDiscoveryFailed;
+    const load = this.loadAgentCard();
+    if (signal.aborted) return false;
+    if (!shouldWait) return true;
+
+    let onAbort!: () => void;
+    const abort = new Promise<void>((resolve) => {
+      onAbort = resolve;
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+
+    try {
+      await Promise.race([load, abort]);
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+    }
+    return !signal.aborted;
+  }
+
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
+    const agentCardPromise = this.loadAgentCard();
+
     if (this._loadPromise) return this._loadPromise;
+    if (!this.history) return agentCardPromise;
 
     this._isLoading = true;
 
-    const historyPromise = this.history?.load() ?? Promise.resolve(null);
-    const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
+    const generation = this._historyLoadGeneration;
+    const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo, agentCard]) => {
-        if (agentCard) {
-          this.agentCardValue = agentCard;
-        }
+    this._loadPromise = historyPromise
+      .then((repo) => {
+        if (generation !== this._historyLoadGeneration) return;
         if (repo) {
-          this.applyExternalMessageRepository(repo);
+          this.session.applyExternalMessageRepository(repo);
+          this.finalizeExternalApply();
         }
       })
       .catch((error) => {
+        if (generation !== this._historyLoadGeneration) return;
         invokeRuntimeCallback(
           "onError",
           this.onError,
@@ -253,6 +353,7 @@ export class A2AThreadRuntimeCore {
         );
       })
       .finally(() => {
+        if (generation !== this._historyLoadGeneration) return;
         this._isLoading = false;
         this.notifyUpdate();
       });
@@ -272,16 +373,24 @@ export class A2AThreadRuntimeCore {
     const parentId =
       message.parentId === null
         ? null
-        : message.parentId && this.hasMessage(message.parentId)
+        : message.parentId && this.session.hasMessage(message.parentId)
           ? message.parentId
-          : this.repository.headId;
-    this.addOrUpdateMessage(parentId, threadMessage);
-    this.switchToBranch(threadMessage.id);
+          : this.session.headId;
+    this.session.addOrUpdateMessage(parentId, threadMessage);
+    this.session.switchToBranch(threadMessage.id);
     this.notifyUpdate();
     this.recordHistoryEntry(parentId, threadMessage);
 
     if (!startRun) return;
     await this.startRun(threadMessage);
+  }
+
+  appendVoiceTranscript(message: ThreadMessage): void {
+    const parentId = this.session.headId;
+    this.session.addOrUpdateMessage(parentId, message);
+    this.session.switchToBranch(message.id);
+    this.notifyUpdate();
+    this.recordHistoryEntry(parentId, message);
   }
 
   async edit(message: AppendMessage): Promise<void> {
@@ -295,7 +404,7 @@ export class A2AThreadRuntimeCore {
     const messages =
       parentId === null
         ? []
-        : (this.tryGetMessages(parentId) ?? this.getMessages());
+        : (this.session.tryGetMessages(parentId) ?? this.getMessages());
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i]!.role === "user") {
         await this.startRun(messages[i]!);
@@ -307,14 +416,27 @@ export class A2AThreadRuntimeCore {
   async cancel(): Promise<void> {
     if (!this.abortController) return;
 
+    // Read the server target before aborting: the abort listener runs the
+    // onCancel callback synchronously, which may clear the thread and with it
+    // the task this cancellation is for, or start a new run.
+    const task = this.currentTask;
+    const generation = this.runGeneration;
+
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
 
     // Then try to cancel the task on the server
-    if (this.currentTask?.id) {
+    if (task?.id) {
       try {
-        const updated = await this.client.cancelTask(this.currentTask.id);
-        this.currentTask = updated;
+        const updated = await this.client.cancelTask(task.id);
+        // Only apply the response while nothing newer exists. A newer snapshot
+        // or a cleared thread replaces the task object; a follow-up run that
+        // has not emitted yet keeps it, so the run generation is what rules
+        // that case out.
+        if (this.currentTask === task && this.runGeneration === generation) {
+          this.currentTask = updated;
+          this.notifyUpdate();
+        }
       } catch {
         // Server cancel failed; local abort already handled
       }
@@ -329,7 +451,7 @@ export class A2AThreadRuntimeCore {
     for (const message of messages) {
       if (seen.has(message.id)) continue;
       seen.add(message.id);
-      this.addOrUpdateMessage(parentId, message);
+      this.session.addOrUpdateMessage(parentId, message);
       parentId = message.id;
       lastId = message.id;
     }
@@ -345,12 +467,14 @@ export class A2AThreadRuntimeCore {
     }
     this.currentTask = undefined;
     this.currentArtifacts = [];
+    this.a2uiState = new Map();
+    this.a2uiMessageIds.clear();
     this.notifyUpdate();
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     if (messages.length === 0) {
-      this.clearRepository();
+      this.session.clear();
     } else {
       let expectedParentId: string | null = null;
       let lastAppliedId: string | null = null;
@@ -360,81 +484,22 @@ export class A2AThreadRuntimeCore {
       for (const message of messages) {
         if (seen.has(message.id)) continue;
         seen.add(message.id);
-        const existing = this.tryGetMessage(message.id);
+        const existing = this.session.tryGetMessage(message.id);
         if (existing && existing.parentId !== expectedParentId) {
           hardReplace = true;
           break;
         }
-        this.addOrUpdateMessage(expectedParentId, message);
+        this.session.addOrUpdateMessage(expectedParentId, message);
         expectedParentId = message.id;
         lastAppliedId = message.id;
       }
 
       if (hardReplace) {
-        this.clearRepository();
+        this.session.clear();
         lastAppliedId = this.appendLinearChain(messages);
       }
 
-      this.resetRepositoryHead(lastAppliedId);
-    }
-
-    this.finalizeExternalApply();
-  }
-
-  private applyExternalMessageRepository(
-    loaded: ExportedMessageRepository,
-  ): void {
-    const headId = loaded.headId ?? loaded.messages.at(-1)?.message.id ?? null;
-    const ids = new Set<string>();
-    let degenerate = false;
-    for (const { message } of loaded.messages) {
-      if (ids.has(message.id)) {
-        degenerate = true;
-        break;
-      }
-      ids.add(message.id);
-    }
-    if (headId !== null && !ids.has(headId)) degenerate = true;
-
-    if (!degenerate) {
-      this.clearRepository();
-      let pending = [...loaded.messages];
-      const importedIds = new Set<string>();
-
-      while (pending.length > 0) {
-        const unresolved: typeof pending = [];
-        let progressed = false;
-        for (const item of pending) {
-          if (item.parentId !== null && !importedIds.has(item.parentId)) {
-            unresolved.push(item);
-            continue;
-          }
-          this.addOrUpdateMessage(item.parentId, item.message);
-          importedIds.add(item.message.id);
-          progressed = true;
-        }
-        if (!progressed) {
-          degenerate = true;
-          break;
-        }
-        pending = unresolved;
-      }
-    }
-
-    if (degenerate) {
-      this.clearRepository();
-      let previousId: string | null = null;
-      for (const { message } of loaded.messages) {
-        const existing = this.tryGetMessage(message.id);
-        this.addOrUpdateMessage(
-          existing ? existing.parentId : previousId,
-          message,
-        );
-        previousId = message.id;
-      }
-      this.resetRepositoryHead(previousId);
-    } else {
-      this.resetRepositoryHead(headId);
+      this.session.resetHead(lastAppliedId);
     }
 
     this.finalizeExternalApply();
@@ -443,13 +508,28 @@ export class A2AThreadRuntimeCore {
   // --- Run logic ---
 
   private async startRun(userThreadMessage: ThreadMessage): Promise<void> {
-    // Cancel any in-progress run before starting a new one
-    if (this.abortController) {
-      this.abortController.abort();
+    this.runGeneration++;
+
+    // Cancel any in-progress run before starting a new one. Its abort runs
+    // onCancel synchronously, and a run that callback starts keeps the thread.
+    // A listener that throws before finishRun leaves `previous` installed, so
+    // only a different, non-null controller counts as a replacement run.
+    const previous = this.abortController;
+    if (previous) {
+      previous.abort();
+      if (this.abortController !== previous && this.abortController !== null)
+        return;
       this.abortController = null;
     }
 
-    const a2aMessage = this.threadMessageToA2AMessage(userThreadMessage);
+    const a2aMessage = threadMessageToA2AMessage(userThreadMessage, {
+      contextId: this.contextId,
+      taskId:
+        this.currentTask?.id &&
+        !isTerminalTaskState(this.currentTask.status.state)
+          ? this.currentTask.id
+          : undefined,
+    });
 
     // Clear task if previous task reached terminal state
     if (
@@ -460,6 +540,8 @@ export class A2AThreadRuntimeCore {
     }
 
     this.currentArtifacts = [];
+    this.a2uiState = new Map();
+    this.a2uiMessageIds.clear();
 
     const assistantParentId = userThreadMessage.id;
     const assistantId = this.insertAssistantPlaceholder(assistantParentId);
@@ -483,11 +565,11 @@ export class A2AThreadRuntimeCore {
 
     this.setRunning(true);
 
-    // Check if agent supports streaming; fall back to sync sendMessage if not
-    const supportsStreaming =
-      this.agentCardValue?.capabilities?.streaming !== false;
-
     try {
+      if (!(await this.waitForAgentCard(abortController.signal))) return;
+
+      const supportsStreaming =
+        this.agentCardValue?.capabilities?.streaming !== false;
       if (supportsStreaming) {
         await this.runStreaming(a2aMessage, assistantId, abortController);
       } else {
@@ -526,12 +608,28 @@ export class A2AThreadRuntimeCore {
       abortController.signal,
     );
 
-    for await (const event of stream) {
+    let receivedEvent = false;
+    let skipReason: string | undefined;
+    const diagnosedStream = (async function* () {
+      const reason = yield* stream;
+      if (typeof reason === "string") skipReason = reason;
+    })();
+
+    for await (const event of diagnosedStream) {
       if (abortController.signal.aborted) break;
+      receivedEvent = true;
       this.handleStreamEvent(assistantId, event);
     }
 
     if (!abortController.signal.aborted) {
+      if (!receivedEvent) {
+        throw new Error(
+          skipReason
+            ? `A2A message stream ended without any events. First skipped frame: ${skipReason}`
+            : "A2A message stream ended without any events.",
+        );
+      }
+
       const lastStatus = this.getAssistantStatus(assistantId);
       if (lastStatus?.type === "running") {
         this.updateAssistantStatus(assistantId, {
@@ -576,7 +674,7 @@ export class A2AThreadRuntimeCore {
         this.handleStatusUpdate(assistantId, event.event);
         break;
       case "artifactUpdate":
-        this.handleArtifactUpdate(event.event);
+        this.handleArtifactUpdate(assistantId, event.event);
         break;
       case "message":
         this.handleMessage(assistantId, event.message);
@@ -606,6 +704,7 @@ export class A2AThreadRuntimeCore {
     }
 
     if (event.status.message) {
+      this.applyA2uiMessage(event.status.message);
       const content = a2aMessageToContent(event.status.message);
       this.updateAssistantContent(assistantId, content);
     }
@@ -616,8 +715,12 @@ export class A2AThreadRuntimeCore {
     this.notifyUpdate();
   }
 
-  private handleArtifactUpdate(event: A2ATaskArtifactUpdateEvent) {
-    const { artifact, append, lastChunk } = event;
+  private handleArtifactUpdate(
+    assistantId: string,
+    event: A2ATaskArtifactUpdateEvent,
+  ) {
+    const { append, lastChunk } = event;
+    const artifact = normalizeArtifact(event.artifact);
     const existingIdx = this.currentArtifacts.findIndex(
       (a) => a.artifactId === artifact.artifactId,
     );
@@ -646,6 +749,10 @@ export class A2AThreadRuntimeCore {
       this.currentArtifacts = [...this.currentArtifacts, updated];
     }
 
+    this.applyA2uiParts(artifact.parts);
+    this.updateAssistantArtifacts(assistantId);
+    this.rebuildAssistantA2uiSurfaces(assistantId);
+
     if (lastChunk) {
       invokeRuntimeCallback(
         "onArtifactComplete",
@@ -660,24 +767,71 @@ export class A2AThreadRuntimeCore {
   private handleMessage(assistantId: string, message: A2AMessage) {
     if (message.role !== "agent") return;
 
+    this.applyA2uiMessage(message);
     const content = a2aMessageToContent(message);
     this.updateAssistantContent(assistantId, content);
     this.notifyUpdate();
   }
 
   private handleTaskSnapshot(assistantId: string, task: A2ATask) {
-    this.currentTask = task;
+    const artifacts =
+      task.artifacts === undefined
+        ? undefined
+        : Array.isArray(task.artifacts)
+          ? task.artifacts.map(normalizeArtifact)
+          : [];
+    const history =
+      task.history === undefined
+        ? undefined
+        : Array.isArray(task.history)
+          ? task.history
+          : [];
+    this.currentTask = {
+      ...task,
+      ...(artifacts === undefined ? {} : { artifacts }),
+      ...(history === undefined ? {} : { history }),
+    };
 
     if (task.contextId) {
       this.contextId = task.contextId;
     }
-    if (task.artifacts) {
-      this.currentArtifacts = task.artifacts;
+    const isCompleteSnapshot = history !== undefined && artifacts !== undefined;
+    const artifactsToApply = isCompleteSnapshot
+      ? artifacts
+      : artifacts?.filter(
+          (artifact) =>
+            !this.currentArtifacts.some(
+              ({ artifactId }) => artifactId === artifact.artifactId,
+            ),
+        );
+
+    if (isCompleteSnapshot) {
+      this.currentArtifacts = artifacts;
+      this.a2uiState = new Map();
+      this.a2uiMessageIds.clear();
+    } else if (artifactsToApply) {
+      this.currentArtifacts = [...this.currentArtifacts, ...artifactsToApply];
+    }
+
+    for (const message of history ?? []) {
+      if (message.role === "agent") this.applyA2uiMessage(message, true);
+    }
+    for (const artifact of artifactsToApply ?? []) {
+      this.applyA2uiParts(artifact.parts);
+    }
+    if (task.status.message) {
+      this.applyA2uiMessage(task.status.message, true);
+    }
+
+    if (isCompleteSnapshot || artifactsToApply?.length) {
+      this.updateAssistantArtifacts(assistantId);
     }
 
     if (task.status.message) {
       const content = a2aMessageToContent(task.status.message);
       this.updateAssistantContent(assistantId, content);
+    } else {
+      this.rebuildAssistantA2uiSurfaces(assistantId);
     }
 
     const status = taskStateToMessageStatus(task.status.state);
@@ -687,41 +841,6 @@ export class A2AThreadRuntimeCore {
   }
 
   // --- Message helpers ---
-
-  private threadMessageToA2AMessage(message: ThreadMessage): A2AMessage {
-    const parts: A2APart[] = [];
-
-    if (message.role === "user") {
-      parts.push(...contentPartsToA2AParts(message.content));
-      for (const attachment of message.attachments ?? []) {
-        parts.push(
-          ...contentPartsToA2AParts(
-            attachment.content ?? [],
-            attachment.contentType,
-          ),
-        );
-      }
-    }
-
-    const a2aMsg: A2AMessage = {
-      messageId: message.id,
-      role: "user",
-      parts,
-    };
-
-    if (this.contextId) {
-      a2aMsg.contextId = this.contextId;
-    }
-    // Only attach taskId if current task is NOT in terminal state
-    if (
-      this.currentTask?.id &&
-      !isTerminalTaskState(this.currentTask.status.state)
-    ) {
-      a2aMsg.taskId = this.currentTask.id;
-    }
-
-    return a2aMsg;
-  }
 
   private insertAssistantPlaceholder(parentId: string): string {
     const id = generateId();
@@ -739,8 +858,8 @@ export class A2AThreadRuntimeCore {
         custom: {},
       },
     };
-    this.addOrUpdateMessage(parentId, assistant);
-    this.switchToBranch(id);
+    this.session.addOrUpdateMessage(parentId, assistant);
+    this.session.switchToBranch(id);
     this.notifyUpdate();
     return id;
   }
@@ -749,29 +868,146 @@ export class A2AThreadRuntimeCore {
     messageId: string,
     content: ThreadAssistantMessage["content"],
   ) {
-    this.updateMessage(messageId, (message) => {
+    this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
-      return { ...message, content };
+      return {
+        ...message,
+        content: this.withA2uiSurfaces(content, message.content),
+      };
     });
   }
 
+  private applyA2uiMessage(message: A2AMessage, replay = false) {
+    if (message.messageId) {
+      if (replay && this.a2uiMessageIds.has(message.messageId)) return;
+      this.a2uiMessageIds.add(message.messageId);
+    }
+    this.applyA2uiParts(message.parts);
+  }
+
+  private applyA2uiParts(parts: readonly A2AMessage["parts"][number][]) {
+    const operations = a2uiPartsToOperations(parts);
+    if (operations.length === 0) return;
+    this.a2uiState = applyA2uiOperations(this.a2uiState, operations).state;
+  }
+
+  private a2uiSurfaceParts(): ThreadAssistantMessagePart[] {
+    const parts: ThreadAssistantMessagePart[] = [];
+    for (const [surfaceId, surface] of this.a2uiState) {
+      const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+      if (!toolCall) continue;
+      parts.push({
+        type: "tool-call",
+        ...toolCall,
+      });
+    }
+    return parts;
+  }
+
+  private withA2uiSurfaces(
+    content: ThreadAssistantMessage["content"],
+    previousContent: ThreadAssistantMessage["content"] = content,
+  ): ThreadAssistantMessage["content"] {
+    const preserved = content.filter(
+      (part) =>
+        !(part.type === "tool-call" && part.toolCallId.startsWith("a2ui:")),
+    );
+    const interactionSource = [...previousContent, ...content];
+    return this.withPreservedToolInteractions(interactionSource, [
+      ...preserved,
+      ...this.a2uiSurfaceParts(),
+    ]);
+  }
+
+  private withPreservedToolInteractions(
+    previousContent: ThreadAssistantMessage["content"],
+    content: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const interactions = new Map<
+      string,
+      ToolCallMessagePart["unstable_interactions"]
+    >();
+    for (const part of previousContent) {
+      if (
+        part.type === "tool-call" &&
+        part.unstable_interactions !== undefined
+      ) {
+        interactions.set(part.toolCallId, part.unstable_interactions);
+      }
+    }
+    if (interactions.size === 0) return content;
+    return content.map((part) => {
+      if (
+        part.type !== "tool-call" ||
+        part.unstable_interactions !== undefined
+      ) {
+        return part;
+      }
+      const unstable_interactions = interactions.get(part.toolCallId);
+      return unstable_interactions === undefined
+        ? part
+        : { ...part, unstable_interactions };
+    });
+  }
+
+  private rebuildAssistantA2uiSurfaces(messageId: string) {
+    const touched = this.session.updateMessage(messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      return {
+        ...message,
+        content: this.withA2uiSurfaces(message.content),
+      };
+    });
+    if (touched) this.notifyUpdate();
+  }
+
+  private updateAssistantArtifacts(messageId: string) {
+    const touched = this.session.updateMessage(messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const custom = message.metadata.custom;
+      const a2a = isRecord(custom.a2a) ? custom.a2a : {};
+      return {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          custom: {
+            ...custom,
+            a2a: {
+              ...a2a,
+              artifacts: this.currentArtifacts.map(storedArtifact),
+            },
+          },
+        },
+      };
+    });
+    if (touched) this.notifyUpdate();
+  }
+
   private updateAssistantStatus(messageId: string, status: MessageStatus) {
-    const touched = this.updateMessage(messageId, (message) => {
+    const touched = this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       return { ...message, status };
     });
     if (touched) {
       this.notifyUpdate();
-      if (status.type === "complete" || status.type === "incomplete") {
+      if (this.isPersistableAssistantStatus(status)) {
         this.persistAssistantHistory(messageId);
       }
     }
   }
 
   private getAssistantStatus(messageId: string): MessageStatus | undefined {
-    const msg = this.tryGetMessage(messageId)?.message;
+    const msg = this.session.tryGetMessage(messageId)?.message;
     if (msg?.role !== "assistant") return undefined;
     return msg.status;
+  }
+
+  private isPersistableAssistantStatus(status: MessageStatus): boolean {
+    return (
+      status.type === "complete" ||
+      status.type === "incomplete" ||
+      (status.type === "requires-action" && status.reason === "interrupt")
+    );
   }
 
   // --- Lifecycle helpers ---
@@ -790,7 +1026,9 @@ export class A2AThreadRuntimeCore {
   // --- History persistence ---
 
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
-    this.appendHistoryItem(parentId, message);
+    void this.appendHistoryItem(parentId, message)?.catch((error) => {
+      console.error("[react-a2a] failed to append history entry", error);
+    });
   }
 
   private markPendingAssistantHistory(
@@ -803,24 +1041,107 @@ export class A2AThreadRuntimeCore {
 
   private persistAssistantHistory(messageId: string) {
     if (!this.history) return;
+    const messageData = this.session.tryGetMessage(messageId);
     const parentId = this.assistantHistoryParents.get(messageId);
-    if (parentId === undefined) return;
-    const message = this.tryGetMessage(messageId)?.message;
-    if (!message || message.role !== "assistant") return;
-    if (
-      message.status?.type !== "complete" &&
-      message.status?.type !== "incomplete"
-    )
+    if (parentId === undefined && !this.recordedHistoryIds.has(messageId)) {
       return;
-    this.assistantHistoryParents.delete(messageId);
-    this.appendHistoryItem(parentId, message);
+    }
+    const resolvedParentId =
+      parentId === undefined ? messageData?.parentId : parentId;
+    if (resolvedParentId === undefined) return;
+    const message = messageData?.message;
+    if (!message || message.role !== "assistant") return;
+    if (!this.isPersistableAssistantStatus(message.status)) return;
+    const isPausing = message.status.type === "requires-action";
+
+    if (isPausing && !this.history.update) return;
+
+    if (this.recordedHistoryIds.has(messageId)) {
+      if (this.history.update) {
+        const update = this.history.update.bind(this.history);
+        const write = this.chainHistoryWrite(messageId, () =>
+          update({ parentId: resolvedParentId, message }),
+        );
+        if (!isPausing) {
+          this.assistantHistoryParents.delete(messageId);
+        }
+        void write.then(
+          () => {
+            this.recordedHistoryIds.add(messageId);
+          },
+          (error) => {
+            const pending = this.historyWrites.get(messageId);
+            if (pending === undefined || pending === write) {
+              this.assistantHistoryParents.set(messageId, resolvedParentId);
+            }
+            console.error("[react-a2a] failed to update history entry", error);
+          },
+        );
+        return;
+      }
+      if (!isPausing) {
+        this.assistantHistoryParents.delete(messageId);
+      }
+      return;
+    }
+    const write = this.appendHistoryItem(resolvedParentId, message);
+    if (!write) return;
+    if (!isPausing) {
+      this.assistantHistoryParents.delete(messageId);
+    }
+    void write.catch((error) => {
+      const pending = this.historyWrites.get(messageId);
+      if (pending === undefined || pending === write) {
+        this.assistantHistoryParents.set(messageId, resolvedParentId);
+      }
+      console.error("[react-a2a] failed to append history entry", error);
+    });
   }
 
-  private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
+  private appendHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): Promise<void> | undefined {
     if (!this.history || this.recordedHistoryIds.has(message.id)) return;
     this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch(() => {
+    const append = this.history.append.bind(this.history);
+    const write = this.chainHistoryWrite(message.id, () =>
+      append({ parentId, message }),
+    );
+    void write.catch(() => {
       this.recordedHistoryIds.delete(message.id);
     });
+    return write;
+  }
+
+  private chainHistoryWrite(
+    id: string,
+    write: () => Promise<void>,
+  ): Promise<void> {
+    const pending = this.historyWrites.get(id);
+    let next: Promise<void>;
+    if (pending) {
+      next = pending.then(write, write);
+    } else {
+      try {
+        next = Promise.resolve(write());
+      } catch (error) {
+        next = Promise.reject(error);
+      }
+    }
+    this.historyWrites.set(id, next);
+    void next.then(
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+    );
+    return next;
   }
 }

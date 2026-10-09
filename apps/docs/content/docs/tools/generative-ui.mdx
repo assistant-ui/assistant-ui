@@ -4,9 +4,9 @@ description: Let the model compose an interface at runtime from a component voca
 platforms: ["react"]
 ---
 
-Generative UI inverts the usual tool-rendering relationship. Instead of writing one component per tool, you ship a **vocabulary** of components and let the model assemble them. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
+With generative UI, you ship a **vocabulary** of components and let the model assemble them, instead of writing one component per tool. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
-The package ships a default vocabulary of 27 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
+The package ships a default vocabulary of 29 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
 ## Which generative UI pattern?
 
@@ -19,7 +19,7 @@ assistant-ui uses "generative UI" for more than one thing. Two questions separat
 | **[Generative UI primitive](/docs/tools/generative-ui-primitive)** | `MessagePrimitive.GenerativeUI` + allowlist | A backend that already emits `generative-ui` message parts |
 | **[LangGraph data UI](/docs/runtimes/langgraph/generative-ui)** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI on the LangGraph stream |
 
-The first two are tool-driven, so the model decides when UI appears; the last two are backend-driven, so your agent does. The backend-driven pair splits on transport rather than on either axis: the primitive reads a `generative-ui` message part, while LangGraph data UI reads `push_ui_message` off the LangGraph stream. `present` and the primitive both take a JSON component tree, but in [non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape).
+The first two are tool-driven, so the model decides when UI appears; the last two are backend-driven, so your agent does. The backend-driven pair splits on transport rather than on either axis: the primitive reads a `generative-ui` message part, while LangGraph data UI reads `push_ui_message` off the LangGraph stream. `present` and the primitive both take a JSON component tree, but in [non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape). A third-party option also exists in the tool-driven space: [OpenUI](/docs/tools/openui) publishes an integration that streams OpenUI Lang through the same shape.
 
 Browse every component the default vocabulary offers in the [component vocabulary reference](/elements/vocabulary), and see finished compositions in the [Generative section of Elements](/elements).
 
@@ -37,7 +37,7 @@ The vocabulary renders as unstyled semantic HTML with `data-aui` attributes. Add
 
 <InstallCommand shadcn={["generative-ui"]} />
 
-This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, whose only difference from the default vocabulary is a real markdown renderer; [Styling](#styling) wires it in.
+This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/elements/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, whose only difference from the default vocabulary is a real markdown renderer; [Styling](#styling) wires it in.
 
 </Step>
 
@@ -99,7 +99,7 @@ import {
   AuiConfig,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import toolkit from "./toolkit";
 
@@ -135,7 +135,7 @@ The route imports the same toolkit module. The compiler resolves that import to 
 
 ```ts title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import toolkit from "@/app/toolkit";
 
@@ -144,11 +144,14 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -263,13 +266,81 @@ const generative = new JSONGenerativeUI({
 }
 ```
 
-`Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` add the user's value as `$input` when they fire the action. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
+### Undo window
+
+Set `undoable` for sends and other hard-to-reverse actions. The button waits five seconds, shows Undo with a countdown, and another click or Escape cancels it.
+
+```json
+{
+  "$type": "Button",
+  "label": "Delete order",
+  "undoable": true,
+  "$action": { "type": "delete_order", "orderId": "48213" }
+}
+```
+
+`Select`, `Input`, `DatePicker`, `Checkbox`, `Slider`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; `Slider` sends a number and a `CheckboxGroup` sends the array of its checked option values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
+
+`Slider` takes `min`, `max`, an optional `step`, `defaultValue`, and `unit`; it shows the live value and commits only when the adjustment finishes. Set `Checkbox` `variant` to `"switch"` for a switch presentation without changing its boolean value. `RadioGroup` and `CheckboxGroup` options can add a short `description`, rendered under the label.
+
+Any value inside `$action` can be a `{ "$field": name }` reference instead, which resolves to a control's current value when the action fires. It reads the control with that `name` in the nearest enclosing `Form` or `Card` with `asForm`, or else anywhere in the same `JSONGenerativeUI` render, collected the way a `Form` collects it. When no control holds a value, a reference written as `{ "$field": name, "fallback": value }` resolves to its `fallback`, and one without a fallback is dropped. A component outside the default vocabulary that dispatches `$action` itself reads no control, so each reference in it resolves the same way. Such a component can resolve references against its own values before it dispatches: `resolveFieldReferences(action, fields)` from `@assistant-ui/react-generative-ui` replaces each reference with the matching value in `fields`, falling back the same way, and `hasFieldReference(action)` tells whether an action carries any. A tree rendered with `renderGenerativeUI` directly resolves references only inside one of those forms or an element marked `data-aui="root"`, so they never read a host page's own form. `Input` and `Select` take a `defaultValue`, so a button can send an edited value without a form:
+
+```json
+{
+  "$type": "Col",
+  "children": [
+    {
+      "$type": "Input",
+      "name": "note",
+      "label": "Delivery note",
+      "defaultValue": "Leave at the door"
+    },
+    {
+      "$type": "Button",
+      "label": "Save",
+      "$action": { "type": "save_note", "note": { "$field": "note" } }
+    }
+  ]
+}
+```
+
+On Teams, `decodeSubmitData` resolves these references from the card's inputs. On Slack, pass the interaction payload's `state.values` alongside its action to `decodeBlockAction` to resolve references from named controls; a missing field uses its fallback when provided.
+
+`Input` accepts an optional `inputType` of `"text"`, `"password"`, or `"number"` for a single line control, defaulting to text. A number input uses `step="any"` and keeps its value as a string, including decimal values such as `"12.5"` and `""` when cleared. Setting `multiline` renders a textarea instead.
+
+`DatePicker` accepts `inputType` `"date"` (the default), `"time"`, or `"datetime"`. Its own `$action` runs once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form. Date values use `YYYY-MM-DD`; time values use `HH:mm` or `HH:mm:ss`; datetime values use `YYYY-MM-DDTHH:mm` with optional seconds, fractional seconds, and an offset (`Z` or `±HH:mm`). A datetime with an offset displays in the viewer's time zone and submits with the same offset; one without an offset submits unchanged. The [A2UI converter](/docs/tools/a2ui#component-mapping) maps `DateTimeInput` to the matching type, and uses a text `Input` when its value cannot fit that type. A single choice A2UI `ChoicePicker` maps to `RadioGroup` even for a `chips` display hint, preserving an empty selection as `[]` and a selected value as a one item string array; `multipleSelection` maps to `CheckboxGroup`.
+
+A control resets to its initial value (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) whenever a re-render changes that value, and otherwise keeps what the user entered.
+
+Each `renderGenerativeUI` or `JSONGenerativeUI` render scopes native radio names, so separate cards can reuse a logical `name` without clearing each other's selection. Inside the same render and form scope, radio groups with the same logical name share one selection. The logical name remains the key for form values and `$field` references. If you mount multiple independent React apps on the same page, configure distinct [`identifierPrefix` values](https://react.dev/reference/react/useId#using-the-same-id-prefix-on-the-client-and-the-server) and use each app's same prefix for server rendering and hydration.
+
+Each dispatched action, including its `$input`, is recorded on the tool call on a best-effort basis. Recording depends on the runtime and the interaction log's limits, and it never delays or prevents dispatch. When the UI is registered through `promptUser()`, a handler's non-`undefined` return value becomes the `prompt_user` tool result only when that call has no result yet. Whether the run then continues depends on the runtime, including how it treats human tools. `present` actions never create a tool result.
+
+Once answered, a `prompt_user` locks its controls and shows the submitted values. Only values submitted through a `Form` or a `Card` with `asForm` are restored after a reload.
 
 Without a registry, the tree still renders and model-emitted actions degrade to a no-op.
 
+## Charts
+
+`Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.
+
+Bars and data points in line and area charts expose a native tooltip with the point label and formatted value. A point without a label shows its position, counting from 1. Tooltips on named series also include the series label. Sparklines remain compact and do not add point targets.
+
+Use `series[].color` to set an individual series to `emphasis`, `secondary`, `alpha-70`, `white`, `white-70`, or `white-50`. The same color fills that series' legend swatch, while the legend label stays muted.
+
+## Tables and facts
+
+`Table` takes `columns`, `rows`, and optional `sortable`. Each column has a required `label`, an optional `align` of `"start"` or `"end"`, and an optional `format`. A format has a `kind` of `"number"`, `"currency"`, `"percent"`, or `"date"`; numeric kinds can set `decimals` from 0 to 20, currency also needs a `currency` code, and percent takes a fraction, so `0.25` renders as 25%. Number, currency, and percent columns end-align by default. Dates accept ISO strings or epoch numbers. Values with the wrong type, or a format the platform cannot apply, stay as their raw text. A sortable header cycles ascending, descending, then the original row order, and marks the sorted column with an arrow.
+
+`Fact` takes `label` and `value`, plus optional `delta`, `trend`, and `upIsGood`. `delta` renders as a change chip beside the value. Set `trend` to `"up"`, `"down"`, or `"flat"` to choose its direction, or omit it to infer down from a leading minus sign. The arrow carries the direction, so a sign that agrees with it is dropped from the chip. `upIsGood` defaults to `true` and flips which direction is positive when set to `false`.
+
+## Carousels
+
+Carousel paging controls appear only when cards overflow the available width. Each press moves one card, and motion follows the user's reduced motion preference.
+
 ## Styling
 
-The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it inherits nothing and collides with nothing. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
+The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it cannot conflict with your CSS. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
 
 A `Card` renders as a plain section by default, so several in a row read as one answer rather than a stack of boxes. It takes on a framed surface only where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
 
@@ -285,7 +356,7 @@ To restyle a single component, target its attribute:
 Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, which is why the registry item ships a replacement. Wiring it is the same override:
 
 ```tsx title="app/toolkit.tsx"
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const markdown = defaultGenerativeUILibrary.Markdown!;
 
@@ -310,7 +381,7 @@ const generative = new JSONGenerativeUI({
 
 The library is the boundary on **which** components can render: the model can only name components you put in it, resolved by lookup with no `eval` and no dynamic import. Unknown names are dropped.
 
-Props are a separate question. Each component's zod schema validates what the model sends, so a component that declares only primitive, display-oriented props cannot receive anything else. When you add a component that takes a URL, a raw HTML string, or anything that becomes executable, validate it inside that component; the schema constrains shape, not intent.
+Props are a separate question. Each component's `properties` schema shapes the `present` tool parameters the model sees, but the renderer does not validate incoming props against that schema. Treat props as untrusted input: validate URLs and values passed to APIs, and sanitize content rendered as raw HTML. Components with `streamProperties: true` can also receive partial props while the model is streaming, so account for incomplete values.
 
 ## Beyond the browser
 

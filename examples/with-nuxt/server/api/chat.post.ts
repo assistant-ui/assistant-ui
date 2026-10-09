@@ -1,16 +1,43 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText, type ModelMessage } from "ai";
+import {
+  convertToModelMessages,
+  jsonSchema,
+  stepCountIs,
+  streamText,
+  tool,
+  type UIMessage,
+} from "ai";
 
 export default defineEventHandler(async (event) => {
   const { messages, system } = await readBody<{
-    messages: ModelMessage[];
+    messages: UIMessage[];
     system?: string;
   }>(event);
 
+  const aiSDKTools = {
+    weather: tool({
+      description: "Get the current weather for a city",
+      inputSchema: jsonSchema<{ city: string }>({
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name" },
+        },
+        required: ["city"],
+        additionalProperties: false,
+      }),
+      execute: async ({ city }) => ({
+        city,
+        temperature: Math.round(8 + Math.random() * 20),
+        condition: "sunny",
+      }),
+    }),
+  };
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
-    messages,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
+    stopWhen: stepCountIs(3),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse({

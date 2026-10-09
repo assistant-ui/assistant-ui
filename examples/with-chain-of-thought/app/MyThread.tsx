@@ -1,9 +1,9 @@
 "use client";
 
 import { type FC, type PropsWithChildren } from "react";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { Sources } from "@/components/assistant-ui/sources";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
   Reasoning,
@@ -11,14 +11,15 @@ import {
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/reasoning.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import {
+  AuiIf,
   ComposerPrimitive,
   groupPartByType,
   MessagePrimitive,
@@ -35,9 +36,9 @@ export const MyThread: FC = () => {
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-scroll scroll-smooth px-4 pt-8">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome />
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
         <ThreadPrimitive.Messages>
           {({ message }) => {

@@ -8,7 +8,7 @@ import type {
   TextMessagePart,
   MessagePartState,
 } from "@assistant-ui/core";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useCallbackRef } from "radix-ui/internal";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
@@ -49,8 +49,8 @@ const DEFAULT_MAX_CHAR_INTERVAL_MS = 5;
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
-  private lastUpdateTime: number = Date.now();
-  public lastCommitTime: number = 0;
+  private lastUpdateTime: number = 0;
+  public lastCommitTime: number = -Infinity;
 
   public targetText: string = "";
   public drainMs: number = DEFAULT_DRAIN_MS;
@@ -68,7 +68,7 @@ class TextStreamAnimator {
 
   start() {
     if (this.animationFrameId !== null) return;
-    this.lastUpdateTime = Date.now();
+    this.lastUpdateTime = performance.now();
     this.animate();
   }
 
@@ -80,7 +80,7 @@ class TextStreamAnimator {
   }
 
   private animate = () => {
-    const currentTime = Date.now();
+    const currentTime = performance.now();
     const deltaTime = currentTime - this.lastUpdateTime;
     let timeToConsume = deltaTime;
 
@@ -137,6 +137,9 @@ const positiveOr = (value: number | undefined, fallback: number): number =>
  * `true` uses the default rate, and a {@link SmoothOptions} object tunes
  * the reveal. Returns the part state with `text` replaced by the revealed
  * prefix and `status` reporting `running` until the reveal catches up.
+ * If the source settles before any character has been revealed, the text
+ * is committed immediately so a missed animation frame cannot leave an
+ * empty bubble.
  *
  * The reveal auto-disables under `prefers-reduced-motion: reduce`,
  * committing the full text immediately; this takes precedence over an
@@ -211,8 +214,8 @@ export const useSmooth = (
     }
   }, [smoothStatusStore, enabled, text, displayedText, state.status]);
 
-  const [animatorRef] = useState<TextStreamAnimator>(
-    new TextStreamAnimator(displayedText, setText),
+  const [animatorRef] = useState(
+    () => new TextStreamAnimator(displayedText, setText),
   );
 
   useEffect(() => {
@@ -229,30 +232,41 @@ export const useSmooth = (
       return;
     }
 
-    // Discontinuity: part flipped, or new text breaks continuation
-    // of the animator's current target. Either case requires
-    // resetting the cursor — without the part check, a new part
-    // whose text happens to share a prefix with the previous target
-    // would keep the stale cursor and flicker.
     const partChanged = animatorPartRef.current !== part;
     animatorPartRef.current = part;
+    // A new part whose text shares a prefix with the previous target would
+    // keep the stale cursor and flicker without this reset.
     if (partChanged || !text.startsWith(animatorRef.targetText)) {
       if (state.status.type === "running") {
         animatorRef.currentText = "";
         animatorRef.targetText = text;
-        animatorRef.lastCommitTime = 0;
+        animatorRef.lastCommitTime = -Infinity;
         animatorRef.start();
       } else {
         animatorRef.currentText = text;
         animatorRef.targetText = text;
         animatorRef.stop();
+        setText(text);
       }
       return;
     }
 
     animatorRef.targetText = text;
+    if (state.status.type !== "running") {
+      // No character has painted. A pending frame that never runs would
+      // leave an empty bubble after settle.
+      if (animatorRef.currentText === "") {
+        animatorRef.currentText = text;
+        animatorRef.stop();
+        setText(text);
+        return;
+      }
+      animatorRef.start();
+      return;
+    }
+
     animatorRef.start();
-  }, [animatorRef, enabled, text, state.status.type, part]);
+  }, [animatorRef, enabled, text, state.status.type, part, setText]);
 
   useEffect(() => {
     return () => {

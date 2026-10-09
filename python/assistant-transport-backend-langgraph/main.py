@@ -13,7 +13,7 @@ from uuid import uuid4
 import uvicorn
 from assistant_stream import RunController, create_run
 from assistant_stream.modules.langgraph import append_langgraph_event, get_tool_call_subgraph_state
-from assistant_stream.serialization import DataStreamResponse
+from assistant_stream.serialization import AssistantTransportResponse
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +42,7 @@ class MessagePart(BaseModel):
 class UserMessage(BaseModel):
     """A user message."""
     role: str = Field(default="user", description="Message role")
+    id: str | None = Field(None, description="Client message ID")
     parts: list[MessagePart] = Field(..., description="Message parts")
 
 
@@ -132,6 +133,15 @@ def request_tool_schemas(tools: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 def bindable_tools(tools: dict[str, Any] | None) -> list[Any]:
     return [*TOOLS, *request_tool_schemas(tools)]
+
+
+def tool_call_owner(tool_name: str, request_tools: dict[str, Any] | None) -> str:
+    if tool_name in TOOL_BY_NAME:
+        return "server"
+    definition = (request_tools or {}).get(tool_name)
+    if isinstance(definition, dict) and definition.get("disabled") is not True:
+        return "frontend"
+    return "unknown"
 
 
 def tool_result_content(command: AddToolResultCommand) -> str:
@@ -229,8 +239,7 @@ async def subagent_node(state: SubagentState) -> dict[str, Any]:
     if os.getenv("OPENAI_API_KEY"):
         # Initialize a simpler LLM for the subagent
         llm = ChatOpenAI(
-            model="gpt-5.4-nano",
-            temperature=0.7,
+            model="gpt-6-luna",
             streaming=True
         )
         response = await llm.ainvoke(subagent_messages)
@@ -267,8 +276,8 @@ async def agent_node(state: GraphState) -> dict[str, Any]:
     if os.getenv("OPENAI_API_KEY"):
         # Initialize the LLM with tool binding
         llm = ChatOpenAI(
-            model="gpt-5.4-nano",
-            temperature=0.7,
+            model="gpt-6-luna",
+            reasoning_effort="none",
             streaming=True,
         )
 
@@ -320,13 +329,31 @@ def should_call_tools(state: GraphState) -> str:
         return "end"
 
     last_message = messages[-1]
+    request_tools = state.get("tools")
     if (
         hasattr(last_message, 'tool_calls')
         and last_message.tool_calls
-        and any(tool_call["name"] in TOOL_BY_NAME for tool_call in last_message.tool_calls)
+        and any(
+            tool_call_owner(tool_call["name"], request_tools) != "frontend"
+            for tool_call in last_message.tool_calls
+        )
     ):
         return "tools"
 
+    return "end"
+
+
+def should_continue_after_tools(state: GraphState) -> str:
+    messages = state.get("messages", [])
+    request_tools = state.get("tools")
+    for message in reversed(messages):
+        if isinstance(message, AIMessage) and message.tool_calls:
+            if any(
+                tool_call_owner(tool_call["name"], request_tools) == "frontend"
+                for tool_call in message.tool_calls
+            ):
+                return "end"
+            return "agent"
     return "end"
 
 
@@ -342,8 +369,11 @@ async def tool_executor_node(state: GraphState) -> dict[str, Any]:
 
     # Process each tool call
     tool_messages = []
+    request_tools = state.get("tools")
     for tool_call in last_message.tool_calls:
         tool_name = tool_call["name"]
+        if tool_call_owner(tool_name, request_tools) == "frontend":
+            continue
         if tool_name == "task_tool":
             # Extract task description
             task_description = tool_call["args"].get("task_description", "")
@@ -427,8 +457,14 @@ def create_graph(checkpointer=None) -> CompiledStateGraph:
         }
     )
 
-    # After tools, go back to agent for potential follow-up
-    workflow.add_edge("tools", "agent")
+    workflow.add_conditional_edges(
+        "tools",
+        should_continue_after_tools,
+        {
+            "agent": "agent",
+            "end": END,
+        },
+    )
 
     # Compile with a checkpointer so DeltaChannel is exercised across thread turns.
     return workflow.compile(checkpointer=checkpointer or InMemorySaver())
@@ -492,7 +528,9 @@ async def chat_endpoint(request: ChatRequest):
                     if part.type == "text" and part.text
                 ]
                 if text_parts:
-                    input_messages.append(HumanMessage(content=" ".join(text_parts)))
+                    input_messages.append(
+                        HumanMessage(content=" ".join(text_parts), id=command.message.id)
+                    )
             elif command.type == "add-tool-result":
                 # Handle tool results
                 input_messages.append(ToolMessage(
@@ -541,7 +579,7 @@ async def chat_endpoint(request: ChatRequest):
     # Create streaming response using assistant-stream
     stream = create_run(run_callback, state=request.state)
 
-    return DataStreamResponse(stream)
+    return AssistantTransportResponse(stream)
 
 
 @app.get("/health")

@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Host-type benchmark: mount+unmount and update cost of a body with N
  * hooks under each host. Runs against the BUILT package (dist), which the
@@ -10,7 +11,7 @@
  * Not part of the test suite; vitest only picks this up in bench mode.
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loop, benchmark only */
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -96,9 +97,11 @@ const HOSTS: Record<string, () => Host> = {
 
 describe(`mount+unmount, ${N} useState hooks`, () => {
   for (const [name, make] of Object.entries(HOSTS)) {
-    bench(name, () => {
-      const host = make();
-      host.unmount();
+    test(name, async ({ bench }) => {
+      await bench(name, () => {
+        const host = make();
+        host.unmount();
+      }).run();
     });
   }
 });
@@ -106,19 +109,21 @@ describe(`mount+unmount, ${N} useState hooks`, () => {
 describe(`update (one dispatch, full re-render), ${N} useState hooks`, () => {
   for (const [name, make] of Object.entries(HOSTS)) {
     let host: Host;
-    bench(
-      name,
-      () => {
-        host.flush(() => host.api().bump());
-      },
-      {
-        setup: () => {
-          host = make();
+    test(name, async ({ bench }) => {
+      await bench(
+        name,
+        {
+          beforeAll: () => {
+            host = make();
+          },
+          afterAll: () => {
+            host.unmount();
+          },
         },
-        teardown: () => {
-          host.unmount();
+        () => {
+          host.flush(() => host.api().bump());
         },
-      },
-    );
+      ).run();
+    });
   }
 });

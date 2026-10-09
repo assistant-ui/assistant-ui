@@ -31,11 +31,6 @@ env:
       else "Reviewed by `\($served // "an unrecorded model")`"
       end
 
-  # The background simplify pass (subagent prompt kept in .github/prompts/simplify-review.md,
-  # findings merged as a "## Simplify" section) is disabled: it mostly restated the main
-  # review's findings or went unactioned. The prompt file is kept for now; delete it if the
-  # pass stays retired. Re-enable by launching the subagent from REVIEW_PROMPT and
-  # re-adding Agent to allowedTools.
   REVIEW_PROMPT: |
     REPO: ${{ github.repository }}
     PR NUMBER: ${{ github.event.pull_request.number }}
@@ -56,21 +51,23 @@ env:
 
     Verify against the evidence available to you: the checked-out tree when present, PR metadata and history, and upstream documentation when web tools are available. Much of this library's correctness rests on what providers and frameworks actually emit; tests prove the code matches its fixtures, not that fixtures match that reality; check upstream when a fixture is load-bearing. A risk to shipped behavior with a concrete failure mechanism blocks until a fact, not reassurance, retires it; turn what you cannot verify into a specific ask for the author. A concern with no mechanism is speculation; drop it, other reviewers' included.
 
-    Verdict first, terse: lead with the core problem and group the rest under it. Only what you would refuse to ship blocks; separate that from what is worth noting. A sound PR gets a one-line green light; never manufacture findings. Raise architectural direction as questions, not prescriptions. Stay appreciative with external contributors even while blocking. No praise sections, no process narration, no restating the diff or CI. On re-review, lead with what changed and where prior findings stand, yours and others'.
+    Verdict first, terse: lead with the findings or with "No blocking findings"; never write "Approve". Lead findings with the core problem and group the rest under it. Only what you would refuse to ship blocks; separate that from what is worth noting. On a first review a sound PR gets "No blocking findings" and nothing more; never manufacture findings. Raise architectural direction as questions, not prescriptions. Stay appreciative with external contributors even while blocking. No praise sections, no process narration, no restating the diff or CI. On re-review, follow the verdict with what changed and where prior findings stand, yours and others'.
 
-    Line-anchored findings go inline via mcp__github_inline_comment__create_inline_comment, deduplicated against existing comments. On same-repository PRs, put everything else in the sticky comment with no progress placeholders left. On external PRs, return the overall verdict as your final response; the trusted workflow will publish it.
+    When the diff is too large to read in full, review a bounded slice and name in the verdict what you did not review. ${{ github.event_name == 'pull_request_target' && 'List the changed files with mcp__github__get_pull_request_files and read the riskiest with mcp__github__get_file_contents.' || 'List the changed files with `gh pr view <number> --json files` and read the riskiest with Read. The shell runs only the listed `gh` commands, one per call; pipes, `git`, and anything else are denied.' }}
+
+    Line-anchored findings go inline via mcp__github_inline_comment__create_inline_comment, deduplicated against existing comments. On same-repository PRs, put everything else in the sticky comment with no progress placeholders left, and write the verdict there even when the review is partial. On external PRs, return the overall verdict as your final response; the trusted workflow will publish it.
 
   # Allowed tools:
   # - WebSearch/WebFetch: Verify provider/framework behavior against upstream docs and changelogs
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  CLAUDE_ARGS: '--model claude-opus-5 --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  CLAUDE_ARGS: '--model claude-opus-5-5 --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
   # Fork reviews run in agent mode with no shell, filesystem, web, subagent, or
   # code-writing tools. The GitHub MCP tools below are individually read-only;
   # the inline-comment tool is the only model-controlled write capability.
-  FORK_CLAUDE_ARGS: '--model claude-opus-5 --effort high --permission-mode dontAsk --allowedTools "mcp__github__get_pull_request,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_file_contents,mcp__github__get_commit,mcp__github__list_commits,mcp__github_inline_comment__create_inline_comment" --disallowedTools "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,Agent,NotebookEdit"'
+  FORK_CLAUDE_ARGS: '--model claude-opus-5-5 --effort high --permission-mode dontAsk --allowedTools "mcp__github__get_pull_request,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_file_contents,mcp__github__get_commit,mcp__github__list_commits,mcp__github_inline_comment__create_inline_comment" --disallowedTools "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,Agent,NotebookEdit"'
 
 jobs:
   claude-review:
@@ -85,7 +82,7 @@ jobs:
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -103,7 +100,7 @@ jobs:
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975 # ratchet:anthropics/claude-code-action@v1.0.189
+        uses: anthropics/claude-code-action@58985842b834ed26087302ba27d07bc24ca8697a # ratchet:anthropics/claude-code-action@v1.0.244
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
@@ -151,22 +148,35 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
             --input "$RUNNER_TEMP/claude-review.json" >/dev/null
 
-      # A run can also end cleanly without ever posting the final review,
-      # leaving the sticky comment stuck on its progress todos under a green
-      # check. The unchecked todos are written by the action's own progress
-      # tracking, so their presence in the last claude[bot] comment means the
-      # review never completed.
-      - name: Fail on unfinished review
+      # A run can also end cleanly without writing its final review into the
+      # sticky comment, leaving it on the progress todos the action's own
+      # tracking writes. Publish the run's final response there instead, as the
+      # fork job does, and fail only when the run left nothing to publish.
+      - name: Publish an unfinished review
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          REVIEW_FILE: ${{ steps.review.outputs.execution_file }}
         run: |
           COMMENT=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq '.[] | select(.user.login == "claude[bot]")' | jq -s 'last')
           [ -n "$COMMENT" ] && [ "$COMMENT" != "null" ] || exit 0
           jq -r .body <<<"$COMMENT" | grep -qE '^- \[ \]' || exit 0
-          echo "::error::Claude review ended without posting the final review (progress todos left unchecked)"
-          exit 1
+
+          if [ ! -f "$REVIEW_FILE" ] || ! jq -e 'last(.[] | select(.type == "result")) | .is_error == false and (.result | type == "string" and length > 0)' "$REVIEW_FILE" >/dev/null; then
+            echo "::error::Claude review ended without posting the final review (progress todos left unchecked)"
+            exit 1
+          fi
+
+          echo "::warning::Claude review ended without updating its comment; publishing its final response there"
+          BODY_FILE="$RUNNER_TEMP/claude-review-final.md"
+          {
+            jq -r 'last(.[] | select(.type == "result")) | .result' "$REVIEW_FILE"
+            printf '\n<!-- review-model -->\n<sub>%s</sub>\n' "$(jq -r "$REVIEW_MODEL_NOTE" "$REVIEW_FILE")"
+          } > "$BODY_FILE"
+          jq -n --rawfile body "$BODY_FILE" '{ body: $body }' > "$RUNNER_TEMP/claude-review-final.json"
+          gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
+            --input "$RUNNER_TEMP/claude-review-final.json" >/dev/null
 
   claude-fork-review:
     if: >-
@@ -177,7 +187,7 @@ jobs:
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -194,7 +204,7 @@ jobs:
 
       - name: Review external PR
         id: review
-        uses: anthropics/claude-code-action@6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975 # ratchet:anthropics/claude-code-action@v1.0.189
+        uses: anthropics/claude-code-action@58985842b834ed26087302ba27d07bc24ca8697a # ratchet:anthropics/claude-code-action@v1.0.244
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}

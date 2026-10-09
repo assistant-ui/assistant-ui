@@ -1,0 +1,38 @@
+import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/ai-sdk";
+import {
+  type JSONSchema7,
+  streamText,
+  convertToModelMessages,
+  type UIMessage,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+} from "ai";
+
+// Allow streaming responses up to 30 seconds
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const {
+    messages,
+    system,
+    tools,
+  }: {
+    messages: UIMessage[];
+    system?: string;
+    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+  } = await req.json();
+
+  const aiSDKTools = frontendTools(tools ?? {});
+  const result = streamText({
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    ...(system ? { system } : {}),
+    tools: aiSDKTools,
+  });
+
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
+}

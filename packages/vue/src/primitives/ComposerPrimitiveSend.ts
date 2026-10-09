@@ -1,4 +1,10 @@
-import { defineComponent, h, mergeProps, type SlotsType } from "vue";
+import {
+  defineComponent,
+  h,
+  mergeProps,
+  type SlotsType,
+  type VNodeChild,
+} from "vue";
 import { isAttrDisabled } from "./attrDisabled";
 import { useComposerSendState } from "./useComposerSendState";
 
@@ -11,7 +17,7 @@ import { useComposerSendState } from "./useComposerSendState";
 export const ComposerPrimitiveSend = defineComponent({
   name: "ComposerPrimitiveSend",
   inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { attrs, slots }) {
     const { disabled, send } = useComposerSendState();
     const onClick = (event: MouseEvent) => {

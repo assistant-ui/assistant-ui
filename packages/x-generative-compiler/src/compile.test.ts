@@ -1,10 +1,17 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import * as nodePath from "node:path";
 import { describe, it, expect, vi } from "vitest";
 import {
   compileGenerative,
   isGenerativeModule,
+  isGenerativeSource,
   GenerativeCompileError,
 } from "./compile";
 
@@ -129,6 +136,38 @@ export default defineToolkit({
   },
 });
 `;
+
+const nonGenerativeChild =
+  "export default { get_weather: { execute: async () => 1 } };\n";
+
+const aliasedToolkitSource = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "@/tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+function writeAliasTarget(
+  root: string,
+  directory: string,
+  childSource: string,
+): void {
+  const target = nodePath.join(root, directory);
+  mkdirSync(target, { recursive: true });
+  writeFileSync(nodePath.join(target, "weather.tsx"), childSource);
+}
+
+function writeAliasConfig(path: string, target: string, baseUrl = "."): void {
+  writeFileSync(
+    path,
+    JSON.stringify({
+      compilerOptions: {
+        baseUrl,
+        paths: { "@/tools/*": [target] },
+      },
+    }),
+  );
+}
 
 const source = `"use generative";
 import { z } from "zod";
@@ -363,6 +402,21 @@ export default defineToolkit({
 import { defineToolkit } from "@assistant-ui/react";
 import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
 export const ui = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
+  it("allows a JSONGenerativeUI imported from @assistant-ui/generative-ui/react", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
+const ui = new JSONGenerativeUI({ library: {} });
 export default defineToolkit({ present: ui.present() });`;
 
     expect(compileGenerative(src, { target: "server" }).code).toContain(
@@ -1299,6 +1353,151 @@ export default defineToolkit({
     expect(client).toContain('from "@/tools/weather"');
   });
 
+  it("refreshes cached path aliases after tsconfig changes", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-alias-refresh-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(appRoot, "fallbacks", nonGenerativeChild);
+    const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
+    writeAliasConfig(tsconfigPath, "./generated/*");
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    writeAliasConfig(tsconfigPath, "./fallbacks/*");
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("refreshes cached aliases when a missing extended config is created", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-extends-refresh-"),
+    );
+    const packageRoot = nodePath.join(appRoot, "package");
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(packageRoot, "fallbacks", nonGenerativeChild);
+    mkdirSync(nodePath.join(packageRoot, "src"), { recursive: true });
+    writeAliasConfig(nodePath.join(appRoot, "tsconfig.json"), "./generated/*");
+    writeFileSync(
+      nodePath.join(packageRoot, "tsconfig.json"),
+      JSON.stringify({ extends: "./tsconfig.paths.json" }),
+    );
+    const filename = nodePath.join(packageRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    writeAliasConfig(
+      nodePath.join(packageRoot, "tsconfig.paths.json"),
+      "./fallbacks/*",
+    );
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("refreshes cached alias misses when a tsconfig is created", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-config-create-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    mkdirSync(nodePath.join(appRoot, "src"), { recursive: true });
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+
+    writeAliasConfig(nodePath.join(appRoot, "tsconfig.json"), "./generated/*");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+  });
+
+  it("retries unresolved package configs on the next compile", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-package-config-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    mkdirSync(nodePath.join(appRoot, "src"), { recursive: true });
+    writeFileSync(
+      nodePath.join(appRoot, "tsconfig.json"),
+      JSON.stringify({ extends: "config/base" }),
+    );
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+
+    const configPackage = nodePath.join(appRoot, "node_modules", "config");
+    mkdirSync(configPackage, { recursive: true });
+    writeAliasConfig(
+      nodePath.join(configPackage, "base.json"),
+      "./generated/*",
+      nodePath.relative(configPackage, appRoot),
+    );
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+  });
+
+  it("refreshes cached aliases when a tsconfig is deleted", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-config-delete-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    mkdirSync(nodePath.join(appRoot, "src"), { recursive: true });
+    const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
+    writeAliasConfig(tsconfigPath, "./generated/*");
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    rmSync(tsconfigPath);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("refreshes cached aliases when an edit preserves size and mtime", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-same-mtime-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(appRoot, "fallbacks", nonGenerativeChild);
+    const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    // Both writes are pinned to one timestamp, standing in for a filesystem
+    // whose mtime granularity cannot separate them.
+    const tick = 1700000000;
+    writeAliasConfig(tsconfigPath, "./generated/*");
+    utimesSync(tsconfigPath, tick, tick);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    writeAliasConfig(tsconfigPath, "./fallbacks/*");
+    utimesSync(tsconfigPath, tick, tick);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
   it("prefers the most specific tsconfig path alias", () => {
     const appRoot = mkdtempSync(
       nodePath.join(tmpdir(), "aui-generative-alias-spec-"),
@@ -1592,6 +1791,110 @@ export default defineToolkit({
       "getWeather",
     );
   });
+
+  it("keeps an unused class with a static block", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static { register(); } }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused class with a static initializer", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static x = track(); }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("track()");
+  });
+
+  it("keeps an unused class expression with a static block", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const C = class { static { register(); } };\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("const C = class");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused class with an evaluated superclass", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry extends make() {}\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry extends make()");
+  });
+
+  it("keeps an unused class with a computed member key", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { [key()]() {} }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("key()");
+  });
+
+  it("keeps an unused class whose static JSX initializer calls code", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static node = <Widget value={register()} />; }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused JSX initializer that calls code", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget>{track()}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("track()");
+  });
+
+  it("keeps an unused JSX initializer that spreads props", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget {...props} />;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("Widget");
+  });
+
+  it("keeps an unused JSX initializer that spreads children", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget>{...items}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("Widget");
+  });
+
+  it("prunes an unused JSX initializer without calls", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget value={label}>{title}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).not.toContain("Widget");
+  });
+
+  it("prunes an unused class with only methods and literal static fields", () => {
+    const src = minimalSource.replace(
+      "export default",
+      'class Registry { method() {} static label = "x"; }\nexport default',
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).not.toContain("class Registry");
+  });
 });
 
 describe("compileGenerative — diagnostics", () => {
@@ -1883,5 +2186,79 @@ export default defineToolkit({
         `"use generative" /* first line\nsecond line */ + suffix;\nexport default {};`,
       ),
     ).toBe(false);
+  });
+
+  it("detects generative source files", () => {
+    const source = `"use generative";\nexport default {};`;
+
+    for (const filename of [
+      "toolkit.ts",
+      "toolkit.tsx",
+      "toolkit.mts",
+      "toolkit.cjsx",
+    ]) {
+      expect(isGenerativeSource(filename, source)).toBe(true);
+    }
+
+    expect(isGenerativeSource("toolkit.css", source)).toBe(false);
+    expect(isGenerativeSource("toolkit.ts", "export default {};")).toBe(false);
+  });
+});
+
+describe("backendless builds", () => {
+  const source = `"use generative";
+import { defineToolkit, humanTool } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+const generative = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({
+  toast: {
+    parameters: { type: "object", properties: {} },
+    execute: async () => {
+      "use client";
+      return 1;
+    },
+    render: () => null,
+  },
+  ask: {
+    parameters: { type: "object", properties: {} },
+    execute: humanTool(),
+    render: () => null,
+  },
+  present: generative.present(),
+});
+`;
+
+  it("does not mark client frontend/human tools with backend defaults", () => {
+    const code = compileGenerative(source, {
+      target: "client",
+      backendless: true,
+    }).code;
+    expect(code).not.toContain("unstable_backendDefault: {");
+    expect(code).toContain('type: "frontend"');
+    expect(code).toContain('type: "human"');
+  });
+
+  it("strips the runtime marker from pass-through generative entries", () => {
+    const code = compileGenerative(source, {
+      target: "client",
+      backendless: true,
+    }).code;
+    expect(code).toContain("generative.present()");
+    expect(code).toContain("...tool");
+  });
+
+  it("leaves generative entries untouched without the flag", () => {
+    const code = compileGenerative(source, { target: "client" }).code;
+    expect(code).toContain("present: generative.present()");
+    expect(code).not.toContain("...tool");
+  });
+
+  it("emits an identical server build with and without the flag", () => {
+    const withFlag = compileGenerative(source, {
+      target: "server",
+      backendless: true,
+    }).code;
+    const withoutFlag = compileGenerative(source, { target: "server" }).code;
+    expect(withFlag).toBe(withoutFlag);
   });
 });

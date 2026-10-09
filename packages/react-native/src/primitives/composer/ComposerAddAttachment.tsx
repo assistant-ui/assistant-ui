@@ -1,17 +1,14 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useComposerAddAttachment } from "@assistant-ui/core/react";
 
-export type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ComposerAddAttachmentProps = Omit<PressableProps, "children"> & {
+  children: PressableProps["children"];
 };
 
 /**
- * A button that triggers the attachment adding flow.
+ * A button for adding attachments. It is disabled while the composer cannot accept attachments.
  *
- * Note: The actual file picker implementation is platform-specific.
- * This component calls `useComposerAddAttachment()` from `@assistant-ui/core/react`.
- * You must handle the file selection in your own component using the returned `addAttachment` callback.
+ * React Native has no file input, so the caller opens the platform picker (for example `expo-image-picker`) in `onPress` and passes the selection to `aui.composer.addAttachment`.
  */
 export const ComposerAddAttachment = ({
   children,
@@ -21,7 +18,11 @@ export const ComposerAddAttachment = ({
   const { disabled } = useComposerAddAttachment();
 
   return (
-    <Pressable disabled={disabledProp ?? disabled} {...pressableProps}>
+    <Pressable
+      disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

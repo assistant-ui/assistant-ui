@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { ModelOption } from "@/components/assistant-ui/model-selector";
+import type { ModelOption } from "@/components/assistant-ui/elements/model-selector.aui";
 
 /** The slice of the server handshake the composer needs to render its model
  * selector. Provided by the page (which fetches `/api/pi/handshake`) and

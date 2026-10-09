@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { useComposerCancel } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
-export type ComposerCancelProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ComposerCancelProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const ComposerCancel = ({

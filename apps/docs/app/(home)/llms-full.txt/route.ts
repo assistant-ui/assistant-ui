@@ -1,21 +1,26 @@
-import { examples, source, getTapDocsPages } from "@/lib/source";
+import { cacheLife } from "next/cache";
+import { design, elementsDocs, examples } from "@/lib/source";
+import { allDocsPages } from "@/lib/docs-pages";
 import { getLLMText } from "@/lib/get-llm-text";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 
-export const revalidate = false;
-
-export async function GET() {
+async function getFullText() {
+  "use cache";
+  cacheLife("max");
   const scan = [
-    ...source.getPages(),
-    ...getTapDocsPages(),
+    ...allDocsPages(),
     ...examples.getPages(),
+    ...design.getPages(),
+    ...elementsDocs.getPages(),
   ].map((page) => getLLMText(page));
   const scanned = await Promise.all(scan);
 
-  return new Response(scanned.join("\n\n"), {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "text/plain; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    },
-  });
+  return scanned.join("\n\n");
+}
+
+export async function GET() {
+  return createMarkdownResponse(
+    await getFullText(),
+    "text/plain; charset=utf-8",
+  );
 }

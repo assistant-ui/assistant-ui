@@ -1,0 +1,833 @@
+import {
+  isToolUIPart,
+  isReasoningFileUIPart,
+  isCustomContentUIPart,
+  getToolName,
+  type FileUIPart,
+  type UIMessage,
+} from "ai";
+import {
+  createMessageConverter as unstable_createMessageConverter,
+  type useExternalMessageConverter,
+} from "@assistant-ui/core/react";
+import {
+  isMcpAppUri,
+  type ReasoningMessagePart,
+  type ToolApprovalOption,
+  type ToolApprovalQuestion,
+  type ToolApprovalQuestionOption,
+  type ToolCallMessagePart,
+  type TextMessagePart,
+  type DataMessagePart,
+  type PartProviderMetadata,
+  type SourceMessagePart,
+  type SourceProviderMetadata,
+  type FileMessagePart,
+  type ThreadMessageLike,
+  type McpAppMetadata,
+  type MessagePartStreamStatus,
+  type RespondToToolApprovalOptions,
+  type Unstable_ToolInteractionLog,
+} from "@assistant-ui/core";
+import { normalizeToolApprovalAnswers } from "./toolApprovalAnswers";
+import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
+import { markPartialJsonObjectComplete } from "assistant-stream/internal";
+import {
+  parsePartialJsonObject,
+  type ReadonlyJSONObject,
+} from "assistant-stream/utils";
+import { unwrapModelContentEnvelope } from "assistant-stream/internal";
+
+type MessageMetadata = ThreadMessageLike["metadata"];
+
+const THREAD_METADATA_KEYS = new Set([
+  "unstable_state",
+  "unstable_annotations",
+  "unstable_data",
+  "steps",
+  "timing",
+  "submittedFeedback",
+  "isOptimistic",
+  "modality",
+  "custom",
+]);
+
+const toThreadMetadata = (metadata: unknown): MessageMetadata => {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const result: Record<string, unknown> = {};
+  const extra = Object.create(null) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(metadata)) {
+    (THREAD_METADATA_KEYS.has(key) ? result : extra)[key] = value;
+  }
+  if (Object.keys(extra).length > 0) {
+    result.custom = { ...extra, ...(result.custom as object | undefined) };
+  }
+  return result as MessageMetadata;
+};
+export type AISDKMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    /**
+     * Frozen text and completion-marked args keyed weakly by a settled tool
+     * call's input object, then by call, since the text carries its streamed key
+     * order. A known call/input pair skips serialization and parsing; entries
+     * become collectible once the input is unreachable.
+     */
+    toolArgsTextCache?: WeakMap<
+      ReadonlyJSONObject,
+      Map<string, { argsText: string; args: ReadonlyJSONObject }>
+    >;
+    toolLastInputCache?: Map<string, ReadonlyJSONObject>;
+    mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    toolArtifacts?: ReadonlyMap<string, unknown>;
+    toolInteractions?: ReadonlyMap<string, Unstable_ToolInteractionLog>;
+    supportsRichToolApprovalResponses?: boolean;
+    toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
+    cancelledToolApprovalIds?: ReadonlySet<string>;
+    cancelledStatusMessageIds?: ReadonlySet<string>;
+    /** Id of the currently-streaming message, flagged optimistic (#4037). */
+    optimisticMessageId?: string | undefined;
+  };
+
+function stripClosingDelimiters(json: string): string {
+  let end = json.length;
+  while (end > 0 && '}]"'.includes(json[end - 1]!)) end--;
+  return json.slice(0, end);
+}
+
+const MCP_APP_METADATA_CACHE_MAX = 100;
+
+function extractMcpAppMetadata(
+  part: unknown,
+  cache: Map<string, McpAppMetadata> | undefined,
+): McpAppMetadata | undefined {
+  if (!part || typeof part !== "object") return undefined;
+  const toolMetadata = (part as { toolMetadata?: unknown }).toolMetadata;
+  const toolApp =
+    toolMetadata && typeof toolMetadata === "object"
+      ? (toolMetadata as { app?: unknown }).app
+      : undefined;
+  const meta = (part as { callProviderMetadata?: unknown })
+    .callProviderMetadata;
+  const mcp =
+    meta && typeof meta === "object"
+      ? (meta as { mcp?: unknown }).mcp
+      : undefined;
+  const providerApp =
+    mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+
+  const apps: Record<string, unknown>[] = [];
+  for (const candidate of [toolApp, providerApp]) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const candidateApp = candidate as Record<string, unknown>;
+    const resourceUri = candidateApp["resourceUri"];
+    if (typeof resourceUri !== "string" || !isMcpAppUri(resourceUri)) continue;
+    apps.push({
+      resourceUri,
+      ...(typeof candidateApp["mimeType"] === "string" && {
+        mimeType: candidateApp["mimeType"],
+      }),
+      ...(Array.isArray(candidateApp["visibility"]) && {
+        visibility: candidateApp["visibility"],
+      }),
+      ...(candidate === providerApp &&
+        typeof candidateApp["serverId"] === "string" &&
+        candidateApp["serverId"].length > 0 && {
+          serverId: candidateApp["serverId"],
+        }),
+    });
+  }
+
+  let a: Record<string, unknown>;
+  if (apps.length > 0) {
+    a = { ...(apps[1] ?? {}), ...apps[0]! };
+  } else {
+    // MCP-UI tools surface the pointer on result._meta: canonical nested
+    // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.
+    const output = (part as { output?: unknown }).output;
+    const outMeta =
+      output && typeof output === "object"
+        ? (output as { _meta?: unknown })._meta
+        : undefined;
+    const ui =
+      outMeta && typeof outMeta === "object"
+        ? (outMeta as Record<string, unknown>)["ui"]
+        : undefined;
+    if (
+      ui &&
+      typeof ui === "object" &&
+      typeof (ui as Record<string, unknown>)["resourceUri"] === "string" &&
+      isMcpAppUri((ui as Record<string, unknown>)["resourceUri"] as string)
+    ) {
+      // Only the spec'd ui fields cross from the result body; serverId is a
+      // routing key and stays transport-derived via callProviderMetadata.
+      const uiMeta = ui as Record<string, unknown>;
+      a = {
+        resourceUri: uiMeta["resourceUri"],
+        ...(Array.isArray(uiMeta["visibility"])
+          ? { visibility: uiMeta["visibility"] }
+          : {}),
+      };
+    } else {
+      const flat =
+        outMeta && typeof outMeta === "object"
+          ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+          : undefined;
+      if (typeof flat !== "string" || !isMcpAppUri(flat)) return undefined;
+      a = { resourceUri: flat };
+    }
+  }
+  if (typeof a["resourceUri"] !== "string") return undefined;
+  if (!isMcpAppUri(a["resourceUri"])) return undefined;
+  const cacheKey = `${typeof a["serverId"] === "string" ? a["serverId"] : ""} ${a["resourceUri"]}`;
+  const cached = cache?.get(cacheKey);
+  if (cached) {
+    cache!.delete(cacheKey);
+    cache!.set(cacheKey, cached);
+    return cached;
+  }
+  const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
+    resourceUri: a["resourceUri"],
+  };
+  if (typeof a["mimeType"] === "string") out.mimeType = a["mimeType"];
+  if (Array.isArray(a["visibility"])) {
+    out.visibility = a["visibility"].filter(
+      (v): v is "model" | "app" => v === "model" || v === "app",
+    );
+  }
+  if (typeof a["serverId"] === "string" && a["serverId"].length > 0)
+    out.serverId = a["serverId"];
+  if (cache) {
+    if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(cacheKey, out);
+  }
+  return out;
+}
+
+const normalizeToolApprovalOptions = (
+  options: unknown,
+): readonly ToolApprovalOption[] | undefined => {
+  if (!Array.isArray(options)) return undefined;
+
+  return options.flatMap<ToolApprovalOption>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const option = value as Record<string, unknown>;
+    if (typeof option.id !== "string" || typeof option.kind !== "string")
+      return [];
+
+    const confirm = option.confirm;
+    const confirmDetails =
+      confirm && typeof confirm === "object" && !Array.isArray(confirm)
+        ? (confirm as Record<string, unknown>)
+        : undefined;
+
+    return [
+      {
+        id: option.id,
+        kind: option.kind,
+        ...(typeof option.label === "string" && { label: option.label }),
+        ...(typeof option.description === "string" && {
+          description: option.description,
+        }),
+        ...(Array.isArray(option.grants) && {
+          grants: option.grants.filter(
+            (grant): grant is string => typeof grant === "string",
+          ),
+        }),
+        ...(typeof confirm === "boolean"
+          ? { confirm }
+          : confirmDetails
+            ? {
+                confirm: {
+                  ...(typeof confirmDetails.title === "string" && {
+                    title: confirmDetails.title,
+                  }),
+                  ...(typeof confirmDetails.description === "string" && {
+                    description: confirmDetails.description,
+                  }),
+                },
+              }
+            : {}),
+      },
+    ];
+  });
+};
+
+const normalizeToolApprovalQuestions = (
+  questions: unknown,
+): readonly ToolApprovalQuestion[] | undefined => {
+  if (!Array.isArray(questions)) return undefined;
+
+  return questions.flatMap<ToolApprovalQuestion>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const question = value as Record<string, unknown>;
+    if (typeof question.id !== "string" || typeof question.prompt !== "string")
+      return [];
+    const options = Array.isArray(question.options)
+      ? question.options.flatMap<ToolApprovalQuestionOption>((option) => {
+          if (!option || typeof option !== "object" || Array.isArray(option))
+            return [];
+          const { id, label, description } = option as Record<string, unknown>;
+          if (typeof id !== "string" || typeof label !== "string") return [];
+          return [
+            {
+              id,
+              label,
+              ...(typeof description === "string" && { description }),
+            },
+          ];
+        })
+      : undefined;
+
+    return [
+      {
+        id: question.id,
+        prompt: question.prompt,
+        ...(typeof question.header === "string" && {
+          header: question.header,
+        }),
+        ...(options && { options }),
+        ...(typeof question.multiple === "boolean" && {
+          multiple: question.multiple,
+        }),
+        ...(typeof question.allowFreeform === "boolean" && {
+          allowFreeform: question.allowFreeform,
+        }),
+      },
+    ];
+  });
+};
+
+const APPROVAL_DESCRIPTOR_FIELDS = [
+  "prompt",
+  "display",
+  "allowFreeform",
+  "dismissible",
+  "options",
+  "optionId",
+  "text",
+  "questions",
+  "answers",
+  "resolution",
+] as const;
+
+// The AI SDK's approval object declares none of the core request and answer
+// fields and `validateUIMessages` strips unknown ones, so a host streams or
+// persists them inside the opaque `approvalDescriptor`. Only those fields are
+// read from it: a descriptor cannot approve its own request.
+const readApprovalDescriptor = (
+  descriptor: unknown,
+): Record<string, unknown> => {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor)
+  )
+    return {};
+  const fields: Record<string, unknown> = {};
+  for (const key of APPROVAL_DESCRIPTOR_FIELDS) {
+    if (Object.hasOwn(descriptor, key))
+      fields[key] = (descriptor as Record<string, unknown>)[key];
+  }
+  return fields;
+};
+
+function getToolApprovalAndInterrupt(
+  part: {
+    approval?: Record<string, unknown> | undefined;
+  },
+  toolStatus: { type: string; payload?: unknown } | undefined,
+  supportsRichToolApprovalResponses: boolean,
+  toolApprovalResponses:
+    | ReadonlyMap<string, RespondToToolApprovalOptions>
+    | undefined,
+  cancelledToolApprovalIds: ReadonlySet<string> | undefined,
+): {
+  approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
+} {
+  if (part.approval) {
+    const rawApproval = {
+      ...readApprovalDescriptor(part.approval.descriptor),
+      ...part.approval,
+    };
+    const approval =
+      typeof rawApproval.id === "string" &&
+      rawApproval.approved === undefined &&
+      rawApproval.resolution === undefined &&
+      cancelledToolApprovalIds?.has(rawApproval.id)
+        ? { ...rawApproval, resolution: "cancelled" as const }
+        : rawApproval;
+    const response =
+      typeof approval.id === "string" &&
+      approval.approved === undefined &&
+      approval.resolution !== "cancelled" &&
+      approval.resolution !== "expired"
+        ? toolApprovalResponses?.get(approval.id)
+        : undefined;
+    // The built-in AI SDK channel sends only id, approved and reason back to
+    // the server, so a request shape promising any other answer would render
+    // controls whose response cannot travel.
+    const {
+      id,
+      prompt,
+      approved,
+      reason,
+      isAutomatic,
+      resolution,
+      display,
+      allowFreeform,
+      dismissible,
+      options,
+      optionId,
+      text,
+      questions,
+      answers,
+      ...additionalApprovalFields
+    } = response
+      ? {
+          ...approval,
+          approved: response.approved,
+          ...(response.reason != null && { reason: response.reason }),
+          ...(response.optionId != null && { optionId: response.optionId }),
+          ...(response.text != null && { text: response.text }),
+          ...(response.answers != null && { answers: response.answers }),
+        }
+      : approval;
+    const normalizedOptions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalOptions(options)
+      : undefined;
+    const normalizedQuestions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalQuestions(questions)
+      : undefined;
+    const normalizedAnswers = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalAnswers(answers)
+      : undefined;
+    const requestReason = additionalApprovalFields.requestReason;
+    if (typeof id === "string")
+      return {
+        approval: {
+          ...additionalApprovalFields,
+          id,
+          ...(typeof prompt === "string"
+            ? { prompt }
+            : typeof requestReason === "string"
+              ? { prompt: requestReason }
+              : {}),
+          ...(typeof approved === "boolean" && { approved }),
+          ...(typeof reason === "string" && { reason }),
+          ...(isAutomatic === true && { isAutomatic: true }),
+          ...(supportsRichToolApprovalResponses && {
+            ...((display === "decision" ||
+              display === "select" ||
+              display === "text" ||
+              display === "questions") && { display }),
+            ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(typeof dismissible === "boolean" && { dismissible }),
+            ...(normalizedOptions && { options: normalizedOptions }),
+            ...(typeof optionId === "string" && { optionId }),
+            ...(typeof text === "string" && { text }),
+            ...(normalizedQuestions && { questions: normalizedQuestions }),
+            ...(normalizedAnswers && { answers: normalizedAnswers }),
+          }),
+          ...((resolution === "cancelled" || resolution === "expired") && {
+            resolution,
+          }),
+        } as NonNullable<ToolCallMessagePart["approval"]>,
+      };
+  }
+
+  if (toolStatus?.type === "interrupt") {
+    return {
+      interrupt: toolStatus.payload as NonNullable<
+        ToolCallMessagePart["interrupt"]
+      >,
+    };
+  }
+
+  return {};
+}
+
+type MessageContent = Exclude<ThreadMessageLike["content"], string>;
+
+const uiPartStateToStatus = (
+  state: "streaming" | "done" | undefined,
+): MessagePartStreamStatus | undefined => {
+  if (state === "streaming") return { type: "running" };
+  if (state === "done") return { type: "complete" };
+  return undefined;
+};
+
+const toSystemContent = (content: MessageContent): MessageContent => {
+  const text = content.filter((part) => part.type === "text");
+  if (text.length === 1) return text;
+  const providerMetadata = text.reduce<PartProviderMetadata>(
+    (merged, part) =>
+      part.providerMetadata != null
+        ? { ...merged, ...part.providerMetadata }
+        : merged,
+    {},
+  );
+  return [
+    {
+      type: "text",
+      text: text.map((part) => part.text).join(""),
+      ...(Object.keys(providerMetadata).length > 0 && { providerMetadata }),
+    },
+  ];
+};
+
+function convertParts(
+  message: UIMessage,
+  metadata: AISDKMessageConverterMetadata,
+): MessageContent {
+  if (!message.parts || message.parts.length === 0) {
+    return [];
+  }
+
+  const converted = message.parts
+    .filter(
+      (p) =>
+        typeof p?.type === "string" &&
+        p.type !== "step-start" &&
+        (message.role !== "user" || p.type !== "file"),
+    )
+    .map((part) => {
+      if (part.type === "text") {
+        const status = uiPartStateToStatus(part.state);
+        return {
+          type: "text",
+          text: part.text ?? "",
+          ...(status != null ? { status } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
+        } satisfies TextMessagePart;
+      }
+
+      if (part.type === "reasoning") {
+        const status = uiPartStateToStatus(part.state);
+        return {
+          type: "reasoning",
+          text: part.text,
+          ...(status != null ? { status } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
+        } satisfies ReasoningMessagePart;
+      }
+
+      if (isToolUIPart(part)) {
+        const toolName = getToolName(part) ?? "";
+        const toolCallId = part.toolCallId;
+        const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
+
+        // A tool call that streamed complete arguments then failed schema
+        // validation keeps them in `rawInput`, not `input`; reading `input`
+        // alone would convert the error snapshot to `{}` and hide the input.
+        const rawInput = (part.input ??
+          ("rawInput" in part ? part.rawInput : undefined)) as
+          | ReadonlyJSONObject
+          | null
+          | undefined;
+        let args: ReadonlyJSONObject;
+        if (
+          rawInput != null &&
+          typeof rawInput === "object" &&
+          !Array.isArray(rawInput)
+        ) {
+          args = rawInput;
+          metadata.toolLastInputCache?.set(argsKeyOrderCacheKey, args);
+        } else {
+          args = metadata.toolLastInputCache?.get(argsKeyOrderCacheKey) ?? {};
+        }
+
+        let result: unknown;
+        let modelContent: ToolCallMessagePart["modelContent"];
+        let isError = false;
+
+        if (part.state === "output-available") {
+          const unwrapped = unwrapModelContentEnvelope(part.output);
+          result = unwrapped.result;
+          modelContent = unwrapped.modelContent;
+        } else if (part.state === "output-error") {
+          isError = true;
+          result = { error: part.errorText };
+        } else if (part.state === "output-denied") {
+          isError = true;
+          result = {
+            error:
+              (part as { approval?: { reason?: string } }).approval?.reason ||
+              "Tool approval denied",
+          };
+        }
+
+        let argsText: string;
+        if (part.state === "input-streaming") {
+          argsText = stableStringifyToolArgs(
+            metadata.toolArgsKeyOrderCache,
+            argsKeyOrderCacheKey,
+            args,
+          );
+          // strip closing delimiters added by the AI SDK's fix-json
+          argsText = stripClosingDelimiters(argsText);
+          // Re-parse so args carries the partial-JSON meta that marks which
+          // field is still mid-arrival, like every argsText-based runtime.
+          // The key-order cache appends new keys last, so the trailing field
+          // of the stripped text is the streaming frontier.
+          args = parsePartialJsonObject(argsText) ?? args;
+        } else {
+          // A settled part is re-converted whenever its message or the converter
+          // metadata changes; the text frozen on its input object skips
+          // re-serializing large args while the call keeps that input. Arrival
+          // order only matters while args stream, so the key-order entry is
+          // released.
+          const inputArgs = args;
+          const frozen =
+            metadata.toolArgsTextCache?.get(inputArgs) ??
+            new Map<string, { argsText: string; args: ReadonlyJSONObject }>();
+          const frozenEntry = frozen.get(argsKeyOrderCacheKey);
+          if (frozenEntry !== undefined) {
+            argsText = frozenEntry.argsText;
+            args = frozenEntry.args;
+          } else {
+            argsText = stableStringifyToolArgs(
+              metadata.toolArgsKeyOrderCache,
+              argsKeyOrderCacheKey,
+              args,
+            );
+            // The input is final even while execution keeps the part running.
+            // Other runtimes can synthesize complete JSON text from an
+            // accumulating snapshot, so only this converter supplies the
+            // completion signal it knows from the AI SDK part state.
+            // A complete root marker settles every field without parsing the
+            // serialized text again. Keep the SDK input's nested identities
+            // and own fields, including prototype-named JSON keys.
+            args = markPartialJsonObjectComplete(args);
+            metadata.toolArgsTextCache?.set(
+              inputArgs,
+              frozen.set(argsKeyOrderCacheKey, { argsText, args }),
+            );
+          }
+          metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
+          if (
+            part.state === "output-available" ||
+            part.state === "output-error" ||
+            part.state === "output-denied"
+          ) {
+            metadata.toolLastInputCache?.delete(argsKeyOrderCacheKey);
+          }
+        }
+
+        const toolStatus = metadata.toolStatuses?.[toolCallId];
+        const mcpApp = extractMcpAppMetadata(
+          part,
+          metadata.mcpAppMetadataCache,
+        );
+        const artifact = metadata.toolArtifacts?.get(toolCallId);
+        const interactions = metadata.toolInteractions?.get(toolCallId);
+        return {
+          type: "tool-call",
+          toolName,
+          toolCallId,
+          argsText,
+          args,
+          result,
+          isError,
+          ...(artifact !== undefined && { artifact }),
+          ...(interactions !== undefined && {
+            unstable_interactions: interactions,
+          }),
+          ...(part.state === "output-available" &&
+            part.preliminary === true && { isPreliminary: true }),
+          ...(modelContent !== undefined && { modelContent }),
+          ...(mcpApp && { mcp: { app: mcpApp } }),
+          ...(part.callProviderMetadata != null
+            ? {
+                providerMetadata:
+                  part.callProviderMetadata as PartProviderMetadata,
+              }
+            : undefined),
+          ...getToolApprovalAndInterrupt(
+            part,
+            toolStatus,
+            metadata.supportsRichToolApprovalResponses === true,
+            metadata.toolApprovalResponses,
+            metadata.cancelledToolApprovalIds,
+          ),
+        } satisfies ToolCallMessagePart;
+      }
+
+      if (part.type === "source-url") {
+        return {
+          type: "source",
+          sourceType: "url",
+          id: part.sourceId,
+          url: part.url,
+          ...(part.title != null ? { title: part.title } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
+        } satisfies SourceMessagePart;
+      }
+
+      if (part.type === "file") {
+        if (typeof part.url !== "string") return null;
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType ?? "unknown/unknown",
+          ...(part.filename != null && { filename: part.filename }),
+        } satisfies FileMessagePart;
+      }
+
+      if (part.type === "source-document") {
+        return {
+          type: "source",
+          sourceType: "document",
+          id: part.sourceId,
+          title: part.title,
+          mediaType: part.mediaType,
+          ...(part.filename != null ? { filename: part.filename } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
+        } satisfies SourceMessagePart;
+      }
+
+      if (part.type.startsWith("data-")) {
+        return {
+          type: "data",
+          ...("id" in part && typeof part.id === "string"
+            ? { id: part.id }
+            : undefined),
+          name: part.type.substring(5),
+          data: (part as any).data,
+        } satisfies DataMessagePart;
+      }
+
+      if (isReasoningFileUIPart(part)) {
+        if (typeof part.url !== "string") return null;
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType ?? "unknown/unknown",
+        } satisfies FileMessagePart;
+      }
+
+      if (isCustomContentUIPart(part)) {
+        return {
+          type: "data",
+          name: part.kind,
+          data: part.providerMetadata ?? null,
+        } satisfies DataMessagePart;
+      }
+
+      console.warn(`Unsupported message part type: ${part.type}`);
+      return null;
+    })
+    .filter(Boolean) as MessageContent[number][];
+
+  const seenToolCallIds = new Set<string>();
+  return converted.filter((part) => {
+    if (part.type === "tool-call" && part.toolCallId != null) {
+      if (seenToolCallIds.has(part.toolCallId)) return false;
+      seenToolCallIds.add(part.toolCallId);
+    }
+    return true;
+  });
+}
+
+export const AISDKMessageConverter = unstable_createMessageConverter(
+  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
+    const createdAt = new Date();
+    const content = convertParts(message, metadata);
+
+    switch (message.role) {
+      case "user":
+        return {
+          role: "user",
+          id: message.id,
+          createdAt,
+          content,
+          attachments: message.parts
+            ?.filter(
+              (p): p is FileUIPart =>
+                p?.type === "file" && typeof p.url === "string",
+            )
+            .map((part, idx) => {
+              const mediaType = part.mediaType ?? "unknown/unknown";
+              const isImage = mediaType.startsWith("image/");
+              return {
+                id: idx.toString(),
+                type: isImage ? "image" : "file",
+                name: part.filename ?? "file",
+                content: [
+                  isImage
+                    ? {
+                        type: "image",
+                        image: part.url,
+                        filename: part.filename!,
+                      }
+                    : {
+                        type: "file",
+                        filename: part.filename!,
+                        data: part.url,
+                        mimeType: mediaType,
+                      },
+                ],
+                contentType: mediaType,
+                status: { type: "complete" as const },
+              };
+            }),
+          metadata: toThreadMetadata(message.metadata),
+        };
+
+      case "system":
+      case "assistant": {
+        const timing = metadata.messageTiming?.[message.id];
+        const isOptimistic =
+          message.role === "assistant" &&
+          message.id === metadata.optimisticMessageId;
+        return {
+          role: message.role,
+          id: message.id,
+          createdAt,
+          content:
+            message.role === "system" ? toSystemContent(content) : content,
+          ...(message.role === "assistant" &&
+          metadata.cancelledStatusMessageIds?.has(message.id)
+            ? {
+                status: {
+                  type: "incomplete" as const,
+                  reason: "cancelled" as const,
+                },
+              }
+            : undefined),
+          metadata: {
+            ...toThreadMetadata(message.metadata),
+            ...(timing && { timing }),
+            ...(isOptimistic && { isOptimistic: true }),
+          },
+        };
+      }
+
+      default:
+        console.warn(`Unsupported message role: ${message.role}`);
+        return [];
+    }
+  },
+);

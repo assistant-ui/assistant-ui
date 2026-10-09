@@ -1,12 +1,16 @@
-import { source, getTapDocsPages } from "@/lib/source";
-import { createSearchAPI } from "fumadocs-core/search/server";
+import { cacheLife } from "next/cache";
+import { buildSearchIndex } from "@/lib/search/pages";
 
-export const { GET } = createSearchAPI("advanced", {
-  indexes: [...source.getPages(), ...getTapDocsPages()].map((page) => ({
-    title: page.data.title,
-    description: page.data.description ?? "",
-    structuredData: page.data.structuredData,
-    id: page.url,
-    url: page.url,
-  })),
-});
+async function getSearchIndex() {
+  "use cache";
+  cacheLife("max");
+  return buildSearchIndex();
+}
+
+export async function GET() {
+  return Response.json(await getSearchIndex(), {
+    headers: {
+      "X-Robots-Tag": "noindex, follow",
+    },
+  });
+}

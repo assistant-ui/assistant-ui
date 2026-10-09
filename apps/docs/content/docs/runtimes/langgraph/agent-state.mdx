@@ -66,7 +66,7 @@ import {
   useLangGraphSetState,
 } from "@assistant-ui/react-langgraph";
 import { useAuiState } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 type GraphState = {
   filters: { region: string; maxResults: number };
@@ -139,12 +139,14 @@ const runtime = useLangGraphRuntime({
         messages,
       },
       streamMode: ["messages", "updates", "custom", "values"],
+      signal: config.abortSignal,
+      onDisconnect: "cancel",
     });
   },
 });
 ```
 
-The built-in path that uses the package helpers performs this merge for you. Custom `stream` callbacks must do it explicitly.
+The built-in path that uses the package helpers performs this merge for you. Custom `stream` callbacks must do it explicitly. Forward `config.abortSignal` as `signal` and set `onDisconnect: "cancel"` as well, as `unstable_createLangGraphStream` does: stopping, editing, or reloading mid-reply aborts the client stream, and without them the server run keeps going, so LangGraph rejects the next run on that thread as busy.
 
 ## Write-back timing
 

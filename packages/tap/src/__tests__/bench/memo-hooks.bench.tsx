@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Memo hook benchmark: many memo cells in one resource. Measures stable deps,
  * changing deps, and React Compiler-style memo caches.
@@ -6,7 +7,7 @@
  *   pnpm --dir packages/tap exec vitest bench --run --project prod src/__tests__/bench/memo-hooks.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -218,11 +219,17 @@ describe(`memo hooks stable update, ${N} cells`, () => {
 
   for (const [name, make] of Object.entries(hosts)) {
     let host: Host;
-    bench(name, () => host.bump(), {
-      setup: () => {
-        host = make();
-      },
-      teardown: () => host.unmount(),
+    test(name, async ({ bench }) => {
+      await bench(
+        name,
+        {
+          beforeAll: () => {
+            host = make();
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.bump(),
+      ).run();
     });
   }
 });
@@ -235,11 +242,17 @@ describe(`memo hooks changing update, ${N} cells`, () => {
 
   for (const [name, make] of Object.entries(hosts)) {
     let host: Host;
-    bench(name, () => host.bump(), {
-      setup: () => {
-        host = make();
-      },
-      teardown: () => host.unmount(),
+    test(name, async ({ bench }) => {
+      await bench(
+        name,
+        {
+          beforeAll: () => {
+            host = make();
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.bump(),
+      ).run();
     });
   }
 });

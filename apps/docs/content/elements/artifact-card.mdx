@@ -1,0 +1,188 @@
+---
+title: "Artifact card"
+description: "A generated document as a tangible object, written live and versioned."
+---
+
+A compact card for a document the agent is producing: a file icon, a truncated title, and a caption that reads as a shimmering word count while it writes and settles into a version caption once it is done. With a runtime the fields come from a tool call; standalone you hold them yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A document like this is a tool call whose result is the document itself: the call's `status` says whether it is still writing, and its `args` carry the title, the running word count, and the caption to show once it settles.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card";
+
+export const toolkit = defineToolkit({
+  write_document: {
+    type: "backend",
+    render: ({ args, status }) => (
+      <ArtifactCard
+        title={args.title}
+        meta={args.meta}
+        generating={status.type === "running"}
+        words={args.words ?? 0}
+      />
+    ),
+  },
+});
+```
+
+`args` arrives as partial JSON while the model is still emitting the call, so `words` climbs on its own as that field streams in; there is no separate progress channel to wire. Once `status` moves off `"running"`, `generating` turns off and `meta` reads as the finished caption instead.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { toolkit } from "./toolkit";
+
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled display: you own `generating` and `words`, and flip them as the document progresses.
+
+<Steps>
+  <Step>
+
+### Hold the artifact state
+
+```tsx title="app/artifact.tsx"
+"use client";
+
+import { useState } from "react";
+import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card";
+
+export function Artifact() {
+  const [generating, setGenerating] = useState(true);
+  const [words, setWords] = useState(0);
+
+  return (
+    <ArtifactCard
+      title="Draft persistence RFC"
+      meta="Document · v3 · just now"
+      generating={generating}
+      words={words}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Advance it as the document writes
+
+```tsx
+useEffect(() => {
+  if (!generating) return;
+  const id = setInterval(() => setWords((w) => w + 4), 100);
+  return () => clearInterval(id);
+}, [generating]);
+
+function finish() {
+  setGenerating(false);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="artifact-card">
+  <span>{/* file icon, pulses while generating */}</span>
+  <div>
+    <p>{/* title, truncated */}</p>
+    <p>
+      {/* generating: shimmering "Writing" · word count */}
+      {/* otherwise: meta */}
+    </p>
+  </div>
+  <span>{/* arrow, visible on hover */}</span>
+</div>
+```
+
+The meta line and the writing line never show together: while `generating` is true the card shows "Writing" with a shimmer plus `words`, and once it is false the card shows `meta` instead, fading in. The trailing arrow is invisible until the card is hovered. The whole card carries hover and active styling as if it were a button, but it declares no click handler itself; wire one through the forwarded root props.
+
+## Examples
+
+### Restyle the card
+
+Both lanes take `className` on the root. The word count and the meta caption both use the `mono` token, and the writing label uses `ShimmerLabel`, all from `surfaces.tsx`.
+
+```tsx
+<ArtifactCard className="max-w-sm" /* ... */ />
+```
+
+### Making the card actionable
+
+`className`, `onClick`, and every other `div` prop besides `title`, `meta`, `generating`, and `words` land on the root, so the card becomes clickable the same way in both lanes:
+
+```tsx
+<ArtifactCard
+  title="Draft persistence RFC"
+  meta="Document · v3 · just now"
+  onClick={() => openDocument("draft-persistence-rfc")}
+/>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Source | Type | Description |
+|--------|------|-------------|
+| `args.title` | `string` | Card title, truncated to one line. |
+| `args.meta` | `string` | Caption shown once the call is no longer running. |
+| `args.words` | `number \| undefined` | Live word count shown while running; missing reads as `0`. |
+| `status.type` | `"running" \| "requires-action" \| "incomplete" \| "complete"` | `"running"` maps to `generating={true}`; anything else maps to `false`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ArtifactCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Card title, truncated to one line. |
+| `meta` | `string` | required | Caption shown while not generating. |
+| `generating` | `boolean` | `false` | Switches the caption row to the shimmering word count. |
+| `words` | `number` | `0` | Word count shown while `generating` is true. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props, including `onClick`, are forwarded to the root.
+
+</StandaloneMode>

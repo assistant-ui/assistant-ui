@@ -4,28 +4,38 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Home } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const TITLE = "404 - Page not found";
 const MESSAGE =
   "I couldn't find the page you're looking for. It might have been moved or doesn't exist.";
 
+const subscribeToNothing = () => () => {};
+
+const getUrl = () => window.location.href;
+
+const getServerUrl = () => "";
+
+const getCanGoBack = () =>
+  window.history.length > 1 &&
+  document.referrer.startsWith(window.location.origin);
+
+const getServerCanGoBack = () => false;
+
 export default function NotFound() {
   const router = useRouter();
-  const [url, setUrl] = useState("");
-  const [canGoBack, setCanGoBack] = useState(false);
+  const url = useSyncExternalStore(subscribeToNothing, getUrl, getServerUrl);
+  const canGoBack = useSyncExternalStore(
+    subscribeToNothing,
+    getCanGoBack,
+    getServerCanGoBack,
+  );
   const [showAssistant, setShowAssistant] = useState(false);
   const [displayedTitle, setDisplayedTitle] = useState("");
   const [displayedMessage, setDisplayedMessage] = useState("");
   const [showActions, setShowActions] = useState(false);
 
   useEffect(() => {
-    setUrl(window.location.href);
-    setCanGoBack(
-      window.history.length > 1 &&
-        document.referrer.startsWith(window.location.origin),
-    );
-
     const assistantTimer = setTimeout(() => setShowAssistant(true), 600);
 
     return () => clearTimeout(assistantTimer);
@@ -112,7 +122,7 @@ export default function NotFound() {
                 onClick={() => router.back()}
                 className="bg-muted/30 hover:bg-muted/50 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
               >
-                <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm">
+                <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
                   <ArrowLeft className="size-4" />
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5 text-left">
@@ -127,7 +137,7 @@ export default function NotFound() {
               href="/"
               className="bg-muted/30 hover:bg-muted/50 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
             >
-              <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm">
+              <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
                 <Home className="size-4" />
               </div>
               <div className="flex min-w-0 flex-col gap-0.5">

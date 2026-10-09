@@ -1,32 +1,26 @@
-import { loadSourceSnapshot } from "../demo-downloads/create-demo-zip";
+import {
+  createRepoSourceReader,
+  type RepoSourceReader,
+} from "@/lib/repo-source";
 import { createZip } from "../demo-downloads/zip";
 import { getLearnCourse, getLearnStage } from "./registry";
 import type { LearnCourseDefinition } from "./types";
 
-export type LearnSourceSnapshot = Record<string, string>;
 export type LearnStageFiles = Record<string, string>;
 
 export async function resolveStageFiles(
   courseId: string,
   stageId: string,
 ): Promise<LearnStageFiles> {
-  return resolveStageFilesFromSnapshot(
+  return resolveStageFilesFromReader(
     courseId,
     stageId,
-    await loadSourceSnapshot(),
+    createRepoSourceReader(),
   );
 }
 
 export async function createLearnStageZip(courseId: string, stageId: string) {
   return createZip(await resolveStageFiles(courseId, stageId));
-}
-
-export function createLearnStageZipFromSnapshot(
-  courseId: string,
-  stageId: string,
-  snapshot: LearnSourceSnapshot,
-) {
-  return createZip(resolveStageFilesFromSnapshot(courseId, stageId, snapshot));
 }
 
 export function getLearnStageArchiveFilename(
@@ -38,21 +32,21 @@ export function getLearnStageArchiveFilename(
   return `xulux-${courseId}-${stageId.toLowerCase()}.zip`;
 }
 
-export function resolveStageFilesFromSnapshot(
+export async function resolveStageFilesFromReader(
   courseId: string,
   stageId: string,
-  snapshot: LearnSourceSnapshot,
-): LearnStageFiles {
+  reader: RepoSourceReader,
+): Promise<LearnStageFiles> {
   const course = getLearnCourse(courseId);
-  return resolveStage(course, stageId, snapshot, new Set());
+  return resolveStage(course, stageId, reader, new Set());
 }
 
-function resolveStage(
+async function resolveStage(
   course: LearnCourseDefinition,
   stageId: string,
-  snapshot: LearnSourceSnapshot,
+  reader: RepoSourceReader,
   resolvingStageIds: Set<string>,
-): LearnStageFiles {
+): Promise<LearnStageFiles> {
   const stage = getLearnStage(course.id, stageId);
   if (resolvingStageIds.has(stageId)) {
     throw new Error(`Cyclic Learn stage inheritance: ${course.id}/${stageId}`);
@@ -60,28 +54,30 @@ function resolveStage(
 
   resolvingStageIds.add(stageId);
   const sourceRoot = normalizeSourceRoot(stage.sourceRoot);
-  const sourcePrefix = `${sourceRoot}/`;
   const files: LearnStageFiles = stage.previousStageId
-    ? resolveStage(course, stage.previousStageId, snapshot, resolvingStageIds)
-    : resolveSharedFiles(course.sharedFiles, snapshot);
+    ? await resolveStage(
+        course,
+        stage.previousStageId,
+        reader,
+        resolvingStageIds,
+      )
+    : await resolveSharedFiles(course.sharedFiles, reader);
 
-  Object.assign(files, resolveSharedFiles(stage.sharedFiles, snapshot));
-  let stageFileCount = 0;
+  Object.assign(files, await resolveSharedFiles(stage.sharedFiles, reader));
 
-  for (const snapshotPath of Object.keys(snapshot).sort()) {
-    if (!snapshotPath.startsWith(sourcePrefix)) continue;
-    const relativePath = snapshotPath.slice(sourcePrefix.length);
-    if (!relativePath || relativePath.startsWith("../")) continue;
-    files[relativePath] = normalizePreviewImports(
-      snapshot[snapshotPath]!,
-      relativePath,
-    );
-    stageFileCount += 1;
-  }
+  const stageFiles = await reader.readUnder(sourceRoot);
+  const relativePaths = Object.keys(stageFiles).sort();
 
-  if (stageFileCount === 0) {
+  if (relativePaths.length === 0) {
     throw new Error(
       `No source snapshot files found for Learn stage: ${course.id}/${stageId}`,
+    );
+  }
+
+  for (const relativePath of relativePaths) {
+    files[relativePath] = normalizePreviewImports(
+      stageFiles[relativePath]!,
+      relativePath,
     );
   }
 
@@ -111,24 +107,30 @@ function relativeImport(outputPath: string, targetPath: string) {
   return relative.startsWith(".") ? relative : `./${relative}`;
 }
 
-function resolveSharedFiles(
+async function resolveSharedFiles(
   sharedFiles: Record<string, string> | undefined,
-  snapshot: LearnSourceSnapshot,
-): LearnStageFiles {
+  reader: RepoSourceReader,
+): Promise<LearnStageFiles> {
+  const entries = Object.entries(sharedFiles ?? {})
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(
+      ([outputPath, snapshotPath]) =>
+        [normalizeOutputPath(outputPath), snapshotPath] as const,
+    );
+  const sources = await reader.readFiles(
+    entries.map(([, snapshotPath]) => snapshotPath),
+  );
   const files: LearnStageFiles = {};
 
-  for (const [outputPath, snapshotPath] of Object.entries(
-    sharedFiles ?? {},
-  ).sort(([left], [right]) => left.localeCompare(right))) {
-    const normalizedOutputPath = normalizeOutputPath(outputPath);
-    const source = snapshot[snapshotPath];
+  entries.forEach(([outputPath, snapshotPath], index) => {
+    const source = sources[index];
     if (source === undefined) {
       throw new Error(
         `Missing shared Learn source snapshot file: ${snapshotPath}`,
       );
     }
-    files[normalizedOutputPath] = source;
-  }
+    files[outputPath] = source;
+  });
 
   return files;
 }

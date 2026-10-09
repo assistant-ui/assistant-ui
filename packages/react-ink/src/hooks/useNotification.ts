@@ -65,6 +65,24 @@ const DEFAULTS = {
   onNeedsInput: NotificationHandler<"needs-input">;
 };
 
+const invokeCustomHandler = <T extends NotificationEvent["type"]>(
+  handler: NonNullable<NotificationHandler<T>["custom"]>,
+  event: Extract<NotificationEvent, { type: T }>,
+) => {
+  const reportError = (error: unknown) => {
+    console.error(
+      `[assistant-ui/react-ink] ${event.type} notification callback threw an error`,
+      error,
+    );
+  };
+
+  try {
+    void Promise.resolve(handler(event)).catch(reportError);
+  } catch (error) {
+    reportError(error);
+  }
+};
+
 const dispatch = <T extends NotificationEvent["type"]>(
   handler: NotificationHandler<T> | false | undefined,
   fallback: NotificationHandler<T>,
@@ -78,7 +96,7 @@ const dispatch = <T extends NotificationEvent["type"]>(
       typeof resolved.osc === "string" ? resolved.osc : "osc9";
     sendOSCNotification(event.title, undefined, variant);
   }
-  resolved.custom?.(event);
+  if (resolved.custom) invokeCustomHandler(resolved.custom, event);
 };
 
 type Snapshot = {
@@ -95,6 +113,7 @@ type Snapshot = {
  * bell-on-every-transition behavior; pass `false` for a key to suppress one.
  */
 export const useNotification = (config: NotificationConfig = {}) => {
+  const enabled = config.enabled;
   const snapshotKey = useAuiState((s) => {
     const last = s.thread.messages.findLast((m) => m.role === "assistant");
     const statusReason =
@@ -123,7 +142,7 @@ export const useNotification = (config: NotificationConfig = {}) => {
         ? `${threadId}:${messageId}:${statusType}:${statusReason}`
         : undefined;
 
-    if (cfg.enabled === false) {
+    if (enabled === false) {
       seenRunningForRef.current = undefined;
       if (key) lastKeyRef.current = key;
       return;
@@ -165,7 +184,7 @@ export const useNotification = (config: NotificationConfig = {}) => {
         reason: "interrupt",
       });
     }
-  }, [snapshotKey]);
+  }, [enabled, snapshotKey]);
 };
 
 export type { OSCVariant } from "./notification-channels";

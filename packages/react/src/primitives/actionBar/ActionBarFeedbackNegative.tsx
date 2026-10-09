@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import type { ActionButtonProps } from "../../utils/createActionButton";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { Primitive } from "../../utils/Primitive";
 import { useAuiState } from "@assistant-ui/store";
 import { useActionBarFeedbackNegative as useActionBarFeedbackNegativeBehavior } from "@assistant-ui/core/react";
@@ -28,6 +28,7 @@ export const ActionBarPrimitiveFeedbackNegative = forwardRef<
   return (
     <Primitive.button
       type="button"
+      aria-pressed={isSubmitted}
       {...(isSubmitted ? { "data-submitted": "true" } : {})}
       {...props}
       ref={forwardedRef}

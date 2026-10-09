@@ -5,7 +5,7 @@ import {
   frontendTools,
   type FrontendTools,
   unstable_injectInteractableContext,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 
 export const maxDuration = 30;
 
@@ -20,16 +20,19 @@ export async function POST(req: Request) {
     tools?: FrontendTools;
   } = await req.json();
 
+  const aiSDKTools = clientTools ? frontendTools(clientTools) : undefined;
   const modelMessages = await convertToModelMessages(
     unstable_injectInteractableContext(messages),
+    aiSDKTools ? { tools: aiSDKTools } : {},
   );
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
     messages: modelMessages,
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
-    ...(clientTools ? { tools: frontendTools(clientTools) } : {}),
+    ...(aiSDKTools ? { tools: aiSDKTools } : {}),
   } as Parameters<typeof streamText>[0]);
 
   return result.toUIMessageStreamResponse();

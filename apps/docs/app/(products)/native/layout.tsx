@@ -5,7 +5,7 @@ import { createOgMetadata } from "@/lib/og";
 
 const title = "assistant-ui for React Native";
 const description =
-  "Get the UX of ChatGPT in your own mobile app. Full Expo support, cross-platform code sharing, powered by the assistant-ui runtime.";
+  "Native Thread, Composer, and Message primitives for Expo. Same runtime as the web SDK.";
 
 export const metadata: Metadata = {
   title,

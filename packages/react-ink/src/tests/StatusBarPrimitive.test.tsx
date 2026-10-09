@@ -31,7 +31,6 @@ const setThreadState = (thread: unknown) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 describe("StatusBarPrimitive.Root", () => {
@@ -47,8 +46,10 @@ describe("StatusBarPrimitive.Root", () => {
 
 describe("StatusBarPrimitive.ModelName", () => {
   it("renders the provided name", () => {
-    const { lastFrame } = render(<StatusBarPrimitiveModelName name="gpt-5" />);
-    expect(lastFrame()).toContain("gpt-5");
+    const { lastFrame } = render(
+      <StatusBarPrimitiveModelName name="gpt-6-luna" />,
+    );
+    expect(lastFrame()).toContain("gpt-6-luna");
   });
 
   it("falls back to 'unknown'", () => {

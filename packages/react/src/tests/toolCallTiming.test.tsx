@@ -7,8 +7,10 @@ import { AssistantRuntimeProvider } from "../context";
 import * as MessagePrimitive from "../primitives/message";
 import * as ThreadPrimitive from "../primitives/thread";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
-import type { ChatModelAdapter, ThreadMessageLike } from "../index";
 import {
+  type ChatModelAdapter,
+  type ThreadMessageLike,
+  useExternalStoreRuntime,
   useToolCallElapsed,
   unstable_useMessageStallDetection,
 } from "../index";
@@ -45,14 +47,37 @@ const ElapsedProbe: FC = () => {
 };
 
 const StallProbe: FC = () => {
-  const { stalled } = unstable_useMessageStallDetection({ thresholdMs: 2000 });
-  return <span data-testid="stalled">{String(stalled)}</span>;
+  const { stalled, stalledForMs } = unstable_useMessageStallDetection({
+    thresholdMs: 2000,
+  });
+  return (
+    <>
+      <span data-testid="stalled">{String(stalled)}</span>
+      <span data-testid="stalled-for">{stalledForMs}</span>
+    </>
+  );
 };
 
 const RuntimeProvider: FC<
   PropsWithChildren<{ messages: ThreadMessageLike[] }>
 > = ({ messages, children }) => {
   const runtime = useLocalRuntime(noOpAdapter, { initialMessages: messages });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
+const ExternalRuntimeProvider: FC<
+  PropsWithChildren<{ messages: ThreadMessageLike[] }>
+> = ({ messages, children }) => {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    isRunning: true,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
@@ -81,6 +106,19 @@ const Harness: FC<{ messages: ThreadMessageLike[]; probe: FC }> = ({
       }}
     />
   </RuntimeProvider>
+);
+
+const ExternalHarness: FC<{
+  messages: ThreadMessageLike[];
+  probe: FC;
+}> = ({ messages, probe: Probe }) => (
+  <ExternalRuntimeProvider messages={messages}>
+    <ThreadPrimitive.Messages
+      components={{
+        Message: () => <MessagePrimitive.Parts components={{ Text: Probe }} />,
+      }}
+    />
+  </ExternalRuntimeProvider>
 );
 
 describe("useToolCallElapsed", () => {
@@ -193,6 +231,16 @@ describe("unstable_useMessageStallDetection", () => {
     });
 
     expect(screen.getByTestId("stalled").textContent).toBe("true");
+    const stalledFor = () =>
+      Number(screen.getByTestId("stalled-for").textContent);
+    const atStall = stalledFor();
+    expect(atStall).toBeGreaterThanOrEqual(2000);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(stalledFor()).toBeGreaterThan(atStall);
   });
 
   it("never stalls on settled messages", async () => {
@@ -217,5 +265,28 @@ describe("unstable_useMessageStallDetection", () => {
     });
 
     expect(screen.getByTestId("stalled").textContent).toBe("false");
+  });
+
+  it("resets the timer for equal-length content changes", async () => {
+    const message = (text: string): ThreadMessageLike => ({
+      role: "assistant",
+      content: [{ type: "text", text }],
+      status: { type: "running" },
+    });
+    const view = render(
+      <ExternalHarness messages={[message("first")]} probe={StallProbe} />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    await act(async () => vi.advanceTimersByTimeAsync(1500));
+    view.rerender(
+      <ExternalHarness messages={[message("other")]} probe={StallProbe} />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+
+    expect(screen.getByTestId("stalled").textContent).toBe("false");
+
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    expect(screen.getByTestId("stalled").textContent).toBe("true");
   });
 });

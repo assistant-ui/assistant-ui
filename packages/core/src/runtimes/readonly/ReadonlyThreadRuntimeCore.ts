@@ -1,16 +1,22 @@
-import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadMessage } from "../../types/message";
-import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
-import { BaseSubscribable } from "../../subscribable/subscribable";
+import type { CreateAttachment } from "../../types/attachment";
+import type { QuoteInfo } from "../../types/quote";
+import type { SendOptions } from "../../runtime/interfaces/composer-runtime-core";
+import {
+  InertThreadRuntimeCore,
+  createInertComposer,
+} from "../inert/InertThreadRuntimeCore";
+import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 
 const READONLY_THREAD_ERROR = new Error(
   "This is a readonly thread. You cannot perform mutations on readonly threads.",
 );
 
-export class ReadonlyThreadRuntimeCore
-  extends BaseSubscribable
-  implements ThreadRuntimeCore
-{
+export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
+  protected get error() {
+    return READONLY_THREAD_ERROR;
+  }
+
   private _messages: readonly ThreadMessage[] = [];
 
   get messages() {
@@ -39,198 +45,6 @@ export class ReadonlyThreadRuntimeCore
     return [messageId];
   }
 
-  switchToBranch(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  append(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  deleteMessage(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  startRun(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  resumeRun(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  cancelRun(): void {}
-
-  addToolResult(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  resumeToolCall(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  respondToToolApproval(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  speak(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  stopSpeaking(): void {}
-
-  connectVoice(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  disconnectVoice(): void {}
-
-  getVoiceVolume = () => 0;
-  subscribeVoiceVolume = (): Unsubscribe => () => {};
-
-  muteVoice(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  unmuteVoice(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  submitFeedback(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  getModelContext() {
-    return {};
-  }
-
-  exportExternalState() {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  importExternalState(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  composer = {
-    attachments: [] as never[],
-    attachmentAccept: "*",
-
-    async addAttachment() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    async removeAttachment() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    isEditing: false as const,
-    canCancel: false,
-    canSend: false,
-    isEmpty: true,
-    text: "",
-
-    setText() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    role: "user" as const,
-
-    setRole() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    runConfig: {},
-
-    setRunConfig() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    async reset() {
-      // noop
-    },
-
-    async clearAttachments() {
-      // noop
-    },
-
-    send() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    cancel() {
-      // noop
-    },
-
-    queue: [] as never[],
-    moveQueueItem() {},
-    removeQueueItem() {},
-
-    dictation: undefined,
-
-    startDictation() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    stopDictation() {
-      // noop
-    },
-
-    quote: undefined,
-
-    setQuote() {
-      throw READONLY_THREAD_ERROR;
-    },
-
-    subscribe() {
-      return () => {};
-    },
-
-    unstable_on() {
-      return () => {};
-    },
-  };
-
-  getEditComposer() {
-    return undefined;
-  }
-
-  beginEdit(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
-  speech = undefined;
-  voice = undefined;
-
-  capabilities = {
-    switchToBranch: false,
-    switchBranchDuringRun: false,
-    edit: false,
-    delete: false,
-    reload: false,
-    refetchThread: false,
-    cancel: false,
-    unstable_copy: false,
-    speech: false,
-    dictation: false,
-    voice: false,
-    attachments: false,
-    feedback: false,
-    queue: false,
-  } as const;
-
-  isDisabled = false;
-  isSendDisabled = false;
-  isLoading = false;
-
-  state = null;
-  suggestions = [] as never[];
-  extras = undefined;
-
-  import(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
   export() {
     return {
       messages: this._messages.map((message, idx) => ({
@@ -240,11 +54,61 @@ export class ReadonlyThreadRuntimeCore
     };
   }
 
-  reset(): void {
-    throw READONLY_THREAD_ERROR;
-  }
+  composer = {
+    ...createInertComposer(READONLY_THREAD_ERROR, false),
+    async addAttachment(_fileOrAttachment: File | CreateAttachment) {},
+    setText(_value: string) {},
+    send(_options?: SendOptions) {},
+    setQuote(_quote: QuoteInfo | undefined) {},
+  };
 
-  unstable_on(): Unsubscribe {
-    return () => {};
-  }
+  isLoading = false;
+  override isDisabled = true;
+  override isSendDisabled = true;
+
+  override switchToBranch(): void {}
+
+  override append(): void {}
+
+  override deleteMessage(): void {}
+
+  override startRun(): void {}
+
+  override resumeRun(): void {}
+
+  override cancelRun(): void {}
+
+  override unstable_notifySessionReset(): void {}
+
+  override addToolResult(): void {}
+
+  override resumeToolCall(): void {}
+
+  override async respondToToolApproval(): Promise<void> {}
+
+  override async unstable_recordToolInteraction(
+    _options: Unstable_RecordToolInteractionOptions,
+  ): Promise<void> {}
+
+  override speak(): void {}
+
+  override stopSpeaking(): void {}
+
+  override connectVoice(): void {}
+
+  override disconnectVoice(): void {}
+
+  override muteVoice(): void {}
+
+  override unmuteVoice(): void {}
+
+  override submitFeedback(): void {}
+
+  override importExternalState(): void {}
+
+  override beginEdit(): void {}
+
+  override import(): void {}
+
+  override reset(): void {}
 }

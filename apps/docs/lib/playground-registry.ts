@@ -1,4 +1,14 @@
-import type { BuilderConfig } from "@/components/builder/types";
+import type { BuilderConfig } from "@/components/pages/playground/types";
+import {
+  FONT_SIZE_CLASS,
+  MESSAGE_GAP_CLASS,
+  generateThemeClasses,
+  generateThemeCssVars,
+  generateThreadStyleVars,
+  indent,
+} from "./builder-utils";
+
+type ThemeClasses = ReturnType<typeof generateThemeClasses>;
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -18,93 +28,15 @@ export function determineRegistryDependencies(config: BuilderConfig): string[] {
     deps.push(`${REGISTRY_BASE_URL}/base/attachment.json`);
   }
 
+  if (components.reasoning) {
+    deps.push(`${REGISTRY_BASE_URL}/base/reasoning.json`);
+  }
+
+  if (components.sources) {
+    deps.push(`${REGISTRY_BASE_URL}/base/sources.json`);
+  }
+
   return deps;
-}
-
-export function generateCssVars(
-  config: BuilderConfig,
-  mode: "light" | "dark",
-): Record<string, string> {
-  const { styles } = config;
-  const vars: Record<string, string> = {};
-
-  const accentColor =
-    mode === "light" ? styles.colors.accent.light : styles.colors.accent.dark;
-  vars["--aui-accent"] = accentColor;
-  vars["--aui-accent-foreground"] = isLightColor(accentColor)
-    ? "#000000"
-    : "#ffffff";
-
-  if (styles.colors.background) {
-    vars["--aui-background"] =
-      mode === "light"
-        ? styles.colors.background.light
-        : styles.colors.background.dark;
-  }
-
-  if (styles.colors.foreground) {
-    vars["--aui-foreground"] =
-      mode === "light"
-        ? styles.colors.foreground.light
-        : styles.colors.foreground.dark;
-  }
-
-  if (styles.colors.muted) {
-    vars["--aui-muted"] =
-      mode === "light" ? styles.colors.muted.light : styles.colors.muted.dark;
-  }
-
-  if (styles.colors.mutedForeground) {
-    vars["--aui-muted-foreground"] =
-      mode === "light"
-        ? styles.colors.mutedForeground.light
-        : styles.colors.mutedForeground.dark;
-  }
-
-  if (styles.colors.border) {
-    vars["--aui-border"] =
-      mode === "light" ? styles.colors.border.light : styles.colors.border.dark;
-  }
-
-  if (styles.colors.userMessage) {
-    vars["--aui-user-message"] =
-      mode === "light"
-        ? styles.colors.userMessage.light
-        : styles.colors.userMessage.dark;
-  }
-
-  if (styles.colors.composer) {
-    vars["--aui-composer"] =
-      mode === "light"
-        ? styles.colors.composer.light
-        : styles.colors.composer.dark;
-  }
-
-  vars["--aui-max-width"] = styles.maxWidth;
-  vars["--aui-border-radius"] = getBorderRadiusValue(styles.borderRadius);
-  vars["--aui-font-family"] = styles.fontFamily;
-
-  return vars;
-}
-
-function getBorderRadiusValue(radius: string): string {
-  const map: Record<string, string> = {
-    none: "0",
-    sm: "0.125rem",
-    md: "0.375rem",
-    lg: "0.5rem",
-    full: "1.5rem",
-  };
-  return map[radius] || "0.5rem";
-}
-
-function isLightColor(hexColor: string): boolean {
-  const hex = hexColor.replace("#", "");
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5;
 }
 
 export function generateRegistryJson(config: BuilderConfig) {
@@ -116,21 +48,20 @@ export function generateRegistryJson(config: BuilderConfig) {
     type: "registry:block",
     dependencies: [
       "@assistant-ui/react",
-      "@assistant-ui/react-ui",
       "lucide-react",
       ...(config.components.markdown ? ["@assistant-ui/react-markdown"] : []),
     ],
     registryDependencies,
     files: [
       {
-        path: "components/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
         content: threadCode,
         type: "registry:component",
       },
     ],
     cssVars: {
-      light: generateCssVars(config, "light"),
-      dark: generateCssVars(config, "dark"),
+      light: generateThemeCssVars(config.styles, "light"),
+      dark: generateThemeCssVars(config.styles, "dark"),
     },
   };
 }
@@ -146,8 +77,13 @@ function generateThreadCode(config: BuilderConfig): string {
     components.branchPicker ? `  BranchPickerPrimitive,` : null,
     `  ComposerPrimitive,`,
     `  ErrorPrimitive,`,
+    components.reasoning || components.sources ? `  groupPartByType,` : null,
+    components.reasoning || components.sources
+      ? `  MessagePartPrimitive,`
+      : null,
     `  MessagePrimitive,`,
     `  ThreadPrimitive,`,
+    `  useAuiState,`,
     `} from "@assistant-ui/react";`,
     components.markdown && components.typingIndicator === "dot"
       ? `import "@assistant-ui/react-markdown/styles/dot.css";`
@@ -158,19 +94,25 @@ function generateThreadCode(config: BuilderConfig): string {
 
   const internalImports = [
     `import { Button } from "@/components/ui/button";`,
-    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
+    `import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";`,
     components.markdown
-      ? `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`
+      ? `import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";`
       : null,
     components.markdown
-      ? `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`
+      ? `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";`
       : null,
     components.attachments
       ? `import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";`
+} from "@/components/assistant-ui/elements/attachment.aui";`
+      : null,
+    components.reasoning
+      ? `import { Reasoning, ReasoningRoot, ReasoningTrigger, ReasoningContent, ReasoningText } from "@/components/assistant-ui/elements/reasoning.aui";`
+      : null,
+    components.sources
+      ? `import { Sources } from "@/components/assistant-ui/elements/sources.aui";`
       : null,
     `import { cn } from "@/lib/utils";`,
   ]
@@ -183,66 +125,80 @@ ${externalImports}
 
 ${internalImports}`;
 
-  const borderRadiusClass = getBorderRadiusClass(styles.borderRadius);
-  const fontSizeClass = getFontSizeClass(styles.fontSize);
-  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
-  const accentColor = styles.colors.accent.light;
-  const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
+  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
+  const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing] ?? "gap-y-6";
+  const theme = generateThemeClasses(styles);
+  const styleVars = Object.entries(generateThreadStyleVars(styles))
+    .map(([name, value]) => `\n        ["${name}" as string]: "${value}",`)
+    .join("");
 
   const threadComponent = `
 export function Thread() {
+  const isEmpty = useAuiState((s) => s.thread.isEmpty);
+
   return (
     <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-background ${fontSizeClass}"
-      style={{
-        "--thread-max-width": "${styles.maxWidth}",
-        "--accent-color": "${accentColor}",
-        "--accent-foreground": "${accentForeground}",${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
+      className="flex h-full flex-col bg-background text-foreground ${fontSizeClass}"
+      style={{${styleVars}${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
       }}
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
-        ${
-          components.threadWelcome
-            ? `<AuiIf condition={(s) => s.thread.isEmpty}>
-          <ThreadWelcome />
-        </AuiIf>`
-            : ""
-        }
+        <div
+          className={cn(
+            "mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col px-4 pt-4",
+            isEmpty && "justify-center",
+          )}
+        >
+          ${
+            components.threadWelcome
+              ? `<AuiIf condition={(s) => s.thread.isEmpty}>
+            <ThreadWelcome />
+          </AuiIf>`
+              : ""
+          }
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,${components.editMessage ? `\n            EditComposer,` : ""}
-            AssistantMessage,
-          }}
-        />
+          <div className="mb-14 flex flex-col ${messageGapClass} empty:hidden">
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage,${components.editMessage ? `\n                EditComposer,` : ""}
+                AssistantMessage,
+              }}
+            />
+          </div>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
-          ${components.scrollToBottom ? "<ThreadScrollToBottom />" : ""}
-          <Composer />
-        </ThreadPrimitive.ViewportFooter>
+          <ThreadPrimitive.ViewportFooter
+            className={cn(
+              "flex w-full flex-col gap-4 overflow-visible bg-background pb-4",
+              !isEmpty && "sticky bottom-0 mt-auto rounded-t-[var(--composer-radius)]",
+            )}
+          >
+            ${components.scrollToBottom ? "<ThreadScrollToBottom />" : ""}
+            <Composer />
+            ${
+              components.suggestions
+                ? `<AuiIf condition={(s) => s.thread.isEmpty && s.composer.isEmpty}>
+              <ThreadSuggestions />
+            </AuiIf>`
+                : ""
+            }
+          </ThreadPrimitive.ViewportFooter>
+        </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
 }`;
 
   const additionalComponents = [
-    components.threadWelcome
-      ? generateWelcomeComponent(config, borderRadiusClass)
-      : "",
-    generateComposerComponent(config, borderRadiusClass),
+    components.threadWelcome ? generateWelcomeComponent(styles.animations) : "",
+    components.suggestions ? generateSuggestionsComponent(theme) : "",
+    generateComposerComponent(config, theme),
     components.scrollToBottom ? generateScrollToBottomComponent() : "",
-    generateUserMessageComponent(
-      config,
-      borderRadiusClass,
-      messageSpacingClass,
-    ),
-    components.editMessage
-      ? generateEditComposerComponent(borderRadiusClass)
-      : "",
-    generateAssistantMessageComponent(config, messageSpacingClass),
+    generateUserMessageComponent(config, theme),
+    components.editMessage ? generateEditComposerComponent(theme) : "",
+    generateAssistantMessageComponent(config, theme),
     generateActionBarComponent(config),
     components.branchPicker ? generateBranchPickerComponent() : "",
   ]
@@ -267,78 +223,44 @@ function generateIconImports(config: BuilderConfig): string {
     icons.push("ThumbsUpIcon", "ThumbsDownIcon");
   if (components.avatar) icons.push("BotIcon", "UserIcon");
   if (components.loadingIndicator !== "none") icons.push("LoaderIcon");
-  if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
 
-function getBorderRadiusClass(radius: string): string {
-  return (
-    {
-      none: "rounded-none",
-      sm: "rounded-sm",
-      md: "rounded-md",
-      lg: "rounded-lg",
-      full: "rounded-3xl",
-    }[radius] || "rounded-lg"
-  );
-}
-
-function getFontSizeClass(fontSize: string): string {
-  return (
-    {
-      sm: "text-sm",
-      base: "text-base",
-      lg: "text-lg",
-    }[fontSize] || "text-base"
-  );
-}
-
-function getMessageSpacingClass(spacing: string): string {
-  return (
-    {
-      compact: "py-2",
-      comfortable: "py-4",
-      spacious: "py-6",
-    }[spacing] || "py-4"
-  );
-}
-
-function generateWelcomeComponent(
-  config: BuilderConfig,
-  borderRadiusClass: string,
-): string {
-  const { components } = config;
+function generateWelcomeComponent(animations: boolean): string {
   return `
 function ThreadWelcome() {
   return (
-    <div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-      <div className="flex w-full flex-grow flex-col items-center justify-center">
-        <div className="flex size-full flex-col justify-center px-8">
-          <div className="text-2xl font-semibold">Hello there!</div>
-          <div className="text-2xl text-muted-foreground/65">
-            How can I help you today?
-          </div>
-        </div>
-      </div>
-      ${
-        components.suggestions
-          ? `<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
-        <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" asChild>
-          <Button variant="ghost" className="h-auto w-full flex-col items-start justify-start gap-1 border ${borderRadiusClass} px-5 py-4 text-left text-sm">
-            <span className="font-medium">What's the weather</span>
+    <div className="mb-6 flex flex-col px-2">
+      <p className="text-2xl font-medium tracking-tight${animations ? " fade-in slide-in-from-bottom-1 animate-in fill-mode-both duration-200" : ""}">How can I help you today?</p>
+    </div>
+  );
+}`;
+}
+
+function generateSuggestionsComponent(theme: ThemeClasses): string {
+  return `
+function ThreadSuggestions() {
+  return (
+    <div className="flex w-full flex-col">
+      <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" send asChild>
+        <button type="button" className="group ${theme.suggestion} focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+          <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
+          <span className="min-w-0 flex-1 truncate">
+            <span className="text-foreground">What's the weather</span>{" "}
             <span className="text-muted-foreground">in San Francisco?</span>
-          </Button>
-        </ThreadPrimitive.Suggestion>
-        <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" asChild>
-          <Button variant="ghost" className="h-auto w-full flex-col items-start justify-start gap-1 border ${borderRadiusClass} px-5 py-4 text-left text-sm">
-            <span className="font-medium">Explain React hooks</span>
+          </span>
+        </button>
+      </ThreadPrimitive.Suggestion>
+      <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" send asChild>
+        <button type="button" className="group ${theme.suggestion} focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+          <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
+          <span className="min-w-0 flex-1 truncate">
+            <span className="text-foreground">Explain React hooks</span>{" "}
             <span className="text-muted-foreground">like useState</span>
-          </Button>
-        </ThreadPrimitive.Suggestion>
-      </div>`
-          : ""
-      }
+          </span>
+        </button>
+      </ThreadPrimitive.Suggestion>
     </div>
   );
 }`;
@@ -346,23 +268,26 @@ function ThreadWelcome() {
 
 function generateComposerComponent(
   config: BuilderConfig,
-  borderRadiusClass: string,
+  theme: ThemeClasses,
 ): string {
   const { components } = config;
   return `
 function Composer() {
   return (
     <ComposerPrimitive.Root className="relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="flex w-full flex-col ${borderRadiusClass} border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
-        ${components.attachments ? "<ComposerAttachments />" : ""}
-        <ComposerPrimitive.Input
-          placeholder="Send a message..."
-          className="mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-          rows={1}
-          autoFocus
-          aria-label="Message input"
-        />
-        <ComposerAction />
+      <ComposerPrimitive.AttachmentDropzone asChild>
+        <div className="${theme.composerBorder} flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
+          ${components.attachments ? "<ComposerAttachments />" : ""}
+          <ComposerPrimitive.Input
+            placeholder="Send a message..."
+            className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none placeholder:text-muted-foreground"
+            rows={1}
+            autoFocus
+            enterKeyHint="send"
+            aria-label="Message input"
+          />
+          <ComposerAction />
+        </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
@@ -370,7 +295,7 @@ function Composer() {
 
 function ComposerAction() {
   return (
-    <div className="relative mx-2 mb-2 flex items-center justify-between">
+    <div className="relative flex items-center justify-between">
       ${components.attachments ? "<ComposerAddAttachment />" : "<div />"}
 
       <AuiIf condition={(s) => !s.thread.isRunning}>
@@ -381,7 +306,7 @@ function ComposerAction() {
             type="submit"
             variant="default"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-7 rounded-full"
             style={{
               backgroundColor: "var(--accent-color)",
               color: "var(--accent-foreground)",
@@ -399,14 +324,14 @@ function ComposerAction() {
             type="button"
             variant="default"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-7 rounded-full"
             style={{
               backgroundColor: "var(--accent-color)",
               color: "var(--accent-foreground)",
             }}
             aria-label="Stop generating"
           >
-            <SquareIcon className="size-3 fill-current" />
+            <SquareIcon className="size-3.5 fill-current" />
           </Button>
         </ComposerPrimitive.Cancel>
       </AuiIf>
@@ -434,25 +359,73 @@ function ThreadScrollToBottom() {
 
 function generateUserMessageComponent(
   config: BuilderConfig,
-  borderRadiusClass: string,
-  messageSpacingClass: string,
+  theme: ThemeClasses,
 ): string {
   const { components, styles } = config;
   const animationClass = styles.animations
     ? " fade-in slide-in-from-bottom-1 animate-in duration-150"
     : "";
+  const attachments = components.attachments
+    ? "<UserMessageAttachments />"
+    : "";
 
-  return `
+  const userMessage =
+    styles.userMessagePosition === "left"
+      ? `
 function UserMessage() {
   return (
     <MessagePrimitive.Root
-      className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 ${messageSpacingClass}${animationClass}"
+      className="mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2${animationClass}"
       data-role="user"
     >
-      ${components.attachments ? "<UserMessageAttachments />" : ""}
+      ${
+        components.avatar
+          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.userAvatar}">
+        <UserIcon className="size-4" />
+      </div>`
+          : ""
+      }
+
+      <div className="flex max-w-[80%] min-w-0 flex-col items-start gap-y-2 [&>*]:w-auto [&>*:empty]:hidden">
+        ${attachments}
+        <div className="relative">
+          <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
+            <MessagePrimitive.Parts />
+          </div>
+          ${
+            components.editMessage
+              ? `<div className="absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2">
+            <UserActionBar />
+          </div>`
+              : ""
+          }
+        </div>
+      </div>
+
+      ${components.branchPicker ? `<BranchPicker className="-mr-1 self-end" />` : ""}
+    </MessagePrimitive.Root>
+  );
+}`
+      : `
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root
+      className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2${animationClass}"
+      data-role="user"
+    >
+      ${attachments}
+      ${
+        components.avatar
+          ? `<div className="col-start-2 flex justify-end">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.userAvatar}">
+          <UserIcon className="size-4" />
+        </div>
+      </div>`
+          : ""
+      }
 
       <div className="relative col-start-2 min-w-0">
-        <div className="${borderRadiusClass} bg-muted px-4 py-2.5 break-words text-foreground">
+        <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
@@ -464,10 +437,16 @@ function UserMessage() {
         }
       </div>
 
-      ${components.branchPicker ? `<BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />` : ""}
+      ${
+        components.branchPicker
+          ? `<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />`
+          : ""
+      }
     </MessagePrimitive.Root>
   );
-}
+}`;
+
+  return `${userMessage}
 
 ${
   components.editMessage
@@ -490,22 +469,22 @@ ${
 }`;
 }
 
-function generateEditComposerComponent(borderRadiusClass: string): string {
+function generateEditComposerComponent(theme: ThemeClasses): string {
   return `
 function EditComposer() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col ${borderRadiusClass} bg-muted">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2">
+      <ComposerPrimitive.Root className="${theme.editComposerBorder} ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
         <ComposerPrimitive.Input
-          className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+          className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus
         />
-        <div className="mx-3 mb-3 flex items-center gap-2 self-end">
+        <div className="mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <Button variant="ghost" size="sm">Cancel</Button>
+            <Button variant="ghost" size="sm" className="h-8 px-3">Cancel</Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <Button size="sm">Update</Button>
+            <Button size="sm" className="h-8 px-3">Update</Button>
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
@@ -516,48 +495,91 @@ function EditComposer() {
 
 function generateAssistantMessageComponent(
   config: BuilderConfig,
-  messageSpacingClass: string,
+  theme: ThemeClasses,
 ): string {
   const { components, styles } = config;
   const animationClass = styles.animations
     ? " fade-in slide-in-from-bottom-1 animate-in duration-150"
     : "";
 
-  const reasoningSection = components.reasoning
-    ? `
-        <div className="mb-3 overflow-hidden rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
-          <details className="group">
-            <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
-              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
-              <span className="font-medium">Thinking...</span>
-            </summary>
-            <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm italic text-muted-foreground">
-            </div>
-          </details>
-        </div>`
-    : "";
+  const contentClass = [
+    "break-words",
+    theme.assistantMessage,
+    "leading-relaxed text-foreground",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  return `
-function AssistantMessage() {
-  return (
-    <MessagePrimitive.Root
-      className="relative mx-auto w-full max-w-[var(--thread-max-width)] ${messageSpacingClass}${animationClass}"
-      data-role="assistant"
-    >
-      ${
-        components.avatar
-          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-        <BotIcon className="size-4" />
-      </div>`
-          : ""
-      }
-      <div className="break-words px-2 leading-relaxed text-foreground">${reasoningSection}
-        <MessagePrimitive.Parts
-          components={{
-            ${components.markdown ? `Text: MarkdownText,` : ""}
-            ${components.markdown ? `tools: { Fallback: ToolFallback },` : ""}
+  const partComponents = [
+    components.markdown ? "Text: MarkdownText" : "",
+    components.markdown ? "tools: { Fallback: ToolFallback }" : "",
+  ].filter(Boolean);
+
+  const parts =
+    components.reasoning || components.sources
+      ? `<MessagePrimitive.GroupedParts
+          groupBy={groupPartByType({${components.reasoning ? '\n            reasoning: ["group-reasoning"],' : ""}${components.sources ? '\n            source: ["group-source"],' : ""}
+          })}
+        >
+          {({ part, children }) => {
+            switch (part.type) {${
+              components.reasoning
+                ? `
+              case "group-reasoning": {
+                const running = part.status.type === "running";
+                return (
+                  <ReasoningRoot variant="muted" className="mb-0" streaming={running}>
+                    <ReasoningTrigger active={running} />
+                    <ReasoningContent aria-busy={running}>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
+              }
+              case "reasoning":
+                return <Reasoning {...part} />;`
+                : ""
+            }${
+              components.sources
+                ? `
+              case "group-source":
+                return <div className="mt-2 flex flex-wrap gap-1.5">{children}</div>;
+              case "source":
+                return <Sources {...part} />;`
+                : ""
+            }
+              case "text":
+                return ${
+                  components.markdown
+                    ? "<MarkdownText />"
+                    : `<p style={{ whiteSpace: "pre-line" }}>
+                  <MessagePartPrimitive.Text />
+                  <MessagePartPrimitive.InProgress>
+                    <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>
+                  </MessagePartPrimitive.InProgress>
+                </p>`
+                };
+              case "image":
+                return <MessagePartPrimitive.Image />;
+              case "tool-call":
+                return part.toolUI${components.markdown ? " ?? <ToolFallback {...part} />" : ""};
+              case "data":
+                return part.dataRendererUI;${
+                  components.typingIndicator === "dot"
+                    ? `
+              case "indicator":
+                return <span style={{ fontFamily: "revert" }}>{" \\u25CF"}</span>;`
+                    : ""
+                }
+              default:
+                return null;
+            }
           }}
-        />
+        </MessagePrimitive.GroupedParts>`
+      : `<MessagePrimitive.Parts${partComponents.length ? ` components={{ ${partComponents.join(", ")} }}` : ""} />`;
+
+  const body = `<div className="${contentClass}">
+        ${parts}
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
@@ -586,19 +608,39 @@ function AssistantMessage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
-            className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+            className="${theme.followUp} rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Tell me more
           </ThreadPrimitive.Suggestion>
           <ThreadPrimitive.Suggestion
             prompt="Can you explain differently?"
-            className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+            className="${theme.followUp} rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Explain differently
           </ThreadPrimitive.Suggestion>
         </div>
       </AuiIf>`
           : ""
+      }`;
+
+  return `
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root
+      className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-2${animationClass}"
+      data-role="assistant"
+    >
+      ${
+        components.avatar
+          ? `<div className="flex gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.assistantAvatar}">
+          <BotIcon className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          ${indent(body, 4)}
+        </div>
+      </div>`
+          : body
       }
     </MessagePrimitive.Root>
   );

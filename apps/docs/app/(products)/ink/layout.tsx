@@ -5,7 +5,7 @@ import { createOgMetadata } from "@/lib/og";
 
 const title = "assistant-ui for the Terminal";
 const description =
-  "Build AI chat apps for the terminal with React Ink. Powered by the assistant-ui runtime, with full markdown rendering and cross-platform code sharing.";
+  "Terminal Thread, Composer, and Message primitives for Ink. Same runtime as the web SDK. ANSI markdown.";
 
 export const metadata: Metadata = {
   title,

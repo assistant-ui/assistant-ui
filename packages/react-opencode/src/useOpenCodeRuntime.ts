@@ -3,35 +3,51 @@
 import {
   ExportedMessageRepository,
   pickExternalStoreSharedOptions,
+  useAui,
   useAuiState,
+  useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
 import type {
   AppendMessage,
   AssistantRuntime,
+  ExternalStoreAdapter,
   ThreadMessage,
+  ThreadMessageLike,
 } from "@assistant-ui/react";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useEffectEvent, useMemo } from "react";
+import { useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
-  OpenCodeThreadState,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
+import { toOpenCodeQuestionAnswers } from "./openCodeQuestionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
-import { EMPTY_OPENCODE_THREAD_STATE } from "./openCodeThreadState";
+import {
+  EMPTY_OPENCODE_THREAD_STATE,
+  isOpenCodeStateRunning,
+} from "./openCodeThreadState";
 import { openCodeExtras } from "./openCodeExtras";
-import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
+import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
+import {
+  createOpenCodeSession,
+  createOpenCodeThreadListAdapter,
+} from "./openCodeThreadListAdapter";
+import { OPENCODE_SDK } from "./sdkIdentity";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
   getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
+  readonly disposed: boolean;
+  activate(): void;
   dispose(): void;
 };
 
@@ -40,6 +56,7 @@ const createRegistry = (
 ): OpenCodeControllerRegistry => {
   let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
+  let disposed = false;
 
   const getEventSource = () => {
     eventSource ??= new OpenCodeEventSource(client);
@@ -49,7 +66,14 @@ const createRegistry = (
   return {
     getEventSource,
     controllers,
+    get disposed() {
+      return disposed;
+    },
+    activate() {
+      disposed = false;
+    },
     dispose() {
+      disposed = true;
       eventSource?.dispose();
       eventSource = null;
       for (const controller of controllers.values()) {
@@ -95,27 +119,44 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   rejectQuestion: async () => {},
 };
 
-const NOOP_ON_NEW = () =>
-  Promise.reject(new Error("OpenCode session is still initializing"));
+const isMissingSession = (error: unknown) =>
+  error instanceof Error &&
+  (error.cause as { status?: unknown } | undefined)?.status === 404;
 
-const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
-  state.runState.type === "streaming" ||
-  state.runState.type === "cancelling" ||
-  state.runState.type === "reverting" ||
-  state.sessionStatus?.type === "busy" ||
-  state.sessionStatus?.type === "retry";
+const invokeErrorCallback = (
+  callback: ((error: unknown) => void | Promise<void>) | undefined,
+  error: unknown,
+) => {
+  void invokeUserCallback("react-opencode", "onError", callback, error);
+};
 
-const useOpenCodeThreadRuntime = (
+const sendOpenCodeMessage = (
+  controller: OpenCodeThreadControllerLike,
+  message: AppendMessage,
+  options: OpenCodeRuntimeOptions,
+) => {
+  const sendOptions = {
+    model: options.defaultModel,
+    agent: options.defaultAgent,
+  };
+  if (!(message.startRun ?? message.role === "user")) {
+    return controller.stageMessage(message, sendOptions);
+  }
+  return controller.sendMessage(message, sendOptions);
+};
+
+const useOpenCodeThreadStore = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
-): AssistantRuntime => {
+): ExternalStoreAdapter<ThreadMessage> => {
   const state = useOpenCodeControllerState(controller);
   const onLoadError = useEffectEvent((error: unknown) => {
-    options.onError?.(error);
+    invokeErrorCallback(options.onError, error);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
+    // oxlint-disable-next-line react/rules-of-hooks -- useReplaySafeEffect runs this callback inside useEffect
     void controller.load().catch(onLoadError);
   }, [controller]);
 
@@ -154,64 +195,179 @@ const useOpenCodeThreadRuntime = (
     [controller, state],
   );
 
-  return useExternalStoreRuntime<ThreadMessage>({
-    ...pickExternalStoreSharedOptions(options),
-    isLoading: state.loadState.type === "loading",
-    isRunning: isOpenCodeStateRunning(state),
-    messageRepository,
-    extras,
-    ...(options.adapters && { adapters: options.adapters }),
-    onNew: async (message: AppendMessage) => {
-      try {
-        const sendOptions = {
-          model: options.defaultModel,
-          agent: options.defaultAgent,
-        };
-        if (!(message.startRun ?? message.role === "user")) {
-          await controller.stageMessage(message, sendOptions);
-          return;
+  return useMemo<ExternalStoreAdapter<ThreadMessage>>(
+    () => ({
+      ...pickExternalStoreSharedOptions(options),
+      isLoading: state.loadState.type === "loading",
+      isRunning: isOpenCodeStateRunning(state),
+      messageRepository,
+      extras,
+      ...(options.adapters && { adapters: options.adapters }),
+      onNew: async (message: AppendMessage) => {
+        try {
+          await sendOpenCodeMessage(controller, message, options);
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
         }
-        await controller.sendMessage(message, sendOptions);
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-    onCancel: async () => {
-      try {
-        await controller.cancel();
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-    onRespondToToolApproval: async (response) => {
-      try {
-        await controller.replyToPermission(
-          response.approvalId,
-          toOpenCodePermissionResponse(response),
-        );
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-    onReload: async (parentId: string | null) => {
-      if (!parentId) return;
-      try {
-        const sentStagedMessage = await controller.sendStagedMessage(parentId, {
-          model: options.defaultModel,
-          agent: options.defaultAgent,
-        });
-        if (sentStagedMessage) return;
+      },
+      onCancel: async () => {
+        try {
+          await controller.cancel();
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
+      },
+      onRespondToToolApproval: async (response) => {
+        try {
+          const question =
+            state.interactions.questions.pending[response.approvalId];
+          if (question) {
+            if (!response.approved) {
+              await controller.rejectQuestion(response.approvalId);
+            } else if (response.answers) {
+              await controller.replyToQuestion(
+                response.approvalId,
+                toOpenCodeQuestionAnswers(question, response.answers),
+              );
+            } else {
+              throw new Error("OpenCode question approval requires answers");
+            }
+          } else {
+            await controller.replyToPermission(
+              response.approvalId,
+              toOpenCodePermissionResponse(response),
+            );
+          }
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
+      },
+      onReload: async (parentId: string | null) => {
+        if (!parentId) return;
+        try {
+          const sentStagedMessage = await controller.sendStagedMessage(
+            parentId,
+            {
+              model: options.defaultModel,
+              agent: options.defaultAgent,
+            },
+          );
+          if (sentStagedMessage) return;
 
-        await controller.revert(parentId);
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-  });
+          await controller.revert(parentId);
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
+      },
+    }),
+    [controller, extras, messageRepository, options, state],
+  );
+};
+
+const toOptimisticThreadMessage = (
+  message: AppendMessage,
+  index: number,
+): ThreadMessageLike => ({
+  id: `opencode-new-user:${index}`,
+  role: "user",
+  createdAt: message.createdAt,
+  content: message.content,
+  attachments: message.attachments,
+});
+
+const useNewOpenCodeThreadStore = (
+  client: ReturnType<typeof createOpencodeClient>,
+  registry: OpenCodeControllerRegistry,
+  options: OpenCodeRuntimeOptions,
+  extras: unknown,
+): ExternalStoreAdapter<ThreadMessage> => {
+  const aui = useAui();
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    readonly ThreadMessageLike[]
+  >([]);
+  const optimisticMessageIndexRef = useRef(0);
+  const initializationRef = useRef<
+    Promise<{ remoteId: string; externalId: string | undefined }> | undefined
+  >(undefined);
+  const sendQueueRef = useRef(Promise.resolve());
+  const optimisticRepository = useMemo(
+    () => ExportedMessageRepository.fromArray(optimisticMessages),
+    [optimisticMessages],
+  );
+
+  return useMemo<ExternalStoreAdapter<ThreadMessage>>(
+    () => ({
+      ...pickExternalStoreSharedOptions(options),
+      isDisabled: options.isDisabled ?? false,
+      isLoading: false,
+      isRunning: false,
+      messageRepository: optimisticRepository,
+      extras,
+      ...(options.adapters && { adapters: options.adapters }),
+      onNew: async (message: AppendMessage) => {
+        const optimistic = toOptimisticThreadMessage(
+          message,
+          optimisticMessageIndexRef.current++,
+        );
+        setOptimisticMessages((messages) => [...messages, optimistic]);
+
+        const task = sendQueueRef.current.then(async () => {
+          const removeOptimisticMessage = () => {
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+          };
+          if (registry.disposed) {
+            removeOptimisticMessage();
+            return;
+          }
+          let initialization:
+            | Promise<{
+                remoteId: string;
+                externalId: string | undefined;
+              }>
+            | undefined;
+          try {
+            initialization =
+              initializationRef.current ??
+              (initializationRef.current = aui.threadListItem.initialize());
+            const { remoteId, externalId } = await initialization;
+            if (registry.disposed) {
+              removeOptimisticMessage();
+              return;
+            }
+            const sessionId = options.cloud
+              ? externalId
+              : (externalId ?? remoteId);
+            if (!sessionId) {
+              throw new Error(
+                "This thread has no OpenCode session to send to.",
+              );
+            }
+            const controller = getController(registry, client, sessionId);
+            const dispatch = sendOpenCodeMessage(controller, message, options);
+            removeOptimisticMessage();
+            await dispatch;
+          } catch (error) {
+            removeOptimisticMessage();
+            invokeErrorCallback(options.onError, error);
+            throw error;
+          } finally {
+            if (initializationRef.current === initialization) {
+              initializationRef.current = undefined;
+            }
+          }
+        });
+        sendQueueRef.current = task.catch(() => {});
+        return task;
+      },
+    }),
+    [aui, client, extras, optimisticRepository, options, registry],
+  );
 };
 
 const useRuntimeHook = (
@@ -219,52 +375,83 @@ const useRuntimeHook = (
   registry: OpenCodeControllerRegistry,
   options: OpenCodeRuntimeOptions,
 ) => {
-  const sessionId = useAuiState(
-    (state) => state.threadListItem.externalId ?? state.threadListItem.remoteId,
-  );
+  const threadListItem = useAuiState((state) => state.threadListItem);
+  const sessionId = options.cloud
+    ? threadListItem.externalId
+    : (threadListItem.externalId ?? threadListItem.remoteId);
 
   const controller = sessionId
     ? getController(registry, client, sessionId)
     : NOOP_CONTROLLER;
 
-  const threadRuntime = useOpenCodeThreadRuntime(controller, options);
+  const threadStore = useOpenCodeThreadStore(controller, options);
+  const newThreadStore = useNewOpenCodeThreadStore(
+    client,
+    registry,
+    options,
+    threadStore.extras,
+  );
 
-  const fallbackRuntime = useExternalStoreRuntime<ThreadMessage>({
-    isDisabled: true,
-    isLoading: true,
-    messageRepository: ExportedMessageRepository.fromArray([]),
-    onNew: NOOP_ON_NEW,
-  });
-
-  if (!sessionId) return fallbackRuntime;
-  return threadRuntime;
+  return useExternalStoreRuntime<ThreadMessage>(
+    sessionId ? threadStore : newThreadStore,
+  );
 };
 
 export const useOpenCodeRuntime = (
   options: OpenCodeRuntimeOptions = {},
 ): AssistantRuntime => {
   const baseUrl = options.baseUrl ?? "http://localhost:4096";
-  const client = useMemo(
-    () => options.client ?? createOpencodeClient({ baseUrl }),
-    [baseUrl, options.client],
-  );
-  const registry = useMemo(() => createRegistry(client), [client]);
+  const clientKey = options.client ?? baseUrl;
+  const createPinned = () => {
+    const client = options.client ?? createOpencodeClient({ baseUrl });
+    return {
+      key: clientKey,
+      client,
+      registry: createRegistry(client),
+      adapter: createOpenCodeThreadListAdapter(client),
+    };
+  };
+  const [pinned, setPinned] = useState(createPinned);
+  let current = pinned;
+  if (pinned.key !== clientKey) {
+    current = createPinned();
+    setPinned(current);
+  }
+  const { client, registry, adapter: openCodeAdapter } = current;
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
+    registry.activate();
     return () => {
       registry.dispose();
     };
   }, [registry]);
 
-  const adapter = useMemo(
-    () => createOpenCodeThreadListAdapter(client),
-    [client],
-  );
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud: options.cloud,
+    sdk: options.cloud ? OPENCODE_SDK : undefined,
+    create: async () => {
+      const { externalId } = await createOpenCodeSession(client);
+      return { externalId };
+    },
+    delete: async (threadId) => {
+      const { external_id } = await options.cloud!.threads.get(threadId);
+      if (!external_id) return;
+      try {
+        await client.session.delete(
+          { sessionID: external_id },
+          OPEN_CODE_REQUEST_OPTIONS,
+        );
+      } catch (error) {
+        if (!isMissingSession(error)) throw error;
+      }
+    },
+  });
+  const adapter = options.cloud ? cloudAdapter : openCodeAdapter;
 
   return useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
-    initialThreadId: options.initialSessionId,
+    initialThreadId: options.cloud ? undefined : options.initialSessionId,
     onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),

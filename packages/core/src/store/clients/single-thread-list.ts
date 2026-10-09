@@ -59,6 +59,7 @@ const useSingleThreadList = ({
       mainThreadId: THREAD_ID,
       newThreadId: null,
       isLoading: false,
+      loadError: undefined,
       isLoadingMore: false,
       hasMore: false,
       threadIds: [THREAD_ID],
@@ -93,7 +94,10 @@ const useSingleThreadList = ({
         !(
           typeof selector === "object" &&
           "index" in selector &&
-          selector.index === 0
+          selector.index === 0 &&
+          // Index selectors address their archived/regular subset, and the
+          // archived subset here is always empty.
+          !selector.archived
         )
       ) {
         throw new Error(

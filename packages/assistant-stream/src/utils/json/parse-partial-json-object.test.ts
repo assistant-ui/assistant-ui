@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
+  getPartialJsonObjectMeta,
+  markPartialJsonObjectComplete,
 } from "./parse-partial-json-object";
 
 type PartialJsonTest = {
@@ -205,6 +207,33 @@ const tests: PartialJsonTest[] = [
     query: ["\u25CF"],
     result: "partial",
   },
+  // negative number whose digits have not arrived yet
+  {
+    input: `{"foo": [-`,
+    query: ["foo"],
+    result: "partial",
+  },
+  {
+    input: `{"foo": [-`,
+    query: ["foo", 0],
+    result: "partial",
+  },
+  {
+    input: `{"foo": [[-`,
+    query: ["foo", 0, 0],
+    result: "partial",
+  },
+  // positive exponent whose digits have not arrived yet
+  {
+    input: `{"foo": 1e+`,
+    query: ["foo"],
+    result: "partial",
+  },
+  {
+    input: `{"foo": 1e+2`,
+    query: ["foo"],
+    result: "partial",
+  },
 ];
 
 describe("parsePartialJsonObject and getPartialJsonObjectFieldState", () => {
@@ -222,4 +251,75 @@ describe("parsePartialJsonObject and getPartialJsonObjectFieldState", () => {
       expect(fieldState).toBe(testCase.result);
     });
   });
+});
+
+describe("parsePartialJsonObject inside a unicode escape", () => {
+  const full = `{"a":"x\\uD83D\\uDE00y"}`;
+
+  it("returns an object for every prefix of a string containing a surrogate-pair escape", () => {
+    for (let cut = 0; cut <= full.length; cut++) {
+      expect(
+        parsePartialJsonObject(full.slice(0, cut)),
+        `cut=${cut}`,
+      ).toBeDefined();
+    }
+  });
+
+  it("omits the unfinished escape from the partial value", () => {
+    expect(parsePartialJsonObject(`{"a":"x\\u`)).toMatchObject({ a: "x" });
+    expect(parsePartialJsonObject(`{"a":"x\\uD8`)).toMatchObject({ a: "x" });
+    expect(parsePartialJsonObject(`{"a":"x\\uD83D\\uDE0`)).toMatchObject({
+      a: "x\uD83D",
+    });
+    expect(parsePartialJsonObject(`{"a":"x\\uD83D\\uDE00y`)).toMatchObject({
+      a: "x😀y",
+    });
+  });
+
+  it("keeps the partial path through an escape cut inside a value", () => {
+    const args = parsePartialJsonObject(`{"a":"x\\uD8`)!;
+    expect(getPartialJsonObjectFieldState(args, ["a"])).toBe("partial");
+  });
+
+  it("handles an escape cut inside an object key", () => {
+    expect(Object.keys(parsePartialJsonObject(`{"\\u00e9`)!)).toEqual([]);
+    expect(parsePartialJsonObject(`{"\\u00e9":1`)).toMatchObject({ é: 1 });
+    expect(parsePartialJsonObject(`{"\\u00e9":"v`)).toMatchObject({ é: "v" });
+  });
+
+  it("keeps malformed escapes unparseable", () => {
+    expect(parsePartialJsonObject(`{"a":"\\uZZ`)).toBeUndefined();
+    expect(parsePartialJsonObject(`{"a":"\\u"}`)).toBeUndefined();
+    expect(parsePartialJsonObject(`{"a":"\\u12"}`)).toBeUndefined();
+  });
+
+  it("leaves single-char escapes unchanged", () => {
+    expect(parsePartialJsonObject(`{"a":"x\\n`)).toMatchObject({ a: "x\n" });
+    expect(parsePartialJsonObject(`{"a":"x\\`)).toMatchObject({ a: "x" });
+    expect(parsePartialJsonObject(`{"a":"x\\"`)).toMatchObject({ a: 'x"' });
+  });
+});
+
+describe("markPartialJsonObjectComplete", () => {
+  it.each([
+    '{"__proto__":{"polluted":true}}',
+    '{"constructor":{"prototype":{"polluted":true}}}',
+  ])(
+    "keeps prototype-named fields as own data without relaxing safe parsing: %s",
+    (json) => {
+      const input = JSON.parse(json);
+      expect(parsePartialJsonObject(json)).toBeUndefined();
+
+      const complete = markPartialJsonObjectComplete(input);
+      expect(complete).not.toBe(input);
+      expect(Object.entries(complete)).toEqual(Object.entries(input));
+      expect(Object.getPrototypeOf(complete)).toBe(Object.prototype);
+      expect(Object.prototype).not.toHaveProperty("polluted");
+      expect(getPartialJsonObjectMeta(complete)?.state).toBe("complete");
+      expect(
+        getPartialJsonObjectFieldState(complete, [Object.keys(input)[0]!]),
+      ).toBe("complete");
+      expect(getPartialJsonObjectMeta(input)).toBeUndefined();
+    },
+  );
 });

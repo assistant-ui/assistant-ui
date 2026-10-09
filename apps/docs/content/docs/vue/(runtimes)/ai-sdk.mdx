@@ -1,0 +1,156 @@
+---
+title: AI SDK
+description: Stream from an AI SDK route with AISDKChat or AISDKThreads, and configure the transport, callbacks, and adapters.
+---
+
+`@assistant-ui/ai-sdk` runs AI SDK chat state inside the assistant client. Install `react` even in a Vue app because the runtime uses React hooks to host that state internally; Vue renders through `@assistant-ui/vue`. The [quickstart](/docs/vue/quickstart) covers installation and the first chat.
+
+## The server route
+
+The default transport posts to `/api/chat`. This Nitro route reads the UI messages plus the `system` prompt and frontend tool schemas that the transport adds from model context. `frontendTools` turns those schemas into AI SDK tools without a server executor, because the browser runs them:
+
+```ts title="server/api/chat.post.ts"
+import { openai } from "@ai-sdk/openai";
+import { frontendTools, type FrontendTools } from "@assistant-ui/ai-sdk";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+
+export default defineEventHandler(async (event) => {
+  const { messages, system, tools } = await readBody<{
+    messages: UIMessage[];
+    system?: string;
+    tools?: FrontendTools;
+  }>(event);
+
+  const aiSDKTools = frontendTools(tools ?? {});
+
+  const result = streamText({
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    system,
+    tools: aiSDKTools,
+  });
+
+  return result.toUIMessageStreamResponse();
+});
+```
+
+Tools the server owns go in the same `tools` map with their own `execute`; see [Tools](/docs/vue/tools).
+
+## AISDKChat
+
+`AISDKChat()` creates a single thread backed by an AI SDK `Chat`. Pass it as `threads: AISDKChat(options)` in `AuiConfig`. These options come from AI SDK `ChatInit` and the assistant-ui thread adapter:
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `id` | `string` | Generated id | Chat id, captured when the resource mounts. |
+| `messages` | `UIMessage[]` | `[]` | Initial AI SDK messages, read when the chat is created. |
+| `generateId` | AI SDK `IdGenerator` | AI SDK generator | Generates message ids in the chat. |
+| `messageMetadataSchema` | AI SDK schema | None | Validates streamed message metadata. |
+| `dataPartSchemas` | AI SDK data schemas | None | Validates streamed data parts. |
+| `transport` | AI SDK `ChatTransport` | `AssistantChatTransport()` | Sends and reconnects chat streams. |
+| `onError` | Callback | None | Receives an AI SDK chat error. |
+| `onFinish` | Callback | None | Runs when an assistant response finishes streaming. |
+| `onToolCall` | Callback | None | Receives a streamed tool call for client handling. |
+| `onData` | Callback | None | Receives a streamed data part. |
+| `sendAutomaticallyWhen` | Callback | None | Decides whether to send again after a stream or tool call. |
+| `throttle` | `number` | None | Passed to AI SDK `useChat` for update throttling. |
+| `adapters` | `AISDKRuntimeAdapter["adapters"]` | Runtime defaults | Supplies history, suggestion, attachment, and other supported adapters. |
+| `suggestions` | `ThreadSuggestion[]` | None | Supplies thread suggestions. |
+| `isDisabled` | `boolean` | `false` | Disables the thread and its composer input. |
+| `isSendDisabled` | `boolean` | `false` | Blocks sends while leaving the input usable. |
+| `unstable_capabilities` | `{ copy?: boolean }` | None | Overrides the copy capability. |
+| `toCreateMessage` | Callback | Runtime conversion | Converts a new assistant-ui message to an AI SDK UI message. |
+| `onResume` | Callback | None | Handles `resumeRun` through a custom replay channel. |
+| `onResumeToolCall` | Callback | None | Handles resume for a tool call outside the in-process tracker. |
+| `onRespondToToolApproval` | Callback | AI SDK response | Routes tool approval answers through a host. |
+| `onResumeError` | Callback | None | Receives a failed automatic resumable-stream reconnect. |
+| `joinStrategy` | `"concat-content" \| "none"` | `"concat-content"` | Merges consecutive assistant messages into one thread message, or keeps them separate with `"none"`. |
+| `messageRepository` | Exported message repository | Runtime-owned repository | Supplies branch history. |
+| `unstable_onBranchChange` | Callback | None | Receives branch changes. |
+
+The chat captures its id, initial messages, id generator, and schemas when it mounts. Its callbacks read the latest options on later renders. The runtime also reads adapter and shared thread options again when it renders. Remount the assistant client to start a different chat id or initial history.
+
+Custom `adapters` are merged over the defaults: the AI SDK attachment adapter, and the history, attachment, and feedback adapters that a cloud thread list provides. The thread list adapter receives the chat id as `threadId` unless your adapter sets its own value.
+
+## Point at another endpoint
+
+Set `api` on `AssistantChatTransport` for another Nitro route. Its AI SDK transport options also accept `headers`, `body`, and `credentials`.
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat, AssistantChatTransport } from "@assistant-ui/ai-sdk";
+import Thread from "~/components/assistant-ui/thread.vue";
+
+const config = AuiConfig({
+  threads: AISDKChat({
+    transport: new AssistantChatTransport({
+      api: "/api/assistant-chat",
+      headers: { "x-client": "nuxt" },
+      body: { source: "docs" },
+      credentials: "same-origin",
+    }),
+  }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <Thread />
+  </AuiProvider>
+</template>
+```
+
+## What each request contains
+
+`AssistantChatTransport` sends `messages`, `trigger`, `messageId`, and `metadata` from the AI SDK request. As `id` it sends the thread list item's `remoteId` once the item is initialized, which with `cloud` is the cloud thread id, and the AI SDK chat id otherwise. It adds `callSettings`, `system`, `config`, and JSON Schema `tools` from the thread's model context. Undefined values are omitted when JSON serializes the body.
+
+The transport's `body` is merged with any body passed on the send. Those values override model context fields with the same names. The transport adds `id`, `messages`, `trigger`, `messageId`, and `metadata` last, so a custom `body` cannot override them. A custom `prepareSendMessagesRequest` can replace the prepared body entirely.
+
+## AISDKThreads
+
+`AISDKThreads()` creates a thread list and a separate AI SDK chat for each thread. It accepts the shared chat options above except `id` and `messages`, plus these list options:
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `transport` | `ChatTransport` or `() => ChatTransport` | New `AssistantChatTransport` per thread | A factory runs once for each thread. An `AssistantChatTransport` instance is cloned per thread; another instance is shared. |
+| `cloud` | `AssistantCloud` | None | Backs the list with cloud history instead of memory. |
+| `threadId` | `string` | None | Controls the selected remote thread when `cloud` is set. |
+| `onThreadIdChange` | Callback | None | With `cloud`, receives the selected thread's remote id after the user switches threads or a new thread is initialized, and `undefined` for a new thread that has none yet. A change made through `threadId` is not reported back. |
+
+Each thread captures its chat construction options when created, including its transport. Later option changes update callbacks but do not replace a chat's transport or initial state. Without `cloud`, the list and histories live in the assistant client's memory. See [Cloud persistence](/docs/vue/cloud) and [Thread list](/docs/vue/thread-list) for list setup and controls.
+
+## Errors
+
+`onError` receives AI SDK chat errors. When a stream fails after an assistant message exists, the converted message has `status.type` of `"incomplete"`, `status.reason` of `"error"`, and error details. Render that state with the [error primitives](/docs/vue/primitives/error).
+
+## Token usage
+
+`getThreadMessageTokenUsage` is a plain function, so it works with Vue state. It reads usage on an assistant message from `metadata.usage`, `metadata.custom.usage`, or step metadata, and returns `undefined` when none is present. A route can attach usage through AI SDK stream message metadata.
+
+```vue title="app/components/TokenUsage.vue"
+<script setup lang="ts">
+import { computed } from "vue";
+import { getThreadMessageTokenUsage } from "@assistant-ui/ai-sdk";
+import { useAuiState } from "@assistant-ui/vue";
+
+const messages = useAuiState((s) => s.thread.messages);
+const usage = computed(() => {
+  for (let index = messages.value.length - 1; index >= 0; index--) {
+    const value = getThreadMessageTokenUsage(messages.value[index]);
+    if (value) return value;
+  }
+  return undefined;
+});
+</script>
+
+<template>
+  <span v-if="usage?.totalTokens !== undefined">
+    {{ usage.totalTokens }} tokens
+  </span>
+</template>
+```
+
+## React-only exports
+
+`useChatRuntime`, `useAISDKRuntime`, `useAISDKChat`, `useAISDKError`, and `useThreadTokenUsage` are React hooks. Use `AISDKChat` or `AISDKThreads` in `AuiConfig`, and Vue's `useAuiState` to read state instead.

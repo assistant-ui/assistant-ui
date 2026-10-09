@@ -78,6 +78,7 @@ All messages are wrapped with a channel identifier to avoid conflicts with other
 2. **Tool Execution**
    - `tool-call`: Parent requests tool execution in iframe (where tools are defined)
    - `tool-result`: Iframe returns execution result or error to parent
+   - `provider-disposed`: Iframe tells the parent it was disposed, so the parent rejects tool calls the iframe will not answer
 
 #### Serialization
 
@@ -88,7 +89,7 @@ All messages are wrapped with a channel identifier to avoid conflicts with other
 
 #### Security Considerations
 
-1. **Origin Validation**: Both sides can specify `targetOrigin` to restrict message sources
+1. **Origin Validation**: Both sides default to the current page's origin and can specify an exact `targetOrigin` for cross-origin frames; providers share a fail-closed origin policy
 2. **Window Reference**: Host (parent) only accepts messages from the specific iframe window it's connected to
 3. **Message Channel**: Using a unique channel identifier prevents cross-talk with other postMessage users
 

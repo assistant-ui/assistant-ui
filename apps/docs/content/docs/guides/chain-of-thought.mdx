@@ -4,7 +4,9 @@ description: Show AI reasoning steps and tool calls in a collapsible thinking ac
 platforms: ["react"]
 ---
 
-LLMs often produce reasoning steps and tool calls in succession. Chain of Thought lets you visually group these consecutive parts into a single collapsible accordion, giving users a clean "thinking" UI.
+LLMs often produce reasoning steps and tool calls in succession. Chain of Thought groups these consecutive parts into a single collapsible "thinking" accordion.
+
+<AgentSetup product="guides/chain-of-thought" />
 
 ## Overview
 
@@ -28,20 +30,20 @@ import {
   MessagePrimitive,
   groupPartByType,
 } from "@assistant-ui/react";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/reasoning.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import type { FC } from "react";
 
 const AssistantMessage: FC = () => {
@@ -99,7 +101,7 @@ const AssistantMessage: FC = () => {
 
 ### Use a Reasoning Model
 
-Chain of Thought is most useful with models that produce reasoning tokens. Here's an example backend route using the AI SDK:
+Chain of Thought is most useful with models that produce reasoning tokens. This backend route uses the AI SDK:
 
 ```tsx title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -109,7 +111,8 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
 
@@ -122,7 +125,7 @@ export async function POST(req: Request) {
 
 ## LangGraph
 
-Chain-of-thought parts are surfaced by the AI SDK's built-in reasoning stream. LangGraph does not emit reasoning tokens in that format, so reasoning grouping will not activate automatically. If you want to display reasoning text from a LangGraph agent, emit it as a custom data part from your graph and render it with `makeAssistantDataUI`. See [generative UI with LangGraph](/docs/runtimes/langgraph/generative-ui) for details.
+The LangGraph runtime converts `thinking` and `reasoning` content blocks in assistant messages into `reasoning` parts, so `GroupedParts` groups them the same way. If your graph reports reasoning in another shape, emit it as a custom data part and render it with `makeAssistantDataUI`. See [generative UI with LangGraph](/docs/runtimes/langgraph/generative-ui) for details.
 
 ## Legacy: ChainOfThoughtPrimitive
 
@@ -159,6 +162,6 @@ See the complete [with-chain-of-thought example](https://github.com/assistant-ui
 
 ## Related Guides
 
-- [Reasoning](/docs/ui/reasoning) — reasoning UI primitives for grouped parts
-- [Generative UI](/docs/tools/tool-ui) — custom UI for tool calls
-- [Tools](/docs/tools/defining-tools) — defining and using tools
+- [Reasoning](/elements/reasoning): reasoning UI primitives for grouped parts
+- [Generative UI](/docs/tools/tool-ui): custom UI for tool calls
+- [Tools](/docs/tools/defining-tools): defining and using tools

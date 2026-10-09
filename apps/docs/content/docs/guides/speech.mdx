@@ -4,13 +4,15 @@ description: Read AI chat messages aloud with the Web Speech API or a custom TTS
 platforms: ["react"]
 ---
 
-import { SpeechSample } from "@/components/docs/samples/speech";
+import { SpeechSample } from "@/components/pages/docs/samples/speech";
 
 assistant-ui supports text-to-speech via the `SpeechSynthesisAdapter` interface. When a speech adapter is configured, users can trigger playback for any assistant message.
 
 Speech is the read-aloud mode: one message at a time, text to audio. For a live duplex conversation, see [Realtime Voice](/docs/guides/voice). For push-to-talk input into the composer, see [Dictation](/docs/guides/dictation).
 
 <SpeechSample />
+
+<AgentSetup product="guides/speech" />
 
 ## SpeechSynthesisAdapter
 
@@ -87,7 +89,7 @@ const AssistantActionBar = () => {
 };
 ```
 
-`ActionBarPrimitive.Speak` is disabled when no speech adapter is configured. While playback is active, `message.speech` holds the current speech state so the UI can switch to `StopSpeaking`.
+`ActionBarPrimitive.Speak` is disabled while the assistant message is still running and when the message has no text. It does not check for a speech adapter, and without one `speak` throws `Speech adapter not configured`. While playback is active, `message.speech` holds the current speech state so the UI can switch to `StopSpeaking`.
 
 ## Custom adapters
 

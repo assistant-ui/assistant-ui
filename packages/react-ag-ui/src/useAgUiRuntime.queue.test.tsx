@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { startTransition, useEffect } from "react";
 import {
   act,
   cleanup,
@@ -95,11 +96,67 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     );
   });
 
+  it("holds queued sends while sending is disabled", async () => {
+    const { agent, runAgent, release } = gatedAgent();
+
+    const { result, rerender } = renderHook(
+      ({ isSendDisabled }) =>
+        useAgUiRuntime({
+          agent,
+          unstable_enableMessageQueue: true,
+          isSendDisabled,
+        }),
+      { initialProps: { isSendDisabled: false } },
+    );
+    mount(result.current);
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+    rerender({ isSendDisabled: true });
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().isRunning).toBe(false),
+    );
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("queued").textContent).toBe("second");
+
+    rerender({ isSendDisabled: false });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe(""),
+    );
+  });
+
   it("preserves queued sends when the active run is cancelled", async () => {
     const { agent, runAgent, release } = gatedAgent();
 
-    const { result } = renderHook(() =>
-      useAgUiRuntime({ agent, unstable_enableMessageQueue: true }),
+    const { result, rerender } = renderHook(
+      ({ isSendDisabled }) =>
+        useAgUiRuntime({
+          agent,
+          unstable_enableMessageQueue: true,
+          isSendDisabled,
+        }),
+      { initialProps: { isSendDisabled: false } },
     );
     mount(result.current);
 
@@ -133,6 +190,11 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     await waitFor(() =>
       expect(screen.getByTestId("queued").textContent).toBe("second"),
     );
+
+    rerender({ isSendDisabled: true });
+    rerender({ isSendDisabled: false });
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("queued").textContent).toBe("second");
 
     await act(async () => {
       await result.current.thread.append({
@@ -407,6 +469,59 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     await waitFor(() =>
       expect(screen.getByTestId("queued").textContent).toBe(""),
     );
+  });
+
+  it("does not clear the committed queue from a suspended render", async () => {
+    const { agent, runAgent } = gatedAgent();
+    let runtime: AssistantRuntime | undefined;
+    const never = new Promise<void>(() => {});
+
+    const Harness = ({
+      enabled,
+      suspend,
+    }: {
+      enabled: boolean;
+      suspend: boolean;
+    }) => {
+      const nextRuntime = useAgUiRuntime({
+        agent,
+        unstable_enableMessageQueue: enabled,
+      });
+      useEffect(() => {
+        runtime = nextRuntime;
+      }, [nextRuntime]);
+      if (suspend) throw never;
+      return null;
+    };
+
+    const view = render(<Harness enabled suspend={false} />);
+    await waitFor(() => expect(runtime).toBeDefined());
+    mount(runtime!);
+
+    await act(async () => {
+      await runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        parentId: runtime!.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+
+    act(() => {
+      startTransition(() => view.rerender(<Harness enabled={false} suspend />));
+    });
+
+    expect(screen.getByTestId("queued").textContent).toBe("second");
   });
 
   it("leaves the queue capability off when the flag is not set", () => {

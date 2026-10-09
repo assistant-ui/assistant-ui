@@ -8,12 +8,19 @@ export {
   useAgUiState,
   useAgUiSetState,
 } from "./hooks";
-export { fromAgUiMessages } from "./runtime/adapter/conversions";
-export type { FromAgUiMessagesOptions } from "./runtime/adapter/conversions";
+export {
+  fromAgUiMessages,
+  toAgUiMessages,
+} from "./runtime/adapter/conversions";
+export type {
+  AgUiMessage,
+  FromAgUiMessagesOptions,
+} from "./runtime/adapter/conversions";
 export type {
   AgUiInterrupt,
   AgUiInterruptReason,
   AgUiResumeEntry,
+  AgUiResumeTranscript,
   AgUiRunFinishedOutcome,
   UseAgUiRuntimeOptions,
   UseAgUiRuntimeAdapters,

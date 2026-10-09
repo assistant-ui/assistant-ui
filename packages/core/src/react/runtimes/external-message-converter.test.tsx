@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useExternalMessageConverter } from "./external-message-converter";
 
 type TestMessage = {
@@ -12,6 +12,7 @@ type TestMessage = {
 
 type TestMetadata = useExternalMessageConverter.Metadata & {
   optimisticMessageId?: string;
+  revisionById?: Record<string, number>;
 };
 
 const convert: useExternalMessageConverter.Callback<TestMessage> = (
@@ -39,21 +40,102 @@ const EMPTY: TestMetadata = {};
 type Props = {
   callback?: useExternalMessageConverter.Callback<TestMessage>;
   metadata?: TestMetadata;
+  getMetadataKey?:
+    | useExternalMessageConverter.GetMetadataKey<TestMessage>
+    | undefined;
 };
 
 const renderConverter = (initialProps: Props = {}) =>
   renderHook(
-    ({ callback = convert, metadata = EMPTY }: Props) =>
+    ({ callback = convert, metadata = EMPTY, getMetadataKey }: Props) =>
       useExternalMessageConverter<TestMessage>({
         callback,
         messages: MESSAGES,
         isRunning: false,
         metadata,
+        getMetadataKey,
       }),
     { initialProps },
   );
 
 describe("useExternalMessageConverter", () => {
+  it("refreshes positional fallback ids when an id-less message is prepended", () => {
+    const idlessConvert: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    });
+
+    const older: TestMessage = { id: "u0", role: "user", text: "older" };
+    const newer: TestMessage = { id: "u1", role: "user", text: "newer" };
+
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: idlessConvert,
+          messages,
+          isRunning: false,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [newer] } },
+    );
+
+    rerender({ messages: [older, newer] });
+
+    const ids = result.current.map((message) => message.id);
+    expect(ids).toEqual([
+      "__external_store_fallback_0",
+      "__external_store_fallback_1",
+    ]);
+    expect(
+      result.current.map((message) => (message.content[0] as any).text),
+    ).toEqual(["older", "newer"]);
+  });
+
+  it("never rewrites a caller-supplied id that matches the generated shape", () => {
+    const explicitConvert: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      id: message.id === "explicit" ? "__external_store_fallback_0" : undefined,
+      content: [{ type: "text", text: message.text }],
+    });
+
+    const explicit: TestMessage = {
+      id: "explicit",
+      role: "user",
+      text: "kept",
+    };
+    const older: TestMessage = { id: "u0", role: "user", text: "older" };
+
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: explicitConvert,
+          messages,
+          isRunning: false,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [explicit] } },
+    );
+
+    rerender({ messages: [older, explicit] });
+
+    // The caller-supplied id survives untouched — at the cost of colliding
+    // with the id minted for the prepended message, since the caller chose an
+    // id inside the reserved fallback namespace. The full list makes that
+    // trade-off explicit.
+    expect(result.current.map((message) => message.id)).toEqual([
+      "__external_store_fallback_0",
+      "__external_store_fallback_0",
+    ]);
+    const explicitOut = result.current.find(
+      (message) => (message.content[0] as any).text === "kept",
+    );
+    expect(explicitOut?.id).toBe("__external_store_fallback_0");
+  });
+
   it("reuses converted messages across rerenders when inputs are unchanged", () => {
     const { result, rerender } = renderConverter();
 
@@ -74,6 +156,80 @@ describe("useExternalMessageConverter", () => {
     rerender({ metadata: {} });
 
     expect(result.current.at(-1)?.metadata.isOptimistic).toBeUndefined();
+  });
+
+  it("re-converts only messages whose metadata key changes", () => {
+    const callback = vi.fn(convert);
+    const getMetadataKey: useExternalMessageConverter.GetMetadataKey<
+      TestMessage
+    > = (message, metadata) =>
+      (metadata as TestMetadata).revisionById?.[message.id];
+    const { rerender } = renderConverter({
+      callback,
+      getMetadataKey,
+      metadata: { revisionById: { u1: 0, a1: 0 } },
+    });
+    callback.mockClear();
+
+    rerender({
+      callback,
+      getMetadataKey,
+      metadata: { revisionById: { u1: 0, a1: 1 } },
+    });
+
+    expect(callback).toHaveBeenCalledOnce();
+    expect(callback).toHaveBeenCalledWith(
+      MESSAGES[1],
+      expect.objectContaining({ revisionById: { u1: 0, a1: 1 } }),
+    );
+  });
+
+  it("still re-converts every message when the callback changes with metadata keys", () => {
+    const first = vi.fn(convert);
+    const second = vi.fn(convert);
+    const getMetadataKey: useExternalMessageConverter.GetMetadataKey<
+      TestMessage
+    > = (message) => message.id;
+    const { rerender } = renderConverter({ callback: first, getMetadataKey });
+
+    rerender({ callback: second, getMetadataKey });
+
+    expect(second).toHaveBeenCalledTimes(MESSAGES.length);
+  });
+
+  it("updates error and cancellation status without invalidating callback output", () => {
+    const callback = vi.fn(convert);
+    const getMetadataKey = () => 0;
+    const { result, rerender } = renderConverter({
+      callback,
+      getMetadataKey,
+    });
+    callback.mockClear();
+
+    rerender({
+      callback,
+      getMetadataKey,
+      metadata: { error: "request failed" },
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(result.current.at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "request failed",
+    });
+
+    rerender({
+      callback,
+      getMetadataKey,
+      metadata: { cancelledMessageIds: new Set(["a1"]) },
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(result.current.at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
   });
 
   it("re-converts cached messages when the callback changes", () => {

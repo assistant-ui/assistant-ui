@@ -33,10 +33,11 @@ const converter = (
 ) => {
   const optimisticStateMessages = connectionMetadata.pendingCommands.map(
     (c): LangChainMessage[] => {
-      if (c.type === "add-message") {
+      if (c.type === "add-message" && c.message.role === "user") {
         return [
           {
             type: "human" as const,
+            ...(c.message.id !== undefined && { id: c.message.id }),
             content: [
               {
                 type: "text" as const,
@@ -64,6 +65,7 @@ export function MyRuntimeProvider({ children }: MyRuntimeProviderProps) {
     initialState: {
       messages: [],
     },
+    protocol: "assistant-transport",
     api: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010/assistant",
     converter,
     headers: async () => ({

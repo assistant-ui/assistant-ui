@@ -8,9 +8,9 @@ import {
   forwardRef,
   useCallback,
 } from "react";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { useTriggerPopoverScopeContext } from "./TriggerPopover";
-import type { Unstable_TriggerItem } from "@assistant-ui/core";
+import type { TriggerItem } from "@assistant-ui/core";
 
 export namespace ComposerPrimitiveTriggerPopoverItems {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -18,7 +18,7 @@ export namespace ComposerPrimitiveTriggerPopoverItems {
     ComponentPropsWithoutRef<typeof Primitive.div>,
     "children"
   > & {
-    children: (items: readonly Unstable_TriggerItem[]) => ReactNode;
+    children: (items: readonly TriggerItem[]) => ReactNode;
   };
 }
 
@@ -53,7 +53,7 @@ ComposerPrimitiveTriggerPopoverItems.displayName =
 export namespace ComposerPrimitiveTriggerPopoverItem {
   export type Element = ComponentRef<typeof Primitive.button>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.button> & {
-    item: Unstable_TriggerItem;
+    item: TriggerItem;
     index?: number | undefined;
   };
 }

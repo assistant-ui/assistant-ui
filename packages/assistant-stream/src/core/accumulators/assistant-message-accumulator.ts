@@ -1,6 +1,5 @@
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
-import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
 import type {
   AssistantMessage,
   AssistantMessageStatus,
@@ -14,8 +13,29 @@ import type {
   DataPart,
 } from "../utils/types";
 import { GorpStreamAccumulator } from "../gorp/GorpStreamAccumulator";
+import { IncrementalJsonObjectParser } from "../../utils/json/incremental-json-object-parser";
 import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
+
+/**
+ * Object spread materializes the deprecated `content` alias into a data
+ * property, so it is redefined after `parts` to keep tracking the replacement.
+ */
+const withParts = (
+  message: AssistantMessage,
+  parts: AssistantMessage["parts"],
+): AssistantMessage => ({
+  ...message,
+  parts,
+  get content() {
+    return this.parts;
+  },
+});
+
+const appendPart = (
+  message: AssistantMessage,
+  part: AssistantMessagePart,
+): AssistantMessage => withParts(message, [...message.parts, part]);
 
 export const createInitialMessage = ({
   unstable_state = null,
@@ -60,17 +80,11 @@ const updatePartForPath = (
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
   if (updatedPart === part) return message;
-  return {
-    ...message,
-    parts: [
-      ...message.parts.slice(0, partIndex),
-      updatedPart,
-      ...message.parts.slice(partIndex + 1),
-    ],
-    get content() {
-      return this.parts;
-    },
-  };
+  return withParts(message, [
+    ...message.parts.slice(0, partIndex),
+    updatedPart,
+    ...message.parts.slice(partIndex + 1),
+  ]);
 };
 
 const handlePartStart = (
@@ -88,15 +102,12 @@ const handlePartStart = (
       partInit.unstable_summary !== undefined
         ? { unstable_summary: partInit.unstable_summary }
         : undefined),
+      ...(partInit.type === "reasoning"
+        ? { timing: { startedAt: Date.now() } }
+        : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newTextPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newTextPart);
   } else if (partInit.type === "tool-call") {
     const newToolCallPart: ToolCallPart = {
       type: "tool-call",
@@ -109,13 +120,7 @@ const handlePartStart = (
       timing: { startedAt: Date.now() },
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newToolCallPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newToolCallPart);
   } else if (partInit.type === "source") {
     const newSourcePart: SourcePart = {
       type: "source",
@@ -125,13 +130,7 @@ const handlePartStart = (
       ...(partInit.title ? { title: partInit.title } : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newSourcePart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newSourcePart);
   } else if (partInit.type === "file") {
     const newFilePart: FilePart = {
       type: "file",
@@ -139,13 +138,7 @@ const handlePartStart = (
       data: partInit.data,
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newFilePart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newFilePart);
   } else if (partInit.type === "data") {
     const newDataPart: DataPart = {
       type: "data",
@@ -153,13 +146,7 @@ const handlePartStart = (
       data: partInit.data,
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newDataPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newDataPart);
   } else {
     const unsupportedType = String((partInit as { type?: unknown }).type);
     warnOnce(
@@ -172,13 +159,7 @@ const handlePartStart = (
       text: "",
       status: { type: "running" },
     };
-    return {
-      ...message,
-      parts: [...message.parts, placeholderPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, placeholderPart);
   }
 };
 
@@ -198,13 +179,15 @@ const handleToolCallArgsTextFinish = (
       return part;
     }
 
-    // TODO this should never be hit; this happens if args-text-finish is emitted after result
-    if (part.state !== "partial-call") return { ...part };
-    // throw new Error("Last is not a partial call");
+    if (part.state !== "partial-call") return part;
 
     return {
       ...part,
       state: "call",
+      status:
+        part.status.type === "running"
+          ? { type: "running", isArgsComplete: true }
+          : part.status,
     };
   });
 };
@@ -214,16 +197,30 @@ const handlePartFinish = (
   chunk: AssistantStreamChunk & { readonly type: "part-finish" },
   warnOnce: WarnOnce,
 ): AssistantMessage => {
-  return updatePartForPath(message, chunk, warnOnce, (part) => ({
-    ...part,
-    status: { type: "complete", reason: "unknown" },
-  }));
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
+    if (part.type === "tool-call" && part.isPreliminary) return part;
+    if (part.type === "reasoning" && part.timing !== undefined) {
+      return {
+        ...part,
+        status: { type: "complete", reason: "unknown" },
+        timing: {
+          ...part.timing,
+          completedAt: part.timing.completedAt ?? Date.now(),
+        },
+      };
+    }
+    return {
+      ...part,
+      status: { type: "complete", reason: "unknown" },
+    };
+  });
 };
 
 const handleTextDelta = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "text-delta" },
   warnOnce: WarnOnce,
+  parserByPart: WeakMap<object, IncrementalJsonObjectParser>,
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "text" || part.type === "reasoning") {
@@ -231,10 +228,17 @@ const handleTextDelta = (
     } else if (part.type === "tool-call") {
       const newArgsText = part.argsText + chunk.textDelta;
 
-      // Fall back to existing args if parsing fails
-      const newArgs = parsePartialJsonObject(newArgsText) ?? part.args;
+      const existingParser = parserByPart.get(part);
+      const parser = existingParser
+        ? existingParser.append(chunk.textDelta)
+        : newArgsText.length === 0
+          ? IncrementalJsonObjectParser.from("")
+          : IncrementalJsonObjectParser.from(newArgsText, part.args);
+      const newArgs = parser.currentArgs;
 
-      return { ...part, argsText: newArgsText, args: newArgs };
+      const updatedPart = { ...part, argsText: newArgsText, args: newArgs };
+      parserByPart.set(updatedPart, parser);
+      return updatedPart;
     } else {
       warnOnce(
         "wrong-part:text-delta",
@@ -252,8 +256,34 @@ const handleResult = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "tool-call") {
+      const isPreliminary = chunk.isPreliminary === true;
+      const runningStatus =
+        part.status.type === "running"
+          ? part.status
+          : {
+              type: "running" as const,
+              isArgsComplete: part.state !== "partial-call",
+            };
+      if (isPreliminary) {
+        if (part.state === "result") return part;
+        return {
+          ...part,
+          state: part.state === "partial-call" ? "partial-call" : "call",
+          ...(chunk.artifact !== undefined ? { artifact: chunk.artifact } : {}),
+          result: chunk.result,
+          isError: chunk.isError ?? false,
+          isPreliminary: true,
+          ...(chunk.modelContent !== undefined
+            ? { modelContent: chunk.modelContent }
+            : {}),
+          ...(chunk.messages !== undefined ? { messages: chunk.messages } : {}),
+          status: runningStatus,
+        };
+      }
+
+      const { isPreliminary: _isPreliminary, ...partWithoutPreliminary } = part;
       return {
-        ...part,
+        ...partWithoutPreliminary,
         state: "result",
         ...(part.timing !== undefined
           ? {
@@ -445,16 +475,26 @@ const handleUpdateState = (
   };
 };
 
-const computeTiming = (
-  tracker: TimingTracker,
-  message: AssistantMessage,
-): AssistantMessageTiming => {
+const sumFinishedStepOutputTokens = (message: AssistantMessage): number => {
   let outputTokens = 0;
   for (const step of message.metadata.steps) {
     if (step.state === "finished" && step.usage) {
       outputTokens += step.usage.outputTokens;
     }
   }
+  return outputTokens;
+};
+
+const computeTiming = (
+  tracker: TimingTracker,
+  message: AssistantMessage,
+  finalOutputTokens = 0,
+): AssistantMessageTiming => {
+  const outputTokens =
+    finalOutputTokens > 0
+      ? finalOutputTokens
+      : sumFinishedStepOutputTokens(message);
+  if (outputTokens > 0) return tracker.getTiming(outputTokens);
 
   let totalText = "";
   for (const part of message.parts) {
@@ -463,10 +503,7 @@ const computeTiming = (
     }
   }
 
-  return tracker.getTiming(
-    outputTokens > 0 ? outputTokens : undefined,
-    totalText || undefined,
-  );
+  return tracker.getTiming(undefined, totalText || undefined);
 };
 
 const throttleCallback = (callback: () => void) => {
@@ -498,7 +535,9 @@ export class AssistantMessageAccumulator extends TransformStream<
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     let stateAccumulator: GorpStreamAccumulator | undefined;
+    let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
+    const parserByPart = new WeakMap<object, IncrementalJsonObjectParser>();
     const warnedKeys = new Set<string>();
     const warnOnce: WarnOnce = (key, warning) => {
       if (warnedKeys.has(key) || warnedKeys.size >= MAX_WARNED_KEYS) return;
@@ -539,7 +578,12 @@ export class AssistantMessageAccumulator extends TransformStream<
             break;
 
           case "text-delta": {
-            const next = handleTextDelta(message, chunk, warnOnce);
+            const next = handleTextDelta(
+              message,
+              chunk,
+              warnOnce,
+              parserByPart,
+            );
             if (next !== message) tracker.recordFirstToken();
             message = next;
             break;
@@ -548,6 +592,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleResult(message, chunk, warnOnce);
             break;
           case "message-finish":
+            finalOutputTokens = chunk.usage?.outputTokens;
             message = handleMessageFinish(message, chunk);
             break;
           case "annotations":
@@ -584,7 +629,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
         }
@@ -599,7 +644,7 @@ export class AssistantMessageAccumulator extends TransformStream<
               (part) =>
                 part.type === "tool-call" &&
                 (part.state === "call" || part.state === "partial-call") &&
-                part.result === undefined,
+                (part.result === undefined || part.isPreliminary),
             ) ?? false;
           message = handleMessageFinish(message, {
             type: "message-finish",
@@ -615,7 +660,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
 

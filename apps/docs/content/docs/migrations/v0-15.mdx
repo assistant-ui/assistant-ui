@@ -31,6 +31,8 @@ npx assistant-ui@latest upgrade
 
 This runs the `v0-15/aui-accessor-calls-to-properties` codemod, which rewrites nullary accessor calls (`aui.thread()`) to property access (`aui.thread`).
 
+The codemod follows recognized client bindings rather than every variable with the same name. Clients received through properties, such as `const { aui } = props` or `const aui = ctx.aui`, may need manual updates. Review the diff and run your project's typecheck after migrating.
+
 ## Scope Accessors Are Properties
 
 Nullary scope accessors are now properties. Calling them still works but is deprecated:
@@ -53,7 +55,7 @@ if (aui.thread.source != null) {
 }
 ```
 
-Accessors expose `source`, `query`, and `name` selection metadata as properties — previously found on the accessor function, now on the same names on the proxy. These three names are reserved and never resolve to scope methods.
+Accessors expose `source`, `query`, and `name` selection metadata as properties. These were previously found on the accessor function and keep the same names on the proxy. These three names are reserved and never resolve to scope methods.
 
 ## Legacy Context Hooks Removed
 
@@ -153,7 +155,7 @@ Where `{ parent: null }` was used to detach from context, `<AuiProvider extends=
 
 ## `AuiProvider` Grammar
 
-`AuiProvider` takes a `config` built with `AuiConfig(...)` — raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates (dev-enforced). `ref` receives the resulting client after mount.
+`AuiProvider` takes a `config` built with `AuiConfig(...)`; raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates (dev-enforced). `ref` receives the resulting client after mount.
 
 ```tsx
 const aui = useAui();
@@ -185,7 +187,7 @@ const config = AuiConfig({});
 <AuiProvider extends={null} config={config}>
 ```
 
-The replacement exposes a client extending the given one, not the same instance — `useAui()` beneath it returns the new client, with scope access delegating to `client`. The deprecated `value={client}` form behaves the same way: it also exposes a derived client rather than the exact instance, and the given client must implement `subscribe`.
+The replacement exposes a client extending the given one, not the same instance: `useAui()` beneath it returns the new client, with scope access delegating to `client`. The deprecated `value={client}` form behaves the same way: it also exposes a derived client rather than the exact instance, and the given client must implement `subscribe`.
 
 ### `useAui({ ... })` Extension Overload Deprecated
 
@@ -204,7 +206,7 @@ return (
 );
 ```
 
-Where the extended client was passed to `<AssistantRuntimeProvider aui={aui}>`, use the new `config` prop instead — the scopes are provided alongside the runtime's threads scope:
+Where the extended client was passed to `<AssistantRuntimeProvider aui={aui}>`, use the new `config` prop instead. The scopes are provided alongside the runtime's threads scope:
 
 ```tsx
 // Before
@@ -224,11 +226,45 @@ return (
 );
 ```
 
+## Thread Switch Events: `threads.selectionChanged`
+
+The per-item thread switch events are deprecated in favor of a single event on the thread list. `threads.selectionChanged` fires once per switch and carries both sides of the transition:
+
+```ts
+// Before
+useAuiEvent("threadListItem.switchedTo", ({ threadId }) => {
+  // threadId: the newly selected thread
+});
+useAuiEvent("threadListItem.switchedAway", ({ threadId }) => {
+  // threadId: the thread that was switched away from
+});
+
+// After
+useAuiEvent("threads.selectionChanged", ({ threadId, previousThreadId }) => {
+  // threadId: the newly selected thread
+  // previousThreadId: the thread that was switched away from
+});
+```
+
+Like its predecessors, it does not fire for the initially selected thread on mount. The deprecated events still fire and will keep working until the next major.
+
+The deprecated pair was scope-filtered: inside a per-item `threadListItem` scope (such as `ThreadListPrimitive.Items`), `threadListItem.switchedTo` only fired for that item. `threads.selectionChanged` resolves against the shared `threads` scope, so every listener fires on every switch. Filter by id to reproduce the per-item behavior:
+
+```ts
+const id = useAuiState((s) => s.threadListItem.id);
+useAuiEvent("threads.selectionChanged", ({ threadId }) => {
+  if (threadId !== id) return;
+  // this item became selected
+});
+```
+
+The new event also fires in situations where the deprecated pair did not: `InMemoryThreadList` emits on selection changes (it previously emitted no switch events), and `switchToNewThread()` emits for the newly created thread. Selection-driven defaults such as `scrollToBottomOnThreadSwitch` and `unstable_focusOnThreadSwitched` now engage in both situations. Runtimes that resolve a deep-linked `threadId`/`initialThreadId` after mount (such as `useRemoteThreadListRuntime`) start on a placeholder new thread, so the deep link's resolution also fires the event, and `previousThreadId` is the placeholder in that case.
+
 ## Still Deprecated (not removed)
 
-- Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`) — replaced by `AuiIf`. The codemod migrates these.
-- `useMessagePartText` / `useMessagePartReasoning` / `useMessagePartSource` / `useMessagePartImage` / `useMessagePartFile` / `useMessagePartData` — use `useAuiState` to select and narrow `s.part`.
-- The `components` prop on primitives — replaced by the children render function pattern (see the [v0.14 guide](/docs/migrations/v0-14)).
+- Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`): replaced by `AuiIf`. The codemod migrates these.
+- `useMessagePartText` / `useMessagePartReasoning` / `useMessagePartSource` / `useMessagePartImage` / `useMessagePartFile` / `useMessagePartData`: use `useAuiState` to select and narrow `s.part`.
+- The `components` prop on primitives: replaced by the children render function pattern (see the [v0.14 guide](/docs/migrations/v0-14)).
 
 ## Getting Help
 

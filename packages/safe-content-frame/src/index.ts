@@ -14,12 +14,64 @@ export interface SafeContentFrameOptions {
   salt?: string;
 }
 
+export interface SafeContentFrameRenderOptions {
+  /** Cancels the render while its iframe is still loading. */
+  signal?: AbortSignal;
+}
+
+export interface SafeContentFrameHtmlRenderOptions extends SafeContentFrameRenderOptions {
+  unsafeDocumentWrite?: boolean;
+}
+
+/**
+ * Why a frame never signalled a completed render. `shim-unavailable` means the
+ * shim never acknowledged that it started, so the document at the shim URL is
+ * missing or is not a shim. `shim-error` is the shim reporting its own failure.
+ * `render-timeout` is the shim running normally with the content still not
+ * rendered, which is the one case that may still resolve on its own.
+ */
+export type ShimLoadErrorCode =
+  | "shim-unavailable"
+  | "shim-error"
+  | "render-timeout";
+
+export interface ShimLoadError extends Error {
+  code: ShimLoadErrorCode;
+}
+
 export interface RenderedFrame {
   iframe: HTMLIFrameElement;
   origin: string;
   sendMessage(data: unknown, transfer?: Transferable[]): void;
   fullyLoadedPromiseWithTimeout(timeoutMs: number): Promise<void>;
   dispose(): void;
+}
+
+const SHIM_LOAD_ERROR_CODES: readonly string[] = [
+  "shim-unavailable",
+  "shim-error",
+  "render-timeout",
+] satisfies readonly ShimLoadErrorCode[];
+
+function shimLoadError(
+  code: ShimLoadErrorCode,
+  message: string,
+): ShimLoadError {
+  return Object.assign(new Error(message), { code });
+}
+
+/**
+ * Narrows a rejection from `fullyLoadedPromiseWithTimeout`. The promise also
+ * rejects with plain errors that carry no code, so a bare property read is not
+ * enough to tell why a frame failed. Membership of the code set is the test
+ * rather than `instanceof`, which does not survive a duplicated copy of this
+ * package in a consumer's bundle.
+ */
+export function isShimLoadError(error: unknown): error is ShimLoadError {
+  return (
+    error instanceof Error &&
+    SHIM_LOAD_ERROR_CODES.includes((error as { code?: unknown }).code as string)
+  );
 }
 
 const SCF_HOST = "scf.auiusercontent.com";
@@ -70,12 +122,13 @@ async function contentSalt(
 ): Promise<ArrayBuffer> {
   const enc = new TextEncoder();
   const sep = enc.encode("$@#|");
+  const encodedPathname = enc.encode(pathname);
   const combined = new Uint8Array(
-    content.length + sep.length + pathname.length,
+    content.length + sep.length + encodedPathname.length,
   );
   combined.set(content, 0);
   combined.set(sep, content.length);
-  combined.set(enc.encode(pathname), content.length + sep.length);
+  combined.set(encodedPathname, content.length + sep.length);
   return sha256(combined.buffer as ArrayBuffer);
 }
 
@@ -91,7 +144,7 @@ export class SafeContentFrame {
   async renderHtml(
     html: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
     return this.render(
       new TextEncoder().encode(html),
@@ -105,25 +158,29 @@ export class SafeContentFrame {
     content: Uint8Array | string,
     mimeType: string,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
     const data =
       typeof content === "string" ? new TextEncoder().encode(content) : content;
-    return this.render(data, mimeType, container);
+    return this.render(data, mimeType, container, opts);
   }
 
   async renderPdf(
     content: Uint8Array,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
-    return this.render(content, "application/pdf", container);
+    return this.render(content, "application/pdf", container, opts);
   }
 
   private async render(
     content: Uint8Array,
     mimeType: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
+    const signal = opts?.signal;
+    signal?.throwIfAborted();
     const origin = window.location.origin;
     const salt = this.options.salt
       ? (new TextEncoder().encode(this.options.salt).buffer as ArrayBuffer)
@@ -131,7 +188,9 @@ export class SafeContentFrame {
         ? await contentSalt(content, location.pathname)
         : randomSalt();
 
+    signal?.throwIfAborted();
     const hash = await computeOriginHash(this.product, salt, origin);
+    signal?.throwIfAborted();
     const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
@@ -153,16 +212,7 @@ export class SafeContentFrame {
       const channel = new MessageChannel();
       let channelTransferred = false;
       let cleanedUp = false;
-      const cleanup = () => {
-        if (cleanedUp) return;
-        cleanedUp = true;
-        iframe.onload = null;
-        iframe.onerror = null;
-        channel.port1.onmessage = null;
-        channel.port1.close();
-        if (!channelTransferred) channel.port2.close();
-        mountElement.remove();
-      };
+      let shimReady = false;
 
       let onLoaded: () => void;
       let onLoadError: (error: Error) => void;
@@ -172,11 +222,48 @@ export class SafeContentFrame {
       });
       void loaded.catch(() => {});
 
+      const onWindowMessage = (event: MessageEvent) => {
+        if (event.origin !== iframeOrigin) return;
+        if (event.source !== iframe.contentWindow) return;
+
+        if (event.data?.type === "ready") shimReady = true;
+        else if (event.data?.type === "error") {
+          failPendingLoad(shimLoadError("shim-error", event.data.message));
+        }
+      };
+      window.addEventListener("message", onWindowMessage);
+
+      function cleanup() {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        signal?.removeEventListener("abort", onAbort);
+        iframe.onload = null;
+        iframe.onerror = null;
+        window.removeEventListener("message", onWindowMessage);
+        channel.port1.onmessage = null;
+        channel.port1.close();
+        if (!channelTransferred) channel.port2.close();
+        mountElement.remove();
+      }
+
+      function onAbort() {
+        if (!signal) return;
+        cleanup();
+        reject(signal.reason);
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+
+      function failPendingLoad(error: Error) {
+        onLoadError(error);
+        if (channelTransferred) return;
+        cleanup();
+        reject(error);
+      }
+
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
         else if (e.data?.type === "error") {
-          const error = new Error(e.data.message);
-          onLoadError(error);
+          onLoadError(shimLoadError("shim-error", e.data.message));
           cleanup();
         }
       };
@@ -202,6 +289,7 @@ export class SafeContentFrame {
             [channel.port2],
           );
           channelTransferred = true;
+          signal?.removeEventListener("abort", onAbort);
         } catch (error) {
           cleanup();
           reject(error);
@@ -214,13 +302,30 @@ export class SafeContentFrame {
           origin: iframeOrigin,
           sendMessage: (data, transfer) =>
             iframe.contentWindow?.postMessage(data, iframeOrigin, transfer),
-          fullyLoadedPromiseWithTimeout: (ms) =>
-            Promise.race([
-              loaded,
-              new Promise<void>((_, rej) =>
-                setTimeout(() => rej(new Error("Timeout")), ms),
-              ),
-            ]),
+          fullyLoadedPromiseWithTimeout: async (ms) => {
+            let timeout: ReturnType<typeof setTimeout> | undefined;
+            try {
+              await Promise.race([
+                loaded,
+                new Promise<void>((_, reject) => {
+                  timeout = setTimeout(
+                    () =>
+                      reject(
+                        shimReady
+                          ? shimLoadError("render-timeout", "Timeout")
+                          : shimLoadError(
+                              "shim-unavailable",
+                              `Failed to load shim: ${shimUrl}`,
+                            ),
+                      ),
+                    ms,
+                  );
+                }),
+              ]);
+            } finally {
+              if (timeout !== undefined) clearTimeout(timeout);
+            }
+          },
           dispose: cleanup,
         });
       };

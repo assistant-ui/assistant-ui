@@ -1,11 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { detectTrigger } from "./detectTrigger";
+import { detectTrigger, type TriggerMatcher } from "./detectTrigger";
+
+const matchFromLastTrigger: TriggerMatcher = (
+  text,
+  triggerChar,
+  cursorPosition,
+) => {
+  const textUpToCursor = text.slice(0, cursorPosition);
+  const offset = textUpToCursor.lastIndexOf(triggerChar);
+  if (offset === -1) return null;
+  return {
+    query: textUpToCursor.slice(offset + triggerChar.length),
+    offset,
+    endOffset: cursorPosition,
+  };
+};
 
 describe("detectTrigger", () => {
   it("detects @query at cursor position", () => {
     expect(detectTrigger("hello @wea", "@", 10)).toEqual({
       query: "wea",
       offset: 6,
+      endOffset: 10,
     });
   });
 
@@ -25,12 +41,74 @@ describe("detectTrigger", () => {
     expect(detectTrigger("@foo", "@", 4)).toEqual({
       query: "foo",
       offset: 0,
+      endOffset: 4,
     });
   });
 
   it("stops at whitespace in query", () => {
-    // "@foo bar" — space terminates the mention
     expect(detectTrigger("@foo bar", "@", 8)).toBeNull();
+  });
+
+  it("uses a custom matcher for multi-word queries", () => {
+    expect(
+      detectTrigger("hello @Example UK", "@", 17, matchFromLastTrigger),
+    ).toEqual({
+      query: "Example UK",
+      offset: 6,
+      endOffset: 17,
+    });
+  });
+
+  it("keeps a matcher endOffset that is not the query length", () => {
+    const matchNormalized: TriggerMatcher = (
+      text,
+      triggerChar,
+      cursorPosition,
+    ) => {
+      const textUpToCursor = text.slice(0, cursorPosition);
+      const offset = textUpToCursor.lastIndexOf(triggerChar);
+      if (offset === -1) return null;
+      return {
+        query: "example",
+        offset,
+        endOffset: cursorPosition,
+      };
+    };
+
+    expect(
+      detectTrigger("hello @Example UK", "@", 17, matchNormalized),
+    ).toEqual({
+      query: "example",
+      offset: 6,
+      endOffset: 17,
+    });
+  });
+
+  it("rejects a matcher whose offset is not the trigger", () => {
+    const match: TriggerMatcher = () => ({
+      query: "x",
+      offset: 0,
+      endOffset: 2,
+    });
+    expect(detectTrigger("hello @x", "@", 8, match)).toBeNull();
+  });
+
+  it("rejects a matcher that matches at the caret", () => {
+    const match: TriggerMatcher = () => ({
+      query: "",
+      offset: 6,
+      endOffset: 7,
+    });
+    expect(detectTrigger("hello @foo", "@", 6, match)).toBeNull();
+  });
+
+  it("rejects a matcher whose endOffset is inside the trigger", () => {
+    const match: TriggerMatcher = () => ({
+      query: "",
+      offset: 6,
+      endOffset: 6,
+    });
+    expect(detectTrigger("hello @foo", "@", 10, match)).toBeNull();
   });
 
   it("stops at newline", () => {
@@ -45,20 +123,19 @@ describe("detectTrigger", () => {
     expect(detectTrigger("hello\t@foo", "@", 10)).toEqual({
       query: "foo",
       offset: 6,
+      endOffset: 10,
     });
   });
 
   it("finds trigger closest to cursor, not earlier ones", () => {
-    // Text has two @: "hello @old text @new"
-    // Cursor at end → should find @new
     expect(detectTrigger("hello @old text @new", "@", 20)).toEqual({
       query: "new",
       offset: 16,
+      endOffset: 20,
     });
   });
 
   it("ignores trigger after cursor", () => {
-    // Cursor at position 5, trigger at position 10
     expect(detectTrigger("hello text @foo", "@", 5)).toBeNull();
   });
 
@@ -66,6 +143,7 @@ describe("detectTrigger", () => {
     expect(detectTrigger("hello @@foo", "@@", 11)).toEqual({
       query: "foo",
       offset: 6,
+      endOffset: 11,
     });
   });
 
@@ -73,6 +151,7 @@ describe("detectTrigger", () => {
     expect(detectTrigger("hello @", "@", 7)).toEqual({
       query: "",
       offset: 6,
+      endOffset: 7,
     });
   });
 
@@ -80,6 +159,7 @@ describe("detectTrigger", () => {
     expect(detectTrigger("全角\u3000@foo", "@", 7)).toEqual({
       query: "foo",
       offset: 3,
+      endOffset: 7,
     });
   });
 
@@ -87,6 +167,7 @@ describe("detectTrigger", () => {
     expect(detectTrigger("x\u00A0@foo", "@", 6)).toEqual({
       query: "foo",
       offset: 2,
+      endOffset: 6,
     });
   });
 
@@ -98,6 +179,7 @@ describe("detectTrigger", () => {
     expect(detectTrigger("hello\u3000@foo", "@", 10)).toEqual({
       query: "foo",
       offset: 6,
+      endOffset: 10,
     });
   });
 
@@ -105,6 +187,7 @@ describe("detectTrigger", () => {
     expect(detectTrigger("hello\u00a0@foo", "@", 10)).toEqual({
       query: "foo",
       offset: 6,
+      endOffset: 10,
     });
   });
 

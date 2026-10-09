@@ -1,7 +1,23 @@
-# CI and repository policy changes require maintainer review.
-/.github/CODEOWNERS @Yonom @okisdev @AVGVSTVS96
-/.github/actions/ @assistant-ui/maintainers
-/.github/workflows/ @assistant-ui/maintainers
+# Generated from .github/review-policy.json by scripts/sync-review-policy.mjs --write-codeowners; edit the policy, not this file.
 
-# Public API surface snapshots require maintainer review.
-/api-surface/ @Yonom @okisdev @AVGVSTVS96
+# Reactivity core
+/packages/tap/ @assistant-ui/owners
+/packages/store/ @assistant-ui/owners
+/apps/docs/content/docs/tap/ @assistant-ui/owners
+/apps/docs/content/docs/store/ @assistant-ui/owners
+
+# Wire protocol
+/packages/assistant-stream/ @assistant-ui/owners
+
+# Public API
+/api-surface/ @assistant-ui/owners
+
+# CI and policy
+/.github/ @assistant-ui/owners
+/CONTRIBUTING.md @assistant-ui/owners
+/AGENTS.md @assistant-ui/owners
+/scripts/review-tier.mjs @assistant-ui/owners
+/scripts/diff-api-surface.mjs @assistant-ui/owners
+/scripts/sync-review-policy.mjs @assistant-ui/owners
+/scripts/review-health.mjs @assistant-ui/owners
+/scripts/lib/review-*.mjs @assistant-ui/owners

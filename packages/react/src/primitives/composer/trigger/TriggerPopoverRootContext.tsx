@@ -16,9 +16,11 @@ import {
 } from "../ComposerInputPluginContext";
 import type { TriggerPopoverResourceOutput } from "./TriggerPopoverResource";
 import type { TriggerBehavior } from "./triggerSelectionResource";
+import type { TriggerMatcher } from "./detectTrigger";
 
 export type RegisteredTrigger = {
   readonly char: string;
+  readonly matcher?: TriggerMatcher | undefined;
   /** Behavior contributed by a child `TriggerPopover.Directive` / `.Action`. */
   readonly behavior?: TriggerBehavior;
   readonly resource: TriggerPopoverResourceOutput;
@@ -292,21 +294,21 @@ const TriggerPopoverRootInner: FC<
  *
  * @example
  * ```tsx
- * <ComposerPrimitive.Unstable_TriggerPopoverRoot>
- *   <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
- *     <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+ * <ComposerPrimitive.TriggerPopoverRoot>
+ *   <ComposerPrimitive.TriggerPopover char="@" adapter={mentionAdapter}>
+ *     <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
  *     ...
- *   </ComposerPrimitive.Unstable_TriggerPopover>
+ *   </ComposerPrimitive.TriggerPopover>
  *
- *   <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slashAdapter}>
- *     <ComposerPrimitive.Unstable_TriggerPopover.Action onExecute={handler} />
+ *   <ComposerPrimitive.TriggerPopover char="/" adapter={slashAdapter}>
+ *     <ComposerPrimitive.TriggerPopover.Action onExecute={handler} />
  *     ...
- *   </ComposerPrimitive.Unstable_TriggerPopover>
+ *   </ComposerPrimitive.TriggerPopover>
  *
  *   <ComposerPrimitive.Root>
  *     <ComposerPrimitive.Input />
  *   </ComposerPrimitive.Root>
- * </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+ * </ComposerPrimitive.TriggerPopoverRoot>
  * ```
  */
 export const ComposerPrimitiveTriggerPopoverRoot: FC<

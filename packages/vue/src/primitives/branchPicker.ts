@@ -4,8 +4,12 @@ import {
   mergeProps,
   type ComputedRef,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
-import type {} from "@assistant-ui/core/store";
+import {
+  branchPickerNextDisabled,
+  branchPickerPreviousDisabled,
+} from "@assistant-ui/core/store/internal";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
@@ -18,7 +22,7 @@ const branchButton = (
   defineComponent({
     name,
     inheritAttrs: false,
-    slots: Object as SlotsType<{ default?: () => unknown }>,
+    slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
     setup(_, { attrs, slots }) {
       const aui = useAui();
       const disabled = useDisabled();
@@ -43,24 +47,14 @@ const branchButton = (
 /** A button that switches the current message to its previous branch. */
 export const BranchPickerPrimitivePrevious = branchButton(
   "BranchPickerPrimitivePrevious",
-  () =>
-    useAuiState(
-      (s) =>
-        s.message.branchNumber <= 1 ||
-        (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun),
-    ),
+  () => useAuiState(branchPickerPreviousDisabled),
   "previous",
 );
 
 /** A button that switches the current message to its next branch. */
 export const BranchPickerPrimitiveNext = branchButton(
   "BranchPickerPrimitiveNext",
-  () =>
-    useAuiState(
-      (s) =>
-        s.message.branchNumber >= s.message.branchCount ||
-        (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun),
-    ),
+  () => useAuiState(branchPickerNextDisabled),
   "next",
 );
 

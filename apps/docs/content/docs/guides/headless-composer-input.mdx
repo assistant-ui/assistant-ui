@@ -4,14 +4,12 @@ description: Build a custom composer input while keeping assistant-ui composer s
 platforms: ["react"]
 ---
 
-`ComposerPrimitive.Input` is still the recommended composer input for most apps. It owns autosize, keyboard shortcuts, IME handling, paste-to-attachment, focus behavior, and trigger-popover keyboard integration.
+`ComposerPrimitive.Input` is the recommended composer input for most apps. It owns autosize, keyboard shortcuts, IME handling, paste-to-attachment, focus behavior, and trigger-popover keyboard integration.
 
 Use `unstable_useComposerInput` when you already own the input surface, such as a custom editor, a `contentEditable` surface, or a textarea wrapper whose behavior cannot be expressed through `ComposerPrimitive.Input`'s props, `asChild`, or `render` APIs.
 
 <Callout type="warn">
-  This API is marked unstable and may change without notice. It is a thin bridge
-  to composer text and send state, not a replacement implementation of
-  `ComposerPrimitive.Input`.
+  `unstable_useComposerInput` and `unstable_useTriggerPopoverAriaProps` remain unstable and may change without notice. The trigger popover primitives and types are stable. These hooks bridge composer text, send state, and popover ARIA props for a custom input.
 </Callout>
 
 ## Usage
@@ -109,5 +107,5 @@ This helper only describes the open popover to assistive technology. It does not
 ## Related
 
 - [Composer primitives](/docs/primitives/composer)
-- [Composer Trigger Popover](/docs/ui/composer-trigger-popover)
+- [Composer Trigger Popover](/elements/composer-trigger-popover)
 - [Input History](/docs/guides/input-history)

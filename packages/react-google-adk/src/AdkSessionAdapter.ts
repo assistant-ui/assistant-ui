@@ -5,8 +5,11 @@ import type {
   RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
+import { normalizeAdkPart } from "./normalizeAdkPart";
+import { parseAdkEventValue } from "./parseAdkEvent";
+import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
@@ -36,6 +39,7 @@ export type AdkSessionAdapterOptions = {
 
 export type AdkArtifactData = {
   inlineData?: { mimeType: string; data: string } | undefined;
+  fileData?: { fileUri: string; mimeType?: string | undefined } | undefined;
   text?: string | undefined;
 };
 
@@ -132,14 +136,19 @@ const parseAdkArtifactListResponse = (value: unknown): string[] => {
 const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
   if (!isRecord(value)) {
     throw new Error(
-      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+      'Invalid ADK artifact load response: expected an object containing "text", "inlineData", or "fileData".',
     );
   }
 
-  const { text, inlineData } = value;
-  if (text === undefined && inlineData === undefined) {
+  const normalizedValue = normalizeAdkPart(value);
+  const { text, inlineData, fileData } = normalizedValue;
+  if (
+    text === undefined &&
+    inlineData === undefined &&
+    fileData === undefined
+  ) {
     throw new Error(
-      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+      'Invalid ADK artifact load response: expected an object containing "text", "inlineData", or "fileData".',
     );
   }
 
@@ -160,7 +169,19 @@ const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
     );
   }
 
-  return value as AdkArtifactData;
+  if (
+    fileData !== undefined &&
+    (!isRecord(fileData) ||
+      typeof fileData.fileUri !== "string" ||
+      (fileData.mimeType !== undefined &&
+        typeof fileData.mimeType !== "string"))
+  ) {
+    throw new Error(
+      'Invalid ADK artifact load response: "fileData" must contain a string "fileUri" and an optional string "mimeType" field.',
+    );
+  }
+
+  return normalizedValue as AdkArtifactData;
 };
 
 const parseAdkArtifactVersionsResponse = (value: unknown): number[] => {
@@ -210,9 +231,13 @@ export function createAdkSessionAdapter(
   const normalizedApiUrl = trimTrailingSlashes(apiUrl);
   const baseUrl = `${normalizedApiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
 
-  const getHeaders = async (): Promise<Record<string, string>> => {
+  const getHeaders = async (
+    signal?: AbortSignal,
+  ): Promise<Record<string, string>> => {
     if (!options.headers) return {};
-    if (typeof options.headers === "function") return await options.headers();
+    if (typeof options.headers === "function") {
+      return await raceWithAbortSignal(signal, options.headers);
+    }
     return options.headers;
   };
 
@@ -307,7 +332,7 @@ export function createAdkSessionAdapter(
     sessionId: string,
     options?: { signal?: AbortSignal | undefined },
   ): Promise<AdkThreadSnapshot> => {
-    const headers = await getHeaders();
+    const headers = await getHeaders(options?.signal);
     const res = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}`, {
       headers,
       ...(options?.signal ? { signal: options.signal } : {}),
@@ -323,7 +348,11 @@ export function createAdkSessionAdapter(
       );
     }
 
-    const events = session.events as AdkEvent[] | undefined;
+    // Events carry ordered state and tool transitions, so partial replay can
+    // produce a plausible but incorrect thread.
+    const events = session.events?.map((event, index) =>
+      parseAdkEventValue(event, `Invalid ADK session event at index ${index}`),
+    );
 
     if (!events?.length) {
       return { messages: [] };

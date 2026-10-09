@@ -51,16 +51,6 @@ export type ComposerInputPluginRegistry = {
 const ComposerInputPluginRegistryContext =
   createContext<ComposerInputPluginRegistry | null>(null);
 
-export const useComposerInputPluginRegistry =
-  (): ComposerInputPluginRegistry => {
-    const ctx = useContext(ComposerInputPluginRegistryContext);
-    if (!ctx)
-      throw new Error(
-        "useComposerInputPluginRegistry must be used within a ComposerInputPluginProvider",
-      );
-    return ctx;
-  };
-
 export const useComposerInputPluginRegistryOptional =
   (): ComposerInputPluginRegistry | null => {
     return useContext(ComposerInputPluginRegistryContext);

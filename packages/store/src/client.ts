@@ -2,6 +2,8 @@
 // graph loads with react installed, or with react aliased to
 // @assistant-ui/tap/standalone-shim, or (types aside) not at all.
 
+export { shallowEqual } from "./utils/shallow-equal";
+
 export {
   createAssistantClient,
   type AssistantClientHandle,
@@ -9,7 +11,13 @@ export {
   type AssistantConfigSource,
 } from "./createAssistantClient";
 
-export { DefaultAssistantClient } from "./utils/react-assistant-context";
+export {
+  DefaultAssistantClient,
+  useAssistantContextProvider,
+  useAssistantContextValue,
+} from "./utils/react-assistant-context";
+export { useConfiguredAui } from "./useAui";
+export { useDestroySignalProvider } from "./utils/destroy-signal-context";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
   useAssistantClientRef,
@@ -49,3 +57,21 @@ export type {
   ScopeRegistry,
   Unsubscribe,
 } from "./types/client";
+
+export { createClientFacade } from "./utils/client-facade";
+export {
+  createLastValidCache,
+  createStaleReporter,
+} from "./utils/last-valid-cache";
+export {
+  isUserScrollUp,
+  isViewportAtBottom,
+  observeContentResize,
+  viewportOverflows,
+  type ViewportMetrics,
+} from "./utils/viewport-scroll";
+export {
+  createThreadViewportAutoScroll,
+  type ThreadViewportAutoScroll,
+  type ThreadViewportAutoScrollOptions,
+} from "./utils/thread-viewport-auto-scroll";

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 
 export type Unstable_MessageStallDetectionOptions = {
   /**
@@ -23,11 +24,10 @@ export type Unstable_MessageStallDetection = {
  * @deprecated Under active development and might change without notice.
  *
  * Detects mid-run output stalls on the current message: while the message is
- * running, watches a fingerprint of its content (part count plus text,
- * argument, and result sizes) and reports a stall once the fingerprint stops
- * changing for `thresholdMs`. Useful for re-surfacing a "still working"
- * indicator during tool think-time or provider stalls, after the first
- * tokens have already streamed.
+ * running, watches its text, reasoning, and tool-argument values plus tool-result
+ * availability and reports a stall once they stop changing for `thresholdMs`.
+ * Useful for re-surfacing a "still working" indicator during tool think-time or
+ * provider stalls, after the first tokens have already streamed.
  *
  * Must be used inside a message scope.
  */
@@ -36,29 +36,36 @@ export function unstable_useMessageStallDetection(
 ): Unstable_MessageStallDetection {
   const thresholdMs = options?.thresholdMs ?? 2000;
 
-  const fingerprint = useAuiState((s) => {
-    if (s.message.status?.type !== "running") return undefined;
-    let size = 0;
-    for (const part of s.message.content) {
-      if (part.type === "text" || part.type === "reasoning") {
-        size += part.text.length;
-      } else if (part.type === "tool-call") {
-        size += part.argsText.length + (part.result !== undefined ? 1 : 0);
-      }
-    }
-    return `${s.message.content.length}:${size}`;
-  });
+  const activity = useAuiState(
+    useShallowSelector((s) => {
+      const running = s.message.status?.type === "running";
+      if (!running) return [false];
 
-  const running = fingerprint !== undefined;
-  const lastActivityRef = useRef(Date.now());
+      const values: unknown[] = [true, s.message.content.length];
+
+      for (const part of s.message.content) {
+        if (part.type === "text" || part.type === "reasoning") {
+          values.push(part.type, part.text);
+        } else if (part.type === "tool-call") {
+          values.push(part.type, part.argsText, part.result !== undefined);
+        } else {
+          values.push(part.type);
+        }
+      }
+      return values;
+    }),
+  );
+
+  const running = activity[0] === true;
+  const lastActivityRef = useRef(0);
   const [stalled, setStalled] = useState(false);
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     if (!running) return undefined;
     lastActivityRef.current = Date.now();
     return undefined;
-  }, [running, fingerprint]);
+  }, [running, activity]);
 
   useEffect(() => {
     if (!running) {
@@ -66,26 +73,30 @@ export function unstable_useMessageStallDetection(
       return undefined;
     }
 
+    const stall = () => {
+      setNow(Date.now());
+      setStalled(true);
+    };
     const sinceActivity = Date.now() - lastActivityRef.current;
     if (sinceActivity >= thresholdMs) {
-      setStalled(true);
+      stall();
       return undefined;
     }
 
     setStalled(false);
-    const id = setTimeout(() => setStalled(true), thresholdMs - sinceActivity);
+    const id = setTimeout(stall, thresholdMs - sinceActivity);
     return () => clearTimeout(id);
-  }, [running, fingerprint, thresholdMs]);
+  }, [running, activity, thresholdMs]);
 
   useEffect(() => {
     if (!stalled) return undefined;
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [stalled]);
 
   if (!stalled) return { stalled: false, stalledForMs: 0 };
   return {
     stalled: true,
-    stalledForMs: Math.max(0, Date.now() - lastActivityRef.current),
+    stalledForMs: Math.max(0, now - lastActivityRef.current),
   };
 }

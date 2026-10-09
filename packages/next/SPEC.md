@@ -124,7 +124,7 @@ Both sides import the module **bare**; the facade resolves each to the right bui
 - **server:** import `./x.generative` in a route handler — it resolves to the
   server build (schema + `execute`). With the AI SDK,
   `await new AISDKToolkit({ toolkit }).tools({ frontend })` from
-  `@assistant-ui/react-ai-sdk` converts it into a `ToolSet` whose `execute` runs
+  `@assistant-ui/ai-sdk` converts it into a `ToolSet` whose `execute` runs
   in the route, merging in the frontend-uploaded tools.
 - **client:** import `./x.generative` in a client component — it resolves to the
   client build (schema + `render`) — and register its tool UI.

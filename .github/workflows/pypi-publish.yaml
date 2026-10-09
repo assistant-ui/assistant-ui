@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Resolve release commit SHA
         id: release-sha
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const dispatchReleaseShaRaw = context.payload?.client_payload?.releaseSha;
@@ -103,7 +103,7 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
@@ -167,11 +167,11 @@ jobs:
 
           case "$status" in
             200)
-              latest=$(python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("version") or "")' < "$pypi_body")
+              highest=$(python3 -c 'import sys, json, re; vs = [tuple(map(int, v.split("."))) for v in json.load(sys.stdin).get("releases", {}) if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", v)]; print(".".join(map(str, max(vs))) if vs else "")' < "$pypi_body")
               exists=$(python3 -c 'import sys, json; d=json.load(sys.stdin); print("true" if sys.argv[1] in d.get("releases", {}) else "false")' "$version" < "$pypi_body")
               ;;
             404)
-              latest=""
+              highest=""
               exists="false"
               ;;
             *)
@@ -180,12 +180,18 @@ jobs:
               ;;
           esac
 
-          if [ -n "$latest" ] && [ "$version" != "$latest" ]; then
-            highest=$(printf '%s\n%s\n' "$latest" "$version" | sort -V | tail -n1)
-            if [ "$highest" != "$version" ]; then
-              echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: lower than current PyPI latest ($latest)" >&2
-              exit 1
-            fi
+          if [ -n "$highest" ] && [ "$version" != "$highest" ]; then
+            IFS=. read -r major minor patch <<< "$highest"
+            next_patch="$major.$minor.$((patch + 1))"
+            next_minor="$major.$((minor + 1)).0"
+            next_major="$((major + 1)).0.0"
+            case "$version" in
+              "$next_patch" | "$next_minor" | "$next_major") ;;
+              *)
+                echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: the highest release on PyPI is $highest, so the next release is $next_patch, $next_minor, or $next_major" >&2
+                exit 1
+                ;;
+            esac
           fi
 
           if [ "$exists" = "true" ]; then
@@ -232,14 +238,14 @@ jobs:
       VERSION: ${{ needs.summary.outputs.version }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
           fetch-tags: true
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
         with:
           # No cache - hardened against cache poisoning for sensitive publish operations
           enable-cache: false
@@ -268,7 +274,7 @@ jobs:
       # PyPI trusted publishing requires this workflow filename and the
       # `pypi publish` environment to match the project's trusted-publisher config.
       - name: Publish to PyPI via OIDC
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # ratchet:pypa/gh-action-pypi-publish@v1.14.2
         with:
           packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
 

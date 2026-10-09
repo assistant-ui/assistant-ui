@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useHeaderPortalContainer } from "@/hooks/use-header-portal-container";
 import { createPortal } from "react-dom";
 import { LayoutGrid, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,13 +9,7 @@ import type { XuluxStoredThread } from "../runtime/types";
 import { XuluxHistoryMenu } from "./XuluxHistoryMenu";
 
 function HeaderPortal({ children }: { children: ReactNode }) {
-  const [container, setContainer] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setContainer(
-      document.querySelector<HTMLElement>("[data-sub-project-header-portal]"),
-    );
-  }, []);
+  const container = useHeaderPortalContainer();
 
   if (!container) return null;
   return createPortal(children, container);
@@ -48,6 +43,7 @@ export function XuluxHeaderActions({
             variant="outline"
             size="sm"
             className="h-7 gap-1.5 px-2.5 text-xs"
+            aria-label="Templates"
             onClick={onShowTemplates}
           >
             <LayoutGrid className="size-3.5" />
@@ -58,6 +54,7 @@ export function XuluxHeaderActions({
             variant="outline"
             size="sm"
             className="h-7 gap-1.5 px-2.5 text-xs"
+            aria-label="New"
             onClick={onNewChat}
           >
             <Plus className="size-3.5" />

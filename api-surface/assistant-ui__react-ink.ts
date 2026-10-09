@@ -4,26 +4,28 @@ import { Box, Text } from "ink";
 
 import Spinner from "ink-spinner";
 
+import { JSONSchema7 } from "json-schema";
+
 import React, { ComponentProps, ComponentType, FC, PropsWithChildren, ReactElement, ReactNode } from "react";
 
 declare const ActionBarCopy: (_param0: ActionBarCopyProps) => import("react").JSX.Element;
 
 type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActionBarCopyOptions & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isCopied: boolean;
   }) => ReactNode);
 };
 
 declare const ActionBarEdit: (_param1: ActionBarEditProps) => import("react").JSX.Element;
 
-type ActionBarEditProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ActionBarFeedbackNegative: (_param2: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isSubmitted: boolean;
   }) => ReactNode);
 };
@@ -31,15 +33,15 @@ type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress
 declare const ActionBarFeedbackPositive: (_param3: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: ReactNode | ((props: {
+  children: ReactNode | ((props: PressableState & {
     isSubmitted: boolean;
   }) => ReactNode);
 };
 
 declare const ActionBarReload: (_param4: ActionBarReloadProps) => import("react").JSX.Element;
 
-type ActionBarReloadProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ActionBarReloadProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type AddToolResultOptions = {
@@ -89,18 +91,25 @@ declare class AssistantCloud {
   readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
+    invalidate: () => void;
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
+  readonly events: AssistantCloudEvents;
+  readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
 }
 
 declare class AssistantCloudAPI {
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
+  invalidateAuth(): void;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
   makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
 }
@@ -109,10 +118,11 @@ type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
+  invalidate(): void;
 };
 
 declare class AssistantCloudAuthTokens {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   create(): Promise<AssistantCloudAuthTokensCreateResponse>;
 }
@@ -136,11 +146,34 @@ type AssistantCloudConfig = ({
   telemetry?: boolean | AssistantCloudTelemetryConfig;
 };
 
+type AssistantCloudEvent = {
+  kind: AssistantCloudEventKind;
+  thread_id?: string | undefined;
+  message_id?: string | undefined;
+  run_id?: string | undefined;
+  value?: number | undefined;
+  props?: Readonly<Record<string, string | number | boolean>> | undefined;
+};
+
+type AssistantCloudEventKind = "attachment_added" | "attachment_failed" | "branch_switched" | "error_shown" | "message_copied" | "message_edited" | "message_regenerated" | "message_sent" | "run_stopped" | "speech_started" | "suggestion_clicked" | "suggestions_shown" | "thread_switched" | "tool_approved" | "tool_rejected" | "voice_started";
+
+declare class AssistantCloudEvents {
+  #private;
+  constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
+  track(event: AssistantCloudEvent): void;
+  dispose(): void;
+}
+
 declare class AssistantCloudFiles {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
   generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
+  generatePresignedDownloadUrl(body: {
+    key: string;
+  } | {
+    url: string;
+  }): Promise<GeneratePresignedDownloadUrlResponse>;
 }
 
 type AssistantCloudMessageCreateResponse = {
@@ -158,14 +191,14 @@ type AssistantCloudProjectThreadMessageListResponse = {
 };
 
 declare class AssistantCloudProjectThreadMessages {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
 }
 
 declare class AssistantCloudProjectThreads {
+  #private;
   readonly messages: AssistantCloudProjectThreadMessages;
-  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
 }
@@ -188,41 +221,77 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
+  message_id?: string;
+  first_token_ms?: number;
+  release?: string;
+  environment?: string;
+  tags?: string[];
+  provider?: string;
+  trace_id?: string;
+  root_span_id?: string;
+  error_code?: string;
+  error?: string;
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
+    finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
+};
+
 declare class AssistantCloudRuns {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -236,8 +305,38 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[];
 };
 
+type AssistantCloudScoreBody = {
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value?: number | boolean;
+  string_value?: string;
+  comment?: string;
+  thread_id?: string;
+  message_id?: string;
+  run_id?: string;
+};
+
+type AssistantCloudScoreResponse = {
+  score_id: string;
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value: number | null;
+  string_value: string | null;
+};
+
+declare class AssistantCloudScores {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  create(body: AssistantCloudScoreBody): Promise<AssistantCloudScoreResponse>;
+}
+
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
+  events?: boolean;
+  messages?: boolean;
+  release?: string;
+  environment?: string;
+  tags?: string[];
   beforeReport?: (report: AssistantCloudRunReport) => AssistantCloudRunReport | null;
 };
 
@@ -245,10 +344,25 @@ type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
+};
+
+type AssistantCloudThreadMessageFeedbackBody = {
+  type: "negative" | "positive";
+  comment?: string;
+};
+
+type AssistantCloudThreadMessageFeedbackResponse = {
+  feedback_id: string;
+  type: "negative" | "positive";
+  comment?: string | null;
 };
 
 type AssistantCloudThreadMessageListQuery = {
   format?: string;
+  limit?: number;
+  after?: string;
 };
 
 type AssistantCloudThreadMessageListResponse = {
@@ -260,29 +374,40 @@ type AssistantCloudThreadMessageUpdateBody = {
 };
 
 declare class AssistantCloudThreadMessages {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
   update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
 }
 
 declare class AssistantCloudThreads {
+  #private;
   readonly messages: AssistantCloudThreadMessages;
-  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
   create(body: AssistantCloudThreadsCreateBody): Promise<AssistantCloudThreadsCreateResponse>;
   update(threadId: string, body: AssistantCloudThreadsUpdateBody): Promise<void>;
+  claim(body: AssistantCloudThreadsClaimBody): Promise<AssistantCloudThreadsClaimResponse>;
   delete(threadId: string): Promise<void>;
 }
+
+type AssistantCloudThreadsClaimBody = {
+  refresh_token: string;
+};
+
+type AssistantCloudThreadsClaimResponse = {
+  moved: number;
+};
 
 type AssistantCloudThreadsCreateBody = {
   title?: string | undefined;
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
+  upsert?: boolean | undefined;
 };
 
 type AssistantCloudThreadsCreateResponse = {
@@ -362,9 +487,9 @@ type AssistantRuntimeCore = {
 };
 
 declare class AssistantRuntimeImpl implements AssistantRuntime {
+  #private;
   readonly threads: ThreadListRuntimeImpl;
   readonly _thread: ThreadRuntime;
-  private readonly _core;
   constructor(_core: AssistantRuntimeCore);
   protected __internal_bindMethods(): void;
   get thread(): ThreadRuntime;
@@ -434,6 +559,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -474,6 +600,8 @@ type AssistantToolUIProps<TArgs, TResult> = {
   display?: "inline" | "standalone";
 };
 
+type AssistantTransportProtocol = "assistant-transport" | "data-stream";
+
 type AssistantTransportStateOperation = {
   readonly type: "set";
   readonly path: readonly string[];
@@ -494,7 +622,9 @@ type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
 };
 
 type AttachmentAddErrorEvent = {
@@ -512,8 +642,8 @@ type AttachmentNameProps = ComponentProps<typeof Text>;
 
 declare const AttachmentRemove: (_param6: AttachmentRemoveProps) => import("react").JSX.Element;
 
-type AttachmentRemoveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type AttachmentRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const AttachmentRoot: (_param7: AttachmentRootProps) => import("react").JSX.Element;
@@ -527,7 +657,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     attachmentSource: TSource;
   };
   readonly source: TSource;
-  getState(): AttachmentState$1 & {
+  getState(): AttachmentRuntimeState & {
     source: TSource;
   };
   remove(): Promise<void>;
@@ -535,14 +665,14 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
 };
 
 declare abstract class AttachmentRuntimeImpl<Source extends AttachmentRuntimeSource = AttachmentRuntimeSource> implements AttachmentRuntime {
+  #private;
   get path(): AttachmentRuntimePath & {
     attachmentSource: Source;
   };
   abstract get source(): Source;
-  private _core;
   constructor(_core: AttachmentSnapshotBinding<Source>);
   protected __internal_bindMethods(): void;
-  getState(): AttachmentState$1 & {
+  getState(): AttachmentRuntimeState & {
     source: Source;
   };
   abstract remove(): Promise<void>;
@@ -566,9 +696,11 @@ type AttachmentRuntimePath = ((MessageRuntimePath & {
   };
 };
 
-type AttachmentRuntimeSource = AttachmentState$1["source"];
+type AttachmentRuntimeSource = AttachmentRuntimeState["source"];
 
-type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> = SubscribableWithState<AttachmentState$1 & {
+type AttachmentRuntimeState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
+
+type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> = SubscribableWithState<AttachmentRuntimeState & {
   source: Source;
 }, AttachmentRuntimePath & {
   attachmentSource: Source;
@@ -576,9 +708,9 @@ type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> = Subscri
 
 type AttachmentState = Attachment;
 
-type AttachmentState$1 = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
-
 declare const AttachmentStatus: FC<AttachmentStatusProps>;
+
+type AttachmentStatus$1 = PendingAttachmentStatus | CompleteAttachmentStatus;
 
 type AttachmentStatusProps = Omit<ComponentProps<typeof Text>, "children"> & {
   showComplete?: boolean | undefined;
@@ -676,6 +808,7 @@ type BaseAttachment = {
 };
 
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
+  #private;
   readonly isEditing = true;
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected abstract getDictationAdapter(): DictationAdapter | undefined;
@@ -685,36 +818,30 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
     };
   }>(message: T, composerMetadata: Record<string, unknown> | undefined): T;
   get attachmentAccept(): string;
-  private _attachments;
   get attachments(): readonly Attachment[];
   protected setAttachments(value: readonly Attachment[]): void;
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
   get isEmpty(): boolean;
-  private _text;
   get text(): string;
-  private _role;
   get role(): "assistant" | "system" | "user";
-  private _runConfig;
   get runConfig(): RunConfig;
-  private _quote;
   get quote(): QuoteInfo | undefined;
   setQuote(quote: QuoteInfo | undefined): void;
   setText(value: string): void;
-  private _rebaseDictation;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
-  protected _isSending: boolean;
-  private _removedDuringSend;
-  private _sendGeneration;
-  private _attachmentAddOperations;
-  private _cancelAttachmentAdd;
-  private _cancelAllAttachmentAdds;
-  private _emptyTextAndAttachments;
-  private _onClearAttachments;
+  get submission(): ComposerSubmission | undefined;
+  get inTransit(): readonly ComposerSubmission[];
+  protected get isSubmitting(): boolean;
+  protected get detachesDraftOnSend(): boolean;
+  protected threadMessageIds(_role: MessageRole): readonly string[] | undefined;
+  protected settleInTransit(): void;
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  __internal_dispose(): void;
+  protected cancelSubmission(): void;
   restoreDraft(draft: {
     text: string;
     quote?: QuoteInfo | undefined;
@@ -725,7 +852,6 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
     quote?: QuoteInfo | undefined;
     attachments?: readonly Attachment[] | undefined;
   }): void;
-  private _restoreUnsentDraft;
   cancel(): void;
   get queue(): readonly QueueItemState[];
   moveQueueItem(_queueItemId: string, _placement: QueuePlacement): void;
@@ -733,22 +859,10 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
-  private _safeEmitAttachmentAddError;
   removeAttachment(attachmentId: string): Promise<void>;
-  private _dictation;
-  private _dictationSession;
-  private _dictationUnsubscribes;
-  private _dictationBaseText;
-  private _currentInterimText;
-  private _dictationSessionIdCounter;
-  private _activeDictationSessionId;
-  private _isCleaningDictation;
   get dictation(): DictationState | undefined;
-  private _isActiveSession;
   startDictation(): void;
   stopDictation(): void;
-  private _cleanupDictation;
-  private _eventSubscribers;
   protected _notifyEventSubscribers<E extends ComposerRuntimeEventType>(event: E, payload: ComposerRuntimeEventPayload[E]): void;
   unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): () => void;
 }
@@ -766,10 +880,12 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 declare class BaseSubscribable {
-  private _subscribers;
+  #private;
   subscribe(callback: () => void): Unsubscribe$1;
   waitForUpdate(): Promise<void>;
   protected _notifySubscribers(): void;
@@ -778,15 +894,17 @@ declare class BaseSubscribable {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
-    readonly timing?: MessageTiming;
+      readonly comment?: string;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -798,8 +916,8 @@ type BranchPickerCountProps = ComponentProps<typeof Text>;
 
 declare const BranchPickerNext: (_param8: BranchPickerNextProps) => import("react").JSX.Element;
 
-type BranchPickerNextProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type BranchPickerNextProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const BranchPickerNumber: (props: BranchPickerNumberProps) => import("react").JSX.Element;
@@ -808,14 +926,14 @@ type BranchPickerNumberProps = ComponentProps<typeof Text>;
 
 declare const BranchPickerPrevious: (_param9: BranchPickerPreviousProps) => import("react").JSX.Element;
 
-type BranchPickerPreviousProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type BranchPickerPreviousProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ChainOfThoughtAccordionTrigger: (_param10: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
 
-type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ChainOfThoughtByIndicesProvider: FC<PropsWithChildren<{
@@ -896,6 +1014,11 @@ type ChatModelRunResult = {
     readonly timing?: MessageTiming | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   };
+};
+
+type ChatModelRunUpdate = {
+  readonly content: readonly ThreadAssistantMessagePart[];
+  readonly metadata?: Record<string, unknown>;
 };
 
 declare const ChecklistItem: {
@@ -981,6 +1104,18 @@ type ClientScopes = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 };
 
+declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
+  #private;
+  accept: string;
+  constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
+  add(_param15: {
+    file: File;
+  }): AsyncGenerator<PendingAttachment, void>;
+  remove(attachment: Attachment): Promise<void>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+}
+
 type CloudMessage = {
   id: string;
   parent_id: string | null;
@@ -989,6 +1124,7 @@ type CloudMessage = {
   updated_at: Date;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
 };
 
 type CloudThread = {
@@ -1004,6 +1140,23 @@ type CloudThread = {
   is_archived: boolean;
 };
 
+type CloudThreadListAdapter = {
+  cloud: AssistantCloud;
+  scopeId?: string | undefined;
+  runtimeHook: () => AssistantRuntime;
+  create?(threadId: string): Promise<ThreadData>;
+  delete?(threadId: string): Promise<void>;
+};
+
+type CloudThreadListAdapterOptions = {
+  cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
+  sdk?: SdkIdentity | undefined;
+  create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
+  delete?: ((threadId: string) => Promise<void>) | undefined;
+  upsert?: boolean | undefined;
+};
+
 type CompleteAttachment = BaseAttachment & {
   status: CompleteAttachmentStatus;
   content: ThreadUserMessagePart[];
@@ -1013,10 +1166,10 @@ type CompleteAttachmentStatus = {
   type: "complete";
 };
 
-declare const ComposerAddAttachment: (_param15: ComposerAddAttachmentProps) => import("react").JSX.Element;
+declare const ComposerAddAttachment: (_param16: ComposerAddAttachmentProps) => import("react").JSX.Element;
 
-type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerAddAttachmentProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ComposerAttachmentByIndex: import("react").FC<ComposerPrimitiveAttachmentByIndex.Props>;
@@ -1028,7 +1181,7 @@ declare const ComposerAttachmentByIndexProvider: FC<PropsWithChildren<{
 }>>;
 
 declare abstract class ComposerAttachmentRuntime<Source extends "edit-composer" | "thread-composer"> extends AttachmentRuntimeImpl<Source> {
-  private _composerApi;
+  #private;
   constructor(core: AttachmentSnapshotBinding<Source>, _composerApi: ComposerRuntimeCoreBinding);
   remove(): Promise<void>;
 }
@@ -1044,10 +1197,10 @@ type ComposerAttachmentsComponentConfig = {
 
 type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
-declare const ComposerCancel: (_param16: ComposerCancelProps) => import("react").JSX.Element;
+declare const ComposerCancel: (_param17: ComposerCancelProps) => import("react").JSX.Element;
 
-type ComposerCancelProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerCancelProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerIfFilters = {
@@ -1055,7 +1208,7 @@ type ComposerIfFilters = {
   dictation: boolean | undefined;
 };
 
-declare const ComposerInput: (_param17: ComposerInputProps) => import("react").JSX.Element;
+declare const ComposerInput: (_param18: ComposerInputProps) => import("react").JSX.Element;
 
 type ComposerInputProps = ComponentProps<typeof Box> & {
   submitOnEnter?: boolean | undefined;
@@ -1108,25 +1261,25 @@ declare const ComposerPrimitiveQueue: import("react").NamedExoticComponent<{
   }) => ReactNode;
 }>;
 
-declare const ComposerQuote: (_param18: ComposerQuoteProps) => import("react").JSX.Element | null;
+declare const ComposerQuote: (_param19: ComposerQuoteProps) => import("react").JSX.Element | null;
 
-declare const ComposerQuoteDismiss: (_param19: ComposerQuoteDismissProps) => import("react").JSX.Element;
+declare const ComposerQuoteDismiss: (_param20: ComposerQuoteDismissProps) => import("react").JSX.Element;
 
-type ComposerQuoteDismissProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerQuoteDismissProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerQuoteProps = ComponentProps<typeof Box> & {
   children: ReactNode;
 };
 
-declare const ComposerQuoteText: (_param20: ComposerQuoteTextProps) => import("react").JSX.Element | null;
+declare const ComposerQuoteText: (_param21: ComposerQuoteTextProps) => import("react").JSX.Element | null;
 
 type ComposerQuoteTextProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
 };
 
-declare const ComposerRoot: (_param21: ComposerRootProps) => import("react").JSX.Element;
+declare const ComposerRoot: (_param22: ComposerRootProps) => import("react").JSX.Element;
 
 type ComposerRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -1135,7 +1288,7 @@ type ComposerRootProps = ComponentProps<typeof Box> & {
 type ComposerRuntime = {
   readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
-  getState(): ComposerState$1;
+  getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   setText(text: string): void;
   setRole(role: MessageRole): void;
@@ -1176,6 +1329,8 @@ type ComposerRuntimeCore = Readonly<{
   clearAttachments: () => Promise<void>;
   send: (options?: SendOptions) => void;
   cancel: () => void;
+  submission?: ComposerSubmission | undefined;
+  inTransit?: readonly ComposerSubmission[] | undefined;
   queue: readonly QueueItemState[];
   moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
@@ -1191,20 +1346,28 @@ type ComposerRuntimeCoreBinding = SubscribableWithState<ComposerRuntimeCore | un
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
 
 type ComposerRuntimeEventPayload = {
-  send: Record<string, never>;
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
+  attachmentAdd: {
+    readonly contentType?: string | undefined;
+  };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
 
 declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
+  #private;
   get path(): ComposerRuntimePath;
   abstract get type(): "edit" | "thread";
   protected _core: ComposerRuntimeCoreBinding;
   constructor(_core: ComposerRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
-  abstract getState(): ComposerState$1;
+  abstract getState(): ComposerRuntimeState;
   setText(text: string): void;
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
@@ -1220,7 +1383,6 @@ declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
   stopDictation(): void;
   setQuote(quote: QuoteInfo | undefined): void;
   subscribe(callback: () => void): Unsubscribe$1;
-  private _eventSubscriptionSubjects;
   unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): Unsubscribe$1;
   abstract getAttachmentByIndex(idx: number): AttachmentRuntime;
 }
@@ -1231,10 +1393,16 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
-declare const ComposerSend: (_param22: ComposerSendProps) => import("react").JSX.Element;
+type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
-type ComposerSendProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+declare const ComposerSend: (_param23: ComposerSendProps) => import("react").JSX.Element;
+
+type ComposerSendOptions = SendOptions & {
+  steer?: boolean;
+};
+
+type ComposerSendProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerState = {
@@ -1251,26 +1419,35 @@ type ComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
-type ComposerState$1 = ThreadComposerState | EditComposerState;
+type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
 
 declare class CompositeAttachmentAdapter implements AttachmentAdapter {
-  private _adapters;
+  #private;
   accept: string;
   constructor(adapters: AttachmentAdapter[]);
   add(state: {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void, any>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(attachment: Attachment): Promise<void>;
 }
 
 declare class CompositeContextProvider implements ModelContextProvider {
-  private _providers;
+  #private;
   getModelContext(): ModelContext$1;
   registerModelContextProvider(provider: ModelContextProvider): () => void;
-  private _subscribers;
   notifySubscribers(): void;
   subscribe(callback: () => void): () => void;
 }
@@ -1311,8 +1488,20 @@ type CreateStartRunConfig = {
   runConfig?: RunConfig | undefined;
 };
 
+type CreateSuggestionAdapterOptions = {
+  key?: string | number | symbol | undefined;
+  complete: (options: {
+    prompt: string;
+    signal?: AbortSignal;
+  }) => Promise<readonly string[]>;
+  count?: number | undefined;
+  instructions?: string | undefined;
+  maxMessages?: number | undefined;
+};
+
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -1323,6 +1512,7 @@ type DataMessagePartProps<T = any> = MessagePartState & DataMessagePart<T>;
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 
@@ -1336,16 +1526,16 @@ type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>
 } : T;
 
 declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore implements ThreadComposerRuntimeCore {
-  private _canCancel;
+  #private;
   get canCancel(): boolean;
   get canSend(): boolean;
-  private _queueCache;
+  cancel(): void;
+  protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
-  private runtime;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
@@ -1394,7 +1584,7 @@ type DictationState = {
 };
 
 declare const DiffContent: {
-  (_param23: DiffContentProps): import("react").JSX.Element | null;
+  (_param24: DiffContentProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1419,7 +1609,7 @@ interface DiffFileInput {
 }
 
 declare const DiffHeader: {
-  (_param24: DiffHeaderProps): import("react").JSX.Element | null;
+  (_param25: DiffHeaderProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1428,7 +1618,7 @@ type DiffHeaderProps = ComponentProps<typeof Box> & {
 };
 
 declare const DiffLine: {
-  (_param25: DiffLineProps): import("react").JSX.Element;
+  (_param26: DiffLineProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1441,7 +1631,7 @@ type DiffLineProps = ComponentProps<typeof Box> & {
 type DiffLineType = "add" | "del" | "normal";
 
 declare const DiffRoot: {
-  (_param26: DiffRootProps): import("react").JSX.Element;
+  (_param27: DiffRootProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1451,7 +1641,7 @@ type DiffRootProps = ComponentProps<typeof Box> & {
 };
 
 declare const DiffStats: {
-  (_param27: DiffStatsProps): import("react").JSX.Element | null;
+  (_param28: DiffStatsProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1459,7 +1649,7 @@ type DiffStatsProps = ComponentProps<typeof Box> & {
   fileIndex?: number;
 };
 
-declare const DiffView: (_param28: DiffViewProps) => import("react").JSX.Element;
+declare const DiffView: (_param29: DiffViewProps) => import("react").JSX.Element;
 
 type DiffViewProps = Omit<ComponentProps<typeof Box>, "children"> & {
   patch?: string | undefined;
@@ -1468,6 +1658,21 @@ type DiffViewProps = Omit<ComponentProps<typeof Box>, "children"> & {
   showLineNumbers?: boolean | undefined;
   contextLines?: number | undefined;
   maxLines?: number | undefined;
+};
+
+type DirectiveFormatter = {
+  serialize(item: TriggerItem): string;
+  parse(text: string): readonly DirectiveSegment[];
+};
+
+type DirectiveSegment = {
+  readonly kind: "text";
+  readonly text: string;
+} | {
+  readonly kind: "mention";
+  readonly type: string;
+  readonly label: string;
+  readonly id: string;
 };
 
 type DisplayLine = ParsedLine | FoldedRegion;
@@ -1502,12 +1707,11 @@ type EditComposerRuntimeCoreBinding = SubscribableWithState<EditComposerRuntimeC
 }>;
 
 declare class EditComposerRuntimeImpl extends ComposerRuntimeImpl implements EditComposerRuntime {
+  #private;
   get path(): ComposerRuntimePath & {
     composerSource: "edit";
   };
   get type(): "edit";
-  private _getState;
-  private _beginEdit;
   constructor(core: EditComposerRuntimeCoreBinding, _beginEdit: () => void);
   __internal_bindMethods(): void;
   getState(): EditComposerState;
@@ -1534,6 +1738,7 @@ type EnrichedPartState = (Extract<PartState, {
   addResult: ToolCallMessagePartProps["addResult"];
   resume: ToolCallMessagePartProps["resume"];
   respondToApproval: ToolCallMessagePartProps["respondToApproval"];
+  unstable_recordInteraction?: ToolCallMessagePartProps["unstable_recordInteraction"] | undefined;
 }) | (Extract<PartState, {
   type: "data";
 }> & {
@@ -1545,7 +1750,7 @@ type EnrichedPartState = (Extract<PartState, {
 }>;
 
 declare const ErrorMessage: {
-  (_param29: ErrorMessageProps): import("react").JSX.Element | null;
+  (_param30: ErrorMessageProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1554,7 +1759,7 @@ type ErrorMessageProps = ComponentProps<typeof Text> & {
 };
 
 declare const ErrorRoot: {
-  (_param30: ErrorRootProps): import("react").JSX.Element | null;
+  (_param31: ErrorRootProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1589,6 +1794,176 @@ type ExportedMessageRepositoryItem = {
   runConfig?: RunConfig;
 };
 
+type ExternalMessageConversionCache = {
+  readonly __brand: unique symbol;
+};
+
+type ExternalMessageConverterCallback<T> = (message: T, metadata: ExternalMessageConverterMetadata) => ExternalMessageConverterMessage | ExternalMessageConverterMessage[];
+
+type ExternalMessageConverterMessage = (ThreadMessageLike & {
+  readonly convertConfig?: {
+    readonly joinStrategy?: JoinStrategy;
+  };
+}) | {
+  role: "tool";
+  toolCallId: string;
+  toolName?: string | undefined;
+  result: any;
+  artifact?: any;
+  isError?: boolean;
+  messages?: readonly ThreadMessage[];
+};
+
+type ExternalMessageConverterMetadata = {
+  readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+  readonly error?: ReadonlyJSONValue;
+  readonly cancelledMessageIds?: ReadonlySet<string>;
+  readonly messageTiming?: Record<string, MessageTiming>;
+};
+
+type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
+
+type ExternalStoreAdapterBase<T> = {
+  unstable_persistsHistory?: boolean | undefined;
+  isDisabled?: boolean | undefined;
+  isSendDisabled?: boolean | undefined;
+  isRunning?: boolean | undefined;
+  isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
+  messages?: readonly T[];
+  messageRepository?: ExportedMessageRepository;
+  unstable_messageRepositoryInstance?: MessageRepository | undefined;
+  suggestions?: readonly ThreadSuggestion$1[] | undefined;
+  state?: ReadonlyJSONValue | undefined;
+  extras?: unknown;
+  setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
+  unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
+  onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
+  onExportExternalState?: (() => any) | undefined;
+  onLoadExternalState?: ((state: any) => void) | undefined;
+  onNew: (message: AppendMessage) => Promise<void>;
+  queue?: ExternalThreadQueueAdapter | undefined;
+  onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
+  onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
+  onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
+  onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
+  onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
+  onResumeToolCall?: ((options: {
+    toolCallId: string;
+    payload: unknown;
+  }) => void) | undefined;
+  onRespondToToolApproval?: ((options: RespondToToolApprovalOptions) => Promise<void> | void) | undefined;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void) | undefined;
+  convertMessage?: ExternalStoreMessageConverter<T> | undefined;
+  adapters?: {
+    attachments?: AttachmentAdapter | undefined;
+    speech?: SpeechSynthesisAdapter | undefined;
+    dictation?: DictationAdapter | undefined;
+    voice?: RealtimeVoiceAdapter | undefined;
+    feedback?: FeedbackAdapter | undefined;
+    threadList?: ExternalStoreThreadListAdapter | undefined;
+  } | undefined;
+  unstable_capabilities?: {
+    copy?: boolean | undefined;
+  } | undefined;
+  unstable_enableToolInvocations?: boolean | undefined;
+  unstable_isClientToolCall?: ((toolCall: ToolCallMessagePart) => boolean) | undefined;
+  setToolStatuses?: ((statuses: Record<string, ToolExecutionStatus>) => void) | undefined;
+};
+
+type ExternalStoreBranchChange = {
+  headId: string | null;
+  visibleMessageIds: readonly string[];
+};
+
+type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike;
+
+type ExternalStoreMessageConverterAdapter<T> = {
+  convertMessage: ExternalStoreMessageConverter<T>;
+};
+
+type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
+
+type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
+  status: TState;
+  id: string;
+  remoteId?: string | undefined;
+  externalId?: string | undefined;
+  title?: string | undefined;
+  custom?: Record<string, unknown> | undefined;
+};
+
+type ExternalStoreThreadListAdapter = {
+  threadId?: string | undefined;
+  isLoading?: boolean | undefined;
+  threads?: readonly ExternalStoreThreadData<"regular">[] | undefined;
+  archivedThreads?: readonly ExternalStoreThreadData<"archived">[] | undefined;
+  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
+  onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
+  onRename?: (threadId: string, newTitle: string) => (Promise<void> | void) | undefined;
+  onUpdateCustom?: ((threadId: string, custom: Record<string, unknown> | undefined) => Promise<void> | void) | undefined;
+  onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
+  onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
+  onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
+};
+
+declare const ExternalThread: Resource<ClientOutput<"thread">, [
+  ExternalThreadProps
+]>;
+
+type ExternalThreadBranchAdapter = {
+  getBranches: (messageId: string) => readonly string[];
+  switchToBranch: (branchId: string) => void;
+};
+
+type ExternalThreadMessage = ThreadMessage & {
+  id: string;
+};
+
+type ExternalThreadProps = {
+  messages: readonly ExternalThreadMessage[];
+  isRunning?: boolean;
+  isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
+  state?: ReadonlyJSONValue | undefined;
+  extras?: unknown;
+  isSendDisabled?: boolean;
+  onNew?: (message: AppendMessage) => void;
+  onEdit?: (message: AppendMessage) => void;
+  onReload?: (parentId: string | null) => void;
+  onStartRun?: () => void;
+  onCancel?: () => void;
+  onResume?: (() => void) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
+  onLoadExternalState?: ((state: unknown) => void) | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
+  feedbackAdapter?: FeedbackAdapter | undefined;
+  speechAdapter?: SpeechSynthesisAdapter | undefined;
+  queue?: ExternalThreadQueueAdapter;
+  branches?: ExternalThreadBranchAdapter;
+  onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void | Promise<void>;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>) | undefined;
+};
+
+type ExternalThreadQueueAdapter = {
+  items: readonly QueueItemState[];
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
+  remove: (queueItemId: string) => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
+};
+
 type FeedbackAdapter = {
   submit: (feedback: FeedbackAdapterFeedback) => void;
 };
@@ -1596,10 +1971,12 @@ type FeedbackAdapter = {
 type FeedbackAdapterFeedback = {
   message: ThreadMessage;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -1628,6 +2005,12 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   providerOptions?: ProviderOptions;
 };
 
+type GeneratePresignedDownloadUrlResponse = {
+  signedUrl: string;
+  expiresAt: string;
+  key: string;
+};
+
 type GeneratePresignedUploadUrlRequestBody = {
   filename: string;
 };
@@ -1637,6 +2020,7 @@ type GeneratePresignedUploadUrlResponse = {
   signedUrl: string;
   expiresAt: string;
   publicUrl: string;
+  key?: string;
 };
 
 type GenerativeUIComponentRegistry = Record<string, ComponentType<any>>;
@@ -1648,11 +2032,31 @@ type GenerativeUIMessagePart = {
   readonly parentId?: string;
 };
 
-type GenerativeUINode = string | {
+type GenerativeUIMessagePartComponent = ComponentType<GenerativeUIMessagePartProps>;
+
+type GenerativeUIMessagePartProps = MessagePartState & GenerativeUIMessagePart;
+
+type GenerativeUINode = string | number | readonly GenerativeUINode[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
   readonly children?: readonly GenerativeUINode[];
   readonly key?: string;
+};
+
+declare const GenerativeUIRender: FC<GenerativeUIRenderProps>;
+
+declare class GenerativeUIRenderError extends Error {
+  readonly componentName: string;
+  constructor(componentName: string, message?: string);
+}
+
+type GenerativeUIRenderProps = {
+  spec: GenerativeUISpec;
+  components: GenerativeUIComponentRegistry;
+  Fallback?: ComponentType<{
+    component: string;
+    props?: unknown;
+  }> | undefined;
 };
 
 type GenerativeUISpec = {
@@ -1661,6 +2065,7 @@ type GenerativeUISpec = {
 
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
+  pin?(): void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -1670,8 +2075,15 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
+
+type GroupByContext = {
+  readonly toolUIs?: ToolsState["toolUIs"];
+};
+
+type GroupPartType = PartState["type"] | "standalone-tool-call" | `tool-call:${string}`;
 
 type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "human";
@@ -1687,6 +2099,7 @@ type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, 
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -1696,17 +2109,34 @@ type ImageMessagePartComponent = ComponentType<ImageMessagePartProps>;
 
 type ImageMessagePartProps = MessagePartState & ImageMessagePart;
 
+declare const InMemoryThreadList: Resource<ClientOutput<"threads">, [
+  props: InMemoryThreadListProps
+]>;
+
 declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
+  #private;
   list(): Promise<RemoteThreadListResponse>;
   rename(): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom(): Promise<void>;
+  updateCustom(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(): Promise<void>;
+  archive(remoteId: string): Promise<void>;
   unarchive(): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
   delete(): Promise<void>;
+  delete(remoteId: string): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 }
+
+type InMemoryThreadListProps = {
+  thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
+  onSwitchToThread?: (threadId: string) => void;
+  onSwitchToNewThread?: () => void;
+  onDelete?: (threadId: string) => void;
+};
 
 type IncompleteReason = Extract<MessageStatus, {
   type: "incomplete";
@@ -1721,80 +2151,7 @@ type InteractableStateSchema = NonNullable<Extract<Tool, {
 declare const Interactables: Resource<ClientOutput<"interactables">, [
 ]>;
 
-interface JSONSchema7 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
-  enum?: JSONSchema7Type[] | undefined;
-  const?: JSONSchema7Type | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
-  additionalItems?: JSONSchema7Definition | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition | undefined;
-  if?: JSONSchema7Definition | undefined;
-  then?: JSONSchema7Definition | undefined;
-  else?: JSONSchema7Definition | undefined;
-  allOf?: JSONSchema7Definition[] | undefined;
-  anyOf?: JSONSchema7Definition[] | undefined;
-  oneOf?: JSONSchema7Definition[] | undefined;
-  not?: JSONSchema7Definition | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type | undefined;
-}
-
-interface JSONSchema7Array extends Array<JSONSchema7Type> {
-}
-
-type JSONSchema7Definition = JSONSchema7 | boolean;
-
-interface JSONSchema7Object {
-  [key: string]: JSONSchema7Type;
-}
-
-type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
-
-type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-type JSONSchema7Version = string;
+type JoinStrategy = "concat-content" | "none";
 
 declare const LOADING_FRAMES: {
   readonly dots: readonly [
@@ -1843,7 +2200,7 @@ type LanguageModelV1CallSettings = {
 };
 
 declare const LiveChecklist: {
-  (_param31: LiveChecklistProps): import("react").JSX.Element;
+  (_param32: LiveChecklistProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1856,7 +2213,7 @@ type LiveChecklistProps = ComponentProps<typeof Box> & {
 };
 
 declare const LoadingElapsedTime: {
-  (_param32: LoadingElapsedTimeProps): import("react").JSX.Element;
+  (_param33: LoadingElapsedTimeProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1865,7 +2222,7 @@ type LoadingElapsedTimeProps = Omit<ComponentProps<typeof Text>, "children"> & {
 };
 
 declare const LoadingRoot: {
-  (_param33: LoadingRootProps): import("react").JSX.Element | null;
+  (_param34: LoadingRootProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1874,7 +2231,7 @@ type LoadingRootProps = ComponentProps<typeof Box> & {
 };
 
 declare const LoadingSpinner: {
-  (_param34: LoadingSpinnerProps): import("react").JSX.Element;
+  (_param35: LoadingSpinnerProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1887,7 +2244,7 @@ type LoadingSpinnerProps = Omit<ComponentProps<typeof Text>, "children"> & {
 type LoadingSpinnerVariant = "spinner" | keyof typeof LOADING_FRAMES;
 
 declare const LoadingText: {
-  (_param35: LoadingTextProps): import("react").JSX.Element;
+  (_param36: LoadingTextProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1897,6 +2254,7 @@ type LoadingTextProps = ComponentProps<typeof Text> & {
 
 type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  scopeId?: string | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -1919,11 +2277,14 @@ type LocalRuntimeOptionsBase = {
   unstable_queueClearOnCancel?: boolean | undefined;
 };
 
+declare const MESSAGE_NOT_SENT: unique symbol;
+
 type MakeRequestOptions = {
   method?: "POST" | "PUT" | "DELETE" | undefined;
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
+  keepalive?: boolean | undefined;
 };
 
 type McpAppMetadata = {
@@ -2034,7 +2395,7 @@ type MessageComponents = {
   SystemMessage?: ComponentType | undefined;
 };
 
-declare const MessageContent: (_param36: MessageContentProps) => import("react").JSX.Element;
+declare const MessageContent: (_param37: MessageContentProps) => import("react").JSX.Element;
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 
@@ -2102,7 +2463,7 @@ interface MessageFormatRepository<TMessage> {
   messages: MessageFormatItem<TMessage>[];
 }
 
-declare const MessageIf: (_param37: MessageIfProps) => import("react").JSX.Element | null;
+declare const MessageIf: (_param38: MessageIfProps) => import("react").JSX.Element | null;
 
 type MessageIfProps = {
   children: ReactNode;
@@ -2111,6 +2472,13 @@ type MessageIfProps = {
   running?: boolean | undefined;
   last?: boolean | undefined;
 };
+
+type MessageModality = "voice";
+
+declare class MessageNotSentError extends Error {
+  readonly [MESSAGE_NOT_SENT] = true;
+  constructor(message?: string);
+}
 
 declare namespace MessagePartPrimitiveData {
   type Props = MessagePartPrimitiveDataProps;
@@ -2187,23 +2555,23 @@ type MessagePartPrimitiveTextProps = Omit<ComponentProps<typeof Text>, "children
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?: (input: Unstable_ToolInteractionInput) => Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe$1;
 };
 
 declare class MessagePartRuntimeImpl implements MessagePartRuntime {
+  #private;
   get path(): MessagePartRuntimePath;
-  private contentBinding;
-  private messageApi;
-  private threadApi;
   constructor(contentBinding: MessagePartSnapshotBinding, messageApi?: MessageStateBinding, threadApi?: ThreadRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   getState(): MessagePartState;
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction(input: Unstable_ToolInteractionInput): Promise<void>;
   subscribe(callback: () => void): Unsubscribe$1;
 }
 
@@ -2242,6 +2610,11 @@ type MessagePartStreamStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
 declare namespace MessagePrimitiveAttachmentByIndex {
   type Props = {
     index: number;
@@ -2257,13 +2630,47 @@ declare namespace MessagePrimitiveAttachments {
     children?: never;
   } | {
     children: (value: {
-      attachment: CompleteAttachment;
+      attachment: Attachment;
     }) => ReactNode;
     components?: never;
   };
 }
 
 declare const MessagePrimitiveAttachments: FC<MessagePrimitiveAttachments.Props>;
+
+declare namespace MessagePrimitiveGroupedParts {
+  type GroupCounts = {
+    readonly running: number;
+    readonly complete: number;
+    readonly incomplete: number;
+    readonly requiresAction: number;
+  };
+  type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
+    readonly type: TKey;
+    readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+    readonly counts: GroupCounts;
+    readonly indices: readonly number[];
+    readonly timing?: MessagePartTiming;
+  };
+  type IndicatorPart = {
+    readonly type: "indicator";
+  };
+  type IndicatorMode = "always" | "empty" | "never" | "no-text";
+  type RenderInfo<TKey extends `group-${string}` = `group-${string}`> = {
+    readonly part: GroupPart<TKey> | EnrichedPartState | IndicatorPart;
+    readonly children: ReactNode;
+  };
+  type Props<TKey extends `group-${string}` = `group-${string}`> = {
+    readonly groupBy: (part: PartState, context: GroupByContext) => readonly TKey[] | null;
+    readonly indicator?: IndicatorMode;
+    readonly children: (info: RenderInfo<TKey>) => ReactNode;
+  };
+}
+
+declare const MessagePrimitiveGroupedParts: {
+  <TKey extends `group-${string}`>(_param39: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+  displayName: string;
+};
 
 declare namespace MessagePrimitivePartByIndex {
   type Props = {
@@ -2341,13 +2748,34 @@ declare namespace MessagePrimitiveParts$1 {
 
 declare const MessagePrimitiveParts$1: FC<MessagePrimitiveParts$1.Props>;
 
+declare namespace MessagePrimitiveQuote {
+  type Props = {
+    children: (value: QuoteInfo) => ReactNode;
+  };
+}
+
+declare const MessagePrimitiveQuote: import("react").NamedExoticComponent<MessagePrimitiveQuote.Props>;
+
+type MessageQueueController = {
+  readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
+  notifyBusy: () => void;
+  notifyIdle: () => void;
+  notifyCancelled: () => void;
+  clear: () => void;
+  subscribe: (callback: () => void) => () => void;
+};
+
+type MessageQueueDriver = {
+  run: (message: AppendMessage, options: {
+    steer: boolean;
+  }) => void;
+  cancel?: (() => void) | undefined;
+};
+
 declare class MessageRepository {
-  private messages;
-  private head;
-  private root;
-  private updateLevels;
-  private performOp;
-  private _messages;
+  #private;
   get headId(): string | null;
   get canonicalHeadId(): string | null;
   getMessages(headId?: string): readonly ThreadMessage[];
@@ -2358,18 +2786,18 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
-  private evictOffBranchOptimisticMessages;
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param38: ExportedMessageRepository): void;
+  import(_param40: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
 
-declare const MessageRoot: (_param39: MessageRootProps) => import("react").JSX.Element;
+declare const MessageRoot: (_param41: MessageRootProps) => import("react").JSX.Element;
 
 type MessageRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -2378,15 +2806,16 @@ type MessageRootProps = ComponentProps<typeof Box> & {
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
-  getState(): MessageState$1;
+  getState(): MessageRuntimeState;
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param40: {
+  submitFeedback(_param42: {
     type: "positive" | "negative";
+    comment?: string;
   }): void;
-  switchToBranch(_param41: {
+  switchToBranch(_param43: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2400,13 +2829,11 @@ type MessageRuntime = {
 };
 
 declare class MessageRuntimeImpl implements MessageRuntime {
+  #private;
   get path(): MessageRuntimePath;
-  private _core;
-  private _threadBinding;
   constructor(_core: MessageStateBinding, _threadBinding: ThreadRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   readonly composer: EditComposerRuntimeImpl;
-  private _getEditComposerRuntimeCore;
   getState(): ThreadMessage & {
     readonly parentId: string | null;
     readonly index: number;
@@ -2419,10 +2846,11 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param42: {
+  submitFeedback(_param44: {
     type: "positive" | "negative";
+    comment?: string;
   }): void;
-  switchToBranch(_param43: {
+  switchToBranch(_param45: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2443,6 +2871,15 @@ type MessageRuntimePath = ThreadRuntimePath & {
   };
 };
 
+type MessageRuntimeState = ThreadMessage & {
+  readonly parentId: string | null;
+  readonly index: number;
+  readonly isLast: boolean;
+  readonly branchNumber: number;
+  readonly branchCount: number;
+  readonly speech: SpeechState | undefined;
+};
+
 type MessageState = ThreadMessage & {
   readonly parentId: string | null;
   readonly isLast: boolean;
@@ -2454,15 +2891,7 @@ type MessageState = ThreadMessage & {
   readonly isCopied: boolean;
   readonly isHovering: boolean;
   readonly index: number;
-};
-
-type MessageState$1 = ThreadMessage & {
-  readonly parentId: string | null;
-  readonly index: number;
-  readonly isLast: boolean;
-  readonly branchNumber: number;
-  readonly branchCount: number;
-  readonly speech: SpeechState | undefined;
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 type MessageStateBinding = SubscribableWithState<ThreadMessage & {
@@ -2543,14 +2972,10 @@ type ModelContextProvider = {
 };
 
 declare class ModelContextRegistry implements ModelContextProvider {
-  private _tools;
-  private _instructions;
-  private _providers;
-  private _subscribers;
-  private _providerUnsubscribes;
+  #private;
+  constructor();
   getModelContext(): ModelContext$1;
   subscribe(callback: () => void): Unsubscribe$1;
-  private notifySubscribers;
   addTool<TArgs extends Record<string, unknown>, TResult>(tool: AssistantToolProps$1<TArgs, TResult>): ModelContextRegistryToolHandle<TArgs, TResult>;
   addInstruction(config: string | AssistantInstructionsConfig): ModelContextRegistryInstructionHandle;
   addProvider(provider: ModelContextProvider): ModelContextRegistryProviderHandle;
@@ -2683,7 +3108,8 @@ type PartMethods = {
   getState(): PartState;
   addToolResult(result: unknown | ToolResponse<unknown>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
+  respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?(input: Unstable_ToolInteractionInput): Promise<void>;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 
@@ -2773,10 +3199,17 @@ type ProviderToolDefinition<TArgs extends Record<string, unknown>> = Extract<Too
   type: "provider";
 }>;
 
-declare const QueueItemRemove: (_param44: QueueItemRemoveProps) => import("react").JSX.Element;
+type QueueItemMethods = {
+  getState(): QueueItemState;
+  steer(): void;
+  move(placement: QueuePlacement): void;
+  remove(): void;
+};
 
-type QueueItemRemoveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+declare const QueueItemRemove: (_param46: QueueItemRemoveProps) => import("react").JSX.Element;
+
+type QueueItemRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type QueueItemState = {
@@ -2785,13 +3218,13 @@ type QueueItemState = {
   readonly parts: readonly (FileMessagePart | TextMessagePart)[];
 };
 
-declare const QueueItemSteer: (_param45: QueueItemSteerProps) => import("react").JSX.Element;
+declare const QueueItemSteer: (_param47: QueueItemSteerProps) => import("react").JSX.Element;
 
-type QueueItemSteerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type QueueItemSteerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
-declare const QueueItemText: (_param46: QueueItemTextProps) => import("react").JSX.Element;
+declare const QueueItemText: (_param48: QueueItemTextProps) => import("react").JSX.Element;
 
 type QueueItemTextProps = ComponentProps<typeof Text>;
 
@@ -2818,6 +3251,14 @@ type ReadonlyJSONObject = {
 
 type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray;
 
+declare namespace ReadonlyThreadProvider {
+  type Props = PropsWithChildren<{
+    messages: readonly ThreadMessage[];
+  }>;
+}
+
+declare const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props>;
+
 declare namespace RealtimeVoiceAdapter {
   type Status = {
     type: "running" | "starting";
@@ -2838,6 +3279,7 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe$1;
     onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe$1;
     onModeChange: (callback: (mode: Mode) => void) => Unsubscribe$1;
@@ -2860,9 +3302,11 @@ type ReasoningGroupProps = PropsWithChildren<{
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -2880,6 +3324,10 @@ type RemoteThreadInitializeResponse = {
   externalId?: string | undefined;
 };
 
+declare const RemoteThreadList: Resource<ClientOutput<"threads">, [
+  props: RemoteThreadListProps
+]>;
+
 type RemoteThreadListAdapter = {
   list(params?: RemoteThreadListPageOptions): Promise<RemoteThreadListResponse>;
   rename(remoteId: string, newTitle: string): Promise<void>;
@@ -2891,6 +3339,7 @@ type RemoteThreadListAdapter = {
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 type RemoteThreadListOptions = {
@@ -2904,6 +3353,17 @@ type RemoteThreadListOptions = {
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProps = {
+  adapter: RemoteThreadListAdapter;
+  thread: InMemoryThreadListProps["thread"];
+  threadId?: string | undefined;
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
+  onSwitchToThread?: ((threadId: string) => void) | undefined;
+  onSwitchToNewThread?: (() => void) | undefined;
+  onDelete?: ((threadId: string) => void) | undefined;
+  backgroundThreads?: boolean | undefined;
 };
 
 type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
@@ -2924,17 +3384,6 @@ type RemoteThreadMetadata = {
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
-};
-
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
 };
 
 type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
@@ -2958,6 +3407,8 @@ type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
   optionId?: string;
+  text?: string;
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -2987,6 +3438,7 @@ type RuntimeAdapters = {
   modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
+  feedback?: FeedbackAdapter | undefined;
 };
 
 type RuntimeCapabilities = {
@@ -3004,6 +3456,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 type SamplingCallData = {
@@ -3025,6 +3478,11 @@ type ScopeStates = {
   } ? S : never;
 };
 
+type SdkIdentity = {
+  name: string;
+  version: string;
+};
+
 type SendOptions = {
   startRun?: boolean;
   steer?: boolean;
@@ -3035,7 +3493,9 @@ declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(): Promise<void>;
 }
 
@@ -3044,9 +3504,19 @@ declare class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(): Promise<void>;
 }
+
+declare const SingleThreadList: Resource<ClientOutput<"threads">, [
+  SingleThreadListProps
+]>;
+
+type SingleThreadListProps = {
+  thread: ClientElement<"thread">;
+};
 
 type SnapshotCarrierMessage = {
   role: string;
@@ -3146,7 +3616,7 @@ declare namespace StatusBarPrimitiveLatency {
 }
 
 declare const StatusBarPrimitiveLatency: {
-  (_param47: StatusBarPrimitiveLatency.Props): import("react").JSX.Element | null;
+  (_param49: StatusBarPrimitiveLatency.Props): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3159,7 +3629,7 @@ declare namespace StatusBarPrimitiveMessageCount {
 }
 
 declare const StatusBarPrimitiveMessageCount: {
-  (_param48: StatusBarPrimitiveMessageCount.Props): import("react").JSX.Element | null;
+  (_param50: StatusBarPrimitiveMessageCount.Props): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3172,7 +3642,7 @@ declare namespace StatusBarPrimitiveModelName {
 }
 
 declare const StatusBarPrimitiveModelName: {
-  (_param49: StatusBarPrimitiveModelName.Props): import("react").JSX.Element;
+  (_param51: StatusBarPrimitiveModelName.Props): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3185,7 +3655,7 @@ declare namespace StatusBarPrimitiveRoot {
 }
 
 declare const StatusBarPrimitiveRoot: {
-  (_param50: StatusBarPrimitiveRoot.Props): import("react").JSX.Element;
+  (_param52: StatusBarPrimitiveRoot.Props): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3198,7 +3668,7 @@ declare namespace StatusBarPrimitiveStatus {
 }
 
 declare const StatusBarPrimitiveStatus: {
-  (_param51: StatusBarPrimitiveStatus.Props): import("react").JSX.Element;
+  (_param53: StatusBarPrimitiveStatus.Props): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3211,7 +3681,7 @@ declare namespace StatusBarPrimitiveTokenCount {
 }
 
 declare const StatusBarPrimitiveTokenCount: {
-  (_param52: StatusBarPrimitiveTokenCount.Props): import("react").JSX.Element | null;
+  (_param54: StatusBarPrimitiveTokenCount.Props): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3224,6 +3694,7 @@ type StatusType = "cancelled" | "error" | "idle" | "running";
 type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 type Subscribable = {
@@ -3236,6 +3707,7 @@ type SubscribableWithState<TState, TPath> = Subscribable & {
 };
 
 type SuggestionAdapter = {
+  key?: string | number | symbol | undefined;
   generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion$1[]> | AsyncGenerator<readonly ThreadSuggestion$1[], void>;
 };
 
@@ -3256,7 +3728,7 @@ type SuggestionConfig = string | {
   prompt: string;
 };
 
-declare const SuggestionDescription: (_param53: SuggestionDescriptionProps) => import("react").JSX.Element;
+declare const SuggestionDescription: (_param55: SuggestionDescriptionProps) => import("react").JSX.Element;
 
 type SuggestionDescriptionProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
@@ -3268,16 +3740,16 @@ type SuggestionState = {
   prompt: string;
 };
 
-declare const SuggestionTitle: (_param54: SuggestionTitleProps) => import("react").JSX.Element;
+declare const SuggestionTitle: (_param56: SuggestionTitleProps) => import("react").JSX.Element;
 
 type SuggestionTitleProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
 };
 
-declare const SuggestionTrigger: (_param55: SuggestionTriggerProps) => import("react").JSX.Element;
+declare const SuggestionTrigger: (_param57: SuggestionTriggerProps) => import("react").JSX.Element;
 
-type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type SuggestionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };
@@ -3292,7 +3764,25 @@ type SuggestionsComponentConfig = {
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
-declare const TextInput: (_param56: TextInputProps) => import("react").JSX.Element;
+type TaskMethods = {
+  getState(): TaskState;
+};
+
+type TaskState = {
+  readonly id: string;
+  readonly toolName: string;
+  readonly args: ToolCallMessagePart["args"];
+  readonly result?: ToolCallMessagePart["result"];
+  readonly isError?: boolean;
+  readonly status: ToolCallMessagePartStatus;
+  readonly timing?: ToolCallMessagePart["timing"];
+  readonly messageId: string;
+  readonly parentTaskId: string | null;
+  readonly depth: number;
+  readonly messages: readonly ThreadMessage[];
+};
+
+declare const TextInput: (_param58: TextInputProps) => import("react").JSX.Element;
 
 type TextInputProps = ComponentProps<typeof Box> & {
   value: string;
@@ -3306,6 +3796,7 @@ type TextInputProps = ComponentProps<typeof Box> & {
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -3332,9 +3823,11 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -3367,11 +3860,11 @@ type ThreadComposerRuntimeCoreBinding = SubscribableWithState<ThreadComposerRunt
 }>;
 
 declare class ThreadComposerRuntimeImpl extends ComposerRuntimeImpl implements ThreadComposerRuntime {
+  #private;
   get path(): ComposerRuntimePath & {
     composerSource: "thread";
   };
   get type(): "thread";
-  private _getState;
   constructor(core: ThreadComposerRuntimeCoreBinding);
   getState(): ThreadComposerState;
   getAttachmentByIndex(idx: number): ThreadComposerAttachmentRuntimeImpl;
@@ -3381,13 +3874,23 @@ type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
 };
 
-declare const ThreadEmpty: (_param57: ThreadEmptyProps) => import("react").JSX.Element | null;
+type ThreadData = {
+  externalId: string;
+};
+
+type ThreadData$1 = {
+  externalId: string | undefined;
+};
+
+declare const ThreadEmpty: (_param59: ThreadEmptyProps) => import("react").JSX.Element;
 
 type ThreadEmptyProps = {
   children: ReactNode;
 };
 
 type ThreadHistoryAdapter = {
+  scopeId?: string | undefined;
+  unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
     unstable_resume?: boolean;
@@ -3399,7 +3902,7 @@ type ThreadHistoryAdapter = {
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
 
-declare const ThreadIf: (_param58: ThreadIfProps) => import("react").JSX.Element | null;
+declare const ThreadIf: (_param60: ThreadIfProps) => import("react").JSX.Element | null;
 
 type ThreadIfProps = {
   children: ReactNode;
@@ -3407,10 +3910,10 @@ type ThreadIfProps = {
   running?: boolean | undefined;
 };
 
-declare const ThreadListItemArchive: (_param59: ThreadListItemArchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemArchive: (_param61: ThreadListItemArchiveProps) => import("react").JSX.Element;
 
-type ThreadListItemArchiveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemArchiveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ThreadListItemByIndexProvider: FC<PropsWithChildren<{
@@ -3429,10 +3932,10 @@ type ThreadListItemCoreState = {
   readonly runtime?: ThreadRuntimeCore | undefined;
 };
 
-declare const ThreadListItemDelete: (_param60: ThreadListItemDeleteProps) => import("react").JSX.Element;
+declare const ThreadListItemDelete: (_param62: ThreadListItemDeleteProps) => import("react").JSX.Element;
 
-type ThreadListItemDeleteProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemDeleteProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (payload: ThreadListItemEventPayload[E]) => void;
@@ -3444,15 +3947,11 @@ type ThreadListItemEventPayload = {
 
 type ThreadListItemEventType = keyof ThreadListItemEventPayload;
 
-declare namespace ThreadListItemPrimitiveTitle {
-  type Props = {
-    fallback?: ReactNode;
-  };
-}
+type ThreadListItemGenerateTitleOptions = {
+  automatic?: boolean;
+};
 
-declare const ThreadListItemPrimitiveTitle: FC<ThreadListItemPrimitiveTitle.Props>;
-
-declare const ThreadListItemRoot: (_param61: ThreadListItemRootProps) => import("react").JSX.Element;
+declare const ThreadListItemRoot: (_param63: ThreadListItemRootProps) => import("react").JSX.Element;
 
 type ThreadListItemRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -3460,12 +3959,12 @@ type ThreadListItemRootProps = ComponentProps<typeof Box> & {
 
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState$1;
+  getState(): ThreadListItemRuntimeState;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -3480,15 +3979,14 @@ type ThreadListItemRuntime = {
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 
-type ThreadListItemRuntimeBinding = SubscribableWithState<ThreadListItemState$1, ThreadListItemRuntimePath>;
+type ThreadListItemRuntimeBinding = SubscribableWithState<ThreadListItemRuntimeState, ThreadListItemRuntimePath>;
 
 declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
+  #private;
   get path(): ThreadListItemRuntimePath;
-  private _core;
-  private _threadListBinding;
   constructor(_core: ThreadListItemStateBinding, _threadListBinding: ThreadListRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
-  getState(): ThreadListItemState$1;
+  getState(): ThreadListItemRuntimeState;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -3501,7 +3999,7 @@ declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe$1;
   subscribe(callback: () => void): Unsubscribe$1;
   detach(): void;
@@ -3528,18 +4026,7 @@ declare const ThreadListItemRuntimeProvider: FC<PropsWithChildren<{
   runtime: ThreadListItemRuntime;
 }>>;
 
-type ThreadListItemState = {
-  readonly id: string;
-  readonly remoteId: string | undefined;
-  readonly externalId: string | undefined;
-  readonly title?: string | undefined;
-  readonly lastMessageAt?: Date | undefined;
-  readonly status: ThreadListItemStatus;
-  readonly custom?: Record<string, unknown> | undefined;
-  readonly isRunning: boolean;
-};
-
-type ThreadListItemState$1 = {
+type ThreadListItemRuntimeState = {
   readonly isMain: boolean;
   readonly isRunning: boolean;
   readonly id: string;
@@ -3551,23 +4038,46 @@ type ThreadListItemState$1 = {
   readonly custom?: Record<string, unknown> | undefined;
 };
 
-type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemState$1, ThreadListItemRuntimePath>;
+type ThreadListItemState = {
+  readonly id: string;
+  readonly remoteId: string | undefined;
+  readonly externalId: string | undefined;
+  readonly title?: string | undefined;
+  readonly lastMessageAt?: Date | undefined;
+  readonly status: ThreadListItemStatus;
+  readonly custom?: Record<string, unknown> | undefined;
+  readonly isRunning: boolean;
+};
+
+type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemRuntimeState, ThreadListItemRuntimePath>;
 
 type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
-declare const ThreadListItemTrigger: (_param62: ThreadListItemTriggerProps) => import("react").JSX.Element;
+declare function ThreadListItemTitle(_param64: ThreadListItemTitleProps): import("react").JSX.Element;
 
-type ThreadListItemTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+declare namespace ThreadListItemTitle {
+  type Props = ThreadListItemTitleProps;
+}
+
+type ThreadListItemTitleProps = Omit<ComponentProps<typeof Text>, "children"> & {
+  fallback?: ReactNode;
 };
 
-declare const ThreadListItemUnarchive: (_param63: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemTrigger: (_param65: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
-type ThreadListItemUnarchiveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: ReactNode | ((state: PressableState & {
+    isActive: boolean;
+  }) => ReactNode);
 };
 
-declare const ThreadListItems: (_param64: ThreadListItemsProps) => import("react").JSX.Element;
+declare const ThreadListItemUnarchive: (_param66: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
+
+type ThreadListItemUnarchiveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
+};
+
+declare const ThreadListItems: (_param67: ThreadListItemsProps) => import("react").JSX.Element;
 
 type ThreadListItemsProps = {
   renderItem: (props: {
@@ -3576,13 +4086,15 @@ type ThreadListItemsProps = {
   }) => ReactElement;
 };
 
-declare const ThreadListNew: (_param65: ThreadListNewProps) => import("react").JSX.Element;
+declare const ThreadListNew: (_param68: ThreadListNewProps) => import("react").JSX.Element;
 
-type ThreadListNewProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: ReactNode | ((state: PressableState & {
+    isActive: boolean;
+  }) => ReactNode);
 };
 
-declare const ThreadListRoot: (_param66: ThreadListRootProps) => import("react").JSX.Element;
+declare const ThreadListRoot: (_param69: ThreadListRootProps) => import("react").JSX.Element;
 
 type ThreadListRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -3601,6 +4113,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -3609,6 +4122,7 @@ type ThreadListRuntime = {
 
 type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
+  readonly loadError?: unknown;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
@@ -3619,6 +4133,7 @@ type ThreadListRuntimeCore = {
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
   unstable_isThreadRunning?(threadId: string): boolean;
+  unstable_subscribeThreadEvents?(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
@@ -3638,29 +4153,34 @@ type ThreadListRuntimeCore = {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(threadId: string): Promise<void>;
+  generateTitle(threadId: string, options?: {
+    automatic?: boolean;
+  }): Promise<void>;
   subscribe(callback: () => void): Unsubscribe$1;
 };
 
 type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
+type ThreadListRuntimeEvent = {
+  readonly threadId: string;
+  readonly type: ThreadRuntimeEventType;
+};
+
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
-  private _getState;
-  private _core;
-  private _runtimeFactory;
+  #private;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
   protected __internal_bindMethods(): void;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   getState(): ThreadListState;
   subscribe(callback: () => void): Unsubscribe$1;
-  private _mainThreadListItemRuntime;
   readonly main: ThreadRuntime;
   get mainItem(): ThreadListItemRuntimeImpl;
   getById(threadId: string): ThreadRuntime;
@@ -3675,42 +4195,17 @@ type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState$1, "isMain" | "isRunning" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
 
 type ThreadMessageLike = {
   readonly role: "assistant" | "system" | "user";
-  readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
-    readonly type: "tool-call";
-    readonly toolCallId?: string;
-    readonly toolName: string;
-    readonly args?: ReadonlyJSONObject;
-    readonly argsText?: string;
-    readonly artifact?: any;
-    readonly result?: any | undefined;
-    readonly isError?: boolean | undefined;
-    readonly parentId?: string | undefined;
-    readonly messages?: readonly ThreadMessage[] | undefined;
-    readonly interrupt?: {
-      type: "human";
-      payload: unknown;
-    };
-    readonly timing?: ToolCallTiming;
-    readonly providerMetadata?: PartProviderMetadata;
-    readonly approval?: {
-      readonly id: string;
-      readonly approved?: boolean;
-      readonly reason?: string;
-      readonly isAutomatic?: boolean;
-      readonly options?: readonly ToolApprovalOption[];
-      readonly optionId?: string;
-      readonly resolution?: "cancelled" | "expired";
-    };
-  })[];
+  readonly content: string | readonly ThreadMessageLikePart[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
@@ -3718,17 +4213,43 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
-    readonly unstable_state?: ReadonlyJSONValue;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
+      readonly comment?: string;
+    } | undefined;
     readonly isOptimistic?: boolean | undefined;
+    readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
+};
+
+type ThreadMessageLikePart = ThreadUserMessagePart | ThreadAssistantMessagePart | DataPrefixedPart | {
+  readonly type: "tool-call";
+  readonly toolCallId?: string;
+  readonly toolName: string;
+  readonly args?: ReadonlyJSONObject;
+  readonly argsText?: string;
+  readonly artifact?: any;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  readonly result?: any | undefined;
+  readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
+  readonly parentId?: string | undefined;
+  readonly messages?: readonly ThreadMessage[] | undefined;
+  readonly interrupt?: {
+    type: "human";
+    payload: unknown;
+  };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 declare const ThreadMessages: FC<ThreadMessagesProps>;
@@ -3766,6 +4287,35 @@ declare namespace ThreadPrimitiveMessages {
 
 declare const ThreadPrimitiveMessages: import("react").NamedExoticComponent<ThreadPrimitiveMessages.Props>;
 
+declare namespace ThreadPrimitiveRow {
+  type RenderInfo = {
+    readonly type: "message";
+    readonly row: Extract<ThreadRow, {
+      type: "message";
+    }>;
+    readonly message: MessageState;
+  } | {
+    readonly type: "part";
+    readonly row: Extract<ThreadRow, {
+      type: "part";
+    }>;
+    readonly part: MessagePrimitiveGroupedParts.GroupPart | EnrichedPartState;
+    readonly children: ReactNode;
+  } | {
+    readonly type: "turn-end";
+    readonly row: Extract<ThreadRow, {
+      type: "turn-end";
+    }>;
+    readonly message: MessageState;
+  };
+  type Props = {
+    readonly row: ThreadRow;
+    readonly children: (info: RenderInfo) => ReactNode;
+  };
+}
+
+declare const ThreadPrimitiveRow: import("react").NamedExoticComponent<ThreadPrimitiveRow.Props>;
+
 declare namespace ThreadPrimitiveSuggestionByIndex {
   type Props = {
     index: number;
@@ -3798,16 +4348,41 @@ declare namespace ThreadPrimitiveUnstable_MessageById {
 
 declare const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props>;
 
-declare const ThreadRoot: (_param67: ThreadRootProps) => import("react").JSX.Element;
+declare const ThreadRoot: (_param70: ThreadRootProps) => import("react").JSX.Element;
 
 type ThreadRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
 };
 
+type ThreadRow = {
+  readonly type: "message";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+} | {
+  readonly type: "part";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+  readonly indices: readonly number[];
+  readonly group?: `group-${string}`;
+} | {
+  readonly type: "turn-end";
+  readonly key: string;
+  readonly messageId: string;
+  readonly turnMessageId: string;
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
+type ThreadRowsOptions = {
+  readonly groupBy?: ((part: PartState, context: GroupByContext) => readonly `group-${string}`[] | null) | undefined;
+};
+
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
@@ -3816,6 +4391,8 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -3845,9 +4422,11 @@ type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
-  respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+  respondToToolApproval: (options: RespondToToolApprovalOptions) => Promise<void>;
+  unstable_recordToolInteraction?: (options: Unstable_RecordToolInteractionOptions) => Promise<void>;
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
   connectVoice: () => void;
@@ -3858,6 +4437,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3869,6 +4449,9 @@ type ThreadRuntimeCore = Readonly<{
   isDisabled: boolean;
   isSendDisabled: boolean;
   isLoading: boolean;
+  hasEarlier?: boolean;
+  isLoadingEarlier?: boolean;
+  loadEarlier?(): Promise<void>;
   isRunning?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
@@ -3893,6 +4476,18 @@ type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore, ThreadR
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   runStart: Record<string, never>;
   runEnd: Record<string, never>;
   initialize: Record<string, never>;
@@ -3902,6 +4497,7 @@ type ThreadRuntimeEventPayload = {
 type ThreadRuntimeEventType = keyof ThreadRuntimeEventPayload;
 
 declare class ThreadRuntimeImpl implements ThreadRuntime {
+  #private;
   get path(): ThreadRuntimePath;
   get __internal_threadBinding(): Subscribable & {
     path: ThreadRuntimePath;
@@ -3918,9 +4514,11 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       startRun: (config: StartRunConfig) => void;
       resumeRun: (config: ResumeRunConfig) => void;
       cancelRun: () => void;
+      unstable_notifySessionReset: () => void;
       addToolResult: (options: AddToolResultOptions) => void;
       resumeToolCall: (options: ResumeToolCallOptions) => void;
-      respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+      respondToToolApproval: (options: RespondToToolApprovalOptions) => Promise<void>;
+      unstable_recordToolInteraction?: (options: Unstable_RecordToolInteractionOptions) => Promise<void>;
       speak: (messageId: string) => void;
       stopSpeaking: () => void;
       connectVoice: () => void;
@@ -3950,6 +4548,8 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         clearAttachments: () => Promise<void>;
         send: (options?: SendOptions) => void;
         cancel: () => void;
+        submission?: ComposerSubmission | undefined;
+        inTransit?: readonly ComposerSubmission[] | undefined;
         queue: readonly QueueItemState[];
         moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
         removeQueueItem: (queueItemId: string) => void;
@@ -3960,6 +4560,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe$1;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3971,6 +4572,9 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isDisabled: boolean;
       isSendDisabled: boolean;
       isLoading: boolean;
+      hasEarlier?: boolean;
+      isLoadingEarlier?: boolean;
+      loadEarlier?(): Promise<void>;
       isRunning?: boolean | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
@@ -3990,22 +4594,23 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   } & {
     outerSubscribe(callback: () => void): Unsubscribe$1;
   } & {
-    getStateState(): ThreadState;
+    getStateState(): ThreadRuntimeState;
   };
-  private readonly _threadBinding;
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
   readonly composer: ThreadComposerRuntimeImpl;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): () => void;
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
+  unstable_notifySessionReset(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -4018,8 +4623,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   getMessageByIndex(idx: number): MessageRuntimeImpl;
   getMessageById(messageId: string): MessageRuntimeImpl;
-  private _getMessageRuntime;
-  private _eventSubscriptionSubjects;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
 }
 
@@ -4033,11 +4636,14 @@ type ThreadRuntimePath = {
   };
 };
 
-type ThreadState = {
+type ThreadRuntimeState = {
   readonly threadId: string;
-  readonly metadata: ThreadListItemState$1;
+  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
@@ -4048,13 +4654,17 @@ type ThreadState = {
   readonly voice: VoiceSessionState | undefined;
 };
 
-type ThreadState$1 = {
+type ThreadState = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
+  readonly tasks: readonly TaskState[];
   readonly state: ReadonlyJSONValue;
   readonly suggestions: readonly ThreadSuggestion$1[];
   readonly extras: unknown;
@@ -4071,14 +4681,16 @@ type ThreadStep = {
   } | undefined;
 };
 
-declare const ThreadSuggestion: (_param68: ThreadSuggestionProps) => import("react").JSX.Element;
+declare const ThreadSuggestion: (_param71: ThreadSuggestionProps) => import("react").JSX.Element;
 
 type ThreadSuggestion$1 = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
-type ThreadSuggestionProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadSuggestionProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
   prompt: string;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
@@ -4096,6 +4708,7 @@ type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -4112,6 +4725,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -4122,12 +4736,13 @@ type ThreadsState = {
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly threadItems: readonly ThreadListItemState[];
-  readonly main: ThreadState$1;
+  readonly main: ThreadState;
 };
 
 type TitleGenerationAdapter = {
@@ -4135,6 +4750,13 @@ type TitleGenerationAdapter = {
 };
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
+
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -4150,20 +4772,45 @@ type ToolApprovalOption = {
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
 
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
+
 type ToolApprovalResponse = {
   readonly approved: boolean;
+  readonly text?: string;
   readonly reason?: string;
 } | {
   readonly optionId: string;
+  readonly text?: string;
   readonly reason?: string;
 } | {
   readonly approved: boolean;
   readonly optionId: string;
+  readonly text?: string;
+  readonly reason?: string;
+} | {
+  readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly reason?: string;
 };
 
 type ToolArgsStatus<TArgs extends Record<string, unknown> = Record<string, unknown>> = {
   status: "complete" | "incomplete" | "requires-action" | "running";
+  argsStatus: PropFieldStatus;
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
@@ -4180,10 +4827,10 @@ interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
   forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
 }
 
-type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> = ReactNode | ((options: {
+type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult, TValue> = TValue | undefined | null | ((options: {
   args: TArgs;
   result: TResult | undefined;
-}) => ReactNode);
+}) => TValue | undefined | null);
 
 type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly type: "tool-call";
@@ -4192,6 +4839,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
@@ -4204,15 +4852,23 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly approval?: {
     readonly id: string;
+    readonly prompt?: string;
+    readonly display?: ToolApprovalDisplay;
+    readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
+    readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ToolCallMessagePartComponent<TArgs = any, TResult = any> = ComponentType<ToolCallMessagePartProps<TArgs, TResult>>;
@@ -4224,12 +4880,17 @@ type ToolCallMessagePartMcpMetadata = {
 type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState & ToolCallMessagePart<TArgs, TResult> & {
   addResult: (result: TResult | ToolResponse<TResult>) => void;
   resume: (payload: unknown) => void;
-  respondToApproval: (response: ToolApprovalResponse) => void;
+  respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
+  unstable_recordInteraction?: ((input: Unstable_ToolInteractionInput) => Promise<void>) | undefined;
 };
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -4244,24 +4905,23 @@ interface ToolCallResponseReader<TResult> {
   get: () => Promise<ToolResponse<TResult>>;
 }
 
-type ToolCallRunningText<TArgs extends Record<string, unknown>> = ReactNode | ((options: {
+type ToolCallRunningText<TArgs extends Record<string, unknown>, TValue> = TValue | undefined | null | ((options: {
   args: TArgs;
-}) => ReactNode);
+}) => TValue | undefined | null);
 
 type ToolCallStatus = "complete" | "error" | "requires-action" | "running";
 
-type ToolCallText<TArgs extends Record<string, unknown>, TResult> = {
-  running: ToolCallRunningText<TArgs>;
-  complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
+type ToolCallText<TArgs extends Record<string, unknown>, TResult> = ToolCallText$1<TArgs, TResult, ReactNode>;
+
+type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = string> = {
+  running: ToolCallRunningText<TArgs, TValue>;
+  complete?: ToolCallCompleteText<TArgs, TResult, TValue> | undefined;
 } | {
-  running?: ToolCallRunningText<TArgs> | undefined;
-  complete: ToolCallCompleteText<TArgs, TResult>;
+  running?: ToolCallRunningText<TArgs, TValue> | undefined;
+  complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendToolDeclaration<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -4281,7 +4941,17 @@ type ToolExecutionContext = {
   human: (payload: unknown) => Promise<unknown>;
 };
 
-declare const ToolFallback: (_param69: ToolFallbackProps) => import("react").JSX.Element;
+type ToolExecutionStatus = {
+  type: "executing";
+} | {
+  type: "interrupt";
+  payload: {
+    type: "human";
+    payload: unknown;
+  };
+};
+
+declare const ToolFallback: (_param72: ToolFallbackProps) => import("react").JSX.Element;
 
 type ToolFallbackBaseProps = Omit<ToolCallMessagePartProps, "addResult" | "respondToApproval" | "resume"> & Partial<Pick<ToolCallMessagePartProps, "addResult" | "respondToApproval" | "resume">>;
 
@@ -4323,11 +4993,18 @@ type ToolModelOutputFunction<TArgs, TResult> = (options: {
 
 type ToolParameters<TArgs extends Record<string, unknown>> = ToolDeclaration<TArgs>["parameters"];
 
+type ToolRegistration = {
+  readonly render: ToolCallMessagePartComponent;
+  readonly renderText?: ToolCallText$1<any, any, unknown> | undefined;
+  readonly standalone: boolean;
+};
+
 declare class ToolResponse<TResult> {
   get [TOOL_RESPONSE_SYMBOL](): boolean;
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -4339,6 +5016,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -4380,6 +5058,30 @@ declare const Tools: Resource<ClientOutput<"tools">, [
   }
 ]>;
 
+type ToolsState = {
+  toolUIs: Record<string, readonly ToolRegistration[]>;
+  mcpApp?: McpAppResourceOutput | undefined;
+};
+
+type TriggerAdapter = {
+  categories(): readonly TriggerCategory[];
+  categoryItems(categoryId: string): readonly TriggerItem[];
+  search?(query: string): readonly TriggerItem[];
+};
+
+type TriggerCategory = {
+  readonly id: string;
+  readonly label: string;
+};
+
+type TriggerItem = {
+  readonly id: string;
+  readonly type: string;
+  readonly label: string;
+  readonly description?: string | undefined;
+  readonly metadata?: ReadonlyJSONObject | undefined;
+};
+
 type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
 
 type TypeAtPath<T, P extends readonly any[]> = P extends [
@@ -4417,6 +5119,10 @@ type Unstable_AudioMessagePart = {
 type Unstable_AudioMessagePartComponent = ComponentType<Unstable_AudioMessagePartProps>;
 
 type Unstable_AudioMessagePartProps = MessagePartState & Unstable_AudioMessagePart;
+
+type Unstable_DirectiveFormatter = DirectiveFormatter;
+
+type Unstable_DirectiveSegment = DirectiveSegment;
 
 type Unstable_InferInteractableState<TSchema> = TSchema extends {
   "~standard": {
@@ -4528,6 +5234,34 @@ type Unstable_InteractablesState = {
   persistence: Record<string, Unstable_InteractablePersistenceStatus>;
 };
 
+type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
+type Unstable_TriggerItem = TriggerItem;
+
 type Unsubscribe = () => void;
 
 type Unsubscribe$1 = () => void;
@@ -4557,6 +5291,7 @@ type VoiceSessionControls = {
   disconnect: () => void;
   mute: () => void;
   unmute: () => void;
+  sendText?: ((text: string) => void | Promise<void>) | undefined;
 };
 
 type VoiceSessionHelpers = {
@@ -4572,6 +5307,7 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 
 type WildcardPayload = {
@@ -4612,6 +5348,8 @@ declare namespace attachment_d_exports {
 
 declare const auiConfigBrand: unique symbol;
 
+declare const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+
 declare namespace branchPicker_d_exports {
   export { BranchPickerCount as Count, BranchPickerCountProps as CountProps, BranchPickerNext as Next, BranchPickerNextProps as NextProps, BranchPickerNumber as Number, BranchPickerNumberProps as NumberProps, BranchPickerPrevious as Previous, BranchPickerPreviousProps as PreviousProps };
 }
@@ -4628,13 +5366,39 @@ declare namespace composer_d_exports {
   export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachmentByIndexProps as AttachmentByIndexProps, ComposerAttachments as Attachments, ComposerAttachmentsProps as AttachmentsProps, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerPrimitiveQueue as Queue, ComposerQuote as Quote, ComposerQuoteDismiss as QuoteDismiss, ComposerQuoteDismissProps as QuoteDismissProps, ComposerQuoteProps as QuoteProps, ComposerQuoteText as QuoteText, ComposerQuoteTextProps as QuoteTextProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
 }
 
+declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata, cache?: ExternalMessageConversionCache) => ThreadMessage[];
+
+declare const createExternalMessageConversionCache: () => ExternalMessageConversionCache;
+
 declare const createFileStorageAdapter: (options: CreateFileStorageAdapterOptions) => RemoteThreadListAdapter;
 
+declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
+  useThreadMessages: (_param73: {
+    messages: T[];
+    isRunning: boolean;
+    joinStrategy?: JoinStrategy | undefined;
+    metadata?: useExternalMessageConverter.Metadata;
+  }) => ThreadMessage[];
+  toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[];
+  toOriginalMessages: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => unknown[];
+  toOriginalMessage: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => {};
+  useOriginalMessage: () => {};
+  useOriginalMessages: () => unknown[];
+};
+
+declare const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController;
+
 declare const createSimpleTitleAdapter: () => TitleGenerationAdapter;
+
+declare const createSuggestionAdapter: (options: CreateSuggestionAdapterOptions) => SuggestionAdapter;
+
+declare const createThreadRowsSelector: (options?: ThreadRowsOptions) => (state: AssistantState) => readonly ThreadRow[];
 
 declare function createVoiceSession(options: {
   abortSignal?: AbortSignal;
 }, setup: (helpers: VoiceSessionHelpers) => Promise<VoiceSessionControls>): RealtimeVoiceAdapter.Session;
+
+declare const defaultDirectiveFormatter: DirectiveFormatter;
 
 declare function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit;
 
@@ -4662,7 +5426,11 @@ declare const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: strin
 
 declare const generateId: (size?: number) => string;
 
-declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue) => MessageStatus;
+declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue, isCancelled?: boolean, hasBackgroundToolCalls?: boolean) => MessageStatus;
+
+declare const getExternalStoreMessages: <T>(input: {
+  messages: readonly ThreadMessage[];
+} | ThreadMessage | ThreadMessage["content"][number]) => T[];
 
 declare global {
   interface Window {
@@ -4671,6 +5439,8 @@ declare global {
   }
 }
 
+declare const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) => ((part: PartState, context?: GroupByContext) => readonly TKey[]);
+
 declare const hitl: typeof humanTool;
 
 declare const hitlTool: typeof humanTool;
@@ -4678,7 +5448,7 @@ declare const hitlTool: typeof humanTool;
 declare function humanTool(): never;
 
 declare namespace entry_root_exports {
-  export { actionBar_d_exports as ActionBarPrimitive, AppendMessage, AssistantClient, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantInteractableProps, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentState, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChecklistItemData, ChecklistItemStatus, checklist_d_exports as ChecklistPrimitive, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerState, CompositeAttachmentAdapter, CreateAttachment, CreateFileStorageAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, diff_d_exports as DiffPrimitive, DiffView, DiffViewProps, EditComposerRuntime, EmptyMessagePartComponent, EmptyMessagePartProps, index_d_exports$2 as ErrorPrimitive, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadListAdapter, Interactables, LanguageModelConfig, LanguageModelV1CallSettings, LiveChecklist, LiveChecklistProps, index_d_exports$1 as LoadingPrimitive, LocalRuntimeOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, messagePart_d_exports as MessagePartPrimitive, message_d_exports as MessagePrimitive, MessageRole, MessageRuntime, MessageState, MessageStatus, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, NotificationConfig, NotificationEvent, NotificationHandler, OSCVariant, PartByIndexProvider, PendingAttachment, ProviderToolConfig, queueItem_d_exports as QueueItemPrimitive, QueueItemState, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProviderComponent, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, statusBar_d_exports as StatusBarPrimitive, SuggestionAdapter, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TextInput, TextInputProps, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemState, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadState$1 as ThreadState, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadsState, TitleGenerationAdapter, Tool, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartProps, toolCall_d_exports as ToolCallPrimitive, ToolCallText, ToolDefinition, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unsubscribe$1 as Unsubscribe, UseToolCallChecklistOptions, VoiceSessionControls, VoiceSessionHelpers, createFileStorageAdapter, createSimpleTitleAdapter, createVoiceSession, defineMcpToolkit, defineToolkit, fromThreadMessageLike, generateId, hitl, hitlTool, humanTool, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, mergeModelContexts, providerTool, ringBell, sendOSCNotification, stubTool, tool, unstable_Interactables, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useThreadMessageIds, useAssistantContext, useAssistantDataUI, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useInlineRender, useInteractableState, useLocalRuntime, useNotification, useRemoteThreadListRuntime, useRuntimeAdapters, useToolArgsStatus, useToolCallChecklist, useVoiceControls, useVoiceState, useVoiceVolume };
+  export { actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, AssistantClient, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantInteractableProps, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentRuntimeState, AttachmentState, AttachmentStatus$1 as AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, ChecklistItemData, ChecklistItemStatus, checklist_d_exports as ChecklistPrimitive, CloudFileAttachmentAdapter, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerRuntimeState, ComposerSendOptions, ComposerState, ComposerSubmission, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateFileStorageAdapterOptions, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DictationAdapter, DictationState, diff_d_exports as DiffPrimitive, DiffView, DiffViewProps, DirectiveFormatter, DirectiveSegment, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, index_d_exports$2 as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LiveChecklist, LiveChecklistProps, index_d_exports$1 as LoadingPrimitive, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppMetadata, McpAppResourceOutput, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, MessagePartTiming, message_d_exports as MessagePrimitive, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimeState, MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, NotificationConfig, NotificationEvent, NotificationHandler, OSCVariant, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, statusBar_d_exports as StatusBarPrimitive, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TaskMethods, TaskState, TextInput, TextInputProps, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemRuntimeState, ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRow, ThreadRowsOptions, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadSuggestion$1 as ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalAnswer, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalQuestion, ToolApprovalQuestionOption, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, toolCall_d_exports as ToolCallPrimitive, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, TriggerAdapter, TriggerCategory, TriggerItem, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_TriggerItem, Unsubscribe$1 as Unsubscribe, UseToolCallChecklistOptions, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, bindExternalStoreMessage, createFileStorageAdapter, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createThreadRowsSelector, createVoiceSession, defaultDirectiveFormatter, defineMcpToolkit, defineToolkit, fromThreadMessageLike, generateId, getExternalStoreMessages, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, ringBell, sendOSCNotification, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useThreadMessageIds, useAssistantContext, useAssistantDataUI, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useNotification, useRemoteThreadListRuntime, useRuntimeAdapters, useToolArgsStatus, useToolCallChecklist, useVoiceControls, useVoiceState, useVoiceVolume };
 }
 
 declare namespace index_d_exports$1 {
@@ -4693,6 +5463,8 @@ declare namespace entry_internal_exports {
   export { AssistantRuntimeImpl, BaseAssistantRuntimeCore, CompositeContextProvider, DefaultThreadComposerRuntimeCore, MessageRepository, ThreadListItemRuntimeBinding, ThreadListRuntimeCore, ThreadRuntimeCore, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, getAutoStatus };
 }
 
+declare const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
+
 declare const makeAssistantDataUI: <T = any>(dataUI: AssistantDataUIProps<T>) => AssistantDataUI;
 
 declare const makeAssistantTool: <TArgs extends Record<string, unknown>, TResult>(tool: AssistantToolProps<TArgs, TResult>) => AssistantTool;
@@ -4706,8 +5478,10 @@ declare namespace messagePart_d_exports {
 }
 
 declare namespace message_d_exports {
-  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessageError as Error, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
+  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessageError as Error, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessagePrimitiveQuote as Quote, MessageRoot as Root, MessageRootProps as RootProps };
 }
+
+declare const pickExternalStoreSharedOptions: (options: ExternalStoreSharedOptions) => ExternalStoreSharedOptions;
 
 declare function providerTool(config: ProviderToolConfig): never;
 
@@ -4730,7 +5504,7 @@ declare namespace suggestion_d_exports {
 }
 
 declare namespace threadListItem_d_exports {
-  export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemPrimitiveTitle as Title, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
+  export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemTitle as Title, ThreadListItemTitleProps as TitleProps, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
 }
 
 declare namespace threadList_d_exports {
@@ -4738,7 +5512,7 @@ declare namespace threadList_d_exports {
 }
 
 declare namespace thread_d_exports {
-  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
+  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadPrimitiveRow as Row, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
 }
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
@@ -4747,6 +5521,11 @@ declare function tool<const TSchema extends StandardSchemaParameters, TResult = 
 
 declare function tool<TArgs extends Record<string, unknown>, TResult = any>(tool: Tool<TArgs, TResult>): Tool<TArgs, TResult>;
 
+declare const toolApprovalAcceptsText: (approval: {
+  readonly display?: ToolApprovalDisplay;
+  readonly allowFreeform?: boolean;
+}) => boolean;
+
 declare namespace toolCall_d_exports {
   export { ToolFallback as Fallback, ToolFallbackProps as FallbackProps, ToolCallStatus };
 }
@@ -4754,6 +5533,8 @@ declare namespace toolCall_d_exports {
 declare const unstable_Interactables: Resource<ClientOutput<"unstable_interactables">, [
   (Unstable_InteractablesConfig | undefined)?
 ]>;
+
+declare const unstable_defaultDirectiveFormatter: DirectiveFormatter;
 
 declare function unstable_formatInteractableSnapshot(entry: Unstable_InteractableSnapshotEntry): string;
 
@@ -4822,6 +5603,30 @@ declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
 
 declare function useAuiToolOverrides(overrides: AuiToolOverrides): void;
 
+declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
+
+declare function useCloudThreadListRuntime(_param74: CloudThreadListAdapter): AssistantRuntime;
+
+declare namespace useExternalMessageConverter {
+  type Message = ExternalMessageConverterMessage;
+  type Metadata = ExternalMessageConverterMetadata;
+  type Callback<T> = ExternalMessageConverterCallback<T>;
+  type GetMetadataKey<T> = (message: T, metadata: ExternalMessageConverterMetadata) => unknown;
+}
+
+declare const useExternalMessageConverter: <T extends WeakKey>(_param75: {
+  callback: useExternalMessageConverter.Callback<T>;
+  messages: T[];
+  isRunning: boolean;
+  joinStrategy?: JoinStrategy | undefined;
+  metadata?: useExternalMessageConverter.Metadata | undefined;
+  getMetadataKey?: useExternalMessageConverter.GetMetadataKey<T> | undefined;
+}) => ThreadMessage[];
+
+declare const useExternalStoreRuntime: <T>(store: ExternalStoreAdapter<T>) => AssistantRuntime;
+
+declare const useExternalStoreSharedOptions: (options: ExternalStoreSharedOptions) => ExternalStoreSharedOptions;
+
 declare const useInlineRender: <TArgs, TResult>(toolUI: FC<ToolCallMessagePartProps<TArgs, TResult>>) => FC<ToolCallMessagePartProps<TArgs, TResult>>;
 
 declare const useInteractableState: <TState>(id: string, fallback: TState) => [
@@ -4835,7 +5640,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param70?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param76?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useNotification: (config?: NotificationConfig) => void;
 

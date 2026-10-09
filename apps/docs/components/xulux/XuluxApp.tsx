@@ -13,16 +13,15 @@ import {
   AssistantRuntimeProvider,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
-import {
-  AssistantChatTransport,
-  useChatRuntime,
-} from "@assistant-ui/react-ai-sdk";
-import { AssistantPanelProvider } from "@/components/docs/assistant/context";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantPanelProvider } from "@/components/pages/docs/assistant/context";
 import { XuluxAnalyticsProvider } from "@/lib/xulux/analytics-context";
+import { feedbackAdapter } from "@/lib/feedback-adapter";
 import type { XuluxTemplate } from "./templates/types";
 import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
 import { createXuluxChatFetch } from "./runtime/xulux-chat-fetch";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import { XuluxThreadStatusObserver } from "./runtime/XuluxThreadStatusObserver";
 import {
   parseXuluxLimitBlock,
@@ -62,11 +61,13 @@ export function XuluxApp({
   courseId = DEFAULT_LEARN_COURSE_ID,
   autoStart = false,
   autoStartSource = "suggestion",
+  active = true,
 }: {
   mode?: XuluxMode;
   courseId?: string;
   autoStart?: boolean;
   autoStartSource?: LearnAutoStartSource;
+  active?: boolean;
 }) {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [learnProgress, setLearnProgress] = useState<LearnProgress>(() =>
@@ -86,6 +87,9 @@ export function XuluxApp({
   useEffect(() => {
     if (mode !== "learn") return;
     const stored = readLearnProgress(window.localStorage, courseId);
+    // The stored progress is a fresh object per read, so it cannot back a
+    // cached external-store snapshot.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLearnProgress(stored);
     if (stored.threadId) setSessionId(stored.threadId);
     setLearnReady(true);
@@ -110,6 +114,7 @@ export function XuluxApp({
           courseId={courseId}
           autoStart={autoStart}
           autoStartSource={autoStartSource}
+          active={active}
           learnProgress={learnProgress}
           learnReady={learnReady}
           onUpdateLearnProgress={updateLearnProgress}
@@ -203,10 +208,12 @@ function XuluxRuntimeProviderInner({
   const learnProgressRef = useRef(learnProgress);
   learnProgressRef.current = learnProgress;
   const [limitBlock, setLimitBlock] = useState<XuluxLimitBlock | null>(null);
+  const [limitSessionId, setLimitSessionId] = useState(sessionId);
 
-  useEffect(() => {
+  if (limitSessionId !== sessionId) {
+    setLimitSessionId(sessionId);
     setLimitBlock(null);
-  }, [sessionId]);
+  }
 
   const assistantCloud = useMemo(
     () =>
@@ -236,7 +243,7 @@ function XuluxRuntimeProviderInner({
   );
 
   const transport = useMemo(() => {
-    const chatFetch = createXuluxChatFetch();
+    const chatFetch = createXuluxChatFetch(anonymousSessionFetch);
     return new AssistantChatTransport({
       api: mode === "learn" ? "/api/xulux/learn/chat" : "/api/xulux/chat",
       body: {
@@ -275,6 +282,9 @@ function XuluxRuntimeProviderInner({
       return useChatRuntime({
         transport,
         isSendDisabled: limitBlock != null,
+        adapters: {
+          feedback: feedbackAdapter,
+        },
       });
     },
   });

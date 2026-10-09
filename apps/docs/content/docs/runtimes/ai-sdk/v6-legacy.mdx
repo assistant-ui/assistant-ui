@@ -91,18 +91,21 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
+  const aiSDKTools = {
+    get_current_weather: tool({
+      description: "Get the current weather",
+      inputSchema: zodSchema(z.object({ city: z.string() })),
+      execute: async ({ city }) => {
+        return `The weather in ${city} is sunny`;
+      },
+    }),
+  };
+
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
-    messages: await convertToModelMessages(messages), // async in v6
-    tools: {
-      get_current_weather: tool({
-        description: "Get the current weather",
-        inputSchema: zodSchema(z.object({ city: z.string() })),
-        execute: async ({ city }) => {
-          return `The weather in ${city} is sunny`;
-        },
-      }),
-    },
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }), // async in v6
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
 ```tsx title="@/app/page.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
@@ -146,7 +149,7 @@ import {
   useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -205,7 +208,7 @@ export function App() {
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
 
 </Tab>
 <Tab value="React Native">
@@ -244,14 +247,17 @@ export async function POST(req: Request) {
     tools?: any;
   } = await req.json();
 
+  const aiSDKTools = {
+    ...frontendTools(tools),
+    // your backend tools...
+  };
+
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: {
-      ...frontendTools(tools),
-      // your backend tools...
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -275,12 +281,15 @@ import {
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    /* ... */
+  };
+
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      /* ... */
-    },
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
     stopWhen: stepCountIs(10), // cap at 10 tool-call iterations
   });
 
@@ -304,17 +313,20 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    deploy: tool({
+      description: "Deploy the current build to an environment.",
+      inputSchema: z.object({ target: z.string() }),
+      needsApproval: ({ input }) => input.target === "production",
+      execute: async ({ target }) => ({ deployed: target }),
+    }),
+  };
+
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      deploy: tool({
-        description: "Deploy the current build to an environment.",
-        inputSchema: z.object({ target: z.string() }),
-        needsApproval: ({ input }) => input.target === "production",
-        execute: async ({ target }) => ({ deployed: target }),
-      }),
-    },
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -327,12 +339,10 @@ On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMes
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import {
-  AssistantRuntimeProvider,
-  useAISDKRuntime,
-} from "@assistant-ui/react-ai-sdk";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   const chat = useChat({
@@ -359,25 +369,36 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
+  type ToolApprovalResponse,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
+      // A refused response rejects and a precondition throws, so `try`/`await`
+      // covers both and the controls stay actionable.
+      const answer = async (response: ToolApprovalResponse) => {
+        try {
+          await respondToApproval(response);
+        } catch (failure) {
+          console.error(failure);
+        }
+      };
+
       if (approval?.approved === undefined) {
         return (
           <div>
             <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => respondToApproval({ approved: true })}>
+            <button onClick={() => void answer({ approved: true })}>
               Approve
             </button>
             <button
               onClick={() =>
-                respondToApproval({ approved: false, reason: "user denied" })
+                void answer({ approved: false, reason: "user denied" })
               }
             >
               Deny
@@ -423,7 +444,8 @@ import { openai } from "@ai-sdk/openai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
   return result.toUIMessageStreamResponse();
@@ -442,10 +464,14 @@ import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
   const { messages, tools, config } = await req.json();
+
+  const aiSDKTools = frontendTools(tools);
+
   const result = streamText({
+    abortSignal: req.signal,
     model: getModel(config?.modelName),
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {
@@ -474,6 +500,15 @@ export function TokenCounter() {
 ```
 
 `getThreadMessageTokenUsage(message)` returns per-message usage if you need to show it inline.
+
+Metadata a route returns from `messageMetadata` reaches the client under `metadata.custom`, because a thread message carries a fixed metadata shape and the converter moves everything outside it there. `useThreadTokenUsage` reads `usage` for you; anything else you attach is read from `custom` directly:
+
+```tsx
+// inside a message component, where the message scope resolves
+const modelId = useAuiState(
+  (s) => s.message.metadata.custom?.["modelId"] as string | undefined,
+);
+```
 
 ## Attachments
 
@@ -513,7 +548,7 @@ The adapter **must** implement `withFormat`. `useChatRuntime` persists history t
 </Callout>
 
 <Callout type="info">
-For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk-assistant-ui).
+For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
 </Callout>
 
 ```tsx
@@ -606,8 +641,6 @@ const runtime = useAISDKRuntime(chat);
 | `ai` package | `ai@^5` | `ai@^6` |
 | `@ai-sdk/react` | `@ai-sdk/react@^2` | `@ai-sdk/react@^3` |
 | `convertToModelMessages` | Sync | Async (`await`) |
-| Tool schema | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
-| Response | `toDataStreamResponse()` | `toUIMessageStreamResponse()` |
 
 ## Example
 

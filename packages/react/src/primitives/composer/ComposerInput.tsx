@@ -1,7 +1,7 @@
 "use client";
 
-import { composeEventHandlers } from "@radix-ui/primitive";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { composeEventHandlers } from "radix-ui/internal";
+import { useComposedRefs } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import {
   type ClipboardEvent,
@@ -12,20 +12,22 @@ import {
   useCallback,
   useEffect,
   useRef,
-  cloneElement,
   isValidElement,
 } from "react";
 import TextareaAutosize, {
   type TextareaAutosizeProps,
   type TextareaHeightChangeMeta,
 } from "react-textarea-autosize";
-import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
+import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
+import { renderSlot } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
+import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -49,6 +51,8 @@ export namespace ComposerPrimitiveInput {
     render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
+     * After cancelling an edit, focus returns to the main thread composer when
+     * available, unless a handler has moved focus elsewhere.
      * @default true
      */
     cancelOnEscape?: boolean | undefined;
@@ -118,7 +122,7 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
- * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * When rendered inside `TriggerPopoverRoot` and a popover is open, the
  * underlying `<textarea>` automatically receives `aria-controls`,
  * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
  * combobox relationship. These computed attributes override user-provided
@@ -191,6 +195,9 @@ export const ComposerPrimitiveInput = forwardRef<
     const value = useComposerInputValue();
     const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const cancel = useComposerCancelWithFocus(
+      useCallback(() => aui.composer.cancel(), [aui]),
+    );
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
     const compositionRef = useRef(false);
@@ -200,7 +207,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
       // ignore IME composition events
-      if (e.isComposing) return;
+      if (isCompositionKey(e)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
@@ -213,7 +220,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       const composer = aui.composer;
       if (composer.getState().canCancel) {
-        composer.cancel();
+        cancel(textareaRef.current);
         e.preventDefault();
       }
     });
@@ -222,7 +229,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (isDisabled) return;
 
       // ignore IME composition events
-      if (e.nativeEvent.isComposing) return;
+      if (isCompositionKey(e.nativeEvent)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle keyboard events first
       if (pluginRegistry) {
@@ -251,8 +258,14 @@ export const ComposerPrimitiveInput = forwardRef<
         // Regular newline: Shift+Enter
         if (e.shiftKey) return;
 
-        // Block submission when running unless queue is supported
-        if (threadState.isRunning && !hasQueue) return;
+        // Block submission when running unless queue is supported; a voice
+        // session leaves the decision to canSend
+        if (
+          threadState.isRunning &&
+          !hasQueue &&
+          threadState.voice === undefined
+        )
+          return;
 
         let shouldSubmit = false;
         if (effectiveSubmitMode === "ctrlEnter") {
@@ -346,7 +359,7 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return aui.on("threadListItem.switchedTo", focus);
+      return aui.on("threads.selectionChanged", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
     useEffect(() => {
@@ -434,14 +447,10 @@ export const ComposerPrimitiveInput = forwardRef<
     };
 
     if (render && isValidElement(render)) {
-      const renderChildren =
-        (rest as any).children !== undefined
-          ? ((rest as any).children as ReactNode)
-          : ((render.props as Record<string, unknown>).children as ReactNode);
-      return (
-        <Slot.Root {...inputProps}>
-          {cloneElement(render, undefined, renderChildren)}
-        </Slot.Root>
+      return renderSlot(
+        render,
+        (rest as { children?: ReactNode }).children,
+        inputProps,
       );
     }
 

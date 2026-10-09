@@ -1,0 +1,263 @@
+---
+title: "Job progress"
+description: "Weighted job stages that announce live progress and settle into a receipt."
+---
+
+Job progress keeps a long-running task legible while it runs, then keeps the final receipt in the same place. Give stages relative weights, update the current stage and its share, and pass an outcome when the job settles.
+
+## Getting started
+
+<RuntimeMode>
+
+This element has no assistant-ui primitive of its own, so render it from a tool. The loading branch starts from the stage information available to the renderer. When the tool resolves, pass its final status as `outcome` so the card becomes a receipt rather than inferring success from a stage count.
+
+<Steps>
+  <Step>
+
+### Render a live job and its receipt
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { JobProgress } from "@/components/assistant-ui/elements/job-progress";
+
+export const toolkit = defineToolkit({
+  run_ci_job: {
+    type: "backend",
+    render: ({ args, result, addResult }) => {
+      if (!result) {
+        return (
+          <JobProgress
+            title={args.target}
+            stages={args.stages ?? []}
+            stageIndex={0}
+            stageProgress={0}
+            eta="starting"
+            onCancel={() =>
+              addResult({
+                stageIndex: 0,
+                stageProgress: 0,
+                eta: "cancelled",
+                outcome: {
+                  status: "cancelled",
+                  summary: "Cancelled before CI started.",
+                },
+                elapsedMs: 0,
+              })
+            }
+          />
+        );
+      }
+
+      return (
+        <JobProgress
+          title={args.target}
+          stages={args.stages ?? []}
+          stageIndex={result.stageIndex}
+          stageProgress={result.stageProgress}
+          eta={result.eta}
+          outcome={result.outcome}
+          elapsedMs={result.elapsedMs}
+        />
+      );
+    },
+  },
+});
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is controlled. Your job runner owns the stage update and decides the final receipt.
+
+<Steps>
+  <Step>
+
+### Pass the running snapshot through
+
+```tsx title="app/ci-job.tsx"
+"use client";
+
+import {
+  JobProgress,
+  type JobStage,
+} from "@/components/assistant-ui/elements/job-progress";
+
+const stages: readonly JobStage[] = [
+  { name: "clone", weight: 1, description: "Fetching the branch" },
+  { name: "install", weight: 4, description: "Restoring dependencies" },
+  { name: "build", weight: 3, description: "Compiling packages" },
+  { name: "test", weight: 2, description: "Running the suite" },
+];
+
+export function CiJob() {
+  return (
+    <JobProgress
+      title="Verify the fix on CI"
+      stages={stages}
+      stageIndex={1}
+      stageProgress={0.6}
+      eta="about 3 min"
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Settle the receipt from the runner result
+
+```tsx
+<JobProgress
+  title="Verify the fix on CI"
+  stages={stages}
+  stageIndex={3}
+  stageProgress={0.4}
+  eta="stopped"
+  outcome={{
+    status: "partial",
+    summary: "Build passed. Tests stopped after the preview environment timed out.",
+  }}
+  elapsedMs={72_000}
+/>
+```
+
+An outcome always removes cancellation, even if the reported stage is short of the end, but only a `success` outcome fills the bar; `partial`, `failed`, and `cancelled` keep it at the progress the job actually reached. Use it for failure, cancellation, and partial work. A fully finished job can omit `outcome` and use `stageIndex={stages.length}`.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="job-progress" data-state="running">
+  <div>
+    <span>status icon</span>
+    <span>title</span>
+    <span>ETA, status word, or elapsed time</span>
+    <button>cancel</button>
+  </div>
+
+  <span role="progressbar">weighted progress or a completed receipt</span>
+
+  <div>
+    <div>one monospace label per stage</div>
+    <p>the current stage description</p>
+  </div>
+
+  <p>optional outcome summary</p>
+  <span role="status">current stage or final outcome</span>
+</div>
+```
+
+`stageIndex` is floored and clamped into `0 to stages.length`. Reaching `stages.length` means the job finished successfully when no `outcome` is present. `stageProgress` is clamped into `0 to 1` and contributes only the current stage's weighted share. A current stage description appears below the labels. A hidden status region announces each current stage and final outcome.
+
+An outcome wins over numeric progress. `success` uses a green check and `done`; `partial` uses amber, `failed` uses red, and `cancelled` uses a muted circle slash. A `success` outcome fills the bar to 100 percent; `partial`, `failed`, and `cancelled` keep the bar and `aria-valuenow` at the progress the job actually reached. When `elapsedMs` is present on a finished job or receipt, the terminal word becomes a semantic `<time>` such as `1m 12s`.
+
+## Examples
+
+### A partial receipt
+
+```tsx
+<JobProgress
+  title="Verify the fix on CI"
+  stages={stages}
+  stageIndex={3}
+  stageProgress={0.4}
+  eta="stopped"
+  outcome={{
+    status: "partial",
+    summary: "Build passed. Tests stopped after the preview environment timed out.",
+  }}
+  elapsedMs={72_000}
+/>
+```
+
+### Restyle the root
+
+`className` is merged onto the root. The ETA and stage labels use the shared `mono` surface, and the cancel button uses the shared `ghostButton` surface from `surfaces.tsx`.
+
+```tsx
+<JobProgress
+  title="Verify the fix on CI"
+  stages={stages}
+  stageIndex={1}
+  stageProgress={0.6}
+  eta="about 3 min"
+  className="max-w-none gap-4"
+/>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ target: string; stages: { name: string; weight: number; description?: string }[] }` | The tool arguments. Stages are available while the tool is still running. |
+| `result` | `{ stageIndex: number; stageProgress: number; eta: string; outcome?: { status: "success" \| "partial" \| "failed" \| "cancelled"; summary?: string }; elapsedMs?: number } \| undefined` | The one-shot runner result. Its outcome turns the final card into a receipt. |
+| `addResult` | `(result: TResult) => void` | Supplies a result from the renderer, such as a cancellation receipt. |
+
+### run_ci_job result
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stageIndex` | `number` | The current or final stage. `stages.length` means success when no `outcome` is set. |
+| `stageProgress` | `number` | Progress through that stage, from `0` to `1`. |
+| `eta` | `string` | The running label displayed before a receipt or finished state. |
+| `outcome` | `{ status: "success" \| "partial" \| "failed" \| "cancelled"; summary?: string }` | Optional final receipt status and summary. |
+| `elapsedMs` | `number` | Optional terminal duration in milliseconds. |
+
+### Runtime outcome fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `"success" \| "partial" \| "failed" \| "cancelled"` | The final receipt state. |
+| `summary` | `string` | Optional text shown below the stages. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### JobProgress
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | The job title. |
+| `stages` | `readonly JobStage[]` | required | Weighted stages, optionally with a current-stage description. |
+| `stageIndex` | `number` | required | Index of the current stage, clamped into `0 to stages.length`. |
+| `stageProgress` | `number` | required | Progress through the current stage, clamped from `0` to `1`. |
+| `eta` | `string` | required | Running label in the monospace slot. |
+| `onCancel` | `() => void` | | Shows a cancel button only while the job is running. |
+| `outcome` | `{ status: "success" \| "partial" \| "failed" \| "cancelled"; summary?: string }` | | Final receipt. It controls the status icon, status word, bar tone, and optional summary. |
+| `elapsedMs` | `number` | | Terminal duration in milliseconds, rendered as a `<time>`. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### JobStage
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Stage label, shown in monospace. |
+| `weight` | `number` | Relative share of the overall bar. |
+| `description` | `string` | Optional detail shown for the current stage. |
+
+### Standalone outcome fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `"success" \| "partial" \| "failed" \| "cancelled"` | The final receipt state. |
+| `summary` | `string` | Optional text shown below the stages. |
+
+</StandaloneMode>

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import * as nodePath from "node:path";
 import { parse } from "@babel/parser";
@@ -43,8 +44,11 @@ const DISTRIBUTION_PACKAGES = [
   "@assistant-ui/react-native",
   "@assistant-ui/react-ink",
 ] as const;
-/** Package that exports the generative UI runtime split by export condition. */
-const GENERATIVE_UI_PACKAGE = "@assistant-ui/react-generative-ui";
+/** Entries that export the generative UI runtime split by export condition. */
+const GENERATIVE_UI_ENTRIES: ReadonlySet<string> = new Set([
+  "@assistant-ui/generative-ui/react",
+  "@assistant-ui/react-generative-ui",
+]);
 /**
  * The class whose instances expose split-by-condition tools (`present()`,
  * `promptUser()`). A toolkit entry that calls a method on one of these passes
@@ -83,6 +87,15 @@ export interface CompileOptions {
    * throw — see the Vite integration.
    */
   injectServerOnly?: boolean;
+  /**
+   * No backend of the app imports this module's server build (e.g. cloud-hosted
+   * runs), so the client is the only place the model can learn the schemas
+   * from. The `client` target then keeps frontend/human tool schemas
+   * uploadable — no `unstable_backendDefault` marker is stamped — and local
+   * `new JSONGenerativeUI({ ... })` instances are constructed with
+   * `backendless: true` so their `present`/`prompt_user` schemas upload too.
+   */
+  backendless?: boolean;
 }
 
 export interface CompileResult {
@@ -132,6 +145,9 @@ export function isGenerativeModule(code: string): boolean {
 
   return hasDirectiveTerminator(code, directiveEnd + 1);
 }
+
+export const isGenerativeSource = (filename: string, source: string): boolean =>
+  /\.[cm]?[jt]sx?$/.test(filename) && isGenerativeModule(source);
 
 function hasDirectiveTerminator(code: string, start: number): boolean {
   let i = start;
@@ -248,7 +264,9 @@ export function compileGenerative(
   code: string,
   options: CompileOptions,
 ): CompileResult {
+  currentCompilePass++;
   const { target, filename } = options;
+  const backendless = options.backendless ?? false;
 
   const ast = parse(code, {
     sourceType: "module",
@@ -315,6 +333,7 @@ export function compileGenerative(
           toolkitSpreadNames,
           namespaceImports,
           flags,
+          backendless,
           filename,
         );
         path.replaceWith(object);
@@ -642,12 +661,36 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
   return names;
 }
 
+/**
+ * Wraps a pass-through generative entry (`generative.present()`) so the tool it
+ * returns loses its `unstable_backendDefault` marker. The library stamps the
+ * marker at runtime, out of this compiler's reach, so a backendless client
+ * build strips it post-hoc instead of threading an option into the library.
+ */
+function stripBackendDefaultExpression(expr: t.Expression): t.Expression {
+  return t.callExpression(
+    t.arrowFunctionExpression(
+      [
+        t.objectPattern([
+          t.objectProperty(
+            t.identifier("unstable_backendDefault"),
+            t.identifier("_backendDefault"),
+          ),
+          t.restElement(t.identifier("tool")),
+        ]),
+      ],
+      t.identifier("tool"),
+    ),
+    [expr],
+  );
+}
+
 function collectGenerativeFactoryImports(ast: t.File): Set<string> {
   const names = new Set<string>();
   for (const statement of ast.program.body) {
     if (
       !t.isImportDeclaration(statement) ||
-      statement.source.value !== GENERATIVE_UI_PACKAGE
+      !GENERATIVE_UI_ENTRIES.has(statement.source.value)
     ) {
       continue;
     }
@@ -1017,25 +1060,89 @@ function matchAliasPattern(pattern: string, source: string): string | null {
   return null;
 }
 
-/**
- * Memoizes resolved aliases per start directory. The compiler runs once per
- * file across a build, so without this every aliased spread re-walks and
- * re-parses the same `tsconfig.json`. Process-lifetime, like
- * `checkedCorePackageJsonPaths`.
- */
-const tsconfigAliasesByDir = new Map<string, TsconfigAliases | null>();
+interface TsconfigAliasesCacheEntry {
+  aliases: TsconfigAliases | null;
+  fileVersions: Map<string, string | null>;
+  validatedInPass: number;
+  reuseAcrossPasses: boolean;
+}
+
+const tsconfigAliasesByDir = new Map<string, TsconfigAliasesCacheEntry>();
+let currentCompilePass = 0;
+
+interface TsconfigResolutionState {
+  fileVersions: Map<string, string | null>;
+  fileContents: Map<string, string | null>;
+  cacheable: boolean;
+}
+
+// Fingerprints content rather than mtime and size: filesystems with coarse
+// timestamp granularity report an unchanged mtime for a same-length rewrite,
+// which would serve the stale aliases this cache exists to invalidate.
+function tsconfigFileVersion(content: string): string {
+  return createHash("sha1").update(content).digest("hex");
+}
+
+function readTsconfigFile(
+  state: TsconfigResolutionState,
+  path: string,
+): string | null {
+  const cached = state.fileContents.get(path);
+  if (cached !== undefined) return cached;
+
+  let content: string | null;
+  try {
+    content = readFileSync(path, "utf8");
+  } catch {
+    content = null;
+  }
+  state.fileContents.set(path, content);
+  state.fileVersions.set(
+    path,
+    content === null ? null : tsconfigFileVersion(content),
+  );
+  return content;
+}
+
+function currentFileVersion(path: string): string | null {
+  try {
+    return tsconfigFileVersion(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function isTsconfigCacheCurrent(entry: TsconfigAliasesCacheEntry): boolean {
+  for (const [path, version] of entry.fileVersions) {
+    if (currentFileVersion(path) !== version) return false;
+  }
+  return true;
+}
 
 /** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
 function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
   const cached = tsconfigAliasesByDir.get(fromDir);
-  if (cached !== undefined) return cached;
+  if (cached) {
+    if (
+      cached.validatedInPass === currentCompilePass ||
+      (cached.reuseAcrossPasses && isTsconfigCacheCurrent(cached))
+    ) {
+      cached.validatedInPass = currentCompilePass;
+      return cached.aliases;
+    }
+  }
 
   let aliases: TsconfigAliases | null = null;
+  const state: TsconfigResolutionState = {
+    fileVersions: new Map(),
+    fileContents: new Map(),
+    cacheable: true,
+  };
   let dir = fromDir;
   for (;;) {
     const tsconfigPath = nodePath.join(dir, "tsconfig.json");
-    if (existsSync(tsconfigPath)) {
-      aliases = readTsconfigAliases(tsconfigPath, new Set());
+    if (readTsconfigFile(state, tsconfigPath) !== null) {
+      aliases = readTsconfigAliases(tsconfigPath, new Set(), state);
       if (aliases) break;
     }
     const parent = nodePath.dirname(dir);
@@ -1043,7 +1150,14 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
     dir = parent;
   }
 
-  tsconfigAliasesByDir.set(fromDir, aliases);
+  // Cache misses too; tracked absent paths invalidate when a config appears.
+  // Unresolved package configs are reused only within the current compile.
+  tsconfigAliasesByDir.set(fromDir, {
+    aliases,
+    fileVersions: state.fileVersions,
+    validatedInPass: currentCompilePass,
+    reuseAcrossPasses: state.cacheable,
+  });
   return aliases;
 }
 
@@ -1051,16 +1165,20 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
 function readTsconfigAliases(
   tsconfigPath: string,
   seen: Set<string>,
+  state: TsconfigResolutionState,
 ): TsconfigAliases | null {
   if (seen.has(tsconfigPath)) return null;
   seen.add(tsconfigPath);
+
+  const raw = readTsconfigFile(state, tsconfigPath);
+  if (raw === null) return null;
 
   let config: {
     extends?: string | string[];
     compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
   } | null;
   try {
-    config = parseJsonc(readFileSync(tsconfigPath, "utf8"));
+    config = parseJsonc(raw);
   } catch {
     return null;
   }
@@ -1087,9 +1205,9 @@ function readTsconfigAliases(
   for (let i = extendsList.length - 1; i >= 0; i--) {
     const entry = extendsList[i];
     if (typeof entry !== "string") continue;
-    const extended = resolveExtendedTsconfig(entry, configDir);
+    const extended = resolveExtendedTsconfig(entry, configDir, state);
     if (extended) {
-      const aliases = readTsconfigAliases(extended, seen);
+      const aliases = readTsconfigAliases(extended, seen, state);
       if (aliases) return aliases;
     }
   }
@@ -1100,18 +1218,33 @@ function readTsconfigAliases(
 function resolveExtendedTsconfig(
   extendsValue: string,
   configDir: string,
+  state: TsconfigResolutionState,
 ): string | null {
   if (extendsValue.startsWith(".")) {
     const base = nodePath.resolve(configDir, extendsValue);
     const candidates =
       nodePath.extname(base) === ".json" ? [base] : [`${base}.json`, base];
-    return candidates.find((candidate) => existsSync(candidate)) ?? null;
+    for (const candidate of candidates) {
+      if (readTsconfigFile(state, candidate) !== null) {
+        return candidate;
+      }
+    }
+    return null;
   }
+
+  const request = extendsValue.endsWith(".json")
+    ? extendsValue
+    : `${extendsValue}.json`;
+  const requireFromConfig = createRequire(
+    nodePath.join(configDir, "package.json"),
+  );
+
   try {
-    return createRequire(nodePath.join(configDir, "package.json")).resolve(
-      extendsValue.endsWith(".json") ? extendsValue : `${extendsValue}.json`,
-    );
+    const resolved = requireFromConfig.resolve(request);
+    readTsconfigFile(state, resolved);
+    return resolved;
   } catch {
+    state.cacheable = false;
     return null;
   }
 }
@@ -1358,6 +1491,7 @@ function compileToolkit(
   toolkitSpreadNames: ToolkitSpreadNames,
   namespaceImports: Set<string>,
   flags: TargetFlags,
+  backendless: boolean,
   filename: string | undefined,
 ): void {
   // Split builds compile both targets; emit target-independent warnings from
@@ -1384,6 +1518,9 @@ function compileToolkit(
       // `execute` could reach the client unstripped.
       const raw = entryRawValue(entry);
       if (raw && isGenerativeToolEntry(raw, instances)) {
+        if (backendless && target === "client" && t.isObjectProperty(entry)) {
+          entry.value = stripBackendDefaultExpression(raw);
+        }
         nextProperties.push(entry);
         continue;
       }
@@ -1473,7 +1610,7 @@ function compileToolkit(
     }
 
     setToolType(value, type);
-    setBackendDefault(value, target, type);
+    setBackendDefault(value, target, type, backendless);
     nextProperties.push(entry);
   }
 
@@ -1718,10 +1855,13 @@ function setBackendDefault(
   object: t.ObjectExpression,
   target: Target,
   type: ToolType,
+  backendless: boolean,
 ): void {
   // Always strip any hand-authored marker first; only re-add it for client
-  // frontend/human tools whose schema is already known by the backend.
+  // frontend/human tools whose schema is already known by the backend. A
+  // backendless build has no such backend, so nothing is marked.
   removeMember(object, "unstable_backendDefault");
+  if (backendless) return;
   if (target !== "client" || (type !== "frontend" && type !== "human")) return;
 
   object.properties.push(
@@ -1770,8 +1910,10 @@ function pruneUnused(ast: t.File): void {
 
         path.node.body = path.node.body.filter((stmt) => {
           if (
-            (t.isFunctionDeclaration(stmt) || t.isClassDeclaration(stmt)) &&
-            stmt.id &&
+            ((t.isFunctionDeclaration(stmt) && stmt.id) ||
+              (t.isClassDeclaration(stmt) &&
+                stmt.id &&
+                isRemovableClass(stmt))) &&
             isUnused(stmt.id.name)
           ) {
             removedSomething = true;
@@ -1848,6 +1990,24 @@ function isPlainPattern(node: t.Node): boolean {
   return false; // AssignmentPattern (default), member expr, etc.
 }
 
+function isRemovableClass(node: t.Class): boolean {
+  if (node.superClass && !isRemovableInit(node.superClass)) return false;
+  return node.body.body.every((member) => {
+    if (t.isStaticBlock(member)) return false;
+    if ("computed" in member && member.computed) return false;
+    if (
+      (t.isClassProperty(member) ||
+        t.isClassPrivateProperty(member) ||
+        t.isClassAccessorProperty(member)) &&
+      member.static &&
+      !isRemovableInit(member.value)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 /** Whether a variable initializer is safe to drop (no observable side effects). */
 function isRemovableInit(node: t.Expression | null | undefined): boolean {
   if (node == null) return true;
@@ -1878,12 +2038,39 @@ function isRemovableInit(node: t.Expression | null | undefined): boolean {
   return (
     t.isArrowFunctionExpression(node) ||
     t.isFunctionExpression(node) ||
-    t.isClassExpression(node) ||
+    (t.isClassExpression(node) && isRemovableClass(node)) ||
     t.isIdentifier(node) ||
     // non-computed only — `obj[fn()]` could hide a side-effectful key
     (t.isMemberExpression(node) && !node.computed) ||
-    t.isJSXElement(node) ||
-    t.isJSXFragment(node) ||
+    ((t.isJSXElement(node) || t.isJSXFragment(node)) && isRemovableJSX(node)) ||
     t.isLiteral(node)
   );
+}
+
+function isRemovableJSX(node: t.JSXElement | t.JSXFragment): boolean {
+  if (t.isJSXElement(node)) {
+    for (const attribute of node.openingElement.attributes) {
+      if (t.isJSXSpreadAttribute(attribute)) return false;
+      if (attribute.value && !isRemovableJSXChild(attribute.value)) {
+        return false;
+      }
+    }
+  }
+  return node.children.every(isRemovableJSXChild);
+}
+
+function isRemovableJSXChild(
+  node: t.JSXElement["children"][number] | NonNullable<t.JSXAttribute["value"]>,
+): boolean {
+  if (t.isJSXExpressionContainer(node)) {
+    return (
+      t.isJSXEmptyExpression(node.expression) ||
+      isRemovableInit(node.expression)
+    );
+  }
+  if (t.isJSXSpreadChild(node)) return false;
+  if (t.isJSXElement(node) || t.isJSXFragment(node)) {
+    return isRemovableJSX(node);
+  }
+  return true;
 }

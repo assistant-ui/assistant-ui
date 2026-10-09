@@ -38,9 +38,16 @@ export class OptimisticState<TState> extends BaseSubscribable {
     [];
 
   /**
-   * Completed optimistic callbacks remain active while any transform is
-   * pending, so later state replacements cannot erase them. Invocation order
-   * determines which overlapping optimistic update wins.
+   * Completed optimistic callbacks stay applied on top of the base value while
+   * any transform is pending, so a state replacement made meanwhile cannot hide
+   * them. They are dropped once the last transform has settled and notified
+   * subscribers, so a transform started from that notification still replays
+   * them. `update()` must
+   * be given a state that already contains the completed effects, such as one
+   * derived from `baseValue`. While transforms are pending, callbacks apply
+   * in invocation order. A transform that settles with `then` has every
+   * completed callback replayed over its result, so an earlier-invoked update
+   * can win over it.
    *
    * Correctness requirement: `optimistic` callbacks must be idempotent.
    */
@@ -48,6 +55,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
     [];
 
   private _nextTransformOrder = 0;
+  private _epoch = 0;
 
   private _baseValue: TState;
   private _cachedValue: TState;
@@ -95,9 +103,20 @@ export class OptimisticState<TState> extends BaseSubscribable {
     this._updateState();
   }
 
+  public reset(state: TState): void {
+    // In-flight optimisticUpdate calls must not write into the replacement state.
+    this._epoch++;
+    this._pendingTransforms.length = 0;
+    this._completedOptimistics.length = 0;
+    this._baseValue = state;
+    this._cachedValue = state;
+    this._notifySubscribers();
+  }
+
   public async optimisticUpdate<TResult>(
     transform: Transform<TState, TResult>,
   ): Promise<TResult> {
+    const epoch = this._epoch;
     const order = this._nextTransformOrder++;
     const task = transform.execute();
     const pendingTransform = {
@@ -110,6 +129,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
       this._updateState();
 
       const result = await task;
+      if (epoch !== this._epoch) return result;
       this._baseValue = pipeTransforms(this._baseValue, result, [
         transform.optimistic,
         transform.then,
@@ -138,11 +158,13 @@ export class OptimisticState<TState> extends BaseSubscribable {
         this._pendingTransforms.splice(index, 1);
       }
 
-      if (this._pendingTransforms.length === 0) {
-        this._completedOptimistics.length = 0;
+      try {
+        this._updateState();
+      } finally {
+        if (this._pendingTransforms.length === 0) {
+          this._completedOptimistics.length = 0;
+        }
       }
-
-      this._updateState();
     }
   }
 }

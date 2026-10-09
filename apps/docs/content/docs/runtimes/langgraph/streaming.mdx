@@ -3,7 +3,7 @@ title: Streaming
 description: Event handlers, message accumulator, conversion, metadata, and generative UI.
 ---
 
-LangGraph emits a rich stream of events: top-level message chunks, subgraph events, custom UI messages, errors, and metadata. This page documents how to observe and react to each.
+LangGraph emits several kinds of stream events: top-level message chunks, subgraph events, custom UI messages, errors, and metadata. This page documents how to observe and react to each.
 
 ## Message accumulator
 
@@ -108,7 +108,7 @@ See [Generative UI](/docs/runtimes/langgraph/generative-ui) for full setup: enab
 
 ## Queueing messages during a run
 
-Set `unstable_enableMessageQueue` to keep the composer usable while a run is streaming. A message sent during a queued run steers by default — it lands in the steer lane, ahead of previously queued items; `send({ steer: false })` queues a follow-up behind them instead. Pending items are held in `composer.queue` and drain once the run settles.
+Set `unstable_enableMessageQueue` to keep the composer usable while a run is streaming. A message sent while a run is in progress steers by default: it lands in the steer lane, ahead of previously queued items; `send({ steer: false })` queues a follow-up behind them instead. Pending items are held in `composer.queue` and drain once the run settles.
 
 ```tsx
 const runtime = useLangGraphRuntime({
@@ -118,6 +118,10 @@ const runtime = useLangGraphRuntime({
 ```
 
 Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
+
+## Per-run config
+
+When a message is sent, its `runConfig` is forwarded to `stream` and, if you use `unstable_createLangGraphStream`, posted as the LangGraph SDK run `config`. Automatic frontend tool-result resumes and `useLangGraphSendCommand` reuse the `runConfig` of the run that produced the pending tool call or interrupt. An explicit `runConfig` on `useLangGraphSend` still wins. A thread refetch that still carries the interrupt keeps that owner. History loaded without local ownership stays unconfigured on resume; the recording is session-scoped and does not survive a reload.
 
 ## Next
 

@@ -1,6 +1,6 @@
 import { defineComponent, h, mergeProps, type SlotsType } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
-import type {} from "@assistant-ui/core/store";
+import { composerInputDisabled } from "@assistant-ui/core/store/internal";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
@@ -30,10 +30,7 @@ export const ComposerPrimitiveInput = defineComponent({
     const text = useAuiState((s) =>
       s.composer.isEditing ? s.composer.text : "",
     );
-    const threadDisabled = useAuiState(
-      (s) =>
-        s.thread.isDisabled || s.composer.dictation?.inputDisabled === true,
-    );
+    const threadDisabled = useAuiState(composerInputDisabled);
     const { disabled, send } = useComposerSendState();
 
     const onInput = (event: Event) => {
@@ -46,7 +43,13 @@ export const ComposerPrimitiveInput = defineComponent({
     };
     const onKeydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !props.submitOnEnter) return;
-      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      if (
+        event.key !== "Enter" ||
+        event.shiftKey ||
+        event.isComposing ||
+        event.keyCode === 229
+      )
+        return;
       if (disabled.value || threadDisabled.value || isAttrDisabled(attrs))
         return;
       event.preventDefault();
@@ -56,7 +59,7 @@ export const ComposerPrimitiveInput = defineComponent({
     return () =>
       h(
         "textarea",
-        mergeProps(attrs, {
+        mergeProps({ name: "input" }, attrs, {
           value: text.value,
           disabled: threadDisabled.value || isAttrDisabled(attrs),
           onInput,

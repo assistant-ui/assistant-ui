@@ -3,7 +3,7 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -21,7 +21,9 @@ const createTestRuntime = () => {
   let messages: DemoMessage[] = [];
   let isRunning = false;
   let isDisabled = false;
-  const onNew = vi.fn(async () => {});
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
   const onCancel = vi.fn(async () => {});
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
@@ -164,6 +166,53 @@ describe("vue primitives", () => {
     unmount();
   });
 
+  it("does not submit on Safari's post-compositionend Enter", async () => {
+    const { runtime, onNew } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => h(ComposerPrimitiveInput),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const textarea = el.querySelector("textarea")!;
+    textarea.dispatchEvent(
+      new CompositionEvent("compositionstart", { bubbles: true }),
+    );
+    textarea.value = "hello";
+    textarea.dispatchEvent(
+      new InputEvent("input", { bubbles: true, isComposing: true }),
+    );
+    textarea.dispatchEvent(
+      new CompositionEvent("compositionend", {
+        data: "hello",
+        bubbles: true,
+      }),
+    );
+
+    const composingEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(composingEnter)).toBe(true);
+    await vi.waitFor(() => {
+      expect(runtime.thread.composer.getState().text).toBe("hello");
+    });
+    expect(onNew).not.toHaveBeenCalled();
+
+    const plainEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 13,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(plainEnter)).toBe(false);
+    await vi.waitFor(() => {
+      expect(onNew).toHaveBeenCalledTimes(1);
+    });
+
+    unmount();
+  });
+
   it("does not submit on Enter when submitOnEnter is false", async () => {
     const { runtime, onNew } = createTestRuntime();
     const View = defineComponent({
@@ -202,6 +251,23 @@ describe("vue primitives", () => {
       await nextTick();
       expect(el.querySelector("textarea")!.disabled).toBe(true);
     });
+
+    unmount();
+  });
+
+  it("names the textarea input unless the caller passes a name", () => {
+    const { runtime } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(ComposerPrimitiveInput),
+        h(ComposerPrimitiveInput, { name: "prompt" }),
+      ],
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    expect(
+      [...el.querySelectorAll("textarea")].map((textarea) => textarea.name),
+    ).toEqual(["input", "prompt"]);
 
     unmount();
   });

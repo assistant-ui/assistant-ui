@@ -4,7 +4,7 @@ description: File and image attachment rendering for the composer and messages.
 platforms: ["react"]
 ---
 
-import { AttachmentSample } from "@/components/docs/samples/attachment";
+import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
 
 The Attachment primitive renders file and image attachments. It appears in two places: inside the composer for pending uploads (with a remove button), and inside messages for sent attachments (read-only). You provide the layout and styling.
 
@@ -66,7 +66,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 Attachments appear in two different contexts:
 
 - **Composer**: via `ComposerPrimitive.Attachments`. These are pending uploads that can be removed before sending.
-- **Messages**: via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only (the iterator renders attachments for user messages).
+- **Messages**: via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only (the iterator renders attachments for user messages). While the message is the composer's submission, its attachments are still being prepared, so the iterator hands the render function an `Attachment` rather than a `CompleteAttachment`: read `attachment.status` before `attachment.content`.
 
 The same `AttachmentPrimitive` parts work in both contexts. The difference is behavioral: `Remove` only works in the composer context.
 
@@ -94,7 +94,7 @@ You don't loop over attachments yourself. Instead, use the children render funct
 </MessagePrimitive.Attachments>
 ```
 
-Each component receives its attachment context automatically, with no props to pass. `components` is deprecated — use the `children` render function instead.
+Each component receives its attachment context automatically, with no props to pass. `components` is deprecated. Use the `children` render function instead.
 
 ### Remove Button
 
@@ -168,9 +168,9 @@ function ComposerAttachmentItem() {
 }
 
 <ComposerPrimitive.Root>
-  <ComposerPrimitive.Attachments
-    components={{ Attachment: ComposerAttachmentItem }}
-  />
+  <ComposerPrimitive.Attachments>
+    {() => <ComposerAttachmentItem />}
+  </ComposerPrimitive.Attachments>
   <ComposerPrimitive.Input placeholder="Ask anything..." />
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
 </ComposerPrimitive.Root>
@@ -206,7 +206,7 @@ function MessageAttachment() {
 
 ## Relationship to Components
 
-The shadcn [Attachment](/docs/ui/attachment) component wraps these primitives with styled thumbnails, tooltip filenames, remove buttons, and image preview dialogs. Start there for a prebuilt attachment UI.
+The shadcn [Attachment](/elements/attachment) component wraps these primitives with styled thumbnails, tooltip filenames, remove buttons, and image preview dialogs. Start there for a prebuilt attachment UI.
 
 ## API Reference
 

@@ -7,7 +7,6 @@ vi.mock("@vercel/analytics", () => ({
 
 const globalObject = globalThis as {
   window?: {
-    umami?: unknown;
     posthog?: {
       capture?: (
         event: string,
@@ -27,9 +26,9 @@ afterEach(() => {
   }
 });
 
-it("analytics does not throw when umami exists without track", () => {
+it("analytics does not throw when posthog exists without capture", () => {
   globalObject.window = {
-    umami: {},
+    posthog: {},
   };
 
   expect(() => {
@@ -106,4 +105,33 @@ it("tracks assistant feedback lifecycle events to PostHog", () => {
       error_message: "Failed to submit feedback",
     }),
   );
+});
+
+it("tracks WebMCP host detection, registration, and calls to PostHog", () => {
+  const capture = vi.fn();
+  globalObject.window = { posthog: { capture } };
+  const props = { tool: "searchDocs", status: "ok", latency_ms: 12 } as const;
+
+  analytics.webmcp.hostDetected();
+  analytics.webmcp.toolRegistered({ tool: "searchDocs", status: "ok" });
+  analytics.webmcp.toolCalled(props);
+
+  expect(capture.mock.calls).toEqual([
+    ["webmcp_host_detected", undefined],
+    ["webmcp_tool_registered", { tool: "searchDocs", status: "ok" }],
+    ["webmcp_tool_called", props],
+  ]);
+});
+
+it("WebMCP tracking does not throw when posthog is undefined", () => {
+  globalObject.window = {};
+
+  expect(() => {
+    analytics.webmcp.hostDetected();
+    analytics.webmcp.toolCalled({
+      tool: "getDoc",
+      status: "error",
+      latency_ms: 0,
+    });
+  }).not.toThrow();
 });

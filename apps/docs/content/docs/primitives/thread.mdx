@@ -4,10 +4,10 @@ description: Build custom scrollable message containers with auto-scroll, empty 
 platforms: ["react"]
 ---
 
-import { ThreadPrimitiveSample } from "@/components/docs/samples/thread-primitive";
+import { ThreadPrimitiveSample } from "@/components/pages/docs/samples/thread-primitive";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
-The Thread primitive is the scrollable message container, and the backbone of any chat interface. It handles viewport management, auto-scrolling, empty states, message rendering, and suggestions. You provide the layout and styling.
+The Thread primitive is the scrollable message container. It handles viewport management, auto-scrolling, empty states, message rendering, and suggestions. You provide the layout and styling.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -96,7 +96,7 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 </ThreadPrimitive.Root>
 ```
 
-`Root` renders a `<div>`, `Viewport` renders a scrollable `<div>`, and `Messages` iterates over the thread's messages. Add your own styles and components; the primitive handles the rest.
+`Root` renders a `<div>`, `Viewport` renders a scrollable `<div>`, and `Messages` iterates over the thread's messages. Add your own styles and components.
 
 <Callout type="info">
 Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
@@ -106,7 +106,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Viewport & Auto-Scroll
 
-`Viewport` is the scrollable container. It auto-scrolls to the bottom as new content streams in, but only if the user hasn't scrolled up manually. Set `autoScroll={false}` to disable this entirely.
+`Viewport` is the scrollable container. It auto-scrolls to the bottom as new content streams in, but only if the user hasn't scrolled up manually. Expanding a disclosure inside a message, such as a collapsible tool call card (a control with `aria-expanded="false"` that opens no popup, or the `<summary>` of a closed `<details>`), pauses it so the card stays where the user opened it; other clicks, text selection and keystrokes keep following, and scrolling back to the bottom or using `ThreadPrimitive.ScrollToBottom` resumes it. A new run or a thread switch also ends the pause. Set `autoScroll={false}` to disable this entirely.
 
 ```tsx
 <ThreadPrimitive.Viewport autoScroll={true}>
@@ -116,7 +116,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Turn Anchor
 
-By default, new messages appear at the bottom and scroll down. With `turnAnchor="top"`, the user's message anchors to the top of the viewport. This creates the modern reading experience where you see the question at the top and the response flowing below it.
+By default, new messages appear at the bottom and scroll down. With `turnAnchor="top"`, the user's message anchors to the top of the viewport. The question stays at the top and the response streams in below it.
 
 ```tsx
 <ThreadPrimitive.Viewport turnAnchor="top">
@@ -124,7 +124,7 @@ By default, new messages appear at the bottom and scroll down. With `turnAnchor=
 </ThreadPrimitive.Viewport>
 ```
 
-When `turnAnchor="top"` is set, `MessagePrimitive.Root` automatically registers the latest assistant message as the top-anchor target and the preceding user message as the anchor — no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range while the assistant response grows. This is the behavior used by the [Thread](/docs/ui/thread) component by default.
+When `turnAnchor="top"` is set, `MessagePrimitive.Root` registers the latest assistant message as the top-anchor target and the preceding user message as the anchor, so no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range while the assistant response grows. This is the behavior used by the [Thread](/elements/thread) component by default.
 
 Use `topAnchorMessageClamp` to control how much of a long user message remains visible when `turnAnchor="top"`. Messages up to `tallerThan` stay fully visible. For messages taller than that, `visibleHeight` controls how much of the message's bottom edge remains visible above the assistant response:
 
@@ -141,9 +141,9 @@ Use `topAnchorMessageClamp` to control how much of a long user message remains v
 
 `ThreadPrimitive.Viewport` has three event-specific scroll controls:
 
-- `scrollToBottomOnRunStart` (default `true`): scrolls when `thread.runStart` fires
-- `scrollToBottomOnInitialize` (default `true`): scrolls when `thread.initialize` fires
-- `scrollToBottomOnThreadSwitch` (default `true`): scrolls when `threadListItem.switchedTo` fires
+- `scrollToBottomOnRunStart` (default `true`): scrolls when `thread.runStart` fires; it has no effect with `turnAnchor="top"`
+- `scrollToBottomOnInitialize` (default `true`): scrolls when the thread's messages first load
+- `scrollToBottomOnThreadSwitch` (default `true`): scrolls when `threads.selectionChanged` fires
 
 These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `true` for `turnAnchor="bottom"` and `false` for `turnAnchor="top"`.
 
@@ -166,7 +166,7 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 
 ### ViewportFooter
 
-`ViewportFooter` sticks to the bottom of the viewport and registers its height so the auto-scroll system accounts for it. This is where you place your composer:
+`ViewportFooter` registers its height so the auto-scroll system accounts for it. It does not position itself; add `sticky bottom-0` to keep it at the bottom of the viewport. This is where you place your composer:
 
 ```tsx
 <ThreadPrimitive.Viewport>
@@ -196,7 +196,7 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 
 ### Messages Iterator
 
-`Messages` now prefers a children render function. It gives you the current message state so you can branch inline:
+`Messages` takes a children render function. It gives you the current message state so you can branch inline:
 
 ```tsx
 <ThreadPrimitive.Messages>
@@ -343,9 +343,26 @@ messageIds.map((messageId) => (
   experimental and may change in any release.
 </Callout>
 
+### Row
+
+Renders one row of a thread flattened by `createThreadRowsSelector`, for virtualized lists: a whole user or system message (or any message being edited), one top-level node of an assistant message's part grouping, or the end of a turn. It mounts only the row's message scope and, for a part row, only that row's parts; a row whose message has left the thread renders nothing. The render function switches on `type`, and a part row receives `part` and `children` exactly as `MessagePrimitive.GroupedParts` passes them. See the [virtualization guide](/docs/guides/virtualization).
+
+```tsx
+const selectRows = createThreadRowsSelector();
+
+function Rows() {
+  const rows = useAuiState(selectRows);
+  return rows.map((row) => (
+    <ThreadPrimitive.Row key={row.key} row={row}>
+      {renderRow}
+    </ThreadPrimitive.Row>
+  ));
+}
+```
+
 ### ScrollToBottom
 
-Scrolls the viewport to the bottom. Automatically disabled when already at the bottom. Renders a `<button>` element unless `asChild` is set.
+Scrolls the viewport to the bottom. Disabled when the viewport is already at the bottom. Renders a `<button>` element unless `asChild` is set.
 
 ```tsx
 <ThreadPrimitive.ScrollToBottom className="rounded-full bg-background p-2 shadow-md">
@@ -354,6 +371,18 @@ Scrolls the viewport to the bottom. Automatically disabled when already at the b
 ```
 
 <PrimitivesTypeTable type="ThreadPrimitiveScrollToBottomProps" parameters={ThreadPrimitiveDocs.ScrollToBottom.props.filter(p => p.name !== "asChild")} />
+
+### LoadEarlier
+
+Loads the page before the first loaded message through `aui.thread.loadEarlier()`. Disabled while `thread.hasEarlier` is false; a press while a page loads (`thread.isLoadingEarlier`) joins that load, so the button keeps keyboard focus until the page lands. The runtime decides both, for example an external store adapter's `hasEarlier` and `onLoadEarlier`. Renders a `<button>` element unless `asChild` is set. The viewport keeps the visible messages in place when the page lands above them.
+
+```tsx
+<AuiIf condition={(s) => s.thread.hasEarlier || s.thread.isLoadingEarlier}>
+  <ThreadPrimitive.LoadEarlier className="self-center text-sm">
+    Load earlier messages
+  </ThreadPrimitive.LoadEarlier>
+</AuiIf>
+```
 
 ### Suggestions
 
@@ -382,7 +411,7 @@ Renders a single suggestion at a specific index.
 
 ### Suggestion
 
-Self-contained suggestion button. Renders a `<button>` element unless `asChild` is set. *(Legacy -- prefer `Suggestions` iterator.)*
+Self-contained suggestion button that takes its `prompt` as a prop instead of reading the `suggestions` scope. Renders a `<button>` element unless `asChild` is set.
 
 ```tsx
 <ThreadPrimitive.Suggestion prompt="Write a blog post" send />
@@ -449,8 +478,6 @@ Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
 </ThreadPrimitive.ScrollToBottom>
 ```
 
-The button is automatically disabled when the viewport is already scrolled to the bottom.
-
 ### Turn Anchor Top Layout
 
 ```tsx
@@ -497,7 +524,7 @@ The button is automatically disabled when the viewport is already scrolled to th
 
 ## Relationship to Components
 
-The [Thread](/docs/ui/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a default implementation. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
+The [Thread](/elements/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a default implementation. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
 
 ## API Reference
 

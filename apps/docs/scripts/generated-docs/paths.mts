@@ -11,14 +11,14 @@ export const DOCS_ROOT = path.join(REPO_ROOT, "apps/docs");
 export const REACT_PKG = path.join(REPO_ROOT, "packages/react/src");
 export const REACT_GENERATIVE_UI_PKG = path.join(
   REPO_ROOT,
-  "packages/react-generative-ui/src",
+  "packages/generative-ui/src",
 );
 export const CORE_PKG = path.join(REPO_ROOT, "packages/core/src");
 export const PRIMITIVES_DIR = path.join(REACT_PKG, "primitives");
 export const REACT_INDEX = path.join(REACT_PKG, "index.ts");
 export const REACT_GENERATIVE_UI_INDEX = path.join(
   REACT_GENERATIVE_UI_PKG,
-  "index.ts",
+  "react.ts",
 );
 export const REACT_GENERATIVE_UI_SLACK_INDEX = path.join(
   REACT_GENERATIVE_UI_PKG,
@@ -54,9 +54,9 @@ export const API_REFERENCE_DIR = path.join(
 
 export const INTEGRATION_PACKAGES = [
   {
-    slug: "react-ai-sdk",
-    packageName: "@assistant-ui/react-ai-sdk",
-    entry: path.join(REPO_ROOT, "packages/react-ai-sdk/src/index.ts"),
+    slug: "ai-sdk",
+    packageName: "@assistant-ui/ai-sdk",
+    entry: path.join(REPO_ROOT, "packages/ai-sdk/src/index.ts"),
   },
   {
     slug: "react-data-stream",
@@ -64,13 +64,23 @@ export const INTEGRATION_PACKAGES = [
     entry: path.join(REPO_ROOT, "packages/react-data-stream/src/index.ts"),
   },
   {
-    slug: "cloud-ai-sdk",
-    packageName: "@assistant-ui/cloud-ai-sdk",
-    entry: path.join(REPO_ROOT, "packages/cloud-ai-sdk/src/index.ts"),
-  },
-  {
     slug: "eve",
     packageName: "@assistant-ui/eve",
     entry: path.join(REPO_ROOT, "packages/eve/src/index.ts"),
+  },
+  {
+    slug: "assistant-cloud",
+    packageName: "assistant-cloud",
+    entry: path.join(REPO_ROOT, "packages/cloud/src/index.ts"),
+  },
+  {
+    slug: "assistant-cloud-ai-sdk",
+    packageName: "assistant-cloud/ai-sdk",
+    entry: path.join(REPO_ROOT, "packages/cloud/src/ai-sdk/index.ts"),
+  },
+  {
+    slug: "assistant-cloud-telemetry",
+    packageName: "assistant-cloud/telemetry",
+    entry: path.join(REPO_ROOT, "packages/cloud/src/telemetry/index.ts"),
   },
 ] as const;

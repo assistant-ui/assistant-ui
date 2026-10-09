@@ -14,6 +14,7 @@ import {
   type SelectItemOverride,
   type TriggerBehavior,
 } from "./triggerSelectionResource";
+import type { TriggerMatcher } from "./detectTrigger";
 
 export type { SelectItemOverride, TriggerBehavior };
 export type { TriggerPopoverKeyEvent } from "./triggerKeyboardResource";
@@ -57,6 +58,7 @@ const useTriggerPopoverResource = ({
   adapter,
   text,
   triggerChar,
+  matcher,
   behavior,
   aui,
   popoverId,
@@ -65,6 +67,7 @@ const useTriggerPopoverResource = ({
   adapter: Unstable_TriggerAdapter | undefined;
   text: string;
   triggerChar: string;
+  matcher: TriggerMatcher | undefined;
   behavior: TriggerBehavior | undefined;
   aui: AssistantClient;
   /** Stable ID for accessible element IDs (pass React's useId() from component layer). */
@@ -72,7 +75,7 @@ const useTriggerPopoverResource = ({
   isLoading: boolean;
 }): TriggerPopoverResourceOutput => {
   const detection = useResource(
-    TriggerDetectionResource({ text, triggerChar }),
+    TriggerDetectionResource({ text, triggerChar, matcher }),
   );
 
   const open =

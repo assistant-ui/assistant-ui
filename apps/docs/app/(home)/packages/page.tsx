@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { connection } from "next/server";
 import Link from "next/link";
-import { ArrowLeft, Download, Layers, Package } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import {
   PACKAGES,
   PACKAGE_CATEGORIES,
@@ -8,13 +10,16 @@ import {
   type PackageCategory,
   type PackageInfo,
 } from "@/lib/traction";
-import { formatCompact, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import {
   PackageDirectory,
   type DirectoryCategory,
   type DirectoryRow,
-} from "@/components/traction/package-directory";
+} from "@/components/pages/packages/package-directory";
 import { createOgMetadata } from "@/lib/og";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
 const title = "Packages";
 const description =
@@ -26,75 +31,23 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-const HERO_STAT_ICONS = {
-  Package,
-  Layers,
-  Download,
-};
+const grouped = groupByCategory(PACKAGES);
+const directoryCategories: DirectoryCategory[] = (
+  Object.keys(PACKAGE_CATEGORIES) as PackageCategory[]
+)
+  .filter((c) => (grouped[c]?.length ?? 0) > 0)
+  .map((category) => ({
+    key: category,
+    label: PACKAGE_CATEGORIES[category].label,
+    description: PACKAGE_CATEGORIES[category].description,
+    count: grouped[category]?.length ?? 0,
+  }));
 
-export default async function PackagesPage() {
-  const npm = await fetchNpmDownloads();
-
-  const ranked = PACKAGES.filter((pkg) => !pkg.deprecated)
-    .map((pkg) => ({
-      name: pkg.name,
-      weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
-    }))
-    .filter((row) => row.weekly > 0)
-    .sort((a, b) => b.weekly - a.weekly);
-
-  const leaders = ranked.slice(0, 4);
-  const tail = ranked.slice(4);
-  const tailWeekly = tail.reduce((sum, row) => sum + row.weekly, 0);
-  const rankedWeekly = ranked.reduce((sum, row) => sum + row.weekly, 0);
-
-  const grouped = groupByCategory(PACKAGES);
-  const visibleCategories = (
-    Object.keys(PACKAGE_CATEGORIES) as PackageCategory[]
-  ).filter((c) => (grouped[c]?.length ?? 0) > 0);
-
-  const activeCount = PACKAGES.filter((pkg) => !pkg.deprecated).length;
-  const surfaceCount = visibleCategories.filter(
-    (c) => c !== "deprecated",
-  ).length;
-
-  const totalWeekly = Object.values(npm.perPackage).reduce(
-    (sum, p) => sum + (p?.weekly ?? 0),
-    0,
-  );
-
-  const heroStats = [
-    {
-      icon: HERO_STAT_ICONS.Package,
-      value: activeCount.toString(),
-      label: "Packages",
-      caption: "across the ecosystem",
-    },
-    {
-      icon: HERO_STAT_ICONS.Layers,
-      value: surfaceCount.toString(),
-      label: "Surfaces",
-      caption: "categories shipped",
-    },
-    {
-      icon: HERO_STAT_ICONS.Download,
-      value: totalWeekly > 0 ? formatCompact(totalWeekly) : "—",
-      label: "Weekly downloads",
-      caption: "combined across npm",
-    },
-  ];
-
-  const directoryCategories: DirectoryCategory[] = visibleCategories.map(
-    (category) => ({
-      key: category,
-      label: PACKAGE_CATEGORIES[category].label,
-      description: PACKAGE_CATEGORIES[category].description,
-      count: grouped[category]?.length ?? 0,
-    }),
-  );
-
-  const directoryRows: DirectoryRow[] = PACKAGES.map((pkg) => {
-    const stats = npm.perPackage[pkg.name];
+const directoryRows = (
+  npm?: Awaited<ReturnType<typeof fetchNpmDownloads>>,
+): DirectoryRow[] =>
+  PACKAGES.map((pkg) => {
+    const stats = npm?.perPackage[pkg.name];
     const weekly = stats?.weekly ?? 0;
     const mom = computeMoM(stats?.monthly ?? 0, stats?.prevMonthly ?? 0);
     return {
@@ -109,59 +62,74 @@ export default async function PackagesPage() {
     };
   });
 
+export default function PackagesPage() {
+  const activeCount = PACKAGES.filter((pkg) => !pkg.deprecated).length;
+
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 pt-14 pb-16 md:pb-24">
-      <header className="mb-12 max-w-3xl">
-        <Link
-          href="/traction"
-          className="text-muted-foreground hover:text-foreground mb-3 inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeft className="size-3.5" />
-          Back to traction
-        </Link>
-        <h1 className="text-3xl font-medium tracking-tight md:text-4xl">
-          Every distribution, in one place.
-        </h1>
-        <p className="text-muted-foreground mt-3 md:text-lg">
-          {activeCount} packages on npm, grouped by surface area. Pick the one
-          that fits your stack.
+    <PageFrame pad="sub" className="flex flex-col gap-16 md:gap-20">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>Every package we publish.</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          {activeCount} packages on npm, grouped by surface.
         </p>
       </header>
 
-      <section className="mb-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-12">
-          {heroStats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div key={stat.label} className="flex flex-col gap-3">
-                <Icon className="text-muted-foreground size-4" />
-                <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
-                  {stat.value}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm">{stat.label}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {stat.caption}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <Suspense
+        fallback={
+          <PackageDirectory
+            categories={directoryCategories}
+            rows={directoryRows()}
+            concentration={null}
+          />
+        }
+      >
+        <Directory />
+      </Suspense>
 
-      <PackageDirectory
-        categories={directoryCategories}
-        rows={directoryRows}
-        concentration={{
-          leaders,
-          tailNames: tail.map((row) => row.name),
-          tailCount: tail.length,
-          tailWeekly,
-          total: rankedWeekly,
-        }}
-      />
-    </main>
+      <footer>
+        <Link
+          href="/traction"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          Traction, live from GitHub and npm
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </Link>
+      </footer>
+    </PageFrame>
+  );
+}
+
+async function Directory() {
+  // api.npmjs.org limits requests per IP, so npm is read at request time.
+  await connection();
+  const npm = await fetchNpmDownloads();
+
+  const ranked =
+    npm.totalWeekly === null
+      ? []
+      : PACKAGES.filter((pkg) => !pkg.deprecated)
+          .map((pkg) => ({
+            name: pkg.name,
+            weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
+          }))
+          .filter((row) => row.weekly > 0)
+          .sort((a, b) => b.weekly - a.weekly);
+
+  const leaders = ranked.slice(0, 4);
+  const tail = ranked.slice(4);
+
+  return (
+    <PackageDirectory
+      categories={directoryCategories}
+      rows={directoryRows(npm)}
+      concentration={{
+        leaders,
+        tailNames: tail.map((row) => row.name),
+        tailCount: tail.length,
+        tailWeekly: tail.reduce((sum, row) => sum + row.weekly, 0),
+        total: ranked.reduce((sum, row) => sum + row.weekly, 0),
+      }}
+    />
   );
 }
 

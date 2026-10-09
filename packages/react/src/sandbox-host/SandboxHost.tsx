@@ -1,14 +1,18 @@
 "use client";
 
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import {
+  isShimLoadError,
   type RenderedFrame,
   SafeContentFrame,
   type SandboxOption,
 } from "safe-content-frame";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 
 const DEFAULT_PRODUCT = "assistant-ui-sandbox";
 const DEFAULT_MAX_HEIGHT = 800;
+const LOAD_TIMEOUT_MS = 10_000;
 
 export type SandboxHostConfig = {
   sandbox?: SandboxOption[];
@@ -80,8 +84,15 @@ export function SandboxHost({
     undefined,
   );
 
-  const liveRef = useRef<LiveSnapshot>(null!);
-  liveRef.current = { content, sandbox, createBridge, onError };
+  const liveRef = useRef<LiveSnapshot>({
+    content,
+    sandbox,
+    createBridge,
+    onError,
+  });
+  useIsomorphicLayoutEffect(() => {
+    liveRef.current = { content, sandbox, createBridge, onError };
+  }, [content, sandbox, createBridge, onError]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -91,8 +102,19 @@ export function SandboxHost({
     let frame: RenderedFrame | null = null;
     let bridge: SandboxBridge | null = null;
     let onMessage: ((event: MessageEvent) => void) | null = null;
+    const renderController = new AbortController();
 
     const { content: liveContent, sandbox: sb } = liveRef.current;
+
+    const reportError = (err: unknown) => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      invokeUserCallback(
+        "assistant-ui",
+        "SandboxHost onError",
+        liveRef.current.onError?.bind(liveRef.current),
+        error,
+      );
+    };
 
     const scf = new SafeContentFrame(sb?.product ?? DEFAULT_PRODUCT, {
       ...(sb?.sandbox !== undefined && { sandbox: sb.sandbox }),
@@ -103,10 +125,12 @@ export function SandboxHost({
       ...(sb?.salt !== undefined && { salt: sb.salt }),
     });
 
-    const renderOpts =
-      sb?.unsafeDocumentWrite !== undefined
-        ? { unsafeDocumentWrite: sb.unsafeDocumentWrite }
-        : undefined;
+    const renderOpts = {
+      signal: renderController.signal,
+      ...(sb?.unsafeDocumentWrite !== undefined && {
+        unsafeDocumentWrite: sb.unsafeDocumentWrite,
+      }),
+    };
 
     scf
       .renderHtml(liveContent.html, container, renderOpts)
@@ -145,24 +169,58 @@ export function SandboxHost({
           bridge?.onMessage(event);
         };
         window.addEventListener("message", onMessage);
+
+        // renderHtml resolves at iframe load, which a shim that was never
+        // served also reaches, so a completed render is only known once the
+        // frame says so. render-timeout is excluded because the shim is
+        // running and the guest may still paint, and reporting it would leave
+        // a host that renders an error state showing one over a frame that
+        // recovers.
+        rendered.fullyLoadedPromiseWithTimeout(LOAD_TIMEOUT_MS).catch((err) => {
+          if (cancelled) return;
+          if (isShimLoadError(err) && err.code === "render-timeout") return;
+          reportError(err);
+        });
       })
       .catch((err) => {
-        liveRef.current.onError?.(
-          err instanceof Error ? err : new Error(String(err)),
-        );
+        if (cancelled) return;
+        frame?.dispose();
+        frame = null;
+        reportError(err);
       });
 
     return () => {
       cancelled = true;
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (cleanupFailed) {
+            console.error(error);
+          } else {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+      };
+
       if (onMessage) {
-        window.removeEventListener("message", onMessage);
+        const listener = onMessage;
         onMessage = null;
+        runCleanup(() => window.removeEventListener("message", listener));
       }
-      bridge?.dispose();
+      const bridgeToDispose = bridge;
       bridge = null;
-      frame?.dispose();
+      if (bridgeToDispose) runCleanup(() => bridgeToDispose.dispose());
+      runCleanup(() => renderController.abort());
+      const frameToDispose = frame;
       frame = null;
-      setContentHeight(undefined);
+      if (frameToDispose) runCleanup(() => frameToDispose.dispose());
+      runCleanup(() => setContentHeight(undefined));
+
+      if (cleanupFailed) throw cleanupError;
     };
     // oxlint-disable-next-line react/exhaustive-deps -- re-init only on contentKey change; live values flow through liveRef
   }, [contentKey]);

@@ -8,9 +8,9 @@ import {
   forwardRef,
   useCallback,
 } from "react";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { useTriggerPopoverScopeContext } from "./TriggerPopover";
-import type { Unstable_TriggerCategory } from "@assistant-ui/core";
+import type { TriggerCategory } from "@assistant-ui/core";
 
 export namespace ComposerPrimitiveTriggerPopoverCategories {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -18,7 +18,7 @@ export namespace ComposerPrimitiveTriggerPopoverCategories {
     ComponentPropsWithoutRef<typeof Primitive.div>,
     "children"
   > & {
-    children: (categories: readonly Unstable_TriggerCategory[]) => ReactNode;
+    children: (categories: readonly TriggerCategory[]) => ReactNode;
   };
 }
 

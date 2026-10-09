@@ -1,6 +1,6 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
-/// <reference path="./store/scope-registration.ts" />
+/// <reference path="./store/scope-registration.ts" preserve="true" />
 
 import { checkDuplicateCore } from "./internal/duplicate-detection";
 
@@ -22,11 +22,19 @@ export type {
   GenerativeUINode,
   GenerativeUISpec,
   Unstable_AudioMessagePart,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
+  ToolApprovalAnswer,
+  ToolApprovalQuestion,
+  ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
+  Unstable_ToolInteraction,
+  Unstable_ToolInteractionInput,
+  Unstable_ToolInteractionLog,
   ToolCallMessagePartMcpMetadata,
   McpAppMetadata,
   ToolModelContentPart,
@@ -39,6 +47,7 @@ export type {
   MessageStatus,
   // Thread messages
   MessageTiming,
+  MessageModality,
   ThreadStep,
   ThreadSystemMessage,
   ThreadUserMessage,
@@ -50,7 +59,11 @@ export type {
   AppendMessage,
 } from "./types/message";
 
-export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
+export {
+  MCP_APP_URI_SCHEME,
+  isMcpAppUri,
+  toolApprovalAcceptsText,
+} from "./types/message";
 
 export type {
   Attachment,
@@ -73,16 +86,23 @@ export type {
 export type { QuoteInfo } from "./types/quote";
 
 export type {
+  DirectiveSegment,
+  DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
 } from "./types/directive";
 
 export type {
+  TriggerItem,
+  TriggerCategory,
   Unstable_TriggerItem,
   Unstable_TriggerCategory,
 } from "./types/trigger";
 
-export type { Unstable_TriggerAdapter } from "./adapters/trigger";
+export type {
+  TriggerAdapter,
+  Unstable_TriggerAdapter,
+} from "./adapters/trigger";
 
 export type {
   // Language model settings
@@ -165,7 +185,10 @@ export type {
 export { createSuggestionAdapter } from "./adapters/suggestion";
 
 // Directive formatter
-export { unstable_defaultDirectiveFormatter } from "./adapters/directive-formatter";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "./adapters/directive-formatter";
 
 // Thread history adapters
 export type {
@@ -195,6 +218,7 @@ export type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
+  ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
@@ -215,6 +239,7 @@ export type {
   AddToolResultOptions,
   ResumeToolCallOptions,
   RespondToToolApprovalOptions,
+  Unstable_RecordToolInteractionOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
   SpeechState,
@@ -244,6 +269,7 @@ export type {
   CreateResumeRunConfig,
   CreateAppendMessage,
   ThreadState,
+  ThreadRuntimeState,
   ThreadRuntime,
 } from "./runtime/api/thread-runtime";
 
@@ -256,13 +282,18 @@ export type {
   ThreadListItemEventCallback,
   ThreadListItemEventPayload,
   ThreadListItemEventType,
+  ThreadListItemGenerateTitleOptions,
   ThreadListItemRuntime,
 } from "./runtime/api/thread-list-item-runtime";
 
-export type { ThreadListItemState } from "./runtime/api/bindings";
+export type {
+  ThreadListItemState,
+  ThreadListItemRuntimeState,
+} from "./runtime/api/bindings";
 
 export type {
   MessageState,
+  MessageRuntimeState,
   MessageRuntime,
 } from "./runtime/api/message-runtime";
 export type {
@@ -274,6 +305,7 @@ export type {
   ThreadComposerState,
   EditComposerState,
   ComposerState,
+  ComposerRuntimeState,
   ComposerRuntime,
   ThreadComposerRuntime,
   EditComposerRuntime,
@@ -281,6 +313,7 @@ export type {
 
 export type {
   AttachmentState,
+  AttachmentRuntimeState,
   AttachmentRuntime,
 } from "./runtime/api/attachment-runtime";
 
@@ -347,6 +380,7 @@ export {
 // Remote Thread List (user-facing)
 export type {
   RemoteThreadListAdapter,
+  RuntimeAdapters,
   RemoteThreadListOptions,
   RemoteThreadListProviderComponent,
   RemoteThreadInitializeResponse,

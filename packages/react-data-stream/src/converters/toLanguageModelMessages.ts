@@ -9,6 +9,7 @@ import type {
 import type { ThreadMessage } from "@assistant-ui/core";
 import {
   toGenericMessages,
+  type GenericFilePart,
   type GenericMessage,
   type GenericTextPart,
   type GenericToolCallPart,
@@ -32,11 +33,23 @@ function convertUserContent(
 }
 
 function convertAssistantContent(
-  content: (GenericTextPart | GenericToolCallPart)[],
-): (LanguageModelV2TextPart | LanguageModelV2ToolCallPart)[] {
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[],
+): (
+  | LanguageModelV2TextPart
+  | LanguageModelV2FilePart
+  | LanguageModelV2ToolCallPart
+)[] {
   return content.map((part) => {
     if (part.type === "text") {
       return part;
+    }
+    if (part.type === "file") {
+      return {
+        type: "file",
+        data: part.data,
+        mediaType: part.mediaType,
+        ...(part.filename && { filename: part.filename }),
+      };
     }
     return {
       type: "tool-call",
@@ -87,37 +100,23 @@ export function toLanguageModelMessages(
   options: { unstable_includeId?: boolean | undefined } = {},
 ): LanguageModelV2Message[] {
   const includeId = options.unstable_includeId ?? false;
-  const genericMessages = toGenericMessages(messages as any);
 
   if (!includeId) {
-    return genericMessages.map(convertGenericToLanguageModel);
+    return toGenericMessages(messages as any).map(
+      convertGenericToLanguageModel,
+    );
   }
 
-  // When includeId is true, we need to map back to original message IDs
   const result: LanguageModelV2Message[] = [];
-  let messageIndex = 0;
 
-  for (const generic of genericMessages) {
-    const converted = convertGenericToLanguageModel(generic);
-
-    // Tool messages are synthesized from assistant message tool calls,
-    // they don't have a corresponding original message
-    if (generic.role !== "tool") {
-      // Find the corresponding original message for ID
-      while (
-        messageIndex < messages.length &&
-        messages[messageIndex]!.role !== generic.role
-      ) {
-        messageIndex++;
+  for (const message of messages) {
+    for (const generic of toGenericMessages([message] as any)) {
+      const converted = convertGenericToLanguageModel(generic);
+      if (generic.role !== "tool") {
+        (converted as any).unstable_id = message.id;
       }
-
-      if (messageIndex < messages.length) {
-        (converted as any).unstable_id = messages[messageIndex]!.id;
-        messageIndex++;
-      }
+      result.push(converted);
     }
-
-    result.push(converted);
   }
 
   return result;

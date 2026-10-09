@@ -21,11 +21,11 @@ export namespace ComposerPrimitiveDictationTranscript {
  *
  * @example
  * ```tsx
- * <ComposerPrimitive.If dictation>
+ * <AuiIf condition={(s) => s.composer.dictation != null}>
  *   <div className="dictation-preview">
  *     <ComposerPrimitive.DictationTranscript />
  *   </div>
- * </ComposerPrimitive.If>
+ * </AuiIf>
  * ```
  */
 export const ComposerPrimitiveDictationTranscript = forwardRef<

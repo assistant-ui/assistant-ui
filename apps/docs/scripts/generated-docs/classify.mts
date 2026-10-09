@@ -292,6 +292,8 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
   ["ActionRegistry", { page: "actions", role: "primary" }],
   ["ActionHandler", { page: "actions", role: "primary" }],
   ["ActionDispatchContext", { page: "actions", role: "primary" }],
+  ["resolveFieldReferences", { page: "actions", role: "primary" }],
+  ["hasFieldReference", { page: "actions", role: "primary" }],
 
   ["renderGenerativeUI", { page: "rendering", role: "primary" }],
   ["generativeUIToJSX", { page: "rendering", role: "primary" }],
@@ -306,6 +308,7 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
   ["JUSTIFIES", { page: "tokens", role: "primary" }],
   ["BUTTON_STYLES", { page: "tokens", role: "primary" }],
   ["ALERT_TONES", { page: "tokens", role: "primary" }],
+  ["ICON_NAMES", { page: "tokens", role: "primary" }],
   ["TextSize", { page: "tokens", role: "supporting-type" }],
   ["ImageSize", { page: "tokens", role: "supporting-type" }],
   ["Weight", { page: "tokens", role: "supporting-type" }],
@@ -592,6 +595,12 @@ const MANUAL_CLASSIFICATIONS = new Map<
   [
     "getMcpAppFromToolPart",
     { section: "tools", page: "rendering", role: "primary" },
+  ],
+  // Whether an approval request takes a typed answer; renderers read it to
+  // decide what to draw, so it belongs beside the tool-call renderer surface.
+  [
+    "toolApprovalAcceptsText",
+    { section: "tools", page: "rendering", role: "related" },
   ],
   // Marks a component subtree visible to the assistant's model context.
   [

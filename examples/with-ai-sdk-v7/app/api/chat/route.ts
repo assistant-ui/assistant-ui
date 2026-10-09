@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   type JSONSchema7,
   streamText,
@@ -27,25 +27,27 @@ export async function POST(req: Request) {
     tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
   } = await req.json();
 
+  const aiSDKTools = {
+    ...frontendTools(tools ?? {}),
+    get_current_weather: tool({
+      description: "Get the current weather",
+      inputSchema: zodSchema(
+        z.object({
+          city: z.string(),
+        }),
+      ),
+      execute: async ({ city }) => {
+        return `The weather in ${city} is sunny`;
+      },
+    }),
+  };
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     ...(system ? { system } : {}),
     stopWhen: stepCountIs(10),
-    tools: {
-      ...frontendTools(tools ?? {}),
-      get_current_weather: tool({
-        description: "Get the current weather",
-        inputSchema: zodSchema(
-          z.object({
-            city: z.string(),
-          }),
-        ),
-        execute: async ({ city }) => {
-          return `The weather in ${city} is sunny`;
-        },
-      }),
-    },
+    tools: aiSDKTools,
   });
 
   return createUIMessageStreamResponse({

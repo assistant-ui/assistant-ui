@@ -1,6 +1,14 @@
-import type { ReadonlyJSONValue, ReadonlyJSONObject } from "../../utils";
+import type {
+  ReadonlyJSONArray,
+  ReadonlyJSONValue,
+  ReadonlyJSONObject,
+} from "../../utils";
 import { assertSafePathSegment } from "./changeTree";
 import type { GorpStreamOperation } from "./types";
+
+type PathFrame =
+  | { kind: "array"; state: ReadonlyJSONArray; key: number }
+  | { kind: "object"; state: ReadonlyJSONObject; key: string };
 
 export class GorpStreamAccumulator {
   private _state: ReadonlyJSONValue;
@@ -69,48 +77,60 @@ export class GorpStreamAccumulator {
   ): ReadonlyJSONValue {
     if (path.length === 0) return updater(state);
 
-    // Initialize state as empty object if it's null and we're trying to set a property
-    state ??= {};
+    const frames: PathFrame[] = [];
+    let current = state;
 
-    if (typeof state !== "object") {
-      throw new Error(`Invalid path: [${path.join(", ")}]`);
-    }
-
-    const [key, ...rest] = path as [string, ...(readonly string[])];
-    assertSafePathSegment(key);
-    if (Array.isArray(state)) {
-      let idx = Number(key);
-      if (Number.isNaN(idx))
-        throw new Error(`Expected array index at [${path.join(", ")}]`);
-      if (idx < 0) throw new Error(`Insert array index out of bounds`);
-      if (idx > state.length) {
-        if (this._strict) throw new Error(`Insert array index out of bounds`);
-        if (!this._warnedClamp) {
-          this._warnedClamp = true;
-          console.warn(
-            `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`,
-          );
-        }
-        idx = Math.min(idx, state.length);
+    for (let depth = 0; depth < path.length; depth++) {
+      current ??= {};
+      if (typeof current !== "object") {
+        throw new Error(`Invalid path: [${path.slice(depth).join(", ")}]`);
       }
 
-      const nextState = [...state];
-      nextState[idx] = this.updatePath(
-        Object.hasOwn(nextState, idx) ? nextState[idx] : undefined,
-        rest,
-        updater,
-      );
+      const key = path[depth]!;
+      assertSafePathSegment(key);
+      if (Array.isArray(current)) {
+        let index = Number(key);
+        // The wire can deliver numeric segments (op.path is only type-checked,
+        // not runtime-validated), so canonicality is compared via String(key).
+        if (!Number.isInteger(index) || String(index) !== String(key)) {
+          throw new Error(
+            `Expected array index at [${path.slice(depth).join(", ")}]`,
+          );
+        }
+        if (index < 0) throw new Error(`Insert array index out of bounds`);
+        if (index > current.length) {
+          if (this._strict) throw new Error(`Insert array index out of bounds`);
+          if (!this._warnedClamp) {
+            this._warnedClamp = true;
+            console.warn(
+              `Clamped out-of-bounds gorp array index ${index} to ${current.length}`,
+            );
+          }
+          index = current.length;
+        }
 
-      return nextState;
+        frames.push({ kind: "array", state: current, key: index });
+        current = Object.hasOwn(current, index) ? current[index] : undefined;
+      } else {
+        const object = current as ReadonlyJSONObject;
+        frames.push({ kind: "object", state: object, key });
+        current = Object.hasOwn(object, key) ? object[key] : undefined;
+      }
     }
 
-    const nextState = { ...(state as ReadonlyJSONObject) };
-    nextState[key] = this.updatePath(
-      Object.hasOwn(nextState, key) ? nextState[key] : undefined,
-      rest,
-      updater,
-    );
-
-    return nextState;
+    let updated = updater(current);
+    for (let index = frames.length - 1; index >= 0; index--) {
+      const frame = frames[index]!;
+      if (frame.kind === "array") {
+        const next = [...frame.state];
+        next[frame.key] = updated;
+        updated = next;
+      } else {
+        const next = { ...frame.state };
+        next[frame.key] = updated;
+        updated = next;
+      }
+    }
+    return updated;
   }
 }

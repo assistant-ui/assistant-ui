@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
+import {
+  getPartialJsonObjectMeta,
+  parsePartialJsonObject,
+} from "assistant-stream/utils";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { convertLangChainMessages } from "./convertLangChainMessages";
+import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 import type { LangChainMessage, LangChainMessageChunk } from "./types";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
@@ -39,6 +44,1042 @@ const aiChunk = (
   id: "ai-1",
   content: "",
   tool_call_chunks: toolCallChunks,
+});
+
+type GeneratedJSON =
+  | null
+  | boolean
+  | number
+  | string
+  | GeneratedJSON[]
+  | { [key: string]: GeneratedJSON };
+
+const generatedJsonObjects = () => {
+  let state = 0x7166;
+  const random = () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
+  const pick = <T>(values: readonly T[]) =>
+    values[Math.floor(random() * values.length)]!;
+  const strings = [
+    "",
+    "plain",
+    'quote"slash\\',
+    "line\nfeed\ttab",
+    "emoji 😀",
+    "constructor",
+  ];
+  const numbers = [0, -1, 12.5, -3.5e-2, 1e21];
+
+  const value = (depth: number): GeneratedJSON => {
+    const kind = Math.floor(random() * (depth < 3 ? 6 : 4));
+    if (kind === 0) return null;
+    if (kind === 1) return random() < 0.5;
+    if (kind === 2) return pick(numbers);
+    if (kind === 3) return pick(strings);
+    if (kind === 4) {
+      return Array.from({ length: Math.floor(random() * 4) }, () =>
+        value(depth + 1),
+      );
+    }
+
+    return Object.fromEntries(
+      Array.from({ length: Math.floor(random() * 4) }, (_, index) => [
+        `${pick(strings)}-${index}`,
+        value(depth + 1),
+      ]),
+    );
+  };
+
+  return Array.from({ length: 30 }, (_, index) => ({
+    [`field-${index}`]: value(0),
+    nested: value(0),
+  }));
+};
+
+const makeMalformedJson = (input: string, index: number) => {
+  switch (index % 4) {
+    case 0:
+      return `${input}x`;
+    case 1:
+      return input.replace(":", "::");
+    case 2:
+      return `${input.slice(0, -1)},}`;
+    default:
+      return `${input.slice(0, 2)}\u0000${input.slice(2)}`;
+  }
+};
+
+describe("appendLangChainChunk incremental tool arguments", () => {
+  const inputs = [
+    JSON.stringify({
+      text: 'brace } quote " slash \\ emoji 😀',
+      nested: { values: [1, -2.5e3, true, false, null, { value: "x" }] },
+    }),
+    '{"escaped":"line\\nfeed","unicode":"\\uD83D\\uDE00"}',
+    '{"negative":-12.5,"positiveExponent":1e+2,"negativeExponent":-3.5E-2,"array":[-1e3]}',
+    '{"duplicate":"first","duplicate":"second","tail":0}',
+    '{"constructor":1,"tail":"ok"}',
+    '{\n  "a" : [ 1 , { "b" : true } ] ,\n  "c" : "d"\n}\n',
+    '  {"a":1}',
+  ];
+
+  it.each(inputs)(
+    "matches the existing partial parser for every prefix of %s",
+    (input) => {
+      let accumulated: AiMessage | undefined;
+      let prefix = "";
+      let expected = {};
+
+      for (const char of input) {
+        prefix += char;
+        accumulated = append(
+          accumulated,
+          aiChunk([{ id: "call-1", index: 0, name: "search", args: char }]),
+        );
+
+        const actual = accumulated.tool_calls?.[0]?.args;
+        const parsed = parsePartialJsonObject(prefix);
+        if (prefix.trim().length > 0) expect(parsed).toBeDefined();
+        expected = parsed ?? expected;
+        expect(actual, `prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(actual!)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+      }
+    },
+  );
+
+  it("preserves partial metadata for a tool-call opener without arguments", () => {
+    const accumulated = append(
+      undefined,
+      aiChunk([{ id: "call-1", index: 0, name: "search" }]),
+    );
+
+    const args = accumulated.tool_calls?.[0]?.args;
+    expect(Object.keys(args!)).toEqual([]);
+    expect(getPartialJsonObjectMeta(args!)).toEqual({
+      state: "partial",
+      partialPath: [],
+    });
+  });
+
+  it("matches the existing parser for generated JSON object prefixes", () => {
+    for (const document of generatedJsonObjects()) {
+      const input = JSON.stringify(document);
+      let prefix = "";
+      let accumulated = append(
+        undefined,
+        aiChunk([{ id: "call-1", index: 0, name: "search" }]),
+      );
+
+      for (const char of input) {
+        const actual = accumulated.tool_calls?.[0]?.args;
+        const expected = parsePartialJsonObject(prefix);
+        if (expected === undefined) {
+          throw new Error(`reference parser rejected prefix=${prefix}`);
+        }
+        expect(actual, `input=${input} prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(actual!)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+
+        prefix += char;
+        accumulated = append(
+          accumulated,
+          aiChunk([{ id: "call-1", index: 0, name: "search", args: char }]),
+        );
+      }
+
+      const expected = parsePartialJsonObject(input)!;
+      const actual = accumulated.tool_calls?.[0]?.args;
+      expect(actual).toEqual(expected);
+      expect(getPartialJsonObjectMeta(actual!)).toEqual(
+        getPartialJsonObjectMeta(expected),
+      );
+    }
+  });
+
+  it("matches the existing parser for malformed generated prefixes", () => {
+    for (const [index, document] of generatedJsonObjects().entries()) {
+      const input = makeMalformedJson(JSON.stringify(document), index);
+      let prefix = "";
+      let expected = {};
+      let accumulated: AiMessage | undefined;
+
+      for (const char of input) {
+        prefix += char;
+        accumulated = append(
+          accumulated,
+          aiChunk([{ id: "call-1", index: 0, name: "search", args: char }]),
+        );
+
+        expected = parsePartialJsonObject(prefix) ?? expected;
+        const actual = accumulated.tool_calls?.[0]?.args;
+        expect(actual, `input=${input} prefix=${prefix}`).toEqual(expected);
+        expect(getPartialJsonObjectMeta(actual!)).toEqual(
+          getPartialJsonObjectMeta(expected),
+        );
+      }
+    }
+  });
+
+  it("keeps branches from the same accumulated prefix independent", () => {
+    let prefix: AiMessage | undefined;
+    for (const char of '{"choice":"') {
+      prefix = append(
+        prefix,
+        aiChunk([{ id: "call-1", index: 0, name: "choose", args: char }]),
+      );
+    }
+
+    const left = append(
+      prefix,
+      aiChunk([{ id: "call-1", index: 0, name: "choose", args: 'left"}' }]),
+    );
+    const right = append(
+      prefix,
+      aiChunk([{ id: "call-1", index: 0, name: "choose", args: 'right"}' }]),
+    );
+
+    expect(left.tool_calls?.[0]?.args).toMatchObject({ choice: "left" });
+    expect(right.tool_calls?.[0]?.args).toMatchObject({ choice: "right" });
+    expect(prefix?.tool_calls?.[0]?.args).toMatchObject({ choice: "" });
+  });
+
+  it("retains the last parsed arguments after a malformed delta", () => {
+    const partial = append(
+      undefined,
+      aiChunk([
+        { id: "call-1", index: 0, name: "search", args: '{"limit":10' },
+      ]),
+    );
+
+    expect(() =>
+      append(
+        partial,
+        aiChunk([{ id: "call-1", index: 0, name: "search", args: "x" }]),
+      ),
+    ).not.toThrow();
+    expect(
+      append(
+        partial,
+        aiChunk([{ id: "call-1", index: 0, name: "search", args: "x" }]),
+      ).tool_calls?.[0]?.args,
+    ).toMatchObject({ limit: 10 });
+  });
+
+  it("retains structured arguments when the first continuation is malformed", () => {
+    const structured: AiMessage = {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "call-1",
+          index: 0,
+          name: "search",
+          args: { limit: 10 },
+        },
+      ],
+    };
+
+    const accumulated = append(
+      structured,
+      aiChunk([{ id: "call-1", index: 0, name: "search", args: "x" }]),
+    );
+
+    expect(accumulated.tool_calls?.[0]?.partial_json).toBe("x");
+    expect(accumulated.tool_calls?.[0]?.args).toEqual({ limit: 10 });
+  });
+
+  it("keeps incremental state separate for interleaved tool calls", () => {
+    let accumulated = append(
+      undefined,
+      aiChunk([
+        { id: "call-1", index: 0, name: "search", args: '{"query":"' },
+        { id: "call-2", index: 1, name: "fetch", args: '{"url":"' },
+      ]),
+    );
+    accumulated = append(
+      accumulated,
+      aiChunk([
+        { id: "call-2", index: 1, name: "fetch", args: 'example.com"}' },
+        { id: "call-1", index: 0, name: "search", args: 'pizza"}' },
+      ]),
+    );
+
+    expect(accumulated.tool_calls).toEqual([
+      expect.objectContaining({
+        args: expect.objectContaining({ query: "pizza" }),
+      }),
+      expect.objectContaining({
+        args: expect.objectContaining({ url: "example.com" }),
+      }),
+    ]);
+  });
+
+  it("keeps distinct tool calls when their complete ids reuse an index", () => {
+    const first = append(
+      undefined,
+      aiChunk([{ id: "call-1", index: 0, name: "search", args: '{"a":1}' }]),
+    );
+    const result = append(
+      first,
+      aiChunk([{ id: "call-2", index: 0, name: "search", args: '{"b":2}' }]),
+    );
+
+    expect(result.tool_calls?.map((call) => call.id)).toEqual([
+      "call-1",
+      "call-2",
+    ]);
+    expect(result.tool_calls?.[0]?.args).toMatchObject({ a: 1 });
+    expect(result.tool_calls?.[1]?.args).toMatchObject({ b: 2 });
+  });
+
+  it("does not expose prototype keys from streamed arguments", () => {
+    const accumulated = append(
+      undefined,
+      aiChunk([
+        {
+          id: "call-1",
+          index: 0,
+          name: "unsafe",
+          args: '{"__proto__":{"polluted":true}}',
+        },
+      ]),
+    );
+
+    const args = accumulated.tool_calls?.[0]?.args;
+    expect(Object.keys(args!)).toEqual([]);
+    expect(Object.hasOwn(args!, "__proto__")).toBe(false);
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
+  it("keeps the previous arguments for constructor prototype payloads", () => {
+    const input = '{"constructor":{"prototype":{}},"tail":1}';
+    let prefix = "";
+    let expected = parsePartialJsonObject("")!;
+    let accumulated: AiMessage | undefined;
+
+    for (const char of input) {
+      prefix += char;
+      expected = parsePartialJsonObject(prefix) ?? expected;
+      accumulated = append(
+        accumulated,
+        aiChunk([{ id: "call-1", index: 0, name: "unsafe", args: char }]),
+      );
+
+      const actual = accumulated.tool_calls?.[0]?.args;
+      expect(actual, `prefix=${prefix}`).toEqual(expected);
+      expect(getPartialJsonObjectMeta(actual!)).toEqual(
+        getPartialJsonObjectMeta(expected),
+      );
+    }
+
+    expect(accumulated?.tool_calls?.[0]?.args).toMatchObject({
+      constructor: {},
+    });
+    expect(accumulated?.tool_calls?.[0]?.args).not.toHaveProperty("tail");
+  });
+});
+
+describe("appendLangChainChunk content-less chunks", () => {
+  it("accumulates text after a tool-call-only first chunk", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      tool_call_chunks: [
+        { id: "call-1", name: "search", args: "{}", index: 0 },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "hello",
+    } as unknown as LangChainMessageChunk);
+
+    expect(first.content).toEqual([]);
+
+    expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(merged.tool_calls).toEqual([
+      expect.objectContaining({ id: "call-1", name: "search" }),
+    ]);
+  });
+
+  it("ignores malformed content before a valid continuation", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: { text: "not an array" },
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "hello",
+    });
+
+    expect(first.content).toEqual([]);
+    expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
+  });
+});
+
+describe("appendLangChainChunk continuation content", () => {
+  it("keeps reasoning, files, audio, computer calls, and text deltas for conversion", () => {
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [],
+    });
+    const merged = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "thinking", thinking: "Let me check." },
+        { type: "reasoning", reasoning: "The calculation is correct." },
+        {
+          type: "file",
+          source_type: "url",
+          url: "https://example.com/report.pdf",
+          mime_type: "application/pdf",
+        },
+        {
+          type: "audio",
+          data: "YXVkaW8=",
+          mime_type: "audio/wav",
+          source_type: "base64",
+        },
+        {
+          type: "computer_call",
+          id: "computer-1",
+          call_id: "call-1",
+          action: { type: "screenshot" },
+          pending_safety_checks: [],
+          index: 0,
+        },
+        { type: "tool_use" },
+        { type: "input_json_delta" },
+        { type: "text_delta", text: "Done." },
+      ],
+    });
+
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Let me check." },
+      { type: "reasoning", text: "The calculation is correct." },
+      {
+        type: "file",
+        filename: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+        sourceType: "url",
+      },
+      {
+        type: "file",
+        filename: "audio.wav",
+        data: "YXVkaW8=",
+        mimeType: "audio/wav",
+      },
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "computer_call",
+        args: { type: "screenshot" },
+        argsText: '{"type":"screenshot"}',
+      },
+      { type: "text", text: "Done." },
+    ]);
+    expect(merged.content).not.toContainEqual({ type: "tool_use" });
+    expect(merged.content).not.toContainEqual({ type: "input_json_delta" });
+  });
+
+  it("merges a text delta into the preceding text", () => {
+    const merged = appendLangChainChunk(
+      { id: "ai-1", type: "ai", content: "Hello" },
+      {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [{ type: "text_delta", text: " world" }],
+      },
+    );
+
+    expect(merged.content).toEqual([{ type: "text", text: "Hello world" }]);
+  });
+
+  it("merges a citation-only delta into the preceding text", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [{ index: 0, type: "text", text: "Paris" }],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          index: 0,
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris",
+        citations: [{ type: "char_location", cited_text: "Paris" }],
+      },
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "text", text: "Paris" },
+    ]);
+  });
+
+  it("accumulates one citation per delta across a cited answer", () => {
+    const first = { type: "char_location", cited_text: "Paris" };
+    const second = { type: "char_location", cited_text: "France" };
+    const chunk = (content: unknown) =>
+      ({
+        type: "AIMessageChunk",
+        id: "ai-1",
+        content,
+      }) as unknown as LangChainMessageChunk;
+
+    let merged = append(
+      undefined,
+      chunk([{ index: 0, type: "text_delta", text: "Paris" }]),
+    );
+    merged = append(
+      merged,
+      chunk([{ index: 0, type: "text", citations: [first] }]),
+    );
+    merged = append(
+      merged,
+      chunk([{ index: 0, type: "text_delta", text: " is in France" }]),
+    );
+    merged = append(
+      merged,
+      chunk([{ index: 0, type: "text", citations: [second] }]),
+    );
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris is in France",
+        citations: [first, second],
+      },
+    ]);
+  });
+
+  it("merges a citation-only text_delta into the preceding text", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [{ index: 0, type: "text_delta", text: "Paris" }],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          index: 0,
+          type: "text_delta",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris",
+        citations: [{ type: "char_location", cited_text: "Paris" }],
+      },
+    ]);
+  });
+
+  it("opens a text block for a citation-only delta with no text to merge into", () => {
+    const merged = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: [
+        {
+          index: 0,
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "Paris" }],
+        },
+        { index: 0, type: "text", text: "Paris" },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "Paris",
+        citations: [{ type: "char_location", cited_text: "Paris" }],
+      },
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "text", text: "Paris" },
+    ]);
+  });
+
+  it("keeps text after intervening content and joins adjacent text deltas", () => {
+    const merged = appendLangChainChunk(
+      { id: "ai-1", type: "ai", content: [{ type: "text", text: "Hello" }] },
+      {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          { type: "thinking", thinking: "Checking." },
+          { type: "text", text: "After thinking." },
+          {
+            type: "file",
+            source_type: "url",
+            url: "https://example.com/report.pdf",
+          },
+          { type: "text_delta", text: "Done" },
+          { type: "text_delta", text: "." },
+        ],
+      },
+    );
+
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "text", text: "Hello" },
+      { type: "reasoning", text: "Checking." },
+      { type: "text", text: "After thinking." },
+      {
+        type: "file",
+        filename: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/octet-stream",
+        sourceType: "url",
+      },
+      { type: "text", text: "Done." },
+    ]);
+  });
+
+  it("keeps indexed text blocks separate", () => {
+    let merged = append(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 0, type: "text", text: "A" }],
+    } as unknown as LangChainMessageChunk);
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 1, type: "text_delta", text: "B" }],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      { index: 0, type: "text", text: "A" },
+      { index: 1, type: "text", text: "B" },
+    ]);
+  });
+
+  it("skips an empty opener with no block to merge into", () => {
+    let merged = append(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 0, type: "text", text: "Hi" }],
+    } as unknown as LangChainMessageChunk);
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 1, type: "text", text: "" }],
+    } as unknown as LangChainMessageChunk);
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 1, type: "text_delta", text: "There" }],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      { index: 0, type: "text", text: "Hi" },
+      { index: 1, type: "text", text: "There" },
+    ]);
+  });
+
+  it("merges an indexed citation into its matching text block", () => {
+    let merged = append(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ index: 0, type: "text", text: "A" }],
+    } as unknown as LangChainMessageChunk);
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { index: 1, type: "thinking", thinking: "Thinking" },
+        { index: 2, type: "text", text: "B" },
+      ],
+    });
+    merged = append(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        {
+          index: 0,
+          type: "text",
+          citations: [{ type: "char_location", cited_text: "A" }],
+        },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    expect(merged.content).toEqual([
+      {
+        index: 0,
+        type: "text",
+        text: "A",
+        citations: [{ type: "char_location", cited_text: "A" }],
+      },
+      { index: 1, type: "thinking", thinking: "Thinking" },
+      { index: 2, type: "text", text: "B" },
+    ]);
+  });
+
+  it("accumulates thinking by block index without changing earlier messages", () => {
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "thinking", thinking: "Let", index: 0 }],
+    });
+    const merged = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "thinking", thinking: "Other.", index: 1 },
+        { type: "thinking", thinking: " me check.", index: 0 },
+      ],
+    });
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Let" },
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Let me check." },
+      { type: "reasoning", text: "Other." },
+    ]);
+  });
+
+  it("accumulates thinking signature fragments without rendering an empty part", () => {
+    const signatureChunk = (signature: string) =>
+      JSON.parse(
+        `{"id":"ai-1","type":"AIMessageChunk","content":[{"type":"thinking","signature":"${signature}","index":0}]}`,
+      );
+    const first = appendLangChainChunk(undefined, signatureChunk("sig-"));
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
+    const thinking = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "thinking", thinking: "Checking.", index: 0 }],
+    });
+    const merged = appendLangChainChunk(thinking, signatureChunk("part2"));
+    expect(merged.content).toEqual([
+      expect.objectContaining({
+        index: 0,
+        thinking: "Checking.",
+        signature: "sig-part2",
+      }),
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Checking." },
+    ]);
+  });
+
+  it("merges a repeated indexed block instead of appending a duplicate", () => {
+    const call = (action: Record<string, unknown>) =>
+      ({
+        type: "computer_call",
+        id: "computer-1",
+        call_id: "call-1",
+        action,
+        pending_safety_checks: [],
+        index: 0,
+      }) satisfies Exclude<
+        LangChainMessageChunk["content"],
+        string | undefined
+      >[number];
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [call({ type: "screenshot" })],
+    });
+    const merged = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [call({ type: "click", x: 1, y: 2 })],
+    });
+
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "computer_call",
+        args: { type: "click", x: 1, y: 2 },
+        argsText: '{"type":"click","x":1,"y":2}',
+      },
+    ]);
+
+    const placeholders = appendLangChainChunk(
+      merged,
+      JSON.parse(
+        '{"id":"ai-1","type":"AIMessageChunk","content":[{"type":"computer_call","index":0,"call_id":"","id":null,"action":null,"status":"completed"}]}',
+      ),
+    );
+    expect(placeholders.content).toEqual([
+      expect.objectContaining({
+        call_id: "call-1",
+        id: "computer-1",
+        action: { type: "click", x: 1, y: 2 },
+        status: "completed",
+      }),
+    ]);
+  });
+
+  it("joins reasoning summary deltas by summary index", () => {
+    let merged: LangChainMessage = { id: "ai-1", type: "ai", content: [] };
+    const blocks = [
+      { type: "reasoning", index: 0, summary: [] },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 0, text: "First" }],
+      },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 1, text: "Second" }],
+      },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 0, text: " step." }],
+      },
+      {
+        type: "reasoning",
+        index: 0,
+        summary: [{ type: "summary_text", index: 1, text: " step." }],
+      },
+      { type: "reasoning", index: 1, reasoning: "Separate." },
+    ] satisfies Exclude<LangChainMessageChunk["content"], string | undefined>;
+    for (const block of blocks) {
+      merged = appendLangChainChunk(merged, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [block],
+      });
+    }
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "First step.\n\n\nSecond step." },
+      { type: "reasoning", text: "Separate." },
+    ]);
+  });
+
+  it.each([{ index: 0 }, {}])(
+    "falls back to the reasoning string until the summary carries text, with %j",
+    (block) => {
+      const first = appendLangChainChunk(undefined, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          { type: "reasoning", reasoning: "partial thinking", ...block },
+        ],
+      });
+      const blank = appendLangChainChunk(first, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            ...block,
+            summary: [{ type: "summary_text", index: 0 }],
+          },
+        ],
+      });
+      const summary = appendLangChainChunk(blank, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            ...block,
+            summary: [{ type: "summary_text", index: 0, text: "first" }],
+          },
+        ],
+      });
+      const merged = appendLangChainChunk(summary, {
+        id: "ai-1",
+        type: "AIMessageChunk",
+        content: [
+          {
+            type: "reasoning",
+            ...block,
+            summary: [
+              { type: "summary_text", index: 0, text: " summary" },
+              { type: "summary_text", index: 1, text: "second summary" },
+            ],
+          },
+        ],
+      });
+
+      expect(convertLangChainMessages(first, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "partial thinking" },
+      ]);
+      expect(convertLangChainMessages(blank, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "partial thinking" },
+      ]);
+      expect(convertLangChainMessages(summary, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "first" },
+      ]);
+      expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+        { type: "reasoning", text: "first summary\n\n\nsecond summary" },
+      ]);
+      expect(merged.content).toEqual([
+        expect.objectContaining({ reasoning: "partial thinking" }),
+      ]);
+    },
+  );
+
+  it("keeps reasoning signatures without empty parts or cross-index text", () => {
+    const signature = {
+      type: "reasoning" as const,
+      signature: "sig-",
+      index: 0,
+    };
+    const first = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [signature],
+    });
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
+
+    const sibling = appendLangChainChunk(first, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "reasoning", index: 1, reasoning: "Separate." },
+        {
+          type: "reasoning",
+          index: 0,
+          summary: [{ type: "summary_text", index: 0 }],
+        },
+      ],
+    });
+    expect(convertLangChainMessages(sibling, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Separate." },
+    ]);
+
+    const text = appendLangChainChunk(sibling, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "reasoning", index: 0, reasoning: "Checking." }],
+    });
+    expect(text.content).toEqual([
+      expect.objectContaining({
+        index: 0,
+        signature: "sig-",
+        reasoning: "Checking.",
+      }),
+      expect.objectContaining({ index: 1, reasoning: "Separate." }),
+    ]);
+
+    const signed = appendLangChainChunk(text, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ ...signature, signature: "part2" }],
+    });
+    expect(signed.content).toEqual([
+      expect.objectContaining({
+        index: 0,
+        signature: "sig-part2",
+        reasoning: "Checking.",
+      }),
+      expect.objectContaining({ index: 1, reasoning: "Separate." }),
+    ]);
+    expect(convertLangChainMessages(signed, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "Checking." },
+      { type: "reasoning", text: "Separate." },
+    ]);
+    expect(convertLangChainMessages(first, {})).toHaveProperty("content", []);
+  });
+
+  it("joins unindexed reasoning deltas only while they are adjacent", () => {
+    let merged = appendLangChainChunk(undefined, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [{ type: "reasoning", reasoning: "One" }],
+    });
+    merged = appendLangChainChunk(merged, {
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: [
+        { type: "reasoning", reasoning: " step." },
+        { type: "text_delta", text: "Answer." },
+        { type: "reasoning", reasoning: "Two" },
+        { type: "reasoning", reasoning: " steps." },
+      ],
+    });
+    expect(convertLangChainMessages(merged, {})).toHaveProperty("content", [
+      { type: "reasoning", text: "One step." },
+      { type: "text", text: "Answer." },
+      { type: "reasoning", text: "Two steps." },
+    ]);
+  });
+});
+
+describe("appendLangChainChunk tool_call name merging", () => {
+  it("accepts a late tool name and keeps it through unnamed chunks", () => {
+    const first = normalizeLangGraphTupleMessage({
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_call_chunks: [{ index: 0 }],
+    });
+    const next = normalizeLangGraphTupleMessage({
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_call_chunks: [
+        { index: 0, id: "call-1", name: "search", args: "{}" },
+      ],
+    });
+    if (!first || !next) throw new Error("Expected normalized chunks");
+
+    const merged = appendLangChainChunk(
+      appendLangChainChunk(undefined, first.message),
+      next.message,
+    );
+    const expected = expect.arrayContaining([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      }),
+    ]);
+    expect(convertLangChainMessages(merged, {})).toHaveProperty(
+      "content",
+      expected,
+    );
+
+    const continued = appendLangChainChunk(
+      merged,
+      aiChunk([{ index: 0, id: "call-1", name: "", args: "" }]),
+    );
+    expect(convertLangChainMessages(continued, {})).toHaveProperty(
+      "content",
+      expected,
+    );
+  });
 });
 
 describe("appendLangChainChunk tool_call id merging", () => {
@@ -133,6 +1174,35 @@ describe("appendLangChainChunk tool_call id merging", () => {
 
     expect(acc.tool_calls).toHaveLength(2);
     expect(acc.tool_calls?.map((t) => t.index)).toEqual([0, 1]);
+  });
+});
+
+describe("appendLangChainChunk malformed tool_call_chunks", () => {
+  it("skips a null tool_call_chunks entry in a first chunk and its continuation", () => {
+    const first = append(
+      undefined,
+      aiChunk([
+        null,
+        { id: "call-1", index: 0, name: "lookup", args: '{"q": ' },
+      ] as unknown as LangChainMessageChunk["tool_call_chunks"]),
+    );
+    const merged = append(
+      first,
+      aiChunk([
+        null,
+        { id: "call-1", index: 0, args: '"x"}' },
+      ] as unknown as LangChainMessageChunk["tool_call_chunks"]),
+    );
+
+    expect(merged.tool_calls).toMatchObject([
+      {
+        id: "call-1",
+        index: 0,
+        name: "lookup",
+        args: { q: "x" },
+        partial_json: '{"q": "x"}',
+      },
+    ]);
   });
 });
 
@@ -295,6 +1365,86 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     });
 
     expect(final.tool_calls?.[0]?.partial_json).toBe('{"q": "x"}');
+  });
+
+  it("carries partial_json past a null tool_calls entry", () => {
+    const final = appendAi(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          {
+            id: "call-1",
+            index: 0,
+            name: "ask_question",
+            args: { q: "x" },
+            partial_json: '{"q": "x"}',
+          },
+          {
+            id: "",
+            index: 1,
+            name: "ask_question",
+            args: { q: "y" },
+            partial_json: '{"q": "y"}',
+          },
+        ],
+      } as unknown as AiMessage,
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          { id: "call-1", index: 0, name: "ask_question", args: { q: "x" } },
+          { id: "", index: 1, name: "ask_question", args: { q: "y" } },
+        ],
+      } as unknown as AiMessage,
+    );
+
+    expect(final.tool_calls?.map((call) => call?.partial_json)).toEqual([
+      undefined,
+      '{"q": "x"}',
+      '{"q": "y"}',
+    ]);
+  });
+
+  it("merges a streamed chunk into a message with a null tool_calls entry", () => {
+    const final = append(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          {
+            id: "call-1",
+            index: 0,
+            name: "ask_question",
+            args: {},
+            partial_json: '{"q": ',
+          },
+          {
+            id: "",
+            index: 1,
+            name: "ask_question",
+            args: {},
+            partial_json: '{"q": ',
+          },
+        ],
+      } as unknown as AiMessage,
+      aiChunk([
+        { id: "call-1", index: 0, name: "ask_question", args: '"x"}' },
+        { id: "", index: 1, name: "ask_question", args: '"y"}' },
+      ]),
+    );
+
+    expect(final.tool_calls?.map((call) => call?.partial_json)).toEqual([
+      undefined,
+      '{"q": "x"}',
+      '{"q": "y"}',
+    ]);
   });
 
   it("returns a non-ai message unchanged", () => {

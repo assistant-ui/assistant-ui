@@ -5,11 +5,50 @@ import { ThreadListItemTrigger } from "./ThreadListItemTrigger";
 
 const h = vi.hoisted(() => ({
   switchTo: vi.fn<() => void>(),
+  state: {
+    threads: { mainThreadId: "thread-1" },
+    threadListItem: { id: "thread-1" },
+  },
+  platform: { os: "web" },
+  pressableProps: null as Record<string, unknown> | null,
 }));
 
 vi.mock("@assistant-ui/core/react", () => ({
   useThreadListItemTrigger: () => ({ switchTo: h.switchTo }),
 }));
+
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  return {
+    ...actual,
+    useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
+  };
+});
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const React = await import("react");
+  const PressableMock = React.forwardRef(function PressableMock(
+    props: Record<string, unknown>,
+    ref: React.Ref<unknown>,
+  ) {
+    h.pressableProps = props;
+    return React.createElement(
+      actual.Pressable as unknown as React.ElementType,
+      { ...props, ref },
+    );
+  });
+  return {
+    ...actual,
+    Platform: {
+      ...actual.Platform,
+      get OS() {
+        return h.platform.os;
+      },
+    },
+    Pressable: PressableMock,
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -24,6 +63,10 @@ describe("ThreadListItemTrigger", () => {
 
   beforeEach(() => {
     h.switchTo.mockReset();
+    h.state.threads.mainThreadId = "thread-1";
+    h.state.threadListItem.id = "thread-1";
+    h.platform.os = "web";
+    h.pressableProps = null;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -50,6 +93,11 @@ describe("ThreadListItemTrigger", () => {
     return container.querySelector('[data-testid="t"]') as HTMLElement;
   };
 
+  const accessibilityState = () =>
+    h.pressableProps?.["accessibilityState"] as
+      | Record<string, unknown>
+      | undefined;
+
   it("fires switchTo when pressed", async () => {
     const el = await mount();
 
@@ -68,5 +116,57 @@ describe("ThreadListItemTrigger", () => {
     });
 
     expect(h.switchTo).not.toHaveBeenCalled();
+  });
+
+  it("marks the current thread current on the web", async () => {
+    const el = await mount();
+
+    expect(el.getAttribute("aria-current")).toBe("true");
+    expect(el.hasAttribute("aria-selected")).toBe(false);
+    expect(accessibilityState()).toMatchObject({ selected: true });
+  });
+
+  it("does not mark another thread current", async () => {
+    h.state.threads.mainThreadId = "thread-2";
+
+    const el = await mount();
+
+    expect(el.hasAttribute("aria-current")).toBe(false);
+    expect(accessibilityState()).toMatchObject({ selected: false });
+  });
+
+  it("marks the current thread selected without aria-current on native", async () => {
+    h.platform.os = "ios";
+
+    const el = await mount();
+
+    expect(el.hasAttribute("aria-current")).toBe(false);
+    expect(accessibilityState()).toMatchObject({ selected: true });
+  });
+
+  it("keeps caller accessibility state overrides", async () => {
+    const el = await mount({
+      accessibilityState: { busy: true, selected: false },
+    });
+
+    expect(el.hasAttribute("aria-current")).toBe(false);
+    expect(accessibilityState()).toMatchObject({ busy: true, selected: false });
+  });
+
+  it("passes active state alongside the Pressable state", async () => {
+    let renderState: unknown = null;
+
+    await act(async () => {
+      root.render(
+        <ThreadListItemTrigger testID="t">
+          {(state) => {
+            renderState = state;
+            return "item";
+          }}
+        </ThreadListItemTrigger>,
+      );
+    });
+
+    expect(renderState).toMatchObject({ pressed: false, isActive: true });
   });
 });

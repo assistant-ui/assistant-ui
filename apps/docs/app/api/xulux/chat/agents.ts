@@ -1,4 +1,4 @@
-import type { FrontendTools } from "@assistant-ui/react-ai-sdk";
+import type { FrontendTools } from "@assistant-ui/ai-sdk";
 import type { ToolSet, UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { parseLearnContext } from "@/lib/xulux/learn/context";
@@ -21,7 +21,6 @@ export type XuluxAgentDefinition = {
   systemPrompt: string;
   maxSteps: number;
   maxOutputTokens?: number;
-  modelName?: string;
   traceName?: string;
   getTraceMetadata?: (options: {
     body: Record<string, unknown>;

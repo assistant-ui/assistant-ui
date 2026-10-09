@@ -15,7 +15,7 @@ const TRACE_ANIMATION_DURATION = 200;
 function ToolJsonBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
-      <p className="text-muted-foreground/60 text-[10px] font-medium tracking-wide uppercase">
+      <p className="text-muted-foreground/60 text-[10px] font-medium">
         {label}
       </p>
       <pre className="text-muted-foreground bg-muted/50 max-h-60 overflow-auto rounded-md p-2.5 text-[11px] leading-relaxed">
@@ -75,7 +75,7 @@ export function ToolTraceCard({
           "relative overflow-hidden outline-none",
           "data-closed:animate-collapsible-up data-open:animate-collapsible-down ease-out motion-reduce:animate-none",
           "data-closed:fill-mode-forwards data-closed:pointer-events-none",
-          "data-closed:duration-(--animation-duration) data-open:duration-(--animation-duration)",
+          "[--tw-duration:var(--animation-duration)]",
         )}
       >
         <div className="my-1 ml-6 space-y-2">
@@ -169,7 +169,7 @@ export function ToolErrorCard({
           "relative overflow-hidden outline-none",
           "data-closed:animate-collapsible-up data-open:animate-collapsible-down ease-out motion-reduce:animate-none",
           "data-closed:fill-mode-forwards data-closed:pointer-events-none",
-          "data-closed:duration-(--animation-duration) data-open:duration-(--animation-duration)",
+          "[--tw-duration:var(--animation-duration)]",
         )}
       >
         <div className="my-1 ml-6 space-y-2">

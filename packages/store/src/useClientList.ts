@@ -38,7 +38,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
 
   const initialDataHandles = useRef<DataHandle<TData>[]>([]).current;
 
-  const [items, setItems] = useState<Record<string, Props>>(() => {
+  const [items, setItems] = useState<Map<string, Props>>(() => {
     const entries: [string, Props][] = [];
     for (const data of initialValues) {
       const key = getKey(data);
@@ -47,20 +47,20 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
         key,
         createProps(key, handle, () => {
           setItems((items) => {
-            const newItems = { ...items };
-            delete newItems[key];
+            const newItems = new Map(items);
+            newItems.delete(key);
             return newItems;
           });
         }),
       ]);
       initialDataHandles.push(handle);
     }
-    return Object.fromEntries(entries);
+    return new Map(entries);
   });
 
   const lookup = useClientLookup<TMethods>(
     // `props` is stable per item (held in state), so reuse unchanged items.
-    Object.values(items).map((props) =>
+    [...items.values()].map((props) =>
       withKey(props.key, Resource(props), [props]),
     ),
   );
@@ -77,7 +77,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
   const add = (data: TData) => {
     const key = getKey(data);
     setItems((items) => {
-      if (key in items) {
+      if (items.has(key)) {
         throw new Error(
           `Tried to add item with a key ${key} that already exists`,
         );
@@ -86,16 +86,16 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
       const handle = { data, hasData: true };
       initialDataHandles.push(handle);
 
-      return {
-        ...items,
-        [key]: createProps(key, handle, () => {
+      return new Map(items).set(
+        key,
+        createProps(key, handle, () => {
           setItems((items) => {
-            const newItems = { ...items };
-            delete newItems[key];
+            const newItems = new Map(items);
+            newItems.delete(key);
             return newItems;
           });
         }),
-      };
+      );
     });
   };
 

@@ -42,7 +42,7 @@ Your backend server should:
 
 1. Accept POST requests at the configured endpoint (e.g., `/assistant`)
 2. Handle the following command types in the request body:
-   - `AddMessageCommand`: `{ type: "add-message", message: { role: "user", parts: [...] } }`
+   - `AddMessageCommand`: `{ type: "add-message", message: { role: "user", id: "client-message-id", parts: [...] } }`
    - `AddToolResultCommand`: `{ type: "add-tool-result", toolCallId: string, result: object }`
 3. Return streaming responses using the `assistant-stream` format
 4. Include CORS headers to allow requests from the frontend
@@ -58,4 +58,4 @@ Your backend server should:
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [Assistant Transport Runtime API](https://www.assistant-ui.com/docs/runtimes/assistant-transport)
+- [Assistant Transport Runtime API](https://www.assistant-ui.com/docs/runtimes/custom/assistant-transport)

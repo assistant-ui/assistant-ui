@@ -2,31 +2,70 @@ import {
   type ModelContextProvider,
   mergeModelContexts,
 } from "../model-context/types";
+import { notifySubscribers as notifyStateSubscribers } from "../subscribable/subscribable";
+import type { Unsubscribe } from "../types/unsubscribe";
 
 export class CompositeContextProvider implements ModelContextProvider {
-  private _providers = new Set<ModelContextProvider>();
+  private _providers = new Map<symbol, ModelContextProvider>();
+  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
 
   getModelContext() {
-    return mergeModelContexts(this._providers);
+    return mergeModelContexts(new Set(this._providers.values()));
   }
 
   registerModelContextProvider(provider: ModelContextProvider) {
-    this._providers.add(provider);
-    const unsubscribe = provider.subscribe?.(() => {
-      this.notifySubscribers();
-    });
+    const id = Symbol();
+    this._providers.set(id, provider);
+    let unsubscribe: Unsubscribe | undefined;
+    try {
+      unsubscribe = provider.subscribe?.(() => {
+        this.notifySubscribers();
+      });
+    } catch (error) {
+      this._providers.delete(id);
+      try {
+        this.notifySubscribers();
+      } catch (notifyError) {
+        console.error(notifyError);
+      }
+      throw error;
+    }
+    this._providerUnsubscribes.set(id, unsubscribe);
     this.notifySubscribers();
+    let released = false;
     return () => {
-      this._providers.delete(provider);
-      unsubscribe?.();
-      this.notifySubscribers();
+      if (released) return;
+      released = true;
+      this._providers.delete(id);
+      const unsubscribe = this._providerUnsubscribes.get(id);
+      this._providerUnsubscribes.delete(id);
+
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (cleanupFailed) {
+            console.error(error);
+          } else {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+      };
+
+      if (unsubscribe) runCleanup(unsubscribe);
+      runCleanup(() => this.notifySubscribers());
+
+      if (cleanupFailed) throw cleanupError;
     };
   }
 
   private _subscribers = new Set<() => void>();
 
   notifySubscribers() {
-    for (const callback of this._subscribers) callback();
+    notifyStateSubscribers(this._subscribers);
   }
 
   subscribe(callback: () => void) {

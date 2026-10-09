@@ -1,7 +1,14 @@
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 import type { XuluxTemplate } from "@/components/xulux/templates/types";
 import { getDemoDownloadManifest } from "@/lib/xulux/demo-downloads/manifest";
-import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
+import {
+  fetchPreviewSession,
+  fetchTemplateContract,
+  hasConfig,
+  toAbsolute,
+  withVersion,
+  type TemplatePreviewSession,
+} from "@/lib/xulux/sandbox-contract";
 import {
   CONFIG_ROOTS_SCHEMAS,
   RULES,
@@ -27,38 +34,8 @@ function findFirstByTemplateId(
   return templates.find((t) => templateId(t) === tid);
 }
 
-function toAbsolute(baseUrl: string, url: string): string {
-  if (/^https?:\/\//.test(url)) return url;
-  return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
-}
-
-function withVersion(url: string, versionId: string | undefined): string {
-  if (!versionId) return url;
-  const [path, query = ""] = url.split("?");
-  const params = new URLSearchParams(query);
-  if (!params.has("v")) params.set("v", versionId);
-  return `${path}?${params.toString()}`;
-}
-
-function hasConfig(config: Record<string, unknown> | undefined): boolean {
-  return !!config && Object.keys(config).length > 0;
-}
-
 function isFixedDemo(entry: XuluxTemplate): boolean {
   return entry.kind === "example";
-}
-
-async function fetchTemplateContract(entry: XuluxTemplate, versionId?: string) {
-  if (!entry.sandboxBaseUrl) return null;
-  try {
-    const url = new URL("/api/template/contract", entry.sandboxBaseUrl);
-    if (versionId) url.searchParams.set("v", versionId);
-    const res = await fetchSandboxResource(url.toString());
-    if (!res.ok) return null;
-    return (await res.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +168,12 @@ export function createTemplateTools() {
         // Fetch exampleConfig from the live sandbox contract endpoint.
         // Falls back to null if the sandbox is unreachable — the static schema
         // above is still returned so the agent can author config.
-        const contract = await fetchTemplateContract(entry, effectiveVersionId);
+        const contract = entry.sandboxBaseUrl
+          ? await fetchTemplateContract(
+              entry.sandboxBaseUrl,
+              effectiveVersionId,
+            )
+          : null;
         const exampleConfig =
           (contract?.exampleCompleteConfig as Record<string, unknown> | null) ??
           null;
@@ -289,13 +271,7 @@ export function createTemplateTools() {
 
         if (hasConfig(config)) {
           try {
-            const sessionUrl = new URL("/api/preview/session", baseUrl);
-            if (versionId) sessionUrl.searchParams.set("v", versionId);
-            const res = await fetchSandboxResource(sessionUrl.toString(), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(config),
-            });
+            const res = await fetchPreviewSession(baseUrl, versionId, config);
             if (!res.ok) {
               const details = await res.text();
               return {
@@ -308,11 +284,7 @@ export function createTemplateTools() {
                   "Pass only hostUi, assistant, and brandTheme at the top level.",
               };
             }
-            const data = (await res.json()) as {
-              previewUrl?: string;
-              downloadUrl?: string;
-              validationWarnings?: unknown[];
-            };
+            const data = (await res.json()) as TemplatePreviewSession;
             if (!data.previewUrl) {
               return {
                 success: false,

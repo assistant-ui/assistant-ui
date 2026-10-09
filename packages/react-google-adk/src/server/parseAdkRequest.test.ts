@@ -28,11 +28,18 @@ describe("parseAdkRequest", () => {
     });
   });
 
-  it("parses a message request with stateDelta", async () => {
+  it("parses a message request with sessionId and stateDelta", async () => {
     const result = await parseAdkRequest(
-      makeRequest({ message: "Hello", stateDelta: { count: 1 } }),
+      makeRequest({
+        message: "Hello",
+        sessionId: "session-1",
+        stateDelta: { count: 1 },
+      }),
     );
-    expect(result).toMatchObject({ stateDelta: { count: 1 } });
+    expect(result).toMatchObject({
+      sessionId: "session-1",
+      stateDelta: { count: 1 },
+    });
   });
 
   it("parses a message request with parts (multimodal)", async () => {
@@ -47,6 +54,33 @@ describe("parseAdkRequest", () => {
     );
     if (result.type !== "message") throw new Error("Expected message type");
     expect(result.parts).toHaveLength(2);
+  });
+
+  it("parses each supported ADK part shape", async () => {
+    const parts = [
+      { text: "Hello", thought: true },
+      { functionCall: { name: "search", id: "call-1", args: {} } },
+      {
+        functionResponse: {
+          name: "search",
+          id: "call-1",
+          response: null,
+        },
+      },
+      { executableCode: { code: "print('hello')", language: "python" } },
+      { codeExecutionResult: { output: "hello", outcome: "ok" } },
+      { inlineData: { mimeType: "image/png", data: "abc" } },
+      {
+        fileData: {
+          fileUri: "https://example.com/file",
+          mimeType: "text/plain",
+        },
+      },
+    ];
+
+    await expect(
+      parseAdkRequest(makeRequest({ parts })),
+    ).resolves.toMatchObject({ parts });
   });
 
   it("parses a tool-result request", async () => {
@@ -73,6 +107,7 @@ describe("parseAdkRequest", () => {
       makeRequest({
         type: "tool-result",
         toolCallId: "tc-1",
+        toolName: "search",
         result: {},
       }),
     );
@@ -95,9 +130,158 @@ describe("parseAdkRequest", () => {
       "Google ADK proxy request body must be a JSON object",
     );
   });
+
+  it.each([
+    [{ message: 42 }, 'field "message"'],
+    [{ parts: {} }, 'field "parts"'],
+    [{ parts: [null] }, 'field "parts"'],
+    [{ type: "unknown", message: "hello" }, 'field "type"'],
+    [{ message: "hello", checkpointId: 42 }, 'field "checkpointId"'],
+    [{ message: "hello", sessionId: 42 }, 'field "sessionId"'],
+    [{ message: "hello", stateDelta: [] }, 'field "stateDelta"'],
+  ])("rejects malformed message requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it.each([
+    [{ parts: [{}] }, 'field "parts[0]"'],
+    [{ parts: [{ text: 42 }] }, 'field "parts[0].text"'],
+    [
+      { parts: [{ inlineData: { mimeType: "image/png", data: 42 } }] },
+      'field "parts[0].inlineData.data"',
+    ],
+    [
+      { parts: [{ functionCall: { name: "search", args: [] } }] },
+      'field "parts[0].functionCall.args"',
+    ],
+    [
+      { parts: [{ functionResponse: { name: 42 } }] },
+      'field "parts[0].functionResponse.name"',
+    ],
+  ])("rejects malformed nested ADK parts %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it("accepts exclude_none and unknown part shapes", async () => {
+    const parts = [
+      { functionCall: { name: "get_time", id: "call-1" } },
+      { functionResponse: { name: "search", id: "call-1" } },
+      { text: "hi", inlineData: { mimeType: "image/png", data: "abc" } },
+      { videoMetadata: { fps: 1 } },
+      { text: "hello", thoughtSignature: "sig" },
+    ];
+
+    await expect(
+      parseAdkRequest(makeRequest({ parts })),
+    ).resolves.toMatchObject({ parts });
+  });
+
+  it("requires message content", async () => {
+    await expect(parseAdkRequest(makeRequest({}))).rejects.toThrow(
+      'expected a "message" string or a "parts" array',
+    );
+  });
+
+  it.each([
+    [
+      { type: "message", message: "hello" },
+      { type: "message", text: "hello", config: {} },
+    ],
+    [{ parts: [] }, { type: "message", text: "", parts: [], config: {} }],
+  ])(
+    "preserves supported empty and explicit message shapes %#",
+    async (body, expected) => {
+      await expect(parseAdkRequest(makeRequest(body))).resolves.toEqual(
+        expected,
+      );
+    },
+  );
+
+  it("accepts empty tool identifiers emitted by id-less ADK calls", async () => {
+    await expect(
+      parseAdkRequest(
+        makeRequest({
+          type: "tool-result",
+          toolCallId: "",
+          toolName: "",
+          result: {},
+        }),
+      ),
+    ).resolves.toMatchObject({
+      type: "tool-result",
+      toolCallId: "",
+      toolName: "",
+    });
+  });
+
+  it.each([
+    [
+      { type: "tool-result", toolName: "search", result: {} },
+      'field "toolCallId"',
+    ],
+    [
+      { type: "tool-result", toolCallId: "tc-1", result: {} },
+      'field "toolName"',
+    ],
+    [
+      { type: "tool-result", toolCallId: 42, toolName: "search", result: {} },
+      'field "toolCallId"',
+    ],
+    [
+      {
+        type: "tool-result",
+        toolCallId: "tc-1",
+        toolName: "search",
+        result: {},
+        isError: "false",
+      },
+      'field "isError"',
+    ],
+    [
+      { type: "tool-result", toolCallId: "tc-1", toolName: "search" },
+      'field "result"',
+    ],
+  ])("rejects malformed tool-result requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
 });
 
 describe("toAdkContent", () => {
+  it.each([
+    ["permission denied", { error: "permission denied" }],
+    [
+      { message: "permission denied" },
+      { error: { message: "permission denied" } },
+    ],
+    [["denied"], { error: ["denied"] }],
+    [null, { error: null }],
+    [false, { error: false }],
+    [0, { error: 0 }],
+    ["", { error: "" }],
+    [
+      { error: "denied", output: "partial" },
+      { error: "denied", output: "partial" },
+    ],
+  ])(
+    "preserves explicit tool failure %j in the function response",
+    async (result, response) => {
+      const parsed = await parseAdkRequest(
+        makeRequest({
+          type: "tool-result",
+          toolCallId: "tc-1",
+          toolName: "search",
+          result,
+          isError: true,
+        }),
+      );
+      expect(toAdkContent(parsed).parts).toEqual([
+        {
+          functionResponse: { name: "search", id: "tc-1", response },
+        },
+      ]);
+    },
+  );
+
   it("converts a text message to user content with text part", () => {
     const content = toAdkContent({
       type: "message",
@@ -151,4 +335,32 @@ describe("toAdkContent", () => {
       ],
     });
   });
+
+  it.each([
+    [false, { result: false }],
+    [0, { result: 0 }],
+    [null, { result: null }],
+    ["done", { result: "done" }],
+    [[1, 2], { results: [1, 2] }],
+  ])(
+    "wraps scalar or array tool result %j in a function response object",
+    (result, response) => {
+      const content = toAdkContent({
+        type: "tool-result",
+        toolCallId: "tc-1",
+        toolName: "search",
+        result,
+        isError: false,
+        config: {},
+      });
+
+      expect(content.parts[0]).toEqual({
+        functionResponse: {
+          name: "search",
+          id: "tc-1",
+          response,
+        },
+      });
+    },
+  );
 });

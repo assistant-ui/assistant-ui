@@ -1,19 +1,70 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import { detect } from "detect-package-manager";
 import * as readline from "node:readline";
 import { logger } from "./logger";
+import { runSpawn, SpawnSignalError } from "../run-spawn";
+
+export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
+
+export function dlxCommand(pm: PackageManagerName): [string, string[]] {
+  switch (pm) {
+    case "pnpm":
+      return ["pnpm", ["dlx"]];
+    case "yarn":
+      return ["yarn", ["dlx"]];
+    case "bun":
+      return ["bunx", []];
+    case "npm":
+      return ["npx", ["--yes"]];
+  }
+}
+
+export function resolvePackageManager(opts: {
+  useNpm?: boolean;
+  usePnpm?: boolean;
+  useYarn?: boolean;
+  useBun?: boolean;
+}): PackageManagerName | undefined {
+  if (opts.useNpm) return "npm";
+  if (opts.usePnpm) return "pnpm";
+  if (opts.useYarn) return "yarn";
+  if (opts.useBun) return "bun";
+  return undefined;
+}
 
 export function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
+    // A stream only reaches EOF once, so a run that already consumed stdin gets
+    // no further `end` and an interface built over it would wait on a `close`
+    // that cannot arrive. An upgrade asks up to three questions.
+    if (process.stdin.readableEnded) {
+      resolve("");
+      return;
+    }
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    rl.question(query, (answer) => {
+    // stdin at EOF (a piped or CI run) emits `close` without a `line`, so the
+    // question callback alone would leave this pending forever and the process
+    // would exit 0 with the remaining work silently skipped. An empty answer is
+    // what pressing Enter sends, so EOF lands on the prompt's own default.
+    // A final answer with no trailing newline arrives as `line` instead of
+    // through the callback, and has to win over that default.
+    // Ctrl-C in raw mode is delivered as this event rather than as a signal,
+    // and without a listener readline answers it by closing — which the EOF
+    // default would then read as approval. A cancelled prompt declines.
+    let cancelled = false;
+    rl.on("SIGINT", () => {
+      cancelled = true;
       rl.close();
+    });
+    rl.on("line", resolve);
+    rl.on("close", () => resolve(cancelled ? "n" : ""));
+    rl.question(query, (answer) => {
       resolve(answer);
+      rl.close();
     });
   });
 }
@@ -62,25 +113,40 @@ export async function getInstallCommand(
   }
 }
 
+function detectFromUserAgent(): PackageManagerName | undefined {
+  const ua = process.env.npm_config_user_agent;
+  if (!ua) return undefined;
+  if (ua.startsWith("bun/")) return "bun";
+  if (ua.startsWith("pnpm/")) return "pnpm";
+  if (ua.startsWith("yarn/")) return "yarn";
+  if (ua.startsWith("npm/")) return "npm";
+  return undefined;
+}
+
+export async function resolvePackageManagerForCwd(
+  cwd: string,
+  packageManager?: PackageManagerName,
+): Promise<PackageManagerName> {
+  if (packageManager) return packageManager;
+  const fromAgent = detectFromUserAgent();
+  if (fromAgent) return fromAgent;
+  try {
+    return await detect({ cwd });
+  } catch {
+    return "npm";
+  }
+}
+
 export async function installPackage(
   packageName: string,
   cwd?: string,
 ): Promise<boolean> {
   try {
     const { command, args } = await getInstallCommand(packageName, cwd);
-    const result = spawnSync(command, args, { stdio: "inherit", cwd });
-
-    if (result.error || result.status !== 0) {
-      logger.error(
-        `Installation failed${
-          result.error ? `: ${String(result.error)}` : "."
-        }`,
-      );
-      return false;
-    }
-
+    await runSpawn(command, args, cwd);
     return true;
   } catch (e) {
+    if (e instanceof SpawnSignalError) throw e;
     logger.error(`Installation failed: ${String(e)}`);
     return false;
   }

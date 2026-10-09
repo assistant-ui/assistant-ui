@@ -1,0 +1,1017 @@
+// @vitest-environment jsdom
+
+import { describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
+import { flushTapSync } from "@assistant-ui/tap";
+import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import { AISDKThreads } from "./AISDKThreads";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import {
+  createCancellableTransport,
+  createControlledTransport,
+} from "./__tests__/controlled-transport";
+
+const textReply = (text: string) =>
+  [
+    { type: "start" },
+    { type: "text-start", id: "t1" },
+    { type: "text-delta", id: "t1", delta: text },
+    { type: "text-end", id: "t1" },
+    { type: "finish" },
+  ] as never[];
+
+const threadText = (aui: ReturnType<typeof createAssistantClient>) =>
+  aui
+    .getClient()
+    .thread.getState()
+    .messages.map((m) =>
+      m.content.map((part) => (part.type === "text" ? part.text : "")).join(""),
+    );
+
+const createLiveHandle = (
+  getOptions: () => Parameters<typeof AISDKThreads>[0],
+) => {
+  const listeners = new Set<() => void>();
+  const handle = createAssistantClient({
+    getConfig: () => AuiConfig({ threads: AISDKThreads(getOptions()) }),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
+  handle.subscribe(() => {});
+  return {
+    handle,
+    rerender: () =>
+      flushTapSync(() => listeners.forEach((listener) => listener())),
+  };
+};
+
+const chatCallbacks = () => ({
+  onToolCall: vi.fn(),
+  onData: vi.fn(),
+  onFinish: vi.fn(),
+  onError: vi.fn(),
+  sendAutomaticallyWhen: vi.fn(() => false),
+});
+
+const thread = (id: string) => ({
+  id,
+  title: id,
+  is_archived: false,
+  last_message_at: null,
+  external_id: null,
+  metadata: null,
+});
+const makeCloud = (id: string) =>
+  ({
+    registerSdk: vi.fn(),
+    threads: {
+      list: vi.fn(async ({ is_archived }: { is_archived?: boolean } = {}) => ({
+        threads: is_archived ? [] : [thread(id)],
+      })),
+      get: vi.fn(async () => thread(id)),
+      messages: {
+        list: vi.fn(async () => ({ messages: [] })),
+        create: vi.fn(async () => ({ message_id: "stored" })),
+      },
+    },
+    runs: { report: vi.fn() },
+    telemetry: { enabled: false },
+  }) as unknown as AssistantCloud;
+
+describe("AISDKThreads", () => {
+  it.each(
+    (["client", "scope", "both", "rapid"] as const).flatMap((change) =>
+      (["uncontrolled", "changed", "unchanged"] as const).map((selection) => ({
+        change,
+        selection,
+      })),
+    ),
+  )(
+    "reloads Cloud threads when $change changes with selection=$selection",
+    async ({ change, selection }) => {
+      const cloudA = makeCloud("a-thread");
+      const cloudB = makeCloud("b-thread");
+      const intermediate = makeCloud("intermediate-thread");
+      const stream = createCancellableTransport();
+      let cloud = cloudA;
+      let scopeId = "workspace-a";
+      let threadId = selection === "uncontrolled" ? undefined : "a-thread";
+      const onThreadIdChange = vi.fn();
+      const { handle, rerender } = createLiveHandle(() => ({
+        cloud,
+        scopeId,
+        threadId,
+        onThreadIdChange,
+        transport: () => stream.transport,
+      }));
+      try {
+        await handle.getClient().threads.getLoadThreadsPromise();
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().threadIds).toContain(
+            "a-thread",
+          ),
+        );
+        if (selection === "uncontrolled") {
+          flushTapSync(() =>
+            handle.getClient().threads.switchToThread("a-thread"),
+          );
+        }
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().mainThreadId).toBe(
+            "a-thread",
+          ),
+        );
+        await vi.waitFor(() =>
+          expect(handle.getClient().thread.getState().isLoading).toBe(false),
+        );
+        flushTapSync(() => handle.getClient().composer.setText("A only"));
+        flushTapSync(() => handle.getClient().composer.send());
+        await vi.waitFor(() =>
+          expect(handle.getClient().thread.getState().isRunning).toBe(true),
+        );
+        stream.emit(
+          { type: "start" },
+          { type: "text-start", id: "partial" },
+          { type: "text-delta", id: "partial", delta: "A response" },
+        );
+        await vi.waitFor(() =>
+          expect(threadText(handle)).toContain("A response"),
+        );
+        const callsBeforeScopeChange = vi.mocked(cloudA.threads.list).mock.calls
+          .length;
+        rerender();
+        expect(cloudA.threads.list).toHaveBeenCalledTimes(
+          callsBeforeScopeChange,
+        );
+        const writesBeforeScopeChange = vi.mocked(
+          cloudA.threads.messages.create,
+        ).mock.calls.length;
+        const fetchesBeforeScopeChange = vi.mocked(cloudA.threads.get).mock
+          .calls.length;
+        if (change === "rapid") {
+          cloud = intermediate;
+          scopeId = "workspace-intermediate";
+          rerender();
+        }
+        if (change === "scope") {
+          vi.mocked(cloudA.threads.list).mockImplementation(
+            makeCloud("b-thread").threads.list,
+          );
+        } else {
+          cloud = cloudB;
+        }
+        if (change !== "client") scopeId = "workspace-b";
+        if (selection === "changed") threadId = "b-thread";
+        rerender();
+        rerender();
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().threadIds).toContain(
+            "b-thread",
+          ),
+        );
+        expect(handle.getClient().threads.getState().threadIds).not.toContain(
+          "a-thread",
+        );
+        await vi.waitFor(() => expect(stream.getCancelCount()).toBe(1));
+        expect(cloudB.threads.messages.create).not.toHaveBeenCalled();
+        expect(cloudA.threads.messages.create).toHaveBeenCalledTimes(
+          writesBeforeScopeChange,
+        );
+        if (change === "rapid") {
+          expect(intermediate.threads.list).not.toHaveBeenCalled();
+          expect(handle.getClient().threads.getState().threadIds).not.toContain(
+            "intermediate-thread",
+          );
+        }
+        if (selection === "changed") {
+          await vi.waitFor(() =>
+            expect(handle.getClient().threads.getState().mainThreadId).toBe(
+              "b-thread",
+            ),
+          );
+          expect(onThreadIdChange).not.toHaveBeenCalled();
+        } else if (selection === "unchanged") {
+          expect(
+            handle.getClient().threads.item("main").getState().status,
+          ).toBe("new");
+          expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith(undefined);
+          const fetches = vi
+            .mocked(cloud.threads.get)
+            .mock.calls.slice(
+              change === "scope" ? fetchesBeforeScopeChange : 0,
+            );
+          expect(fetches).not.toContainEqual(["a-thread"]);
+        }
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it("loads once when entering Cloud mode", async () => {
+    let cloud: AssistantCloud | undefined;
+    const { handle, rerender } = createLiveHandle(() => ({ cloud }));
+    try {
+      cloud = makeCloud("a-thread");
+      rerender();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toContain(
+          "a-thread",
+        ),
+      );
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+      cloud = undefined;
+      rerender();
+      cloud = makeCloud("b-thread");
+      rerender();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toContain(
+          "b-thread",
+        ),
+      );
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("emits the selected thread id when its composer sends", async () => {
+    const { transport } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    try {
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const sent = vi.fn();
+      aui.on({ scope: "thread", event: "composer.send" }, sent);
+
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+
+      await vi.waitFor(() => {
+        expect(sent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            threadId: aui.threads.getState().mainThreadId,
+          }),
+        );
+      });
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("runs one chat per thread and keeps histories isolated across switches", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    expect(aui.threads.getState().threadIds).toEqual(["main"]);
+
+    flushTapSync(() => aui.composer.setText("first question"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(...textReply("first answer"));
+    close();
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "first question",
+        "first answer",
+      ]);
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+    });
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    const state = handle.getClient().threads.getState();
+    expect(state.threadIds).toHaveLength(2);
+    expect(state.mainThreadId).not.toBe("main");
+    expect(handle.getClient().thread.getState().messages).toHaveLength(0);
+
+    flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    expect(handle.getClient().threads.getState().mainThreadId).toBe("main");
+    expect(threadText(handle as never)).toEqual([
+      "first question",
+      "first answer",
+    ]);
+
+    handle.destroy();
+  });
+
+  it("keeps a switched-away thread streaming in the background", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport: () => transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    flushTapSync(() => aui.composer.setText("stream me"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(
+      { type: "start" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "partial" },
+    );
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    expect(handle.getClient().thread.getState().messages).toHaveLength(0);
+
+    emit(
+      { type: "text-delta", id: "t1", delta: " and finished" },
+      { type: "text-end", id: "t1" },
+      { type: "finish" },
+    );
+    close();
+
+    flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "stream me",
+        "partial and finished",
+      ]);
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+    });
+
+    handle.destroy();
+  });
+
+  it("stops all in-flight chats when its client is destroyed", async () => {
+    const chats: ReturnType<typeof createCancellableTransport>[] = [];
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          transport: () => {
+            const chat = createCancellableTransport();
+            chats.push(chat);
+            return chat.transport;
+          },
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      flushTapSync(() => aui.composer.setText("first"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      flushTapSync(() => handle.getClient().composer.setText("second"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(chats).toHaveLength(2);
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+    } finally {
+      handle.destroy();
+    }
+
+    await vi.waitFor(() => {
+      expect(chats.map((chat) => chat.getCancelCount())).toEqual([1, 1]);
+    });
+  });
+
+  it("wires model context and per-thread transports onto the wire", async () => {
+    const bodies: unknown[] = [];
+    const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"start"}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const transports: AssistantChatTransport<never>[] = [];
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: AISDKThreads({
+            transport: () => {
+              const transport = new AssistantChatTransport();
+              transports.push(transport as AssistantChatTransport<never>);
+              return transport;
+            },
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+
+      flushTapSync(() =>
+        aui.modelContext.register({
+          getModelContext: () => ({ system: "wired system prompt" }),
+        }),
+      );
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      expect(bodies[0]).toMatchObject({ system: "wired system prompt" });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      await vi.waitFor(() => expect(transports.length).toBe(2));
+      expect(transports[0]).not.toBe(transports[1]);
+
+      handle.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("bridges model context on the default transport path", async () => {
+    const bodies: unknown[] = [];
+    const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"start"}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads() }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+
+      flushTapSync(() =>
+        aui.modelContext.register({
+          getModelContext: () => ({ system: "default path system" }),
+        }),
+      );
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      expect(bodies[0]).toMatchObject({ system: "default path system" });
+
+      handle.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("forwards ChatInit callbacks to each thread's chat from the latest render", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const sendMessages = vi.spyOn(transport, "sendMessages");
+    const mounted = chatCallbacks();
+    const latest = chatCallbacks();
+    latest.sendAutomaticallyWhen.mockReturnValueOnce(true);
+    let callbacks = mounted;
+    const { handle, rerender } = createLiveHandle(() => ({
+      transport: () => transport,
+      ...callbacks,
+    }));
+    const aui = handle.getClient();
+
+    callbacks = latest;
+    rerender();
+
+    flushTapSync(() => aui.composer.setText("hi"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(
+      { type: "start" },
+      {
+        type: "tool-input-available",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        input: {},
+      },
+      { type: "data-note", data: "note" },
+      { type: "finish" },
+    );
+    close();
+    await vi.waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+    emit({ type: "start" }, { type: "error", errorText: "boom" });
+    close();
+    await vi.waitFor(() => expect(latest.onFinish).toHaveBeenCalledTimes(2));
+
+    expect(latest.onToolCall).toHaveBeenCalledExactlyOnceWith({
+      toolCall: expect.objectContaining({ toolCallId: "call-1" }),
+    });
+    expect(latest.onData).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "data-note", data: "note" }),
+    );
+    expect(latest.onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: "boom" }),
+    );
+    expect(latest.sendAutomaticallyWhen).toHaveBeenCalledOnce();
+    for (const callback of Object.values(mounted)) {
+      expect(callback).not.toHaveBeenCalled();
+    }
+
+    handle.destroy();
+  });
+
+  it("forwards the latest callbacks to a switched-away thread still streaming in the background", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const onFinishA = vi.fn();
+    const onFinishB = vi.fn();
+    let onFinish = onFinishA;
+    const { handle, rerender } = createLiveHandle(() => ({
+      transport: () => transport,
+      onFinish,
+    }));
+    const aui = handle.getClient();
+
+    flushTapSync(() => aui.composer.setText("stream me"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(
+      { type: "start" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "partial" },
+    );
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    onFinish = onFinishB;
+    rerender();
+
+    emit({ type: "text-end", id: "t1" }, { type: "finish" });
+    close();
+    await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
+    expect(onFinishA).not.toHaveBeenCalled();
+
+    handle.destroy();
+  });
+
+  it("forwards the latest callbacks to a cloud thread's chat", async () => {
+    const cloudThread = (id: string) => ({
+      id,
+      title: id,
+      is_archived: false,
+      last_message_at: null,
+      external_id: null,
+      metadata: null,
+    });
+    const cloud = {
+      threads: {
+        list: vi.fn(async () => ({ threads: [cloudThread("t1")] })),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        get: vi.fn(async (id: string) => cloudThread(id)),
+        messages: {
+          list: vi.fn(async () => ({ messages: [] })),
+          create: vi.fn(async () => ({ message_id: "remote-message-1" })),
+          update: vi.fn(),
+        },
+      },
+      runs: { stream: vi.fn(), report: vi.fn() },
+      telemetry: { enabled: false },
+    } as unknown as AssistantCloud;
+    const { transport, emit, close } = createControlledTransport();
+    const onFinishA = vi.fn();
+    const onFinishB = vi.fn();
+    let onFinish = onFinishA;
+    const { handle, rerender } = createLiveHandle(() => ({
+      cloud,
+      threadId: "t1",
+      transport,
+      onFinish,
+    }));
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+
+      onFinish = onFinishB;
+      rerender();
+
+      flushTapSync(() => handle.getClient().composer.setText("hi"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+      emit(...textReply("done"));
+      close();
+      await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
+      expect(onFinishA).not.toHaveBeenCalled();
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("posts each thread's own id as the chat id", async () => {
+    const bodies: unknown[] = [];
+    const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"start"}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads() }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      expect(bodies[0]).toMatchObject({ id: "main" });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      const newThreadId = handle.getClient().threads.getState().mainThreadId;
+      flushTapSync(() => handle.getClient().composer.setText("hi again"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(2));
+      expect(bodies[1]).toMatchObject({ id: newThreadId });
+
+      handle.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses assistant-cloud for listing and lifecycle actions", async () => {
+    const cloudThread = (id: string) => ({
+      id,
+      title: id,
+      is_archived: false,
+      last_message_at: null,
+      external_id: null,
+      metadata: null,
+    });
+    const list = vi.fn(async () => ({
+      threads: [cloudThread("cloud-1"), cloudThread("cloud-2")],
+    }));
+    const create = vi.fn<AssistantCloud["threads"]["create"]>(async () => ({
+      thread_id: "cloud-created",
+    }));
+    const deleteThread = vi.fn(async () => {});
+    const cloud = {
+      threads: {
+        list,
+        create,
+        update: vi.fn(async () => {}),
+        delete: deleteThread,
+        get: vi.fn(async (id: string) => cloudThread(id)),
+        messages: { list: vi.fn(async () => ({ messages: [] })) },
+      },
+      runs: { stream: vi.fn() },
+    } as unknown as AssistantCloud;
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ cloud }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    try {
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).toEqual([
+          "cloud-1",
+          "cloud-2",
+        ]);
+      });
+
+      flushTapSync(() => aui.threads.switchToThread("cloud-1"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("cloud-1");
+      });
+
+      flushTapSync(() => aui.threads.switchToThread("cloud-2"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("cloud-2");
+      });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      const newThreadId = handle.getClient().threads.getState().mainThreadId;
+      await handle.getClient().threads.item("main").initialize();
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ external_id: undefined }),
+      );
+      await vi.waitFor(() => {
+        expect(
+          handle.getClient().threads.item({ id: newThreadId }).getState()
+            .remoteId,
+        ).toBe("cloud-created");
+      });
+
+      await handle.getClient().threads.item({ id: "cloud-1" }).delete();
+      expect(deleteThread).toHaveBeenCalledWith("cloud-1");
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("persists a settled cloud run to the departing thread after a switch", async () => {
+    const cloudThread = (id: string) => ({
+      id,
+      title: id,
+      is_archived: false,
+      last_message_at: null,
+      external_id: null,
+      metadata: null,
+    });
+    const create = vi.fn<AssistantCloud["threads"]["messages"]["create"]>(
+      async () => ({ message_id: "remote-message-1" }),
+    );
+    const cloud = {
+      threads: {
+        list: vi.fn(async () => ({
+          threads: [cloudThread("t1"), cloudThread("t2")],
+        })),
+        create: vi.fn(async () => ({ thread_id: "should-not-create" })),
+        update: vi.fn(),
+        delete: vi.fn(),
+        get: vi.fn(async (id: string) => cloudThread(id)),
+        messages: {
+          list: vi.fn(async () => ({ messages: [] })),
+          create,
+          update: vi.fn(),
+        },
+      },
+      runs: { stream: vi.fn(), report: vi.fn() },
+      telemetry: { enabled: false },
+    } as unknown as AssistantCloud;
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          cloud,
+          threadId: "t1",
+          transport,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    try {
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+
+      flushTapSync(() => handle.getClient().composer.setText("hello"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+
+      const switched = new Promise<void>((resolve) => {
+        const unsubscribe = handle.subscribe(() => {
+          const thread = handle.getClient().thread.getState();
+          if (thread.isRunning || thread.messages.length < 2) return;
+          unsubscribe();
+          flushTapSync(() => handle.getClient().threads.switchToThread("t2"));
+          resolve();
+        });
+      });
+      emit(...textReply("answer"));
+      close();
+      await switched;
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
+      });
+      await vi.waitFor(() => {
+        expect(create).toHaveBeenCalled();
+      });
+      const threadIds = create.mock.calls.map((call) => call[0]);
+      expect(threadIds).toContain("t1");
+      expect(threadIds).not.toContain("t2");
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("persists a new cloud draft to the departing thread after a switch", async () => {
+    const cloudThread = (id: string) => ({
+      id,
+      title: id,
+      is_archived: false,
+      last_message_at: null,
+      external_id: null,
+      metadata: null,
+    });
+    const createMessage = vi.fn<
+      AssistantCloud["threads"]["messages"]["create"]
+    >(async () => ({ message_id: "remote-message-1" }));
+    const cloud = {
+      threads: {
+        list: vi.fn(async () => ({ threads: [cloudThread("t1")] })),
+        create: vi.fn(async () => ({ thread_id: "cloud-created" })),
+        update: vi.fn(),
+        delete: vi.fn(),
+        get: vi.fn(async (id: string) => cloudThread(id)),
+        messages: {
+          list: vi.fn(async () => ({ messages: [] })),
+          create: createMessage,
+          update: vi.fn(),
+        },
+      },
+      runs: { stream: vi.fn(), report: vi.fn() },
+      telemetry: { enabled: false },
+    } as unknown as AssistantCloud;
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          cloud,
+          transport,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+
+      flushTapSync(() => handle.getClient().composer.setText("hello"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+
+      const switched = new Promise<void>((resolve) => {
+        const unsubscribe = handle.subscribe(() => {
+          const thread = handle.getClient().thread.getState();
+          if (thread.isRunning || thread.messages.length < 2) return;
+          unsubscribe();
+          flushTapSync(() => handle.getClient().threads.switchToThread("t1"));
+          resolve();
+        });
+      });
+      emit(...textReply("answer"));
+      close();
+      await switched;
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      await vi.waitFor(() => {
+        expect(createMessage).toHaveBeenCalled();
+      });
+      const threadIds = createMessage.mock.calls.map((call) => call[0]);
+      expect(threadIds).toContain("cloud-created");
+      expect(threadIds).not.toContain("t1");
+    } finally {
+      handle.destroy();
+    }
+  });
+});
+
+describe("AISDKThreads branch isolation", () => {
+  const completeRound = async (
+    handle: ReturnType<typeof createAssistantClient>,
+    emit: (...chunks: never[]) => void,
+    close: () => void,
+    question: string,
+    answer: string,
+  ) => {
+    const aui = handle.getClient();
+    flushTapSync(() => aui.composer.setText(question));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().messages.length).toBeGreaterThan(0);
+    });
+    emit(...(textReply(answer) as never[]));
+    close();
+    await vi.waitFor(() => {
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+    });
+  };
+
+  it("keeps switching between populated threads free of cross-thread branches", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    await completeRound(
+      handle,
+      emit as never,
+      close,
+      "thread a question",
+      "thread a answer",
+    );
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    await completeRound(
+      handle,
+      emit as never,
+      close,
+      "thread b question",
+      "thread b answer",
+    );
+
+    flushTapSync(() => aui.threads.switchToThread("main"));
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "thread a question",
+        "thread a answer",
+      ]);
+    });
+    expect(aui.thread.message({ index: 0 }).getState().branchCount).toBe(1);
+    expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(1);
+
+    handle.destroy();
+  });
+
+  it("preserves intra-thread branches across a switch through an empty thread", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    await completeRound(
+      handle,
+      emit as never,
+      close,
+      "branchy question",
+      "first answer",
+    );
+
+    flushTapSync(() => aui.thread.message({ index: 1 }).reload());
+    await vi.waitFor(() => {
+      expect(handle.getClient().thread.getState().isRunning).toBe(true);
+    });
+    emit(...(textReply("second answer") as never[]));
+    close();
+    await vi.waitFor(() => {
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+      expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(2);
+    });
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    expect(handle.getClient().thread.getState().messages).toHaveLength(0);
+
+    flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "branchy question",
+        "second answer",
+      ]);
+    });
+    expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(2);
+
+    handle.destroy();
+  });
+});

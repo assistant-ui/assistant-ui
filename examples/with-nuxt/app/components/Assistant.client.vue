@@ -1,15 +1,24 @@
 <script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
-import { RuntimeAdapter, Suggestions } from "@assistant-ui/core/store";
-import { createChatRuntime } from "~/utils/runtime";
+import { Suggestions } from "@assistant-ui/core/store";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
+import { MenuIcon } from "@lucide/vue";
+import { nextTick, ref } from "vue";
+
+const threadsOpen = ref(false);
+const threadsTrigger = ref<HTMLButtonElement | null>(null);
+const closeThreads = () => {
+  threadsOpen.value = false;
+  void nextTick(() => threadsTrigger.value?.focus());
+};
 
 const config = AuiConfig({
-  threads: RuntimeAdapter(createChatRuntime()),
+  threads: AISDKThreads(),
   suggestions: Suggestions([
     {
-      title: "Plan a weekend trip",
-      label: "three stops, one day each",
-      prompt: "Plan a weekend trip with three stops, one day each.",
+      title: "Check the weather",
+      label: "tool UI demo",
+      prompt: "What is the weather in San Francisco right now?",
     },
     {
       title: "Explain streaming",
@@ -27,6 +36,23 @@ const config = AuiConfig({
 
 <template>
   <AuiProvider :config="config">
-    <Thread />
+    <RegisterToolUIs>
+      <div class="bg-background relative flex h-full">
+        <ThreadListSidebar :open="threadsOpen" @close="closeThreads" />
+        <button
+          ref="threadsTrigger"
+          type="button"
+          :inert="threadsOpen"
+          class="border-border/60 bg-background hover:bg-muted absolute top-3 left-3 z-10 flex size-9 items-center justify-center rounded-xl border md:hidden"
+          aria-label="Open conversations"
+          aria-controls="thread-list-sidebar"
+          :aria-expanded="threadsOpen"
+          @click="threadsOpen = true"
+        >
+          <MenuIcon class="size-4" />
+        </button>
+        <Thread class="min-w-0 flex-1 flex-col" :inert="threadsOpen" />
+      </div>
+    </RegisterToolUIs>
   </AuiProvider>
 </template>

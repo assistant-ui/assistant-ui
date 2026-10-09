@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   MessagePartState,
@@ -68,7 +69,7 @@ const driveAndCount = (minCommitMs: number) => {
     .spyOn(globalThis, "cancelAnimationFrame")
     .mockImplementation(() => {});
   let now = 1000;
-  const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+  const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
 
   const state = runningState("0123456789");
   const { result, unmount } = renderHook(() =>
@@ -103,6 +104,16 @@ describe("useSmooth", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, "matchMedia");
+  });
+
+  it("does not read the wall clock during server render", () => {
+    const nowSpy = vi.spyOn(Date, "now");
+    const Probe = () => (
+      <span>{useSmooth(runningState("streaming"), true).text}</span>
+    );
+
+    expect(renderToString(<Probe />)).toBe("<span></span>");
+    expect(nowSpy).not.toHaveBeenCalled();
   });
 
   it("returns the input state unchanged when disabled", () => {
@@ -189,8 +200,8 @@ describe("useSmooth", () => {
       return raf.length;
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    let now = 1_000_000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;
@@ -221,5 +232,115 @@ describe("useSmooth", () => {
     rerender(runningState("zzzzzzzzzz"));
     frame();
     expect(result.current.text).toBe("z");
+  });
+
+  it("drains completed text when a queued frame never runs", () => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+
+    const { result, rerender } = renderHook((state) => useSmooth(state, true), {
+      initialProps: runningState(""),
+    });
+
+    rerender(runningState("hello"));
+    rerender(textState("hello"));
+
+    expect(result.current.text).toBe("hello");
+    expect(result.current.status.type).toBe("complete");
+  });
+
+  it("keeps draining after the source settles when frames are flowing", () => {
+    const raf: FrameRequestCallback[] = [];
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      raf.push(cb);
+      return raf.length;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+
+    const frame = () => {
+      if (raf.length === 0) return;
+      const cb = raf.shift()!;
+      now += 16;
+      act(() => {
+        cb(now);
+      });
+    };
+
+    const { result, rerender } = renderHook(
+      (state) =>
+        useSmooth(state, {
+          maxCharsPerFrame: 1,
+          maxCharIntervalMs: 1,
+          drainMs: 250,
+        }),
+      { initialProps: runningState("hello") },
+    );
+
+    frame();
+    const mid = result.current.text;
+    expect(mid.length).toBeGreaterThan(0);
+    expect(mid.length).toBeLessThan("hello".length);
+    expect(result.current.status.type).toBe("running");
+
+    rerender(textState("hello"));
+    expect(result.current.text).toBe(mid);
+    expect(result.current.status.type).toBe("running");
+
+    frame();
+    expect(result.current.text.length).toBeGreaterThan(mid.length);
+
+    let guard = 0;
+    while (result.current.text !== "hello" && guard < 20) {
+      guard++;
+      frame();
+    }
+    expect(result.current.text).toBe("hello");
+    expect(result.current.status.type).toBe("complete");
+  });
+
+  it("snaps when a settled part replaces the text instead of looping the animator", () => {
+    const raf: FrameRequestCallback[] = [];
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      raf.push(cb);
+      return raf.length;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+
+    const frame = () => {
+      if (raf.length === 0) return;
+      const cb = raf.shift()!;
+      now += 16;
+      act(() => {
+        cb(now);
+      });
+    };
+
+    const { result, rerender } = renderHook(
+      (state) =>
+        useSmooth(state, {
+          maxCharsPerFrame: 1,
+          maxCharIntervalMs: 1,
+          drainMs: 250,
+        }),
+      { initialProps: runningState("hello world") },
+    );
+
+    frame();
+    expect(result.current.text.length).toBeGreaterThan(0);
+    const queued = raf.length;
+
+    rerender(textState("hi"));
+    expect(result.current.text).toBe("hi");
+    expect(result.current.status.type).toBe("complete");
+    expect(raf.length).toBeLessThanOrEqual(queued);
+
+    const after = raf.length;
+    frame();
+    expect(result.current.text).toBe("hi");
+    expect(raf.length).toBeLessThanOrEqual(after);
   });
 });

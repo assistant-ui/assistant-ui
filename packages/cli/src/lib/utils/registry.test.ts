@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  detectRegistryPlatform,
   getComponentsJsonStyle,
   resolveQuickStartRegistryUrl,
   resolveRegistryItemUrl,
@@ -61,6 +62,49 @@ describe("getComponentsJsonStyle", () => {
   });
 });
 
+describe("detectRegistryPlatform", () => {
+  let cwd: string;
+
+  beforeEach(() => {
+    cwd = fs.mkdtempSync(path.join(os.tmpdir(), "assistant-ui-cli-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it("detects react-native in dependencies", () => {
+    fs.writeFileSync(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ dependencies: { "react-native": "0.86.3" } }),
+    );
+
+    expect(detectRegistryPlatform(cwd)).toBe("native");
+  });
+
+  it("detects react-native in devDependencies", () => {
+    fs.writeFileSync(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ devDependencies: { "react-native": "0.86.3" } }),
+    );
+
+    expect(detectRegistryPlatform(cwd)).toBe("native");
+  });
+
+  it("uses web without react-native", () => {
+    fs.writeFileSync(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ dependencies: { react: "19.2.3" } }),
+    );
+
+    expect(detectRegistryPlatform(cwd)).toBe("web");
+  });
+
+  it("uses web when package.json is missing", () => {
+    expect(detectRegistryPlatform(cwd)).toBe("web");
+  });
+});
+
 describe("resolveQuickStartRegistryUrl", () => {
   it("uses the base quick start for base styles", () => {
     expect(resolveQuickStartRegistryUrl("base-nova")).toBe(
@@ -100,15 +144,21 @@ describe("resolveRegistryItemUrl", () => {
     );
   });
 
-  it("uses the base URL for an explicit undefined style", () => {
-    expect(resolveRegistryItemUrl("thread", undefined)).toBe(
-      "https://r.assistant-ui.com/base/thread.json",
-    );
-  });
-
   it("keeps the style inside a single path segment", () => {
     expect(resolveRegistryItemUrl("thread", "base-nova?preview=1")).toBe(
       "https://r.assistant-ui.com/styles/base-nova%3Fpreview%3D1/thread.json",
+    );
+  });
+
+  it("uses the native URL regardless of style", () => {
+    expect(resolveRegistryItemUrl("thread", "base-nova", "native")).toBe(
+      "https://r.assistant-ui.com/native/thread.json",
+    );
+  });
+
+  it("keeps shared items at the root URL on native", () => {
+    expect(resolveRegistryItemUrl("utils", undefined, "native")).toBe(
+      "https://r.assistant-ui.com/utils.json",
     );
   });
 });

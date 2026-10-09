@@ -18,6 +18,7 @@ import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { SuggestionsMethods } from "./suggestions";
+import type { TaskMethods, TaskState } from "./task";
 
 export type ThreadState = {
   /**
@@ -29,9 +30,21 @@ export type ThreadState = {
    */
   readonly isDisabled: boolean;
   /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
+  /**
    * Whether the thread is loading its history.
    */
   readonly isLoading: boolean;
+  /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
   /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
@@ -44,6 +57,10 @@ export type ThreadState = {
    * The messages in the currently selected branch of the thread.
    */
   readonly messages: readonly MessageState[];
+  /**
+   * Child work derived from the thread's tool calls: every tool call that carries a nested conversation, in document order with nested tasks after their parent. The array keeps its identity while no task changed.
+   */
+  readonly tasks: readonly TaskState[];
   /**
    * The thread state.
    * @deprecated This feature is experimental
@@ -77,6 +94,10 @@ export type ThreadMethods = {
    */
   suggestions(): SuggestionsMethods;
   /**
+   * Access a task by index or toolCallId; an id resolves the first task with that toolCallId in document order.
+   */
+  task(selector: { index: number } | { id: string }): TaskMethods;
+  /**
    * Append a new message to the thread.
    *
    * @example ```ts
@@ -105,6 +126,12 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Load the page before the first loaded message. Resolves at once when
+   * `hasEarlier` is false; concurrent calls share one load, and a failed load
+   * is logged rather than rejected.
+   */
+  loadEarlier(): Promise<void>;
   /**
    * Re-fetch this thread's state from its backing store, in place: the tap
    * thread's refetch hook, which `threads.reloadMainThread()` prefers and
@@ -144,20 +171,38 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  "thread.historyWriteError": {
+    threadId: string;
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+  };
+  "thread.toolApprovalAnswered": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
-   * @deprecated State-derivable. Observe `isRunning` flipping to `true` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * A run started on this thread. Also observable as `isRunning` flipping to
+   * `true` in thread state.
    */
   "thread.runStart": { threadId: string };
   /**
-   * @deprecated State-derivable. Observe `isRunning` flipping to `false` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * A run on this thread ended, whether it completed, errored, or was
+   * cancelled. Also observable as `isRunning` flipping to `false` in thread
+   * state.
    */
   "thread.runEnd": { threadId: string };
+  /** The user stopped the run in progress on this thread. */
+  "thread.cancelRun": { threadId: string };
+  /** The user started a voice session on this thread. */
+  "thread.voiceStarted": { threadId: string };
   /**
-   * @deprecated State-derivable. This event fires before the first message is
-   * added; observe `messages` becoming non-empty via `useAuiState` instead of
-   * reading state inside this event handler. Kept for backward compatibility.
+   * The thread transitioned from new to initialized. Fires before the first
+   * message is added, so read thread state via `useAuiState` rather than
+   * inside this event handler.
    */
   "thread.initialize": { threadId: string };
   /**

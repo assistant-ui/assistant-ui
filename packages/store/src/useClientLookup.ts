@@ -29,7 +29,7 @@ export function useClientLookup<TMethods extends ClientMethods>(
         acc[getElementKey(element)] = index;
         return acc;
       },
-      {} as Record<string, number>,
+      Object.create(null) as Record<string, number>,
     );
   }, [elements]);
 

@@ -1,74 +1,14 @@
 "use client";
 
-import type { LangChainMessage } from "./types";
 import type { MessageTiming } from "@assistant-ui/core";
-import {
-  useStreamingTiming,
-  type StreamingTimingAccessors,
-} from "@assistant-ui/core/react";
+import { useStreamingTiming } from "@assistant-ui/core/react";
+import { createLangChainStreamingTimingAccessors } from "@assistant-ui/react-langchain/converter";
+import type { LangChainMessage } from "./types";
 
-const reasoningTextLength = (part: {
-  readonly summary?: ReadonlyArray<{ readonly text?: string }>;
-  readonly reasoning?: string;
-}): number => {
-  if (part.summary && part.summary.length > 0)
-    return part.summary.map((s) => s?.text ?? "").join("\n\n\n").length;
-  return part.reasoning?.length ?? 0;
-};
-
-const getMessageTextLength = (
-  messages: readonly LangChainMessage[],
-  messageId: string,
-): number => {
-  const m = messages.find((msg) => msg.type === "ai" && msg.id === messageId);
-  if (!m) return 0;
-  const content = m.content;
-  if (typeof content === "string") return content.length;
-  if (!Array.isArray(content)) return 0;
-  let len = 0;
-  for (const part of content) {
-    switch (part.type) {
-      case "text":
-      case "text_delta":
-        if (typeof part.text === "string") len += part.text.length;
-        break;
-      case "thinking":
-        if (typeof part.thinking === "string") len += part.thinking.length;
-        break;
-      case "reasoning":
-        len += reasoningTextLength(part);
-        break;
-    }
-  }
-  return len;
-};
-
-const getMessageToolCallCount = (
-  messages: readonly LangChainMessage[],
-  messageId: string,
-): number => {
-  const m = messages.find((msg) => msg.type === "ai" && msg.id === messageId);
-  if (!m || m.type !== "ai") return 0;
-  return m.tool_calls?.length ?? 0;
-};
-
-const getLastAssistantId = (
-  messages: readonly LangChainMessage[],
-): string | undefined => {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]?.type === "ai" && messages[i]?.id) {
-      return messages[i]!.id;
-    }
-  }
-  return undefined;
-};
-
-const langGraphStreamingTimingAccessors: StreamingTimingAccessors<LangChainMessage> =
-  {
-    getAssistantMessageId: getLastAssistantId,
-    getTextLength: getMessageTextLength,
-    getToolCallCount: getMessageToolCallCount,
-  };
+const langGraphStreamingTimingAccessors =
+  createLangChainStreamingTimingAccessors<LangChainMessage>(
+    (message) => message.type,
+  );
 
 /**
  * Tracks per-message streaming timing for LangGraph messages. Delegates to

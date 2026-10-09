@@ -1,5 +1,8 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { contentToParts } from "./contentToParts";
+import { parseAdkEventValue } from "./parseAdkEvent";
+import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
   AdkEvent,
@@ -38,6 +41,12 @@ export type CreateAdkStreamOptions = {
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>)
     | undefined;
+
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 };
 
 /**
@@ -74,7 +83,7 @@ export function createAdkStream(
   }
 
   return async function* (messages, config) {
-    const headers = await resolveHeaders(options.headers);
+    const headers = await resolveHeaders(options.headers, config.abortSignal);
 
     let url: string;
     let body: unknown;
@@ -94,7 +103,8 @@ export function createAdkStream(
     } else {
       // Proxy mode: POST in parseAdkRequest-compatible format
       url = options.api;
-      body = messagesToProxyBody(messages, config);
+      const { remoteId, externalId } = await config.initialize();
+      body = messagesToProxyBody(messages, config, externalId ?? remoteId);
     }
 
     const response = await fetch(url, {
@@ -111,7 +121,7 @@ export function createAdkStream(
     }
 
     validateEventStreamContentType(response);
-    yield* parseSSEResponse(response);
+    yield* parseSSEResponse(response, options);
   };
 }
 
@@ -131,14 +141,28 @@ function validateEventStreamContentType(response: Response): void {
   }
 }
 
+function parseAdkEvent(data: string): AdkEvent {
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    throw new Error("Invalid ADK stream event: expected valid JSON.");
+  }
+
+  return parseAdkEventValue(value, "Invalid ADK stream event");
+}
+
 async function resolveHeaders(
   headers:
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>)
     | undefined,
+  signal?: AbortSignal,
 ): Promise<Record<string, string>> {
   if (!headers) return {};
-  if (typeof headers === "function") return await headers();
+  if (typeof headers === "function") {
+    return await raceWithAbortSignal(signal, headers);
+  }
   return headers;
 }
 
@@ -168,7 +192,7 @@ function messagesToContent(messages: AdkMessage[]): {
         functionResponse: {
           name: msg.name,
           id: msg.tool_call_id,
-          response,
+          response: toAdkFunctionResponse(response, msg.status === "error"),
         },
       });
     }
@@ -192,8 +216,9 @@ function messagesToProxyBody(
     checkpointId?: string | undefined;
     stateDelta?: Record<string, unknown> | undefined;
   },
+  sessionId: string,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
+  const body: Record<string, unknown> = { sessionId };
 
   if (config.runConfig != null) body.runConfig = config.runConfig;
   if (config.checkpointId != null) body.checkpointId = config.checkpointId;
@@ -238,13 +263,26 @@ function messagesToProxyBody(
   return body;
 }
 
-async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
-  const reader = response.body!.getReader();
+async function* parseSSEResponse(
+  response: Response,
+  options: Pick<
+    CreateAdkStreamOptions,
+    "maxStreamLineLength" | "maxStreamEventLength"
+  >,
+): AsyncGenerator<AdkEvent> {
+  if (!response.body) {
+    throw new Error("Expected ADK stream response body, received no body");
+  }
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 
   let shouldCancel = true;
   try {
+    const sseDecoder = new SSEEventDecoder({
+      trailing: "dispatch",
+      maxLineLength: options.maxStreamLineLength,
+      maxEventLength: options.maxStreamEventLength,
+    });
     while (true) {
       let result: ReadableStreamReadResult<Uint8Array>;
       try {
@@ -258,7 +296,7 @@ async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
       if (done) {
         shouldCancel = false;
         for (const event of sseDecoder.push(decoder.decode())) {
-          yield JSON.parse(event.data) as AdkEvent;
+          yield parseAdkEvent(event.data);
         }
         break;
       }
@@ -266,12 +304,12 @@ async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
       for (const event of sseDecoder.push(
         decoder.decode(value, { stream: true }),
       )) {
-        yield JSON.parse(event.data) as AdkEvent;
+        yield parseAdkEvent(event.data);
       }
     }
 
     const trailing = sseDecoder.flush();
-    if (trailing !== null) yield JSON.parse(trailing.data) as AdkEvent;
+    if (trailing !== null) yield parseAdkEvent(trailing.data);
   } finally {
     try {
       if (shouldCancel) await reader.cancel().catch(() => undefined);

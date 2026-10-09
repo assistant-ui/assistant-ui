@@ -6,6 +6,7 @@ import {
   watch,
   type PropType,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import {
   createAssistantClient,
@@ -13,7 +14,7 @@ import {
   type AuiConfig,
 } from "@assistant-ui/store/client";
 import { auiInjectionKey, createClientFacade } from "./context";
-import { isDevelopment } from "./isDevelopment";
+import { isDevelopment } from "@assistant-ui/core/store/internal";
 
 /**
  * Creates an `AssistantClient` from the given config and provides it to the
@@ -42,7 +43,7 @@ export const AuiProvider = defineComponent({
       default: undefined,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const injected = inject(auiInjectionKey, null);
     const hasExtends = props.extends !== undefined;
@@ -70,7 +71,10 @@ export const AuiProvider = defineComponent({
       },
       parent ? { parent } : undefined,
     );
-    onScopeDispose(() => handle.destroy());
+    // The provider holds the lifetime subscription that keeps the client
+    // mounted while descendants come and go
+    const release = handle.subscribe(() => {});
+    onScopeDispose(release);
 
     const source = {
       getClient: handle.getClient,

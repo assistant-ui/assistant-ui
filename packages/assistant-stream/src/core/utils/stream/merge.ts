@@ -1,9 +1,20 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
+export type MergeStreamFinishOrder = {
+  previous: () => Promise<void>;
+  delivered: ReturnType<typeof promiseWithResolvers<void>>;
+};
+
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
+  pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
+  orderedFinish?: MergeStreamFinishOrder | undefined;
+};
+
+type MergeStreamOptions = {
+  orderedFinish?: MergeStreamFinishOrder | undefined;
 };
 
 export const createMergeStream = () => {
@@ -12,13 +23,42 @@ export const createMergeStream = () => {
   let cancelled = false;
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+  let rawChunkBatch: AssistantStreamChunk[] | undefined;
+  let pendingRawBatches = 0;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
+  let cleanupPromise: Promise<void> | undefined;
 
   const cancelAllReaders = () => {
-    list.forEach((item) => {
-      void item.reader.cancel().catch(() => undefined);
-    });
-    list.length = 0;
+    // Repeated cancellation must wait for cleanup already in progress.
+    rawChunkBatch = undefined;
+    if (!cleanupPromise) {
+      const items = list.splice(0);
+      for (const item of items) item.orderedFinish?.delivered.resolve();
+      cleanupPromise = Promise.all(
+        items.map(async (item) => {
+          try {
+            await item.reader.cancel().catch(() => undefined);
+            await item.pipeTask;
+          } finally {
+            item.reader.releaseLock();
+          }
+        }),
+      ).then(() => undefined);
+    }
+    return cleanupPromise;
+  };
+
+  const handleError = (e: unknown) => {
+    if (cancelled || errored) return;
+
+    errored = true;
+    console.error(e);
+    void cancelAllReaders();
+
+    controller.error(e);
+
+    currentPull?.reject(e);
+    currentPull = undefined;
   };
 
   const handlePull = (item: MergeStreamItem) => {
@@ -30,33 +70,34 @@ export const createMergeStream = () => {
       // idea: avoid reader.read() by instead using a WritableStream & if (!hasPendingPull) await waitForPull()?
       item.promise = item.reader
         .read()
-        .then(({ done, value }) => {
-          item.promise = undefined;
+        .then(async ({ done, value }) => {
           if (cancelled || errored) return;
 
           if (done) {
+            item.orderedFinish?.delivered.resolve();
             list.splice(list.indexOf(item), 1);
-            if (sealed && list.length === 0) {
+            item.reader.releaseLock();
+            if (sealed && list.length === 0 && pendingRawBatches === 0) {
               controller.close();
             }
           } else {
+            if (value.type === "part-finish" && item.orderedFinish) {
+              await item.orderedFinish.previous();
+              if (cancelled || errored) return;
+            }
             controller.enqueue(value);
+            if (value.type === "part-finish") {
+              item.orderedFinish?.delivered.resolve();
+            }
           }
 
+          item.promise = undefined;
           currentPull?.resolve();
           currentPull = undefined;
         })
-        .catch((e) => {
-          if (cancelled || errored) return;
-
-          errored = true;
-          console.error(e);
-          cancelAllReaders();
-
-          controller.error(e);
-
-          currentPull?.reject(e);
-          currentPull = undefined;
+        .catch((error) => {
+          item.promise = undefined;
+          handleError(error);
         });
     }
   };
@@ -73,13 +114,72 @@ export const createMergeStream = () => {
 
       return currentPull.promise;
     },
-    cancel() {
+    async cancel() {
       cancelled = true;
-      cancelAllReaders();
+      const cleanup = cancelAllReaders();
       currentPull?.resolve();
       currentPull = undefined;
+      await cleanup;
     },
   });
+
+  const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+    // Active child reads split raw batches to preserve microtask ordering.
+    if (list.length > 0) rawChunkBatch = undefined;
+
+    if (!rawChunkBatch) {
+      const batch: AssistantStreamChunk[] = [];
+      rawChunkBatch = batch;
+      pendingRawBatches++;
+
+      // Match the readiness ordering of the one-chunk streams this replaces.
+      void Promise.resolve()
+        .then(() => {
+          pendingRawBatches--;
+          if (rawChunkBatch === batch) rawChunkBatch = undefined;
+          if (cancelled || errored) return;
+
+          for (const rawChunk of batch) controller.enqueue(rawChunk);
+          if (sealed && list.length === 0 && pendingRawBatches === 0) {
+            controller.close();
+          }
+
+          currentPull?.resolve();
+          currentPull = undefined;
+        })
+        .catch(handleError);
+    }
+
+    rawChunkBatch.push(chunk);
+  };
+
+  const addStream = (
+    stream: ReadableStream<AssistantStreamChunk>,
+    pipeTask?: Promise<unknown>,
+    options?: MergeStreamOptions,
+  ) => {
+    const handledPipeTask = pipeTask?.catch(() => undefined);
+    if (cancelled || errored) {
+      void stream.cancel().catch(() => undefined);
+      return;
+    }
+
+    if (sealed) {
+      void stream.cancel().catch(() => undefined);
+      throw new Error("Cannot add streams after the run callback has settled.");
+    }
+
+    // A ready child must stay ahead of raw chunks enqueued after it.
+    rawChunkBatch = undefined;
+    const orderedFinish = options?.orderedFinish;
+    const item = {
+      reader: stream.getReader(),
+      pipeTask: handledPipeTask,
+      orderedFinish,
+    };
+    list.push(item);
+    handlePull(item);
+  };
 
   return {
     readable,
@@ -93,34 +193,20 @@ export const createMergeStream = () => {
       return errored;
     },
     seal() {
-      if (cancelled || errored) return;
+      if (sealed || cancelled || errored) return;
       sealed = true;
-      if (list.length === 0) controller.close();
+      if (list.length === 0 && pendingRawBatches === 0) controller.close();
     },
-    addStream(stream: ReadableStream<AssistantStreamChunk>) {
-      if (cancelled || errored) {
-        void stream.cancel().catch(() => undefined);
-        return;
-      }
-
-      if (sealed)
+    addStream,
+    enqueue(chunk: AssistantStreamChunk) {
+      if (cancelled || errored) return;
+      if (sealed) {
         throw new Error(
           "Cannot add streams after the run callback has settled.",
         );
+      }
 
-      const item = { reader: stream.getReader() };
-      list.push(item);
-      handlePull(item);
-    },
-    enqueue(chunk: AssistantStreamChunk) {
-      this.addStream(
-        new ReadableStream({
-          start(c) {
-            c.enqueue(chunk);
-            c.close();
-          },
-        }),
-      );
+      enqueueRawChunk(chunk);
     },
   };
 };

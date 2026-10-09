@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import {
   useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createMessageQueue } from "@assistant-ui/core";
 import type {
   MessageQueueController,
@@ -62,6 +64,8 @@ export function useAgUiRuntime(
   const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
+  const threadSwitchGenerationRef = useRef(0);
+  const switchingGenerationRef = useRef<number | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -72,23 +76,28 @@ export function useAgUiRuntime(
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
+      resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
       ...(historyAdapter && { history: historyAdapter }),
       notifyUpdate,
+      isThreadSwitching: () => switchingGenerationRef.current !== null,
     });
   }
 
   const core = coreRef.current;
-  core.updateOptions({
-    agent: options.agent,
-    logger,
-    showThinking: options.showThinking ?? true,
-    autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
-    ...(options.onError && { onError: options.onError }),
-    ...(options.onCancel && { onCancel: options.onCancel }),
-    ...(historyAdapter && { history: historyAdapter }),
+  useEffect(() => {
+    core.updateOptions({
+      agent: options.agent,
+      logger,
+      showThinking: options.showThinking ?? true,
+      resumeTranscript: options.resumeTranscript,
+      autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
+      ...(options.onError && { onError: options.onError }),
+      ...(options.onCancel && { onCancel: options.onCancel }),
+      ...(historyAdapter && { history: historyAdapter }),
+    });
   });
 
   const [toolStatuses, setToolStatuses] = useState<
@@ -107,10 +116,20 @@ export function useAgUiRuntime(
   // A dispatch whose count never moves was never observed as busy, so no
   // falling edge is coming to release the queue.
   const busyEdgesRef = useRef(0);
+  const lastQueueEdgeRef = useRef<{
+    controller: MessageQueueController;
+    busy: boolean;
+  } | null>(null);
   if (options.unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
         const controller = queueRef.current;
+        // A send dispatched mid-switch is dropped, and the queue released, or
+        // it would wait for an idle edge that never comes.
+        if (switchingGenerationRef.current !== null) {
+          controller?.notifyIdle();
+          return;
+        }
         const edgesAtDispatch = busyEdgesRef.current;
         // The queue drops the item before dispatching and stays busy until an
         // idle edge. An append observed as busy is released by that falling
@@ -134,13 +153,16 @@ export function useAgUiRuntime(
         });
       },
     });
-  } else if (!options.unstable_enableMessageQueue && queueRef.current) {
-    queueRef.current.clear();
-    queueRef.current = null;
   }
   const queueController = options.unstable_enableMessageQueue
     ? queueRef.current
     : null;
+  useLayoutEffect(() => {
+    if (options.unstable_enableMessageQueue || !queueRef.current) return;
+    const controller = queueRef.current;
+    queueRef.current = null;
+    controller.clear();
+  }, [options.unstable_enableMessageQueue]);
 
   // Feeds the store memo below: the runtime core skips an adapter whose
   // identity is unchanged, so queue items have to move the store reference or
@@ -162,11 +184,26 @@ export function useAgUiRuntime(
   // refusal would lose the message instead of keeping it visible.
   const queueBusy = isRunning || core.getPendingInterrupts() !== null;
   useEffect(() => {
+    if (options.isSendDisabled === true) {
+      queueController?.hold();
+    } else {
+      queueController?.release();
+    }
+  }, [options.isSendDisabled, queueController]);
+
+  useEffect(() => {
+    if (!queueController) return;
+    if (
+      lastQueueEdgeRef.current?.controller === queueController &&
+      lastQueueEdgeRef.current.busy === queueBusy
+    )
+      return;
+    lastQueueEdgeRef.current = { controller: queueController, busy: queueBusy };
     if (queueBusy) {
       busyEdgesRef.current++;
-      queueController?.notifyBusy();
+      queueController.notifyBusy();
     } else {
-      queueController?.notifyIdle();
+      queueController.notifyIdle();
     }
   }, [queueBusy, queueController]);
 
@@ -176,34 +213,82 @@ export function useAgUiRuntime(
     const { onSwitchToNewThread, onSwitchToThread, ...rest } =
       threadListAdapter;
 
+    const abandonPreviousThread = () => {
+      queueRef.current?.notifyCancelled();
+      if (core.isRunning()) {
+        void core.cancel().catch((error: unknown) => {
+          logger.error?.(
+            "[agui] cancelling the run on thread switch failed",
+            error,
+          );
+        });
+      }
+      queueRef.current?.clear();
+    };
+
+    const releaseSwitch = (generation: number) => {
+      if (switchingGenerationRef.current === generation) {
+        switchingGenerationRef.current = null;
+      }
+    };
+
     return {
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
-            await onSwitchToNewThread();
-            core.applyExternalMessages([]);
-            core.resetState();
+            const generation = ++threadSwitchGenerationRef.current;
+            switchingGenerationRef.current = generation;
+            try {
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              // Clear before the thread id flips, or the old messages leak
+              // into the new thread as a sibling branch.
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+              await onSwitchToNewThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+            } finally {
+              releaseSwitch(generation);
+            }
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
-            // Clear before the thread id flips, or the old messages leak
-            // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            const result = await onSwitchToThread(threadId);
-            core.applyExternalMessages(result.messages);
-            if (result.state !== undefined) {
-              core.loadExternalState(result.state);
-            } else {
-              core.resetState();
-            }
-            if (result.unstable_resume) {
-              void core.resumeInFlightRun(result.messages);
+            const generation = ++threadSwitchGenerationRef.current;
+            switchingGenerationRef.current = generation;
+            try {
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              // Clear before the thread id flips, or the old messages leak
+              // into the new thread as a sibling branch.
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+              const result = await onSwitchToThread(threadId);
+              if (generation !== threadSwitchGenerationRef.current) return;
+              abandonPreviousThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              core.applyExternalMessages([]);
+              core.resetThreadState();
+              core.applyExternalMessages(result.messages);
+              if (result.state !== undefined) {
+                core.loadExternalState(result.state);
+              }
+              if (generation !== threadSwitchGenerationRef.current) return;
+              releaseSwitch(generation);
+              if (result.unstable_resume) {
+                void core.resumeInFlightRun(result.messages);
+              }
+            } finally {
+              releaseSwitch(generation);
             }
           }
         : undefined,
     };
-  }, [threadListAdapter, core]);
+  }, [threadListAdapter, core, logger]);
 
   const adapters = options.adapters;
   const adapterAdapters = useMemo(
@@ -228,7 +313,7 @@ export function useAgUiRuntime(
         isLoading: core.isLoading,
         messageRepository: core.getMessageRepository(),
         state: core.getState(),
-        isRunning,
+        isRunning: core.isRunning(),
         extras: agUiExtras.provide({
           interrupts:
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
@@ -240,8 +325,13 @@ export function useAgUiRuntime(
           setState: (next) => core.setState(next),
         }),
         unstable_enableToolInvocations: true,
+        unstable_persistsHistory: true,
         setToolStatuses,
-        onNew: (message: AppendMessage) => core.append(message),
+        onNew: (message: AppendMessage) =>
+          switchingGenerationRef.current !== null
+            ? Promise.resolve()
+            : core.append(message),
+        onVoiceTranscript: (message) => core.appendVoiceTranscript(message),
         onEdit: (message: AppendMessage) => {
           queueController?.clear();
           return core.edit(message);
@@ -255,6 +345,13 @@ export function useAgUiRuntime(
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),
+        unstable_onRecordToolInteraction: (options) =>
+          core.recordToolInteraction(options),
+        onRespondToToolApproval: (options) =>
+          core.respondToToolApproval(options).catch((error: unknown) => {
+            core.reportError(error);
+            throw error;
+          }),
         onResume: (config) => core.resume(config),
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
@@ -282,16 +379,26 @@ export function useAgUiRuntime(
 
   const baseRuntime = useExternalStoreRuntime(store);
 
-  const runtime = useMemo<AgUiAssistantRuntime>(() => {
+  const createRuntime = (): AgUiAssistantRuntime => {
     const wrapper = Object.create(baseRuntime) as AgUiAssistantRuntime;
     wrapper.unstable_getPendingInterrupts = () =>
       core.getPendingInterrupts()?.interrupts ?? [];
     wrapper.unstable_submitInterruptResponses = (responses) =>
       core.submitInterruptResponses(responses);
     return wrapper;
-  }, [baseRuntime, core]);
+  };
+  const [pinnedRuntime, setPinnedRuntime] = useState(() => ({
+    baseRuntime,
+    runtime: createRuntime(),
+  }));
+  let currentRuntime = pinnedRuntime;
+  if (pinnedRuntime.baseRuntime !== baseRuntime) {
+    currentRuntime = { baseRuntime, runtime: createRuntime() };
+    setPinnedRuntime(currentRuntime);
+  }
+  const runtime = currentRuntime.runtime;
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     core.attachRuntime(runtime);
     return () => {
       core.detachRuntime();

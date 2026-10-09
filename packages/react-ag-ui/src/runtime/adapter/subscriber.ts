@@ -29,12 +29,19 @@ type Subscriber = {
   onToolCallChunkEvent?: (payload: { event: unknown }) => void;
   onToolCallResultEvent?: (payload: { event: unknown }) => void;
   onActivitySnapshotEvent?: (payload: { event: unknown }) => void;
+  onActivityDeltaEvent?: (payload: { event: unknown }) => void;
   onStateSnapshotEvent?: (payload: { event: unknown }) => void;
   onStateDeltaEvent?: (payload: { event: unknown }) => void;
   onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
   onCustomEvent?: (payload: { event: unknown }) => void;
   onRawEvent?: (payload: { event: unknown }) => void;
+  onSubagentStartedEvent?: (payload: { event: unknown }) => void;
+  onSubagentFinishedEvent?: (payload: { event: unknown }) => void;
+  onSubagentErrorEvent?: (payload: { event: unknown }) => void;
   onRunFinishedEvent?: (payload: { event: unknown }) => void;
+  onRunErrorEvent?: (payload: { event: unknown }) => void;
+  onStepStartedEvent?: (payload: { event: unknown }) => void;
+  onStepFinishedEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -96,7 +103,7 @@ export const createAgUiSubscriber = (
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.
         return;
       }
-      const parsed = parseAgUiEvent(event);
+      const parsed = parseAgUiEvent(event, logger ? { logger } : undefined);
       if (parsed) dispatch(parsed);
     },
     onTextMessageStartEvent: ({ event }) =>
@@ -138,6 +145,8 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "TOOL_CALL_RESULT"),
     onActivitySnapshotEvent: ({ event }) =>
       dispatchIfValid(event, "ACTIVITY_SNAPSHOT"),
+    onActivityDeltaEvent: ({ event }) =>
+      dispatchIfValid(event, "ACTIVITY_DELTA"),
     onStateSnapshotEvent: ({ event }) =>
       dispatchIfValid(event, "STATE_SNAPSHOT"),
     onStateDeltaEvent: ({ event }) => dispatchIfValid(event, "STATE_DELTA"),
@@ -145,17 +154,41 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "MESSAGES_SNAPSHOT"),
     onCustomEvent: ({ event }) => dispatchIfValid(event, "CUSTOM"),
     onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
+    onSubagentStartedEvent: ({ event }) =>
+      dispatchIfValid(event, "SUBAGENT_STARTED"),
+    onSubagentFinishedEvent: ({ event }) =>
+      dispatchIfValid(event, "SUBAGENT_FINISHED"),
+    onSubagentErrorEvent: ({ event }) =>
+      dispatchIfValid(event, "SUBAGENT_ERROR"),
     onRunFinishedEvent: ({ event }) => {
+      if (runFinishedDispatched) return;
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
       if (!parsed) return;
       runFinishedDispatched = true;
       dispatch(parsed);
     },
+    onRunErrorEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_ERROR", logger);
+      if (!parsed || parsed.type !== "RUN_ERROR") return;
+      runFinishedDispatched = true;
+      dispatch(parsed);
+
+      const error = Object.assign(
+        new Error(parsed.message ?? "Run failed"),
+        parsed.code === undefined ? {} : { code: parsed.code },
+      );
+      onRunFailed?.(error);
+    },
+    onStepStartedEvent: ({ event }) =>
+      logger?.debug?.("[agui] step boundary ignored", event),
+    onStepFinishedEvent: ({ event }) =>
+      logger?.debug?.("[agui] step boundary ignored", event),
     onRunFinalized: () => {
       if (runFinishedDispatched) return;
       dispatch({ type: "RUN_FINISHED", runId });
     },
     onRunFailed: ({ error }) => {
+      if (runFinishedDispatched) return;
       runFinishedDispatched = true;
       onRunFailed?.(error);
       if (isAbortError(error)) {

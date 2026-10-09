@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   streamText,
   convertToModelMessages,
@@ -9,6 +9,8 @@ import {
 } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { resumableContext } from "@/lib/resumable-context";
+
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const {
@@ -23,12 +25,11 @@ export async function POST(req: Request) {
 
   const streamId = crypto.randomUUID();
 
+  const aiSDKTools = { ...frontendTools(tools ?? {}) };
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      ...frontendTools(tools ?? {}),
-    },
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
     ...(system === undefined ? {} : { system }),
   });
 

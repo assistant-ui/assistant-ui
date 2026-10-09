@@ -44,9 +44,11 @@ const createAssistantMessage = (
   options?: {
     result?: ReadonlyJSONValue;
     isError?: boolean;
+    isPreliminary?: boolean;
     toolCallId?: string;
     toolName?: string;
     nestedMessages?: ThreadAssistantMessage[];
+    approval?: { id: string; approved?: boolean };
   },
 ): ThreadAssistantMessage => ({
   id: "m-1",
@@ -69,10 +71,24 @@ const createAssistantMessage = (
       argsText,
       ...(options?.result !== undefined && { result: options.result }),
       ...(options?.isError !== undefined && { isError: options.isError }),
+      ...(options?.isPreliminary !== undefined && {
+        isPreliminary: options.isPreliminary,
+      }),
       ...(options?.nestedMessages && { messages: options.nestedMessages }),
+      ...(options?.approval && { approval: options.approval }),
     },
   ],
 });
+
+/**
+ * The stream failure that sets this flag cannot be provoked through the public
+ * API: `unstable_toolResultStream` turns a throwing tool into an error result
+ * rather than an error chunk, so the transform never rejects. The recovery
+ * branch it guards is reachable on its own.
+ */
+const killPipeline = (tracker: ToolInvocationTracker) => {
+  (tracker as unknown as { _pipelineDead: boolean })._pipelineDead = true;
+};
 
 describe("ToolInvocationTracker", () => {
   it("does not crash and does not re-fire streamCall when tool argsText regresses mid-stream", async () => {
@@ -235,6 +251,259 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it("keeps a human-input interrupt that execute requests before its first await", async () => {
+    const execute = vi.fn(async (_args, { human }) => ({
+      approved: (await human({ request: "approve" })) === true,
+    }));
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const onStatusesChange = (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+      statuses = Object.fromEntries(s);
+    };
+
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange,
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+    });
+
+    expect(tracker.resume("tool-1", true)).toBe(true);
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolCallId: "tool-1",
+          result: { approved: true },
+        }),
+      );
+    });
+    expect(statuses).toEqual({});
+  });
+
+  describe("human-input requests from streamCall", () => {
+    const trackStreamCallHuman = () => {
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            streamCall: async (_reader, { human }) => {
+              await human({ request: "approve" }).catch(() => {});
+            },
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+            statuses = Object.fromEntries(s);
+          },
+        },
+      );
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      return { tracker, statuses: () => statuses };
+    };
+
+    it("clears the call's status once the request is resumed", async () => {
+      const { tracker, statuses } = trackStreamCallHuman();
+      await waitFor(() => {
+        expect(statuses()["tool-1"]?.type).toBe("interrupt");
+      });
+
+      expect(tracker.resume("tool-1", true)).toBe(true);
+
+      expect(statuses()).toEqual({});
+    });
+
+    it("clears the call's interrupt when the tracker aborts", async () => {
+      const { tracker, statuses } = trackStreamCallHuman();
+      await waitFor(() => {
+        expect(statuses()["tool-1"]?.type).toBe("interrupt");
+      });
+
+      await tracker.abort();
+
+      expect(statuses()).toEqual({});
+    });
+  });
+
+  it.each(["resume", "abort"] as const)(
+    "marks an execute still running after %s executing until it settles",
+    async (end) => {
+      let finish!: () => void;
+      const execute = vi.fn(async (_args, { human }) => {
+        await human({ request: "approve" }).catch(() => undefined);
+        await new Promise<void>((resolve) => (finish = resolve));
+        return { approved: true };
+      });
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+            statuses = Object.fromEntries(s);
+          },
+        },
+      );
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      if (end === "resume") tracker.resume("tool-1", true);
+      else void tracker.abort();
+      expect(statuses["tool-1"]?.type).toBe("executing");
+
+      await waitFor(() => expect(finish).toBeDefined());
+      finish();
+      await waitFor(() => expect(statuses).toEqual({}));
+    },
+  );
+
+  it.each(["resume", "abort"] as const)(
+    "marks a fresh execution as executing when an earlier one left a human-input request behind, and keeps it after %s() ends that request",
+    async (ending) => {
+      const execute = vi
+        .fn()
+        .mockImplementationOnce((_args, { human }) =>
+          human({ request: "approve" }),
+        )
+        .mockImplementationOnce(() => new Promise(() => {}));
+      const getTools = () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+        } satisfies Tool,
+      });
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult: vi.fn(),
+        onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+          statuses = Object.fromEntries(s);
+        },
+      });
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      killPipeline(tracker);
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"Paris"}', { query: "Paris" })],
+          false,
+        ),
+      );
+
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledTimes(2);
+        expect(statuses["tool-1"]?.type).toBe("executing");
+      });
+
+      if (ending === "resume") tracker.resume("tool-1", true);
+      else void tracker.abort();
+      expect(statuses["tool-1"]?.type).toBe("executing");
+    },
+  );
+
+  it.each(["resume", "abort", "reset"] as const)(
+    "clears the status when %s() ends a request no execution owns after a pipeline restart",
+    async (ending) => {
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn((_args, { human, abortSignal }) => {
+        signal = abortSignal;
+        return human({ request: "approve" });
+      });
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+            statuses = Object.fromEntries(s);
+          },
+        },
+      );
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      killPipeline(tracker);
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(signal).toBeDefined();
+      expect(signal!.aborted).toBe(false);
+
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+      if (ending === "resume")
+        expect(tracker.resume("tool-1", true)).toBe(true);
+      else if (ending === "reset") tracker.reset();
+      else await tracker.abort();
+      expect(statuses).toEqual({});
+      expect(signal!.aborted).toBe(ending !== "resume");
+      if (ending === "resume") {
+        await tracker.abort();
+        expect(signal!.aborted).toBe(true);
+      }
+    },
+  );
+
   it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes", async () => {
     // Same close-gating mismatch as the executable case, but for a tool with
     // no frontend execute. Closing on the divergent complete snapshot would
@@ -304,19 +573,21 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     // Single monotonic snapshot growing to a complete value triggers execute.
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"', { query: "London" })],
+        false,
+      ),
     );
 
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -370,6 +641,762 @@ describe("ToolInvocationTracker", () => {
     });
   });
 
+  it("never executes a tool call that carries a provider approval", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    const gated = (approval: { id: string; approved?: boolean }) =>
+      createAssistantMessage(
+        '{"path":"/tmp/a"}',
+        { path: "/tmp/a" },
+        { toolName: "deleteFile", approval },
+      );
+
+    tracker.setState(createState([gated({ id: "approval-1" })], false));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState([gated({ id: "approval-1", approved: true })], true),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("stops executing a live tool call once a provider approval lands", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp',
+            {},
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile", approval: { id: "approval-1" } },
+          ),
+        ],
+        true,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("drops the result of an in-flight execute once a provider approval lands", async () => {
+    let resolveExecute!: (value: { deleted: boolean }) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<{ deleted: boolean }>((r) => {
+          resolveExecute = r;
+        }),
+    );
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      () => true,
+    );
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+            },
+          ),
+        ],
+        true,
+      ),
+    );
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+              approval: { id: "approval-1" },
+            },
+          ),
+        ],
+        true,
+      ),
+    );
+    resolveExecute({ deleted: true });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("does not execute a registered tool while the provider's run is open", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(complete(false));
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
+  it("streams a streamCall tool's args while the run is open and executes it after", async () => {
+    const streamed: unknown[] = [];
+    const streamCall = vi.fn(
+      async (reader: {
+        args: { streamValues: () => AsyncIterable<unknown> };
+      }) => {
+        for await (const partial of reader.args.streamValues())
+          streamed.push(partial);
+      },
+    );
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        streamCall,
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"path":"/tmp/a"',
+          { path: "/tmp/a" },
+          {
+            toolName: "deleteFile",
+          },
+        ),
+      ]),
+    );
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"path":"/tmp/a"}',
+          { path: "/tmp/a" },
+          {
+            toolName: "deleteFile",
+          },
+        ),
+      ]),
+    );
+
+    await waitFor(() => expect(streamCall).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(streamed.length).toBeGreaterThan(0));
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+            },
+          ),
+        ],
+        false,
+      ),
+    );
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(streamCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("never executes a registered tool that was waiting when the turn was aborted", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    await tracker.abort({ discardPending: true });
+
+    tracker.setState(complete(false));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("still executes a waiting tool when an abort only interrupts the turn", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+
+    await tracker.abort();
+
+    tracker.setState(complete(false));
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps a discarded tool call skipped once its args complete", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const live = (argsText: string, isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            argsText,
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(live('{"path":"/tm', true));
+    await new Promise((r) => setTimeout(r, 0));
+
+    await tracker.abort({ discardPending: true });
+
+    tracker.setState(live('{"path":"/tmp/a"}', false));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("never executes a tool whose turn is discarded in the tick its run settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+
+    tracker.setState(complete(false));
+    await tracker.abort({ discardPending: true });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("keeps a discarded call skipped when the pipeline restarts before it settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    await tracker.abort({ discardPending: true });
+
+    killPipeline(tracker);
+    tracker.setState(complete(false));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("still executes a waiting call when the pipeline restarts before it settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    killPipeline(tracker);
+    tracker.setState(complete(false));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not re-fire streamCall for a call holding a preliminary result when the pipeline restarts", async () => {
+    const streamCall = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          streamCall,
+        } satisfies Tool,
+      }),
+      { onResult: vi.fn(), onStatusesChange: () => {} },
+    );
+    const interim = () =>
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim" }, isPreliminary: true },
+        ),
+      ]);
+    tracker.setState(createState([]));
+    tracker.setState(interim());
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+
+    killPipeline(tracker);
+    tracker.setState(interim());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(streamCall).toHaveBeenCalledOnce();
+  });
+
+  it.each([false, true])(
+    "clears abandoned execution state when the pipeline restarts (abort first: %s)",
+    async (abortFirst) => {
+      const execution = Promise.withResolvers<{ ok: true }>();
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn((_args, { abortSignal }) => {
+        signal = abortSignal;
+        return execution.promise;
+      });
+      let statuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (next) => {
+            statuses = next;
+          },
+        },
+      );
+
+      const complete = () =>
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        );
+
+      tracker.setState(createState([], false));
+      tracker.setState(complete());
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledOnce();
+        expect(statuses.get("tool-1")?.type).toBe("executing");
+      });
+
+      let abortResolved = false;
+      const abort = abortFirst
+        ? tracker.abort({ discardPending: true }).then(() => {
+            abortResolved = true;
+          })
+        : Promise.resolve();
+
+      killPipeline(tracker);
+      tracker.setState(complete());
+
+      await waitFor(() => {
+        expect(abortResolved).toBe(abortFirst);
+        expect(signal).toBeDefined();
+        expect(signal!.aborted).toBe(true);
+        expect(statuses.get("tool-1")).toBeUndefined();
+      });
+      expect(
+        (tracker as unknown as { _executing: Set<symbol> })._executing.size,
+      ).toBe(0);
+
+      execution.resolve({ ok: true });
+      await abort;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(statuses.get("tool-1")).toBeUndefined();
+    },
+  );
+
+  it("never executes a registered tool the provider gates before its run ends", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile", approval: { id: "approval-1" } },
+          ),
+        ],
+        false,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("never executes a tool call the adapter reports as provider-owned", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(
+        getTools,
+        { onResult, onStatusesChange: () => {} },
+        () => false,
+      );
+      tracker.setState(createState([]));
+
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile" },
+            ),
+          ],
+          true,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile", result: { server: "deleted" } },
+            ),
+          ],
+          false,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("executes a tool call the adapter reports as client-owned", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      (toolCall) => toolCall.toolCallId === "tool-1",
+    );
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps the result of a call the adapter stops reporting as client-owned mid-execution", async () => {
+    let resolveExecute!: (value: { deleted: boolean }) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<{ deleted: boolean }>((r) => {
+          resolveExecute = r;
+        }),
+    );
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let clientOwned = true;
+    const tracker = new ToolInvocationTracker(
+      getTools,
+      { onResult, onStatusesChange: () => {} },
+      () => clientOwned,
+    );
+    tracker.setState(createState([]));
+
+    const live = () =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      );
+
+    tracker.setState(live());
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    clientOwned = false;
+    tracker.setState(live());
+    resolveExecute({ deleted: true });
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
+
   it("does not re-execute asynchronously loaded resolved tool calls after reset", async () => {
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const getTools = () => ({
@@ -385,12 +1412,13 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage('{"query":"London"}', { query: "London" }),
-      ]),
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -401,16 +1429,19 @@ describe("ToolInvocationTracker", () => {
 
     await Promise.resolve();
 
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"London"}',
-          { query: "London" },
-          { result: { source: "history" } },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            { result: { source: "history" } },
+          ),
+        ],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -448,20 +1479,23 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"query":"parent"}',
-          { query: "parent" },
-          {
-            result: { source: "history" },
-            toolName: "resolvedOnly",
-            nestedMessages: [nestedMessage],
-          },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"parent"}',
+            { query: "parent" },
+            {
+              result: { source: "history" },
+              toolName: "resolvedOnly",
+              nestedMessages: [nestedMessage],
+            },
+          ),
+        ],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -607,15 +1641,18 @@ describe("ToolInvocationTracker", () => {
       onResult,
       onStatusesChange,
     });
-    tracker.setState(createState([]));
+    tracker.setState(createState([], false));
 
     tracker.setState(
-      createState([
-        createAssistantMessage('{"a":1,"b":2}', {
-          a: 1,
-          b: 2,
-        }),
-      ]),
+      createState(
+        [
+          createAssistantMessage('{"a":1,"b":2}', {
+            a: 1,
+            b: 2,
+          }),
+        ],
+        false,
+      ),
     );
 
     await waitFor(() => {
@@ -623,18 +1660,21 @@ describe("ToolInvocationTracker", () => {
     });
 
     tracker.setState(
-      createState([
-        createAssistantMessage(
-          '{"b":2,"a":1}',
-          {
-            a: 1,
-            b: 2,
-          },
-          {
-            result: { source: "backend" },
-          },
-        ),
-      ]),
+      createState(
+        [
+          createAssistantMessage(
+            '{"b":2,"a":1}',
+            {
+              a: 1,
+              b: 2,
+            },
+            {
+              result: { source: "backend" },
+            },
+          ),
+        ],
+        false,
+      ),
     );
 
     resolveExecute?.({ source: "client" });
@@ -724,6 +1764,185 @@ describe("ToolInvocationTracker", () => {
 
     await new Promise((r) => setTimeout(r, 0));
     expect(streamCall).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("keeps a resolved restored tool call historical when its snapshot is reserialized", async () => {
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"query":"London","page":1}',
+          { query: "London", page: 1 },
+          { result: { source: "history", revision: 1 } },
+        ),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{ "page": 1, "query": "London" }',
+          { query: "London", page: 1 },
+          { result: { source: "history", revision: 2 } },
+        ),
+      ]),
+    );
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(streamCall).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("promotes unresolved restored tool calls only for real args changes or a landed result", async () => {
+    const equivalentStreamCall = vi.fn();
+    const growingStreamCall = vi.fn();
+    const resolvedStreamCall = vi.fn();
+    const getTools = () => ({
+      equivalentTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: equivalentStreamCall,
+      } satisfies Tool,
+      growingTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: growingStreamCall,
+      } satisfies Tool,
+      resolvedTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: resolvedStreamCall,
+      } satisfies Tool,
+    });
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult: vi.fn(),
+      onStatusesChange: () => {},
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"a":1,"b":2}',
+          { a: 1, b: 2 },
+          {
+            toolCallId: "equivalent",
+            toolName: "equivalentTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"query":"Lon',
+          { query: "Lon" },
+          {
+            toolCallId: "growing",
+            toolName: "growingTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          {
+            toolCallId: "resolved",
+            toolName: "resolvedTool",
+          },
+        ),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{ "b": 2, "a": 1 }',
+          { a: 1, b: 2 },
+          {
+            toolCallId: "equivalent",
+            toolName: "equivalentTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"query":"London"}',
+          { query: "London" },
+          {
+            toolCallId: "growing",
+            toolName: "growingTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          {
+            toolCallId: "resolved",
+            toolName: "resolvedTool",
+            result: { source: "history" },
+          },
+        ),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(growingStreamCall).toHaveBeenCalledTimes(1);
+      expect(resolvedStreamCall).toHaveBeenCalledTimes(1);
+    });
+
+    expect(equivalentStreamCall).not.toHaveBeenCalled();
+  });
+
+  it("keeps a tool call restored with a preliminary result historical until its final result lands", async () => {
+    const streamCall = vi.fn();
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          streamCall,
+        } satisfies Tool,
+      }),
+      { onResult, onStatusesChange: () => {} },
+    );
+    const interim = () =>
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim" }, isPreliminary: true },
+        ),
+      ]);
+
+    tracker.setState(interim());
+    tracker.setState(interim());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(streamCall).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "final" } },
+        ),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+    const [reader] = streamCall.mock.calls[0]!;
+    await expect(reader.response.get()).resolves.toMatchObject({
+      result: { forecast: "final" },
+    });
     expect(onResult).not.toHaveBeenCalled();
   });
 
@@ -1167,6 +2386,384 @@ describe("ToolInvocationTracker", () => {
       // No second onResult either (entry.hasResult short-circuits both
       // the parse-failure error chunk and the redundant backend result).
       expect(onResult).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("keeps a preliminary backend result open until the final result", async () => {
+    const execute = vi.fn(async () => ({ forecast: "client" }));
+    const streamCall = vi.fn();
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+          streamCall,
+        } satisfies Tool,
+      }),
+      { onResult, onStatusesChange: () => {} },
+    );
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"city":"London"}', { city: "London" }),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+    const [reader] = streamCall.mock.calls[0]!;
+    let resolved = false;
+    void reader.response.get().then(() => {
+      resolved = true;
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim" }, isPreliminary: true },
+        ),
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(resolved).toBe(false);
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim 2" }, isPreliminary: true },
+        ),
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(resolved).toBe(false);
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "final" } },
+        ),
+      ]),
+    );
+
+    await expect(reader.response.get()).resolves.toMatchObject({
+      result: { forecast: "final" },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+});
+
+describe("ToolInvocationTracker reset", () => {
+  const trackerWith = (tools: Record<string, Tool>) => {
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const tracker = new ToolInvocationTracker(() => tools, {
+      onResult: vi.fn(),
+      onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+        statuses = Object.fromEntries(s);
+      },
+    });
+    return { tracker, statuses: () => statuses };
+  };
+
+  it("clears statuses for discarded executions that never settle", async () => {
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+      } satisfies Tool,
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+    });
+
+    tracker.reset();
+
+    expect(statuses()).toEqual({});
+
+    // A new-session snapshot restoring tool activity must not drag the
+    // discarded id back in through the whole-map republication. The first
+    // post-reset snapshot is the fresh session's empty state, consuming the
+    // pending-restore mark.
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"Paris"}',
+            { query: "Paris" },
+            { toolCallId: "tool-2" },
+          ),
+        ],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-2"]?.type).toBe("executing");
+    });
+    expect(statuses()["tool-1"]).toBeUndefined();
+  });
+
+  it("does not republish sibling statuses when a discarded execution settles after reset", async () => {
+    const settled = Promise.withResolvers<void>();
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(
+          (_args, { abortSignal }: { abortSignal: AbortSignal }) =>
+            new Promise((resolve) => {
+              abortSignal.addEventListener("abort", () => {
+                resolve({ ok: true });
+                settled.resolve();
+              });
+            }),
+        ),
+      } satisfies Tool,
+      pressureSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+      } satisfies Tool,
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage('{"query":"London"}', { query: "London" }),
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            {
+              toolCallId: "tool-2",
+              toolName: "pressureSearch",
+            },
+          ),
+        ],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+      expect(statuses()["tool-2"]?.type).toBe("executing");
+    });
+
+    tracker.reset();
+    expect(statuses()).toEqual({});
+
+    // The settle-after-abort of tool-1 is what could republish tool-2;
+    // await it deterministically instead of sleeping.
+    await settled.promise;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(statuses()).toEqual({});
+  });
+
+  it("rejects a human-input request from a discarded execution without resurrecting its status", async () => {
+    let humanFn: ((payload: unknown) => Promise<unknown>) | undefined;
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+        streamCall: vi.fn((_reader, { human }) => {
+          humanFn = human;
+        }),
+      } satisfies Tool,
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+      expect(humanFn).toBeDefined();
+    });
+
+    tracker.reset();
+
+    await expect(humanFn!({ request: "approve" })).rejects.toThrow(
+      "Tool execution aborted",
+    );
+    expect(statuses()).toEqual({});
+  });
+
+  it("rejects a late human-input request when reset reuses the tool call id", async () => {
+    const humanFns: ((payload: unknown) => Promise<unknown>)[] = [];
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+        streamCall: vi.fn((_reader, { human }) => {
+          humanFns.push(human);
+        }),
+      } satisfies Tool,
+    });
+
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(humanFns).toHaveLength(1);
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+    });
+
+    tracker.reset();
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"Paris"}',
+            { query: "Paris" },
+            { toolCallId: "tool-1" },
+          ),
+        ],
+        false,
+      ),
+    );
+    await waitFor(() => expect(humanFns).toHaveLength(2));
+
+    await expect(humanFns[0]!({ stale: true })).rejects.toThrow(
+      "Tool execution aborted",
+    );
+    expect(statuses()["tool-1"]?.type).toBe("executing");
+
+    tracker.reset();
+  });
+
+  it("drops a late result when reset reuses the tool call id", async () => {
+    const executions: Array<{
+      resolve: (value: { session: string }) => void;
+      promise: Promise<{ session: string }>;
+    }> = [];
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute: vi.fn(
+            (_args: unknown, { abortSignal }: { abortSignal: AbortSignal }) => {
+              let resolveExecution!: (value: { session: string }) => void;
+              const promise = new Promise<{ session: string }>((resolve) => {
+                resolveExecution = resolve;
+              });
+              const execution = { promise, resolve: resolveExecution };
+              abortSignal.addEventListener("abort", () => {
+                execution.resolve({ session: "old" });
+              });
+              executions.push(execution);
+              return promise;
+            },
+          ),
+        } satisfies Tool,
+      }),
+      { onResult, onStatusesChange: vi.fn() },
+    );
+
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => expect(executions).toHaveLength(1));
+
+    tracker.reset();
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"query":"Paris"}',
+            { query: "Paris" },
+            { toolCallId: "tool-1" },
+          ),
+        ],
+        false,
+      ),
+    );
+    await waitFor(() => expect(executions).toHaveLength(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onResult).not.toHaveBeenCalled();
+
+    executions[1]!.resolve({ session: "new" });
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledOnce();
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolCallId: "tool-1",
+          result: { session: "new" },
+        }),
+      );
+    });
+
+    tracker.reset();
+  });
+
+  it("warns exactly once when a settled tool call's args change is re-observed across renders", async () => {
+    // External-store / AI-SDK runtimes rebuild the messages array on update, so
+    // a settled tool part is re-diffed each snapshot. A post-completion
+    // non-equivalent args change must be recorded so the same change is diffed
+    // once; otherwise it re-warns on every re-observation while retaining both
+    // copies of the payload, which can grow unbounded on large args.
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const onStatusesChange = () => {};
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange,
+      });
+      tracker.setState(createState([], false));
+
+      // Settle the call with complete args (not running → args stream closes).
+      tracker.setState(
+        createState([createAssistantMessage('{"a":1}', { a: 1 })], false),
+      );
+
+      const afterFirstCompletion = () =>
+        warnSpy.mock.calls.filter((call) =>
+          String(call[0]).includes("changed after first completion"),
+        ).length;
+
+      // A non-equivalent args change after completion, re-observed across three
+      // renders with a fresh messages array each time (identity differs, so the
+      // fast-path skip does not fire).
+      for (let i = 0; i < 3; i++) {
+        tracker.setState(
+          createState([createAssistantMessage('{"a":2}', { a: 2 })], false),
+        );
+      }
+
+      expect(afterFirstCompletion()).toBe(1);
     } finally {
       warnSpy.mockRestore();
     }

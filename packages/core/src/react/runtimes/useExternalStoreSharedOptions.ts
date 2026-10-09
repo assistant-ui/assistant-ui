@@ -16,7 +16,9 @@ export const useExternalStoreSharedOptions = (
         unstable_capabilities,
         suggestions,
       }) satisfies {
-        [K in keyof Required<ExternalStoreSharedOptions>]: ExternalStoreSharedOptions[K];
+        [
+          K in keyof Required<ExternalStoreSharedOptions>
+        ]: ExternalStoreSharedOptions[K];
       },
     [isDisabled, isSendDisabled, unstable_capabilities, suggestions],
   );

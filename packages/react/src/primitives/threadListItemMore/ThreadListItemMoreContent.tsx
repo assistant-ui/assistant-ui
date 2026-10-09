@@ -6,7 +6,7 @@ import {
   forwardRef,
 } from "react";
 import { Direction, DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import type { WithRenderPropProps } from "../../utils/Primitive";
 import { DropdownMenuRenderContent } from "../dropdownMenuRenderPrimitives";
 import { useThreadListItemFocus } from "../threadListFocusGroup";
@@ -54,6 +54,13 @@ export const ThreadListItemMorePrimitiveContent = forwardRef<
           {...props}
           onKeyDown={composeEventHandlers(props.onKeyDown, (event) => {
             if (!sharedFocusGroup || event.key !== closeKey) return;
+            if (
+              event.altKey ||
+              event.ctrlKey ||
+              event.metaKey ||
+              event.shiftKey
+            )
+              return;
             event.preventDefault();
             setOpen(false);
             focus?.moreRef.current?.focus();

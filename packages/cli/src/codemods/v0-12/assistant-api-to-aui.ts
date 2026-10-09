@@ -1,4 +1,5 @@
 import { createTransformer } from "../utils/createTransformer";
+import { resolveBinding } from "../utils/resolveBinding";
 
 // Map of old hook names to new hook names
 const hookRenamingMap: Record<string, string> = {
@@ -13,261 +14,256 @@ const componentRenamingMap: Record<string, string> = {
   AssistantProvider: "AuiProvider",
 };
 
-const isUseAuiCall = (j: any, node: any): boolean => {
-  return (
-    node &&
-    j.CallExpression.check(node) &&
-    j.Identifier.check(node.callee) &&
-    (node.callee.name === "useAui" || node.callee.name === "useAssistantApi")
-  );
-};
-
-// Check if a scope node directly contains an 'api' variable declaration
-const scopeHasDirectApiDeclaration = (j: any, scopeNode: any): boolean => {
-  // Get the body of the scope
-  let body = null;
-  if (
-    j.FunctionDeclaration.check(scopeNode) ||
-    j.FunctionExpression.check(scopeNode)
-  ) {
-    body = scopeNode.body?.body;
-  } else if (j.ArrowFunctionExpression.check(scopeNode)) {
-    // Arrow functions might have block or expression body
-    if (j.BlockStatement.check(scopeNode.body)) {
-      body = scopeNode.body.body;
-    }
-  } else if (j.BlockStatement.check(scopeNode)) {
-    body = scopeNode.body;
-  }
-
-  if (!Array.isArray(body)) return false;
-
-  // Check only direct statements in this scope's body
-  for (const statement of body) {
-    if (j.VariableDeclaration.check(statement)) {
-      for (const declarator of statement.declarations) {
-        if (j.Identifier.check(declarator.id) && declarator.id.name === "api") {
-          // Don't count it as shadowing if it's from useAui
-          if (!isUseAuiCall(j, declarator.init)) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-
-  return false;
-};
-
-// Check if a path is inside a scope that shadows the api variable
-const isInsideShadowingScope = (j: any, identifierPath: any): boolean => {
-  let currentPath = identifierPath.parent;
-
-  while (currentPath) {
-    const node = currentPath.value;
-
-    // Check if this is a scope-creating node (function, arrow function, block)
-    if (
-      j.FunctionDeclaration.check(node) ||
-      j.FunctionExpression.check(node) ||
-      j.ArrowFunctionExpression.check(node) ||
-      j.BlockStatement.check(node)
-    ) {
-      if (scopeHasDirectApiDeclaration(j, node)) {
-        return true;
-      }
-    }
-
-    currentPath = currentPath.parent;
-  }
-
-  return false;
-};
-
 const migrateAssistantApiToAui = createTransformer(
   ({ j, root, markAsChanged }) => {
-    let hasApiFromUseAui = false;
-
-    // 1. Update imports
     root.find(j.ImportDeclaration).forEach((path: any) => {
       const source = path.value.source.value;
-
-      // Only process imports from @assistant-ui packages
-      if (typeof source === "string" && source.startsWith("@assistant-ui/")) {
-        path.value.specifiers?.forEach((specifier: any) => {
-          if (j.ImportSpecifier.check(specifier)) {
-            const oldName = specifier.imported.name as string;
-
-            // Rename hooks
-            if (hookRenamingMap[oldName]) {
-              const newName = hookRenamingMap[oldName];
-              specifier.imported.name = newName;
-              if (specifier.local && specifier.local.name === oldName) {
-                specifier.local.name = newName;
+      if (typeof source !== "string" || !source.startsWith("@assistant-ui/"))
+        return;
+      path.value.specifiers?.forEach((specifier: any, index: number) => {
+        if (
+          !j.ImportSpecifier.check(specifier) ||
+          !j.Identifier.check(specifier.imported)
+        )
+          return;
+        const oldName = specifier.imported.name;
+        const importKind = (specifier as { importKind?: string }).importKind;
+        const newName =
+          hookRenamingMap[oldName] ?? componentRenamingMap[oldName];
+        if (!newName) return;
+        if (
+          specifier.local?.name === oldName &&
+          path.value.importKind !== "type" &&
+          importKind !== "type"
+        ) {
+          const references = root
+            .find(j.Identifier, { name: oldName })
+            .paths()
+            .filter((reference: any) => {
+              const parent = reference.parent.value;
+              const node = reference.value;
+              if (parent.type.startsWith("Import") || parent.id === node)
+                return false;
+              if (
+                parent.key === node &&
+                !parent.computed &&
+                parent.value !== node
+              )
+                return false;
+              if (parent.property === node && !parent.computed) return false;
+              if (j.TSQualifiedName.check(parent) && parent.right === node)
+                return false;
+              if (
+                j.JSXAttribute.check(parent) ||
+                j.JSXNamespacedName.check(parent)
+              )
+                return false;
+              if (j.ExportSpecifier.check(parent)) {
+                if (
+                  reference.parent.parent.value.source ||
+                  parent.local !== node
+                )
+                  return false;
               }
-              markAsChanged();
-            }
-
-            // Rename components
-            if (componentRenamingMap[oldName]) {
-              const newName = componentRenamingMap[oldName];
-              specifier.imported.name = newName;
-              if (specifier.local && specifier.local.name === oldName) {
-                specifier.local.name = newName;
+              return resolveBinding(j, reference, oldName) === specifier.local;
+            });
+          const canRename =
+            !resolveBinding(j, path, newName) &&
+            references.every(
+              (reference: any) => !resolveBinding(j, reference, newName),
+            );
+          if (canRename) {
+            for (const reference of references) {
+              const parent = reference.parent.value;
+              if (
+                (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
+                parent.shorthand
+              ) {
+                parent.shorthand = false;
+                parent.key = j.identifier(oldName);
+                parent.value = j.identifier(newName);
+              } else if (j.ExportSpecifier.check(parent)) {
+                reference.parent.replace(
+                  j.exportSpecifier.from({
+                    local: j.identifier(newName),
+                    exported: j.Identifier.check(parent.exported)
+                      ? j.identifier(parent.exported.name)
+                      : parent.exported,
+                  }),
+                );
+              } else {
+                reference.value.name = newName;
               }
-              markAsChanged();
             }
+            specifier.local.name = newName;
           }
-        });
+        }
+        const replacement: any = j.importSpecifier(
+          j.identifier(newName),
+          j.Identifier.check(specifier.local)
+            ? j.identifier(specifier.local.name)
+            : null,
+        );
+        replacement.importKind = importKind;
+        replacement.comments = specifier.comments;
+        path.get("specifiers", index).replace(replacement);
+        markAsChanged();
+      });
+    });
+
+    const hookBindings = new Set<any>();
+    root.find(j.ImportDeclaration).forEach((path) => {
+      if (
+        !String(path.value.source.value).startsWith("@assistant-ui/") ||
+        path.value.importKind === "type"
+      )
+        return;
+      for (const specifier of path.value.specifiers ?? []) {
+        if (
+          j.ImportSpecifier.check(specifier) &&
+          j.Identifier.check(specifier.imported) &&
+          specifier.imported.name === "useAui" &&
+          (specifier as { importKind?: string }).importKind !== "type" &&
+          j.Identifier.check(specifier.local)
+        )
+          hookBindings.add(specifier.local);
       }
     });
 
-    // 2. Find and rename variable declarations from useAui (or useAssistantApi)
+    const renamedDeclaratorIds = new Set<any>();
     root.find(j.VariableDeclarator).forEach((path: any) => {
-      const init = path.value.init;
-
-      // Check if this is a call to useAui or useAssistantApi
-      if (isUseAuiCall(j, init)) {
-        if (j.Identifier.check(path.value.id)) {
-          const oldVarName = path.value.id.name;
-
-          // Only rename if it's called 'api'
-          if (oldVarName === "api") {
-            path.value.id.name = "aui";
-            hasApiFromUseAui = true;
-            markAsChanged();
-          }
-        }
+      const { id, init } = path.value;
+      if (
+        j.Identifier.check(id) &&
+        id.name === "api" &&
+        j.CallExpression.check(init) &&
+        j.Identifier.check(init.callee) &&
+        hookBindings.has(
+          resolveBinding(j, path.get("init", "callee"), init.callee.name),
+        ) &&
+        !resolveBinding(j, path, "aui")
+      ) {
+        renamedDeclaratorIds.add(id);
       }
     });
 
-    // 3. Rename all references to 'api' if we found it from useAui
-    if (hasApiFromUseAui) {
-      root.find(j.Identifier).forEach((path: any) => {
-        if (path.value.name === "api") {
-          // Skip if this is part of an import
-          if (j.ImportSpecifier.check(path.parent.value)) {
-            return;
-          }
+    // 3. Rename references governed by one of those declarators. Resolution
+    // is lexical (nearest enclosing declaration wins) rather than via
+    // ast-types scopes, which have no block granularity: a block-scoped
+    // `const api = other()` inside the same function must shadow.
+    if (renamedDeclaratorIds.size > 0) {
+      const bindsToRenamedApi = (path: any): boolean =>
+        renamedDeclaratorIds.has(resolveBinding(j, path, "api"));
 
-          // Skip if this is a variable declarator id
-          if (j.VariableDeclarator.check(path.parent.value)) {
-            const declarator = path.parent.value;
-            if (declarator.id === path.value) {
-              return;
-            }
-          }
-
-          // Skip if this is a property key in an object (e.g., { api: true })
-          if (j.Property.check(path.parent.value)) {
-            const prop = path.parent.value;
-            if (prop.key === path.value && !prop.shorthand && !prop.computed) {
-              return;
-            }
-          }
-
-          if (j.ObjectProperty.check(path.parent.value)) {
-            const prop = path.parent.value;
-            if (prop.key === path.value && !prop.shorthand && !prop.computed) {
-              return;
-            }
-          }
-
-          // Skip if this is a property in a member expression (e.g., foo.api)
+      const referencePaths: any[] = [];
+      root.find(j.Identifier, { name: "api" }).forEach((path: any) => {
+        const parent = path.parent.value;
+        if (j.ImportSpecifier.check(parent)) return;
+        // Declaration names (variable, function, class, type alias,
+        // interface) and TS type positions are not value references.
+        if (parent.id === path.value) return;
+        if (j.TSTypeReference?.check?.(parent)) return;
+        if (j.TSQualifiedName?.check?.(parent)) return;
+        // Any non-computed key position is a name, not a reference: object
+        // properties, object/class methods, class properties, TS signatures.
+        // Esprima-style shorthand reuses one node as key and value, so the
+        // value position must survive the guard.
+        if (
+          parent.key === path.value &&
+          !parent.computed &&
+          parent.value !== path.value
+        )
+          return;
+        if (
+          j.MemberExpression.check(parent) &&
+          parent.property === path.value &&
+          !parent.computed
+        )
+          return;
+        // JSXIdentifier extends Identifier, so JSX positions land here too:
+        // member properties (<config.api/>), namespace names, and lowercase
+        // element names (<api/> is an intrinsic tag) are not references.
+        if (
+          j.JSXMemberExpression?.check?.(parent) &&
+          parent.property === path.value
+        )
+          return;
+        if (j.JSXNamespacedName?.check?.(parent)) return;
+        if (
+          (j.JSXOpeningElement?.check?.(parent) ||
+            j.JSXClosingElement?.check?.(parent)) &&
+          parent.name === path.value
+        )
+          return;
+        if (j.JSXAttribute.check(parent)) return;
+        // The exported name of `export { api }` is the public alias, not a
+        // reference; only the local side is renamed (to `aui as api`). A
+        // source-bearing re-export binds in the other module, never here.
+        if (j.ExportSpecifier.check(parent)) {
+          const grandparent = path.parent.parent?.value;
           if (
-            j.MemberExpression.check(path.parent.value) &&
-            path.parent.value.property === path.value &&
-            !path.parent.value.computed
-          ) {
+            j.ExportNamedDeclaration.check(grandparent) &&
+            grandparent.source != null
+          )
             return;
-          }
-
-          // Skip if this is a JSX attribute name
-          if (j.JSXAttribute.check(path.parent.value)) {
+          // Babel emits exportKind on ExportSpecifier for inline
+          // `export { type api }`; ast-types' typings omit it.
+          if (
+            grandparent?.exportKind === "type" ||
+            (parent as { exportKind?: string }).exportKind === "type"
+          )
             return;
-          }
-
-          // Skip if this identifier is inside a scope that shadows the api variable
-          if (isInsideShadowingScope(j, path)) {
+          if (parent.exported === path.value && parent.local !== path.value)
             return;
-          }
+        }
+        if (!bindsToRenamedApi(path)) return;
+        referencePaths.push(path);
+      });
 
-          // Update the reference
+      for (const path of referencePaths) {
+        if (resolveBinding(j, path, "aui")) {
+          renamedDeclaratorIds.delete(resolveBinding(j, path, "api"));
+        }
+      }
+
+      for (const path of referencePaths) {
+        if (!bindsToRenamedApi(path)) continue;
+        const parent = path.parent.value;
+        if (
+          (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
+          parent.shorthand &&
+          parent.value === path.value
+        ) {
+          // `{ api }` in an object literal: keep the key, rename the value
+          parent.shorthand = false;
+          parent.key = j.identifier("api");
+          parent.value = j.identifier("aui");
+        } else if (
+          j.ExportSpecifier.check(parent) &&
+          parent.local === path.value
+        ) {
+          // `export { api }` / `export { api as name }`: rename the local
+          // binding, keep the public name. Replaced wholesale — recast keeps
+          // the shorthand form (dropping the alias) when only the fields of
+          // the original node change.
+          path.parent.replace(
+            j.exportSpecifier.from({
+              local: j.identifier("aui"),
+              exported: j.Identifier.check(parent.exported)
+                ? j.identifier(parent.exported.name)
+                : parent.exported,
+            }),
+          );
+        } else {
           path.value.name = "aui";
-          markAsChanged();
         }
-      });
-
-      // Also handle JSX identifiers
-      root.find(j.JSXIdentifier).forEach((path: any) => {
-        if (path.value.name === "api") {
-          if (!isInsideShadowingScope(j, path)) {
-            path.value.name = "aui";
-            markAsChanged();
-          }
-        }
-      });
+        markAsChanged();
+      }
+      for (const idNode of renamedDeclaratorIds) {
+        idNode.name = "aui";
+        markAsChanged();
+      }
     }
-
-    // 4. Update hook call references (in case they're used as values)
-    Object.entries(hookRenamingMap).forEach(([oldName, newName]) => {
-      root.find(j.Identifier).forEach((path: any) => {
-        if (path.value.name === oldName) {
-          // Skip if already handled in imports
-          if (j.ImportSpecifier.check(path.parent.value)) {
-            return;
-          }
-
-          // This might be a reference to the hook as a value
-          path.value.name = newName;
-          markAsChanged();
-        }
-      });
-    });
-
-    // 5. Update JSX component names
-    Object.entries(componentRenamingMap).forEach(([oldName, newName]) => {
-      // Update JSX opening elements
-      root.find(j.JSXOpeningElement).forEach((path: any) => {
-        if (
-          j.JSXIdentifier.check(path.value.name) &&
-          path.value.name.name === oldName
-        ) {
-          path.value.name.name = newName;
-          markAsChanged();
-        }
-      });
-
-      // Update JSX closing elements
-      root.find(j.JSXClosingElement).forEach((path: any) => {
-        if (
-          j.JSXIdentifier.check(path.value.name) &&
-          path.value.name.name === oldName
-        ) {
-          path.value.name.name = newName;
-          markAsChanged();
-        }
-      });
-
-      // Update regular identifier references (for component references)
-      root.find(j.Identifier).forEach((path: any) => {
-        if (path.value.name === oldName) {
-          // Skip if already handled in imports
-          if (j.ImportSpecifier.check(path.parent.value)) {
-            return;
-          }
-
-          // Skip JSX identifiers (already handled above)
-          if (j.JSXIdentifier.check(path.value)) {
-            return;
-          }
-
-          // This might be a reference to the component as a value
-          path.value.name = newName;
-          markAsChanged();
-        }
-      });
-    });
   },
 );
 

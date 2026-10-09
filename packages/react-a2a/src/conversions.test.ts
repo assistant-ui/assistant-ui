@@ -3,10 +3,12 @@ import {
   a2aPartToContent,
   a2aPartsToContent,
   a2aMessageToContent,
+  isA2uiDataPart,
   taskStateToMessageStatus,
   contentPartsToA2AParts,
   isTerminalTaskState,
   isInterruptedTaskState,
+  threadMessageToA2AMessage,
 } from "./conversions";
 import type { A2APart, A2AMessage, A2ATaskState } from "./types";
 
@@ -154,6 +156,111 @@ describe("a2aPartToContent", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
   });
+
+  it.each(["text", "url", "raw"])("treats a null %s as absent", (field) => {
+    const part = { [field]: null } as unknown as A2APart;
+    expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+
+  it("reads the url of a part whose text is null", () => {
+    const part = {
+      text: null,
+      url: "https://example.com/doc.pdf",
+      mediaType: "application/pdf",
+    } as unknown as A2APart;
+    expect(a2aPartToContent(part)).toEqual({
+      type: "file",
+      data: "https://example.com/doc.pdf",
+      mimeType: "application/pdf",
+      sourceType: "url",
+    });
+  });
+
+  it.each([null, undefined, "text", 1])(
+    "returns an empty text part for the non-object part %s",
+    (part) => {
+      expect(a2aPartToContent(part as unknown as A2APart)).toEqual({
+        type: "text",
+        text: "",
+      });
+    },
+  );
+});
+
+describe("A2UI data parts", () => {
+  it.each([
+    [
+      "media type",
+      {
+        mediaType: "application/vnd.A2UI+json",
+        data: { value: "from media type" },
+      },
+    ],
+    [
+      "metadata",
+      {
+        metadata: { mimeType: "application/a2ui+json" },
+        data: { value: "from metadata" },
+      },
+    ],
+    [
+      "metadata media type",
+      {
+        metadata: { mediaType: "application/a2ui+json" },
+        data: { value: "from metadata media type" },
+      },
+    ],
+    [
+      "operation shape",
+      {
+        data: {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+      },
+    ],
+    [
+      "operation array",
+      {
+        data: [
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "surface" },
+          },
+          {
+            version: "v0.9",
+            deleteSurface: { surfaceId: "surface" },
+          },
+        ],
+      },
+    ],
+  ] as const)("detects A2UI by %s", (_source, part) => {
+    expect(isA2uiDataPart(part)).toBe(true);
+    expect(a2aPartsToContent([part])).toEqual([]);
+  });
+
+  it("does not detect an operation array containing a non-operation", () => {
+    const part = {
+      data: [
+        {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+        { value: "not an operation" },
+      ],
+    };
+
+    expect(isA2uiDataPart(part)).toBe(false);
+  });
+
+  it("keeps ordinary data parts as JSON text", () => {
+    expect(a2aPartsToContent([{ data: { value: "plain" } }])).toEqual([
+      {
+        type: "text",
+        text: '{\n  "value": "plain"\n}',
+      },
+    ]);
+  });
 });
 
 describe("inbound file part round trip", () => {
@@ -228,6 +335,18 @@ describe("a2aPartsToContent", () => {
   it("handles empty parts array", () => {
     expect(a2aPartsToContent([])).toEqual([]);
   });
+
+  it.each([undefined, null, {}, "not-an-array"])(
+    "treats %j parts as empty content",
+    (parts) => {
+      expect(a2aPartsToContent(parts as unknown as A2APart[])).toEqual([]);
+    },
+  );
+
+  it("skips null and undefined entries in parts", () => {
+    const parts = [null, { text: "Hello" }, undefined] as unknown as A2APart[];
+    expect(a2aPartsToContent(parts)).toEqual([{ type: "text", text: "Hello" }]);
+  });
 });
 
 describe("a2aMessageToContent", () => {
@@ -242,6 +361,15 @@ describe("a2aMessageToContent", () => {
     expect(result[0]).toEqual({ type: "text", text: "Hello" });
     expect(result[1]).toEqual({ type: "text", text: " world" });
   });
+
+  it.each([undefined, null, {}, "not-an-array"])(
+    "treats a message with %j parts as empty content",
+    (parts) => {
+      expect(a2aMessageToContent({ parts } as unknown as A2AMessage)).toEqual(
+        [],
+      );
+    },
+  );
 });
 
 describe("taskStateToMessageStatus", () => {
@@ -347,6 +475,19 @@ describe("isInterruptedTaskState", () => {
 });
 
 describe("contentPartsToA2AParts", () => {
+  it.each(["application/pdf", ""])(
+    "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
+    (mimeType) => {
+      expect(
+        contentPartsToA2AParts([
+          { type: "file", data: "data:;base64,SGVsbG8=", mimeType },
+        ]),
+      ).toEqual([
+        { raw: "SGVsbG8=", mediaType: mimeType || "application/octet-stream" },
+      ]);
+    },
+  );
+
   it("converts text parts", () => {
     const result = contentPartsToA2AParts([{ type: "text", text: "hi" }]);
     expect(result).toEqual([{ text: "hi" }]);
@@ -395,6 +536,14 @@ describe("contentPartsToA2AParts", () => {
       { type: "image", image: "data:image/png;base64,aGVsbG8=" },
     ]);
     expect(result).toEqual([{ raw: "aGVsbG8=", mediaType: "image/png" }]);
+  });
+
+  it("sniffs media-less image data URLs before sending their raw bytes", () => {
+    expect(
+      contentPartsToA2AParts([
+        { type: "image", image: "data:;base64,iVBORw0KGgo=" },
+      ]),
+    ).toEqual([{ raw: "iVBORw0KGgo=", mediaType: "image/png" }]);
   });
 
   it("propagates image filenames", () => {
@@ -495,6 +644,20 @@ describe("contentPartsToA2AParts", () => {
       { type: "file", data: "ZmlsZQ==", mimeType: "text/csv" },
     ]);
     expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "text/csv" }]);
+  });
+
+  it("preserves raw zero-byte file data", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "",
+        mimeType: "text/plain",
+        filename: "empty.txt",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "", mediaType: "text/plain", filename: "empty.txt" },
+    ]);
   });
 
   it("falls back to the attachment MIME type when the file part MIME is empty", () => {
@@ -610,5 +773,92 @@ describe("contentPartsToA2AParts", () => {
 
   it("handles empty input", () => {
     expect(contentPartsToA2AParts([])).toEqual([]);
+  });
+});
+
+describe("threadMessageToA2AMessage", () => {
+  const userMessage = {
+    id: "msg-1",
+    role: "user",
+    createdAt: new Date(),
+    content: [{ type: "text" as const, text: "hello" }],
+    attachments: [
+      {
+        id: "att-1",
+        type: "file" as const,
+        name: "notes.txt",
+        contentType: "text/plain",
+        status: { type: "complete" as const },
+        content: [{ type: "text" as const, text: "attached" }],
+      },
+    ],
+    metadata: { custom: {} },
+  } as any;
+
+  it("converts user content and appends attachment parts", () => {
+    const result = threadMessageToA2AMessage(userMessage);
+    expect(result.messageId).toBe("msg-1");
+    expect(result.role).toBe("user");
+    expect(result.parts).toEqual([{ text: "hello" }, { text: "attached" }]);
+    expect(result.contextId).toBeUndefined();
+    expect(result.taskId).toBeUndefined();
+  });
+
+  it("attaches contextId and taskId when provided", () => {
+    const result = threadMessageToA2AMessage(userMessage, {
+      contextId: "ctx-1",
+      taskId: "task-1",
+    });
+    expect(result.contextId).toBe("ctx-1");
+    expect(result.taskId).toBe("task-1");
+  });
+
+  it("skips undefined options and non-user content", () => {
+    const result = threadMessageToA2AMessage(
+      { ...userMessage, role: "assistant" },
+      { contextId: undefined, taskId: undefined },
+    );
+    expect(result.parts).toEqual([]);
+    expect(result.contextId).toBeUndefined();
+    expect(result.taskId).toBeUndefined();
+  });
+
+  it("keeps tool interactions out of outbound messages", () => {
+    const result = threadMessageToA2AMessage({
+      ...userMessage,
+      role: "user",
+      attachments: [],
+      content: [
+        { type: "text", text: "hello" },
+        {
+          type: "file",
+          data: "ZmlsZQ==",
+          mimeType: "text/plain",
+          filename: "file.txt",
+        },
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "present",
+          args: {},
+          argsText: "{}",
+          result: {},
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1_700_000_000_000,
+                payload: { value: "selected" },
+              },
+            ],
+          },
+        },
+      ],
+    } as any);
+
+    expect(result.parts).toEqual([
+      { text: "hello" },
+      { raw: "ZmlsZQ==", mediaType: "text/plain", filename: "file.txt" },
+    ]);
   });
 });

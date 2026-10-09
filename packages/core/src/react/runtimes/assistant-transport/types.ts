@@ -1,0 +1,188 @@
+import type { ToolModelContentPart } from "assistant-stream";
+import type { AssistantCloud } from "assistant-cloud";
+import type { ThreadMessage } from "../../../types/message";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { AttachmentAdapter } from "../../../adapters/attachment";
+import type { ThreadHistoryAdapter } from "../../../adapters/thread-history";
+import type {
+  LanguageModelV1CallSettings,
+  LanguageModelConfig,
+} from "../../../model-context/types";
+import type { UserCommands } from "../../../types/augmentations";
+import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
+
+// Message part types
+export type TextPart = {
+  readonly type: "text";
+  readonly text: string;
+};
+
+export type ImagePart = {
+  readonly type: "image";
+  readonly image: string;
+};
+
+export type UserMessagePart = TextPart | ImagePart;
+
+export type UserMessage = {
+  readonly role: "user";
+  readonly id?: string;
+  readonly parts: readonly UserMessagePart[];
+};
+
+export type AssistantMessage = {
+  readonly role: "assistant";
+  readonly parts: readonly TextPart[];
+};
+
+// Command types
+export type AddMessageCommand = {
+  readonly type: "add-message";
+  readonly message: UserMessage | AssistantMessage;
+  readonly parentId: string | null;
+  readonly sourceId: string | null;
+};
+
+export type AddToolResultCommand = {
+  readonly type: "add-tool-result";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly result: ReadonlyJSONValue;
+  readonly isError: boolean;
+  readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
+};
+
+export type AssistantTransportCommand =
+  | AddMessageCommand
+  | AddToolResultCommand
+  | UserCommands;
+
+// State types
+export type AssistantTransportState = {
+  readonly messages: readonly ThreadMessage[];
+  readonly state?: ReadonlyJSONValue;
+  readonly isRunning: boolean;
+};
+
+export type AssistantTransportConnectionMetadata = {
+  pendingCommands: AssistantTransportCommand[];
+  isSending: boolean;
+  toolStatuses: Record<string, ToolExecutionStatus>;
+};
+
+export type AssistantTransportStateConverter<T> = (
+  state: T,
+  connectionMetadata: AssistantTransportConnectionMetadata,
+) => AssistantTransportState;
+
+// Queue types
+export type CommandQueueState = {
+  queued: AssistantTransportCommand[];
+  inTransit: AssistantTransportCommand[];
+};
+
+// For now, queued items are plain commands (runConfig not supported)
+export type QueuedCommand = AssistantTransportCommand;
+
+// Task types
+
+// Options types
+export type HeadersValue = Record<string, string> | Headers;
+
+export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
+
+export type SendCommandsRequestBody = {
+  commands: QueuedCommand[];
+  /** Absent on a resume with `resumeStateApi`; the server replays from its retained snapshot. */
+  state?: unknown;
+  runId?: string;
+  system: string | undefined;
+  tools: Record<string, unknown> | undefined;
+  callSettings: LanguageModelV1CallSettings | undefined;
+  config: LanguageModelConfig | undefined;
+  /** Remote id of the thread; absent only when resuming a thread that has none. */
+  threadId?: string;
+  parentId?: string | null;
+  // `callSettings` and `config` fields are also spread at the top level for
+  // backward compatibility (e.g. `body.modelName`). Use the nested objects
+  // instead. The top-level fields will be removed in a future version.
+  [key: string]: unknown;
+};
+
+export type AssistantTransportOptions<T> = {
+  initialState: T;
+  api: string;
+  /**
+   * Backs the thread list with Assistant Cloud; requests carry the cloud thread id.
+   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud on Next.js, as for `useLocalRuntime`.
+   */
+  cloud?: AssistantCloud | undefined;
+  resumeApi?: string;
+  /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
+  resumeStateApi?: string;
+  protocol?: AssistantTransportProtocol;
+  /**
+   * When `false`, stream decoding and state reconciliation tolerate malformed
+   * input (invalid chunks are dropped with a console log) instead of throwing.
+   * Resume runs always decode leniently. Defaults to `true`.
+   */
+  strict?: boolean;
+  /** Maximum UTF-16 code units accepted in one data-stream or SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one assistant-transport event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
+  converter: AssistantTransportStateConverter<T>;
+  headers: HeadersValue | (() => Promise<HeadersValue>);
+  body?: object | (() => Promise<object | undefined>);
+  /**
+   * Transform the request body before it is sent to the API.
+   * Receives the fully assembled body and returns the (potentially transformed) body.
+   *
+   * @example
+   * ```ts
+   * prepareSendCommandsRequest: (body) => ({
+   *   ...body,
+   *   trackingId: crypto.randomUUID(),
+   * })
+   * ```
+   */
+  prepareSendCommandsRequest?: (
+    body: SendCommandsRequestBody,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  onResponse?: (response: Response) => void | Promise<void>;
+  onFinish?: () => void;
+  onError?: (
+    error: Error,
+    params: {
+      commands: AssistantTransportCommand[];
+      updateState: (updater: (state: T) => T) => void;
+    },
+  ) => void | Promise<void>;
+  /**
+   * Called when commands are cancelled.
+   *
+   * When an error occurs, queued commands are automatically cancelled after `onError` settles.
+   * In this case, the `error` parameter contains the error that caused the cancellation.
+   *
+   * A cancel while `onError` is still pending ends the run without waiting for it, so one
+   * failed run can call `onCancel` twice: first without `error`, for the commands queued
+   * since the failure, then with `error`, for the commands queued before it, once `onError`
+   * settles. The second call can arrive after a later run has started.
+   */
+  onCancel?: (params: {
+    commands: AssistantTransportCommand[];
+    updateState: (updater: (state: T) => T) => void;
+    error?: Error;
+  }) => void;
+  capabilities?: {
+    edit?: boolean;
+  };
+  adapters?: {
+    attachments?: AttachmentAdapter | undefined;
+    /** @deprecated This runtime never reads it; pass `cloud` to keep threads in Assistant Cloud. */
+    history?: ThreadHistoryAdapter | undefined;
+  };
+};
+
+// (no task or stream-specific types needed in this module)

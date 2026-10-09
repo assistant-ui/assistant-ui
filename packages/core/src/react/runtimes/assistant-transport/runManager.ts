@@ -1,0 +1,136 @@
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { invokeUserCallback } from "../../../utils/invoke-user-callback";
+import { useLatestRef } from "./useLatestRef";
+import { raceWithAbortSignal } from "../../../utils/abortable-promise";
+
+export type RunManager = Readonly<{
+  isRunning: boolean;
+  schedule: () => void;
+  cancel: () => boolean;
+}>;
+
+const disposeReason = Symbol("assistant-transport-dispose");
+
+type LifecycleCallbackName = "onCancel" | "onError" | "onFinish";
+
+const invokeCallback = (
+  name: LifecycleCallbackName,
+  callback: (() => unknown) | undefined,
+) =>
+  invokeUserCallback("assistant-ui", `Assistant transport ${name}`, callback);
+
+export function useRunManager(config: {
+  onRun: (signal: AbortSignal) => Promise<void>;
+  onFinish?: (() => void) | undefined;
+  onCancel?: ((afterError?: boolean) => void) | undefined;
+  onError?: ((error: Error) => void | Promise<void>) | undefined;
+}): RunManager {
+  const [isRunning, setIsRunning] = useState(false);
+  const stateRef = useRef({
+    pending: false,
+    disposed: false,
+    abortController: null as AbortController | null,
+  });
+  const onRunRef = useLatestRef(config.onRun);
+  const onFinishRef = useLatestRef(config.onFinish);
+  const onCancelRef = useLatestRef(config.onCancel);
+  const onErrorRef = useLatestRef(config.onError);
+
+  const startRun = useCallback(() => {
+    setIsRunning(true);
+    stateRef.current.pending = false;
+    const ac = new AbortController();
+    stateRef.current.abortController = ac;
+
+    // The dispose marker rides on the abort reason so a settling run detects
+    // its own disposal even after an effect cycle re-arms the manager.
+    const disposeAborted = () => ac.signal.reason === disposeReason;
+
+    queueMicrotask(async () => {
+      try {
+        if (ac.signal.aborted) throw ac.signal.reason;
+        if (!stateRef.current.disposed) {
+          await onRunRef.current(ac.signal);
+          // A fully received body is not errored by abort(), so a cancelled
+          // run can still resolve.
+          if (ac.signal.aborted) throw ac.signal.reason;
+        }
+      } catch (error) {
+        if (!disposeAborted() && !stateRef.current.disposed) {
+          if (ac.signal.aborted) {
+            void invokeCallback("onCancel", onCancelRef.current);
+          } else {
+            stateRef.current.pending = false;
+            await raceWithAbortSignal(ac.signal, async () =>
+              invokeCallback("onError", () =>
+                onErrorRef.current?.(error as Error),
+              ),
+            ).catch(() => {});
+            if (
+              ac.signal.aborted &&
+              !disposeAborted() &&
+              !stateRef.current.disposed
+            ) {
+              void invokeCallback("onCancel", () =>
+                onCancelRef.current?.(true),
+              );
+            }
+          }
+        }
+      } finally {
+        if (!disposeAborted() && !stateRef.current.disposed) {
+          void invokeCallback("onFinish", onFinishRef.current);
+        }
+        if (!stateRef.current.disposed && stateRef.current.pending) {
+          startRun();
+        } else {
+          setIsRunning(false);
+          if (stateRef.current.abortController === ac) {
+            stateRef.current.abortController = null;
+          }
+        }
+      }
+    });
+  }, [onRunRef, onFinishRef, onErrorRef, onCancelRef]);
+
+  const schedule = useCallback(() => {
+    if (stateRef.current.disposed) return;
+    if (stateRef.current.abortController) {
+      // Coalesce multiple schedules while running into a single follow-up run.
+      stateRef.current.pending = true;
+      return;
+    }
+    startRun();
+  }, [startRun]);
+
+  // Disposal is flagged synchronously so a run settling after unmount stays
+  // silent; only the abort waits out a replay, so a refresh keeps the run.
+  useEffect(() => {
+    stateRef.current.disposed = false;
+    return () => {
+      stateRef.current.disposed = true;
+    };
+  }, []);
+
+  useReplaySafeEffect(
+    () => () => {
+      stateRef.current.pending = false;
+      stateRef.current.abortController?.abort(disposeReason);
+    },
+    [],
+  );
+
+  const cancel = useCallback(() => {
+    stateRef.current.pending = false;
+    const ac = stateRef.current.abortController;
+    ac?.abort();
+    return ac !== null;
+  }, []);
+
+  return {
+    isRunning,
+    schedule,
+    cancel,
+  };
+}

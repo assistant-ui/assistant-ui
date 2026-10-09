@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { scheduleTask, flushTapSync } from "../core/scheduler";
-
-const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+import { waitForNextTick } from "./test-utils";
 
 describe("scheduleTask", () => {
   it("runs tasks in order on the next flush", async () => {
@@ -10,7 +9,7 @@ describe("scheduleTask", () => {
     scheduleTask(() => order.push(2));
 
     expect(order).toEqual([]);
-    await nextTick();
+    await waitForNextTick();
     expect(order).toEqual([1, 2]);
   });
 
@@ -18,6 +17,26 @@ describe("scheduleTask", () => {
     let ran = false;
     flushTapSync(() => scheduleTask(() => (ran = true)));
     expect(ran).toBe(true);
+  });
+
+  it("leaves a task queued before flushTapSync for the next flush", async () => {
+    const order: string[] = [];
+    scheduleTask(() => order.push("queued before"));
+    flushTapSync(() => scheduleTask(() => order.push("queued inside")));
+
+    expect(order).toEqual(["queued inside"]);
+    await waitForNextTick();
+    expect(order).toEqual(["queued inside", "queued before"]);
+  });
+
+  it("keeps a large batch queued before flushTapSync for the next flush", async () => {
+    let ran = 0;
+    for (let i = 0; i < 200_000; i++) scheduleTask(() => ran++);
+    flushTapSync(() => {});
+
+    expect(ran).toBe(0);
+    await waitForNextTick();
+    expect(ran).toBe(200_000);
   });
 
   it("runs a task scheduled by another task in the same flush", () => {

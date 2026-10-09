@@ -1,0 +1,11 @@
+export const REF_PACKAGE_DIRS = {
+  "@assistant-ui/tap": "packages/tap",
+  "@assistant-ui/core": "packages/core",
+  "@assistant-ui/store": "packages/store",
+  "assistant-stream": "packages/assistant-stream",
+  "@assistant-ui/react": "packages/react",
+  "@assistant-ui/react-markdown": "packages/react-markdown",
+  "@assistant-ui/ai-sdk": "packages/ai-sdk",
+  "@assistant-ui/react-langgraph": "packages/react-langgraph",
+  "@assistant-ui/react-pi": "packages/react-pi",
+};

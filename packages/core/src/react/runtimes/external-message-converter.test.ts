@@ -1,9 +1,94 @@
 import { describe, it, expect } from "vitest";
-import { convertExternalMessages } from "./external-message-converter";
+import {
+  convertExternalMessages,
+  createExternalMessageConversionCache,
+} from "./external-message-converter";
 import type { useExternalMessageConverter } from "./external-message-converter";
 import { isErrorMessageId } from "../../utils/id";
 
 describe("convertExternalMessages", () => {
+  it("keeps unchanged messages and rebuilds a replaced one with an opt-in cache", () => {
+    type Input = { id: string; role: "user" | "assistant"; text: string };
+    const metadata = {};
+    const cache = createExternalMessageConversionCache();
+    const callback: useExternalMessageConverter.Callback<Input> = (
+      message,
+    ) => ({
+      id: message.id,
+      role: message.role,
+      content: message.text,
+    });
+    const question: Input = { id: "question", role: "user", text: "hi" };
+    const answer: Input = { id: "answer", role: "assistant", text: "hel" };
+
+    const first = convertExternalMessages(
+      [question, answer],
+      callback,
+      true,
+      metadata,
+      cache,
+    );
+    const second = convertExternalMessages(
+      [question, { ...answer, text: "hello" }],
+      callback,
+      true,
+      metadata,
+      cache,
+    );
+
+    expect(second[0]).toBe(first[0]);
+    expect(second[1]).not.toBe(first[1]);
+    expect(second[1]?.content).toMatchObject([{ type: "text", text: "hello" }]);
+  });
+
+  it("invalidates cached messages when the callback or metadata changes", () => {
+    const input = { text: "nested" };
+    const cache = createExternalMessageConversionCache();
+    const withFormat =
+      (
+        format: (text: string) => string,
+      ): useExternalMessageConverter.Callback<typeof input> =>
+      (message, metadata) => ({
+        id: "nested",
+        role: "assistant",
+        content: format(message.text),
+        metadata: { timing: metadata.messageTiming?.["nested"] },
+      });
+    const callback = withFormat((text) => text);
+    const uppercaseCallback = withFormat((text) => text.toUpperCase());
+    const metadata = {};
+    const timing = { streamStartTime: 1, totalChunks: 1, toolCallCount: 0 };
+
+    const first = convertExternalMessages(
+      [input],
+      callback,
+      false,
+      metadata,
+      cache,
+    );
+    const second = convertExternalMessages(
+      [input],
+      uppercaseCallback,
+      false,
+      metadata,
+      cache,
+    );
+    const third = convertExternalMessages(
+      [input],
+      uppercaseCallback,
+      false,
+      { messageTiming: { nested: timing } },
+      cache,
+    );
+
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.content).toMatchObject([
+      { type: "text", text: "NESTED" },
+    ]);
+    expect(third[0]).not.toBe(second[0]);
+    expect(third[0]?.metadata).toMatchObject({ timing });
+  });
+
   describe("reasoning part merging", () => {
     it("should merge reasoning parts with the same parentId", () => {
       const messages = [
@@ -205,6 +290,56 @@ describe("convertExternalMessages", () => {
       expect((toolCallParts[0] as any).argsText).toBe('{"query":"new"}');
     });
 
+    it("keeps a merged tool call in its original content position", () => {
+      const messages = [
+        {
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "search",
+              args: { query: "old" },
+            },
+            { type: "text" as const, text: "after tool" },
+          ],
+        },
+        {
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "search",
+              args: { query: "new" },
+            },
+          ],
+        },
+        {
+          role: "tool" as const,
+          toolCallId: "tc1",
+          result: "found",
+        },
+      ];
+
+      const result = convertExternalMessages(
+        messages,
+        (message) => message,
+        false,
+        {},
+      );
+
+      expect(result[0]!.content).toMatchObject([
+        {
+          type: "tool-call",
+          toolCallId: "tc1",
+          args: { query: "new" },
+          result: "found",
+        },
+        { type: "text", text: "after tool" },
+      ]);
+    });
+
     it("should ignore orphaned tool results without throwing", () => {
       const messages = [
         {
@@ -344,6 +479,153 @@ describe("convertExternalMessages", () => {
     });
   });
 
+  describe("metadata merging across joined messages", () => {
+    it("keeps the final assistant message's metadata after a tool call", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+            },
+          ],
+        },
+        {
+          role: "tool" as const,
+          toolCallId: "t1",
+          toolName: "search",
+          result: { ok: true },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "final answer" }],
+          metadata: {
+            unstable_annotations: [{ note: "final" }],
+            steps: [{ usage: { promptTokens: 1, completionTokens: 2 } }],
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.unstable_annotations).toEqual([{ note: "final" }]);
+      expect(metadata.steps).toEqual([
+        { usage: { promptTokens: 1, completionTokens: 2 } },
+      ]);
+    });
+
+    it("accumulates annotations and data from every joined assistant message", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "first" }],
+          metadata: {
+            unstable_annotations: [{ a: 1 }],
+            unstable_data: [{ d: 1 }],
+          },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "second" }],
+          metadata: {
+            unstable_annotations: [{ a: 2 }],
+            unstable_data: [{ d: 2 }],
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.unstable_annotations).toEqual([{ a: 1 }, { a: 2 }]);
+      expect(metadata.unstable_data).toEqual([{ d: 1 }, { d: 2 }]);
+    });
+
+    it("keeps the last joined output's timing, dropping earlier timing", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "first" }],
+          metadata: {
+            timing: { streamStartTime: 1, totalChunks: 1, toolCallCount: 0 },
+          },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "second" }],
+          metadata: {
+            timing: { streamStartTime: 2, totalChunks: 1, toolCallCount: 0 },
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.timing).toEqual({
+        streamStartTime: 2,
+        totalChunks: 1,
+        toolCallCount: 0,
+      });
+    });
+
+    it("merges custom across joined outputs, with later keys overwriting earlier ones", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "first" }],
+          metadata: {
+            custom: { author: "agent-a", branch: "main" },
+          },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "second" }],
+          metadata: {
+            custom: { author: "agent-b" },
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.custom).toEqual({ author: "agent-b", branch: "main" });
+    });
+  });
+
   describe("invalid converter output", () => {
     it("throws a descriptive error when the callback returns undefined", () => {
       const messages = [{ id: "m1", type: "remove" }];
@@ -398,20 +680,6 @@ describe("convertExternalMessages", () => {
       expect(() =>
         convertExternalMessages(messages, callback, false, {}),
       ).toThrowError(/returned an invalid message \(\{"role":"user"\}\)/);
-    });
-
-    it("tolerates a tool message without toolCallId as an orphaned tool result", () => {
-      const messages = [{ id: "m1", role: "user" as const, content: "hi" }];
-      const callback = ((msg: (typeof messages)[number]) => [
-        msg,
-        { role: "tool", result: "ok" },
-      ]) as unknown as useExternalMessageConverter.Callback<
-        (typeof messages)[number]
-      >;
-
-      const result = convertExternalMessages(messages, callback, false, {});
-      expect(result[0]!.role).toBe("user");
-      expect(result[1]!.content).toHaveLength(0);
     });
   });
 });

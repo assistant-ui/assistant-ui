@@ -8,10 +8,10 @@ import { HeatGraphDemo } from "@/app/(demos)/heat-graph/heat-graph-demo";
 
 `heat-graph` provides headless, Radix-style primitives for building GitHub-style activity heatmap graphs.
 
-- **Composable** — Radix-style compound components you fully control
-- **Headless** — Zero styling opinions, bring your own CSS/Tailwind
-- **Tooltip built-in** — Powered by Radix Popper for positioning
-- **Customizable bucketing** — Plug in your own classification function
+- **Composable**: Radix-style compound components that you arrange yourself
+- **Headless**: ships no styles, so you bring your own CSS or Tailwind
+- **Tooltip built-in**: positioned with Radix Popper
+- **Customizable bucketing**: accepts your own classification function
 
 <HeatGraphDemo />
 
@@ -22,7 +22,7 @@ import { HeatGraphDemo } from "@/app/(demos)/heat-graph/heat-graph-demo";
     ```sh
     npx shadcn@latest add @assistant-ui/heat-graph
     ```
-    This installs a pre-styled `HeatGraph` component to `components/assistant-ui/heat-graph.tsx` along with the `heat-graph` package. The `@assistant-ui` namespace resolves through the registry entry configured in [Manual Setup](/docs/installation#manual-setup).
+    This installs a pre-styled `HeatGraph` component to `components/assistant-ui/elements/heat-graph.tsx` along with the `heat-graph` package. The `@assistant-ui` namespace resolves through the registry entry configured in [Manual Setup](/docs/installation#manual-setup).
   </Tab>
   <Tab value="npm">
     ```sh

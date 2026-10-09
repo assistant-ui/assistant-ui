@@ -1,0 +1,121 @@
+---
+title: API reference
+description: The SafeContentFrame class, its options, the render methods, and the rendered frame.
+---
+
+## `SafeContentFrame`
+
+```ts
+import { SafeContentFrame } from "safe-content-frame";
+
+const frame = new SafeContentFrame(product, options);
+```
+
+`product` is your product identifier. It scopes the hashed origin, so different products on the same domain do not collide.
+
+<ParametersTable
+  type="SafeContentFrameOptions"
+  parameters={[
+    {
+      name: "useShadowDom",
+      type: "boolean",
+      default: "false",
+      description: "Mount the iframe inside a closed shadow root.",
+    },
+    {
+      name: "enableBrowserCaching",
+      type: "boolean",
+      default: "false",
+      description:
+        "Derive the salt from the content hash so repeated renders reuse the same origin and HTTP cache.",
+    },
+    {
+      name: "sandbox",
+      type: "SandboxOption[]",
+      default: '["allow-same-origin", "allow-scripts"]',
+      description:
+        "Extra iframe sandbox permissions to grant. The two defaults are always added.",
+    },
+    {
+      name: "salt",
+      type: "string",
+      default: "random per render",
+      description:
+        "Override the salt explicitly, for tests or stable-origin embeds.",
+    },
+  ]}
+/>
+
+`SandboxOption` is one of `"allow-same-origin"`, `"allow-scripts"`, `"allow-forms"`, `"allow-popups"`, `"allow-modals"`, `"allow-downloads"`, or `"allow-popups-to-escape-sandbox"`.
+
+## Render methods
+
+Each method appends an iframe to `container` and resolves with a [`RenderedFrame`](#renderedframe) once the iframe has loaded and the content has been posted to it.
+
+| Method | Purpose |
+| --- | --- |
+| `renderHtml(html, container, opts?)` | Render an HTML string. |
+| `renderRaw(content, mimeType, container, opts?)` | Render any MIME type from a `string` or `Uint8Array`. |
+| `renderPdf(content, container, opts?)` | Render a PDF document from a `Uint8Array`. |
+
+<ParametersTable
+  type="SafeContentFrameRenderOptions"
+  parameters={[
+    {
+      name: "signal",
+      type: "AbortSignal",
+      description:
+        "Cancels the render while its iframe is still loading. The iframe is removed and the promise rejects with the signal's reason.",
+    },
+  ]}
+/>
+
+`renderHtml` also accepts `SafeContentFrameHtmlRenderOptions`, which adds one option:
+
+<ParametersTable
+  type="SafeContentFrameHtmlRenderOptions"
+  parameters={[
+    {
+      name: "unsafeDocumentWrite",
+      type: "boolean",
+      description: "Forwarded to the frame together with the HTML.",
+    },
+  ]}
+/>
+
+## `RenderedFrame`
+
+| Property or method | Description |
+| --- | --- |
+| `iframe` | The created `<iframe>` element. |
+| `origin` | The hashed origin the frame was loaded from. |
+| `sendMessage(data, transfer?)` | `postMessage` to the frame, targeted at its origin. |
+| `fullyLoadedPromiseWithTimeout(ms)` | Resolves once the frame signals that the content rendered. Rejects with a [`ShimLoadError`](#errors) when it does not. |
+| `dispose()` | Remove the iframe from the DOM. |
+
+## Errors
+
+`fullyLoadedPromiseWithTimeout` rejects with a `ShimLoadError`, an `Error` with a `code`:
+
+| Code | Meaning |
+| --- | --- |
+| `shim-unavailable` | The shim never acknowledged that it started before the timeout, so the document at the shim URL is missing or is not a shim. The message names the shim URL. |
+| `shim-error` | The shim reported its own failure. The message is the shim's. |
+| `render-timeout` | The shim started, but the content had not rendered before the timeout. This is the one case that may still resolve on its own. |
+
+Use `isShimLoadError(error)` to narrow a rejection. It checks the `code` rather than `instanceof`, so it works when a bundle contains two copies of the package.
+
+```ts
+import { isShimLoadError } from "safe-content-frame";
+
+try {
+  await rendered.fullyLoadedPromiseWithTimeout(5000);
+} catch (error) {
+  if (isShimLoadError(error)) console.warn(error.code, error.message);
+  else throw error;
+}
+```
+
+## `safe-content-frame/shadow_dom`
+
+A second entry point that exports two functions, `enableShadowDom()`, which returns `true`, and `unsafeDisableShadowDom()`, which returns `false`. To mount a frame inside a shadow root, set `useShadowDom` on the `SafeContentFrame` options.

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { createMessageQueue } from "../runtime/queue/message-queue";
+import {
+  createMessageQueue,
+  type MessageQueueDriver,
+} from "../runtime/queue/message-queue";
 import type { AppendMessage } from "../types/message";
 
 const msg = (text: string, extra?: Partial<AppendMessage>): AppendMessage => ({
@@ -18,6 +21,527 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["clear", "settled replacement"])(
+    "contains a synchronous retry failure during asynchronous %s recovery",
+    async (mode) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const failed = new Error("retry failed before busy");
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {
+        throw failed;
+      });
+      run.mockImplementationOnce(() => pending);
+      const controller = createMessageQueue({ run, cancel: () => {} });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const unhandled: unknown[] = [];
+      const onUnhandled = (error: unknown) => {
+        unhandled.push(error);
+      };
+      const listeners = process.listeners("unhandledRejection");
+      process.removeAllListeners("unhandledRejection");
+      process.on("unhandledRejection", onUnhandled);
+      try {
+        controller.adapter.enqueue(msg("original"));
+        if (mode === "clear") controller.clear();
+        else {
+          run.mockImplementationOnce(() => controller.notifyBusy());
+          controller.adapter.steer(msg("replacement"));
+          controller.notifyIdle();
+        }
+        controller.adapter.enqueue(msg("retry"));
+        reject(new Error("original rejected"));
+        await pending.catch(() => {});
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(unhandled).toEqual([]);
+        expect(logged).toHaveBeenCalledWith(
+          "[MessageQueue] run rejected",
+          failed,
+        );
+        expect(prompts(controller.adapter.items)).toEqual(["retry"]);
+        expect(controller.adapter.steerItems).toEqual([]);
+        run.mockImplementation(() => controller.notifyBusy());
+        controller.adapter.enqueue(msg("later"));
+        expect(run).toHaveBeenLastCalledWith(msg("retry"), { steer: false });
+        controller.notifyIdle();
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        process.removeListener("unhandledRejection", onUnhandled);
+        for (const listener of listeners)
+          process.on("unhandledRejection", listener);
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    ["steer", false],
+    ["steer", true],
+    ["external", false],
+    ["external", true],
+  ] as const)(
+    "releases a cancelled pre-busy dispatch rejected after its %s replacement settles (newer run: %s)",
+    async (replacement, newerRun) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() =>
+        controller.notifyBusy(),
+      );
+      run.mockImplementationOnce(() => pending);
+      const controller = createMessageQueue({ run, cancel: () => {} });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("cancelled"));
+        if (replacement === "steer") {
+          controller.adapter.steer(msg("replacement"));
+        } else {
+          controller.notifyCancelled();
+          controller.notifyBusy();
+        }
+        controller.notifyIdle();
+        if (newerRun) controller.notifyBusy();
+        const calls = run.mock.calls.length;
+        controller.adapter.enqueue(msg("later"));
+        reject(new Error("late cancellation"));
+        await pending.catch(() => {});
+        if (newerRun) {
+          expect(run).toHaveBeenCalledTimes(calls);
+          expect(prompts(controller.adapter.items)).toEqual(["later"]);
+          controller.notifyIdle();
+        }
+        expect(run).toHaveBeenCalledTimes(calls + 1);
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+        expect(controller.adapter.items).toEqual([]);
+        expect(controller.adapter.steerItems).toEqual([]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([true, false])(
+    "releases a settled replacement after two pre-busy dispatches reject (original first: %s)",
+    async (originalFirst) => {
+      let rejectOriginal!: (error: Error) => void;
+      let rejectSteer!: (error: Error) => void;
+      const original = new Promise<void>((_resolve, fail) => {
+        rejectOriginal = fail;
+      });
+      const steer = new Promise<void>((_resolve, fail) => {
+        rejectSteer = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() =>
+        controller.notifyBusy(),
+      );
+      run.mockImplementationOnce(() => original);
+      run.mockImplementationOnce(() => steer);
+      const controller = createMessageQueue({ run, cancel: () => {} });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("original"));
+        controller.adapter.steer(msg("steer"));
+        controller.adapter.steer(msg("replacement"));
+        controller.notifyIdle();
+        controller.adapter.enqueue(msg("later"));
+        const failures = originalFirst
+          ? ([
+              [rejectOriginal, original],
+              [rejectSteer, steer],
+            ] as const)
+          : ([
+              [rejectSteer, steer],
+              [rejectOriginal, original],
+            ] as const);
+        for (const [reject, pending] of failures) {
+          reject(new Error("late cancellation"));
+          await pending.catch(() => {});
+        }
+        expect(run).toHaveBeenCalledTimes(4);
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+        expect(controller.adapter.items).toEqual([]);
+        expect(controller.adapter.steerItems).toEqual([]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it("restores a pre-busy abort without reporting it as a dispatch failure", async () => {
+    const error = new Error("cancelled before dispatch");
+    error.name = "AbortError";
+    const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+    run.mockImplementationOnce(() => Promise.reject(error));
+    const controller = createMessageQueue({ run });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      controller.adapter.enqueue(msg("first"));
+      await Promise.resolve();
+      expect(prompts(controller.adapter.items)).toEqual(["first"]);
+      expect(logged).not.toHaveBeenCalled();
+      controller.adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenLastCalledWith(msg("first"), { steer: false });
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  it("does not restore a dispatch cleared from its dequeue notification", async () => {
+    let reject!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, fail) => {
+      reject = fail;
+    });
+    const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+    run.mockImplementationOnce(() => pending);
+    const controller = createMessageQueue({ run });
+    let cleared = false;
+    controller.subscribe(() => {
+      if (cleared || controller.adapter.items.length !== 0) return;
+      cleared = true;
+      controller.clear();
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      controller.adapter.enqueue(msg("discarded"));
+      reject(new Error("late failure"));
+      await pending.catch(() => {});
+      expect(controller.adapter.items).toEqual([]);
+      controller.adapter.enqueue(msg("replacement"));
+      expect(run).toHaveBeenLastCalledWith(msg("replacement"), {
+        steer: false,
+      });
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  it.each([
+    ["queued", true],
+    ["queued", false],
+    ["steered", true],
+    ["steered", false],
+  ] as const)(
+    "does not restore a rejected %s dispatch after a steer replaces it (idle notified: %s)",
+    async (mode, idleNotified) => {
+      const error = new Error("cancelled before busy");
+      let reject!: (error: Error) => void;
+      const cancelled = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      let finish!: () => void;
+      const replacement = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      const cancel = vi.fn(() => controller.notifyIdle());
+      const controller = createMessageQueue({ run, cancel });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        if (mode === "steered") controller.adapter.enqueue(msg("initial"));
+        run.mockImplementationOnce(() => cancelled);
+        if (mode === "queued") controller.adapter.enqueue(msg("cancelled"));
+        else controller.adapter.steer(msg("cancelled"));
+        run.mockImplementationOnce(() => replacement);
+        cancel.mockImplementationOnce(() => {
+          reject(error);
+          if (idleNotified) controller.notifyIdle();
+        });
+        controller.adapter.steer(msg("replacement"));
+        const calls = run.mock.calls.length;
+        await cancelled.catch(() => {});
+        controller.adapter.enqueue(msg("later"));
+        expect(run).toHaveBeenCalledTimes(calls);
+        expect(prompts(controller.adapter.items)).toEqual(["later"]);
+        expect(controller.adapter.steerItems).toEqual([]);
+
+        controller.notifyBusy();
+        finish();
+        await replacement;
+        controller.notifyIdle();
+        expect(run).toHaveBeenCalledTimes(calls + 1);
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([true, false])(
+    "retries a failed steer after both pre-busy dispatches reject (original first: %s)",
+    async (originalFirst) => {
+      let rejectOriginal!: (error: Error) => void;
+      let rejectSteer!: (error: Error) => void;
+      const original = new Promise<void>((_resolve, reject) => {
+        rejectOriginal = reject;
+      });
+      const steered = new Promise<void>((_resolve, reject) => {
+        rejectSteer = reject;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      run.mockImplementationOnce(() => original);
+      run.mockImplementationOnce(() => steered);
+      const controller = createMessageQueue({ run, cancel: () => {} });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("original"));
+        controller.adapter.steer(msg("steer"));
+        const failures = originalFirst
+          ? ([
+              [rejectOriginal, original],
+              [rejectSteer, steered],
+            ] as const)
+          : ([
+              [rejectSteer, steered],
+              [rejectOriginal, original],
+            ] as const);
+        for (const [reject, pending] of failures) {
+          reject(new Error("pre-busy failure"));
+          await pending.catch(() => {});
+        }
+        expect(prompts(controller.adapter.steerItems)).toEqual(["steer"]);
+        expect(controller.adapter.items).toEqual([]);
+        controller.adapter.enqueue(msg("later"));
+        expect(run).toHaveBeenLastCalledWith(msg("steer"), { steer: false });
+        controller.notifyBusy();
+        controller.notifyIdle();
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([true, false])(
+    "retires a cancelled pre-busy failure (external replacement: %s)",
+    async (replacement) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      run.mockImplementationOnce(() => pending);
+      const controller = createMessageQueue({ run });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("first"));
+        controller.notifyCancelled();
+        if (replacement) controller.notifyBusy();
+        reject(new Error("cancelled before busy"));
+        await pending.catch(() => {});
+        controller.adapter.enqueue(msg("later"));
+        if (replacement) {
+          expect(run).toHaveBeenCalledOnce();
+        } else {
+          expect(run).toHaveBeenLastCalledWith(msg("first"), { steer: false });
+          controller.notifyBusy();
+        }
+        controller.notifyIdle();
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    ["queue", true],
+    ["steer", true],
+    ["steer", false],
+    ["move", true],
+    ["move", false],
+  ] as const)(
+    "releases a cleared rejected %s (cancellation settled: %s)",
+    async (lane, settled) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      const controller = createMessageQueue({
+        run,
+        cancel: () => {
+          if (settled) controller.notifyIdle();
+        },
+      });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        if (lane !== "queue") controller.adapter.enqueue(msg("active"));
+        run.mockImplementationOnce(() => pending);
+        if (lane === "queue") controller.adapter.enqueue(msg("failed"));
+        else if (lane === "steer") controller.adapter.steer(msg("failed"));
+        else {
+          controller.adapter.enqueue(msg("failed"));
+          controller.adapter.move(controller.adapter.items[0]!.id, {
+            lane: "steer",
+          });
+        }
+        controller.clear();
+        controller.adapter.enqueue(msg("replacement"));
+        reject(new Error("late rejection"));
+        await pending.catch(() => {});
+        if (!settled) {
+          expect(prompts(controller.adapter.items)).toEqual(["replacement"]);
+          controller.notifyIdle();
+        }
+        expect(run).toHaveBeenLastCalledWith(msg("replacement"), {
+          steer: false,
+        });
+        expect(controller.adapter.items).toEqual([]);
+        expect(controller.adapter.steerItems).toEqual([]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each(["queue", "steer", "move"])(
+    "restores and pauses an asynchronously rejected %s until the next send",
+    async (lane) => {
+      const error = new Error("send failed before append");
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      const controller = createMessageQueue({
+        run,
+        cancel: () => controller.notifyIdle(),
+      });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        if (lane !== "queue") controller.adapter.enqueue(msg("active"));
+        run.mockImplementationOnce(() => pending);
+        if (lane === "queue") controller.adapter.enqueue(msg("failed"));
+        else if (lane === "steer") controller.adapter.steer(msg("failed"));
+        else {
+          controller.adapter.enqueue(msg("failed"));
+          controller.adapter.move(controller.adapter.items[0]!.id, {
+            lane: "steer",
+          });
+        }
+        controller.adapter.enqueue(msg("later"));
+        const before = run.mock.calls.length;
+        reject(error);
+        await pending.catch(() => {});
+        expect(run).toHaveBeenCalledTimes(before);
+        expect(
+          prompts(
+            lane === "steer"
+              ? controller.adapter.steerItems
+              : controller.adapter.items,
+          ),
+        ).toContain("failed");
+        expect(logged).toHaveBeenCalledWith(
+          "[MessageQueue] run rejected",
+          error,
+        );
+
+        controller.adapter.enqueue(msg("retry"));
+        expect(run).toHaveBeenLastCalledWith(msg("failed"), { steer: false });
+        expect(prompts(controller.adapter.items)).toEqual(["later", "retry"]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each(["clear", "busy"])(
+    "does not restore an async failure after %s",
+    async (action) => {
+      const error = new Error("late failure");
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const controller = createMessageQueue({ run: () => pending });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("first"));
+        if (action === "clear") controller.clear();
+        else controller.notifyBusy();
+        reject(error);
+        await pending.catch(() => {});
+        expect(controller.adapter.items).toEqual([]);
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each(["steer", "move"])(
+    "queues a reentrant %s until the reserved run settles",
+    (mode) => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const queue = createMessageQueue({ run, cancel });
+      const first = msg("first");
+      const second = msg("second");
+      queue.hold();
+      queue.adapter.enqueue(first);
+      if (mode === "move") queue.adapter.enqueue(second);
+      let steered = false;
+      queue.subscribe(() => {
+        if (steered) return;
+        steered = true;
+        if (mode === "steer") queue.adapter.steer!(second);
+        else queue.adapter.move!(queue.adapter.items[0]!.id, { lane: "steer" });
+      });
+      queue.release();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+      expect(prompts(queue.adapter.steerItems!)).toEqual(["second"]);
+      queue.notifyIdle();
+      expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+      queue.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("keeps messages enqueued by a removal subscriber behind the pending run", () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    const first = msg("first");
+    const second = msg("second");
+    queue.hold();
+    queue.adapter.enqueue(first);
+    let enqueued = false;
+    queue.subscribe(() => {
+      if (!enqueued && queue.adapter.items.length === 0) {
+        enqueued = true;
+        queue.adapter.enqueue(second);
+      }
+    });
+    queue.release();
+    expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+    expect(prompts(queue.adapter.items)).toEqual(["second"]);
+    queue.notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(queue.adapter.items).toEqual([]);
+  });
+
+  it("keeps draining after a subscriber cancels while the queue dispatches", () => {
+    const run = vi.fn(() => queue.notifyBusy());
+    const queue = createMessageQueue({ run });
+    queue.adapter.enqueue(msg("first"));
+    queue.adapter.enqueue(msg("second"));
+
+    let cancelled = false;
+    queue.subscribe(() => {
+      if (cancelled || queue.adapter.items.length !== 0) return;
+      cancelled = true;
+      queue.notifyCancelled();
+    });
+    queue.notifyIdle();
+    queue.notifyIdle();
+    queue.adapter.enqueue(msg("third"));
+
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(run).toHaveBeenLastCalledWith(msg("third"), { steer: false });
+  });
+
   it("runs immediately when idle and holds while running", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });
@@ -32,6 +556,32 @@ describe("createMessageQueue", () => {
 
     notifyIdle();
     expect(run).toHaveBeenCalledTimes(2);
+    expect(adapter.items).toHaveLength(0);
+  });
+
+  it("does not advance a held queue when a run settles", () => {
+    const run = vi.fn();
+    const { adapter, hold, notifyIdle } = createMessageQueue({ run });
+
+    adapter.enqueue(msg("first"));
+    adapter.enqueue(msg("second"));
+    hold();
+    notifyIdle();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(prompts(adapter.items)).toEqual(["second"]);
+  });
+
+  it("advances a held queue once when released", () => {
+    const run = vi.fn();
+    const { adapter, hold, release } = createMessageQueue({ run });
+
+    hold();
+    adapter.enqueue(msg("first"));
+    release();
+    release();
+
+    expect(run).toHaveBeenCalledOnce();
     expect(adapter.items).toHaveLength(0);
   });
 
@@ -435,6 +985,265 @@ describe("createMessageQueue", () => {
     });
   });
 
+  describe("synchronous dispatch failures", () => {
+    it("restores a message when the driver throws", () => {
+      const error = new Error("dispatch failed");
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {
+        throw error;
+      });
+      const { adapter } = createMessageQueue({ run });
+
+      expect(() => adapter.enqueue(msg("first"))).toThrow(error);
+      expect(prompts(adapter.items)).toEqual(["first"]);
+
+      run.mockImplementation(() => {});
+      adapter.enqueue(msg("second"));
+
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "first" }] }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["second"]);
+    });
+
+    it("does not restore work after the driver starts its run", () => {
+      const error = new Error("dispatch failed");
+      let fail = true;
+      let controller!: ReturnType<typeof createMessageQueue>;
+      const run = vi.fn(() => {
+        if (!fail) return;
+        controller.notifyBusy();
+        throw error;
+      });
+      controller = createMessageQueue({ run });
+
+      expect(() => controller.adapter.enqueue(msg("first"))).toThrow(error);
+      expect(prompts(controller.adapter.items)).toEqual([]);
+
+      fail = false;
+      controller.adapter.enqueue(msg("second"));
+      expect(run).toHaveBeenCalledOnce();
+
+      controller.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "second" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(controller.adapter.items)).toEqual([]);
+    });
+
+    it("restores a message when its dispatch transform throws", () => {
+      const error = new Error("transform failed");
+      const run = vi.fn();
+      const { adapter } = createMessageQueue({ run });
+      const setDispatchTransform = adapter.__internal_setDispatchTransform;
+      if (setDispatchTransform === undefined)
+        throw new Error("expected dispatch transform support");
+      setDispatchTransform(() => {
+        throw error;
+      });
+
+      expect(() => adapter.enqueue(msg("first"))).toThrow(error);
+      expect(run).not.toHaveBeenCalled();
+      expect(prompts(adapter.items)).toEqual(["first"]);
+
+      setDispatchTransform((message) => message);
+      adapter.enqueue(msg("second"));
+
+      expect(run).toHaveBeenCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "first" }] }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["second"]);
+    });
+
+    it("restores a steer when cancellation throws", () => {
+      const error = new Error("cancel failed");
+      const run = vi.fn();
+      const cancel = vi.fn<NonNullable<MessageQueueDriver["cancel"]>>(() => {
+        throw error;
+      });
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("active"));
+      expect(() => adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
+
+      notifyIdle();
+      expect(run).toHaveBeenCalledOnce();
+
+      cancel.mockImplementation(() => {});
+      adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "urgent" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["later"]);
+    });
+
+    it("restores a steer when its dispatch transform throws", () => {
+      const error = new Error("transform failed");
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("active"));
+      const setDispatchTransform = adapter.__internal_setDispatchTransform;
+      if (setDispatchTransform === undefined)
+        throw new Error("expected dispatch transform support");
+      setDispatchTransform(() => {
+        throw error;
+      });
+
+      expect(() => adapter.steer(msg("urgent"))).toThrow(error);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
+
+      notifyIdle();
+      setDispatchTransform((message) => message);
+      adapter.enqueue(msg("later"));
+
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "urgent" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["later"]);
+    });
+
+    it("restores a steer when its replacement run throws", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      const run = vi.fn(
+        (_message: AppendMessage, options: { steer: boolean }) => {
+          if (options.steer && failSteer) throw error;
+        },
+      );
+      const { adapter, notifyIdle } = createMessageQueue({
+        run,
+        cancel: vi.fn(),
+      });
+
+      adapter.enqueue(msg("active"));
+      expect(() => adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
+
+      failSteer = false;
+      notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+
+      adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "urgent" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["later"]);
+    });
+
+    it("recovers when cancellation settles before the replacement throws", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      let controller!: ReturnType<typeof createMessageQueue>;
+      controller = createMessageQueue({
+        run: (_message, options) => {
+          if (options.steer && failSteer) throw error;
+        },
+        cancel: () => controller.notifyIdle(),
+      });
+
+      controller.adapter.enqueue(msg("active"));
+      expect(() => controller.adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(controller.adapter.steerItems)).toEqual(["urgent"]);
+
+      failSteer = false;
+      controller.adapter.enqueue(msg("later"));
+
+      expect(prompts(controller.adapter.steerItems)).toEqual([]);
+      expect(prompts(controller.adapter.items)).toEqual(["later"]);
+    });
+
+    it("does not restore a steer after its replacement run starts", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      let controller!: ReturnType<typeof createMessageQueue>;
+      const run = vi.fn(
+        (_message: AppendMessage, options: { steer: boolean }) => {
+          if (!options.steer || !failSteer) return;
+          controller.notifyBusy();
+          throw error;
+        },
+      );
+      controller = createMessageQueue({
+        run,
+        cancel: () => controller.notifyIdle(),
+      });
+
+      controller.adapter.enqueue(msg("active"));
+      expect(() => controller.adapter.steer(msg("urgent"))).toThrow(error);
+      expect(prompts(controller.adapter.steerItems)).toEqual([]);
+
+      failSteer = false;
+      controller.adapter.enqueue(msg("later"));
+      expect(run).toHaveBeenCalledTimes(2);
+
+      controller.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(3);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "later" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(controller.adapter.items)).toEqual([]);
+    });
+
+    it("restores an unanchored move when its replacement run throws", () => {
+      const error = new Error("steer failed");
+      let failSteer = true;
+      const run = vi.fn(
+        (_message: AppendMessage, options: { steer: boolean }) => {
+          if (options.steer && failSteer) throw error;
+        },
+      );
+      const { adapter, notifyIdle } = createMessageQueue({
+        run,
+        cancel: vi.fn(),
+      });
+
+      adapter.enqueue(msg("active"));
+      adapter.enqueue(msg("first"));
+      adapter.enqueue(msg("second"));
+      adapter.enqueue(msg("moved"));
+      const movedId = adapter.items[2]!.id;
+
+      expect(() => adapter.move(movedId, { lane: "steer" })).toThrow(error);
+      expect(adapter.steerItems).toHaveLength(0);
+      expect(prompts(adapter.items)).toEqual(["first", "second", "moved"]);
+      expect(adapter.items[2]?.id).toBe(movedId);
+
+      failSteer = false;
+      notifyIdle();
+      adapter.enqueue(msg("later"));
+
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "first" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts(adapter.items)).toEqual(["second", "moved", "later"]);
+    });
+  });
+
   it("notifyCancelled keeps items and pauses advance until the next send", () => {
     const run = vi.fn();
     const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({
@@ -610,6 +1419,34 @@ describe("createMessageQueue", () => {
 
     adapter.enqueue(msg("a")); // runs (1 setLanes push + 1 pop)
     expect(cb).toHaveBeenCalled();
+  });
+
+  it("isolates subscriber errors while enqueueing", () => {
+    const run = vi.fn();
+    const { adapter, subscribe } = createMessageQueue({ run });
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    subscribe(() => {
+      throw error;
+    });
+    subscribe(laterSubscriber);
+
+    try {
+      expect(() => adapter.enqueue(msg("a"))).not.toThrow();
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(adapter.items).toHaveLength(0);
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Message queue listener threw an error",
+        error,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("buffers when a run started outside the queue is marked busy", () => {

@@ -3,6 +3,7 @@ import type {
   ReadonlyJSONValue,
 } from "../../../utils/json/json-value";
 import type { GorpStreamOperation } from "../../gorp/types";
+import type { ToolModelContentPart } from "../../tool/tool-types";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -77,8 +78,17 @@ type DataStreamStreamChunkValue = {
     // aui-extensions
     artifact?: ReadonlyJSONValue | undefined;
     isError?: boolean;
+    isPreliminary?: boolean;
+    modelContent?: readonly ToolModelContentPart[];
+    messages?: ReadonlyJSONValue;
   };
-  [DataStreamStreamChunkType.Error]: string;
+  [DataStreamStreamChunkType.Error]:
+    | string
+    | {
+        error: string;
+        code?: string;
+        severity?: "critical" | "warning" | "info";
+      };
   [DataStreamStreamChunkType.FinishStep]: {
     finishReason: LanguageModelV1FinishReason;
     usage: LanguageModelV1Usage;
@@ -101,7 +111,11 @@ type DataStreamStreamChunkValue = {
   };
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
-  [DataStreamStreamChunkType.File]: { data: string; mimeType: string };
+  [DataStreamStreamChunkType.File]: {
+    data: string;
+    mimeType: string;
+    parentId?: string;
+  };
 
   // aui-extensions
   [DataStreamStreamChunkType.AuiUpdateStateOperations]: GorpStreamOperation[];

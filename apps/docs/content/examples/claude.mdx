@@ -1,27 +1,21 @@
 ---
 title: Claude Clone
-description: Open-source Claude clone in React — warm cream theme, serif typography, hover-only action bars, and a clean minimal-shadow composer styled after claude.ai.
+description: Open-source Claude clone in React. Warm cream theme, serif typography, hover-only action bars, and a flat bordered composer styled after claude.ai.
 ---
-
-import { Claude } from "@/components/examples/claude";
-
-<div className="not-prose h-[600px]">
-  <Claude />
-</div>
 
 ## Overview
 
-The Claude Clone demonstrates how to customize assistant-ui to match Anthropic's Claude interface. The design leans on Claude's signature warm cream background, serif typography, and a deliberately minimal chrome — no shadows, no avatars, just a thin border on the composer and bubbles that fade into the page.
+The Claude Clone demonstrates how to customize assistant-ui to match Anthropic's Claude interface. The design uses a warm cream background, serif typography, and minimal chrome: no shadows or avatars, a thin border on the composer, and low-contrast user bubbles.
 
 ## Features
 
-- **Warm Cream Background**: `#F0ECE0` light, `#2b2a27` dark — a warmer Anthropic-style cream
+- **Warm Cream Background**: `#F0ECE0` light, `#2b2a27` dark
 - **Serif Throughout**: `font-serif` on every surface for the editorial feel
 - **Sparkle Heading**: Centered "How can I help you today?" with the orange `#c96442` Sparkle icon
-- **Borderless Composer**: Just `border-[#E5E0D6]` and no shadow — matches claude.ai's stripped-down look
-- **Functional Model Picker**: Sonnet 4.5 / Opus 4.7 / Haiku 4.5 dropdown with "More options"
-- **Mode Tabs**: Write / Learn / Code / From Drive / From Calendar — `rounded-lg` chips with thin borders
-- **Hover-only Action Bars**: User Edit/Copy and Assistant Copy/👍/👎/Reload only appear on hover
+- **Flat Composer**: A `border-[#E5E0D6]` border and no shadow
+- **Functional Model Picker**: Sonnet 5 / Fable 5.1 / Haiku 4.5 dropdown with "More options"
+- **Mode Tabs**: Write / Learn / Code / From Drive / From Calendar, as `rounded-lg` chips with thin borders
+- **Hover-only Action Bars**: User Edit/Copy and assistant Copy/Good response/Bad response/Reload appear on hover or keyboard focus
 - **Four-State Primary Action**: Cancel, StopDictation, Send, Dictate (orange `#c96442` accent)
 
 ## Quick Start
@@ -89,18 +83,14 @@ const Composer = () => (
 
 ### Hover-only Action Bars
 
-Both user and assistant action bars use opacity + group-hover to stay out of the way:
+Both user and assistant action bars use opacity with `group-hover` and `group-focus-within`, so they stay hidden until the message is hovered or focused:
 
 ```tsx
 <MessagePrimitive.Root className="group/message">
   <div className="rounded-2xl bg-[#E5E0D6] px-4 py-2.5">
     <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
   </div>
-  <ActionBarPrimitive.Root
-    hideWhenRunning
-    autohide="not-last"
-    className="opacity-0 transition-opacity group-hover/message:opacity-100"
-  >
+  <ActionBarPrimitive.Root className="opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
     <ActionBarPrimitive.Edit />
     <ActionBarPrimitive.Copy />
   </ActionBarPrimitive.Root>
@@ -121,12 +111,12 @@ Both user and assistant action bars use opacity + group-hover to stay out of the
 
 ### Styling Details
 
-- **Typography**: `font-serif` everywhere; assistant message uses `leading-[1.65rem]` for a calm reading rhythm
-- **No Shadows**: Composer relies on `border-[#E5E0D6]` only — claude.ai's signature flat surface
+- **Typography**: `font-serif` everywhere; assistant messages use `leading-[1.65rem]`
+- **No Shadows**: Composer relies on `border-[#E5E0D6]` only
 - **User Bubble**: `rounded-2xl bg-[#E5E0D6] max-w-[80%]` right-aligned
-- **Assistant Message**: full-width plain serif, no bubble, no avatar — text sits on the cream background directly
+- **Assistant Message**: full-width serif text with no bubble or avatar, set directly on the cream background
 - **Mode Tabs**: `rounded-lg border border-[#E5E0D6] bg-transparent` so they blend into the cream
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/claude.tsx" />

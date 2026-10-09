@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   type JSONSchema7,
   type ToolSet,
@@ -32,16 +32,17 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const mcpTools = await getMCPTools();
+  const aiSDKTools = {
+    ...mcpTools,
+    ...frontendTools(tools ?? {}),
+  };
 
   const result = streamText({
-    model: openai.responses("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
+    abortSignal: req.signal,
+    model: openai.responses("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: {
-      ...mcpTools,
-      ...frontendTools(tools ?? {}),
-      // add backend tools here
-    },
+    tools: aiSDKTools,
     providerOptions: {
       openai: {
         reasoningEffort: "low",

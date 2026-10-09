@@ -8,7 +8,7 @@ import {
   useContext,
 } from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { useControllableState } from "radix-ui/internal";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 const ThreadListItemMoreSetOpenContext = createContext<

@@ -1,10 +1,19 @@
-import { createHash } from "node:crypto";
 import { BASE_URL } from "./constants";
+import { sha256 } from "./sha256";
 import {
   AGENT_DISCOVERY_ROUTES,
   API_CATALOG_LINK_HEADER,
   API_CATALOG_PROFILE,
+  agentSkillPath,
 } from "./agent-discovery-routes";
+import { getSkills, type AgentSkill } from "./agent-skills";
+import {
+  DESIGN_DOCUMENT,
+  DESIGN_SKILL_DESCRIPTION,
+  DESIGN_SKILL_NAME,
+} from "./design-law";
+
+export { sha256 } from "./sha256";
 
 const CACHE_CONTROL = "no-cache, must-revalidate";
 const AGENT_SKILLS_SCHEMA =
@@ -15,7 +24,7 @@ export const API_CATALOG_CONTENT_TYPE = `application/linkset+json; profile="${AP
 const absoluteUrl = (path: string) => `${BASE_URL}${path}`;
 
 const AGENT_SKILL_DESCRIPTION =
-  "Use assistant-ui documentation to implement and troubleshoot AI chat interfaces across React, React Native, and terminal applications.";
+  "Use assistant-ui documentation to implement and troubleshoot AI chat interfaces across React, Vue, React Native, and terminal applications.";
 
 export const SITE_SKILL_DOCUMENT = `---
 name: assistant-ui-docs
@@ -32,6 +41,7 @@ Use this skill when implementing, configuring, migrating, or troubleshooting ass
 2. Fetch only the relevant page through its canonical \`.md\` URL.
 3. Use ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)} when the page name is unknown.
 4. Use the MCP endpoint at ${absoluteUrl("/mcp")} for navigation, search, and page retrieval.
+5. Load the task-shaped skill for the area at hand (setup, tools, runtime, streaming, ...) from the Agent Skills index at ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}; each entry serves its SKILL.md.
 
 ## Working rules
 
@@ -40,11 +50,13 @@ Use this skill when implementing, configuring, migrating, or troubleshooting ass
 - Preserve package names, imports, and public API spelling exactly.
 - Use the human-readable page URL when citing documentation to a user.
 - Verify implementation steps with the checks documented on the relevant page.
+- Read ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)} before drawing, restyling, or extending any assistant-ui surface.
 
 ## Discovery
 
 - Agent instructions: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}
 - Site skill: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}
+- Design law: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)}
 - API catalog: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}
 - Agent Skills index: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}
 - Markdown sitemap: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)}
@@ -65,6 +77,7 @@ Use these instructions when reading assistant-ui documentation or implementing a
 2. Fetch the smallest relevant page by appending \`.md\` to its canonical documentation URL.
 3. Use ${absoluteUrl("/mcp")} when tool-based navigation, search, or page reads are available.
 4. Load ${absoluteUrl("/llms-full.txt")} only when broad cross-page analysis is required.
+5. Load the task-shaped skill for the area at hand (setup, tools, runtime, streaming, ...) from the Agent Skills index at ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}; each entry serves its SKILL.md.
 
 ## Working rules
 
@@ -74,11 +87,13 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - Preserve exact package names, exports, hooks, and component names.
 - Cite the canonical human-readable URL when returning documentation to a user.
 - Do not invent routes or APIs; use the index, sitemap, or MCP navigation when uncertain.
+- Read ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)} before drawing, restyling, or extending any assistant-ui surface.
 
 ## Public discovery routes
 
 - Agent instructions: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}
 - Site skill: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}
+- Design law: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.design)}
 - API catalog: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}
 - Agent Skills index: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}
 - Markdown sitemap: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)}
@@ -86,12 +101,21 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - MCP: ${absoluteUrl("/mcp")}
 `;
 
-export function sha256(content: string) {
-  return createHash("sha256").update(content).digest("hex");
+export function agentSkillDocument(skill: AgentSkill) {
+  const declared = Object.entries(skill.frontmatter ?? {})
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}\n`)
+    .join("");
+  return `---
+name: ${skill.name}
+description: ${JSON.stringify(skill.description)}
+${declared}---
+
+${skill.content}
+`;
 }
 
-export function buildAgentSkillsIndex() {
-  return {
+export function buildAgentSkillsIndex(skills: AgentSkill[] = getSkills()) {
+  const index = {
     $schema: AGENT_SKILLS_SCHEMA,
     skills: [
       {
@@ -101,8 +125,28 @@ export function buildAgentSkillsIndex() {
         url: absoluteUrl(AGENT_DISCOVERY_ROUTES.siteSkill),
         digest: `sha256:${sha256(SITE_SKILL_DOCUMENT)}`,
       },
+      {
+        name: DESIGN_SKILL_NAME,
+        type: "skill-md",
+        description: DESIGN_SKILL_DESCRIPTION,
+        url: absoluteUrl(AGENT_DISCOVERY_ROUTES.design),
+        digest: `sha256:${sha256(DESIGN_DOCUMENT)}`,
+      },
+      ...skills.map((skill) => ({
+        name: skill.name,
+        type: "skill-md",
+        description: skill.description,
+        url: absoluteUrl(agentSkillPath(skill.name)),
+        digest: `sha256:${sha256(agentSkillDocument(skill))}`,
+      })),
     ],
   };
+  const names = index.skills.map((skill) => skill.name);
+  const duplicate = names.find((name, i) => names.indexOf(name) !== i);
+  if (duplicate) {
+    throw new Error(`agent skill ${duplicate} collides with a site skill`);
+  }
+  return index;
 }
 
 type ApiCatalogTarget = {
@@ -129,6 +173,11 @@ export function buildApiCatalog() {
       href: absoluteUrl(AGENT_DISCOVERY_ROUTES.skill),
       type: "text/markdown",
       title: "Site skill",
+    },
+    {
+      href: absoluteUrl(AGENT_DISCOVERY_ROUTES.design),
+      type: "text/markdown",
+      title: "Design law",
     },
     {
       href: absoluteUrl("/llms.txt"),
@@ -173,17 +222,8 @@ export type SitemapPage = {
   data: {
     title: string;
     description?: string | undefined;
-    lastModified?: Date | string | undefined;
   };
 };
-
-function formatDate(value: Date | string | undefined) {
-  if (!value) return undefined;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime())
-    ? undefined
-    : date.toISOString().slice(0, 10);
-}
 
 export function buildMarkdownSitemap(
   sections: Array<{ title: string; pages: SitemapPage[] }>,
@@ -207,8 +247,6 @@ export function buildMarkdownSitemap(
       if (page.data.description) {
         lines.push(`  Description: ${page.data.description}`);
       }
-      const lastModified = formatDate(page.data.lastModified);
-      if (lastModified) lines.push(`  Last updated: ${lastModified}`);
       lines.push("");
     }
   }

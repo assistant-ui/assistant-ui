@@ -6,11 +6,11 @@ platforms: ["react"]
 
 `AssistantTransport` is a state-streaming protocol layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Instead of streaming message parts, your backend streams snapshots of its full agent state and the runtime converts them into UI messages.
 
-Three things make this useful:
+It covers three things:
 
-- **State streaming** — efficient updates to your agent state (any JSON object).
-- **UI integration** — your agent's native state becomes assistant-ui messages.
-- **Command handling** — user actions (messages, tool results, custom commands) flow back to the agent.
+- State streaming: efficient updates to your agent state (any JSON object).
+- UI integration: your agent's native state becomes assistant-ui messages.
+- Command handling: user actions (messages, tool results, custom commands) flow back to the agent.
 
 ## When to use it
 
@@ -110,7 +110,7 @@ The endpoint receives POST requests with this payload:
   commands: AssistantTransportCommand[],
   system?: string,
   tools?: Record<string, ToolJSONSchema>,       // tool definitions keyed by name
-  threadId: string | null,                      // null for new threads
+  threadId?: string,                            // remote id; omitted only when resuming a thread that has none
   parentId?: string | null,                     // present when editing or branching
   callSettings?: { maxTokens, temperature, topP, presencePenalty, frequencyPenalty, seed },
   config?: { apiKey, baseUrl, modelName },
@@ -219,7 +219,12 @@ async def chat_endpoint(request: ChatRequest):
                     if p.type == "text" and p.text
                 ]
                 if text_parts:
-                    input_messages.append(HumanMessage(content=" ".join(text_parts)))
+                    input_messages.append(
+                        HumanMessage(content=" ".join(text_parts), id=command.message.id)
+                    )
+
+        for message in input_messages:
+            controller.state["messages"].append(message.model_dump())
 
         async for namespace, event_type, chunk in graph.astream(
             {"messages": input_messages},
@@ -243,7 +248,7 @@ assistant-stream replicates an arbitrary JSON object via two operations.
 
 ### Operations
 
-These two operations cover all complex state mutations: `set` for value updates and structure, `append-text` for efficient streaming of text content.
+`set` covers value and structure updates. `append-text` streams text content.
 
 #### `set`
 
@@ -273,11 +278,13 @@ These two operations cover all complex state mutations: `set` for value updates 
 
 ### Wire format
 
+`useAssistantTransportRuntime` speaks the data stream protocol by default (`protocol: "data-stream"`), which is what the reference backends above emit through `DataStreamResponse`.
+
 <Callout type="warn">
-The wire format will migrate to Server-Sent Events (SSE) in a future release.
+The default wire format will migrate to Server-Sent Events (SSE) in a future release.
 </Callout>
 
-Inspired by [AI SDK's data stream protocol](https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol).
+The format is inspired by [AI SDK's data stream protocol](https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol).
 
 **state update:**
 
@@ -291,6 +298,16 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
 3:"error message"
 ```
 
+Pass `protocol: "assistant-transport"` to consume the SSE encoding that `AssistantTransportEncoder` produces today: one `data:` line per JSON encoded `AssistantStreamChunk`, each carrying its `path` (`[]` for message-level chunks), and a final `data: [DONE]` line, which `AssistantTransportDecoder` requires. The decoder also accepts message-level chunks such as `update-state` and `error` without a `path`, which is what the Python `assistant_stream` package emits, and fills in the empty one.
+
+```
+data: {"type":"update-state","path":[],"operations":[{"type":"set","path":["status"],"value":"completed"}]}
+
+data: {"type":"error","path":[],"error":"error message"}
+
+data: [DONE]
+```
+
 ## Building a frontend
 
 `useAssistantTransportRuntime` accepts:
@@ -299,16 +316,17 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
 {
   initialState: T,
   api: string,
+  cloud?: AssistantCloud,
   resumeApi?: string,
   resumeStateApi?: string,
   protocol?: "data-stream" | "assistant-transport",
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
-  headers?: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>),
+  headers: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>),
   body?: object | (() => Promise<object | undefined>),
   prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>,
   capabilities?: { edit?: boolean },
-  adapters?: { attachments?: AttachmentAdapter; history?: ThreadHistoryAdapter },
-  onResponse?: (response: Response) => void,
+  adapters?: { attachments?: AttachmentAdapter },
+  onResponse?: (response: Response) => void | Promise<void>,
   onFinish?: () => void,
   onError?: (error: Error, params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void }) => void | Promise<void>,
   onCancel?: (params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void; error?: Error }) => void
@@ -399,6 +417,8 @@ const converter = (state: State, connectionMetadata: ConnectionMetadata) => {
 };
 ```
 
+Render each pending user message under `c.message.id` so the settled message replaces it in place. The runtime treats that message as optimistic until the backend answers.
+
 ## Errors and cancellations
 
 `onError` and `onCancel` receive `updateState` so you can mutate state on the client without making a server request:
@@ -479,7 +499,7 @@ const runtime = useAssistantTransportRuntime({
 ```ts
 {
   type: "add-message",
-  message: { role: "user", parts: [...] },
+  message: { role: "user", id: "client-message-id", parts: [...] },
   parentId: "msg-3",   // insert after this message
   sourceId: "msg-4",   // ID of the message being replaced (null for new)
 }
@@ -669,7 +689,7 @@ export function MyRuntimeProvider({ children }) {
 }
 ```
 
-Full example: [`examples/with-assistant-transport`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-assistant-transport). A LangChain variant lives in the same examples directory.
+Full example: [`examples/with-assistant-transport`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-assistant-transport). It converts LangChain messages with `convertLangChainMessages`.
 
 ## Custom commands
 
@@ -737,10 +757,12 @@ Custom commands follow the same lifecycle as built-in ones; check for them in `o
 | Adapter | Supported via |
 | --- | --- |
 | Attachments | `adapters.attachments` |
-| History | `adapters.history` |
-| threadList | Via [thread list adapter](/docs/runtimes/concepts/threads) |
+| threadList | Built-in remote adapter. It uses Assistant Cloud with `cloud`, or on Next.js with `NEXT_PUBLIC_ASSISTANT_BASE_URL`, otherwise an in-memory list. |
+| Assistant Cloud | `cloud`, or on Next.js `NEXT_PUBLIC_ASSISTANT_BASE_URL` without it: the cloud backs the thread list, every request's `threadId` is the cloud thread id, feedback is stored, and settled messages with stable IDs are copied for the dashboard. The `add-message` command carries the user message id, and the LangGraph backend above reuses it, so the settled user message replaces the optimistic one in place and both messages of a turn are copied. A backend that returns the user message without an id keeps it out of the copy. |
 
-Speech, dictation, feedback, and suggestions are not currently exposed by `AssistantTransport`. Drop down to `ExternalStoreRuntime` if you need them.
+With Assistant Cloud the thread list persists across sessions, but a reopened thread starts from `initialState`: the runtime reads back neither the cloud copy nor your backend's state, so a past conversation shows only once your backend sends state for that thread id, which arrives with every request.
+
+Speech, dictation and suggestions are not currently exposed by `AssistantTransport`, and feedback is stored only through Assistant Cloud. Drop down to `ExternalStoreRuntime` if you need them.
 
 ## Related
 

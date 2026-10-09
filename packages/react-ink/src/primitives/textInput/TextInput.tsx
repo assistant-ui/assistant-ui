@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ComponentProps } from "react";
 
 import { Box, Text, useFocus, useInput } from "ink";
+import stringWidth from "string-width";
 import {
   getGraphemeAt,
   textBufferReducer,
@@ -20,7 +21,11 @@ export type TextInputProps = ComponentProps<typeof Box> & {
   multiLine?: boolean | undefined;
 };
 
-export const TextInput = ({
+type TextInputInternalProps = TextInputProps & {
+  isDisabled: boolean;
+};
+
+const TextInputInternal = ({
   value,
   onChange,
   onSubmit,
@@ -28,8 +33,9 @@ export const TextInput = ({
   placeholder = "",
   autoFocus = true,
   multiLine = false,
+  isDisabled,
   ...boxProps
-}: TextInputProps) => {
+}: TextInputInternalProps) => {
   const { isFocused } = useFocus({ autoFocus });
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
@@ -87,11 +93,14 @@ export const TextInput = ({
   };
 
   const submit = () => {
+    if (isDisabled) return;
     onSubmit?.(bufferStateRef.current.text);
   };
 
   useInput(
     (input, key) => {
+      if (isDisabled) return;
+
       const extendedKey = key as typeof key & {
         home?: boolean;
         end?: boolean;
@@ -172,12 +181,12 @@ export const TextInput = ({
         return;
       }
 
-      if (multiLine && key.upArrow) {
+      if (multiLine && key.upArrow && !key.meta) {
         commitAction({ type: "move-up" }, { syncText: false });
         return;
       }
 
-      if (multiLine && key.downArrow) {
+      if (multiLine && key.downArrow && !key.meta) {
         commitAction({ type: "move-down" }, { syncText: false });
         return;
       }
@@ -215,9 +224,11 @@ export const TextInput = ({
   const isShowingPlaceholder = !hasText && placeholder.length > 0;
   const before = hasText ? text.slice(0, cursorOffset) : "";
   const charAtCursor = hasText ? getGraphemeAt(text, cursorOffset) : "";
-  const isOnNewline = charAtCursor === "\n";
-  // render a space when on a newline so the inverse cursor cell stays visible
-  const atCursor = charAtCursor === "" || isOnNewline ? " " : charAtCursor;
+  const isOnNewline = charAtCursor === "\n" || charAtCursor === "\r\n";
+  const atCursor =
+    charAtCursor === "" || isOnNewline || stringWidth(charAtCursor) === 0
+      ? " "
+      : charAtCursor;
   const after = hasText
     ? isOnNewline
       ? text.slice(cursorOffset)
@@ -226,7 +237,7 @@ export const TextInput = ({
 
   return (
     <Box {...boxProps}>
-      {!isFocused ? (
+      {!isFocused || isDisabled ? (
         <Text dimColor={isShowingPlaceholder}>
           {hasText ? text : placeholder}
         </Text>
@@ -240,3 +251,30 @@ export const TextInput = ({
     </Box>
   );
 };
+
+export const TextInput = ({
+  value,
+  onChange,
+  onSubmit,
+  submitOnEnter = false,
+  placeholder = "",
+  autoFocus = true,
+  multiLine = false,
+  ...boxProps
+}: TextInputProps) => (
+  <TextInputInternal
+    value={value}
+    onChange={onChange}
+    onSubmit={onSubmit}
+    submitOnEnter={submitOnEnter}
+    placeholder={placeholder}
+    autoFocus={autoFocus}
+    multiLine={multiLine}
+    {...boxProps}
+    isDisabled={false}
+  />
+);
+
+export const ComposerTextInput = (
+  props: TextInputProps & { isDisabled: boolean },
+) => <TextInputInternal {...props} />;

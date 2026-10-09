@@ -1,4 +1,4 @@
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { openai } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
@@ -11,19 +11,21 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { messages, tools } = body;
 
-  const model = openai("gpt-5.4-nano");
+  const model = openai("gpt-6-luna");
 
+  const aiSDKTools = frontendTools(tools);
   const prunedMessages = pruneMessages({
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     reasoning: "none",
   });
 
   const result = streamText({
+    abortSignal: req.signal,
     model,
     messages: prunedMessages,
     maxOutputTokens: 15000,
     stopWhen: stepCountIs(10),
-    tools: frontendTools(tools),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

@@ -9,8 +9,10 @@ const mocks = vi.hoisted(() => {
   const state = {
     thread: {
       isDisabled: false,
+      isSendDisabled: false,
       isRunning: false,
       capabilities: { queue: false },
+      voice: undefined as { canSendText: boolean } | undefined,
     },
   };
   const composerState = {
@@ -47,10 +49,11 @@ import { useSuggestionTrigger } from "./useSuggestionTrigger";
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   mocks.state.thread.isDisabled = false;
+  mocks.state.thread.isSendDisabled = false;
   mocks.state.thread.isRunning = false;
   mocks.state.thread.capabilities = { queue: false };
+  mocks.state.thread.voice = undefined;
   mocks.composerState.text = "";
 });
 
@@ -102,8 +105,52 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.setText).not.toHaveBeenCalled();
   });
 
+  it("rechecks the current send policy before appending", () => {
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
+    mocks.state.thread.isSendDisabled = true;
+
+    result.current.trigger();
+
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(mocks.setText).not.toHaveBeenCalled();
+  });
+
+  it("sends into a voice session that takes typed text while a spoken reply is running", () => {
+    mocks.state.thread.isRunning = true;
+    mocks.state.thread.voice = { canSendText: true };
+    mocks.composerState.text = "my draft";
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
+
+    result.current.trigger();
+
+    expect(result.current.disabled).toBe(false);
+    expect(mocks.append).toHaveBeenCalledWith({
+      content: [{ type: "text", text: "Hello" }],
+      runConfig: { custom: { model: "gpt-test" } },
+    });
+    expect(mocks.setText).toHaveBeenCalledWith("");
+  });
+
+  it("disables and no-ops while a voice session cannot take typed text", () => {
+    mocks.state.thread.voice = { canSendText: false };
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
+
+    result.current.trigger();
+
+    expect(result.current.disabled).toBe(true);
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(mocks.setText).not.toHaveBeenCalled();
+  });
+
   it("replaces the composer text when send is false, even while running", () => {
     mocks.state.thread.isRunning = true;
+    mocks.state.thread.isSendDisabled = true;
     mocks.composerState.text = "my draft";
     const { result } = renderHook(() =>
       useSuggestionTrigger({ prompt: "Hello" }),
@@ -125,6 +172,17 @@ describe("useSuggestionTrigger", () => {
     result.current.trigger();
 
     expect(mocks.setText).toHaveBeenCalledWith("my draft Hello");
+  });
+
+  it("does not add a separator for an empty prompt", () => {
+    mocks.composerState.text = "my draft";
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "", clearComposer: false }),
+    );
+
+    result.current.trigger();
+
+    expect(mocks.setText).toHaveBeenCalledWith("my draft");
   });
 
   it("inserts the prompt alone when the composer is empty and clearComposer is false", () => {

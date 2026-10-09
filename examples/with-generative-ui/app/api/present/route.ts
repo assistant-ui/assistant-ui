@@ -4,7 +4,7 @@ import type { UIMessage } from "ai";
 import {
   AISDKToolkit,
   type AISDKToolkitToolsOptions,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import presentToolkit from "../../present-toolkit";
 
 export const maxDuration = 30;
@@ -24,14 +24,16 @@ export async function POST(req: Request) {
     tools?: FrontendToolDefs;
   } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({
+    ...(clientTools && { frontend: clientTools }),
+  });
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
-    tools: await aiToolkit.tools({
-      ...(clientTools && { frontend: clientTools }),
-    }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

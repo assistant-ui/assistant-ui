@@ -1,0 +1,312 @@
+declare const process: { env: Record<string, string | undefined> };
+
+import {
+  type RefObject,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
+import type {
+  RemoteThreadListAdapter,
+  RuntimeAdapters,
+} from "../../../runtimes/remote-thread-list/types";
+import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
+import {
+  DEFAULT_CLOUD_SCOPE,
+  useScopedAssistantCloudThreadHistoryAdapter,
+} from "./AssistantCloudThreadHistoryAdapter";
+import { createScopedCloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
+import { isRecord } from "../../../utils/json/is-json";
+import { CORE_SDK } from "./sdkIdentity";
+
+type ThreadData = {
+  externalId: string | undefined;
+};
+
+export type CloudThreadListAdapterOptions = {
+  cloud?: AssistantCloud | undefined;
+  /**
+   * Stable identity for the account or workspace owning Cloud runtime state.
+   * Provide it from the runtime's first render and change it when that scope
+   * changes. `useCloudThreadListRuntime` reloads the list after the hook
+   * returns a replacement adapter; lower-level
+   * `RemoteThreadList` compositions must call their thread-list `reload()`
+   * method after publishing that replacement. When omitted, replacing the
+   * Cloud client preserves attachment URLs and message mappings for backward
+   * compatibility, but still replaces and reloads the thread-list adapter.
+   * History operations attempted before that reload settles are skipped.
+   */
+  scopeId?: string | undefined;
+  sdk?: SdkIdentity | undefined;
+
+  /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
+  create?: ((threadId: string) => Promise<ThreadData>) | undefined;
+  delete?: ((threadId: string) => Promise<void>) | undefined;
+  /** Creates each cloud thread with `upsert`, so a retried create reuses the thread that already has the external id `create` returned; set it when that id names exactly one conversation. */
+  upsert?: boolean | undefined;
+};
+
+const toCustom = (value: unknown): Record<string, unknown> | undefined =>
+  isRecord(value) ? value : undefined;
+
+const baseUrl =
+  typeof process !== "undefined"
+    ? process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL
+    : undefined;
+export const autoCloud = baseUrl
+  ? new AssistantCloud({ baseUrl, anonymous: true })
+  : undefined;
+
+export type CommittedScopeRef = RefObject<unknown> & {
+  update(scope: unknown): void;
+  subscribe(listener: (scope: unknown) => void): () => void;
+};
+
+export const createCommittedScopeRef = (
+  initialScope: unknown,
+): CommittedScopeRef => {
+  let current = initialScope;
+  const listeners = new Set<(scope: unknown) => void>();
+  return {
+    get current() {
+      return current;
+    },
+    update(scope) {
+      if (Object.is(current, scope)) return;
+      current = scope;
+      for (const listener of listeners) listener(scope);
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+};
+
+export const useCloudRuntimeAdapters = (
+  cloudRef: RefObject<AssistantCloud>,
+  scopeRef: CommittedScopeRef,
+): RuntimeAdapters => {
+  const history = useScopedAssistantCloudThreadHistoryAdapter(
+    cloudRef,
+    scopeRef,
+  );
+  const [attachments] = useState(() =>
+    createScopedCloudFileAttachmentAdapter(
+      () => cloudRef.current,
+      () => scopeRef.current,
+      (listener) => scopeRef.subscribe(listener),
+    ),
+  );
+  return useMemo(
+    () => ({
+      history,
+      attachments,
+      feedback: history.feedback,
+    }),
+    [history, attachments],
+  );
+};
+
+const CLOUD_THREAD_PAGE_SIZE = 20;
+
+type CloudListCursor = {
+  activeCursor: string | undefined;
+  archivedCursor: string | undefined;
+  activeExhausted: boolean;
+  archivedExhausted: boolean;
+};
+
+const parseListCursor = (after: string | undefined): CloudListCursor => {
+  const fallback: CloudListCursor = {
+    activeCursor: after,
+    archivedCursor: undefined,
+    activeExhausted: false,
+    archivedExhausted: false,
+  };
+  if (!after || !after.startsWith("{")) return fallback;
+  try {
+    const parsed = JSON.parse(after);
+    if (!isRecord(parsed)) return fallback;
+    return {
+      activeCursor: typeof parsed.a === "string" ? parsed.a : undefined,
+      archivedCursor: typeof parsed.r === "string" ? parsed.r : undefined,
+      activeExhausted: parsed.ae === true,
+      archivedExhausted: parsed.re === true,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+/**
+ * Builds the `RemoteThreadListAdapter` for an assistant-cloud backend without
+ * requiring a hook call site, so plain code (a Vue or Svelte setup function,
+ * a module-level config) can construct it. Options are read through the
+ * getter on every call, so a stable adapter can follow changing `create` and
+ * `delete` callbacks. Swapping to a different `cloud` instance or `scopeId`
+ * requires a new adapter. The consumer must then reload its remote list as
+ * required by the `RemoteThreadList` adapter replacement contract. Without a
+ * `cloud` instance (and without
+ * `NEXT_PUBLIC_ASSISTANT_BASE_URL`), the adapter falls back to an in-memory
+ * list. `useCloudThreadListAdapter` wraps this for the React hook signature.
+ */
+export const createCloudThreadListAdapter = (
+  options:
+    | CloudThreadListAdapterOptions
+    | (() => CloudThreadListAdapterOptions),
+): RemoteThreadListAdapter => {
+  const getOptions = typeof options === "function" ? options : () => options;
+  const initialOptions = getOptions();
+  const cloud = initialOptions.cloud ?? autoCloud;
+  const scopeId = initialOptions.scopeId;
+
+  if (!cloud) {
+    const inMemory = new InMemoryThreadListAdapter();
+    inMemory.initialize = async (threadId: string) => {
+      const result = await getOptions().create?.(threadId);
+      return inMemory.register(threadId, result?.externalId);
+    };
+    return inMemory;
+  }
+
+  const unstable_useAdapters = function useCloudAdapters(): RuntimeAdapters {
+    const cloudRef = useRef(cloud);
+    const [scopeRef] = useState(() =>
+      createCommittedScopeRef(scopeId ?? DEFAULT_CLOUD_SCOPE),
+    );
+    useInsertionEffect(() => {
+      cloudRef.current = cloud;
+      scopeRef.update(scopeId ?? DEFAULT_CLOUD_SCOPE);
+    }, [cloud, scopeId, scopeRef]);
+    return useCloudRuntimeAdapters(cloudRef, scopeRef);
+  };
+
+  cloud.registerSdk?.(CORE_SDK);
+  const sdk = getOptions().sdk;
+  if (sdk) cloud.registerSdk?.(sdk);
+
+  return {
+    list: async ({ after } = {}) => {
+      const {
+        activeCursor,
+        archivedCursor,
+        activeExhausted,
+        archivedExhausted,
+      } = parseListCursor(after);
+      const [{ threads: activeThreads }, { threads: archivedThreads }] =
+        await Promise.all([
+          activeExhausted
+            ? Promise.resolve({ threads: [] })
+            : cloud.threads.list({
+                limit: CLOUD_THREAD_PAGE_SIZE,
+                ...(activeCursor ? { after: activeCursor } : {}),
+              }),
+          archivedExhausted
+            ? Promise.resolve({ threads: [] })
+            : cloud.threads.list({
+                is_archived: true,
+                limit: CLOUD_THREAD_PAGE_SIZE,
+                ...(archivedCursor ? { after: archivedCursor } : {}),
+              }),
+        ]);
+      const activeNext =
+        !activeExhausted && activeThreads.length === CLOUD_THREAD_PAGE_SIZE
+          ? activeThreads.at(-1)?.id
+          : undefined;
+      const archivedNext =
+        !archivedExhausted && archivedThreads.length === CLOUD_THREAD_PAGE_SIZE
+          ? archivedThreads.at(-1)?.id
+          : undefined;
+      const threads = [...activeThreads, ...archivedThreads];
+      return {
+        threads: threads.map((t) => ({
+          status: t.is_archived ? ("archived" as const) : ("regular" as const),
+          remoteId: t.id,
+          title: t.title,
+          lastMessageAt: t.last_message_at
+            ? new Date(t.last_message_at)
+            : undefined,
+          externalId: t.external_id ?? undefined,
+          custom: toCustom(t.metadata),
+        })),
+        nextCursor:
+          activeNext || archivedNext
+            ? JSON.stringify({
+                a: activeNext,
+                r: archivedNext,
+                ...(activeNext === undefined ? { ae: true } : {}),
+                ...(archivedNext === undefined ? { re: true } : {}),
+              })
+            : undefined,
+      };
+    },
+
+    initialize: async (threadId) => {
+      const createTask = getOptions().create?.(threadId) ?? Promise.resolve();
+      const t = await createTask;
+      const external_id = t ? t.externalId : undefined;
+      const { thread_id: remoteId } = await cloud.threads.create({
+        last_message_at: new Date(),
+        external_id,
+        ...(external_id !== undefined && getOptions().upsert
+          ? { upsert: true }
+          : {}),
+      });
+
+      return { externalId: external_id, remoteId: remoteId };
+    },
+
+    rename: async (threadId, newTitle) => {
+      return cloud.threads.update(threadId, { title: newTitle });
+    },
+    updateCustom: async (threadId, custom) => {
+      return cloud.threads.update(threadId, { metadata: custom ?? null });
+    },
+    archive: async (threadId) => {
+      return cloud.threads.update(threadId, { is_archived: true });
+    },
+    unarchive: async (threadId) => {
+      return cloud.threads.update(threadId, { is_archived: false });
+    },
+    delete: async (threadId) => {
+      await getOptions().delete?.(threadId);
+      return cloud.threads.delete(threadId);
+    },
+
+    generateTitle: async (threadId, messages) => {
+      const filteredMessages = messages.map((msg) => ({
+        ...msg,
+        content: msg.content.filter(
+          (part) => part.type === "text" || part.type === "tool-call",
+        ),
+      }));
+
+      return cloud.runs.stream({
+        thread_id: threadId,
+        assistant_id: "system/thread_title",
+        messages: filteredMessages,
+      });
+    },
+
+    fetch: async (threadId: string) => {
+      const thread = await cloud.threads.get(threadId);
+      return {
+        status: thread.is_archived
+          ? ("archived" as const)
+          : ("regular" as const),
+        remoteId: thread.id,
+        title: thread.title,
+        lastMessageAt: thread.last_message_at
+          ? new Date(thread.last_message_at)
+          : undefined,
+        externalId: thread.external_id ?? undefined,
+        custom: toCustom(thread.metadata),
+      };
+    },
+
+    unstable_useAdapters,
+  };
+};

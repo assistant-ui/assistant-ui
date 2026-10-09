@@ -47,5 +47,3 @@ export function remarkMermaid() {
     );
   };
 }
-
-export default remarkMermaid;

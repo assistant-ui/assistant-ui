@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifyEventListeners } from "../utils/notify-event-listeners";
 
 export namespace RealtimeVoiceAdapter {
   export type Status =
@@ -26,6 +27,10 @@ export namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    /**
+     * Delivers typed text into the connected session. The runtime records the typed turn in the thread itself, so the session must not echo it through `onTranscript`. A session without it takes audio only.
+     */
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
 
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (
@@ -46,6 +51,10 @@ export type VoiceSessionControls = {
   disconnect: () => void;
   mute: () => void;
   unmute: () => void;
+  /**
+   * Delivers typed text to the provider. The session exposes `sendText` once these controls resolve and repeats its running status when they land after it, so status listeners can re-read the session; the runtime records the typed turn itself.
+   */
+  sendText?: ((text: string) => void | Promise<void>) | undefined;
 };
 
 export type VoiceSessionHelpers = {
@@ -55,22 +64,6 @@ export type VoiceSessionHelpers = {
   emitMode: (mode: RealtimeVoiceAdapter.Mode) => void;
   emitVolume: (volume: number) => void;
   isDisposed: () => boolean;
-};
-
-const notifyListeners = <T>(
-  listeners: ReadonlySet<(value: T) => void>,
-  value: T,
-) => {
-  for (const listener of listeners) {
-    try {
-      listener(value);
-    } catch (error) {
-      console.error(
-        "[assistant-ui] Voice session listener threw an error",
-        error,
-      );
-    }
-  }
 };
 
 export function createVoiceSession(
@@ -87,7 +80,18 @@ export function createVoiceSession(
   let currentStatus: RealtimeVoiceAdapter.Status = { type: "starting" };
   let isMuted = false;
   let disposed = false;
+  let disconnected = false;
   let controls: VoiceSessionControls | null = null;
+  let controlsDisconnected = false;
+  const abortSignal = options.abortSignal;
+  let abortHandler: (() => void) | undefined;
+
+  const detachAbortHandler = () => {
+    if (abortHandler) {
+      abortSignal?.removeEventListener("abort", abortHandler);
+      abortHandler = undefined;
+    }
+  };
 
   const cleanup = () => {
     disposed = true;
@@ -97,29 +101,35 @@ export function createVoiceSession(
     volumeCbs.clear();
   };
 
+  const disconnectControls = () => {
+    if (!controls || controlsDisconnected) return;
+    controlsDisconnected = true;
+    controls.disconnect();
+  };
+
   const helpers: VoiceSessionHelpers = {
     setStatus: (status) => {
       if (disposed) return;
       currentStatus = status;
-      notifyListeners(statusCbs, status);
+      notifyEventListeners(statusCbs, status, "Voice session");
     },
     end: (reason, error?) => {
       if (disposed) return;
       currentStatus = { type: "ended", reason, error };
-      notifyListeners(statusCbs, currentStatus);
+      notifyEventListeners(statusCbs, currentStatus, "Voice session");
       cleanup();
     },
     emitTranscript: (item) => {
       if (disposed) return;
-      notifyListeners(transcriptCbs, item);
+      notifyEventListeners(transcriptCbs, item, "Voice session");
     },
     emitMode: (mode) => {
       if (disposed) return;
-      notifyListeners(modeCbs, mode);
+      notifyEventListeners(modeCbs, mode, "Voice session");
     },
     emitVolume: (volume) => {
       if (disposed) return;
-      notifyListeners(volumeCbs, volume);
+      notifyEventListeners(volumeCbs, volume, "Voice session");
     },
     isDisposed: () => disposed,
   };
@@ -131,9 +141,23 @@ export function createVoiceSession(
     get isMuted() {
       return isMuted;
     },
+    get sendText() {
+      if (disposed || !controls?.sendText) return undefined;
+      return controls.sendText.bind(controls);
+    },
     disconnect: () => {
-      controls?.disconnect();
-      cleanup();
+      if (disconnected) return;
+      disconnected = true;
+      detachAbortHandler();
+      if (currentStatus.type !== "ended") {
+        currentStatus = { type: "ended", reason: "cancelled" };
+        notifyEventListeners(statusCbs, currentStatus, "Voice session");
+      }
+      try {
+        disconnectControls();
+      } finally {
+        cleanup();
+      }
     },
     mute: () => {
       controls?.mute();
@@ -161,10 +185,13 @@ export function createVoiceSession(
     },
   };
 
-  if (options.abortSignal) {
-    options.abortSignal.addEventListener("abort", () => session.disconnect(), {
-      once: true,
-    });
+  if (abortSignal) {
+    abortHandler = () => session.disconnect();
+    abortSignal.addEventListener("abort", abortHandler, { once: true });
+    if (abortSignal.aborted) {
+      session.disconnect();
+      return session;
+    }
   }
 
   const doSetup = async () => {
@@ -172,10 +199,12 @@ export function createVoiceSession(
       if (disposed) return;
       controls = await setup(helpers);
       if (disposed) {
-        controls.disconnect();
-      } else if (isMuted) {
-        controls.mute();
+        disconnectControls();
+        return;
       }
+      if (isMuted) controls.mute();
+      if (controls.sendText && currentStatus.type === "running")
+        notifyEventListeners(statusCbs, currentStatus, "Voice session");
     } catch (error) {
       helpers.end("error", error);
     }

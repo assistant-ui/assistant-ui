@@ -1,12 +1,25 @@
 import type { ModelContextProvider, ModelContext } from "../types";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
+import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
+import { generateId } from "../../utils/id";
+import { getAbortReason } from "../../utils/abortable-promise";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
+
+const getDefaultTargetOrigin = () => window.location.origin;
+
+const logCancellationFailure = (error: unknown) => {
+  console.error(
+    "[assistant-ui] AssistantFrameHost tool cancellation could not be sent.",
+    error,
+  );
+};
 
 /**
  * Deserializes tools from JSON Schema format back to Tool objects
@@ -40,13 +53,6 @@ const deserializeModelContext = (
   }),
 });
 
-const getAbortReason = (signal: AbortSignal): unknown => {
-  if (signal.reason !== undefined) return signal.reason;
-  const error = new Error("Tool call was aborted");
-  error.name = "AbortError";
-  return error;
-};
-
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
   private _subscribers = new Set<() => void>();
@@ -57,19 +63,23 @@ export class AssistantFrameHost implements ModelContextProvider {
       reject: (error: any) => void;
     }
   >();
-  private _requestCounter = 0;
   private _iframeWindow: Window;
   private _targetOrigin: string;
   private _disposed = false;
+  private _providerDisposed = false;
 
-  constructor(iframeWindow: Window, targetOrigin: string = "*") {
+  constructor(
+    iframeWindow: Window,
+    targetOrigin: string = getDefaultTargetOrigin(),
+  ) {
     this._iframeWindow = iframeWindow;
     this._targetOrigin = targetOrigin;
 
     this.handleMessage = this.handleMessage.bind(this);
-    window.addEventListener("message", this.handleMessage);
-
+    // A posted message cannot be delivered before this constructor returns, so
+    // requesting first means a failed request leaves no listener to clean up.
     this.requestContext();
+    window.addEventListener("message", this.handleMessage);
   }
 
   private handleMessage(event: MessageEvent) {
@@ -78,18 +88,31 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (event.source !== this._iframeWindow) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-update": {
+        this._providerDisposed = false;
         this.updateContext(message.context);
+        break;
+      }
+
+      case "provider-disposed": {
+        this._providerDisposed = true;
+        const error = new Error("AssistantFrameProvider has been disposed");
+        for (const [id, pending] of this._pendingRequests) {
+          this._pendingRequests.delete(id);
+          this.cancelToolCall(id);
+          pending.reject(error);
+        }
         break;
       }
 
       case "tool-result": {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
-          if (message.error) {
+          if (typeof message.error === "string") {
             pending.reject(new Error(message.error));
           } else {
             pending.resolve(message.result);
@@ -129,7 +152,7 @@ export class AssistantFrameHost implements ModelContextProvider {
     return this.sendRequest(
       {
         type: "tool-call",
-        id: `tool-${this._requestCounter++}`,
+        id: `tool-${generateId()}`,
         toolName,
         args,
       },
@@ -148,8 +171,15 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (this._disposed) {
       return Promise.reject(new Error("AssistantFrameHost has been disposed"));
     }
+    if (this._providerDisposed) {
+      return Promise.reject(
+        new Error("AssistantFrameProvider has been disposed"),
+      );
+    }
     if (abortSignal?.aborted) {
-      return Promise.reject(getAbortReason(abortSignal));
+      return Promise.reject(
+        getAbortReason(abortSignal, "Tool call was aborted"),
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -158,7 +188,8 @@ export class AssistantFrameHost implements ModelContextProvider {
         if (!abortSignal) return;
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
-          pending.reject(getAbortReason(abortSignal));
+          this.cancelToolCall(message.id);
+          pending.reject(getAbortReason(abortSignal, "Tool call was aborted"));
           this._pendingRequests.delete(message.id);
         }
       };
@@ -181,17 +212,41 @@ export class AssistantFrameHost implements ModelContextProvider {
       timeoutId = setTimeout(() => {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
+          this.cancelToolCall(message.id);
           pending.reject(new Error(timeoutMessage));
           this._pendingRequests.delete(message.id);
         }
       }, timeout);
       abortSignal?.addEventListener("abort", onAbort, { once: true });
 
+      try {
+        this._iframeWindow.postMessage(
+          { channel: FRAME_MESSAGE_CHANNEL, message },
+          this._targetOrigin,
+        );
+      } catch (error) {
+        const pending = this._pendingRequests.get(message.id);
+        this._pendingRequests.delete(message.id);
+        pending?.reject(error);
+      }
+    });
+  }
+
+  private cancelToolCall(
+    id: string,
+    onError: (error: unknown) => void = logCancellationFailure,
+  ) {
+    try {
       this._iframeWindow.postMessage(
-        { channel: FRAME_MESSAGE_CHANNEL, message },
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: { type: "tool-cancel", id } satisfies FrameMessage,
+        },
         this._targetOrigin,
       );
-    });
+    } catch (error) {
+      onError(error);
+    }
   }
 
   private requestContext() {
@@ -207,7 +262,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   private notifySubscribers() {
-    this._subscribers.forEach((callback) => callback());
+    notifyStateSubscribers(this._subscribers);
   }
 
   getModelContext(): ModelContext {
@@ -224,9 +279,22 @@ export class AssistantFrameHost implements ModelContextProvider {
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
     const error = new Error("AssistantFrameHost has been disposed");
-    for (const pending of this._pendingRequests.values()) {
+    let cancellationFailed = false;
+    let cancellationError: unknown;
+
+    for (const [id, pending] of this._pendingRequests) {
+      this._pendingRequests.delete(id);
+      this.cancelToolCall(id, (error) => {
+        if (!cancellationFailed) {
+          cancellationFailed = true;
+          cancellationError = error;
+        } else {
+          logCancellationFailure(error);
+        }
+      });
       pending.reject(error);
     }
-    this._pendingRequests.clear();
+
+    if (cancellationFailed) throw cancellationError;
   }
 }

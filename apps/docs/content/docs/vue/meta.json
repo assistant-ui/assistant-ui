@@ -1,0 +1,18 @@
+{
+  "title": "Getting Started",
+  "description": "Build streaming AI chat UIs with Vue and Nuxt",
+  "icon": "Rocket",
+  "root": true,
+  "platforms": ["vue"],
+  "pages": [
+    "index",
+    "quickstart",
+    "installation",
+    "ssr",
+    "components",
+    "(guides)",
+    "(runtimes)",
+    "primitives",
+    "api-reference"
+  ]
+}

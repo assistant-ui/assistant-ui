@@ -1,41 +1,37 @@
 import { ImageResponse } from "next/og";
 import type { ImageResponseOptions, NextRequest } from "next/server";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
-export const runtime = "nodejs";
+import { loadOgFonts, OG_FONT_SANS } from "@/lib/og-fonts";
 
 const size = {
   width: 1200,
   height: 630,
 };
 
-let fontsCache: {
-  geistSemiBold: Buffer;
-  geistRegular: Buffer;
-  geistMedium: Buffer;
-  geistMono: Buffer;
-} | null = null;
+let fontsCache: Awaited<ReturnType<typeof loadOgFonts>> | null = null;
 
 async function loadFonts() {
-  if (fontsCache) return fontsCache;
-
-  const [geistSemiBold, geistRegular, geistMedium, geistMono] =
-    await Promise.all([
-      readFile(join(process.cwd(), "assets/Geist-SemiBold.ttf")),
-      readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
-      readFile(join(process.cwd(), "assets/Geist-Medium.ttf")),
-      readFile(join(process.cwd(), "assets/GeistMono-Regular.ttf")),
-    ]);
-
-  fontsCache = { geistSemiBold, geistRegular, geistMedium, geistMono };
+  fontsCache ??= await loadOgFonts();
   return fontsCache;
+}
+
+// The description area holds about three lines; cut at a word boundary so
+// the card never ends mid-word.
+function clampAtWord(text: string | null, max: number): string | null {
+  if (!text) return null;
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  const trimmed = (lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut).replace(
+    /[\s,.;:–—-]+$/,
+    "",
+  );
+  return `${trimmed}…`;
 }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const title = (searchParams.get("title") ?? "Documentation").slice(0, 100);
-  const description = searchParams.get("description")?.slice(0, 93) ?? null;
+  const description = clampAtWord(searchParams.get("description"), 140);
   const variant = searchParams.get("variant");
 
   if (variant && !["home", "page"].includes(variant)) {
@@ -51,8 +47,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to load fonts for OG image:", error);
   }
 
-  const fontSans = fonts ? "Geist" : "sans-serif";
-  const fontMono = fonts ? "GeistMono" : "monospace";
+  const fontSans = fonts ? OG_FONT_SANS : "sans-serif";
 
   const homeContent = (
     <div
@@ -122,8 +117,7 @@ export async function GET(request: NextRequest) {
           letterSpacing: "-0.01em",
         }}
       >
-        <span>An open-source React toolkit for</span>
-        <span>production AI chat experiences</span>
+        <span>The frontend library for AI agents.</span>
       </div>
     </div>
   );
@@ -136,7 +130,7 @@ export async function GET(request: NextRequest) {
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#0a0a0a",
-        padding: "70px 80px 140px 80px",
+        padding: "70px 80px",
       }}
     >
       <div
@@ -185,16 +179,6 @@ export async function GET(request: NextRequest) {
             assistant-ui
           </span>
         </div>
-        <span
-          style={{
-            fontSize: 32,
-            fontWeight: 400,
-            color: "#a3a3a3",
-            fontFamily: fontMono,
-          }}
-        >
-          assistant-ui.com
-        </span>
       </div>
 
       <div
@@ -202,7 +186,7 @@ export async function GET(request: NextRequest) {
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          justifyContent: "center",
+          justifyContent: "flex-end",
           gap: 24,
         }}
       >
@@ -229,9 +213,7 @@ export async function GET(request: NextRequest) {
               letterSpacing: "-0.01em",
             }}
           >
-            {description.length > 90
-              ? `${description.slice(0, 90)}...`
-              : description}
+            {description}
           </span>
         )}
       </div>
@@ -247,32 +229,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (fonts) {
-      imageOptions.fonts = [
-        {
-          name: "Geist",
-          data: fonts.geistSemiBold,
-          style: "normal",
-          weight: 600,
-        },
-        {
-          name: "Geist",
-          data: fonts.geistRegular,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "Geist",
-          data: fonts.geistMedium,
-          style: "normal",
-          weight: 500,
-        },
-        {
-          name: "GeistMono",
-          data: fonts.geistMono,
-          style: "normal",
-          weight: 400,
-        },
-      ];
+      imageOptions.fonts = fonts;
     }
 
     return new ImageResponse(

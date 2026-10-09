@@ -1,6 +1,6 @@
-import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
-import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
+import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
+import { createControllerStreamPair } from "../utils/stream/createControllerStream";
 
 export type TextStreamController = {
   append(textDelta: string): void;
@@ -11,78 +11,74 @@ type TextStreamOptions = {
   strict?: boolean | undefined;
 };
 
-class TextStreamControllerImpl implements TextStreamController {
-  private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+type ChunkSink = {
+  enqueue(chunk: AssistantStreamChunk): void;
+  close(): void;
+};
+
+export class TextStreamControllerImpl implements TextStreamController {
+  private _controller: ChunkSink;
   private _strict: boolean;
   private _isClosed = false;
+  private _ignoreAppends = false;
   private _warnedDropped = false;
 
-  constructor(
-    controller: ReadableStreamDefaultController<AssistantStreamChunk>,
-    options: TextStreamOptions = {},
-  ) {
+  constructor(controller: ChunkSink, options: TextStreamOptions = {}) {
     this._controller = controller;
     this._strict = options.strict ?? true;
   }
 
   append(textDelta: string) {
+    if (this._ignoreAppends) return this;
     const chunk: AssistantStreamChunk = {
       type: "text-delta",
       path: [],
       textDelta,
     };
-    if (this._strict) {
-      this._controller.enqueue(chunk);
+    if (this._isClosed) {
+      if (this._strict) {
+        throw new TypeError("Cannot append to a closed TextStreamController");
+      }
+      enqueueIfOpen(this._controller, chunk, this._warnDroppedAfterClose);
       return this;
     }
-    try {
-      this._controller.enqueue(chunk);
-    } catch (error) {
-      if (!this._warnedDropped) {
-        this._warnedDropped = true;
-        console.error(`Dropped text delta for closed stream: ${String(error)}`);
-      }
-    }
+    enqueueIfOpen(this._controller, chunk);
     return this;
   }
+
+  private _warnDroppedAfterClose = (error: TypeError) => {
+    if (this._warnedDropped) return;
+    this._warnedDropped = true;
+    console.error(`Dropped text delta for closed stream: ${String(error)}`);
+  };
 
   close() {
     if (this._isClosed) return;
     this._isClosed = true;
-    this._controller.enqueue({
+    enqueueIfOpen(this._controller, {
       type: "part-finish",
       path: [],
     });
-    this._controller.close();
+    closeIfOpen(this._controller);
+  }
+
+  __internal_close() {
+    if (this._isClosed) return;
+    this._ignoreAppends = true;
+    this.close();
+  }
+
+  __internal_truncate() {
+    if (this._isClosed) return;
+    this._ignoreAppends = true;
+    this._isClosed = true;
+    closeIfOpen(this._controller);
   }
 }
 
-export const createTextStream = (
-  readable: UnderlyingReadable<TextStreamController>,
-  options: TextStreamOptions = {},
-): AssistantStream => {
-  return new ReadableStream({
-    start(c) {
-      return readable.start?.(new TextStreamControllerImpl(c, options));
-    },
-    pull(c) {
-      return readable.pull?.(new TextStreamControllerImpl(c, options));
-    },
-    cancel(c) {
-      return readable.cancel?.(c);
-    },
-  });
-};
-
 export const createTextStreamController = (options: TextStreamOptions = {}) => {
-  let controller!: TextStreamController;
-  const stream = createTextStream(
-    {
-      start(c) {
-        controller = c;
-      },
-    },
-    options,
-  );
-  return [stream, controller] as const;
+  return createControllerStreamPair<
+    AssistantStreamChunk,
+    TextStreamControllerImpl
+  >((controller) => new TextStreamControllerImpl(controller, options));
 };

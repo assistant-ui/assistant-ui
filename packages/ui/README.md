@@ -15,9 +15,9 @@ The CLI fetches each component from the shadcn registry served at [`r.assistant-
 
 | Path                              | Contents                                                                 |
 | --------------------------------- | ------------------------------------------------------------------------ |
-| `src/components/assistant-ui/*`   | Assistant-specific components (thread, message, composer, attachment, etc.). |
-| `src/components/ui/base/*`        | Standard shadcn-style Base UI components (button, dialog, sheet, etc.).  |
-| `src/components/ui/radix/*`       | Radix-flavor shadcn-style components (button, dialog, sheet, etc.).      |
+| `src/components/react/assistant-ui/elements/*`   | Assistant-specific components (thread, message, composer, attachment, etc.). |
+| `src/components/react/ui/base/*`        | Standard shadcn-style Base UI components (button, dialog, sheet, etc.).  |
+| `src/components/react/ui/radix/*`       | Radix-flavor shadcn-style components (button, dialog, sheet, etc.).      |
 | `src/hooks/*`                     | Shared hooks consumed by the components above.                           |
 | `src/lib/*`                       | Utility helpers (`cn`, formatters, etc.).                                |
 

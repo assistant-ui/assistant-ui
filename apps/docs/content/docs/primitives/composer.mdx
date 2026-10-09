@@ -4,7 +4,7 @@ description: Build custom message input UIs with full control over layout and be
 platforms: ["react"]
 ---
 
-import { ComposerPrimitiveSample } from "@/components/docs/samples/composer-primitive";
+import { ComposerPrimitiveSample } from "@/components/pages/docs/samples/composer-primitive";
 import { ComposerPrimitive as ComposerPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Composer primitive is the interface for composing new messages or editing existing ones. It handles submit behavior, keyboard shortcuts, focus management, attachment state, and streaming status. You provide the UI.
@@ -61,7 +61,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### New Message vs Edit Mode
 
-A Composer placed inside a **Thread** composes new messages. A Composer placed inside a **Message** edits that message. The same primitives handle both, and the behavior changes automatically based on context.
+A Composer placed inside a **Thread** composes new messages. A Composer placed inside a **Message** edits that message. The same primitives handle both, and the behavior follows the context.
 
 ```tsx
 // New message composer
@@ -84,7 +84,7 @@ A Composer placed inside a **Thread** composes new messages. A Composer placed i
 
 ### The `asChild` Pattern
 
-Every primitive part accepts `asChild` to merge its behavior onto your own element. This is how you use primitives with your own design system:
+Every part that renders an element accepts `asChild` to merge its behavior onto your own element. This is how you use primitives with your own design system:
 
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
@@ -101,7 +101,7 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 </ComposerPrimitive.Send>
 ```
 
-The primitive's behavior (keyboard handling, disabled state, form submission) is merged onto your element. Your styles, your component, primitive wiring.
+The primitive's behavior (keyboard handling, disabled state, form submission) is merged onto your element.
 
 <Callout type="info">
 Own the input DOM entirely, such as a `contentEditable` surface or editor
@@ -111,43 +111,43 @@ unstable hook that supplies composer text and send gating without
 `ComposerPrimitive.Input`.
 </Callout>
 
-### Unstable Trigger Popovers
+### Trigger Popovers
 
-Composer includes an unstable **trigger popover** system for character-triggered popovers (e.g. `@` for mentions, `/` for slash commands). Multiple triggers coexist under a single `TriggerPopoverRoot`.
+Composer includes stable **trigger popover** primitives and types for character-triggered popovers (e.g. `@` for mentions, `/` for slash commands). Multiple triggers coexist under a single `TriggerPopoverRoot`. The helper hooks for mention, slash command, and live completion adapters, composer input, ARIA props, and trigger popover contexts remain unstable.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+<ComposerPrimitive.TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
 
     {/* @ mention — inserts directive text into the message */}
-    <ComposerPrimitive.Unstable_TriggerPopover
+    <ComposerPrimitive.TriggerPopover
       char="@"
       adapter={mentionAdapter}
     >
-      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+      <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
       {/* popover UI */}
-    </ComposerPrimitive.Unstable_TriggerPopover>
+    </ComposerPrimitive.TriggerPopover>
 
     {/* / slash command — runs a handler on selection; leaves an audit-trail chip by default */}
-    <ComposerPrimitive.Unstable_TriggerPopover
+    <ComposerPrimitive.TriggerPopover
       char="/"
       adapter={slashAdapter}
     >
-      <ComposerPrimitive.Unstable_TriggerPopover.Action
+      <ComposerPrimitive.TriggerPopover.Action
         formatter={formatter}
         onExecute={(item) => commandHandlers[item.id]?.()}
       />
-      <ComposerPrimitive.Unstable_TriggerPopoverItems>
+      <ComposerPrimitive.TriggerPopoverItems>
         {(items) => items.map(item => (
-          <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+          <ComposerPrimitive.TriggerPopoverItem key={item.id} item={item}>
             {item.label}
-          </ComposerPrimitive.Unstable_TriggerPopoverItem>
+          </ComposerPrimitive.TriggerPopoverItem>
         ))}
-      </ComposerPrimitive.Unstable_TriggerPopoverItems>
-    </ComposerPrimitive.Unstable_TriggerPopover>
+      </ComposerPrimitive.TriggerPopoverItems>
+    </ComposerPrimitive.TriggerPopover>
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+</ComposerPrimitive.TriggerPopoverRoot>
 ```
 
 See the [Mentions guide](/docs/guides/mentions) and [Slash Commands guide](/docs/guides/slash-commands) for full documentation.
@@ -167,7 +167,7 @@ Form container for message composition. Renders a `<form>` element unless `asChi
 
 #### Compact Mode
 
-Pass `compact` to opt into compact detection. While the input holds at most a single line of text and the composer has no attachments, quote, queued messages, or active dictation, the root renders a `data-compact` attribute. The prop only exposes this attribute for styling — it does not change the layout by itself. Target it with CSS to collapse the composer into a single row:
+Pass `compact` to opt into compact detection. While the input holds at most a single line of text and the composer has no attachments, quote, queued messages, or active dictation, the root renders a `data-compact` attribute. The prop only exposes this attribute for styling and does not change the layout by itself. Target it with CSS to collapse the composer into a single row:
 
 ```tsx
 <ComposerPrimitive.Root
@@ -343,130 +343,130 @@ Clears the active quote from the composer. Renders a `<button>` element unless `
 </ComposerPrimitive.QuoteDismiss>
 ```
 
-### Unstable_TriggerPopoverRoot
+### TriggerPopoverRoot
 
 Root provider that groups one or more `TriggerPopover` declarations and owns the shared input plugin registry.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+<ComposerPrimitive.TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <LexicalComposerInput placeholder="Type @ to mention, / for commands..." />
-    <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
-      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+    <ComposerPrimitive.TriggerPopover char="@" adapter={mentionAdapter}>
+      <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
       ...
-    </ComposerPrimitive.Unstable_TriggerPopover>
+    </ComposerPrimitive.TriggerPopover>
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+</ComposerPrimitive.TriggerPopoverRoot>
 ```
 
-### Unstable_TriggerPopover
+### TriggerPopover
 
-Declares a trigger (by `char`, `adapter`) and renders the popover container. Selection behavior is declared by rendering exactly one behavior sub-primitive inside — either `<Unstable_TriggerPopover.Directive>` (insert a directive on selection) or `<Unstable_TriggerPopover.Action>` (run `onExecute` on selection). Only renders its DOM (and children) while the trigger is active in the composer input.
+Declares a trigger (by `char`, `adapter`) and renders the popover container. Selection behavior is declared by rendering exactly one behavior sub-primitive inside, either `<TriggerPopover.Directive>` (insert a directive on selection) or `<TriggerPopover.Action>` (run `onExecute` on selection). Only renders its DOM (and children) while the trigger is active in the composer input.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover
+<ComposerPrimitive.TriggerPopover
   char="@"
   adapter={mentionAdapter}
   className="rounded-lg border bg-popover p-1 shadow-md"
 >
-  <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
-  <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+  <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />
+  <ComposerPrimitive.TriggerPopoverCategories>
     {(categories) => categories.map((category) => (
-      <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
+      <ComposerPrimitive.TriggerPopoverCategoryItem
         key={category.id}
         categoryId={category.id}
       >
         {category.label}
-      </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+      </ComposerPrimitive.TriggerPopoverCategoryItem>
     ))}
-  </ComposerPrimitive.Unstable_TriggerPopoverCategories>
-</ComposerPrimitive.Unstable_TriggerPopover>
+  </ComposerPrimitive.TriggerPopoverCategories>
+</ComposerPrimitive.TriggerPopover>
 ```
 
 Behavior is supplied by exactly one of two sub-primitives:
 
-- `<Unstable_TriggerPopover.Directive formatter={...} onInserted={...} />` — writes `:type[label]{name=id}` into the composer text (mention behavior)
-- `<Unstable_TriggerPopover.Action onExecute={...} removeOnExecute={...} />` — runs a callback on selection; leaves a directive chip behind by default (slash-command behavior)
+- `<TriggerPopover.Directive formatter={...} onInserted={...} />`: writes `:type[label]{name=id}` into the composer text (mention behavior)
+- `<TriggerPopover.Action onExecute={...} removeOnExecute={...} />`: runs a callback on selection; leaves a directive chip behind by default (slash-command behavior)
 
-### Unstable_TriggerPopover.Directive
+### TriggerPopover.Directive
 
 Behavior sub-primitive. Registers the directive-insert behavior with its parent `TriggerPopover`. Renders nothing.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover.Directive
-  formatter={unstable_defaultDirectiveFormatter}
+<ComposerPrimitive.TriggerPopover.Directive
+  formatter={defaultDirectiveFormatter}
   onInserted={(item) => track("mention", item.id)}
 />
 ```
 
-### Unstable_TriggerPopover.Action
+### TriggerPopover.Action
 
 Behavior sub-primitive. Registers the action behavior with its parent `TriggerPopover`. Renders nothing. By default leaves a directive chip behind after executing (audit trail); pass `removeOnExecute` to strip the trigger text entirely.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover.Action
+<ComposerPrimitive.TriggerPopover.Action
   onExecute={(item) => commandHandlers[item.id]?.()}
   removeOnExecute={false}
 />
 ```
 
-### Unstable_TriggerPopoverCategories
+### TriggerPopoverCategories
 
 Render-function primitive for the top-level category list. Only renders while no category is active and search mode is off.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverCategories>
+<ComposerPrimitive.TriggerPopoverCategories>
   {(categories) => categories.map((category) => (
-    <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
+    <ComposerPrimitive.TriggerPopoverCategoryItem
       key={category.id}
       categoryId={category.id}
     >
       {category.label}
-    </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+    </ComposerPrimitive.TriggerPopoverCategoryItem>
   ))}
-</ComposerPrimitive.Unstable_TriggerPopoverCategories>
+</ComposerPrimitive.TriggerPopoverCategories>
 ```
 
-### Unstable_TriggerPopoverCategoryItem
+### TriggerPopoverCategoryItem
 
 Button that selects a category and drills into its items.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverCategoryItem categoryId="tools">
+<ComposerPrimitive.TriggerPopoverCategoryItem categoryId="tools">
   Tools
-</ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+</ComposerPrimitive.TriggerPopoverCategoryItem>
 ```
 
-### Unstable_TriggerPopoverItems
+### TriggerPopoverItems
 
 Render-function primitive for the items inside the currently selected category (or global search results).
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverItems>
+<ComposerPrimitive.TriggerPopoverItems>
   {(items) => items.map((item) => (
-    <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} />
+    <ComposerPrimitive.TriggerPopoverItem key={item.id} item={item} />
   ))}
-</ComposerPrimitive.Unstable_TriggerPopoverItems>
+</ComposerPrimitive.TriggerPopoverItems>
 ```
 
-### Unstable_TriggerPopoverItem
+### TriggerPopoverItem
 
 Selectable item inside the popover.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverItem item={item}>
+<ComposerPrimitive.TriggerPopoverItem item={item}>
   {item.label}
-</ComposerPrimitive.Unstable_TriggerPopoverItem>
+</ComposerPrimitive.TriggerPopoverItem>
 ```
 
-### Unstable_TriggerPopoverBack
+### TriggerPopoverBack
 
 Back button used when drilling from categories into a specific item list.
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopoverBack className="rounded-md px-2 py-1 text-sm hover:bg-accent">
+<ComposerPrimitive.TriggerPopoverBack className="rounded-md px-2 py-1 text-sm hover:bg-accent">
   Back
-</ComposerPrimitive.Unstable_TriggerPopoverBack>
+</ComposerPrimitive.TriggerPopoverBack>
 ```
 
 ## Patterns
@@ -552,7 +552,7 @@ Use `onSubmit` on `Root` to intercept submission:
 
 ### Gate Sending on External State
 
-Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` works but also disables the text input, which feels broken.
+Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` works but also disables the text input.
 
 Use `isSendDisabled` on the runtime adapter to keep the input usable while blocking send:
 
@@ -584,7 +584,7 @@ Read the same flag from React with `<AuiIf>` to render hints alongside the input
 </ComposerPrimitive.Root>
 ```
 
-`canSend` reflects the composer's own willingness to send (editing mode, non-empty content, `isSendDisabled` not set). Cross-thread gating like an in-flight run without queue support is layered on top by `<ComposerPrimitive.Send>` automatically.
+`canSend` reflects the composer's own willingness to send (editing mode, non-empty content, `isSendDisabled` not set). `<ComposerPrimitive.Send>` adds thread-level gating on top, such as an in-flight run without queue support.
 
 `isSendDisabled` only gates the thread composer. Saving an in-progress message edit is unaffected, since it is a per-message action rather than a new send.
 
@@ -612,11 +612,11 @@ With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter 
 
 `unstable_insertNewlineOnTouchEnter` switches Enter to insert a newline on touch-primary devices (detected via `(pointer: coarse) and (not (any-pointer: fine))`), so the on-screen Return key never accidentally sends a half-finished message. Submission moves to the explicit Send button, matching WhatsApp, Slack, Discord, iMessage, ChatGPT, and Claude.ai.
 
-Desktop behavior is unchanged. A tablet paired with a hardware keyboard still gets `submitMode`'s usual semantics if you set `submitMode="ctrlEnter"` or `"none"` — the flag only downgrades the default `"enter"` mode.
+Desktop behavior is unchanged. A tablet paired with a hardware keyboard still gets `submitMode`'s usual semantics if you set `submitMode="ctrlEnter"` or `"none"`, because the flag only downgrades the default `"enter"` mode.
 
 ### Floating Composer
 
-Primitives aren't bound to any layout. Here's how the floating composer on this docs site is built, using the same `ComposerPrimitive.Root` and `ComposerPrimitive.Input` positioned with CSS:
+Primitives aren't bound to any layout. A floating composer uses the same `ComposerPrimitive.Root` and `ComposerPrimitive.Input`, positioned with CSS:
 
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
@@ -644,11 +644,11 @@ function FloatingComposer() {
 }
 ```
 
-The primitive handles everything about composing a message. The layout, animation, and visibility logic is all yours.
+The primitive handles composing the message. Layout, animation, and visibility logic stay in your code.
 
 ## Relationship to Components
 
-The [Thread](/docs/ui/thread) component includes a full composer built from these primitives. If you need a working chat UI fast, start there. When you need a composer that doesn't fit inside a thread, such as a floating input, a sidebar composer, or a multi-step form, reach for `ComposerPrimitive` directly.
+The [Thread](/elements/thread) component includes a full composer built from these primitives. Start there for a working chat UI. When you need a composer that doesn't fit inside a thread, such as a floating input, a sidebar composer, or a multi-step form, reach for `ComposerPrimitive` directly.
 
 ## API Reference
 
