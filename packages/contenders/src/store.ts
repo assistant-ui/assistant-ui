@@ -1,6 +1,6 @@
 import { isDev } from "./guard";
 import { LOG_PREFIX, NAME } from "./name";
-import { ALL, parseSearch, serializeSearch, type UrlState } from "./url";
+import { parseSearch, serializeSearch, type UrlState } from "./url";
 
 export type VariantMeta = { id: string; label: string };
 
@@ -10,18 +10,23 @@ export type GroupMeta = {
   variants: VariantMeta[];
   defaultId: string | undefined;
   persist: boolean;
+  /** The `<Variant>` this group is nested in, when it is. */
+  parent: { group: string; variant: string } | undefined;
 };
 
 export type Snapshot = {
   groups: readonly GroupMeta[];
   selections: Readonly<Record<string, string>>;
-  globalAll: boolean;
   hideUI: boolean;
   clean: boolean;
   collapsed: boolean;
-  dock: "left" | "right";
   outline: boolean;
+  canvas: boolean;
+  /** Group ids that have a row in the open canvas, in page order. */
+  canvasRows: readonly string[];
   focus: { group: string; seq: number } | undefined;
+  /** The group whose switcher row and page region are linked by hover or focus. */
+  highlight: { group: string; source: "switcher" | "page" } | undefined;
 };
 
 export type Store = {
@@ -31,12 +36,16 @@ export type Store = {
   register: (meta: GroupMeta) => () => void;
   select: (group: string, value: string) => void;
   cycle: (group: string, delta: number) => string | undefined;
-  toggleGroupAll: (group: string) => void;
-  toggleGlobalAll: () => void;
   setCollapsed: (collapsed: boolean) => void;
   setOutline: (outline: boolean) => void;
-  setDock: (dock: "left" | "right") => void;
+  setCanvas: (open: boolean) => void;
+  setCanvasRows: (rows: readonly string[]) => void;
   focusGroup: (group: string) => void;
+  /** Sets the linked group, or clears it when `group` is undefined and `source` set it. */
+  setHighlight: (
+    group: string | undefined,
+    source: "switcher" | "page",
+  ) => void;
   reset: () => void;
 };
 
@@ -45,19 +54,19 @@ export type MountUI = (store: Store) => () => void;
 const INITIAL: Snapshot = Object.freeze({
   groups: [],
   selections: {},
-  globalAll: false,
   hideUI: false,
   clean: false,
   collapsed: false,
-  dock: "right",
   outline: true,
+  canvas: false,
+  canvasRows: [],
   focus: undefined,
+  highlight: undefined,
 });
 
 export const storageKey = (group: string) => `${NAME}:${group}`;
 export const COLLAPSED_KEY = `${NAME}:ui-collapsed`;
 export const OUTLINE_KEY = `${NAME}:outline`;
-export const DOCK_KEY = `${NAME}:ui-dock`;
 
 const storage = {
   get(key: string): string | undefined {
@@ -76,30 +85,66 @@ const storage = {
 };
 
 const hasWindow = () => typeof window !== "undefined";
+const hasDocument = () => typeof document !== "undefined";
 
 const readUrl = (): UrlState =>
   parseSearch(hasWindow() ? window.location.search : "");
 
-export const resolveGroup = (
+export const resolveActive = (
   meta: Pick<GroupMeta, "variants" | "defaultId">,
   selection: string | undefined,
-  globalAll: boolean,
-): { showAll: boolean; activeId: string | undefined } => {
+): string | undefined => {
   const has = (id: string | undefined) =>
     id !== undefined && meta.variants.some((variant) => variant.id === id);
-  const activeId = has(selection)
+  return has(selection)
     ? selection
     : has(meta.defaultId)
       ? meta.defaultId
       : meta.variants[0]?.id;
-  return { showAll: globalAll || selection === ALL, activeId };
 };
 
-export const createStore = (mountUI?: MountUI): Store => {
+/** Groups with every nested group placed right after its parent, recursively. */
+export const treeOrder = (groups: readonly GroupMeta[]): GroupMeta[] => {
+  const ids = new Set(groups.map((meta) => meta.id));
+  const isRoot = (meta: GroupMeta) =>
+    !meta.parent || !ids.has(meta.parent.group);
+  const result: GroupMeta[] = [];
+  const visit = (meta: GroupMeta, depth: number) => {
+    if (depth > 20 || result.includes(meta)) return;
+    result.push(meta);
+    for (const child of groups) {
+      if (child.parent?.group === meta.id) visit(child, depth + 1);
+    }
+  };
+  for (const meta of groups) if (isRoot(meta)) visit(meta, 0);
+  for (const meta of groups) if (!result.includes(meta)) result.push(meta);
+  return result;
+};
+
+export const depthOf = (
+  meta: GroupMeta,
+  groups: readonly GroupMeta[],
+): number => {
+  let depth = 0;
+  for (
+    let parent = meta.parent;
+    parent && depth < 20;
+    parent = groups.find((group) => group.id === parent!.group)?.parent
+  ) {
+    if (!groups.some((group) => group.id === parent!.group)) break;
+    depth++;
+  }
+  return depth;
+};
+
+export const createStore = (
+  mountUI?: MountUI,
+  mountCanvas?: MountUI,
+): Store => {
   let snapshot = INITIAL;
   let entries: { token: object; meta: GroupMeta }[] = [];
   let teardownUI: (() => void) | undefined;
-  const previous = new Map<string, string>();
+  let teardownCanvas: (() => void) | undefined;
   const listeners = new Set<() => void>();
 
   const groups = () => {
@@ -132,7 +177,7 @@ export const createStore = (mountUI?: MountUI): Store => {
         if (value === undefined) url.selections.delete(meta.id);
         else url.selections.set(meta.id, value);
       }
-      url.globalAll = snapshot.globalAll;
+      url.canvas = snapshot.canvas;
       const search = serializeSearch(location.search, url);
       history.replaceState(
         history.state,
@@ -140,6 +185,18 @@ export const createStore = (mountUI?: MountUI): Store => {
         `${location.pathname}${search}${location.hash}`,
       );
     } catch {}
+  };
+
+  const syncCanvas = () => {
+    const wanted = snapshot.canvas && entries.length > 0 && hasDocument();
+    if (wanted && !teardownCanvas && mountCanvas) {
+      teardownCanvas = mountCanvas(store);
+    } else if (!wanted && teardownCanvas) {
+      const teardown = teardownCanvas;
+      teardownCanvas = undefined;
+      teardown();
+      if (snapshot.canvasRows.length > 0) emit({ canvasRows: [] });
+    }
   };
 
   const onPopState = () => {
@@ -152,30 +209,11 @@ export const createStore = (mountUI?: MountUI): Store => {
     }
     emit({
       selections,
-      globalAll: url.globalAll,
       hideUI: url.hideUI,
       clean: url.clean,
+      canvas: url.canvas,
     });
-  };
-
-  const setSelection = (group: string, value: string | undefined) => {
-    const selections = { ...snapshot.selections };
-    if (value === undefined) delete selections[group];
-    else selections[group] = value;
-    if (findMeta(group)?.persist) storage.set(storageKey(group), value);
-    emit({ selections });
-    writeUrl();
-  };
-
-  const activeOf = (group: string) => {
-    const meta = findMeta(group);
-    if (!meta) return undefined;
-    const selection = snapshot.selections[group];
-    return resolveGroup(
-      meta,
-      selection === ALL ? previous.get(group) : selection,
-      false,
-    ).activeId;
+    syncCanvas();
   };
 
   const store: Store = {
@@ -197,23 +235,22 @@ export const createStore = (mountUI?: MountUI): Store => {
       const url = readUrl();
       const next: Partial<Snapshot> = {};
       if (first) {
-        next.globalAll = url.globalAll;
         next.hideUI = url.hideUI;
         next.clean = url.clean;
+        next.canvas = url.canvas;
         next.collapsed = storage.get(COLLAPSED_KEY) === "1";
         next.outline = storage.get(OUTLINE_KEY) !== "0";
-        next.dock = storage.get(DOCK_KEY) === "left" ? "left" : "right";
         if (hasWindow()) window.addEventListener("popstate", onPopState);
       }
       const selection = loadSelection(meta, url);
       if (selection !== undefined) {
         next.selections = { ...snapshot.selections, [meta.id]: selection };
-        if (selection !== ALL) previous.set(meta.id, selection);
       }
       emit({ ...next, groups: groups() });
-      if (first && mountUI && typeof document !== "undefined") {
+      if (first && mountUI && hasDocument()) {
         teardownUI = mountUI(store);
       }
+      syncCanvas();
       return () => {
         entries = entries.filter((entry) => entry.token !== token);
         if (entries.length === 0) {
@@ -222,35 +259,24 @@ export const createStore = (mountUI?: MountUI): Store => {
           if (hasWindow()) window.removeEventListener("popstate", onPopState);
         }
         emit({ groups: groups() });
+        syncCanvas();
       };
     },
     select(group, value) {
-      if (value !== ALL) previous.set(group, value);
-      setSelection(group, value);
+      const selections = { ...snapshot.selections, [group]: value };
+      if (findMeta(group)?.persist) storage.set(storageKey(group), value);
+      emit({ selections });
+      writeUrl();
     },
     cycle(group, delta) {
       const meta = findMeta(group);
       if (!meta || meta.variants.length === 0) return undefined;
-      const index = meta.variants.findIndex(
-        (variant) => variant.id === activeOf(group),
-      );
+      const active = resolveActive(meta, snapshot.selections[group]);
+      const index = meta.variants.findIndex((variant) => variant.id === active);
       const length = meta.variants.length;
       const nextId = meta.variants[(index + delta + length) % length]!.id;
       store.select(group, nextId);
       return nextId;
-    },
-    toggleGroupAll(group) {
-      if (snapshot.selections[group] === ALL) {
-        setSelection(group, previous.get(group));
-        return;
-      }
-      const active = activeOf(group);
-      if (active !== undefined) previous.set(group, active);
-      setSelection(group, ALL);
-    },
-    toggleGlobalAll() {
-      emit({ globalAll: !snapshot.globalAll });
-      writeUrl();
     },
     setCollapsed(collapsed) {
       storage.set(COLLAPSED_KEY, collapsed ? "1" : undefined);
@@ -260,9 +286,17 @@ export const createStore = (mountUI?: MountUI): Store => {
       storage.set(OUTLINE_KEY, outline ? undefined : "0");
       emit({ outline });
     },
-    setDock(dock) {
-      storage.set(DOCK_KEY, dock === "left" ? "left" : undefined);
-      emit({ dock });
+    setCanvas(open) {
+      if (open === snapshot.canvas) return;
+      emit({ canvas: open });
+      syncCanvas();
+      writeUrl();
+    },
+    setCanvasRows(rows) {
+      const same =
+        rows.length === snapshot.canvasRows.length &&
+        rows.every((row, index) => row === snapshot.canvasRows[index]);
+      if (!same) emit({ canvasRows: [...rows] });
     },
     focusGroup(group) {
       storage.set(COLLAPSED_KEY, undefined);
@@ -271,12 +305,22 @@ export const createStore = (mountUI?: MountUI): Store => {
         focus: { group, seq: (snapshot.focus?.seq ?? 0) + 1 },
       });
     },
+    setHighlight(group, source) {
+      const current = snapshot.highlight;
+      if (group === undefined) {
+        if (current?.source === source) emit({ highlight: undefined });
+        return;
+      }
+      if (current?.group === group && current.source === source) return;
+      emit({ highlight: { group, source } });
+    },
     reset() {
       teardownUI?.();
       teardownUI = undefined;
+      teardownCanvas?.();
+      teardownCanvas = undefined;
       if (hasWindow()) window.removeEventListener("popstate", onPopState);
       entries = [];
-      previous.clear();
       snapshot = INITIAL;
       for (const listener of listeners) listener();
     },

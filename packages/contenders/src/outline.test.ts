@@ -106,15 +106,6 @@ describe("layoutFrames", () => {
     expect(inner!.tab).toEqual({ left: 93 + tab.width + 6, top: 74 });
   });
 
-  it("slides tabs past obstacles such as in-page captions", () => {
-    const [placed] = layoutFrames(
-      [frame("a", rect(100, 100, 600, 300))],
-      viewport,
-      [rect(70, 90, 250, 95)],
-    );
-    expect(placed!.tab).toEqual({ left: 256, top: 74 });
-  });
-
   it("moves the tab inside when the edge above is off screen", () => {
     const [placed] = layoutFrames(
       [frame("a", rect(10, 100, 600, 300))],

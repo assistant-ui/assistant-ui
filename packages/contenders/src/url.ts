@@ -1,10 +1,8 @@
-export const ALL = "all";
-
 export type UrlState = {
   selections: Map<string, string>;
-  globalAll: boolean;
   hideUI: boolean;
   clean: boolean;
+  canvas: boolean;
 };
 
 const splitList = (values: string[]) =>
@@ -24,9 +22,9 @@ export const parseSearch = (search: string): UrlState => {
   const flags = splitList(params.getAll("variants"));
   return {
     selections,
-    globalAll: flags.includes(ALL),
     hideUI: flags.includes("noui"),
     clean: flags.includes("clean"),
+    canvas: flags.includes("canvas"),
   };
 };
 
@@ -44,9 +42,9 @@ export const serializeSearch = (search: string, state: UrlState): string => {
     parts.push(`variant=${encode(group)}:${encode(value)}`);
   }
   const flags = [
-    ...(state.globalAll ? [ALL] : []),
     ...(state.hideUI ? ["noui"] : []),
     ...(state.clean ? ["clean"] : []),
+    ...(state.canvas ? ["canvas"] : []),
   ];
   if (flags.length > 0) parts.push(`variants=${flags.join(",")}`);
   return parts.length > 0 ? `?${parts.join("&")}` : "";

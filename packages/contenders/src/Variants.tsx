@@ -9,29 +9,35 @@ import {
   useId,
   useRef,
   useSyncExternalStore,
-  type CSSProperties,
   type ReactElement,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
+import { canvasSlot, mountCanvas, readSlotAncestors } from "./canvas";
 import { assertAllowed, isDev } from "./guard";
 import { LOG_PREFIX } from "./name";
+import { NodeRange, registerGroupNodes } from "./nodes";
 import { trackRegion, type RegionInfo } from "./outline";
-import { createStore, resolveGroup, type GroupMeta, type Store } from "./store";
+import {
+  createStore,
+  resolveActive,
+  type GroupMeta,
+  type Store,
+} from "./store";
 import { mountSwitcher } from "./switcher";
-import { ALL } from "./url";
 
 export type VariantProps = {
   /** Stable id used in `?variant=<group>:<id>` and `data-variant`. */
   id: string;
-  /** Human-readable name shown in the switcher and show-all captions. */
+  /** Human-readable name shown in the switcher, outline and canvas. */
   label?: string | undefined;
   children?: ReactNode;
 };
 
 export type VariantsProps = {
-  /** Page-unique group id used in `?variant=<group>:<id>` and `data-variant-group`. */
+  /** Group id used in `?variant=<group>:<id>` and `data-variant-group`; keep it unique across the app. */
   id: string;
-  /** Human-readable group name shown in the switcher. */
+  /** Human-readable group name shown in the switcher, outline and canvas. */
   label?: string | undefined;
   /** Variant id rendered on the server and when nothing else selects one; defaults to the first child. */
   default?: string | undefined;
@@ -39,31 +45,23 @@ export type VariantsProps = {
   persist?: boolean | undefined;
   /** Render instead of throwing in a production build, e.g. on preview deployments. */
   allowInProduction?: boolean | undefined;
-  /** Draw the dashed "undecided" outline around the rendered variant. Defaults to `true`. */
+  /** Always draw the dashed "undecided" outline; `false` shows it only on hover. Defaults to `true`. */
   outline?: boolean | undefined;
   children?: ReactNode;
 };
 
-const contents: CSSProperties = { display: "contents" };
+type GroupScope = { keys: readonly string[]; group: string };
+type VariantScope = GroupScope & { variant: string; depth: number };
 
-const captionStyle: CSSProperties = {
-  display: "block",
-  boxSizing: "border-box",
-  width: "fit-content",
-  margin: "24px 0 8px",
-  padding: 0,
-  color: "color-mix(in srgb, currentColor 60%, transparent)",
-  font: '500 11px/16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  fontVariantNumeric: "tabular-nums",
-  letterSpacing: 0,
-  textAlign: "left",
-  textTransform: "none",
-};
-
-const InsideVariants = createContext(false);
+/** The enclosing `<Variants>`; `keys` lists every enclosing instance, outermost first. */
+const GroupContext = createContext<GroupScope | null>(null);
+/** The enclosing `<Variant>`, which a nested `<Variants>` registers as its parent. */
+const VariantContext = createContext<VariantScope | null>(null);
+const InsideCanvas = createContext(false);
 
 let defaultStore: Store | undefined;
-const getStore = () => (defaultStore ??= createStore(mountSwitcher));
+const getStore = () =>
+  (defaultStore ??= createStore(mountSwitcher, mountCanvas));
 
 /** @internal */
 export const StoreContext = createContext<Store | undefined>(undefined);
@@ -126,9 +124,9 @@ const collect = (group: string, children: ReactNode) => {
       );
       return;
     }
-    if (id === ALL || /[:,]/.test(id)) {
+    if (/[:,\s]/.test(id)) {
       problems.push(
-        `Variant id "${id}" in group "${group}" is reserved or contains ":" or ","; pick another id so ?variant= URLs stay unambiguous.`,
+        `Variant id "${id}" in group "${group}" contains ":", "," or whitespace; pick another id so ?variant= URLs and /variants choose stay unambiguous.`,
       );
     }
     items.push({ id, label: label ?? id, element: child });
@@ -137,8 +135,8 @@ const collect = (group: string, children: ReactNode) => {
 };
 
 /**
- * Renders exactly one of its `<Variant>` children (or all of them, stacked, in
- * show-all mode). Throws in production builds: pick one and remove the wrapper.
+ * Renders exactly one of its `<Variant>` children, with no wrapper element.
+ * Throws in production builds: pick one and remove the wrapper.
  */
 export function Variants({
   id,
@@ -151,6 +149,12 @@ export function Variants({
 }: VariantsProps) {
   assertAllowed(id, allowInProduction);
   const store = useContext(StoreContext) ?? getStore();
+  // A group nested inside a canvas card renders its active variant only; its
+  // own row and registration come from its copy on the page.
+  const embedded = useContext(InsideCanvas);
+  const parent = useContext(VariantContext);
+  const chain = parent?.keys ?? [];
+  const key = useId();
   const snapshot = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
@@ -158,15 +162,11 @@ export function Variants({
   );
   const { items, problems } = collect(id, children);
   const selection = snapshot.selections[id];
-  const { showAll, activeId } = resolveGroup(
-    { variants: items, defaultId },
-    selection,
-    snapshot.globalAll,
-  );
+  const activeId = resolveActive({ variants: items, defaultId }, selection);
 
-  if (/[:,]/.test(id) || id === "") {
+  if (/[:,\s]/.test(id) || id === "") {
     problems.push(
-      `Group id "${id}" must be non-empty and contain no ":" or ","; ?variant=<group>:<id> URLs cannot address it.`,
+      `Group id "${id}" must be non-empty and contain no ":", "," or whitespace; ?variant=<group>:<id> URLs cannot address it.`,
     );
   }
   if (defaultId !== undefined && !items.some((item) => item.id === defaultId)) {
@@ -174,11 +174,7 @@ export function Variants({
       `<Variants id="${id}"> default="${defaultId}" matches no <Variant>; falling back to "${items[0]?.id ?? "(none)"}".`,
     );
   }
-  if (
-    selection !== undefined &&
-    selection !== ALL &&
-    !items.some((item) => item.id === selection)
-  ) {
+  if (selection !== undefined && !items.some((item) => item.id === selection)) {
     problems.push(
       `Selected variant "${selection}" (from the URL or sessionStorage) matches no <Variant> in group "${id}"; showing "${activeId ?? "(none)"}".`,
     );
@@ -190,13 +186,16 @@ export function Variants({
     variants: items.map((item) => ({ id: item.id, label: item.label })),
     defaultId,
     persist,
+    parent: parent
+      ? { group: parent.group, variant: parent.variant }
+      : undefined,
   } satisfies GroupMeta);
-  useEffect(
-    () => store.register(JSON.parse(metaKey) as GroupMeta),
-    [store, metaKey],
-  );
+  useEffect(() => {
+    if (embedded) return;
+    return store.register(JSON.parse(metaKey) as GroupMeta);
+  }, [store, metaKey, embedded]);
 
-  const problemsKey = problems.join("\n");
+  const problemsKey = embedded ? "" : problems.join("\n");
   useEffect(() => {
     if (!problemsKey || !isDev()) return;
     for (const problem of problemsKey.split("\n")) {
@@ -204,101 +203,175 @@ export function Variants({
     }
   }, [problemsKey]);
 
-  const shown = showAll ? items : items.filter((item) => item.id === activeId);
+  const scope: GroupScope = { keys: [...chain, key], group: id };
+  const active = items.find((item) => item.id === activeId);
+  if (embedded) {
+    return (
+      <GroupContext.Provider value={scope}>
+        {active?.element}
+      </GroupContext.Provider>
+    );
+  }
 
-  const instance = useId();
-  const groupLabel = label ?? id;
-  const outlineMode =
-    outline && snapshot.outline ? ("always" as const) : ("hover" as const);
-
+  const index = active ? items.indexOf(active) + 1 : 0;
+  const slot =
+    snapshot.canvas && snapshot.canvasRows.includes(id)
+      ? canvasSlot(id)
+      : undefined;
   return (
-    <div
-      data-variant-group={id}
-      data-variant-mode={showAll ? "all" : "single"}
-      style={contents}
-    >
-      <InsideVariants.Provider value>
-        {shown.map((item) => {
-          const index = items.indexOf(item) + 1;
-          return (
-            <Region
-              key={item.id}
-              item={item}
-              caption={
-                showAll
-                  ? item.label === item.id
-                    ? `${id} · ${item.id}`
-                    : `${id} · ${item.id} · ${item.label}`
-                  : undefined
-              }
-              outline={
-                snapshot.clean
-                  ? undefined
-                  : {
-                      instance,
-                      group: groupLabel,
-                      variant: item.label,
-                      position: `${index}/${items.length}`,
-                      count: items.length,
-                      showAll,
-                      mode: outlineMode,
-                    }
-              }
-              onActivate={() => store.focusGroup(id)}
-            />
-          );
-        })}
-      </InsideVariants.Provider>
-    </div>
+    <GroupContext.Provider value={scope}>
+      {active && (
+        <Region
+          key={active.id}
+          group={id}
+          item={active}
+          outline={
+            snapshot.clean || snapshot.canvas
+              ? undefined
+              : {
+                  key,
+                  ancestors: [...chain],
+                  groupId: id,
+                  group: label ?? id,
+                  variant: active.label,
+                  position: `${index}/${items.length}`,
+                  mode: outline && snapshot.outline ? "always" : "hover",
+                }
+          }
+          onActivate={() => store.focusGroup(id)}
+          onHover={(hovered) =>
+            store.setHighlight(hovered ? id : undefined, "page")
+          }
+        />
+      )}
+      {slot &&
+        createPortal(
+          <InsideCanvas.Provider value>
+            {items.map((item) => (
+              <CanvasCard
+                key={item.id}
+                group={id}
+                item={item}
+                current={item.id === activeId}
+                ancestors={readSlotAncestors(slot)}
+              />
+            ))}
+          </InsideCanvas.Provider>,
+          slot,
+        )}
+    </GroupContext.Provider>
   );
 }
 
+const OWNER = "data-variant-group";
+
 function Region({
+  group,
   item,
-  caption,
   outline,
   onActivate,
+  onHover,
 }: {
+  group: string;
   item: Item;
-  caption: string | undefined;
-  outline: Omit<RegionInfo, "onActivate"> | undefined;
+  outline: Omit<RegionInfo, "onActivate" | "onHover"> | undefined;
   onActivate: () => void;
+  onHover: (hovered: boolean) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const activate = useRef(onActivate);
+  const range = useRef<NodeRange>(null);
+  const handlers = useRef({ onActivate, onHover });
   useEffect(() => {
-    activate.current = onActivate;
+    handlers.current = { onActivate, onHover };
   });
+
+  // The hooks live on the variant's own top-level elements; an inner group
+  // that shares an element keeps its attributes.
+  useEffect(() => {
+    for (const node of range.current?.nodes() ?? []) {
+      if (!(node instanceof Element)) continue;
+      const owner = node.getAttribute(OWNER);
+      if (owner !== null && owner !== group) continue;
+      node.setAttribute(OWNER, group);
+      node.setAttribute("data-variant", item.id);
+      node.setAttribute("data-variant-label", item.label);
+    }
+  });
+
+  useEffect(() => {
+    const getNodes = () => range.current?.nodes() ?? [];
+    return registerGroupNodes(group, getNodes);
+  }, [group]);
+
   const outlineKey = outline && JSON.stringify(outline);
   useEffect(() => {
-    const wrapper = ref.current;
-    if (outlineKey === undefined || !wrapper) return;
-    return trackRegion(wrapper, {
-      ...(JSON.parse(outlineKey) as Omit<RegionInfo, "onActivate">),
-      onActivate: () => activate.current(),
+    if (outlineKey === undefined) return;
+    return trackRegion(() => range.current?.nodes() ?? [], {
+      ...(JSON.parse(outlineKey) as Omit<RegionInfo, "onActivate" | "onHover">),
+      onActivate: () => handlers.current.onActivate(),
+      onHover: (hovered) => handlers.current.onHover(hovered),
     });
   }, [outlineKey]);
 
+  return <NodeRange ref={range}>{item.element}</NodeRange>;
+}
+
+const setInert = (element: HTMLElement | null) => {
+  element?.setAttribute("inert", "");
+};
+
+function CanvasCard({
+  group,
+  item,
+  current,
+  ancestors,
+}: {
+  group: string;
+  item: Item;
+  current: boolean;
+  ancestors: readonly string[];
+}) {
+  const content = ancestors.reduceRight<ReactNode>(
+    (inner, className) => (
+      <div className={className} style={{ display: "contents" }}>
+        {inner}
+      </div>
+    ),
+    item.element,
+  );
   return (
     <div
-      ref={ref}
-      data-variant={item.id}
-      data-variant-label={item.label}
-      style={contents}
+      className="cc-card"
+      role="group"
+      aria-roledescription="variant"
+      aria-label={current ? `${item.label} (current)` : item.label}
+      tabIndex={0}
+      data-canvas-card=""
+      data-canvas-group={group}
+      data-canvas-variant={item.id}
+      data-current={current ? "" : undefined}
     >
-      {caption !== undefined && (
-        <div data-variant-caption="" style={captionStyle}>
-          {caption}
+      <div className="cc-card-head">
+        <span className="cc-card-label">{item.label}</span>
+        {item.label !== item.id && <code>{item.id}</code>}
+        {current && <span className="cc-current">Current</span>}
+        <button type="button" className="cc-use" data-canvas-use="">
+          Use this
+        </button>
+      </div>
+      <div className="cc-card-frame">
+        <div className="cc-card-body" ref={setInert}>
+          {content}
         </div>
-      )}
-      {item.element}
+      </div>
     </div>
   );
 }
 
-/** One candidate inside `<Variants>`. Only the active one is mounted. */
+/** One candidate inside `<Variants>`. Only the active one is mounted on the page. */
 export function Variant({ id, children }: VariantProps) {
-  const inside = useContext(InsideVariants);
+  const group = useContext(GroupContext);
+  const parent = useContext(VariantContext);
+  const inside = group !== null;
   useEffect(() => {
     if (!inside && isDev()) {
       console.error(
@@ -306,5 +379,17 @@ export function Variant({ id, children }: VariantProps) {
       );
     }
   }, [inside, id]);
-  return <>{children}</>;
+  if (!group) return <>{children}</>;
+  return (
+    <VariantContext.Provider
+      value={{
+        keys: group.keys,
+        group: group.group,
+        variant: id,
+        depth: (parent?.depth ?? 0) + 1,
+      }}
+    >
+      {children}
+    </VariantContext.Provider>
+  );
 }

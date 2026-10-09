@@ -1,62 +1,81 @@
+import {
+  DEFAULT_SHORTCUT,
+  getConfig,
+  matchesShortcut,
+  onConfigChange,
+  shortcutLabel,
+} from "./config";
 import { NAME } from "./name";
-import { resolveGroup, type Snapshot, type Store } from "./store";
-import { ALL } from "./url";
+import { groupNodes, measureNodes } from "./nodes";
+import { highlightGroup } from "./outline";
+import { promptFor } from "./prompt";
+import {
+  depthOf,
+  resolveActive,
+  treeOrder,
+  type GroupMeta,
+  type Snapshot,
+  type Store,
+} from "./store";
+import {
+  BASE_CSS,
+  copyButton,
+  copyWithFeedback,
+  h,
+  icon,
+  iconButton,
+} from "./ui";
 
 export const SWITCHER_ATTRIBUTE = `data-${NAME}-switcher`;
 
+export const SIDEBAR_WIDTH = 300;
+export const SIDEBAR_VARIABLE = `--${NAME}-sidebar-width`;
+const SHEET_QUERY = "(max-width: 767px)";
+const ROW_MS = 160;
+
+const PAGE_CSS = `html[data-${NAME}-sidebar] { margin-right: var(${SIDEBAR_VARIABLE}) !important; }`;
+
 const CSS = `
-:host { all: initial; position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; }
-:host([data-dock="left"]) { right: auto; left: 16px; }
+:host { all: initial; position: fixed; top: 0; right: 0; bottom: 0; width: ${SIDEBAR_WIDTH}px; z-index: 2147483647; }
 :host([hidden]) { display: none; }
-* { box-sizing: border-box; }
-.root {
-  --bg: #ffffff; --bg-subtle: #f4f4f5; --bg-hover: #f4f4f5;
-  --fg: #18181b; --fg-muted: #71717a; --fg-segment: #52525b;
-  --border: #e4e4e7; --thumb: #ffffff; --thumb-border: #e4e4e7;
-  --accent: #d97706; --accent-soft: rgb(217 119 6 / 0.12);
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -6px rgb(0 0 0 / 0.16);
-  font: 12px/16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-variant-numeric: tabular-nums; letter-spacing: 0;
-  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-  color: var(--fg);
-  display: flex; flex-direction: column; align-items: flex-end;
-}
-:host([data-dock="left"]) .root { align-items: flex-start; }
-@media (prefers-color-scheme: dark) {
-  .root {
-    --bg: #18181b; --bg-subtle: #09090b; --bg-hover: #27272a;
-    --fg: #fafafa; --fg-muted: #a1a1aa; --fg-segment: #a1a1aa;
-    --border: #2e2e33; --thumb: #3f3f46; --thumb-border: #52525b;
-    --accent: #fbbf24; --accent-soft: rgb(251 191 36 / 0.14);
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.7);
-  }
-}
-button { all: unset; box-sizing: border-box; cursor: pointer; font: inherit; color: inherit; }
-button:focus-visible, .group:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.group:focus-visible { outline-offset: -2px; border-radius: 8px; }
-svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+:host([data-collapsed]) { top: auto; bottom: 16px; width: auto; }
+:host([data-mode="sheet"]:not([data-collapsed])) { top: auto; left: 0; width: auto; max-height: 60vh; }
+${BASE_CSS}
+.root { display: flex; flex-direction: column; align-items: flex-end; height: 100%; }
 
 .panel {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
-  min-width: 248px; max-width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto;
+  display: flex; flex-direction: column; width: 100%; height: 100%;
+  background: var(--bg); border-left: 1px solid var(--border);
 }
-header { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+:host([data-mode="sheet"]) .panel {
+  border-left: 0; border-top: 1px solid var(--border); border-radius: 10px 10px 0 0; box-shadow: var(--shadow);
+}
+.groups { flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; }
+header { flex: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
 .title { font-weight: 600; }
 .count { color: var(--fg-muted); }
 .tools { margin-left: auto; display: flex; gap: 2px; }
-.icon {
-  display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
-  border-radius: 6px; color: var(--fg-muted);
-}
-.icon:hover { background: var(--bg-hover); color: var(--fg); }
-.icon[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 
-.group { padding: 10px 12px 12px; }
-.group + .group { border-top: 1px solid var(--border); }
-.meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; min-width: 0; }
+.slot { display: grid; grid-template-rows: 1fr; opacity: 1; }
+.slot[data-closed] { grid-template-rows: 0fr; opacity: 0; }
+.clip { overflow: hidden; min-height: 0; }
+.group { position: relative; padding: 10px 12px 12px; }
+.slot + .slot:not([data-depth]) .group { border-top: 1px solid var(--border); }
+.slot[data-depth] .group { padding-top: 2px; padding-left: calc(12px + var(--depth) * 14px); }
+.slot[data-depth] .group::before {
+  content: ""; position: absolute; top: 0; bottom: 10px;
+  left: calc(16px + (var(--depth) - 1) * 14px); border-left: 1px solid var(--border);
+}
+.slot[data-highlight] .group { background: var(--bg-hover); }
+.meta { display: flex; align-items: center; gap: 8px; height: 20px; margin-bottom: 4px; min-width: 0; }
 .label { color: var(--fg-muted); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg-muted); white-space: nowrap; }
+.offscreen {
+  flex: none; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 11px; color: var(--fg-muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.offscreen:hover { color: var(--fg); background: var(--bg-hover); }
+.offscreen[hidden] { display: none; }
 .row { display: flex; align-items: flex-start; gap: 4px; }
 .track {
   position: relative; flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 2px;
@@ -64,26 +83,33 @@ code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, m
 }
 .thumb {
   position: absolute; top: 0; left: 0; width: 0; height: 0; border-radius: 6px; pointer-events: none;
-  background: var(--thumb); box-shadow: 0 0 0 1px var(--thumb-border), 0 1px 2px rgb(0 0 0 / 0.06);
+  background: var(--quiet);
 }
+.slot[data-highlight] .thumb { box-shadow: inset 0 0 0 1px var(--border); }
 .seg {
   position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 1 0 auto;
-  height: 24px; padding: 0 10px; border-radius: 6px; white-space: nowrap; font-weight: 500; color: var(--fg-segment);
+  height: 24px; padding: 0 10px; border-radius: 6px; white-space: nowrap; color: var(--fg-segment);
 }
-.seg:hover, .seg[aria-pressed="true"], .track[data-show-all] .seg { color: var(--fg); }
+.seg .stack > [data-main] { font-weight: 400; }
+.seg .stack > [data-alt] { font-weight: 500; }
+.seg:hover { color: var(--fg); }
+.seg[aria-checked="true"] { color: var(--fg); }
+.seg[aria-checked="true"] .stack > [data-main] { font-weight: 500; }
+.seg:focus-visible { outline: 1.5px solid var(--ring); outline-offset: -1.5px; }
 
 footer {
-  display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  flex: none; display: flex; align-items: center; gap: 6px; min-height: 48px; padding: 8px 8px 8px 12px;
   border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 11px;
 }
+footer .text-btn { margin-left: auto; }
 kbd {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px;
-  border: 1px solid var(--border); border-radius: 4px; background: var(--bg-subtle);
+  border-radius: 4px; box-shadow: inset 0 0 0 1px var(--border); background: var(--bg-subtle);
   font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--fg);
 }
 .pill {
   display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px;
-  border-radius: 999px; background: var(--bg); border: 1px solid var(--border); box-shadow: var(--shadow);
+  border-radius: 8px 0 0 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border), var(--shadow);
   font-weight: 500;
 }
 .pill svg { color: var(--fg-muted); }
@@ -93,68 +119,15 @@ kbd {
   .track[data-ready] .thumb {
     transition: transform 150ms cubic-bezier(0.2, 0, 0, 1), width 150ms cubic-bezier(0.2, 0, 0, 1), height 150ms cubic-bezier(0.2, 0, 0, 1);
   }
-  .icon, .seg, .pill svg { transition: background-color 150ms ease, color 150ms ease; }
+  .slot[data-animate] { transition: grid-template-rows ${ROW_MS}ms ease-out, opacity ${ROW_MS}ms ease-out; }
+  .seg, .pill svg, .group { transition: background-color 150ms ease, color 150ms ease; }
 }
 `;
 
-const ICONS = {
-  layers:
-    '<path d="M8 2 2 5l6 3 6-3-6-3Z"/><path d="m2 8 6 3 6-3"/><path d="m2 11 6 3 6-3"/>',
-  outline:
-    '<rect x="2.5" y="2.5" width="11" height="11" rx="2.5" stroke-dasharray="2.5 2"/>',
-  dock: '<path d="M5 5 2 8l3 3"/><path d="m11 5 3 3-3 3"/><path d="M2 8h12"/>',
-  down: '<path d="m4 6 4 4 4-4"/>',
-  up: '<path d="m4 10 4-4 4 4"/>',
+const currentShortcut = () => {
+  const { shortcut } = getConfig();
+  return shortcut === false ? undefined : (shortcut ?? DEFAULT_SHORTCUT);
 };
-
-type Child = Node | string;
-
-const h = (
-  tag: string,
-  attrs: Record<string, string | undefined>,
-  ...children: Child[]
-): HTMLElement => {
-  const element = document.createElement(tag);
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value !== undefined) element.setAttribute(key, value);
-  }
-  element.append(...children);
-  return element;
-};
-
-const icon = (name: keyof typeof ICONS): Element => {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("aria-hidden", "true");
-  svg.innerHTML = ICONS[name];
-  return svg;
-};
-
-const iconButton = (
-  attrs: Record<string, string | undefined>,
-  label: string,
-  name: keyof typeof ICONS,
-  hint = label,
-) =>
-  h(
-    "button",
-    {
-      type: "button",
-      class: "icon",
-      "aria-label": label,
-      title: hint,
-      ...attrs,
-    },
-    icon(name),
-  );
-
-const pressed = (value: boolean) => (value ? "true" : "false");
-
-const structureKey = (snapshot: Snapshot) =>
-  JSON.stringify([
-    snapshot.collapsed,
-    snapshot.groups.map((meta) => [meta.id, meta.label, meta.variants]),
-  ]);
 
 const renderCollapsed = (snapshot: Snapshot): HTMLElement =>
   h(
@@ -174,7 +147,97 @@ const renderCollapsed = (snapshot: Snapshot): HTMLElement =>
     icon("up"),
   );
 
+const rowSignature = (meta: GroupMeta, groups: readonly GroupMeta[]) =>
+  JSON.stringify([meta.label, meta.variants, depthOf(meta, groups)]);
+
+let nextLabel = 0;
+
+const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
+  const labelId = `group-label-${nextLabel++}`;
+  const depth = depthOf(meta, groups);
+  const group = h(
+    "div",
+    { class: "group" },
+    h(
+      "div",
+      { class: "meta" },
+      h("span", { class: "label", id: labelId }, meta.label),
+      h("button", {
+        type: "button",
+        class: "offscreen",
+        "data-action": "reveal",
+        "data-group": meta.id,
+        hidden: "",
+      }),
+      ...(meta.label === meta.id ? [] : [h("code", {}, meta.id)]),
+    ),
+    h(
+      "div",
+      { class: "row" },
+      h(
+        "div",
+        {
+          class: "track",
+          role: "radiogroup",
+          "aria-labelledby": labelId,
+          "data-track": meta.id,
+        },
+        h("span", { class: "thumb", "aria-hidden": "true" }),
+        ...meta.variants.map((variant) =>
+          h(
+            "button",
+            {
+              type: "button",
+              role: "radio",
+              class: "seg",
+              tabindex: "-1",
+              "data-action": "select",
+              "data-group": meta.id,
+              "data-value": variant.id,
+              "data-key": `${meta.id}:${variant.id}`,
+              title: `?variant=${meta.id}:${variant.id}`,
+            },
+            h(
+              "span",
+              { class: "stack" },
+              h("span", { "data-main": "" }, variant.label),
+              h(
+                "span",
+                { "data-alt": "", "aria-hidden": "true" },
+                variant.label,
+              ),
+            ),
+          ),
+        ),
+      ),
+      iconButton(
+        {
+          "data-action": "copy-group",
+          "data-group": meta.id,
+          "data-key": `${meta.id}:copy`,
+        },
+        `Copy prompt for ${meta.label}`,
+        "copy",
+        `Copy /variants choose for ${meta.label} only`,
+      ),
+    ),
+  );
+  return h(
+    "div",
+    {
+      class: "slot",
+      "data-group-panel": meta.id,
+      "data-key": `group:${meta.id}`,
+      ...(depth > 0
+        ? { "data-depth": `${depth}`, style: `--depth: ${depth}` }
+        : {}),
+    },
+    h("div", { class: "clip" }, group),
+  );
+};
+
 const renderPanel = (snapshot: Snapshot): HTMLElement => {
+  const shortcut = currentShortcut();
   const header = h(
     "header",
     {},
@@ -185,21 +248,16 @@ const renderPanel = (snapshot: Snapshot): HTMLElement => {
       "div",
       { class: "tools" },
       iconButton(
-        { "data-action": "global-all", "data-key": "global-all" },
-        "Show all",
-        "layers",
-        "Show every variant of every group (?variants=all)",
+        { "data-action": "canvas", "data-key": "canvas" },
+        "Canvas",
+        "canvas",
+        "Compare every variant side by side (?variants=canvas)",
       ),
       iconButton(
         { "data-action": "outline", "data-key": "outline" },
         "Outline",
         "outline",
         "Outline undecided regions on the page",
-      ),
-      iconButton(
-        { "data-action": "dock", "data-key": "dock" },
-        "Move to the other corner",
-        "dock",
       ),
       iconButton(
         {
@@ -213,100 +271,55 @@ const renderPanel = (snapshot: Snapshot): HTMLElement => {
     ),
   );
 
-  const groups = snapshot.groups.map((meta) => {
-    const labelText =
-      meta.label === meta.id ? meta.id : `${meta.label} (${meta.id})`;
-    return h(
-      "div",
-      {
-        class: "group",
-        role: "group",
-        tabindex: "0",
-        "aria-label": `${labelText}. Left and right arrows cycle variants, A toggles show all.`,
-        "data-group-panel": meta.id,
-        "data-key": `group:${meta.id}`,
-      },
-      h(
-        "div",
-        { class: "meta" },
-        h("span", { class: "label" }, meta.label),
-        ...(meta.label === meta.id ? [] : [h("code", {}, meta.id)]),
-      ),
-      h(
-        "div",
-        { class: "row" },
-        h(
-          "div",
-          { class: "track", "data-track": meta.id },
-          h("span", { class: "thumb", "aria-hidden": "true" }),
-          ...meta.variants.map((variant) =>
-            h(
-              "button",
-              {
-                type: "button",
-                class: "seg",
-                "data-action": "select",
-                "data-group": meta.id,
-                "data-value": variant.id,
-                "data-key": `${meta.id}:${variant.id}`,
-                title: `?variant=${meta.id}:${variant.id}`,
-              },
-              variant.label,
-            ),
-          ),
-        ),
-        iconButton(
-          {
-            "data-action": "group-all",
-            "data-group": meta.id,
-            "data-key": `${meta.id}:${ALL}`,
-          },
-          "Show all variants",
-          "layers",
-          `Show all variants (A, ?variant=${meta.id}:${ALL})`,
-        ),
-      ),
-    );
-  });
-
   const footer = h(
     "footer",
-    { "aria-hidden": "true" },
-    h("kbd", {}, "←"),
-    h("kbd", {}, "→"),
-    "switch",
-    h("span", {}, "·"),
-    h("kbd", {}, "A"),
-    "show all",
+    {},
+    h("kbd", { "aria-hidden": "true" }, "↑↓←→"),
+    ...(shortcut
+      ? [
+          h("span", { "aria-hidden": "true" }, "·"),
+          h("kbd", { "aria-hidden": "true" }, shortcutLabel(shortcut)),
+        ]
+      : []),
+    copyButton({ "data-action": "copy", "data-key": "copy" }),
   );
 
   return h(
     "section",
-    { class: "panel", "aria-label": "Design variants" },
+    {
+      class: "panel",
+      "aria-label": "Design variants",
+      ...(shortcut
+        ? {
+            "aria-keyshortcuts": shortcutLabel(shortcut).replace("Cmd", "Meta"),
+          }
+        : {}),
+    },
     header,
-    ...groups,
+    h(
+      "div",
+      { class: "groups" },
+      h("div", {
+        class: "list",
+        role: "group",
+        "aria-label":
+          "Variant groups. Arrow keys move and select, Escape leaves.",
+      }),
+    ),
     footer,
   );
 };
 
-const placeThumb = (track: HTMLElement, targets: HTMLElement[]) => {
+const placeThumb = (track: HTMLElement, target: HTMLElement | undefined) => {
   const thumb = track.querySelector<HTMLElement>(".thumb");
   if (!thumb) return;
-  if (targets.length === 0) {
+  if (!target) {
     thumb.style.width = "0px";
     return;
   }
-  const left = Math.min(...targets.map((target) => target.offsetLeft));
-  const top = Math.min(...targets.map((target) => target.offsetTop));
-  const right = Math.max(
-    ...targets.map((target) => target.offsetLeft + target.offsetWidth),
-  );
-  const bottom = Math.max(
-    ...targets.map((target) => target.offsetTop + target.offsetHeight),
-  );
-  thumb.style.transform = `translate(${left}px, ${top}px)`;
-  thumb.style.width = `${right - left}px`;
-  thumb.style.height = `${bottom - top}px`;
+  thumb.style.transform = `translate(${target.offsetLeft}px, ${target.offsetTop}px)`;
+  thumb.style.width = `${target.offsetWidth}px`;
+  thumb.style.height = `${target.offsetHeight}px`;
 };
 
 const nextFrame = (callback: () => void) => {
@@ -314,6 +327,29 @@ const nextFrame = (callback: () => void) => {
     requestAnimationFrame(callback);
   else setTimeout(callback, 16);
 };
+
+const isEditable = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  if (!element || !(element instanceof Element)) return false;
+  return (
+    element.isContentEditable ||
+    /^(input|textarea|select)$/i.test(element.tagName)
+  );
+};
+
+const deepActiveElement = (): HTMLElement | undefined => {
+  let active: Element | null = document.activeElement;
+  while (active?.shadowRoot?.activeElement)
+    active = active.shadowRoot.activeElement;
+  return active instanceof HTMLElement ? active : undefined;
+};
+
+const prefersReducedMotion = () =>
+  typeof matchMedia === "function" &&
+  matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** How long an anchor holds while nested groups mount and unmount after a selection. */
+const ANCHOR_MS = 1000;
 
 export const mountSwitcher = (store: Store): (() => void) => {
   const host = document.createElement("div");
@@ -323,95 +359,338 @@ export const mountSwitcher = (store: Store): (() => void) => {
   style.textContent = CSS;
   const container = document.createElement("div");
   container.className = "root";
-  root.append(style, container);
+  const live = h("div", {
+    class: "sr-only",
+    role: "status",
+    "aria-live": "polite",
+  });
+  root.append(style, container, live);
 
-  const focusKey = (key: string | undefined) => {
-    if (!key) return;
-    const target = Array.from(
-      root.querySelectorAll<HTMLElement>("[data-key]"),
-    ).find((element) => element.dataset["key"] === key);
-    target?.focus();
+  const sheet =
+    typeof matchMedia === "function" ? matchMedia(SHEET_QUERY) : undefined;
+  const pageStyle = document.createElement("style");
+  pageStyle.textContent = PAGE_CSS;
+  document.head.append(pageStyle);
+  const html = document.documentElement;
+  // The page is pushed aside instead of covered; fixed and sticky elements can
+  // read the same variable to stay clear of the sidebar.
+  const pushPage = (push: boolean) => {
+    if (push) {
+      html.style.setProperty(SIDEBAR_VARIABLE, `${SIDEBAR_WIDTH}px`);
+      html.setAttribute(`data-${NAME}-sidebar`, "");
+    } else {
+      html.style.removeProperty(SIDEBAR_VARIABLE);
+      html.removeAttribute(`data-${NAME}-sidebar`);
+      if (html.getAttribute("style") === "") html.removeAttribute("style");
+    }
+  };
+
+  const byKey = (key: string | undefined) =>
+    key === undefined
+      ? undefined
+      : Array.from(root.querySelectorAll<HTMLElement>("[data-key]")).find(
+          (element) =>
+            element.dataset["key"] === key &&
+            !element.closest("[data-leaving]"),
+        );
+  const radios = () =>
+    Array.from(
+      root.querySelectorAll<HTMLElement>(
+        ".slot:not([data-leaving]) [role=radio]",
+      ),
+    );
+  const checkedRadio = (group: string) =>
+    radios().find(
+      (radio) =>
+        radio.dataset["group"] === group &&
+        radio.getAttribute("aria-checked") === "true",
+    );
+
+  let rovingKey: string | undefined;
+  const setRoving = (radio: HTMLElement | undefined) => {
+    rovingKey = radio?.dataset["key"];
+    for (const item of radios()) item.tabIndex = item === radio ? 0 : -1;
+  };
+  const focusRadio = (radio: HTMLElement | undefined) => {
+    if (!radio) return;
+    setRoving(radio);
+    radio.focus();
+  };
+  const focusGroupRow = (group: string) =>
+    focusRadio(
+      checkedRadio(group) ??
+        radios().find((radio) => radio.dataset["group"] === group),
+    );
+
+  const scroller = () => root.querySelector<HTMLElement>(".groups");
+  const list = () => root.querySelector<HTMLElement>(".list");
+
+  // The control the user just used stays at the same screen position while
+  // rows appear and disappear around it.
+  let anchor: { key: string; top: number; until: number } | undefined;
+  let shift = 0;
+  const setAnchor = (element: HTMLElement) => {
+    anchor = {
+      key: element.dataset["key"]!,
+      top: element.getBoundingClientRect().top,
+      until: Date.now() + ANCHOR_MS,
+    };
+    keepAnchored();
+  };
+  const applyShift = () => {
+    const target = list();
+    if (target) target.style.transform = shift ? `translateY(${shift}px)` : "";
+  };
+  const holdAnchor = () => {
+    if (!anchor || Date.now() > anchor.until) return;
+    const element = byKey(anchor.key);
+    const scroll = scroller();
+    if (!element || !scroll) return;
+    const delta = element.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(delta) < 0.5) return;
+    const max = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
+    const wanted = scroll.scrollTop + delta;
+    const reachable = Math.min(max, Math.max(0, wanted));
+    scroll.scrollTop = reachable;
+    shift -= wanted - reachable;
+    applyShift();
+  };
+  const settle = () => {
+    if (!shift) return;
+    shift = 0;
+    applyShift();
+  };
+  // Rows that are still growing or shrinking from an earlier change move the
+  // anchor too, so it is held every frame until those animations end.
+  let loopUntil = 0;
+  let looping = false;
+  const keepAnchored = () => {
+    loopUntil = Date.now() + ROW_MS + 120;
+    if (looping) return;
+    looping = true;
+    const tick = () => {
+      holdAnchor();
+      if (Date.now() < loopUntil) nextFrame(tick);
+      else looping = false;
+    };
+    nextFrame(tick);
+  };
+
+  const rows = new Map<string, { element: HTMLElement; signature: string }>();
+  const before = (a: Node, b: Node) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  const animateRow = (element: HTMLElement, entering: boolean) => {
+    if (prefersReducedMotion()) {
+      if (!entering) element.remove();
+      return;
+    }
+    element.setAttribute("data-animate", "");
+    if (entering) {
+      element.setAttribute("data-closed", "");
+      nextFrame(() => element.removeAttribute("data-closed"));
+      setTimeout(() => element.removeAttribute("data-animate"), ROW_MS + 40);
+    } else {
+      element.setAttribute("data-leaving", "");
+      element.setAttribute("aria-hidden", "true");
+      element.setAttribute("inert", "");
+      nextFrame(() => element.setAttribute("data-closed", ""));
+      setTimeout(() => element.remove(), ROW_MS + 40);
+    }
+  };
+
+  const reconcile = (snapshot: Snapshot, animate: boolean) => {
+    const target = list();
+    if (!target) return;
+    const anchorElement = anchor ? byKey(anchor.key) : undefined;
+    const isAbove = (element: Node) =>
+      anchorElement !== undefined &&
+      element !== anchorElement &&
+      !element.contains(anchorElement) &&
+      before(element, anchorElement);
+    const ordered = treeOrder(snapshot.groups);
+    const wanted = new Set(ordered.map((meta) => meta.id));
+    for (const [id, row] of rows) {
+      if (wanted.has(id)) continue;
+      rows.delete(id);
+      if (animate && !isAbove(row.element)) animateRow(row.element, false);
+      else row.element.remove();
+    }
+    let previous: HTMLElement | undefined;
+    const reference = () => {
+      let node: ChildNode | null = previous
+        ? previous.nextSibling
+        : target.firstChild;
+      while (node instanceof HTMLElement && node.hasAttribute("data-leaving"))
+        node = node.nextSibling;
+      return node;
+    };
+    for (const meta of ordered) {
+      const signature = rowSignature(meta, snapshot.groups);
+      let row = rows.get(meta.id);
+      let created = false;
+      if (!row || row.signature !== signature) {
+        const element = renderRow(meta, snapshot.groups);
+        if (row) row.element.replaceWith(element);
+        else created = true;
+        row = { element, signature };
+        rows.set(meta.id, row);
+      }
+      const next = reference();
+      if (next !== row.element) target.insertBefore(row.element, next);
+      previous = row.element;
+      if (created && animate && !isAbove(row.element))
+        animateRow(row.element, true);
+    }
   };
 
   const sync = (snapshot: Snapshot) => {
     host.hidden =
       snapshot.hideUI || snapshot.clean || snapshot.groups.length === 0;
-    host.dataset["dock"] = snapshot.dock;
-    for (const button of root.querySelectorAll<HTMLElement>("[data-action]")) {
-      const { action, group } = button.dataset;
-      if (action === "global-all")
-        button.setAttribute("aria-pressed", pressed(snapshot.globalAll));
-      else if (action === "outline")
-        button.setAttribute("aria-pressed", pressed(snapshot.outline));
-      else if (action === "group-all" && group)
-        button.setAttribute(
-          "aria-pressed",
-          pressed(snapshot.selections[group] === ALL),
-        );
-      else if (action === "dock") {
-        const label =
-          snapshot.dock === "right"
-            ? "Move to the bottom-left corner"
-            : "Move to the bottom-right corner";
-        button.setAttribute("aria-label", label);
-        button.title = label;
-      }
+    host.toggleAttribute("data-collapsed", snapshot.collapsed);
+    host.dataset["mode"] = sheet?.matches ? "sheet" : "sidebar";
+    pushPage(!host.hidden && !snapshot.collapsed && !sheet?.matches);
+    for (const count of root.querySelectorAll(".count"))
+      count.textContent = `${snapshot.groups.length}`;
+    for (const button of root.querySelectorAll<HTMLElement>(
+      "[data-action=outline]",
+    )) {
+      button.setAttribute("aria-pressed", snapshot.outline ? "true" : "false");
     }
     for (const meta of snapshot.groups) {
-      const track = Array.from(
-        root.querySelectorAll<HTMLElement>("[data-track]"),
-      ).find((element) => element.dataset["track"] === meta.id);
+      const track = rows
+        .get(meta.id)
+        ?.element.querySelector<HTMLElement>("[data-track]");
       if (!track) continue;
-      const { showAll, activeId } = resolveGroup(
-        meta,
-        snapshot.selections[meta.id],
-        snapshot.globalAll,
-      );
-      track.toggleAttribute("data-show-all", showAll);
+      const activeId = resolveActive(meta, snapshot.selections[meta.id]);
       const segments = Array.from(
-        track.querySelectorAll<HTMLElement>("[data-action=select]"),
+        track.querySelectorAll<HTMLElement>("[role=radio]"),
       );
       for (const segment of segments) {
         segment.setAttribute(
-          "aria-pressed",
-          pressed(!showAll && segment.dataset["value"] === activeId),
+          "aria-checked",
+          segment.dataset["value"] === activeId ? "true" : "false",
         );
       }
       placeThumb(
         track,
-        showAll
-          ? segments
-          : segments.filter((segment) => segment.dataset["value"] === activeId),
+        segments.find((segment) => segment.dataset["value"] === activeId),
       );
     }
+    for (const [id, row] of rows) {
+      row.element.toggleAttribute(
+        "data-highlight",
+        snapshot.highlight?.source === "page" &&
+          snapshot.highlight.group === id,
+      );
+    }
+    const roving = byKey(rovingKey);
+    const fallback =
+      roving?.getAttribute("role") === "radio" && roving.isConnected
+        ? roving
+        : (root.querySelector<HTMLElement>(
+            ".slot:not([data-leaving]) [role=radio][aria-checked=true]",
+          ) ?? radios()[0]);
+    if (root.activeElement?.getAttribute("role") !== "radio")
+      setRoving(fallback);
   };
 
+  let shell: string | undefined;
   let structure: string | undefined;
   let focusSeq = store.getSnapshot().focus?.seq;
 
   const render = () => {
     const snapshot = store.getSnapshot();
-    const key = structureKey(snapshot);
-    if (key !== structure) {
-      structure = key;
-      const active = root.activeElement as HTMLElement | null;
-      const activeKey = active?.dataset["key"];
+    const nextShell = JSON.stringify([snapshot.collapsed, currentShortcut()]);
+    const nextStructure = JSON.stringify(
+      treeOrder(snapshot.groups).map((meta) => [
+        meta.id,
+        rowSignature(meta, snapshot.groups),
+      ]),
+    );
+    if (nextShell !== shell) {
+      shell = nextShell;
+      structure = nextStructure;
+      const activeKey = (root.activeElement as HTMLElement | null)?.dataset[
+        "key"
+      ];
+      rows.clear();
+      shift = 0;
       container.replaceChildren(
         snapshot.collapsed ? renderCollapsed(snapshot) : renderPanel(snapshot),
       );
+      reconcile(snapshot, false);
       sync(snapshot);
-      focusKey(activeKey);
+      byKey(activeKey)?.focus();
       nextFrame(() => {
         for (const track of root.querySelectorAll("[data-track]"))
           track.setAttribute("data-ready", "");
       });
     } else {
+      if (nextStructure !== structure) {
+        structure = nextStructure;
+        reconcile(snapshot, true);
+        if (anchor) keepAnchored();
+        nextFrame(() => {
+          for (const track of root.querySelectorAll("[data-track]"))
+            track.setAttribute("data-ready", "");
+        });
+      }
       sync(snapshot);
     }
+    holdAnchor();
     if (snapshot.focus && snapshot.focus.seq !== focusSeq) {
       focusSeq = snapshot.focus.seq;
-      focusKey(`group:${snapshot.focus.group}`);
+      focusGroupRow(snapshot.focus.group);
     }
+  };
+
+  const updateOffscreen = (group: string | undefined) => {
+    for (const hint of root.querySelectorAll<HTMLElement>(
+      "[data-action=reveal]",
+    )) {
+      const rect =
+        group !== undefined && hint.dataset["group"] === group
+          ? measureNodes(groupNodes(group))
+          : undefined;
+      const direction = !rect
+        ? undefined
+        : rect.bottom < 0
+          ? "up"
+          : rect.top > window.innerHeight
+            ? "down"
+            : undefined;
+      hint.hidden = direction === undefined;
+      if (direction) {
+        hint.textContent = direction === "up" ? "↑ Off-screen" : "↓ Off-screen";
+        hint.setAttribute(
+          "aria-label",
+          `Scroll ${direction} to ${hint.dataset["group"]}`,
+        );
+      }
+    }
+  };
+
+  let hoverGroup: string | undefined;
+  let focusGroup: string | undefined;
+  let linked: string | undefined;
+  const updateLink = () => {
+    const next = hoverGroup ?? focusGroup;
+    if (next === linked) return;
+    linked = next;
+    highlightGroup(next);
+    store.setHighlight(next, "switcher");
+    updateOffscreen(next);
+  };
+  const panelGroup = (target: EventTarget | null) =>
+    (target as Element | null)?.closest?.<HTMLElement>("[data-group-panel]")
+      ?.dataset["groupPanel"];
+
+  let returnFocus: HTMLElement | undefined;
+
+  const select = (radio: HTMLElement, group: string, value: string) => {
+    setAnchor(radio);
+    store.select(group, value);
   };
 
   const onClick = (event: Event) => {
@@ -421,43 +700,142 @@ export const mountSwitcher = (store: Store): (() => void) => {
     if (!button) return;
     const { action, group, value } = button.dataset;
     const snapshot = store.getSnapshot();
-    if (action === "select" && group && value) store.select(group, value);
-    else if (action === "group-all" && group) store.toggleGroupAll(group);
-    else if (action === "global-all") store.toggleGlobalAll();
-    else if (action === "outline") store.setOutline(!snapshot.outline);
-    else if (action === "dock")
-      store.setDock(snapshot.dock === "right" ? "left" : "right");
+    if (action === "select" && group && value) {
+      setRoving(button);
+      select(button, group, value);
+    } else if (action === "outline") store.setOutline(!snapshot.outline);
+    else if (action === "canvas") store.setCanvas(true);
     else if (action === "collapse") store.setCollapsed(!snapshot.collapsed);
-  };
-
-  const onKeyDown = (event: Event) => {
-    const { key, altKey, ctrlKey, metaKey } = event as KeyboardEvent;
-    if (altKey || ctrlKey || metaKey) return;
-    const panel = (event.target as Element | null)?.closest<HTMLElement>(
-      "[data-group-panel]",
-    );
-    const group = panel?.dataset["groupPanel"];
-    if (!group) return;
-    if (key === "ArrowRight" || key === "ArrowLeft") {
-      event.preventDefault();
-      const next = store.cycle(group, key === "ArrowRight" ? 1 : -1);
-      if (next !== undefined) focusKey(`${group}:${next}`);
-    } else if (key === "a" || key === "A") {
-      event.preventDefault();
-      store.toggleGroupAll(group);
+    else if (action === "reveal" && group) {
+      const target = groupNodes(group).find(
+        (node): node is Element => node instanceof Element,
+      );
+      target?.scrollIntoView({
+        block: "center",
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
+      button.hidden = true;
+    } else if (action === "copy" || (action === "copy-group" && group)) {
+      void copyWithFeedback(
+        button,
+        promptFor(
+          snapshot,
+          window.location,
+          action === "copy" ? undefined : group,
+        ),
+        live,
+      );
     }
   };
 
+  const onKeyDown = (event: Event) => {
+    const keyboard = event as KeyboardEvent;
+    const { key, altKey, ctrlKey, metaKey } = keyboard;
+    if (key === "Escape") {
+      if (returnFocus?.isConnected) {
+        event.preventDefault();
+        returnFocus.focus();
+      } else (root.activeElement as HTMLElement | null)?.blur();
+      returnFocus = undefined;
+      return;
+    }
+    if (altKey || ctrlKey || metaKey) return;
+    const radio = (event.target as Element | null)?.closest<HTMLElement>(
+      "[role=radio]",
+    );
+    if (!radio) return;
+    const group = radio.dataset["group"]!;
+    const row = radios().filter((item) => item.dataset["group"] === group);
+    if (key === "ArrowRight" || key === "ArrowLeft") {
+      event.preventDefault();
+      const index = row.indexOf(radio);
+      const next =
+        row[
+          (index + (key === "ArrowRight" ? 1 : -1) + row.length) % row.length
+        ];
+      const value = next?.dataset["value"];
+      if (!next || value === undefined) return;
+      select(next, group, value);
+      focusRadio(next);
+    } else if (key === "Home" || key === "End") {
+      event.preventDefault();
+      const target = key === "Home" ? row[0] : row[row.length - 1];
+      const value = target?.dataset["value"];
+      if (!target || value === undefined) return;
+      select(target, group, value);
+      focusRadio(target);
+    } else if (key === "ArrowDown" || key === "ArrowUp") {
+      event.preventDefault();
+      const groups = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          ".slot:not([data-leaving])[data-group-panel]",
+        ),
+      ).map((panel) => panel.dataset["groupPanel"]!);
+      const position = groups.indexOf(group) + (key === "ArrowDown" ? 1 : -1);
+      const target = groups[position];
+      if (target !== undefined) focusGroupRow(target);
+    } else if (key === " " || key === "Enter") {
+      event.preventDefault();
+      const value = radio.dataset["value"];
+      if (value !== undefined) select(radio, group, value);
+    }
+  };
+
+  const onGlobalKeyDown = (event: KeyboardEvent) => {
+    const shortcut = currentShortcut();
+    if (!shortcut || !matchesShortcut(event, shortcut)) return;
+    if (isEditable(event.target) || host.hidden) return;
+    event.preventDefault();
+    const active = deepActiveElement();
+    if (!active || !host.contains(active)) returnFocus = active;
+    if (store.getSnapshot().collapsed) store.setCollapsed(false);
+    focusRadio(byKey(rovingKey) ?? radios()[0]);
+  };
+
+  const onPointerOver = (event: Event) => {
+    hoverGroup = panelGroup(event.target);
+    updateLink();
+  };
+  const onPointerOut = (event: Event) => {
+    hoverGroup = panelGroup((event as PointerEvent).relatedTarget);
+    updateLink();
+  };
+  const onFocusIn = (event: Event) => {
+    focusGroup = panelGroup(event.target);
+    updateLink();
+  };
+  const onFocusOut = (event: Event) => {
+    focusGroup = panelGroup((event as FocusEvent).relatedTarget);
+    updateLink();
+  };
+  const onWheel = () => settle();
+
   root.addEventListener("click", onClick);
   root.addEventListener("keydown", onKeyDown);
+  root.addEventListener("pointerover", onPointerOver);
+  root.addEventListener("pointerout", onPointerOut);
+  root.addEventListener("focusin", onFocusIn);
+  root.addEventListener("focusout", onFocusOut);
+  root.addEventListener("wheel", onWheel, { passive: true });
+  document.addEventListener("keydown", onGlobalKeyDown);
+  const onSheetChange = () => render();
+  sheet?.addEventListener?.("change", onSheetChange);
   document.body.append(host);
   const unsubscribe = store.subscribe(render);
+  const unsubscribeConfig = onConfigChange(() => {
+    shell = undefined;
+    render();
+  });
   render();
 
   return () => {
     unsubscribe();
-    root.removeEventListener("click", onClick);
-    root.removeEventListener("keydown", onKeyDown);
+    unsubscribeConfig();
+    sheet?.removeEventListener?.("change", onSheetChange);
+    highlightGroup(undefined);
+    document.removeEventListener("keydown", onGlobalKeyDown);
+    pushPage(false);
+    pageStyle.remove();
     host.remove();
   };
 };

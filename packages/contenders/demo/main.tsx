@@ -85,6 +85,14 @@ function App() {
   );
 }
 
+if (new URLSearchParams(window.location.search).has("demo-focus")) {
+  setTimeout(() => {
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { code: "KeyV", key: "v", altKey: true }),
+    );
+  }, 300);
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

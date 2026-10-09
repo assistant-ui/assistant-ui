@@ -1,27 +1,30 @@
 import { NAME } from "./name";
+import { measureNodes, type Rect } from "./nodes";
+
+export type { Rect } from "./nodes";
 
 export const OUTLINE_ATTRIBUTE = `data-${NAME}-outlines`;
 
 export type RegionInfo = {
-  /** Stable id of the `<Variants>` instance that rendered this region. */
-  instance: string;
+  /** Unique per mounted `<Variants>`; nested groups list their ancestors' keys. */
+  key: string;
+  ancestors: string[];
+  /** The `<Variants>` id, used to link the region with its switcher row. */
+  groupId: string;
   group: string;
   variant: string;
   position: string;
-  count: number;
-  /** In show-all mode a group's regions share one frame. */
-  showAll: boolean;
   /** `always` draws the outline and tab; `hover` reveals them only while the pointer is over the region. */
   mode: "always" | "hover";
   onActivate: () => void;
+  /** Called when the pointer starts or stops hovering the region. */
+  onHover?: ((hovered: boolean) => void) | undefined;
 };
-
-export type Rect = { top: number; left: number; right: number; bottom: number };
 
 export type FrameInput = {
   key: string;
   content: Rect;
-  /** Keys of frames whose content contains this frame (nested `<Variants>`). */
+  /** Keys of frames that contain this frame (nested `<Variants>`). */
   ancestors: string[];
   tab: { width: number; height: number };
   /** A hover-only tab shows one at a time, so it reserves no space for others. */
@@ -52,12 +55,11 @@ const overlap = (a0: number, a1: number, b0: number, b1: number) =>
  * Places every frame so outlines never cross: nested frames step outward per
  * nesting level, sibling sides shrink to half the gap between their contents,
  * and tabs are placed greedily in reading order, sliding along the frame edge
- * past other tabs and obstacles such as in-page captions.
+ * past tabs already placed.
  */
 export const layoutFrames = (
   frames: readonly FrameInput[],
   viewport: { width: number; height: number },
-  obstacles: readonly Rect[] = [],
 ): FrameLayout[] => {
   const below = new Map<string, number>();
   const levelsBelow = (key: string): number => {
@@ -153,9 +155,7 @@ export const layoutFrames = (
       for (let tries = 0; tries < 50; tries++) {
         const rect = rectOf({ left, top });
         if (offscreen(rect) || rect.right > limit) return undefined;
-        const hit = [...placed, ...obstacles].find((other) =>
-          intersects(rect, other, 2),
-        );
+        const hit = placed.find((other) => intersects(rect, other, 2));
         if (!hit) return { left, top };
         left = hit.right + 6;
       }
@@ -192,21 +192,21 @@ export const layoutFrames = (
 const CSS = `
 :host {
   all: initial; position: fixed; inset: 0; pointer-events: none; z-index: 2147483646;
-  --stroke: rgb(217 119 6 / 0.7); --stroke-strong: #d97706; --stroke-soft: rgb(217 119 6 / 0.4);
+  --stroke: rgb(217 119 6 / 0.7); --stroke-strong: #d97706;
   --tab-bg: #ffffff; --tab-border: #e4e4e7; --fg: #18181b; --fg-muted: #71717a; --accent: #d97706;
 }
 @media (prefers-color-scheme: dark) {
   :host {
-    --stroke: rgb(251 191 36 / 0.6); --stroke-strong: #fbbf24; --stroke-soft: rgb(251 191 36 / 0.35);
+    --stroke: rgb(251 191 36 / 0.6); --stroke-strong: #fbbf24;
     --tab-bg: #18181b; --tab-border: #3f3f46; --fg: #fafafa; --fg-muted: #a1a1aa; --accent: #fbbf24;
   }
 }
 .box {
   position: absolute; box-sizing: border-box; pointer-events: none;
-  border: 1px dashed var(--stroke); border-radius: 8px;
+  border: 1px dashed var(--stroke); border-radius: 0;
 }
+.box[data-nested] { border-style: dotted; }
 .box[data-hover] { border-color: var(--stroke-strong); }
-.sep { position: absolute; height: 0; border-top: 1px dashed var(--stroke-soft); pointer-events: none; }
 [data-empty] { display: none; }
 button {
   all: unset; box-sizing: border-box; position: absolute; top: 0; left: 0;
@@ -217,82 +217,28 @@ button {
   font-variant-numeric: tabular-nums; letter-spacing: 0;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
   color: var(--fg); background: var(--tab-bg);
-  border: 1px solid var(--tab-border); border-radius: 6px;
+  border: 1px solid var(--tab-border); border-radius: 4px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px -2px rgb(0 0 0 / 0.08);
 }
-.tab::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
-.chip { height: 18px; line-height: 18px; padding: 0 6px; gap: 4px; box-shadow: none; }
-.chip[data-active] { border-color: var(--stroke-strong); }
+button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .muted { color: var(--fg-muted); }
 .name { overflow: hidden; text-overflow: ellipsis; }
 [data-mode="hover"]:not([data-hover]) { opacity: 0; visibility: hidden; }
 @media (prefers-reduced-motion: no-preference) {
-  .box, .chip { transition: border-color 150ms ease, opacity 150ms ease, visibility 150ms; }
-  .tab, .sep { transition: opacity 150ms ease, visibility 150ms; }
+  .box { transition: border-color 150ms ease, opacity 150ms ease, visibility 150ms; }
+  button { transition: opacity 150ms ease, visibility 150ms; }
 }
 `;
 
-const textRect = (node: Text): Rect | undefined => {
-  if (!node.textContent?.trim()) return undefined;
-  const range = document.createRange();
-  if (typeof range.getBoundingClientRect !== "function") return undefined;
-  range.selectNodeContents(node);
-  const rect = range.getBoundingClientRect();
-  return rect.width || rect.height ? rect : undefined;
-};
-
-const union = (a: Rect | undefined, b: Rect): Rect =>
-  a
-    ? {
-        top: Math.min(a.top, b.top),
-        left: Math.min(a.left, b.left),
-        right: Math.max(a.right, b.right),
-        bottom: Math.max(a.bottom, b.bottom),
-      }
-    : { top: b.top, left: b.left, right: b.right, bottom: b.bottom };
-
-export const measureRegion = (
-  wrapper: Element,
-  observed: Element[] = [],
-): Rect | undefined => {
-  let result: Rect | undefined;
-  const visit = (parent: Node) => {
-    for (const node of Array.from(parent.childNodes)) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const rect = textRect(node as Text);
-        if (rect) result = union(result, rect);
-        continue;
-      }
-      if (node.nodeType !== Node.ELEMENT_NODE) continue;
-      const element = node as Element;
-      if (getComputedStyle(element).display === "contents") {
-        visit(element);
-        continue;
-      }
-      observed.push(element);
-      const rect = element.getBoundingClientRect();
-      if (rect.width || rect.height) result = union(result, rect);
-    }
-  };
-  visit(wrapper);
-  return result;
-};
-
 type Region = {
-  wrapper: Element;
+  getNodes: () => Node[];
   info: RegionInfo;
   rect: Rect | undefined;
   observed: Element[];
+  parents: Node[];
   resize: ResizeObserver | undefined;
   mutation: MutationObserver | undefined;
-  chip: HTMLButtonElement | undefined;
-  sep: HTMLElement | undefined;
-};
-
-type Frame = {
-  key: string;
-  regions: Region[];
   box: HTMLElement;
   tab: HTMLButtonElement;
 };
@@ -301,7 +247,6 @@ type Layer = {
   host: HTMLElement;
   root: ShadowRoot;
   regions: Set<Region>;
-  frames: Map<string, Frame>;
   signature: string;
   hovered: Region | undefined;
   pointer: { x: number; y: number } | undefined;
@@ -312,6 +257,7 @@ type Layer = {
 };
 
 let layer: Layer | undefined;
+let forcedGroup: string | undefined;
 
 const requestFrame = (callback: () => void): number =>
   typeof requestAnimationFrame === "function"
@@ -324,15 +270,18 @@ const cancelFrame = (frame: number | undefined) => {
   clearTimeout(frame);
 };
 
-const makeButton = (
-  className: string,
-  parts: [string, string][],
-  onActivate: () => void,
-): HTMLButtonElement => {
+const makeTab = (info: RegionInfo): HTMLButtonElement => {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = className;
+  button.className = "tab";
   button.tabIndex = -1;
+  const parts: [string, string][] = [
+    [info.group, "muted"],
+    [" · ", "muted"],
+    [info.variant, "name"],
+    [" · ", "muted"],
+    [info.position, "muted"],
+  ];
   for (const [text, name] of parts) {
     const span = document.createElement("span");
     span.className = name;
@@ -342,261 +291,127 @@ const makeButton = (
   const label = parts.map(([text]) => text).join("");
   button.setAttribute("aria-label", `${label}: show in the variant switcher`);
   button.title = "Show in the variant switcher";
-  button.addEventListener("click", onActivate);
+  button.addEventListener("click", () => info.onActivate());
   return button;
 };
 
-const frameKey = (region: Region) =>
-  region.info.showAll
-    ? `group:${region.info.instance}`
-    : `variant:${region.info.instance}:${region.info.position}`;
-
-const setMode = (elements: (HTMLElement | undefined)[], mode: string) => {
-  for (const element of elements) if (element) element.dataset["mode"] = mode;
-};
-
-const byPosition = (a: Region, b: Region) =>
-  Number.parseInt(a.info.position, 10) - Number.parseInt(b.info.position, 10);
-
-const syncFrames = (current: Layer) => {
-  const grouped = new Map<string, Region[]>();
-  for (const region of current.regions) {
-    const key = frameKey(region);
-    grouped.set(key, [...(grouped.get(key) ?? []), region]);
-  }
-  for (const [key, frame] of current.frames) {
-    if (grouped.has(key)) continue;
-    frame.box.remove();
-    frame.tab.remove();
-    current.frames.delete(key);
-  }
-  for (const [key, regions] of grouped) {
-    regions.sort(byPosition);
-    const first = regions[0]!;
-    const label: [string, string][] = first.info.showAll
-      ? [
-          [first.info.group, "muted"],
-          [" · ", "muted"],
-          [`all ${first.info.count}`, "name"],
-        ]
-      : [
-          [first.info.group, "muted"],
-          [" · ", "muted"],
-          [first.info.variant, "name"],
-          [" · ", "muted"],
-          [first.info.position, "muted"],
-        ];
-    const text = label.map(([value]) => value).join("");
-    let frame = current.frames.get(key);
-    if (!frame || frame.tab.textContent !== text) {
-      frame?.tab.remove();
-      const box = frame?.box ?? document.createElement("div");
-      box.className = "box";
-      const tab = makeButton("tab", label, () =>
-        current.frames.get(key)?.regions[0]?.info.onActivate(),
-      );
-      if (!frame) current.root.append(box);
-      current.root.append(tab);
-      frame = { key, regions, box, tab };
-      current.frames.set(key, frame);
-    }
-    frame.regions = regions;
-    setMode([frame.box, frame.tab], first.info.mode);
-    for (const region of regions) {
-      if (!region.info.showAll) continue;
-      if (!region.chip) {
-        region.chip = makeButton(
-          "chip",
-          [
-            [region.info.variant, "name"],
-            [" · ", "muted"],
-            [region.info.position, "muted"],
-          ],
-          () => region.info.onActivate(),
-        );
-        current.root.append(region.chip);
-      }
-      if (region !== first && !region.sep) {
-        region.sep = document.createElement("div");
-        region.sep.className = "sep";
-        current.root.append(region.sep);
-      }
-      if (region === first && region.sep) {
-        region.sep.remove();
-        region.sep = undefined;
-      }
-      setMode([region.chip, region.sep], region.info.mode);
-    }
-  }
-};
+const sameList = <T>(a: readonly T[], b: readonly T[]) =>
+  a.length === b.length && a.every((item, index) => item === b[index]);
 
 const measure = (region: Region) => {
+  const nodes = region.getNodes();
   const observed: Element[] = [];
-  region.rect = measureRegion(region.wrapper, observed);
-  const changed =
-    observed.length !== region.observed.length ||
-    observed.some((element, index) => element !== region.observed[index]);
-  if (changed) {
+  region.rect = measureNodes(nodes, observed);
+  if (!sameList(observed, region.observed)) {
     region.observed = observed;
     region.resize?.disconnect();
     for (const element of observed) region.resize?.observe(element);
   }
+  const parents = [
+    ...new Set(nodes.map((node) => node.parentNode).filter(Boolean)),
+  ] as Node[];
+  if (!sameList(parents, region.parents)) {
+    region.parents = parents;
+    region.mutation?.disconnect();
+    for (const parent of parents) {
+      region.mutation?.observe(parent, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
+  }
 };
 
 const layoutLayer = (current: Layer) => {
-  for (const region of current.regions) measure(region);
-  const frames = [...current.frames.values()];
-  const contents = new Map<string, Rect | undefined>();
-  for (const frame of frames) {
-    let rect: Rect | undefined;
-    for (const region of frame.regions)
-      if (region.rect) rect = union(rect, region.rect);
-    contents.set(frame.key, rect);
-  }
+  const regions = [...current.regions];
+  for (const region of regions) measure(region);
+  const measured = new Set(
+    regions.filter((region) => region.rect).map((region) => region.info.key),
+  );
   const inputs: FrameInput[] = [];
-  for (const frame of frames) {
-    const content = contents.get(frame.key);
-    frame.box.toggleAttribute("data-empty", !content);
-    frame.tab.toggleAttribute("data-empty", !content);
-    for (const region of frame.regions) {
-      region.chip?.toggleAttribute("data-empty", !region.rect);
-      region.sep?.toggleAttribute("data-empty", !region.rect);
-    }
-    if (!content) continue;
-    const wrapper = frame.regions[0]!.wrapper;
+  for (const region of regions) {
+    region.box.toggleAttribute("data-empty", !region.rect);
+    region.tab.toggleAttribute("data-empty", !region.rect);
+    if (!region.rect) continue;
     inputs.push({
-      key: frame.key,
-      content,
-      ancestors: frames
-        .filter(
-          (other) =>
-            other !== frame &&
-            contents.get(other.key) !== undefined &&
-            other.regions.some(
-              (region) =>
-                region.wrapper !== wrapper && region.wrapper.contains(wrapper),
-            ),
-        )
-        .map((other) => other.key),
+      key: region.info.key,
+      content: region.rect,
+      ancestors: region.info.ancestors.filter((key) => measured.has(key)),
       tab: {
-        width: frame.tab.offsetWidth,
-        height: frame.tab.offsetHeight || 20,
+        width: region.tab.offsetWidth,
+        height: region.tab.offsetHeight || 20,
       },
-      quiet: frame.regions[0]!.info.mode === "hover",
-    });
-  }
-  const obstacles: Rect[] = [];
-  for (const frame of frames) {
-    const content = contents.get(frame.key);
-    if (!content) continue;
-    const regions = frame.regions.filter((region) => region.rect);
-    regions.forEach((region, index) => {
-      for (const caption of region.wrapper.querySelectorAll(
-        "[data-variant-caption]",
-      ))
-        obstacles.push(caption.getBoundingClientRect());
-      if (!region.chip) return;
-      const height = region.chip.offsetHeight || 18;
-      const line =
-        index === 0
-          ? content.top
-          : (regions[index - 1]!.rect!.bottom + region.rect!.top) / 2;
-      obstacles.push({
-        top: line - height,
-        bottom: line + height,
-        left: content.right - region.chip.offsetWidth - 16,
-        right: content.right + 8,
-      });
+      quiet: region.info.mode === "hover",
     });
   }
   const viewport = { width: window.innerWidth, height: window.innerHeight };
-  const signature = JSON.stringify([
-    inputs,
-    viewport,
-    obstacles,
-    frames.map((frame) =>
-      frame.regions.map((region) => [region.rect, region.chip?.offsetWidth]),
-    ),
-  ]);
+  const signature = JSON.stringify([inputs, viewport]);
   if (signature === current.signature) return;
   current.signature = signature;
 
-  for (const placed of layoutFrames(inputs, viewport, obstacles)) {
-    const frame = current.frames.get(placed.key)!;
+  const byKey = new Map(regions.map((region) => [region.info.key, region]));
+  for (const placed of layoutFrames(inputs, viewport)) {
+    const region = byKey.get(placed.key)!;
     const { box } = placed;
-    frame.box.style.top = `${box.top}px`;
-    frame.box.style.left = `${box.left}px`;
-    frame.box.style.width = `${box.right - box.left}px`;
-    frame.box.style.height = `${box.bottom - box.top}px`;
-    frame.tab.style.transform = `translate(${placed.tab.left}px, ${placed.tab.top}px)`;
-    const regions = frame.regions.filter((region) => region.rect);
-    regions.forEach((region, index) => {
-      if (!region.chip) return;
-      const height = region.chip.offsetHeight || 18;
-      const line =
-        index === 0
-          ? box.top
-          : (regions[index - 1]!.rect!.bottom + region.rect!.top) / 2;
-      if (region.sep) {
-        region.sep.style.top = `${line}px`;
-        region.sep.style.left = `${box.left}px`;
-        region.sep.style.width = `${box.right - box.left}px`;
-      }
-      const top = index === 0 ? box.top + TAB_INSET : line - height / 2;
-      const left = box.right - region.chip.offsetWidth - 8;
-      region.chip.style.transform = `translate(${left}px, ${top}px)`;
-    });
+    region.box.style.top = `${box.top}px`;
+    region.box.style.left = `${box.left}px`;
+    region.box.style.width = `${box.right - box.left}px`;
+    region.box.style.height = `${box.bottom - box.top}px`;
+    region.tab.style.transform = `translate(${placed.tab.left}px, ${placed.tab.top}px)`;
   }
 };
 
 const contains = (rect: Rect | DOMRect, x: number, y: number) =>
   x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 
-const frameOf = (current: Layer, region: Region | undefined) =>
-  region ? current.frames.get(frameKey(region)) : undefined;
-
 const updateHover = (current: Layer) => {
   const pointer = current.pointer;
   let hovered: Region | undefined;
   if (pointer) {
-    const kept = frameOf(current, current.hovered);
-    const overControl =
-      kept !== undefined &&
-      [kept.tab, ...kept.regions.map((region) => region.chip)].some(
-        (element) =>
-          element !== undefined &&
-          contains(element.getBoundingClientRect(), pointer.x, pointer.y),
-      );
-    if (overControl) hovered = current.hovered;
-    else {
+    const kept = current.hovered;
+    if (
+      kept &&
+      current.regions.has(kept) &&
+      contains(kept.tab.getBoundingClientRect(), pointer.x, pointer.y)
+    ) {
+      hovered = kept;
+    } else {
       let smallest = Infinity;
       for (const region of current.regions) {
         const { rect } = region;
         if (!rect || !contains(rect, pointer.x, pointer.y)) continue;
         const area = (rect.right - rect.left) * (rect.bottom - rect.top);
-        if (area < smallest) {
+        if (area <= smallest) {
           smallest = area;
           hovered = region;
         }
       }
     }
   }
+  const previous = current.hovered;
   current.hovered = hovered;
-  const active = frameOf(current, hovered);
-  for (const frame of current.frames.values()) {
-    const on = frame === active;
-    frame.box.toggleAttribute("data-hover", on);
-    frame.tab.toggleAttribute("data-hover", on);
-    for (const region of frame.regions) {
-      region.chip?.toggleAttribute("data-hover", on);
-      region.sep?.toggleAttribute("data-hover", on);
-      region.chip?.toggleAttribute("data-active", region === hovered);
-    }
+  if (previous !== hovered) {
+    previous?.info.onHover?.(false);
+    hovered?.info.onHover?.(true);
+  }
+  for (const region of current.regions) {
+    const on =
+      region === hovered ||
+      (forcedGroup !== undefined && region.info.groupId === forcedGroup);
+    region.box.toggleAttribute("data-hover", on);
+    region.tab.toggleAttribute("data-hover", on);
   }
 };
 
+/** Highlights every outline of a group, even in hover-only mode, until cleared. */
+export const highlightGroup = (group: string | undefined) => {
+  if (forcedGroup === group) return;
+  forcedGroup = group;
+  if (layer) updateHover(layer);
+};
+
 const refresh = (current: Layer) => {
-  syncFrames(current);
   layoutLayer(current);
   updateHover(current);
 };
@@ -631,7 +446,6 @@ const getLayer = (): Layer => {
     host,
     root,
     regions: new Set(),
-    frames: new Map(),
     signature: "",
     hovered: undefined,
     pointer: undefined,
@@ -670,15 +484,23 @@ export const flushOutlines = () => {
 };
 
 export const trackRegion = (
-  wrapper: Element,
+  getNodes: () => Node[],
   info: RegionInfo,
 ): (() => void) => {
   const current = getLayer();
+  const box = document.createElement("div");
+  box.className = "box";
+  box.dataset["mode"] = info.mode;
+  box.toggleAttribute("data-nested", info.ancestors.length > 0);
+  const tab = makeTab(info);
+  tab.dataset["mode"] = info.mode;
+  current.root.append(box, tab);
   const region: Region = {
-    wrapper,
+    getNodes,
     info,
     rect: undefined,
     observed: [],
+    parents: [],
     resize:
       typeof ResizeObserver === "function"
         ? new ResizeObserver(current.schedule)
@@ -687,14 +509,9 @@ export const trackRegion = (
       typeof MutationObserver === "function"
         ? new MutationObserver(current.schedule)
         : undefined,
-    chip: undefined,
-    sep: undefined,
+    box,
+    tab,
   };
-  region.mutation?.observe(wrapper, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  });
   current.regions.add(region);
   current.signature = "";
   refresh(current);
@@ -702,13 +519,20 @@ export const trackRegion = (
   return () => {
     region.resize?.disconnect();
     region.mutation?.disconnect();
-    region.chip?.remove();
-    region.sep?.remove();
+    box.remove();
+    tab.remove();
     current.regions.delete(region);
     current.signature = "";
-    if (current.hovered === region) current.hovered = undefined;
+    if (current.hovered === region) {
+      current.hovered = undefined;
+      region.info.onHover?.(false);
+    }
     if (current.regions.size === 0) {
-      current.dispose();
+      // Switching variants unmounts the old region and mounts the new one in
+      // the same commit, so the layer is only torn down if it stays empty.
+      requestFrame(() => {
+        if (layer === current && current.regions.size === 0) current.dispose();
+      });
       return;
     }
     current.schedule();

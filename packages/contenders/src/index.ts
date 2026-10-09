@@ -4,3 +4,14 @@ export {
   type VariantsProps,
   type VariantProps,
 } from "./Variants";
+export {
+  configureVariants,
+  type VariantsConfig,
+  type VariantsShortcut,
+} from "./config";
+export {
+  formatVariantsPrompt,
+  type VariantsSelection,
+  type GroupSelection,
+  type VariantChoice,
+} from "./prompt";
