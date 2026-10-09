@@ -13,9 +13,9 @@ export default async function Image() {
     <OgTemplate subtleBranding>
       <span
         style={{
-          fontSize: 90,
+          fontSize: 76,
           fontWeight: 600,
-          color: "#ffffff",
+          color: "#f0f0e8",
           textAlign: "center",
           fontFamily: OG_FONT_SANS,
           letterSpacing: "-0.02em",
@@ -27,13 +27,13 @@ export default async function Image() {
         style={{
           fontSize: 38,
           fontWeight: 400,
-          color: "#a3a3a3",
+          color: "#a0a196",
           fontFamily: OG_FONT_SANS,
           letterSpacing: "-0.01em",
           textAlign: "left",
         }}
       >
-        Render untrusted HTML securely in sandboxed iframes
+        Sandboxes for HTML
       </span>
     </OgTemplate>,
     {

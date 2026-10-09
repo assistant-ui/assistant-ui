@@ -8,6 +8,7 @@ import {
   validateFrontendToolsInput,
 } from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
+import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
@@ -117,7 +118,8 @@ function resolveDocPage(slugs: string[]) {
   if (slugs[0] === "examples") {
     return examplesSource.getPage(slugs.slice(1));
   }
-  return source.getPage(slugs);
+  const path = slugs.join("/");
+  return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
 }
 
 export const maxDuration = 300;

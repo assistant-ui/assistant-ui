@@ -7,6 +7,7 @@ vi.mock("fumadocs-mdx:collections/server", () => {
     careers: [],
     design: [],
     docs: emptyCollection,
+    docsSites: emptyCollection,
     elements: [],
     examples: [],
   };

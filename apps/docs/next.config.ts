@@ -9,6 +9,11 @@ import { isWebMcpEnabled } from "./lib/feature-flags";
 import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
 import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
+  DOCS_SITE_REDIRECTS,
+  docsSiteMarkdownAcceptRewrites,
+  docsSiteMarkdownFileRewrites,
+} from "./lib/docs-sites";
+import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
 } from "./lib/markdown-rewrites";
@@ -161,6 +166,7 @@ const config: NextConfig = {
   ],
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
+    ...DOCS_SITE_REDIRECTS,
     {
       source: "/hack",
       destination: "/hackathon",
@@ -474,6 +480,7 @@ const config: NextConfig = {
         destination: "/api/mcp",
       },
       ...docsMarkdownFileRewrites(),
+      ...docsSiteMarkdownFileRewrites(),
       {
         source: "/examples.md",
         destination: "/llms.mdx/examples",
@@ -535,6 +542,7 @@ const config: NextConfig = {
         destination: "/pricing.md",
       },
       ...docsMarkdownAcceptRewrites(),
+      ...docsSiteMarkdownAcceptRewrites(),
       {
         source: "/examples/:path*",
         has: [

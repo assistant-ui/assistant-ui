@@ -21,28 +21,33 @@ type BrandAssetsMenuProps = {
 type HeaderBrandLinkProps = {
   className?: string;
   labelClassName?: string;
+  showLabel?: boolean;
 };
 
 export function HeaderBrandLink({
   className,
   labelClassName,
+  showLabel = true,
 }: HeaderBrandLinkProps) {
   return (
     <BrandAssetsMenu>
       <Link
         href="/"
+        aria-label={showLabel ? undefined : "assistant-ui home"}
         className={cn("flex shrink-0 items-center gap-2", className)}
       >
         <Image
           src="/favicon/icon.svg"
-          alt="assistant-ui logo"
+          alt={showLabel ? "assistant-ui logo" : ""}
           width={18}
           height={18}
           className="dark:hue-rotate-180 dark:invert"
         />
-        <span className={cn("font-medium tracking-tight", labelClassName)}>
-          assistant-ui
-        </span>
+        {showLabel && (
+          <span className={cn("font-medium tracking-tight", labelClassName)}>
+            assistant-ui
+          </span>
+        )}
       </Link>
     </BrandAssetsMenu>
   );

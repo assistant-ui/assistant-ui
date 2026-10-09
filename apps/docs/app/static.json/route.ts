@@ -1,7 +1,8 @@
 import { cacheLife } from "next/cache";
 import { NextResponse } from "next/server";
 import type { DocumentRecord } from "fumadocs-core/search/algolia";
-import { design, elementsDocs, source } from "@/lib/source";
+import { design, elementsDocs } from "@/lib/source";
+import { allDocsPages } from "@/lib/docs-pages";
 
 async function getResults() {
   "use cache";
@@ -9,7 +10,7 @@ async function getResults() {
   const results: DocumentRecord[] = [];
 
   for (const page of [
-    ...source.getPages(),
+    ...allDocsPages(),
     ...design.getPages(),
     ...elementsDocs.getPages(),
   ]) {

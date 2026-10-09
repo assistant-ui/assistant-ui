@@ -2,5 +2,10 @@
   "title": "Utilities",
   "icon": "Wrench",
   "root": true,
-  "pages": ["heat-graph", "tw-shimmer", "react-o11y"]
+  "pages": [
+    "heat-graph",
+    "tw-shimmer",
+    "react-o11y",
+    "[Safe Content Frame](/sandbox/docs)"
+  ]
 }
