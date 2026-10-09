@@ -156,17 +156,22 @@ describe("layoutFrames", () => {
   });
 
   it("stacks tabs when every candidate spot is taken", () => {
-    const frames = [0, 1, 2].map((index) =>
-      frame(`f${index}`, rect(0, 0, 100, 30)),
+    const frames = [0, 1, 2, 3].map((index) =>
+      frame(`f${index}`, rect(0, 0, 125, 10)),
     );
     const placed = layoutFrames(
       frames.map((input, index) => ({
         ...input,
         ancestors: frames.slice(0, index).map((other) => other.key),
       })),
-      viewport,
+      { width: 130, height: 800 },
     );
-    const tops = placed.map((item) => item.tab.top);
-    expect(new Set(tops).size).toBe(3);
+    const stacked = placed.filter(
+      (item) => item.tab.top > item.box.top + tab.height,
+    );
+    expect(stacked.length).toBeGreaterThan(0);
+    for (const [index, item] of placed.entries())
+      for (const other of placed.slice(index + 1))
+        expect(intersects(tabRect(item), tabRect(other))).toBe(false);
   });
 });

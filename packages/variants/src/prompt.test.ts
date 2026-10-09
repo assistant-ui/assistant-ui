@@ -12,6 +12,7 @@ const location = {
   origin: "http://localhost:3000",
   pathname: "/safe-content-frame",
   search: "?tab=docs&variants=clean&variant=old:x",
+  hash: "#faq",
 };
 
 const snapshot = {
@@ -73,7 +74,7 @@ describe("buildSelection", () => {
     const selection = buildSelection(snapshot, location);
     expect(selection.scope).toBe("page");
     expect(selection.url).toBe(
-      "http://localhost:3000/safe-content-frame?tab=docs&variant=scf-features:cards&variant=scf-card-style:outlined&variant=scf-cta:link",
+      "http://localhost:3000/safe-content-frame?tab=docs&variant=scf-features:cards&variant=scf-card-style:outlined&variant=scf-cta:link#faq",
     );
     expect(selection.groups.map((group) => group.id)).toEqual([
       "scf-features",
@@ -100,6 +101,16 @@ describe("buildSelection", () => {
     const selection = buildSelection(snapshot, location, "scf-cta");
     expect(selection.scope).toBe("group");
     expect(selection.groups.map((group) => group.id)).toEqual(["scf-cta"]);
+  });
+
+  it("keeps the ancestors' selections in a nested group's URL", () => {
+    const selection = buildSelection(snapshot, location, "scf-card-style");
+    expect(selection.groups.map((group) => group.id)).toEqual([
+      "scf-card-style",
+    ]);
+    expect(selection.url).toBe(
+      "http://localhost:3000/safe-content-frame?tab=docs&variant=scf-card-style:outlined&variant=scf-features:cards#faq",
+    );
   });
 });
 
@@ -145,7 +156,7 @@ describe("prompt", () => {
           group: "scf-cta",
           variant: "link",
           note: 'smaller "arrow"',
-          hint: "a > svg (icon)",
+          hint: "a > svg (icon); b",
           source: "session" as const,
         },
         {
@@ -172,10 +183,10 @@ describe("prompt", () => {
       ],
     };
     expect(promptFor(withNotes, location)).toBe(
-      '/variants choose scf-features:cards scf-card-style:outlined scf-cta:link -- notes: scf-cta:link "smaller \\"arrow\\"" (on: a > svg icon); scf-features "tighter spacing"',
+      '/variants choose scf-features:cards scf-card-style:outlined scf-cta:link -- notes: scf-cta:link "smaller \\"arrow\\"" (on: a > svg icon b); scf-features "tighter spacing"',
     );
     expect(promptFor(withNotes, location, "scf-cta")).toBe(
-      '/variants choose scf-cta:link -- notes: scf-cta:link "smaller \\"arrow\\"" (on: a > svg icon)',
+      '/variants choose scf-cta:link -- notes: scf-cta:link "smaller \\"arrow\\"" (on: a > svg icon b)',
     );
   });
 

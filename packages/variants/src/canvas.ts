@@ -135,14 +135,20 @@ export const containerOf = (nodes: readonly Node[]): Element | undefined => {
   return parent;
 };
 
+const sameList = <T>(a: readonly T[], b: readonly T[]) =>
+  a.length === b.length && a.every((item, index) => item === b[index]);
+
 /**
  * Copies what a variant's real container gives it onto the card slot: the
  * content-box width, the formatting context, inherited text styles, custom
- * properties, and the ancestors' classes for descendant selectors.
+ * properties, and the classes of every ancestor from `parent` (the nodes'
+ * direct parent, which may be a `display: contents` wrapper) for descendant
+ * selectors.
  */
 export const replicateContainer = (
   slot: HTMLElement,
   container: Element | undefined,
+  parent: Element | undefined = container,
 ) => {
   if (!container) {
     const { width, scale } = cardScale(0);
@@ -176,7 +182,7 @@ export const replicateContainer = (
   }
   const ancestors: string[] = [];
   for (
-    let element: Element | null = container;
+    let element: Element | null = parent ?? container;
     element &&
     element !== document.body &&
     element !== document.documentElement;
@@ -327,9 +333,33 @@ export const mountCanvas = (store: Store): (() => void) => {
     });
   };
 
+  let pendingSync: ReturnType<typeof setTimeout> | undefined;
+  const scheduleSync = () => {
+    if (pendingSync !== undefined) return;
+    pendingSync = setTimeout(() => {
+      pendingSync = undefined;
+      syncRows();
+    }, 50);
+  };
+  // Source containers resize with the page or the sidebar, and groups can
+  // move on the page without remounting, so both refresh the rows.
+  const containerResize =
+    typeof ResizeObserver === "function"
+      ? new ResizeObserver(scheduleSync)
+      : undefined;
+  let observedContainers: Element[] = [];
+  const pageMutation =
+    typeof MutationObserver === "function"
+      ? new MutationObserver((records) => {
+          if (records.some((record) => !host.contains(record.target)))
+            scheduleSync();
+        })
+      : undefined;
+
   const syncRows = () => {
     const snapshot = store.getSnapshot();
     host.toggleAttribute("data-clean", snapshot.clean);
+    const containers: Element[] = [];
     const nodes = new Map(
       snapshot.groups.map((meta) => [meta.id, groupNodes(meta.id)]),
     );
@@ -399,8 +429,21 @@ export const mountCanvas = (store: Store): (() => void) => {
         row.setAttribute("data-depth", `${depth}`);
         row.style.setProperty("--depth", `${depth}`);
       }
-      replicateContainer(current.slots.get(meta.id)!, containerOf(nodes));
-      world.append(row);
+      const container = containerOf(nodes);
+      if (container) containers.push(container);
+      replicateContainer(
+        current.slots.get(meta.id)!,
+        container,
+        nodes[0]?.parentElement ?? undefined,
+      );
+    }
+    const ordered = ids.map((id) => rows.get(id)!);
+    if (!ordered.every((row, index) => world.children[index] === row))
+      world.append(...ordered);
+    if (!sameList(containers, observedContainers)) {
+      observedContainers = containers;
+      containerResize?.disconnect();
+      for (const container of containers) containerResize?.observe(container);
     }
     store.setCanvasRows(ids);
   };
@@ -460,6 +503,12 @@ export const mountCanvas = (store: Store): (() => void) => {
     if (card) choose(card, true);
   };
 
+  const onPageEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (event.composedPath().includes(host)) return;
+    event.preventDefault();
+    close();
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -570,6 +619,7 @@ export const mountCanvas = (store: Store): (() => void) => {
       : undefined;
   resize?.observe(world);
   resize?.observe(viewport);
+  pageMutation?.observe(document.body, { childList: true, subtree: true });
 
   toolbar.addEventListener("click", onToolbarClick);
   host.addEventListener("click", onClick);
@@ -581,6 +631,7 @@ export const mountCanvas = (store: Store): (() => void) => {
   viewport.addEventListener("pointerup", onPointerUp);
   viewport.addEventListener("pointercancel", onPointerUp);
   document.addEventListener("focusin", onFocusIn);
+  document.addEventListener("keydown", onPageEscape);
   window.addEventListener("resize", refit);
   const unsubscribe = store.subscribe(() => {
     const snapshot = store.getSnapshot();
@@ -608,8 +659,12 @@ export const mountCanvas = (store: Store): (() => void) => {
   return () => {
     unsubscribe();
     resize?.disconnect();
+    containerResize?.disconnect();
+    pageMutation?.disconnect();
+    clearTimeout(pendingSync);
     toolbar.removeEventListener("click", onToolbarClick);
     document.removeEventListener("focusin", onFocusIn);
+    document.removeEventListener("keydown", onPageEscape);
     window.removeEventListener("resize", refit);
     if (shell === current) shell = undefined;
     host.remove();

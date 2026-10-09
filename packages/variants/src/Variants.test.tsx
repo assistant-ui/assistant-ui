@@ -437,6 +437,7 @@ describe("switcher", () => {
     page.focus();
     fireEvent.keyDown(page, { code: "KeyV", key: "√", altKey: true });
     expect(active()?.dataset["key"]).toBe("hero:b");
+    fireEvent.keyDown(active()!, { code: "KeyV", key: "√", altKey: true });
     fireEvent.keyDown(active()!, { key: "Escape" });
     expect(document.activeElement).toBe(page);
   });
@@ -454,6 +455,11 @@ describe("switcher", () => {
     expect(switcherRoot().querySelector("footer")!.textContent).toContain(
       "Ctrl+K",
     );
+    expect(
+      switcherRoot()
+        .querySelector("[aria-keyshortcuts]")
+        ?.getAttribute("aria-keyshortcuts"),
+    ).toBe("Control+K");
     configureVariants({ shortcut: false });
     expect(switcherRoot().querySelector("footer")!.textContent).not.toContain(
       "Ctrl+K",
@@ -503,6 +509,18 @@ describe("switcher", () => {
     });
     expect(shown(container)).toEqual(["c"]);
   });
+
+  it("returns to the default on popstate when persist is off", () => {
+    const { container } = renderWithStore(<Hero default="b" persist={false} />);
+    act(() => {
+      store.select("hero", "c");
+    });
+    setUrl("");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(shown(container)).toEqual(["b"]);
+  });
 });
 
 describe("notes", () => {
@@ -549,6 +567,15 @@ describe("notes", () => {
     fireEvent.click(count());
     expect(switcherRoot().querySelector(".note")).toBeNull();
     fireEvent.click(count());
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Collapse variant switcher" }),
+    );
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Expand variant switcher" }),
+    );
+    expect(switcherRoot().querySelector(".note")?.textContent).toContain(
+      "tighter heading",
+    );
     fireEvent.click(switcher().ui.getByRole("button", { name: "Delete note" }));
     await settle();
     expect(count().hidden).toBe(true);
@@ -1155,17 +1182,34 @@ describe("hover and focus linking", () => {
   it("offers to scroll to an off-screen region", () => {
     rects["a1"] = box(2000, 0, 200, 2100);
     const scroll = vi.fn();
-    Element.prototype.scrollIntoView = scroll;
-    renderWithStore(<Hero />);
-    fireEvent.pointerOver(radio("Split"));
-    const hint = switcher().ui.getByRole("button", {
-      name: "Scroll down to hero",
-    });
-    expect(hint.textContent).toBe("↓ Off-screen");
-    fireEvent.click(hint);
-    expect(scroll).toHaveBeenCalledWith(
-      expect.objectContaining({ block: "center" }),
+    const original = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "scrollIntoView",
     );
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      renderWithStore(<Hero />);
+      fireEvent.pointerOver(radio("Split"));
+      const hint = switcher().ui.getByRole("button", {
+        name: "Scroll down to hero",
+      });
+      expect(hint.textContent).toBe("↓ Off-screen");
+      fireEvent.click(hint);
+      expect(scroll).toHaveBeenCalledWith(
+        expect.objectContaining({ block: "center" }),
+      );
+      rects["a1"] = box(0, 0, 200, 100);
+      act(() => {
+        window.dispatchEvent(new Event("scroll"));
+      });
+      expect(
+        switcher().ui.queryByRole("button", { name: "Scroll down to hero" }),
+      ).toBeNull();
+    } finally {
+      if (original)
+        Object.defineProperty(Element.prototype, "scrollIntoView", original);
+      else delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
   });
 
   it("does nothing in clean mode", () => {
@@ -1227,6 +1271,28 @@ describe("outline", () => {
     hover(50, 120);
     expect(tab().hasAttribute("data-hover")).toBe(true);
     expect(tab().textContent).toBe("Group · X · 1/1");
+    hover(10, 95);
+    expect(tab().hasAttribute("data-hover")).toBe(true);
+    hover(500, 500);
+    expect(tab().hasAttribute("data-hover")).toBe(false);
+  });
+
+  it("prefers the nested group when both measure the same element", () => {
+    rects["n1"] = box(100, 0, 200, 150);
+    renderWithStore(
+      <Variants id="outer" label="Outer">
+        <Variant id="x">
+          <Variants id="inner" label="Inner">
+            <Variant id="y">
+              <p id="n1">y</p>
+            </Variant>
+          </Variants>
+        </Variant>
+      </Variants>,
+    );
+    act(() => flushOutlines());
+    hover(50, 120);
+    expect(store.getSnapshot().highlight).toMatchObject({ group: "inner" });
     hover(500, 500);
     expect(tab().hasAttribute("data-hover")).toBe(false);
   });
@@ -1358,6 +1424,9 @@ describe("dev validation", () => {
       </Variants>,
     );
     expect(container.textContent).toBe("first");
+    expect(store.getSnapshot().groups[0]!.variants.map((v) => v.id)).toEqual([
+      "x",
+    ]);
     expect(messages()).toEqual(
       expect.arrayContaining([
         expect.stringContaining('Group "g" has two <Variant>s with id "x"'),

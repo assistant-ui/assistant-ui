@@ -180,10 +180,10 @@ export const createStore = (
     for (const listener of listeners) listener();
   };
 
-  const loadSelection = (meta: GroupMeta, url: UrlState) =>
+  const loadSelection = (meta: GroupMeta, url: UrlState, keep = true) =>
     url.selections.get(meta.id) ??
     (meta.persist ? storage.get(storageKey(meta.id)) : undefined) ??
-    snapshot.selections[meta.id];
+    (keep ? snapshot.selections[meta.id] : undefined);
 
   const writeUrl = () => {
     if (!hasWindow()) return;
@@ -221,7 +221,7 @@ export const createStore = (
     const url = readUrl();
     const selections = { ...snapshot.selections };
     for (const meta of groups()) {
-      const value = loadSelection(meta, url);
+      const value = loadSelection(meta, url, false);
       if (value === undefined) delete selections[meta.id];
       else selections[meta.id] = value;
     }

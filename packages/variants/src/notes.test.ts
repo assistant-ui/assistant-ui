@@ -35,6 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   store.reset();
+  vi.restoreAllMocks();
 });
 
 describe("server mode", () => {
@@ -124,6 +125,76 @@ describe("server mode", () => {
         hint: undefined,
       }),
     ).toBe("not found");
+  });
+});
+
+describe("failures", () => {
+  const draft = {
+    group: "demo-cta",
+    variant: undefined,
+    note: "x",
+    hint: undefined,
+  };
+
+  it("waits for a pending probe before choosing where to save", async () => {
+    register();
+    let answer!: (response: Response) => void;
+    const fetcher = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).endsWith("/ping"))
+          return new Promise<Response>((resolve) => (answer = resolve));
+        if (init?.method === "POST") return json({ id: "n-00000002" }, 201);
+        return json({ notes: [] });
+      },
+    );
+    const notes = createNotes(store, fetcher as typeof fetch);
+    void notes.probe();
+    const saving = notes.add(draft);
+    answer(json({ ok: true }));
+    expect(await saving).toBeUndefined();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+      true,
+    );
+    expect(window.sessionStorage.getItem(SESSION_NOTES_KEY)).toBeNull();
+  });
+
+  it("reports a network failure and keeps notes on a failed refresh", async () => {
+    register();
+    let failing = false;
+    const fetcher = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).endsWith("/ping")) return json({ ok: true });
+        if (init?.method === "POST") throw new TypeError("offline");
+        if (init?.method === "DELETE" && !failing)
+          throw new TypeError("offline");
+        if (failing) return json({ error: "boom" }, 500);
+        return json({
+          notes: [{ id: "n-00000001", group: "demo-cta", note: "kept" }],
+        });
+      },
+    );
+    const notes = createNotes(store, fetcher as typeof fetch);
+    await notes.probe();
+    expect(await notes.add(draft)).toBe("could not reach the dev server");
+    const kept = store.getSnapshot().notes[0]!;
+    expect(await notes.remove(kept)).toBe("could not reach the dev server");
+    failing = true;
+    await notes.refresh();
+    expect(store.getSnapshot().notes).toEqual([
+      expect.objectContaining({ id: "n-00000001" }),
+    ]);
+    expect(await notes.remove(kept)).toBe("could not delete the note (500)");
+  });
+
+  it("reports a note that sessionStorage could not keep", async () => {
+    register();
+    const notes = createNotes(store, (async () =>
+      json({}, 404)) as typeof fetch);
+    await notes.probe();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("full", "QuotaExceededError");
+    });
+    expect(await notes.add(draft)).toBe("could not store the note in this tab");
   });
 });
 

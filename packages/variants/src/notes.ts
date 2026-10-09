@@ -40,7 +40,10 @@ const readSession = (): ClientNote[] => {
 const writeSession = (notes: ClientNote[]) => {
   try {
     window.sessionStorage.setItem(SESSION_NOTES_KEY, JSON.stringify(notes));
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 /**
@@ -72,6 +75,7 @@ export const createNotes = (
         `${NOTES_ENDPOINT}/notes?groups=${encodeURIComponent(groups.join(","))}`,
         { headers: HEADERS },
       );
+      if (!response.ok) return;
       const body = (await response.json()) as { notes?: ClientNote[] };
       if (current !== generation) return;
       store.setNotes(
@@ -84,7 +88,10 @@ export const createNotes = (
     } catch {}
   };
 
-  const probe = async () => {
+  let probing: Promise<void> | undefined;
+  const probe = () => (probing ??= detect());
+
+  const detect = async () => {
     try {
       const response = await request(`${NOTES_ENDPOINT}/ping`, {
         headers: HEADERS,
@@ -100,12 +107,18 @@ export const createNotes = (
   };
 
   const add = async (draft: NoteDraft): Promise<string | undefined> => {
+    await probing;
     if (mode === "server") {
-      const response = await request(`${NOTES_ENDPOINT}/notes`, {
-        method: "POST",
-        headers: { ...HEADERS, "content-type": "application/json" },
-        body: JSON.stringify(draft),
-      });
+      let response: Response;
+      try {
+        response = await request(`${NOTES_ENDPOINT}/notes`, {
+          method: "POST",
+          headers: { ...HEADERS, "content-type": "application/json" },
+          body: JSON.stringify(draft),
+        });
+      } catch {
+        return "could not reach the dev server";
+      }
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as {
           error?: string;
@@ -116,7 +129,7 @@ export const createNotes = (
       await refresh();
       return undefined;
     }
-    writeSession([
+    const saved = writeSession([
       ...readSession(),
       {
         id: randomId(),
@@ -127,20 +140,31 @@ export const createNotes = (
         source: "session",
       },
     ]);
+    if (!saved) return "could not store the note in this tab";
     await refresh();
     return undefined;
   };
 
-  const remove = async (note: ClientNote) => {
+  const remove = async (note: ClientNote): Promise<string | undefined> => {
+    let failure: string | undefined;
     if (note.source === "file") {
-      await request(
-        `${NOTES_ENDPOINT}/notes/${note.id}?group=${encodeURIComponent(note.group)}`,
-        { method: "DELETE", headers: HEADERS },
-      );
-    } else {
-      writeSession(readSession().filter((item) => item.id !== note.id));
+      try {
+        const response = await request(
+          `${NOTES_ENDPOINT}/notes/${note.id}?group=${encodeURIComponent(note.group)}`,
+          { method: "DELETE", headers: HEADERS },
+        );
+        if (!response.ok)
+          failure = `could not delete the note (${response.status})`;
+      } catch {
+        failure = "could not reach the dev server";
+      }
+    } else if (
+      !writeSession(readSession().filter((item) => item.id !== note.id))
+    ) {
+      failure = "could not update the notes in this tab";
     }
     await refresh();
+    return failure;
   };
 
   return {

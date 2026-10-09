@@ -40,7 +40,7 @@ export class BodyTooLargeError extends Error {
 
 /** Decodes a JSON body, refusing it once more than `MAX_BODY` bytes arrive. */
 export const readJsonBody = async (
-  chunks: AsyncIterable<Uint8Array | string>,
+  chunks: AsyncIterable<Uint8Array | string> | Iterable<Uint8Array | string>,
 ): Promise<unknown> => {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -99,8 +99,7 @@ export const checkRequest = (
   } catch {
     return fail(403, "invalid origin header");
   }
-  const host =
-    firstToken(request.header("x-forwarded-host")) ?? request.header("host");
+  const host = request.header("host");
   if (!host) return fail(400, "missing host header");
   if (actual !== host.toLowerCase()) return fail(403, "origin mismatch");
   return undefined;

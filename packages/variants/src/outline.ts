@@ -263,6 +263,8 @@ type Region = {
   resize: ResizeObserver | undefined;
   mutation: MutationObserver | undefined;
   box: HTMLElement;
+  /** The frame and its tab together, so the pointer can cross from one to the other. */
+  reach?: Rect | undefined;
   tab: HTMLButtonElement;
 };
 
@@ -341,6 +343,7 @@ const measure = (region: Region) => {
         childList: true,
         subtree: true,
         characterData: true,
+        attributeFilter: ["class", "style", "hidden"],
       });
     }
   }
@@ -377,6 +380,13 @@ const layoutLayer = (current: Layer) => {
   for (const placed of layoutFrames(inputs, viewport)) {
     const region = byKey.get(placed.key)!;
     const { box } = placed;
+    const size = inputs.find((input) => input.key === placed.key)!.tab;
+    region.reach = {
+      top: Math.min(box.top, placed.tab.top),
+      left: Math.min(box.left, placed.tab.left),
+      right: Math.max(box.right, placed.tab.left + size.width),
+      bottom: Math.max(box.bottom, placed.tab.top + size.height),
+    };
     region.box.style.top = `${box.top}px`;
     region.box.style.left = `${box.left}px`;
     region.box.style.width = `${box.right - box.left}px`;
@@ -405,11 +415,24 @@ const updateHover = (current: Layer) => {
         const { rect } = region;
         if (!rect || !contains(rect, pointer.x, pointer.y)) continue;
         const area = (rect.right - rect.left) * (rect.bottom - rect.top);
-        if (area <= smallest) {
+        if (
+          area < smallest ||
+          (area === smallest &&
+            region.info.ancestors.length >
+              (hovered?.info.ancestors.length ?? -1))
+        ) {
           smallest = area;
           hovered = region;
         }
       }
+      if (
+        !hovered &&
+        kept &&
+        current.regions.has(kept) &&
+        kept.reach &&
+        contains(kept.reach, pointer.x, pointer.y)
+      )
+        hovered = kept;
     }
   }
   const previous = current.hovered;

@@ -79,7 +79,8 @@ const REPLACED =
   /^(img|svg|video|canvas|iframe|embed|object|picture|input|button|select|textarea|hr|progress|meter)$/i;
 
 const transparent = (color: string) =>
-  color === "transparent" || /rgba?\([^)]*,\s*0\)$/.test(color);
+  color === "transparent" ||
+  /^rgba\([^)]*,\s*0(?:\.0*)?\)$|\/\s*0(?:\.0*)?\)$/.test(color);
 
 /** Whether an element paints a box of its own, so its border box is visible. */
 const paintsBox = (element: Element, style: CSSStyleDeclaration) =>
@@ -105,27 +106,29 @@ export const measureNodes = (
   nodes: readonly Node[],
   observed: Element[] = [],
 ): Rect | undefined => {
-  const visit = (node: Node): Rect | undefined => {
+  const visit = (node: Node, hidden: boolean): Rect | undefined => {
     if (node.nodeType === Node.TEXT_NODE)
-      return addRects(undefined, textRects(node as Text));
+      return hidden ? undefined : addRects(undefined, textRects(node as Text));
     if (node.nodeType !== Node.ELEMENT_NODE) return undefined;
     const element = node as Element;
     const style = getComputedStyle(element);
     if (style.display === "none") return undefined;
     if (style.display !== "contents") observed.push(element);
-    if (style.display !== "contents" && paintsBox(element, style))
+    const invisible =
+      style.visibility === "hidden" || style.visibility === "collapse";
+    if (!invisible && style.display !== "contents" && paintsBox(element, style))
       return addRects(undefined, element.getClientRects());
     let inner: Rect | undefined;
     for (const child of Array.from(element.childNodes)) {
-      const rect = visit(child);
+      const rect = visit(child, invisible);
       if (rect) inner = union(inner, rect);
     }
-    if (inner || style.display === "contents") return inner;
+    if (inner || invisible || style.display === "contents") return inner;
     return addRects(undefined, element.getClientRects());
   };
   let result: Rect | undefined;
   for (const node of nodes) {
-    const rect = visit(node);
+    const rect = visit(node, false);
     if (rect) result = union(result, rect);
   }
   return result;

@@ -126,8 +126,9 @@ const collect = (group: string, children: ReactNode) => {
     }
     if (/[:,\s]/.test(id)) {
       problems.push(
-        `Variant id "${id}" in group "${group}" contains ":", "," or whitespace; pick another id so ?variant= URLs and /variants choose stay unambiguous.`,
+        `Variant id "${id}" in group "${group}" contains ":", "," or whitespace, so it was ignored; pick another id so ?variant= URLs and /variants choose stay unambiguous.`,
       );
+      return;
     }
     items.push({ id, label: label ?? id, element: child });
   });

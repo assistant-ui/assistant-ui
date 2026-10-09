@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertAllowed, isDev } from "./guard";
+
+beforeEach(() => {
+  vi.stubEnv("VARIANTS_ALLOW_IN_PRODUCTION", "0");
+  vi.stubEnv("NEXT_PUBLIC_VARIANTS_ALLOW_IN_PRODUCTION", "0");
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();

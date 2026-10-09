@@ -116,6 +116,18 @@ describe("guards", () => {
       ).status,
     ).toBe(403);
     expect(
+      (
+        await call(
+          request("GET", "/ping", {
+            headers: {
+              origin: "https://evil.example",
+              "x-forwarded-host": "evil.example",
+            },
+          }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(
       (await call(request("GET", "/ping", { headers: { origin: "null" } })))
         .status,
     ).toBe(403);

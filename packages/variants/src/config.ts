@@ -34,11 +34,12 @@ export const onConfigChange = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
-export const shortcutLabel = (shortcut: VariantsShortcut) => {
+/** The visible label, or the `aria-keyshortcuts` value when `aria` is set. */
+export const shortcutLabel = (shortcut: VariantsShortcut, aria = false) => {
   const key = shortcut.code.replace(/^Key|^Digit/, "");
   return [
-    shortcut.ctrl ? "Ctrl" : "",
-    shortcut.meta ? "Cmd" : "",
+    shortcut.ctrl ? (aria ? "Control" : "Ctrl") : "",
+    shortcut.meta ? (aria ? "Meta" : "Cmd") : "",
     shortcut.alt ? "Alt" : "",
     shortcut.shift ? "Shift" : "",
     key,

@@ -109,6 +109,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   store.reset();
+  vi.restoreAllMocks();
 });
 
 describe("canvas", () => {
@@ -447,6 +448,79 @@ describe("container replication", () => {
     expect(link.closest(".prose")!.getAttribute("style")).toBe(
       "display: contents;",
     );
+  });
+
+  it("keeps display: contents wrappers' classes and follows container resizes", async () => {
+    const { container } = renderPage(
+      <div className="prose">
+        <div className="wrapper" style={{ display: "contents" }}>
+          <Variants id="cta">
+            <Variant id="button">
+              <button type="button">Go</button>
+            </Variant>
+          </Variants>
+        </div>
+      </div>,
+    );
+    const parent = container.firstElementChild as HTMLElement;
+    let width = 640;
+    Object.defineProperty(parent, "clientWidth", { get: () => width });
+    openFromSwitcher();
+    const slot = dialog()!.querySelector<HTMLElement>(
+      '[data-canvas-slot="cta"]',
+    )!;
+    expect(JSON.parse(slot.dataset["ancestors"]!)).toEqual([
+      "prose",
+      "wrapper",
+    ]);
+    expect(slot.style.getPropertyValue("--cw")).toBe("640px");
+    width = 320;
+    act(() => {
+      parent.append(document.createElement("span"));
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 60)));
+    expect(slot.style.getPropertyValue("--cw")).toBe("320px");
+  });
+});
+
+describe("page changes", () => {
+  it("reorders rows when groups move on the page", async () => {
+    const Two = ({ swap }: { swap: boolean }) => {
+      const a = (
+        <Variants key="a" id="a">
+          <Variant id="x">
+            <p>a</p>
+          </Variant>
+        </Variants>
+      );
+      const b = (
+        <Variants key="b" id="b">
+          <Variant id="y">
+            <p>b</p>
+          </Variant>
+        </Variants>
+      );
+      return <div>{swap ? [b, a] : [a, b]}</div>;
+    };
+    const { rerender } = renderPage(<Two swap={false} />);
+    openFromSwitcher();
+    expect(rows().map(([id]) => id)).toEqual(["a", "b"]);
+    rerender(
+      <StoreContext.Provider value={store}>
+        <Two swap />
+      </StoreContext.Provider>,
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 60)));
+    expect(rows().map(([id]) => id)).toEqual(["b", "a"]);
+  });
+
+  it("closes with Escape pressed in the sidebar", () => {
+    renderPage();
+    openFromSwitcher();
+    const radio = switcher().getAllByRole("radio")[0]!;
+    radio.focus();
+    fireEvent.keyDown(radio, { key: "Escape" });
+    expect(dialog()).toBeNull();
   });
 });
 

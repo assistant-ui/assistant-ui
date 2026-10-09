@@ -36,7 +36,7 @@ export type SelectionNote = {
 /** A note in the copied command: `group[:variant] "text" (on: hint)`. */
 const formatNote = (note: SelectionNote) =>
   `${note.group}${note.variant === undefined ? "" : `:${note.variant}`} ${JSON.stringify(note.note)}${
-    note.hint ? ` (on: ${note.hint.replace(/[()]/g, "")})` : ""
+    note.hint ? ` (on: ${note.hint.replace(/[();]/g, "")})` : ""
   }`;
 
 /**
@@ -54,7 +54,7 @@ export function formatVariantsPrompt(selection: VariantsSelection): string {
 
 export const buildSelection = (
   snapshot: Snapshot,
-  location: { origin: string; pathname: string; search: string },
+  location: Pick<Location, "origin" | "pathname" | "search" | "hash">,
   only?: string,
 ): VariantsSelection => {
   const groups: GroupSelection[] = [];
@@ -73,8 +73,15 @@ export const buildSelection = (
       parent: meta.parent,
     });
   }
+  const selections = new Map(groups.map((group) => [group.id, group.kept.id]));
+  for (
+    let parent = groups[0]?.parent;
+    only !== undefined && parent !== undefined;
+    parent = snapshot.groups.find((meta) => meta.id === parent!.group)?.parent
+  )
+    selections.set(parent.group, parent.variant);
   const search = serializeSearch(location.search, {
-    selections: new Map(groups.map((group) => [group.id, group.kept.id])),
+    selections,
     hideUI: false,
     clean: false,
     canvas: false,
@@ -83,7 +90,7 @@ export const buildSelection = (
   return {
     scope: only === undefined ? "page" : "group",
     pathname: location.pathname,
-    url: `${location.origin}${location.pathname}${search}`,
+    url: `${location.origin}${location.pathname}${search}${location.hash}`,
     groups,
     notes: snapshot.notes
       .filter((note) => note.source === "session" && included.has(note.group))
@@ -98,7 +105,7 @@ export const buildSelection = (
 
 export const promptFor = (
   snapshot: Snapshot,
-  location: { origin: string; pathname: string; search: string },
+  location: Pick<Location, "origin" | "pathname" | "search" | "hash">,
   only?: string,
 ): string => {
   const selection = buildSelection(snapshot, location, only);

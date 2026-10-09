@@ -89,11 +89,19 @@ export const h = (
   return element;
 };
 
+const SVG = "http://www.w3.org/2000/svg";
+
+/** Builds the icon with DOM calls, never an HTML sink, so Trusted Types pages accept it. */
 export const icon = (name: IconName): Element => {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("aria-hidden", "true");
-  svg.innerHTML = ICONS[name];
+  for (const [, tag, attrs] of ICONS[name].matchAll(/<(\w+)([^>]*)\/>/g)) {
+    const child = document.createElementNS(SVG, tag!);
+    for (const [, key, value] of attrs!.matchAll(/([\w-]+)="([^"]*)"/g))
+      child.setAttribute(key!, value!);
+    svg.append(child);
+  }
   return svg;
 };
 
@@ -139,6 +147,7 @@ export const copyButton = (attrs: Record<string, string | undefined>) =>
   );
 
 const COPIED_MS = 1500;
+const copiedTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
 
 /** Copies text, flips the button to a check for a moment, and announces the result. */
 export const copyWithFeedback = async (
@@ -153,9 +162,14 @@ export const copyWithFeedback = async (
   if (!copied) return false;
   button.setAttribute("data-copied", "");
   button.querySelector("svg")?.replaceWith(icon("check"));
-  setTimeout(() => {
-    button.removeAttribute("data-copied");
-    button.querySelector("svg")?.replaceWith(icon("copy"));
-  }, COPIED_MS);
+  clearTimeout(copiedTimers.get(button));
+  copiedTimers.set(
+    button,
+    setTimeout(() => {
+      copiedTimers.delete(button);
+      button.removeAttribute("data-copied");
+      button.querySelector("svg")?.replaceWith(icon("copy"));
+    }, COPIED_MS),
+  );
   return true;
 };

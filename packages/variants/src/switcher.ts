@@ -396,7 +396,7 @@ const renderPanel = (snapshot: Snapshot): HTMLElement => {
       "aria-label": "Design variants",
       ...(shortcut
         ? {
-            "aria-keyshortcuts": shortcutLabel(shortcut).replace("Cmd", "Meta"),
+            "aria-keyshortcuts": shortcutLabel(shortcut, true),
           }
         : {}),
     },
@@ -988,6 +988,8 @@ export const mountSwitcher = (store: Store): (() => void) => {
         "key"
       ];
       rows.clear();
+      shownActive.clear();
+      renderedNotes.clear();
       shift = 0;
       container.replaceChildren(
         snapshot.collapsed ? renderCollapsed(snapshot) : renderPanel(snapshot),
@@ -1094,7 +1096,10 @@ export const mountSwitcher = (store: Store): (() => void) => {
       const note = snapshot.notes.find(
         (item) => item.id === button.dataset["note"],
       );
-      if (note) void notes.remove(note);
+      if (note)
+        void notes.remove(note).then((failure) => {
+          live.textContent = failure ?? "Note deleted";
+        });
     } else if (action === "nudge" && group) {
       const track = rowPart(group, "[data-track]");
       if (!track) return;
@@ -1193,7 +1198,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       return;
     event.preventDefault();
     const active = deepActiveElement();
-    if (!active || !host.contains(active)) returnFocus = active;
+    if (!active || !root.contains(active)) returnFocus = active;
     if (store.getSnapshot().collapsed) store.setCollapsed(false);
     focusRadio(byKey(rovingKey) ?? radios()[0]);
   };
@@ -1238,6 +1243,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     updateLink();
   };
   const onWheel = () => settle();
+  const onPageScroll = () => updateOffscreen(linked);
 
   root.addEventListener("click", onClick);
   root.addEventListener("keydown", onKeyDown);
@@ -1248,6 +1254,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
   root.addEventListener("wheel", onWheel, { passive: true });
   root.addEventListener("scroll", onScroll, { capture: true, passive: true });
   window.addEventListener("resize", onResize, { passive: true });
+  window.addEventListener("scroll", onPageScroll, { passive: true });
   document.addEventListener("keydown", onGlobalKeyDown);
   document.addEventListener("click", onPageClick, true);
   const onSheetChange = () => render();
@@ -1269,6 +1276,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     document.removeEventListener("keydown", onGlobalKeyDown);
     document.removeEventListener("click", onPageClick, true);
     window.removeEventListener("resize", onResize);
+    window.removeEventListener("scroll", onPageScroll);
     pushPage(false);
     pageStyle.remove();
     host.remove();
