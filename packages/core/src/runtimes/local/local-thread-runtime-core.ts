@@ -1055,7 +1055,6 @@ export class LocalThreadRuntimeCore
     { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
-    this.ensureInitialized();
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))
@@ -1099,6 +1098,22 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     const scopeGeneration = this._loadGeneration;
     const generation = captureThreadRuntimeGeneration(this);
+    // The first run of a seeded thread initializes it and, like a send, waits
+    // for the thread list so the run carries the remote thread id.
+    const initialization = this.ensureInitialized()
+      ? this._getInitializePromise?.()
+      : undefined;
+    if (initialization) {
+      const resumed = this.getMessageById(message.id) !== undefined;
+      await initialization.catch(() => {});
+      if (
+        generation.aborted ||
+        scopeGeneration !== this._loadGeneration ||
+        this._activeRun ||
+        (resumed && !this.getMessageById(message.id))
+      )
+        return;
+    }
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});

@@ -1079,7 +1079,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   disconnectVoice(): void;
   muteVoice(): void;
   unmuteVoice(): void;
-  protected ensureInitialized(): void;
+  protected ensureInitialized(): boolean;
   export(): ExportedMessageRepository;
   import(data: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
