@@ -140,6 +140,42 @@ describe("useA2ARuntime", () => {
     append: vi.fn().mockResolvedValue(undefined),
   });
 
+  it("re-renders when the core publishes loaded history", async () => {
+    const { client, getAgentCard } = createMockClient();
+    getAgentCard.mockImplementation(() => new Promise(() => {}));
+    let resolveHistory!: (repo: ExportedMessageRepository) => void;
+    const pendingHistory = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveHistory = resolve;
+    });
+    const history = {
+      load: vi.fn(() => pendingHistory),
+      append: async () => {},
+    };
+    const render = vi.fn();
+    const { result } = renderHook(() => {
+      render();
+      return useA2ARuntime({ client, adapters: { history } });
+    });
+
+    await waitFor(() => expect(history.load).toHaveBeenCalledOnce());
+    const rendersBeforeHistory = render.mock.calls.length;
+
+    await act(async () => {
+      resolveHistory({
+        headId: "restored",
+        messages: [
+          { parentId: null, message: createThreadMessage("restored") },
+        ],
+      });
+      await pendingHistory;
+    });
+
+    expect(render.mock.calls.length).toBeGreaterThan(rendersBeforeHistory);
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "restored",
+    ]);
+  });
+
   it("loads a history adapter that arrives on a later render", async () => {
     const { client } = createMockClient();
     const history = createHistory();
