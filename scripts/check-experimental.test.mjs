@@ -287,6 +287,43 @@ test("compares merged declarations inside namespaces and classes", () => {
   );
 });
 
+test("leaves declarations inside implementations out of the API", () => {
+  assert.deepEqual(
+    check(
+      [
+        "export function run() {",
+        "  const unstable_local = 1;",
+        `  /** ${TAG} */`,
+        "  const unstable_tagged = unstable_local;",
+        "  return {} as { unstable_cast?: string };",
+        "}",
+        "export const read = (options: { unstable_option?: boolean }) => options;",
+      ].join("\n"),
+    ),
+    [
+      "src/index.ts:4 (unstable_tagged): a declaration inside an implementation is not API; remove the tag.",
+      'src/index.ts:7 (unstable_option): experimental API without "@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release.".',
+    ],
+  );
+});
+
+test("rejects an @experimental tag beside the experimental @deprecated tag", () => {
+  assert.deepEqual(
+    check(
+      [
+        "/**",
+        ` * ${TAG}`,
+        " * @experimental This API is experimental and may change in future versions.",
+        " */",
+        "export const unstable_flag = true;",
+      ].join("\n"),
+    ),
+    [
+      "src/index.ts:5 (unstable_flag): @experimental duplicates the experimental @deprecated tag; use that tag instead.",
+    ],
+  );
+});
+
 test("rejects a second @deprecated tag and an empty one", () => {
   assert.deepEqual(
     check(

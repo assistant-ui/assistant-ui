@@ -99,6 +99,22 @@ function descriptions(node) {
   );
 }
 
+function insideImplementation(node) {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (
+      ts.isBlock(parent) ||
+      ts.isAsExpression(parent) ||
+      ts.isSatisfiesExpression(parent) ||
+      ts.isTypeAssertionExpression(parent) ||
+      ts.isCallExpression(parent) ||
+      ts.isNewExpression(parent)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function scopeOf(node) {
   return ts.isVariableDeclaration(node)
     ? node.parent.parent.parent
@@ -197,6 +213,21 @@ export function checkSource({ file, source, today }) {
   };
 
   const visit = (node) => {
+    if (
+      (node.jsDoc ?? []).some((doc) =>
+        (doc.tags ?? []).some((tag) => tag.tagName.text === "experimental"),
+      )
+    ) {
+      report(
+        node,
+        declarationName(
+          ts.isVariableStatement(node)
+            ? node.declarationList.declarations[0]
+            : node,
+        ) ?? "@experimental",
+        "@experimental duplicates the experimental @deprecated tag; use that tag instead.",
+      );
+    }
     if (ts.isExportDeclaration(node) && deprecatedTags(node).length > 0) {
       report(
         node,
@@ -214,7 +245,19 @@ export function checkSource({ file, source, today }) {
       });
     } else if (isNamedDeclaration(node)) {
       const name = declarationName(node);
-      if (name !== undefined) {
+      if (name !== undefined && insideImplementation(node)) {
+        if (
+          deprecatedTags(node).some(
+            (tag) => parseDeprecatedTag(tag).kind === "experimental",
+          )
+        ) {
+          report(
+            node,
+            name,
+            "a declaration inside an implementation is not API; remove the tag.",
+          );
+        }
+      } else if (name !== undefined) {
         const required = EXPERIMENTAL_NAME.test(name);
         checkSite(node, name, { required, inherits: false });
         const status = required && lifecycleStatus(node);
