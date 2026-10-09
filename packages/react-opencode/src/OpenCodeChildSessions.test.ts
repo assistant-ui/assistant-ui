@@ -33,10 +33,11 @@ const createFixture = () => {
   const createController = vi.fn((sessionId: string) => {
     const unsubscribe = vi.fn();
     const discard = vi.fn();
+    const childState = createOpenCodeThreadState(sessionId);
     children.set(sessionId, { unsubscribe, discard });
     return {
       controller: {
-        getState: () => createOpenCodeThreadState(sessionId),
+        getState: () => childState,
         subscribe: vi.fn(() => unsubscribe),
         load: vi.fn().mockResolvedValue(undefined),
       },

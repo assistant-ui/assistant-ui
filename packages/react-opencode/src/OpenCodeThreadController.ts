@@ -412,11 +412,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             this.getEventSource,
             childSessionId,
           );
-          controller.childSessions.ancestorSessionIds = new Set([
-            ...ancestorSessionIds,
-            childSessionId,
-          ]);
-          controller.childSessions.isChildSession = true;
+          controller.childSessions.adoptAsChild(ancestorSessionIds);
           controller.permissionRecoveryToken = this.permissionRecoveryToken;
           controller.questionRecoveryToken = this.questionRecoveryToken;
           controller.interactionRecoveryEvents = this.interactionRecoveryEvents;

@@ -36,12 +36,24 @@ export class OpenCodeChildSessions<TController extends ChildController> {
   >();
   private readonly childSessionIdByPartId = new Map<string, string>();
   private readonly options: ChildSessionsOptions<TController>;
-  ancestorSessionIds: ReadonlySet<string>;
-  isChildSession = false;
+  private ancestorSessionIds: ReadonlySet<string>;
+  private isChild = false;
 
   constructor(options: ChildSessionsOptions<TController>, sessionId: string) {
     this.options = options;
     this.ancestorSessionIds = new Set([sessionId]);
+  }
+
+  get isChildSession() {
+    return this.isChild;
+  }
+
+  adoptAsChild(parentAncestorSessionIds: ReadonlySet<string>) {
+    this.ancestorSessionIds = new Set([
+      ...parentAncestorSessionIds,
+      ...this.ancestorSessionIds,
+    ]);
+    this.isChild = true;
   }
 
   *controllers(): IterableIterator<TController> {
