@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 
 export const WORKFLOW_FILE = ".github/workflows/deploy-examples.yaml";
 
@@ -131,7 +132,7 @@ export function planDeploys(repoRoot, changedFiles) {
   return { matrix: { include }, any: include.length > 0 };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   const repoRoot = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "..",

@@ -182,6 +182,7 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
       "lib/workspace.mjs",
       "lib/script-options.mjs",
       "lib/changed-files.mjs",
+      "lib/main.mjs",
     ]) {
       cpSync(new URL(file, import.meta.url), path.join(repo, "scripts", file));
     }

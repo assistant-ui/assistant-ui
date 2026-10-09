@@ -2,8 +2,8 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { changedFilesSince } from "./lib/changed-files.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { hasOption, optionArgs, optionValues } from "./lib/script-options.mjs";
 import { apiSurfaceFileName, collectPackages } from "./lib/workspace.mjs";
 
@@ -122,4 +122,4 @@ function main() {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isExecutedAsMain(import.meta.url, process.argv[1])) main();
