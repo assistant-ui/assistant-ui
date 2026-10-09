@@ -21,7 +21,7 @@ async function renderPage() {
 }
 
 describe("OssPage", () => {
-  it("renders project-qualified links for every destination", async () => {
+  it("renders flagship, major, and minor project links and project-qualified destination links", async () => {
     const page = await renderPage();
 
     const link = (name: string, href: string) => {
@@ -33,32 +33,19 @@ describe("OssPage", () => {
       expect(element?.getAttribute("href")).toBe(href);
     };
 
-    link("assistant-ui on docs", "/docs");
+    link("assistant-ui homepage", "/");
+    const flagship = page.querySelector('[aria-label="assistant-ui project"]');
+    expect(flagship?.querySelectorAll("a")).toHaveLength(1);
+    link("Safe Content Frame on website", "/safe-content-frame");
+    link("@assistant-ui/tap on docs", "/docs/tap");
+    link("@assistant-ui/store on docs", "/docs/store/why-store");
     link(
-      "assistant-ui on GitHub",
-      "https://github.com/assistant-ui/assistant-ui",
+      "assistant-stream on GitHub",
+      "https://github.com/assistant-ui/assistant-ui/tree/main/packages/assistant-stream",
     );
-    link(
-      "@assistant-ui/tap on GitHub",
-      "https://github.com/assistant-ui/assistant-ui/tree/main/packages/tap",
-    );
-    link(
-      "@assistant-ui/store on GitHub",
-      "https://github.com/assistant-ui/assistant-ui/tree/main/packages/store",
-    );
-    link(
-      "assistant-ui on npm",
-      "https://www.npmjs.com/package/@assistant-ui/react",
-    );
-    link(
-      "assistant-stream on npm",
-      "https://www.npmjs.com/package/assistant-stream",
-    );
-    link(
-      "assistant-stream on PyPI",
-      "https://pypi.org/project/assistant-stream/",
-    );
-    link("skills on GitHub", "https://github.com/assistant-ui/skills");
-    link("tool-ui on website", "https://tool-ui.com");
+    expect(
+      page.querySelector('a[aria-label="assistant-stream on npm"]'),
+    ).toBeNull();
+    link("tw-shimmer on website", "/tw-shimmer");
   });
 });

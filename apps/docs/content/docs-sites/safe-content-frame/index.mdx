@@ -1,0 +1,51 @@
+---
+title: Introduction
+description: Sandboxes for HTML. Render untrusted content in an iframe that runs on its own domain.
+---
+
+`safe-content-frame` renders untrusted HTML, PDF, or any other content inside a sandboxed iframe. Every render is served from its own hashed subdomain of `scf.auiusercontent.com`, a separate site from your app, so scripts in the frame cannot reach your app's cookies, storage, or window even with `allow-scripts` set.
+
+The package is framework-agnostic JavaScript with no React or DOM-framework dependency.
+
+## Install
+
+<InstallCommand npm={["safe-content-frame"]} />
+
+## Render HTML
+
+```ts
+import { SafeContentFrame } from "safe-content-frame";
+
+const frame = new SafeContentFrame("my-app");
+
+const container = document.getElementById("preview")!;
+const rendered = await frame.renderHtml(modelGeneratedHtml, container);
+
+await rendered.fullyLoadedPromiseWithTimeout(5000);
+
+rendered.sendMessage({ type: "theme", value: "dark" });
+
+// later
+rendered.dispose();
+```
+
+The first argument to `SafeContentFrame` is your product identifier. It scopes the hashed origin, so different products on the same domain do not collide.
+
+## Pages
+
+<Cards>
+  <Card title="How it works" href="/safe-content-frame/docs/how-it-works">
+    How each render gets its own domain, and what that changes compared with
+    an iframe sandbox.
+  </Card>
+  <Card title="Usage with MCP Apps" href="/safe-content-frame/docs/mcp-apps">
+    How the assistant-ui MCP Apps renderer mounts widgets in a Safe Content
+    Frame.
+  </Card>
+  <Card title="Usage with Generative UI" href="/safe-content-frame/docs/generative-ui">
+    Render model-generated HTML from a React component.
+  </Card>
+  <Card title="API reference" href="/safe-content-frame/docs/api-reference">
+    The `SafeContentFrame` class, its options, and the rendered frame.
+  </Card>
+</Cards>

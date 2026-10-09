@@ -116,7 +116,7 @@ export default function BrandPage() {
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <Section label="The name">
           <span className="bg-foreground mt-8 block h-10 w-60 [mask-image:url(/brand/logotype.svg)] [mask-size:contain] [mask-position:left_center] [mask-repeat:no-repeat] md:h-14 md:w-[21rem]" />
-          <p className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 font-mono text-[13px]">
+          <p className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 text-[13px]">
             <span>assistant-ui</span>
             <span className="text-muted-foreground/60 line-through">
               Assistant UI
@@ -139,7 +139,7 @@ export default function BrandPage() {
                   className="hero-glint absolute inset-0 block"
                 />
               </div>
-              <p className="text-muted-foreground/70 mt-3 max-w-[20rem] font-mono text-[11px] tracking-wide">
+              <p className="text-muted-foreground/70 mt-3 max-w-[20rem] text-xs">
                 halftone, with the glint
               </p>
             </div>
@@ -153,7 +153,7 @@ export default function BrandPage() {
                   />
                 ))}
               </div>
-              <p className="text-muted-foreground/70 mt-3 font-mono text-[11px] tracking-wide">
+              <p className="text-muted-foreground/70 mt-3 text-xs">
                 144 · 96 · 48 · 24 · 16. The mark holds at favicon size
               </p>
               <div className="mt-10 grid gap-6 sm:grid-cols-2">
@@ -167,7 +167,7 @@ export default function BrandPage() {
                       assistant-ui
                     </span>
                   </div>
-                  <p className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
+                  <p className="text-muted-foreground/70 mt-2 text-xs">
                     ink on paper
                   </p>
                 </div>
@@ -181,7 +181,7 @@ export default function BrandPage() {
                       assistant-ui
                     </span>
                   </div>
-                  <p className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
+                  <p className="text-muted-foreground/70 mt-2 text-xs">
                     paper on ink
                   </p>
                 </div>
@@ -220,11 +220,11 @@ export default function BrandPage() {
                   style={{ backgroundColor: swatch.value }}
                 />
                 <p className="mt-2.5 text-[13px] font-medium">{swatch.name}</p>
-                <p className="text-muted-foreground mt-0.5 font-mono text-[10px] tracking-wide">
+                <p className="text-muted-foreground mt-0.5 font-mono text-xs">
                   {swatch.value}
                 </p>
                 {swatch.note ? (
-                  <p className="text-muted-foreground/60 mt-0.5 font-mono text-[10px] tracking-wide">
+                  <p className="text-muted-foreground/60 mt-0.5 text-xs">
                     {swatch.note}
                   </p>
                 ) : null}
@@ -241,7 +241,7 @@ export default function BrandPage() {
 
         <Section label="The voice">
           <div className="divide-foreground/10 mt-4 flex flex-col divide-y">
-            <VoiceRow name="Display" face="System sans · 500–550">
+            <VoiceRow name="Display" face="Public Sans · 500–550">
               <p className={typeSection}>The frontend library for AI agents.</p>
             </VoiceRow>
             <VoiceRow name="Text" face="Public Sans · 400–500">
@@ -263,7 +263,7 @@ export default function BrandPage() {
                 key={index}
                 className="border-foreground/10 flex items-baseline gap-6 border-b py-3 last:border-b-0"
               >
-                <span className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                <span className="text-muted-foreground/70 text-xs">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="text-sm">{rule}</span>
@@ -285,7 +285,7 @@ export default function BrandPage() {
                   {asset.name}
                   <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
                 </span>
-                <span className="text-muted-foreground mt-1 font-mono text-[11px] tracking-wide">
+                <span className="text-muted-foreground mt-1 font-mono text-xs">
                   {asset.file}
                   <span className="text-muted-foreground/50">
                     {" "}
@@ -326,9 +326,7 @@ function VoiceRow({
     <div className="grid gap-3 py-6 md:grid-cols-[220px_minmax(0,1fr)] md:gap-8">
       <div>
         <p className="text-sm font-medium">{name}</p>
-        <p className="text-muted-foreground mt-0.5 font-mono text-[11px] tracking-wide">
-          {face}
-        </p>
+        <p className="text-muted-foreground mt-0.5 text-xs">{face}</p>
       </div>
       <div className="self-center">{children}</div>
     </div>
