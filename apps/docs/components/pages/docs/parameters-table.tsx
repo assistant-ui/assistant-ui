@@ -149,7 +149,7 @@ const ParametersGroup: FC<ParametersTableProps> = ({ type, parameters }) => {
   return (
     <div className="border-foreground/10 mt-3 border-s ps-4">
       {type && (
-        <div className="text-muted-foreground mb-2 font-mono text-xs font-medium">
+        <div className="text-muted-foreground mb-2 font-mono text-xs font-medium [overflow-wrap:anywhere]">
           {type}
         </div>
       )}
@@ -174,7 +174,7 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   return (
     <div className="not-prose my-6">
       {type && (
-        <div className="text-muted-foreground mb-2 font-mono text-xs font-medium">
+        <div className="text-muted-foreground mb-2 font-mono text-xs font-medium [overflow-wrap:anywhere]">
           {type}
         </div>
       )}
