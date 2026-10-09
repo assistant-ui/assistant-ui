@@ -17,6 +17,7 @@ import {
 } from "@assistant-ui/core/react";
 import {
   httpUrlPattern,
+  isParsableUrl,
   resolveFilePartSource,
   resolveImageMediaType,
 } from "@assistant-ui/core/internal";
@@ -24,17 +25,8 @@ import type {
   DeliveredAttachment,
   FlueConversationMessage,
   FlueConversationPart,
-  FlueConversationSettlement,
 } from "@flue/react";
-
-export type ConvertFlueMessagesOptions = {
-  readonly error?: unknown;
-  readonly isRunning?: boolean | undefined;
-  readonly settlements?: readonly FlueConversationSettlement[] | undefined;
-  readonly getCreatedAt?:
-    | ((message: FlueConversationMessage) => Date)
-    | undefined;
-};
+import type { ConvertFlueMessagesOptions, FlueSendMessage } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -150,12 +142,21 @@ const toUserAttachments = (
     if (part.type !== "file") return [];
     const file = convertFilePart(part);
     if (file === null) return [];
+    const isImage = file.mimeType.startsWith("image/");
     return [
       {
         id: part.id ?? String(index),
-        type: file.mimeType.startsWith("image/") ? "image" : "file",
+        type: isImage ? "image" : "file",
         name: part.filename ?? "file",
-        content: [file],
+        content: [
+          isImage
+            ? {
+                type: "image",
+                image: file.data,
+                ...(part.filename && { filename: part.filename }),
+              }
+            : file,
+        ],
         contentType: file.mimeType,
         status: { type: "complete" },
       },
@@ -274,18 +275,13 @@ export const convertFlueMessages = (
   );
 };
 
-export type FlueSendMessage = {
-  readonly message: string;
-  readonly images?: readonly DeliveredAttachment[] | undefined;
-};
-
 const toDeliveredImage = (
   data: string,
   mimeType: string,
   filename?: string,
 ): DeliveredAttachment => {
   const source = resolveFilePartSource({ data, mimeType });
-  if (source.kind === "url") {
+  if (source.kind === "url" || isParsableUrl(source.data)) {
     throw new Error("Flue image attachments must contain base64 data.");
   }
   const resolvedMimeType = resolveImageMediaType(data, mimeType);

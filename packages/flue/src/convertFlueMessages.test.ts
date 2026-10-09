@@ -70,6 +70,13 @@ describe("convertFlueMessages", () => {
           type: "image",
           name: "image.png",
           contentType: "image/png",
+          content: [
+            {
+              type: "image",
+              image: "https://example.com/image.png",
+              filename: "image.png",
+            },
+          ],
         },
       ],
     });
@@ -188,10 +195,13 @@ describe("convertFlueMessages", () => {
   });
 });
 
-const appendMessage = (content: AppendMessage["content"]): AppendMessage => ({
+const appendMessage = (
+  content: AppendMessage["content"],
+  attachments: AppendMessage["attachments"] = [],
+): AppendMessage => ({
   role: "user",
   content,
-  attachments: [],
+  attachments,
   createdAt: new Date(),
   metadata: { custom: {} },
   parentId: null,
@@ -220,6 +230,38 @@ describe("getFlueSendMessage", () => {
           data: "aGVsbG8=",
           mimeType: "image/png",
           filename: "demo.png",
+        },
+      ],
+    });
+  });
+
+  it("sends composer image attachments with their attachment name", () => {
+    expect(
+      getFlueSendMessage(
+        appendMessage(
+          [{ type: "text", text: "What is this?" }],
+          [
+            {
+              id: "attachment-1",
+              type: "image",
+              name: "photo.png",
+              contentType: "image/png",
+              status: { type: "complete" },
+              content: [
+                { type: "image", image: "data:image/png;base64,aGVsbG8=" },
+              ],
+            },
+          ],
+        ),
+      ),
+    ).toEqual({
+      message: "What is this?",
+      images: [
+        {
+          type: "image",
+          data: "aGVsbG8=",
+          mimeType: "image/png",
+          filename: "photo.png",
         },
       ],
     });
@@ -265,16 +307,13 @@ describe("getFlueSendMessage", () => {
     });
   });
 
-  it("rejects remote image URLs because Flue expects base64 bytes", () => {
+  it.each([
+    "https://example.com/demo.png",
+    "blob:https://example.com/0f1e2d3c",
+    "data:image/svg+xml,%3Csvg%3E%3C/svg%3E",
+  ])("rejects %s because Flue expects base64 bytes", (image) => {
     expect(() =>
-      getFlueSendMessage(
-        appendMessage([
-          {
-            type: "image",
-            image: "https://example.com/demo.png",
-          },
-        ]),
-      ),
+      getFlueSendMessage(appendMessage([{ type: "image", image }])),
     ).toThrow("Flue image attachments must contain base64 data");
   });
 });
