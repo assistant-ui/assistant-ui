@@ -32,6 +32,7 @@ import {
   usePlatform,
 } from "./context";
 import { cn } from "@/lib/utils";
+import { headerSwitcherClassName } from "@/components/shared/header-chrome";
 import { getVisibleUrlsByPlatform } from "./tree";
 
 const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
@@ -81,10 +82,7 @@ export function PlatformSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={cn(
-          "group/platform bg-muted/70 text-foreground hover:bg-muted data-[popup-open]:bg-muted focus-visible:ring-foreground/20 flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-1",
-          className,
-        )}
+        className={cn("group/platform", headerSwitcherClassName, className)}
       >
         <span
           data-docs-platform={platform}
