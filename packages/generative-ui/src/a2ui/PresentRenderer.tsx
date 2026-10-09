@@ -5,8 +5,9 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
-import { A2uiBindingContext } from "./BindingContext";
-import { equalData, reconcileDataModel, resolvePointer } from "./dataModel";
+import { A2uiBindingContext } from "../bindingContext";
+import { equalData } from "../equalData";
+import { reconcileDataModel, resolvePointer } from "./dataModel";
 import { applyA2uiOperations, setAtPointer } from "./reducer";
 import { createLiveSurfaceConverter } from "./convert";
 
