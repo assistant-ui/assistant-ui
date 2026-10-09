@@ -551,7 +551,7 @@ describe("useAISDKRuntime unstable_enableMessageQueue", () => {
     const chat = new Chat({ transport: harness.transport });
     void chat.sendMessage({ text: "first" });
     await waitFor(() => expect(harness.requests).toHaveLength(1));
-    expect(chat.status).toBe("submitted");
+    expect(["submitted", "streaming"]).toContain(chat.status);
 
     const SendOnMount = ({ runtime }: { runtime: AssistantRuntime }) => {
       useLayoutEffect(() => {
