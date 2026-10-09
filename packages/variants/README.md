@@ -284,13 +284,13 @@ The skill finds each block by id alone, which is why group ids should be unique 
 
 ### Agent link
 
-With the dev endpoints mounted (see [Notes](#notes)), run `/variants connect` in Claude Code once. The page and the agent then share a mailbox in `.variants/` at the app root, with no extra process or port:
+With the dev endpoints mounted (see [Notes](#notes)), run `/variants connect` in Claude Code once. The page and the agent then share a mailbox in `.variants/` at the app root, with no separate server or port:
 
 - the sidebar shows **Agent connected** while the agent's heartbeat is fresh (15 seconds);
 - **Send to agent** in the footer sends the same `choose` request that **Copy prompt** would copy, and **Save & send** in the note editor saves a note and asks the agent to apply that group's notes;
 - the agent's acknowledgements and progress appear under each row it's working on.
 
-The dev endpoint appends requests to `.variants/inbox.jsonl`, and the agent appends events to `.variants/outbox.jsonl` and touches `.variants/agent.json`. Add `.variants/` to your `.gitignore`. `/variants disconnect` ends the link, and **Copy prompt** keeps working without it. [DESIGN.md](./DESIGN.md) describes the protocol.
+The dev endpoint appends requests to `.variants/inbox.jsonl`, and the agent appends events to `.variants/outbox.jsonl` and touches `.variants/agent.json`. Add `.variants/` to your app's `.gitignore`. Requests carry the page URL and notes, so keep secrets out of both. `/variants disconnect` ends the link, and **Copy prompt** keeps working without it. [DESIGN.md](./DESIGN.md) describes the protocol.
 
 ## Notes
 
