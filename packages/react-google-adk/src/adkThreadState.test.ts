@@ -9,6 +9,65 @@ const message: AdkMessage = {
 };
 
 describe("reduceAdkThreadState", () => {
+  it("stages messages by id without changing the prior state", () => {
+    const initial = createAdkThreadState();
+    const first = {
+      message: { ...message },
+      runConfig: { custom: { model: "first" } },
+    };
+    const second = {
+      message: { ...message, id: "message-2" },
+      runConfig: { custom: { model: "second" } },
+    };
+
+    const staged = reduceAdkThreadState(initial, {
+      type: "staged.stage",
+      entry: first,
+    });
+    const next = reduceAdkThreadState(staged, {
+      type: "staged.stage",
+      entry: second,
+    });
+
+    expect(initial.stagedEntries).toBeUndefined();
+    expect(staged.stagedEntries?.size).toBe(1);
+    expect([...next.stagedEntries!]).toEqual([
+      ["message-1", first],
+      ["message-2", second],
+    ]);
+    expect(staged.stagedEntries?.size).toBe(1);
+  });
+
+  it("unstages a promoted run and preserves remaining entries through snapshots", () => {
+    const entries = ["message-1", "message-2", "message-3"].map((id) => ({
+      message: { ...message, id },
+      runConfig: undefined,
+    }));
+    const staged = entries.reduce(
+      (state, entry) =>
+        reduceAdkThreadState(state, { type: "staged.stage", entry }),
+      createAdkThreadState(),
+    );
+    const promoted = reduceAdkThreadState(staged, {
+      type: "staged.unstage",
+      ids: ["message-1", "message-2"],
+    });
+    const snapshotted = reduceAdkThreadState(promoted, {
+      type: "snapshot.applied",
+      snapshot: { messages: [message] },
+    });
+
+    expect([...promoted.stagedEntries!.keys()]).toEqual(["message-3"]);
+    expect([...snapshotted.stagedEntries!.keys()]).toEqual(["message-3"]);
+    expect(staged.stagedEntries?.size).toBe(3);
+    expect(
+      reduceAdkThreadState(promoted, {
+        type: "staged.unstage",
+        ids: ["missing"],
+      }),
+    ).toBe(promoted);
+  });
+
   it("merges event deltas and metadata with previous state", () => {
     const previous = {
       ...createAdkThreadState(),

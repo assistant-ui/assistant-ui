@@ -1,3 +1,4 @@
+import type { AppendMessage } from "@assistant-ui/core";
 import type {
   AdkAuthRequest,
   AdkMessage,
@@ -5,6 +6,11 @@ import type {
   AdkThreadSnapshot,
   AdkToolConfirmation,
 } from "./types";
+
+export type AdkStagedEntry = {
+  message: AdkMessage & { id: string };
+  runConfig: AppendMessage["runConfig"];
+};
 
 export type AdkThreadState = {
   messages: AdkMessage[];
@@ -16,6 +22,7 @@ export type AdkThreadState = {
   authRequests: AdkAuthRequest[];
   escalated: boolean;
   messageMetadata: Map<string, AdkMessageMetadata>;
+  stagedEntries?: ReadonlyMap<string, AdkStagedEntry>;
 };
 
 export type AdkThreadAction =
@@ -24,6 +31,8 @@ export type AdkThreadAction =
   | { type: "messages.replaced"; messages: AdkMessage[] }
   | { type: "messages.set"; messages: AdkMessage[] }
   | { type: "longRunningToolIds.set"; ids: string[] }
+  | { type: "staged.stage"; entry: AdkStagedEntry }
+  | { type: "staged.unstage"; ids: readonly string[] }
   | {
       type: "run.started";
       messages: AdkMessage[];
@@ -59,6 +68,7 @@ export const reduceAdkThreadState = (
           next.messageMetadata.size > 0
             ? new Map([...state.messageMetadata, ...next.messageMetadata])
             : state.messageMetadata,
+        ...(state.stagedEntries && { stagedEntries: state.stagedEntries }),
       };
     }
     case "snapshot.applied": {
@@ -73,6 +83,7 @@ export const reduceAdkThreadState = (
         authRequests: snapshot.authRequests ?? [],
         escalated: snapshot.escalated ?? false,
         messageMetadata: snapshot.messageMetadata ?? new Map(),
+        ...(state.stagedEntries && { stagedEntries: state.stagedEntries }),
       };
     }
     case "messages.replaced":
@@ -89,6 +100,17 @@ export const reduceAdkThreadState = (
       return { ...state, messages: action.messages };
     case "longRunningToolIds.set":
       return { ...state, longRunningToolIds: action.ids };
+    case "staged.stage": {
+      const stagedEntries = new Map(state.stagedEntries);
+      stagedEntries.set(action.entry.message.id, action.entry);
+      return { ...state, stagedEntries };
+    }
+    case "staged.unstage": {
+      if (!action.ids.some((id) => state.stagedEntries?.has(id))) return state;
+      const stagedEntries = new Map(state.stagedEntries);
+      for (const id of action.ids) stagedEntries.delete(id);
+      return { ...state, stagedEntries };
+    }
     case "run.started":
       return {
         ...state,
