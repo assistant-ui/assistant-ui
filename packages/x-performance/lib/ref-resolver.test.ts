@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveRefSpecifier } from "./ref-resolver";
