@@ -180,16 +180,21 @@ export async function POST(req: Request) {
 
   const aiSDKTools = await aiToolkit.tools({ frontend: tools });
 
-  const result = streamText({
-    model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
-    tools: aiSDKTools,
-    onFinish: async () => {
-      await aiToolkit.close();
-    },
-  });
+  try {
+    const result = streamText({
+      model: openai("gpt-6-luna"),
+      messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+      tools: aiSDKTools,
+      onFinish: async () => {
+        await aiToolkit.close();
+      },
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    await aiToolkit.close();
+    throw error;
+  }
 }
 ```
 

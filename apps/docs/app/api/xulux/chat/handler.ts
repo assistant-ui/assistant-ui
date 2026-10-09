@@ -224,7 +224,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         : uiMessages;
       const preparedTools = agent.prepareTools({
         body,
-        clientTools: clientTools as FrontendTools,
+        clientTools: (clientTools ?? {}) as FrontendTools,
         routeUrl: req.url,
       });
       if (preparedTools instanceof Response) return preparedTools;

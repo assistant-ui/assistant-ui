@@ -165,7 +165,7 @@ export async function POST(req: Request) {
     const { model, providerOptions } = resolveChatModel();
     const distinctId = getDistinctId(req);
 
-    const aiSDKTools = frontendTools(tools);
+    const aiSDKTools = frontendTools(tools ?? {});
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
       reasoning: "none",
