@@ -95,23 +95,30 @@ export const reduceLangGraphThreadState = (
 ): LangGraphThreadState => {
   switch (action.type) {
     case "messages.remember": {
-      const runConfigByMessageId = new Map(state.runConfigByMessageId);
-      const runConfigByToolCallId = new Map(state.runConfigByToolCallId);
-      const runIdByMessageId = new Map(state.runIdByMessageId);
-      const runIdByToolCallId = new Map(state.runIdByToolCallId);
+      let runConfigByMessageId: Map<string, unknown> | undefined;
+      let runConfigByToolCallId: Map<string, unknown> | undefined;
+      let runIdByMessageId: Map<string, string> | undefined;
+      let runIdByToolCallId: Map<string, string> | undefined;
       for (const message of action.messages) {
         if (message.type !== "ai" && message.type !== "AIMessageChunk")
           continue;
         let owner = action.runConfig;
         const isNewMessage = Boolean(
-          message.id && !runConfigByMessageId.has(message.id),
+          message.id &&
+          !(runConfigByMessageId ?? state.runConfigByMessageId).has(message.id),
         );
         if (message.id) {
-          if (isNewMessage)
+          if (isNewMessage) {
+            runConfigByMessageId ??= new Map(state.runConfigByMessageId);
             runConfigByMessageId.set(message.id, action.runConfig);
-          owner = runConfigByMessageId.get(message.id);
-          if (state.currentRunId && isNewMessage)
+          }
+          owner = (runConfigByMessageId ?? state.runConfigByMessageId).get(
+            message.id,
+          );
+          if (state.currentRunId && isNewMessage) {
+            runIdByMessageId ??= new Map(state.runIdByMessageId);
             runIdByMessageId.set(message.id, state.currentRunId);
+          }
         }
         const toolCalls =
           message.type === "ai"
@@ -123,18 +130,34 @@ export const reduceLangGraphThreadState = (
         for (const toolCall of toolCalls) {
           if (typeof toolCall !== "object" || toolCall === null || !toolCall.id)
             continue;
-          const isNewTool = !runConfigByToolCallId.has(toolCall.id);
-          if (isNewTool) runConfigByToolCallId.set(toolCall.id, owner);
-          if (state.currentRunId && isNewTool)
+          const isNewTool = !(
+            runConfigByToolCallId ?? state.runConfigByToolCallId
+          ).has(toolCall.id);
+          if (isNewTool) {
+            runConfigByToolCallId ??= new Map(state.runConfigByToolCallId);
+            runConfigByToolCallId.set(toolCall.id, owner);
+          }
+          if (state.currentRunId && isNewTool) {
+            runIdByToolCallId ??= new Map(state.runIdByToolCallId);
             runIdByToolCallId.set(toolCall.id, state.currentRunId);
+          }
         }
       }
+      if (
+        !runConfigByMessageId &&
+        !runConfigByToolCallId &&
+        !runIdByMessageId &&
+        !runIdByToolCallId
+      )
+        return state;
       return {
         ...state,
-        runConfigByMessageId,
-        runConfigByToolCallId,
-        runIdByMessageId,
-        runIdByToolCallId,
+        runConfigByMessageId:
+          runConfigByMessageId ?? state.runConfigByMessageId,
+        runConfigByToolCallId:
+          runConfigByToolCallId ?? state.runConfigByToolCallId,
+        runIdByMessageId: runIdByMessageId ?? state.runIdByMessageId,
+        runIdByToolCallId: runIdByToolCallId ?? state.runIdByToolCallId,
       };
     }
     case "messages.seed": {
@@ -186,15 +209,23 @@ export const reduceLangGraphThreadState = (
         ),
       };
     }
-    case "messages.reconciled":
-      return {
-        ...state,
-        autoCancelledToolCallTokens: new Map(
-          [...state.autoCancelledToolCallTokens].filter(
-            ([id]) => !hasToolResult(action.messages, id),
-          ),
-        ),
-      };
+    case "messages.reconciled": {
+      if (state.autoCancelledToolCallTokens.size === 0) return state;
+      let autoCancelledToolCallTokens:
+        | Map<string, readonly LangChainMessage[]>
+        | undefined;
+      for (const id of state.autoCancelledToolCallTokens.keys()) {
+        if (hasToolResult(action.messages, id)) {
+          autoCancelledToolCallTokens ??= new Map(
+            state.autoCancelledToolCallTokens,
+          );
+          autoCancelledToolCallTokens.delete(id);
+        }
+      }
+      return autoCancelledToolCallTokens
+        ? { ...state, autoCancelledToolCallTokens }
+        : state;
+    }
     case "interrupt.set":
       return { ...state, interruptRunConfig: action.runConfig };
     case "run.started": {

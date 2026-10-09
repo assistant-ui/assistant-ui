@@ -45,6 +45,46 @@ describe("reduceLangGraphThreadState", () => {
     expect(second.runIdByToolCallId.get("b")).toBe("1");
   });
 
+  it("keeps state for known chunk IDs and adds new IDs without mutating earlier state", () => {
+    const state = reduceLangGraphThreadState(createLangGraphThreadState(), {
+      type: "messages.remember",
+      messages: [ai("m", ["a"])],
+      runConfig: "first",
+    });
+    const known = reduceLangGraphThreadState(state, {
+      type: "messages.remember",
+      messages: [
+        {
+          type: "AIMessageChunk",
+          id: "m",
+          tool_call_chunks: [{ index: 0, id: "a", name: "tool" }],
+        },
+      ],
+      runConfig: "second",
+    });
+    expect(known).toBe(state);
+
+    const added = reduceLangGraphThreadState(state, {
+      type: "messages.remember",
+      messages: [ai("m", ["a", "b"])],
+      runConfig: "second",
+    });
+    expect(added).not.toBe(state);
+    expect(added.runConfigByToolCallId.get("b")).toBe("first");
+    expect(state.runConfigByToolCallId.has("b")).toBe(false);
+    expect(added.runConfigByMessageId).toBe(state.runConfigByMessageId);
+
+    const newMessage = reduceLangGraphThreadState(state, {
+      type: "messages.remember",
+      messages: [ai("n", [])],
+      runConfig: "second",
+    });
+    expect(newMessage).not.toBe(state);
+    expect(newMessage.runConfigByMessageId.get("n")).toBe("second");
+    expect(state.runConfigByMessageId.has("n")).toBe(false);
+    expect(newMessage.runConfigByToolCallId).toBe(state.runConfigByToolCallId);
+  });
+
   it("records chunk tool calls and seeds loaded ownership without a run ID", () => {
     const chunked = reduceLangGraphThreadState(createLangGraphThreadState(), {
       type: "messages.remember",
@@ -302,6 +342,27 @@ describe("reduceLangGraphThreadState", () => {
       messages: [tool("b")],
     });
     expect(state.autoCancelledToolCallTokens.size).toBe(0);
+  });
+
+  it("keeps state when reconciliation has no matching cancellation token", () => {
+    const state = createLangGraphThreadState();
+    expect(
+      reduceLangGraphThreadState(state, {
+        type: "messages.reconciled",
+        messages: [],
+      }),
+    ).toBe(state);
+
+    const pending = reduceLangGraphThreadState(state, {
+      type: "cancellations.add",
+      messages: [tool("a")],
+    });
+    expect(
+      reduceLangGraphThreadState(pending, {
+        type: "messages.reconciled",
+        messages: [tool("b")],
+      }),
+    ).toBe(pending);
   });
 
   it("clears a new turn, edit results, and initial load at their existing boundaries", () => {
