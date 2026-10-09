@@ -1036,8 +1036,10 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   abstract exportExternalState(): any;
   abstract importExternalState(state: any): void;
   abstract unstable_notifySessionReset(): void;
-  protected _voiceMessages: ThreadMessage[];
-  protected _voiceGeneration: number;
+  protected get _voiceMessages(): ThreadMessage[];
+  protected set _voiceMessages(messages: ThreadMessage[]);
+  protected get _voiceGeneration(): number;
+  protected set _voiceGeneration(generation: number);
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
@@ -1045,13 +1047,13 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _dropVoiceMessage(messageId: string, notify: boolean): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
-  readonly composer: DefaultThreadComposerRuntimeCore;
+  readonly composer: any;
   constructor(_contextProvider: ModelContextProvider);
   getModelContext(): ModelContext$1;
   protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
   __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore>;
-  protected _isVoiceMessage(messageId: string | null): boolean;
+  protected _isVoiceMessage(messageId: string | null): any;
   protected _resolveAppendParent(parentId: string | null): string | null;
   beginEdit(messageId: string): void;
   getMessageById(messageId: string): {
@@ -1067,15 +1069,16 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   speech: SpeechState | undefined;
   speak(messageId: string): void;
   stopSpeaking(): void;
-  voice: VoiceSessionState | undefined;
-  getVoiceVolume: () => number;
+  get voice(): VoiceSessionState | undefined;
+  set voice(value: VoiceSessionState | undefined);
+  getVoiceVolume: () => any;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   protected _onVoiceConnected(): void;
   protected _onVoiceDisconnected(): void;
   protected _isRunActive(): boolean;
   protected _getVoiceCommitBarrier(): Promise<void> | undefined;
   connectVoice(): void;
-  protected _appendToVoiceSession(message: AppendMessage): Promise<void>;
+  protected _appendToVoiceSession(message: AppendMessage): Promise<any>;
   disconnectVoice(): void;
   muteVoice(): void;
   unmuteVoice(): void;
