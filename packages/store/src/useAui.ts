@@ -59,6 +59,7 @@ import {
 import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import { isDevelopment } from "./utils/env";
+import { useTrackedSyncExternalStore } from "./utils/scoped-signal";
 
 export type ClientRef = {
   parent: AssistantClient;
@@ -299,8 +300,12 @@ export const useAuiRoot = ({
   // memoized: a fresh object here marks the context changed on every update,
   // which defeats the deps bailout of every resource that reads it.
   const tapContextValue = useMemo(
-    () => ({ clientRef, emit: notifications.emit }),
-    [clientRef, notifications.emit],
+    () => ({
+      clientRef,
+      emit: notifications.emit,
+      markChanged: notifications.markChanged,
+    }),
+    [clientRef, notifications.emit, notifications.markChanged],
   );
 
   const accessors = useAssistantTapContextProvider(
@@ -430,10 +435,8 @@ const useDerivedScopeMount = (
   const { get } = element.args[0] as {
     get: (client: AssistantClient) => ClientMethods;
   };
-  const value = useSyncExternalStore(
-    parent.subscribe,
-    () => get(parent),
-    () => get(parent),
+  const value = useTrackedSyncExternalStore(parent.subscribe, () =>
+    get(parent),
   );
 
   const meta = useScopeMeta(element);

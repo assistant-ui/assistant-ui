@@ -1,15 +1,18 @@
-import { useSyncExternalStore, useDebugValue } from "react";
+import { useDebugValue } from "react";
 import type { AssistantState } from "./types/client";
 import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
+import { useTrackedSyncExternalStore } from "./utils/scoped-signal";
 
 /**
  * Subscribes to a slice of {@link AssistantState} and re-renders the
  * component whenever that slice changes.
  *
- * The `selector` is called on every store update; its return value is
- * compared by `Object.is`, and the component re-renders only when the
- * selected slice changes. Returning the entire state object is not
+ * The `selector` runs again when a client whose state it read, or a list
+ * whose items it looked up, changes; a selector that reads nothing through
+ * the store runs on every store update. Its return value is compared by
+ * `Object.is`, and the component re-renders only when the selected slice
+ * changes. Returning the entire state object is not
  * supported and throws at runtime — select a specific field instead, or
  * compose multiple `useAuiState` calls. Returning a new object or array
  * literal, including spreading `s.thread` into a new object, causes a
@@ -42,10 +45,8 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
 
-  const slice = useSyncExternalStore(
-    aui.subscribe,
-    () => selector(proxiedState),
-    () => selector(proxiedState),
+  const slice = useTrackedSyncExternalStore(aui.subscribe, () =>
+    selector(proxiedState),
   );
 
   if (
