@@ -15,7 +15,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
     })) as typeof import("@assistant-ui/store").useAuiState,
 }));
 
-import { flueExtras, type FlueRuntimeExtras } from "./flueExtras";
+import { flueExtras } from "./flueExtras";
+import type { FlueRuntimeExtras } from "./types";
 import { useFlueRuntimeExtras } from "./hooks";
 
 afterEach(() => {

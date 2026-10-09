@@ -5,11 +5,11 @@ export {
   convertFlueMessages,
   getFlueSendMessage,
 } from "./convertFlueMessages";
+export { useFlueRuntime } from "./useFlueRuntime";
+export { useFlueRuntimeExtras } from "./hooks";
 export type {
   ConvertFlueMessagesOptions,
+  FlueRuntimeExtras,
   FlueSendMessage,
-} from "./convertFlueMessages";
-export { useFlueRuntime } from "./useFlueRuntime";
-export type { UseFlueRuntimeOptions } from "./useFlueRuntime";
-export { useFlueRuntimeExtras } from "./hooks";
-export type { FlueRuntimeExtras } from "./flueExtras";
+  UseFlueRuntimeOptions,
+} from "./types";

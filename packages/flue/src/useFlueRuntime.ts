@@ -4,45 +4,17 @@ import { useMemo } from "react";
 import {
   pickExternalStoreSharedOptions,
   toAssistantError,
-  type AppendMessage,
-  type AttachmentAdapter,
-  type DictationAdapter,
-  type ExternalStoreSharedOptions,
-  type FeedbackAdapter,
-  type RealtimeVoiceAdapter,
-  type SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
-import {
-  useFlueAgent,
-  type SendMessageOptions,
-  type UseFlueAgentOptions,
-} from "@flue/react";
+import { useFlueAgent } from "@flue/react";
 import { createFlueClient } from "@flue/sdk";
 import { convertFlueMessage, getFlueSendMessage } from "./convertFlueMessages";
 import { flueExtras } from "./flueExtras";
-
-type FlueSendOptions = Omit<SendMessageOptions, "images">;
-
-export type UseFlueRuntimeOptions = UseFlueAgentOptions &
-  ExternalStoreSharedOptions & {
-    readonly adapters?:
-      | {
-          readonly attachments?: AttachmentAdapter | undefined;
-          readonly speech?: SpeechSynthesisAdapter | undefined;
-          readonly dictation?: DictationAdapter | undefined;
-          readonly voice?: RealtimeVoiceAdapter | undefined;
-          readonly feedback?: FeedbackAdapter | undefined;
-        }
-      | undefined;
-    readonly getSendOptions?:
-      | ((message: AppendMessage) => FlueSendOptions | undefined)
-      | undefined;
-  };
+import type { UseFlueRuntimeOptions } from "./types";
 
 /** Connect a durable Flue conversation to an assistant-ui runtime. */
 export const useFlueRuntime = (options: UseFlueRuntimeOptions = {}) => {
@@ -97,7 +69,15 @@ export const useFlueRuntime = (options: UseFlueRuntimeOptions = {}) => {
         settlements: agent.settlements,
         status: agent.status,
       }),
-    [agent],
+    [
+      agent.error,
+      agent.failedSends,
+      agent.historyReady,
+      agent.messages,
+      agent.refresh,
+      agent.settlements,
+      agent.status,
+    ],
   );
 
   return useExternalStoreRuntime({
