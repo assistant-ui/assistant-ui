@@ -843,6 +843,78 @@ describe("switcher edge cases", () => {
     }
   });
 
+  it("shows a linked agent, sends choices and notes, and shows its status per group", async () => {
+    const original = globalThis.fetch;
+    const requests: { kind: string; pairs: string[] }[] = [];
+    globalThis.fetch = (async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
+      const url = String(input);
+      const reply = (body: unknown, status = 200) =>
+        new Response(JSON.stringify(body), { status });
+      if (url.endsWith("/ping")) return reply({ ok: true, version: 1 });
+      if (url.includes("/agent/requests")) {
+        requests.push(JSON.parse(String(init!.body)));
+        return reply({ id: `r-${requests.length}` }, 201);
+      }
+      if (url.includes("/agent"))
+        return reply({
+          connected: true,
+          events: requests.length
+            ? [{ id: "o-1", re: "r-1", type: "done", text: "Kept Split" }]
+            : [],
+        });
+      if (init?.method === "POST") return reply({ id: "n-00000001" }, 201);
+      return reply({ notes: [] });
+    }) as typeof fetch;
+    try {
+      renderWithStore(<Hero default="b" />);
+      await settle();
+      await settle();
+      expect(store.getSnapshot().agent.connected).toBe(true);
+      expect(
+        switcherRoot().querySelector<HTMLElement>("[data-agent-badge]")!.hidden,
+      ).toBe(false);
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Send to agent" }),
+      );
+      await settle();
+      expect(requests[0]).toMatchObject({ kind: "choose", pairs: ["hero:b"] });
+      const status = () =>
+        switcherRoot().querySelector<HTMLElement>(
+          '[data-agent-status="hero"]',
+        )!;
+      expect(status().textContent).toBe("Agent: Sent to the agent");
+      fireEvent.click(
+        switcher().ui.getByRole("button", {
+          name: "Collapse variant switcher",
+        }),
+      );
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Expand variant switcher" }),
+      );
+      await settle();
+      expect(status().textContent).toBe("Agent: Kept Split");
+
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Add a note to Hero" }),
+      );
+      const field = switcher().ui.getByRole("textbox", {
+        name: "Note for Hero",
+      }) as HTMLTextAreaElement;
+      fireEvent.input(Object.assign(field, { value: "tighter" }));
+      fireEvent.click(
+        switcher().ui.getByRole("button", { name: "Save & send" }),
+      );
+      await settle();
+      await settle();
+      expect(requests[1]).toMatchObject({ kind: "apply", pairs: ["hero:b"] });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
   it("notes the innermost group on Alt-click and ignores clicks in the sidebar", async () => {
     renderWithStore(
       <Variants id="outer" label="Outer">

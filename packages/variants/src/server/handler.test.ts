@@ -487,6 +487,31 @@ describe("adapters", () => {
     expect(await status("plugin.test:5173")).toBe(200);
     expect(await status("app.vite.test")).toBe(200);
     expect(await status("evil.example")).toBe(403);
+    const crashed = await new Promise<number>((resolve) => {
+      const res = {
+        statusCode: 0,
+        setHeader: () => {},
+        end: () => resolve(res.statusCode),
+      };
+      middleware!(
+        {
+          method: "GET",
+          url: "/ping",
+          headers: new Proxy(
+            {},
+            {
+              get: () => {
+                throw new Error("broken headers");
+              },
+            },
+          ),
+          async *[Symbol.asyncIterator]() {},
+        },
+        res,
+        () => {},
+      );
+    });
+    expect(crashed).toBe(500);
   });
 
   it("lets Next.js route handlers allow another dev host", async () => {

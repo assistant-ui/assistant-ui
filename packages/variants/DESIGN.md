@@ -1,50 +1,46 @@
-# Design note: a live link to the coding agent (not built)
+# Design note: the local agent link
 
-**Decisions so far:**
+The default hand-off is copy and paste: `/variants choose …` plus notes, either in source or after ` -- notes:`. The agent link sends the same requests straight to a coding agent working in the same checkout, and shows its progress on the sidebar rows. It adds no process, port or service: the dev endpoint that already writes notes into source is the only server, the page talks to it, and the agent talks to the filesystem.
 
-- Connecting is a skill step, `/variants connect <url>`, with no npx helper. A draft of the step is in `.claude/skills/variants/SKILL.md`.
-- By default the link reuses the existing checkout Durable Object host with a `variants` binding, rather than a separate worker. That host is harness-sdk's `apps/checkout-worker`, outside this repo.
+## Mailbox
 
-Today the hand-off is copy and paste: `/variants choose …` plus notes, either in source or after ` -- notes:`. This note proposes pushing choices, notes and "apply" to the user's coding agent as they happen, by reusing the docs setup wizard's statewire link.
+The dev endpoint (`@assistant-ui/variants/vite` or `/next`) keeps a mailbox in `.variants/` at the app root (Vite's `root`, or the Next app's working directory). The sidebar's first `GET /__variants/ping` creates the directory, and the directory is gitignored.
 
-## What the wizard does today
+| File | Written by | Contents |
+| --- | --- | --- |
+| `inbox.jsonl` | the dev endpoint | one request per line: `{ id, ts, kind: "choose" \| "apply", pairs, notes, page }` |
+| `outbox.jsonl` | the agent | one event per line: `{ id, ts, re, type: "ack" \| "status" \| "done", text?, ok?, reload? }` |
+| `agent.json` | the agent | `{ kind, cwd, startedAt, pid? }`, touched every 5 seconds as a heartbeat |
 
-The wizard is statewire's replicated state behind a Cloudflare Durable Object. That Durable Object lives in harness-sdk's `apps/checkout-worker`, not in this repo; the docs app only has the client side, in `apps/docs/lib/checkout/*`:
+- **Append-only JSONL:** each side only appends to its own file, so there are no read-modify-write races, and a partial last line is skipped.
+- **Ids are time-ordered** (`r-<base36 ms>-<hex>` for requests, `o-<epoch ms>-<n>` for events), so each side resumes after the last id it saw. When that id is gone (the files were rotated), the reader starts from the top.
+- **Presence** is `agent.json`'s mtime: the agent counts as connected while the file was touched in the last 15 seconds. When the agent's session ends, its heartbeat stops and the sidebar stops showing it within 15 seconds.
+- **Caps:** the endpoint refuses to grow an inbox past 1 MiB (507) and reads at most the last 1 MiB of the outbox. `/variants connect` truncates both files.
 
-- **The link:** the browser makes a random link id, stores it in localStorage and reuses it across setups. The link URL `${NEXT_PUBLIC_CHECKOUT_URL}/<id>` is the only credential.
-- **Connecting the agent:** the user copies a prompt that runs `npx setup-agent <url>`.
-- **Transports:** the browser joins over `StatewireWebsocket`; the agent uses `StatewireClient` with `StatewireHttp`.
-- **Messages:** both sides send typed commands against one server-owned state per link. The browser sends commands such as `checkout/answer`; the agent sends commands such as `agent/hello`, `agent/heartbeat`, `agent/step`, `agent/log`, `agent/ack` and `agent/done`. The server rejects invalid transitions with a reason.
-- **Presence:** the agent sends a heartbeat every 5 seconds and counts as present for 15 seconds after the last one.
-- **Secrets:** they never enter the shared state; they go through `PUT <url>/secret/<inputId>`.
+## Endpoints
 
-## Proposal
+- `GET /__variants/agent?after=<event id>` returns `{ connected, agent, events }`, with the outbox events after `after`.
+- `POST /__variants/agent/requests` appends a request and returns `{ id }`. It answers 409 when no agent is connected, so the page falls back to **Copy prompt**.
 
-**Reuse the existing Durable Object host with a new binding, not a new service.** Statewire already routes `/<binding>/<instance>`, so variants adds a `variants` binding next to `checkout` in the same worker. Each binding has its own state schema and rules, so the two can't read or write each other's state, while deployment, websocket handling, presence and the HTTP agent transport stay shared.
+## Page
 
-**What's generic and what's specific:**
+- While the sidebar is open and the endpoints answer, the sidebar polls `GET /agent` every 1.5 seconds. Polling is simpler than SSE across both adapters, and the files are small.
+- When an agent is connected, the header shows **Agent connected**, the footer gets **Send to agent** (a `choose` request for every mounted group), and the note editor gets **Save & send** (saves the note, then sends an `apply` request for that group).
+- Each event updates the status line under the rows its request covered. A `done` event with `reload: true` reloads the page; Vite and Next usually hot-reload without it.
+- **Copy prompt** stays, and it's the only hand-off when no agent is connected.
 
-- **Generic:** the link (a random id per browser profile and project origin), the transports, presence and heartbeats, the acknowledgement pattern, and reconnecting after the machine wakes. This is worth extracting from `lib/checkout` into a small `agent-link` module that both the wizard and variants import.
-- **Specific to variants:** the state schema and commands, roughly:
-  - **State:** `{ origin, page, groups: [{ id, label, variants, selected, parent }], notes: [...], requests: [...], agent: { connected, lastSeenAt, status } }`
-  - **Page commands:** `variants/snapshot` (mounted groups and their selections), `variants/note` and `variants/note-delete` (the session-mode notes), and `variants/request` with `{ kind: "choose", pairs } | { kind: "apply" }`.
-  - **Agent commands:** `agent/hello`, `agent/heartbeat`, `agent/ack { requestId }`, `agent/status { requestId, text }` (for example "applying 2 notes…"), and `agent/done { requestId, reload?: boolean }`.
+## Agent
 
-**User flow:**
+`/variants connect` and `/variants disconnect` are skill steps (`.claude/skills/variants/SKILL.md`), with no helper script:
 
-1. The sidebar footer gets **Connect agent**, next to **Copy prompt**. It shows a one-line prompt, `/variants connect <url>`, for the user to paste once.
-2. The skill's `connect` step joins over statewire's HTTP transport, the same `StatewireClient` + `StatewireHttp` pair the CLI uses in `packages/cli/src/lib/cloud-setup-login.ts`. It then loops: read a request, act on it, report back.
-3. From then on, **Choose**, **Apply notes** and saving a note send commands instead of copying text.
-4. The row shows the agent's status line. On `done` with `reload`, the page offers a reload; Vite and Next usually hot-reload by themselves.
-5. Notes written into source still go through the local dev endpoints, which remain the source of truth. The link only carries intent and status.
+1. Find the app's `.variants/` directory, truncate the inbox and outbox, and write `agent.json`.
+2. Run one background command that touches `agent.json` every 5 seconds and runs `tail -n 0 -F .variants/inbox.jsonl`. In Claude Code, run it with `run_in_background` and watch its output with the Monitor tool, so each new line wakes the session.
+3. For each request, append an `ack`, do exactly what the pasted `/variants choose` or `/variants apply` would do, then append `done`.
+4. An agent without background notifications polls instead: it reads the inbox after the last id it handled at the start of each turn, or on `/variants apply`.
 
 ## Security
 
-- **Pairing is the link.** It's a bearer URL, like the wizard's. It's created in the browser and shown only to the user, and it carries no other secret. It expires after 24 hours of inactivity, and **Disconnect** rotates it.
-- **Origin binding:** the first page to join records its `origin`, and the Durable Object rejects page commands from any other `Origin`. Only `http://localhost:*`, `*.localhost` and origins the app explicitly allowlists may join, because this is a dev tool.
-- **Agent authority:** the agent never takes instructions from free text in the state. A request is a typed command, either `choose` with validated `group:variant` pairs or `apply`. The skill does exactly what `/variants choose` or `/variants apply` would do on a paste: the same file search, the same validation, and asking when anything is ambiguous. Note text is treated as a change request for the marked region only, never as a command to run. The agent acknowledges every request, so the page can show what was picked up.
-- **Nothing in production:** the sidebar doesn't render there, and the binding refuses page joins from origins that aren't allowed.
-
-## Open question
-
-- A separate worker would keep apps outside assistant-ui from depending on the checkout host. It's not planned unless that becomes a requirement.
+- **The same guards as the note endpoints:** development only, the `Host` must be loopback or explicitly allowed (this stops DNS rebinding), the `x-variants` header, same-origin, JSON bodies of at most 64 KB, and validated ids and lengths.
+- **Typed requests only:** the endpoint accepts exactly what a pasted command could say: `choose` with 1 to 50 `group:variant` pairs, or `apply`, plus notes validated like `POST /notes`. The agent validates each line again and ignores anything else.
+- **Note text is untrusted data.** It describes a UI change to the marked region only, never a command to run, a file to touch outside the region, or a change of scope. When a note asks for more, the agent shows it to the user before acting.
+- **No secrets** enter the mailbox, and nothing runs in production: the sidebar doesn't render there, and the endpoints answer 404.

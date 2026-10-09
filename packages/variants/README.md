@@ -282,6 +282,16 @@ Paste the line into Claude Code. The `variants` skill then resolves each group:
 
 The skill finds each block by id alone, which is why group ids should be unique across the app.
 
+### Agent link
+
+With the dev endpoints mounted (see [Notes](#notes)), run `/variants connect` in Claude Code once. The page and the agent then share a mailbox in `.variants/` at the app root, with no extra process or port:
+
+- the sidebar shows **Agent connected** while the agent's heartbeat is fresh (15 seconds);
+- **Send to agent** in the footer sends the same `choose` request that **Copy prompt** would copy, and **Save & send** in the note editor saves a note and asks the agent to apply that group's notes;
+- the agent's acknowledgements and progress appear under each row it's working on.
+
+The dev endpoint appends requests to `.variants/inbox.jsonl`, and the agent appends events to `.variants/outbox.jsonl` and touches `.variants/agent.json`. Add `.variants/` to your `.gitignore`. `/variants disconnect` ends the link, and **Copy prompt** keeps working without it. [DESIGN.md](./DESIGN.md) describes the protocol.
+
 ## Notes
 
 Notes are change requests for the coding agent, attached to a variant or a whole group. To write one:
@@ -320,7 +330,7 @@ export { GET, POST, DELETE } from "@assistant-ui/variants/next";
 
 How the endpoints behave:
 
-- **Routes:** they live under `/__variants`: `GET /ping`, `GET /notes?groups=a,b`, `POST /notes` with body `{ group, variant?, note, hint? }`, and `DELETE /notes/:id?group=…`.
+- **Routes:** they live under `/__variants`: `GET /ping`, `GET /notes?groups=a,b`, `POST /notes` with body `{ group, variant?, note, hint? }`, `DELETE /notes/:id?group=…`, and for the [agent link](#agent-link) `GET /agent?after=…` and `POST /agent/requests`.
 - **Finding the file:** the server scans the project root for the one file that declares `<Variants id="group">`, skipping `node_modules`, `.git`, `dist`, `.next`, `build`, `out` and dot-directories. If there's no such file, or more than one, it refuses.
 - **What it changes:** it only ever inserts or deletes a marker. The one exception is a self-closing `<Variant />`, which gains a closing tag so the marker has somewhere to go.
 - **Parsing:** it uses a small JSX-aware tokenizer rather than the TypeScript compiler API, because TypeScript 7 ships no JavaScript API. Tags and markers inside comments, strings, template literals, regular expressions, and MDX code fences or inline code are ignored.

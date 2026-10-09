@@ -5,6 +5,7 @@ import {
   onConfigChange,
   shortcutLabel,
 } from "./config";
+import { createAgentLink } from "./agent";
 import { NAME } from "./name";
 import { groupNodes, measureNodes } from "./nodes";
 import { highlightGroup } from "./outline";
@@ -123,8 +124,8 @@ code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, m
   border-radius: 6px; background: var(--bg-subtle); color: var(--fg); font: inherit; white-space: pre-wrap;
 }
 .editor textarea:focus-visible { outline: 1.5px solid var(--ring); outline-offset: 0; }
-.editor-actions { display: flex; align-items: center; gap: 6px; }
-.editor-actions .where { color: var(--fg-muted); font-size: 11px; margin-right: auto; }
+.editor-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.editor-actions .where { flex: 1 1 auto; color: var(--fg-muted); font-size: 11px; }
 .editor-error { color: #b91c1c; font-size: 11px; }
 @media (prefers-color-scheme: dark) { .editor-error { color: #fca5a5; } }
 .desc {
@@ -152,6 +153,13 @@ footer {
   border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 11px;
 }
 footer .text-btn { margin-left: auto; }
+footer .send:not([hidden]) + .text-btn { margin-left: 0; }
+.agent { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--fg-muted); white-space: nowrap; }
+.agent::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+.agent[hidden], .send[hidden], .agent-status[hidden] { display: none; }
+.agent-status { margin-top: 2px; padding-left: 2px; font-size: 11px; line-height: 16px; color: var(--fg-muted); overflow-wrap: anywhere; }
+.agent-status[data-ok="false"] { color: #b91c1c; }
+@media (prefers-color-scheme: dark) { .agent-status[data-ok="false"] { color: #fca5a5; } }
 kbd {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px;
   border-radius: 4px; box-shadow: inset 0 0 0 1px var(--border); background: var(--bg-subtle);
@@ -324,6 +332,12 @@ const renderRow = (meta: GroupMeta, groups: readonly GroupMeta[]) => {
       ),
     ),
     h("div", { class: "desc", id: descId, "data-desc": meta.id }),
+    h("div", {
+      class: "agent-status",
+      role: "status",
+      "data-agent-status": meta.id,
+      hidden: "",
+    }),
     h("div", { class: "notes", "data-notes": meta.id, hidden: "" }),
     h("div", { class: "editor", "data-editor": meta.id, hidden: "" }),
   );
@@ -349,6 +363,16 @@ const renderPanel = (snapshot: Snapshot): HTMLElement => {
     h("span", { class: "dot", "aria-hidden": "true" }),
     h("span", { class: "title" }, "Variants"),
     h("span", { class: "count" }, `${snapshot.groups.length}`),
+    h(
+      "span",
+      {
+        class: "agent",
+        "data-agent-badge": "",
+        title: "A coding agent is linked through .variants/",
+        hidden: "",
+      },
+      "Agent connected",
+    ),
     h(
       "div",
       { class: "tools" },
@@ -386,6 +410,18 @@ const renderPanel = (snapshot: Snapshot): HTMLElement => {
           h("kbd", { "aria-hidden": "true" }, shortcutLabel(shortcut)),
         ]
       : []),
+    h(
+      "button",
+      {
+        type: "button",
+        class: "text-btn send",
+        "data-action": "send",
+        "data-key": "send",
+        title: "Send /variants choose with the selected variants to the agent",
+        hidden: "",
+      },
+      "Send to agent",
+    ),
     copyButton({ "data-action": "copy", "data-key": "copy" }),
   );
 
@@ -698,6 +734,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
   };
 
   const notes = createNotes(store);
+  const agent = createAgentLink(store);
   const expandedNotes = new Set<string>();
   const renderedNotes = new Map<string, string>();
 
@@ -833,13 +870,33 @@ export const mountSwitcher = (store: Store): (() => void) => {
           },
           "Save",
         ),
+        ...(store.getSnapshot().agent.connected
+          ? [
+              h(
+                "button",
+                {
+                  type: "button",
+                  class: "text-btn",
+                  "data-action": "save-send",
+                  "data-group": group,
+                  title: "Save, then ask the agent to apply this group's notes",
+                },
+                "Save & send",
+              ),
+            ]
+          : []),
       ),
     );
     editor.hidden = false;
     textarea.focus();
   };
 
-  const saveNote = async (group: string) => {
+  const sendToAgent = async (kind: "choose" | "apply", group?: string) => {
+    const failure = await agent.send(kind, group);
+    live.textContent = failure ?? "Sent to the agent";
+  };
+
+  const saveNote = async (group: string, send = false) => {
     const editor = rowPart(group, "[data-editor]");
     const textarea = editor?.querySelector("textarea");
     const error = editor?.querySelector<HTMLElement>(".editor-error");
@@ -869,6 +926,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     renderNotes(group, store.getSnapshot());
     live.textContent = "Note saved";
     byKey(`${group}:note`)?.focus();
+    if (send) await sendToAgent("apply", group);
   };
 
   // Alt-click inside a variant opens a note for the innermost group there,
@@ -949,7 +1007,22 @@ export const mountSwitcher = (store: Store): (() => void) => {
       updateRail(meta.id);
       describe(meta.id);
       renderNotes(meta.id, snapshot);
+      const status = rowPart(meta.id, "[data-agent-status]");
+      const latest = snapshot.agent.status[meta.id];
+      if (status) {
+        status.hidden = !latest;
+        status.textContent = latest ? `Agent: ${latest.text}` : "";
+        if (latest?.ok === false) status.setAttribute("data-ok", "false");
+        else status.removeAttribute("data-ok");
+      }
     }
+    for (const element of root.querySelectorAll<HTMLElement>(
+      "[data-agent-badge], [data-action=send]",
+    ))
+      element.hidden = !snapshot.agent.connected;
+    agent.setActive(
+      !host.hidden && !snapshot.collapsed && snapshot.notesMode === "server",
+    );
     for (const [id, row] of rows) {
       row.element.toggleAttribute(
         "data-highlight",
@@ -1085,6 +1158,10 @@ export const mountSwitcher = (store: Store): (() => void) => {
       else openEditor(group);
     } else if (action === "save-note" && group) {
       void saveNote(group);
+    } else if (action === "save-send" && group) {
+      void saveNote(group, true);
+    } else if (action === "send") {
+      void sendToAgent("choose");
     } else if (action === "cancel-note" && group) {
       closeEditor(group);
       byKey(`${group}:note`)?.focus();
@@ -1270,6 +1347,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
 
   return () => {
     unsubscribe();
+    agent.setActive(false);
     unsubscribeConfig();
     sheet?.removeEventListener?.("change", onSheetChange);
     highlightGroup(undefined);

@@ -1,5 +1,13 @@
 import { readFile, realpath } from "node:fs/promises";
 import { relative } from "node:path";
+import {
+  appendRequest,
+  ensureMailbox,
+  presence,
+  readEvents,
+  type AgentNote,
+  type AgentRequest,
+} from "./agent";
 import { deleteNote, insertNote, listNotes, type SourceNote } from "./markers";
 import { isMdx, locateGroup, sourceFiles, writeSource } from "./project";
 
@@ -153,6 +161,66 @@ type NoteBody = {
   hint?: unknown;
 };
 
+const validNote = (value: unknown): AgentNote | undefined => {
+  const { group, variant, note, hint } = (value ?? {}) as NoteBody;
+  if (typeof group !== "string" || !ID.test(group)) return undefined;
+  if (
+    variant !== undefined &&
+    (typeof variant !== "string" || !ID.test(variant))
+  )
+    return undefined;
+  if (typeof note !== "string" || !note.trim() || note.length > MAX_NOTE)
+    return undefined;
+  if (
+    hint !== undefined &&
+    (typeof hint !== "string" || hint.length > MAX_HINT)
+  )
+    return undefined;
+  return {
+    group,
+    ...(variant === undefined ? {} : { variant }),
+    note: note.trim(),
+    ...(hint ? { hint } : {}),
+  };
+};
+
+/** Accepts exactly what a pasted `/variants choose` or `/variants apply` could say. */
+const parseAgentRequest = (body: unknown) => {
+  const { kind, pairs, notes, page } = (body ?? {}) as Record<string, unknown>;
+  if (kind !== "choose" && kind !== "apply") return "invalid kind";
+  if (
+    !Array.isArray(pairs) ||
+    pairs.length > 50 ||
+    (kind === "choose" && pairs.length === 0) ||
+    !pairs.every(
+      (pair) =>
+        typeof pair === "string" &&
+        pair.split(":").length === 2 &&
+        pair.split(":").every((part) => ID.test(part)),
+    )
+  )
+    return "invalid pairs";
+  const parsedNotes = Array.isArray(notes) ? notes.map(validNote) : [];
+  if (
+    (notes !== undefined && !Array.isArray(notes)) ||
+    parsedNotes.length > 50 ||
+    parsedNotes.includes(undefined)
+  )
+    return "invalid notes";
+  if (
+    typeof page !== "string" ||
+    page.length > 2000 ||
+    !/^https?:\/\//.test(page)
+  )
+    return "invalid page";
+  return {
+    kind: kind as AgentRequest["kind"],
+    pairs: pairs as string[],
+    notes: parsedNotes as AgentNote[],
+    page,
+  };
+};
+
 const publicNote = (root: string, file: string, note: SourceNote) => ({
   ...note,
   file: relative(root, file),
@@ -184,8 +252,32 @@ export const handleNotesRequest = async (
     const url = parsePath(request.path);
     if (!url) return fail(400, "invalid path");
     const root = await realpath(options.root);
-    if (method === "GET" && url.pathname === "/ping")
+    if (method === "GET" && url.pathname === "/ping") {
+      await ensureMailbox(root);
       return { status: 200, body: { ok: true, version: 1 } };
+    }
+
+    if (method === "GET" && url.pathname === "/agent") {
+      const agent = await presence(root);
+      const after = url.searchParams.get("after") ?? undefined;
+      return {
+        status: 200,
+        body: {
+          connected: agent !== undefined,
+          agent: agent ?? null,
+          events: await readEvents(root, after),
+        },
+      };
+    }
+
+    if (method === "POST" && url.pathname === "/agent/requests") {
+      const parsed = parseAgentRequest(await request.json());
+      if (typeof parsed === "string") return fail(400, parsed);
+      if (!(await presence(root))) return fail(409, "no agent is connected");
+      const result = await appendRequest(root, parsed);
+      if (!result.ok) return fail(result.status, result.error);
+      return { status: 201, body: { id: result.id } };
+    }
 
     if (method === "GET" && url.pathname === "/notes") {
       const groups = (url.searchParams.get("groups") ?? "")

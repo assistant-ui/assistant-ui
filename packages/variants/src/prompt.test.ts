@@ -63,6 +63,7 @@ const snapshot = {
   highlight: undefined,
   notes: [],
   notesMode: "session",
+  agent: { connected: false, status: {} },
 } satisfies Snapshot;
 
 afterEach(() => {

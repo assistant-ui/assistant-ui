@@ -30,6 +30,17 @@ export type Snapshot = {
   notes: readonly ClientNote[];
   /** Where notes live: source files through the dev endpoints, or this tab. */
   notesMode: "probing" | "server" | "session";
+  /** The coding agent linked through the dev endpoint's mailbox, and its latest status per group. */
+  agent: {
+    connected: boolean;
+    status: Readonly<Record<string, AgentStatus>>;
+  };
+};
+
+export type AgentStatus = {
+  type: "sent" | "ack" | "status" | "done";
+  text: string;
+  ok: boolean | undefined;
 };
 
 export type ClientNote = {
@@ -62,6 +73,7 @@ export type Store = {
     source: "switcher" | "page",
   ) => void;
   setNotes: (notes: readonly ClientNote[], mode: "server" | "session") => void;
+  setAgent: (agent: Snapshot["agent"]) => void;
   reset: () => void;
 };
 
@@ -80,6 +92,7 @@ const INITIAL: Snapshot = Object.freeze({
   highlight: undefined,
   notes: [],
   notesMode: "probing",
+  agent: { connected: false, status: {} },
 });
 
 export const storageKey = (group: string) => `${NAME}:${group}`;
@@ -331,6 +344,15 @@ export const createStore = (
       }
       if (current?.group === group && current.source === source) return;
       emit({ highlight: { group, source } });
+    },
+    setAgent(agent) {
+      const current = snapshot.agent;
+      if (
+        current.connected === agent.connected &&
+        JSON.stringify(current.status) === JSON.stringify(agent.status)
+      )
+        return;
+      emit({ agent });
     },
     setNotes(notes, notesMode) {
       emit({ notes: [...notes], notesMode });
