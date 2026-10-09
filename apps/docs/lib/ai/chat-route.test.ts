@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { UIMessage } from "ai";
+import type { ModelMessage, UIMessage } from "ai";
 
 const mocks = vi.hoisted(() => ({
   convertToModelMessages: vi.fn((messages: unknown) => messages),
@@ -45,22 +45,44 @@ describe("chat route plumbing", () => {
     });
   });
 
-  it("shares quote conversion and the docs pruning policy", async () => {
+  it("forwards quoted messages through conversion and docs pruning", async () => {
     const tools = {};
+    const message: UIMessage = {
+      id: "quoted-message",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+      metadata: { custom: { quote: { text: "quoted" } } },
+    };
+    const pruned: ModelMessage[] = [
+      { role: "user", content: "> quoted\n\nhello" },
+    ];
+    const converted: ModelMessage[] = [
+      { role: "assistant", content: "" },
+      ...pruned,
+    ];
+    mocks.convertToModelMessages.mockReturnValueOnce(
+      Promise.resolve(converted),
+    );
+    mocks.pruneMessages.mockReturnValueOnce(pruned);
 
-    await prepareDocChatMessages(messages, tools);
+    const result = await prepareDocChatMessages([message], tools);
 
     expect(mocks.convertToModelMessages).toHaveBeenCalledWith(
-      expect.arrayContaining(messages),
+      [
+        {
+          ...message,
+          parts: [{ type: "text", text: "> quoted\n\n" }, ...message.parts],
+        },
+      ],
       { tools },
     );
-    expect(mocks.convertToModelMessages.mock.calls[0]?.[0]).not.toBe(messages);
     expect(mocks.pruneMessages).toHaveBeenCalledWith({
-      messages,
+      messages: converted,
       toolCalls: "before-last-2-messages",
       reasoning: "none",
       emptyMessages: "remove",
     });
+    expect(result).toEqual(pruned);
   });
 
   it("binds cancellation, telemetry, provider options, and finish metadata", () => {
