@@ -90,7 +90,7 @@ export default function Page(props: {
         </header>
         <figure className="mt-10 lg:mt-1">
           <GlyphPlate scene={scene} />
-          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
             <span>fig. {String(fig).padStart(2, "0")}</span>
             <span>{scene.name}</span>
           </figcaption>

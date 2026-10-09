@@ -75,7 +75,7 @@ export function ElementPager({ slug }: { slug: string }) {
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger
           aria-label="Jump to element"
-          className="text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground flex h-7 items-center rounded-sm px-1.5 font-mono text-[11px] tabular-nums transition-colors"
+          className="text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground flex h-7 items-center rounded-sm px-1.5 text-xs tabular-nums transition-colors"
         >
           {String(element.index).padStart(2, "0")}
           <span className="text-foreground/30 px-1">/</span>
@@ -94,7 +94,7 @@ export function ElementPager({ slug }: { slug: string }) {
           </div>
           <div className="max-h-80 overflow-y-auto p-2">
             {sections.length === 0 && (
-              <p className="text-muted-foreground px-2 py-1.5 font-mono text-[11px]">
+              <p className="text-muted-foreground px-2 py-1.5 text-xs">
                 Nothing matches.
               </p>
             )}

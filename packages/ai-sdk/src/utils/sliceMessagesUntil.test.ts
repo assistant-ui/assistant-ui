@@ -31,18 +31,14 @@ describe("sliceMessagesUntil", () => {
     ]);
   });
 
-  it("extends the slice to include trailing assistant messages", () => {
+  it("stops at the target even when assistant messages follow it", () => {
     const messages = [
       msg("u1", "user"),
       msg("a1", "assistant"),
       msg("a2", "assistant"),
       msg("u2", "user"),
     ];
-    expect(sliceMessagesUntil(messages, "u1").map((m) => m.id)).toEqual([
-      "u1",
-      "a1",
-      "a2",
-    ]);
+    expect(sliceMessagesUntil(messages, "u1").map((m) => m.id)).toEqual(["u1"]);
   });
 
   it("returns the whole array when the target is the last message", () => {

@@ -90,15 +90,17 @@ export function getProject(): Project {
   if (_project) return _project;
   _project = new Project({
     tsConfigFilePath: path.join(DOCS_ROOT, "tsconfig.json"),
-    // The docs tsconfig `include`s the entire Next.js app + `.next/types/**`
-    // + every workspace package reachable through path mappings, which costs
-    // ~3.4 s of project bootstrap and loads ~1,100 source files we never look
-    // at. Skip the tsconfig auto-add and explicitly preload the package
-    // source trees this generator analyzes (see GENERATOR_SOURCE_GLOBS).
+    // The docs tsconfig also includes the Next.js app and generated routes.
     skipAddingFilesFromTsConfig: true,
   });
   for (const glob of GENERATOR_SOURCE_GLOBS) {
-    _project.addSourceFilesAtPaths(glob);
+    // Test module augmentations would otherwise change the documented public types.
+    _project.addSourceFilesAtPaths([
+      glob,
+      `!${path.join(REPO_ROOT, "packages/**/{tests,__tests__}/**")}`,
+      `!${path.join(REPO_ROOT, "packages/**/*.{test,spec,bench}.{ts,tsx}")}`,
+      `!${path.join(REPO_ROOT, "packages/**/testUtils.{ts,tsx}")}`,
+    ]);
   }
   // Note: do NOT eagerly add primitive source globs here. Doing so changes
   // ts-morph's intersection property iteration order (legacy api-surface

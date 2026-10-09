@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { changedFilesSince } from "./changed-files.mjs";
+import {
+  changedFilesSince,
+  committedRangeChangedFiles,
+} from "./changed-files.mjs";
 
 const gitEnv = {
   ...process.env,
@@ -77,6 +80,76 @@ test("changedFilesSince reports git failures", () => {
       () => changedFilesSince("missing-revision", repoRoot, gitEnv),
       /Unable to determine changed files since missing-revision/,
     );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("committedRangeChangedFiles resolves the fork point and honors pathspecs", () => {
+  const repoRoot = makeRepo();
+  try {
+    const base = runGit(repoRoot, ["rev-parse", "HEAD"]);
+    writeFileSync(path.join(repoRoot, "plain.txt"), "after");
+    writeFileSync(path.join(repoRoot, "line\nbreak.txt"), "after");
+    runGit(repoRoot, ["add", "--all"]);
+    runGit(repoRoot, [
+      "-c",
+      "user.email=test@example.com",
+      "-c",
+      "user.name=Test",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      "head",
+    ]);
+    const head = runGit(repoRoot, ["rev-parse", "HEAD"]);
+    assert.deepEqual(committedRangeChangedFiles(repoRoot, base, head), {
+      forkPoint: base,
+      files: ["line\nbreak.txt", "plain.txt"],
+    });
+    assert.deepEqual(
+      committedRangeChangedFiles(repoRoot, base, head, ["--", "plain.txt"])
+        .files,
+      ["plain.txt"],
+    );
+    assert.throws(() => committedRangeChangedFiles(repoRoot, "missing", head));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("committedRangeChangedFiles diffs a diverged head from its fork point", () => {
+  const repoRoot = makeRepo();
+  const commit = (message) =>
+    runGit(repoRoot, [
+      "-c",
+      "user.email=test@example.com",
+      "-c",
+      "user.name=Test",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      message,
+    ]);
+  try {
+    const forkPoint = runGit(repoRoot, ["rev-parse", "HEAD"]);
+    writeFileSync(path.join(repoRoot, "head.txt"), "head");
+    runGit(repoRoot, ["add", "--all"]);
+    commit("head");
+    const head = runGit(repoRoot, ["rev-parse", "HEAD"]);
+    runGit(repoRoot, ["checkout", "--quiet", forkPoint]);
+    writeFileSync(path.join(repoRoot, "base.txt"), "base");
+    runGit(repoRoot, ["add", "--all"]);
+    commit("base");
+    const base = runGit(repoRoot, ["rev-parse", "HEAD"]);
+    assert.deepEqual(committedRangeChangedFiles(repoRoot, base, head), {
+      forkPoint,
+      files: ["head.txt"],
+    });
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }

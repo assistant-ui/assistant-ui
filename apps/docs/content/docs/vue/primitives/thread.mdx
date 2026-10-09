@@ -1,0 +1,131 @@
+---
+title: Thread
+description: Build the scrollable message list with auto-scroll, a scroll-to-bottom button, a pinned footer, and an empty state.
+---
+
+The thread primitives arrange a message list inside a viewport that follows new content while the reader is at the bottom. Put the empty state, message rows, scroll button, and composer in that viewport:
+
+```vue title="app/components/Thread.vue"
+<script setup lang="ts">
+import {
+  AuiIf,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  ThreadPrimitiveMessages,
+  ThreadPrimitiveRoot,
+  ThreadPrimitiveScrollToBottom,
+  ThreadPrimitiveViewport,
+  ThreadPrimitiveViewportFooter,
+} from "@assistant-ui/vue";
+import Message from "~/components/assistant-ui/message.vue";
+</script>
+
+<template>
+  <ThreadPrimitiveRoot class="flex h-full min-h-0 flex-col">
+    <ThreadPrimitiveViewport
+      class="relative flex min-h-0 flex-1 flex-col overflow-y-auto"
+    >
+      <AuiIf :condition="(s) => s.thread.isEmpty">
+        <div class="flex flex-1 items-center justify-center p-6 text-center">
+          <p>Start a conversation</p>
+        </div>
+      </AuiIf>
+      <ol class="flex flex-col gap-6 p-4 empty:hidden">
+        <ThreadPrimitiveMessages>
+          <Message />
+        </ThreadPrimitiveMessages>
+      </ol>
+      <ThreadPrimitiveScrollToBottom
+        class="bg-background sticky bottom-20 mx-auto rounded-lg px-3 py-2 text-sm disabled:hidden"
+        aria-label="Scroll to bottom"
+      >
+        Scroll to bottom
+      </ThreadPrimitiveScrollToBottom>
+      <ThreadPrimitiveViewportFooter class="bg-background sticky bottom-0 p-4">
+        <div class="flex items-end gap-2 rounded-xl border p-2">
+          <ComposerPrimitiveInput
+            class="min-h-10 flex-1 resize-none bg-transparent p-2 outline-none"
+            placeholder="Send a message..."
+            aria-label="Message"
+            rows="1"
+          />
+          <ComposerPrimitiveSend class="rounded-lg px-3 py-2 disabled:opacity-50">
+            Send
+          </ComposerPrimitiveSend>
+        </div>
+      </ThreadPrimitiveViewportFooter>
+    </ThreadPrimitiveViewport>
+  </ThreadPrimitiveRoot>
+</template>
+```
+
+Render this under an `AuiProvider` with a runtime, as in the [quickstart](/docs/vue/quickstart). `Message` comes from the [styled thread](/docs/vue/components) registry item. The [message primitives](/docs/vue/primitives/message) cover custom rows.
+
+## How the viewport follows new content
+
+`ThreadPrimitiveViewport` follows changes to its content while pinned at the bottom. A user scroll upward unpins it; returning to the bottom pins it again. A pointer gesture also cancels a pending scroll. Without a footer inset, positions within one pixel of the native bottom count as at bottom, as does content that does not overflow. With an inset, positions within that inset plus one pixel count as at bottom.
+
+Expanding a closed disclosure inside a message pauses bottom-follow through later content growth. This includes a control with `aria-expanded="false"` that opens no popup and the summary of a closed `<details>`. Other clicks and text selection keep following. The pause ends when a scroll gesture reaches the bottom, a run starts, the selected thread changes, or `ThreadPrimitiveScrollToBottom` is used.
+
+`autoScroll` gates following content changes while pinned. The other three props gate one scroll each: when the first messages appear after an empty list, when a run starts (`thread.runStart`), and when the selected thread changes (`threads.selectionChanged`). Those three still scroll when `autoScroll` is false. A content resize follows while pinned when either scroll height or viewport height changes, including a shrink. Growing a footer inset follows while pinned; shrinking the inset does not scroll.
+
+## Render each message
+
+`ThreadPrimitiveMessages` renders its default slot once per message. Inside that slot, `s.message` and the edit composer refer to the current message. Each row is keyed by message id, so an in-place update preserves its component state, while a different message in the same position remounts the row. Row state therefore follows message identity. The empty optimistic assistant row stays mounted across updates to that placeholder, then remounts when a real assistant message replaces its id.
+
+## Keep the composer in view
+
+`ThreadPrimitiveViewportFooter` measures its rendered height and top margin into the viewport's bottom inset. Several footers add their heights together. Put the composer inside it and use `class="sticky bottom-0"` to keep it at the viewport bottom; the primitive measures but does not position itself.
+
+## Scroll-to-bottom button
+
+`ThreadPrimitiveScrollToBottom` must sit inside `ThreadPrimitiveViewport` to receive its scroll channel. It is disabled while the viewport is at the bottom. Its `behavior` prop selects the browser scroll behavior when clicked. Outside a viewport it stays disabled and emits a development warning once.
+
+## Parts
+
+### ThreadPrimitiveRoot
+
+Renders a `<div>` around the thread. While mounted, its Escape listener stops active speech playback. It has no props.
+
+### ThreadPrimitiveViewport
+
+Renders the scrollable `<div>` and supplies the footer and scroll button with viewport state. Give it a height constraint and `overflow-y-auto`; `class` and native listeners pass through to its `<div>`.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `autoScroll` | `boolean` | `true` | Follow content size changes while pinned. |
+| `scrollToBottomOnInitialize` | `boolean` | `true` | Scroll when messages first appear after an empty list. |
+| `scrollToBottomOnRunStart` | `boolean` | `true` | Scroll when a run starts. |
+| `scrollToBottomOnThreadSwitch` | `boolean` | `true` | Scroll when the selected thread changes. |
+
+### ThreadPrimitiveViewportFooter
+
+Renders a `<div>` and registers its height with the nearest viewport. It has no props.
+
+### ThreadPrimitiveScrollToBottom
+
+Renders a `<button type="button">` that scrolls the nearest viewport to the bottom. A `disabled` attribute also disables it.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `behavior` | `ScrollBehavior` | `"auto"` | Scroll behavior used on click. |
+
+### ThreadPrimitiveMessages
+
+Renders no element of its own. Its default slot renders once per message, keyed by id, with that message's scope. It has no props.
+
+### ThreadPrimitiveSuggestions
+
+Renders no element of its own. Its default slot renders once per suggestion with `s.suggestion` scoped to it. See [Suggestion](/docs/vue/primitives/suggestion).
+
+### MessageByIdProvider
+
+Renders no element of its own. Use it directly when iterating message ids yourself and the row must keep its `s.message` and edit composer scope as messages move.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `id` | `string` | Required | Id of the message to scope to the slot. |
+
+## Compared with React
+
+Vue has no counterpart for React's top anchoring (`turnAnchor` and `topAnchorMessageClamp`), `ThreadPrimitive.ViewportProvider`, `ThreadPrimitive.LoadEarlier`, or the `ThreadPrimitive.Row` used for virtualized lists. Use `AuiIf` where React uses `ThreadPrimitive.Empty` or `ThreadPrimitive.If`.

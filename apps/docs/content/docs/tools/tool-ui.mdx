@@ -227,29 +227,32 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    getWeather: tool({
+      description: "Get current weather for a location",
+      inputSchema: zodSchema(
+        z.object({
+          location: z.string(),
+          unit: z.enum(["celsius", "fahrenheit"]),
+        }),
+      ),
+      execute: async ({ location, unit }) => {
+        const weather = await fetchWeatherAPI(location);
+        return {
+          temperature: weather.temp,
+          description: weather.condition,
+          humidity: weather.humidity,
+          windSpeed: weather.wind,
+        };
+      },
+    }),
+  };
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      getWeather: tool({
-        description: "Get current weather for a location",
-        inputSchema: zodSchema(
-          z.object({
-            location: z.string(),
-            unit: z.enum(["celsius", "fahrenheit"]),
-          }),
-        ),
-        execute: async ({ location, unit }) => {
-          const weather = await fetchWeatherAPI(location);
-          return {
-            temperature: weather.temp,
-            description: weather.condition,
-            humidity: weather.humidity,
-            windSpeed: weather.wind,
-          };
-        },
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -762,7 +765,7 @@ For the opposite pattern (showing partial data as it streams in), see [Field-Lev
 
 ### Field-Level Streaming State
 
-Use `useToolArgsStatus` to react to per-field streaming state. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. Call it inside a tool-call message part context:
+Use `useToolArgsStatus` to distinguish argument streaming from tool execution. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives, and `argsStatus` tracks completion of the full arguments object. Call it inside a tool-call message part context:
 
 ```tsx
 import { useToolArgsStatus } from "@assistant-ui/react";
@@ -771,13 +774,13 @@ const toolkit = defineToolkit({
   submitForm: {
     type: "backend",
     render: ({ args }) => {
-      const { propStatus } = useToolArgsStatus<{
+      const { argsStatus, propStatus } = useToolArgsStatus<{
         email: string;
         phone: string;
       }>();
 
       return (
-        <form className="space-y-4">
+        <form className="space-y-4" aria-busy={argsStatus === "streaming"}>
           <div>
             <input
               type="email"
@@ -801,6 +804,14 @@ const toolkit = defineToolkit({
   },
 });
 ```
+
+`argsStatus` remains `"streaming"` while the object is partial, even if every field received so far is complete. Once the object is complete it becomes `"complete"`, including while the hook's `status` remains `"running"` during tool execution. A field absent from `propStatus` is not in the current args: while `argsStatus` is `"streaming"` it may still arrive, and once `argsStatus` is `"complete"` it was never sent.
+
+The hook uses parser metadata when available. The AI SDK marks settled tool arguments complete even while tool execution continues, so received fields in `propStatus` become `"complete"` at that point too.
+Without parser metadata, a running part remains conservatively `"streaming"`:
+some runtimes build `argsText` from an incomplete argument snapshot. Any
+non-running lifecycle settles argument streaming. `"complete"` does not
+guarantee valid arguments or a successful tool result.
 
 ### Partial Results & Streaming
 

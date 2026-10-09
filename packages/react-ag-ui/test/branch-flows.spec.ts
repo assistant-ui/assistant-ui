@@ -10,6 +10,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
+import { iterateToolCallParts } from "@assistant-ui/core/internal";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger } from "../src/runtime/logger";
 
@@ -64,6 +65,18 @@ const emitAssistantText = (
   });
   subscriber.onTextMessageEndEvent?.({
     event: { type: "TEXT_MESSAGE_END", messageId },
+  });
+};
+
+const emitReasoning = (subscriber: any, messageId: string, delta: string) => {
+  subscriber.onReasoningMessageStartEvent?.({
+    event: { type: "REASONING_MESSAGE_START", messageId },
+  });
+  subscriber.onReasoningMessageContentEvent?.({
+    event: { type: "REASONING_MESSAGE_CONTENT", messageId, delta },
+  });
+  subscriber.onReasoningMessageEndEvent?.({
+    event: { type: "REASONING_MESSAGE_END", messageId },
   });
 };
 
@@ -1012,5 +1025,395 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
       entries.find(({ message }) => message.id === editedUserId)?.parentId,
     ).toBeNull();
     expect(core.getMessages().map(({ id }) => id)).toEqual([editedUserId]);
+  });
+
+  it.each([
+    { showThinking: true, expected: ["reasoning", "text"] },
+    { showThinking: false, expected: ["text"] },
+  ])(
+    "MESSAGES_SNAPSHOT without reasoning records keeps earlier reasoning only while showThinking is $showThinking",
+    async ({ showThinking, expected }) => {
+      let runCount = 0;
+      let userId = "";
+      const agent = {
+        runAgent: vi.fn(async (input: any, subscriber: any) => {
+          runCount++;
+          if (runCount === 1) {
+            userId = input.messages.find(
+              (m: { role: string }) => m.role === "user",
+            ).id;
+            emitReasoning(subscriber, "reasoning-1", "thinking");
+            emitAssistantText(subscriber, "assistant-1", "Hello.");
+            subscriber.onRunFinalized?.();
+            return;
+          }
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+          subscriber.onRunFinalized?.();
+        }),
+      } as unknown as HttpAgent;
+
+      const core = createCore(agent);
+      await core.append(createAppendMessage());
+      core.updateOptions({ agent, logger: noopLogger, showThinking });
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+
+      const first = core
+        .getMessages()
+        .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+      expect(first.content.map((part) => part.type)).toEqual(expected);
+      expect(first.content.at(-1)).toMatchObject({
+        type: "text",
+        text: "Hello.",
+      });
+      if (showThinking) {
+        expect(first.content[0]).toMatchObject({
+          type: "reasoning",
+          text: "thinking",
+        });
+      }
+    },
+  );
+
+  it("MESSAGES_SNAPSHOT without activity keeps streamed activity after its text", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+          subscriber.onActivitySnapshotEvent?.({
+            event: {
+              type: "ACTIVITY_SNAPSHOT",
+              messageId: "activity-1",
+              activityType: "progress",
+              content: { step: 1 },
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(
+      (core.getMessages()[1] as ThreadAssistantMessage).content,
+    ).toMatchObject([
+      { type: "text", text: "Hello." },
+      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+    ]);
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core
+      .getMessages()
+      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(first.content).toMatchObject([
+      { type: "text", text: "Hello." },
+      { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+    ]);
+  });
+
+  it("MESSAGES_SNAPSHOT without reasoning keeps reasoning around a tool call", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitReasoning(subscriber, "reasoning-a", "A");
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tool-x",
+              toolCallName: "lookup",
+              parentMessageId: "assistant-1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "tool-x" },
+          });
+          emitReasoning(subscriber, "reasoning-b", "B");
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "tool-x",
+                  role: "assistant",
+                  toolCalls: [
+                    {
+                      id: "tool-x",
+                      type: "function",
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                { id: "assistant-1", role: "assistant", content: "Hello." },
+              ],
+            },
+          });
+          emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(
+      (core.getMessages()[1] as ThreadAssistantMessage).content,
+    ).toMatchObject([
+      { type: "reasoning", text: "A" },
+      { type: "tool-call", toolCallId: "tool-x" },
+      { type: "reasoning", text: "B" },
+      { type: "text", text: "Hello." },
+    ]);
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const first = core
+      .getMessages()
+      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(first.content).toMatchObject([
+      { type: "reasoning", text: "A" },
+      { type: "tool-call", toolCallId: "tool-x" },
+      { type: "reasoning", text: "B" },
+      { type: "text", text: "Hello." },
+    ]);
+  });
+
+  it("keeps flattened snapshot tool results on one nested subagent call", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (message: { role: string }) => message.role === "user",
+          ).id;
+          emitReasoning(subscriber, "root-reasoning", "root thinking");
+          emitAssistantText(subscriber, "assistant-1", "Root");
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tool-1",
+              toolCallName: "delegate",
+              parentMessageId: "assistant-1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "tool-1" },
+          });
+          subscriber.onSubagentStartedEvent?.({
+            event: {
+              type: "SUBAGENT_STARTED",
+              subagentRunId: "sub-1",
+              name: "worker",
+              parentToolCallId: "tool-1",
+            },
+          });
+          subscriber.onReasoningMessageStartEvent?.({
+            event: {
+              type: "REASONING_MESSAGE_START",
+              messageId: "reasoning-1",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onReasoningMessageContentEvent?.({
+            event: {
+              type: "REASONING_MESSAGE_CONTENT",
+              messageId: "reasoning-1",
+              delta: "thinking",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onReasoningMessageEndEvent?.({
+            event: {
+              type: "REASONING_MESSAGE_END",
+              messageId: "reasoning-1",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onTextMessageStartEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_START",
+              messageId: "sub-message",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_CONTENT",
+              messageId: "sub-message",
+              delta: "Nested transcript",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onTextMessageEndEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_END",
+              messageId: "sub-message",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onActivitySnapshotEvent?.({
+            event: {
+              type: "ACTIVITY_SNAPSHOT",
+              messageId: "activity-1",
+              activityType: "progress",
+              content: { step: 1 },
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tool-2",
+              toolCallName: "search",
+              subagentRunId: "sub-1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: {
+              type: "TOOL_CALL_END",
+              toolCallId: "tool-2",
+              subagentRunId: "sub-1",
+            },
+          });
+        } else {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: userId, role: "user", content: "hi" },
+                {
+                  id: "assistant-1",
+                  role: "assistant",
+                  content: "Root",
+                  toolCalls: [
+                    {
+                      id: "tool-1",
+                      type: "function",
+                      function: { name: "delegate", arguments: "{}" },
+                    },
+                    {
+                      id: "tool-2",
+                      type: "function",
+                      function: { name: "search", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "tool-result",
+                  role: "tool",
+                  toolCallId: "tool-2",
+                  content: '{"answer":42}',
+                  isError: true,
+                },
+              ],
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const parent = () =>
+      core
+        .getMessages()
+        .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+    expect(
+      [...iterateToolCallParts(parent().content)].filter(
+        ({ toolCallId }) => toolCallId === "tool-2",
+      ),
+    ).toHaveLength(1);
+    expect(
+      parent().content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({
+      messages: [
+        {
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "Nested transcript" },
+            { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+            { type: "tool-call", toolCallId: "tool-2" },
+          ],
+        },
+      ],
+    });
+
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const calls = [...iterateToolCallParts(parent().content)].filter(
+      ({ toolCallId }) => toolCallId === "tool-2",
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      result: { answer: 42 },
+      isError: true,
+    });
+    expect(
+      parent().content.find((part) => part.type === "reasoning"),
+    ).toMatchObject({ text: "root thinking" });
+    expect(
+      parent().content.filter(
+        (part) => part.type === "tool-call" && part.toolCallId === "tool-2",
+      ),
+    ).toHaveLength(0);
+    expect(
+      parent().content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({
+      messages: [
+        {
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "Nested transcript" },
+            { type: "data", name: "agui-activity/progress", data: { step: 1 } },
+            { type: "tool-call", toolCallId: "tool-2", result: { answer: 42 } },
+          ],
+        },
+      ],
+    });
   });
 });

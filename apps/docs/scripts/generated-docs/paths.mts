@@ -11,14 +11,14 @@ export const DOCS_ROOT = path.join(REPO_ROOT, "apps/docs");
 export const REACT_PKG = path.join(REPO_ROOT, "packages/react/src");
 export const REACT_GENERATIVE_UI_PKG = path.join(
   REPO_ROOT,
-  "packages/react-generative-ui/src",
+  "packages/generative-ui/src",
 );
 export const CORE_PKG = path.join(REPO_ROOT, "packages/core/src");
 export const PRIMITIVES_DIR = path.join(REACT_PKG, "primitives");
 export const REACT_INDEX = path.join(REACT_PKG, "index.ts");
 export const REACT_GENERATIVE_UI_INDEX = path.join(
   REACT_GENERATIVE_UI_PKG,
-  "index.ts",
+  "react.ts",
 );
 export const REACT_GENERATIVE_UI_SLACK_INDEX = path.join(
   REACT_GENERATIVE_UI_PKG,

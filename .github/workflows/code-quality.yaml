@@ -14,8 +14,7 @@ on:
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"
       - "scripts/update-api-surface.test.mjs"
-      - "scripts/lib/changed-files.mjs"
-      - "scripts/lib/changed-files.test.mjs"
+      - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -23,6 +22,7 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -37,18 +37,11 @@ on:
       - "scripts/turbo-redis-env.test.mjs"
       - "scripts/prepare-ci-base.mjs"
       - "scripts/prepare-ci-base.test.mjs"
-      - "scripts/coverage-summary.mjs"
-      - "scripts/coverage-summary.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
       - "scripts/typecheck.sh"
       - "scripts/ci-has-tasks.mjs"
       - "scripts/ci-has-tasks.test.mjs"
-      - "scripts/test-redis-inputs.mjs"
-      - "scripts/test-redis-inputs.test.mjs"
-      - "scripts/run-ci-tests.mjs"
-      - "scripts/run-ci-tests.test.mjs"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -56,57 +49,8 @@ on:
       - ".github/workflows/code-quality.yaml"
   pull_request:
     branches: [main]
-    paths:
-      - "packages/**"
-      - "api-surface/**"
-      - "apps/**"
-      - "examples/**"
-      - "templates/**"
-      - "scripts/generate-api-surface.mjs"
-      - "scripts/autofix-install.mjs"
-      - "scripts/autofix-install.test.mjs"
-      - "scripts/update-api-surface.mjs"
-      - "scripts/update-api-surface.test.mjs"
-      - "scripts/lib/changed-files.mjs"
-      - "scripts/lib/changed-files.test.mjs"
-      - "scripts/check-api-surface.mjs"
-      - "scripts/check-built-declarations.mjs"
-      - "scripts/check-built-declarations.test.mjs"
-      - "scripts/check-distribution-barrels.mjs"
-      - "scripts/check-distribution-barrels.test.mjs"
-      - "scripts/check-workspace-ranges.mjs"
-      - "scripts/check-workspace-ranges.test.mjs"
-      - "scripts/check-skills-commit.mjs"
-      - "scripts/check-skills-commit.test.mjs"
-      - "scripts/deploy-examples-changes.mjs"
-      - "scripts/deploy-examples-changes.test.mjs"
-      - "scripts/api-reference-inputs.mjs"
-      - "scripts/api-reference-inputs.test.mjs"
-      - "scripts/*example-bundle*"
-      - "scripts/app-build-inputs.mjs"
-      - "scripts/app-build-inputs.test.mjs"
-      - "scripts/package-build-inputs.mjs"
-      - "scripts/package-build-inputs.test.mjs"
-      - "scripts/turbo-redis-env.test.mjs"
-      - "scripts/prepare-ci-base.mjs"
-      - "scripts/prepare-ci-base.test.mjs"
-      - "scripts/coverage-summary.mjs"
-      - "scripts/coverage-summary.test.mjs"
-      - ".github/workflows/deploy-examples.yaml"
-      - ".github/workflows/expo-native-bundle.yaml"
-      - "scripts/lib/script-options.mjs"
-      - "scripts/typecheck.sh"
-      - "scripts/ci-has-tasks.mjs"
-      - "scripts/ci-has-tasks.test.mjs"
-      - "scripts/test-redis-inputs.mjs"
-      - "scripts/test-redis-inputs.test.mjs"
-      - "scripts/run-ci-tests.mjs"
-      - "scripts/run-ci-tests.test.mjs"
-      - "turbo.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - ".github/workflows/code-quality.yaml"
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -143,6 +87,33 @@ jobs:
       - name: Check resource memoization (React Compiler)
         run: pnpm check:resource-memo
 
+  review-policy:
+    name: Review Policy Scripts
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-buildutils --ignore-scripts
+
+      - name: Test review policy scripts
+        run: pnpm run review-policy:test
+
+      - name: Check review policy synchronization
+        run: node scripts/sync-review-policy.mjs --check
+
   workspace-ranges:
     name: Workspace Ranges
     runs-on: ubuntu-latest
@@ -158,6 +129,9 @@ jobs:
         with:
           runtime: node@24
           install: false
+
+      - name: Test the shared script helpers
+        run: node --test scripts/lib/*.test.mjs
 
       - name: Test the workspace range checker
         run: node --test scripts/check-workspace-ranges.test.mjs
@@ -214,6 +188,8 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE=HEAD^1
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
           else
             BASE="${{ github.event.before }}"
           fi
@@ -285,6 +261,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            pnpm run declarations:check -- --filter="...[${{ github.event.merge_group.base_sha }}]"
           else
             pnpm run declarations:check -- --filter="...[HEAD^1]"
           fi
@@ -316,15 +294,15 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         run: node --test scripts/turbo-redis-env.test.mjs
 
-      # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
       - name: Measure bundle sizes against the base
-        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
+        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.package_build_inputs.outputs.run == 'true'
         env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           set -euo pipefail
-          node packages/x-performance/bin/aui-perf.mjs size --ref HEAD^1 --report "$RUNNER_TEMP/size.md"
+          node packages/x-performance/bin/aui-perf.mjs size --ref "$BASE" --report "$RUNNER_TEMP/size.md"
           if [ -f "$RUNNER_TEMP/size.md" ]; then cat "$RUNNER_TEMP/size.md" >> "$GITHUB_STEP_SUMMARY"; fi
 
       - name: Post the size report as a sticky PR comment
@@ -365,6 +343,8 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE=HEAD^1
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
           else
             BASE="${{ github.event.before }}"
           fi
@@ -380,6 +360,9 @@ jobs:
 
       - name: Test CI task planner
         run: node --test scripts/ci-has-tasks.test.mjs
+
+      - name: Test source-mapped tsconfig paths
+        run: node --test scripts/source-mapped-tsconfigs.test.mjs
 
       - name: Setup pnpm and node.js
         if: steps.app_build_inputs.outputs.run == 'true'
@@ -406,6 +389,9 @@ jobs:
             # PR: Build apps and templates affected by changes compared to base branch
             pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
             pnpm turbo build --filter="{./examples/*}[origin/${{ github.base_ref }}]"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            pnpm turbo build --filter="...[${{ github.event.merge_group.base_sha }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+            pnpm turbo build --filter="{./examples/*}[${{ github.event.merge_group.base_sha }}]"
           else
             # Push to main: Build apps and templates affected by the last commit
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
@@ -439,6 +425,8 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
           else
             BASE="HEAD^1"
           fi
@@ -477,241 +465,12 @@ jobs:
             exit 1
           fi
 
-  test:
-    name: Test Changed Packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      REDIS_URL: redis://127.0.0.1:6379
-    # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-        with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
-
-      - name: Prepare CI comparison base
-        if: github.event_name == 'pull_request'
-        run: node scripts/prepare-ci-base.mjs
-
-      - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
-        with:
-          runtime: node@24
-          cache: false
-          install: false
-
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE=HEAD^1
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
-            package.json \
-            pnpm-lock.yaml \
-            pnpm-workspace.yaml \
-            turbo.json \
-            packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..." --filter="!@assistant-ui/api-surface"
-          else
-            pnpm install --frozen-lockfile
-          fi
-
-      - name: Build packages
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          else
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          fi
-
-      - name: Test Redis service selection
-        run: node --test scripts/test-redis-inputs.test.mjs
-
-      - name: Select Redis test service
-        id: redis
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE=HEAD^1
-          fi
-          run=$(pnpm exec turbo run test --dry=json --filter="...[$BASE]" | node scripts/test-redis-inputs.mjs)
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-
-      - name: Start Redis for selected tests
-        if: steps.redis.outputs.run == 'true'
-        run: |
-          set -euo pipefail
-          docker run --detach --name aui-test-redis --publish 6379:6379 redis:8-alpine
-          for attempt in {1..50}; do
-            if docker exec aui-test-redis redis-cli ping | grep -qx PONG; then
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs aui-test-redis
-          exit 1
-
-      - name: Test CI scheduling
-        run: node --test scripts/run-ci-tests.test.mjs
-
-      - name: Run tests
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Test packages changed compared to base branch
-            node scripts/run-ci-tests.mjs --filter="...[origin/${{ github.base_ref }}]"
-          else
-            # Push to main: Test packages changed in last commit
-            node scripts/run-ci-tests.mjs --filter="...[HEAD^1]"
-          fi
-
-      - name: Run React Compiler tests
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm test:react-compiler
-
-      - name: Stop Redis
-        if: always() && steps.redis.outputs.run == 'true'
-        run: |
-          if docker inspect aui-test-redis > /dev/null 2>&1; then
-            docker rm --force aui-test-redis
-          fi
-
-  coverage:
-    name: Coverage of Changed Packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      REDIS_URL: redis://127.0.0.1:6379
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
-        with:
-          runtime: node@24
-          cache: false
-          install: false
-
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE=HEAD^1
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
-            package.json \
-            pnpm-lock.yaml \
-            pnpm-workspace.yaml \
-            turbo.json \
-            packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
-          else
-            pnpm install --frozen-lockfile
-          fi
-
-      - name: Test the coverage summary
-        run: pnpm run coverage:test
-
-      - name: Build packages
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          else
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-          fi
-
-      - name: Test Redis service selection
-        run: node --test scripts/test-redis-inputs.test.mjs
-
-      - name: Select Redis coverage service
-        id: redis
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE=HEAD^1
-          fi
-          run=$(pnpm exec turbo run test:coverage --dry=json --filter="...[$BASE]" | node scripts/test-redis-inputs.mjs)
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-
-      - name: Start Redis for selected coverage tests
-        if: steps.redis.outputs.run == 'true'
-        run: |
-          set -euo pipefail
-          docker run --detach --name aui-coverage-redis --publish 6379:6379 redis:8-alpine
-          for attempt in {1..50}; do
-            if docker exec aui-coverage-redis redis-cli ping | grep -qx PONG; then
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs aui-coverage-redis
-          exit 1
-
-      # Concurrency 1 for the same reason as the Test job; coverage instrumentation slows each file further.
-      - name: Run tests with coverage
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            FILTER="...[origin/${{ github.base_ref }}]"
-          else
-            FILTER="...[HEAD^1]"
-          fi
-          pnpm turbo test:coverage --concurrency=1 --filter="$FILTER"
-
-      - name: Write the coverage summary
-        if: always()
-        run: pnpm run coverage:summary -- --report "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload coverage reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
-        with:
-          name: coverage
-          path: |
-            packages/*/coverage/
-            apps/*/coverage/
-            examples/*/coverage/
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Stop Redis
-        if: always() && steps.redis.outputs.run == 'true'
-        run: |
-          if docker inspect aui-coverage-redis > /dev/null 2>&1; then
-            docker rm --force aui-coverage-redis
-          fi
-
   typecheck:
     name: Typecheck Changed Packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      CI_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^1' }}
+      CI_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event_name == 'merge_group' && github.event.merge_group.base_sha || 'HEAD^1' }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -742,6 +501,8 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
           else
             BASE=HEAD^1
           fi
@@ -764,6 +525,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             bash scripts/typecheck.sh --continue --filter="...[origin/${{ github.base_ref }}]"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            bash scripts/typecheck.sh --continue --filter="...[${{ github.event.merge_group.base_sha }}]"
           else
             bash scripts/typecheck.sh --continue --filter="...[HEAD^1]"
           fi

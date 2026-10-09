@@ -45,14 +45,14 @@ export function ContextBreakdown({
             "tabular-nums",
             pressure > 0.85
               ? "text-amber-600 dark:text-amber-400"
-              : "text-foreground/35",
+              : "text-muted-foreground",
           )}
         >
           {fmt(used)} / {fmt(limit)}
         </span>
       </div>
 
-      <div className="bg-foreground/[0.06] flex h-2 w-full overflow-hidden rounded-full">
+      <div className="bg-foreground/[0.06] inset-ring-border flex h-2 w-full overflow-hidden rounded-full inset-ring forced-colors:border">
         {segments.map((segment) => {
           const width = share(segment.tokens);
           if (announced(width) === 0) return null;
@@ -66,7 +66,7 @@ export function ContextBreakdown({
               aria-valuenow={announced(width)}
               aria-valuetext={`${fmt(segment.tokens)} of ${fmt(limit)}`}
               className={cn(
-                "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+                "h-full transition-[width] duration-500 ease-out forced-color-adjust-none motion-reduce:transition-none",
                 segment.tint,
               )}
               style={{ width: `${width}%` }}
@@ -80,13 +80,19 @@ export function ContextBreakdown({
           <div key={segment.label} className="flex items-center gap-2">
             <span
               aria-hidden
-              className={cn("size-2 shrink-0 rounded-full", segment.tint)}
+              className={cn(
+                "size-2 shrink-0 rounded-full forced-color-adjust-none",
+                segment.tint,
+              )}
             />
             <span className="text-foreground/70 min-w-0 flex-1 truncate text-[13px]">
               {segment.label}
             </span>
             <span
-              className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}
+              className={cn(
+                mono,
+                "text-muted-foreground shrink-0 tabular-nums",
+              )}
             >
               {fmt(segment.tokens)}
             </span>
@@ -95,13 +101,13 @@ export function ContextBreakdown({
         <div className="flex items-center gap-2">
           <span
             aria-hidden
-            className="bg-foreground/[0.08] size-2 shrink-0 rounded-full"
+            className="bg-foreground/[0.08] inset-ring-border size-2 shrink-0 rounded-full inset-ring forced-colors:border"
           />
-          <span className="text-foreground/35 min-w-0 flex-1 truncate text-[13px]">
+          <span className="text-muted-foreground min-w-0 flex-1 truncate text-[13px]">
             Headroom
           </span>
           <span
-            className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
+            className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
           >
             {fmt(Math.max(0, limit - used))}
           </span>

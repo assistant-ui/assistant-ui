@@ -171,6 +171,29 @@ const getClient = (serverId?: string) => {
   return clientPromise;
 };
 
+const findListedResource = async (
+  client: Awaited<ReturnType<typeof createMCPClient>>,
+  uri: string,
+) => {
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  try {
+    while (true) {
+      const result = await client.listResources(
+        cursor ? { params: { cursor } } : undefined,
+      );
+      const match = result.resources.find((resource) => resource.uri === uri);
+      if (match) return match;
+      const nextCursor = result.nextCursor;
+      if (!nextCursor || seenCursors.has(nextCursor)) return undefined;
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+  } catch {
+    return undefined;
+  }
+};
+
 export async function POST(req: Request) {
   const { method, params } = await req.json();
   const client = await getClient(params?.serverId);
@@ -179,10 +202,15 @@ export async function POST(req: Request) {
     case "mcp-apps/read-resource": {
       const { contents } = await client.readResource({ uri: params.uri });
       const c = contents.find((x: { uri: string }) => x.uri === params.uri);
+      const readMeta = c?._meta?.ui;
+      const listed = readMeta
+        ? undefined
+        : await findListedResource(client, params.uri);
       return Response.json({
         uri: params.uri,
         mimeType: "text/html;profile=mcp-app",
         html: c?.text ?? "",
+        meta: readMeta ?? listed?._meta?.ui,
       });
     }
     case "tools/call": {
@@ -212,6 +240,8 @@ export async function POST(req: Request) {
 
 The renderer POSTs four method names: `mcp-apps/read-resource`, `tools/call`, `resources/read`, `resources/list`. Reject anything else server-side and apply your own auth / rate limiting in the route.
 
+Forward the resource's `_meta.ui` object as `meta`. Metadata on the `resources/read` content item overrides metadata on the matching `resources/list` entry, so fall back to the list entry only when the content item omits it. The renderer enforces its `csp` declarations before any widget code runs. `connectDomains`, `resourceDomains`, `frameDomains`, and `baseUriDomains` accept HTTP(S) origins (`connectDomains` also accepts WebSocket origins); malformed entries are ignored. When the resource omits a declaration, the corresponding capability stays restricted, including `connect-src 'none'` and `frame-src 'none'` defaults.
+
 ### Multiple MCP servers
 
 When a tool part carries `mcp.app.serverId`, the renderer forwards it to the host operations as `params.serverId` so the route can select the MCP client that owns the resource or tool. The agent stack emits this routable identity in part metadata. For `@ag-ui/mcp-apps-middleware`, assistant-ui uses its configured `serverId`, falling back to `serverHash` when `serverId` is absent or empty. Match the route's map keys to whichever identity your setup emits: configure an explicit `serverId` on each middleware server, or key the map by the emitted hashes. Omitting `serverId` preserves the single-server behavior, as shown by the fallback client in the route example.
@@ -235,6 +265,7 @@ const tools = await client.listTools();
 const { modelVisible } = splitMCPAppTools(tools);
 
 const result = streamText({
+  abortSignal: req.signal,
   model: openai("gpt-6-luna"),
   tools: client.toolsFromDefinitions(modelVisible),
   // ...
@@ -393,6 +424,7 @@ McpAppRenderer({
 ## Security notes
 
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
+- Resource CSP metadata is enforced inside the widget document. Preserve `_meta.ui.csp` when adapting `resources/read` responses; omitted or malformed declarations use restrictive defaults.
 - The host route is your auth boundary. Apply session checks, rate limiting, and per-tool allowlists there. The renderer trusts whatever the route returns.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
 - Keep custom `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable custom-host identity keeps the widget in `loadingFallback` while refetching on every parent re-render.

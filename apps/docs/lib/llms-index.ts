@@ -30,6 +30,7 @@ export function buildLLMSIndex(
   examplesPages: LLMIndexPage[],
   designPages: LLMIndexPage[] = [],
   elementsPages: LLMIndexPage[] = [],
+  siteSections: { title: string; pages: LLMIndexPage[] }[] = [],
 ) {
   const lines: string[] = [];
   lines.push("# assistant-ui");
@@ -83,6 +84,12 @@ export function buildLLMSIndex(
 
   for (const page of elementsPages) {
     addPageToSection(map, "elements", page);
+  }
+
+  for (const section of siteSections) {
+    for (const page of section.pages) {
+      addPageToSection(map, section.title, page);
+    }
   }
 
   for (const [key, value] of map) {

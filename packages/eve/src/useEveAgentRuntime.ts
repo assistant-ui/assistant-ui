@@ -29,6 +29,7 @@ import {
   useRemoteThreadListRuntime,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
@@ -72,35 +73,6 @@ const sendAbandonedError = new Error(
 
 const isDroppedSend = (error: unknown) =>
   error === sendCancelledError || error === sendAbandonedError;
-
-type EveLifecycleCallbackName =
-  | "onError"
-  | "onEvent"
-  | "onFinish"
-  | "onSessionChange";
-
-const reportEveLifecycleCallbackError = (
-  name: EveLifecycleCallbackName,
-  error: unknown,
-) => {
-  console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
-};
-
-const invokeEveLifecycleCallback = <T>(
-  name: EveLifecycleCallbackName,
-  callback: ((value: T) => unknown) | undefined,
-  value: T,
-) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(value)).catch((error) => {
-      reportEveLifecycleCallbackError(name, error);
-    });
-  } catch (error) {
-    reportEveLifecycleCallbackError(name, error);
-  }
-};
 
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
@@ -229,18 +201,33 @@ const useEveThreadRuntime = (
     ...(onError
       ? {
           onError: (error) =>
-            invokeEveLifecycleCallback("onError", onError, error),
+            void invokeUserCallback(
+              "assistant-ui/eve",
+              "onError",
+              onError,
+              error,
+            ),
         }
       : {}),
     ...(onEvent
       ? {
           onEvent: (event) =>
-            invokeEveLifecycleCallback("onEvent", onEvent, event),
+            void invokeUserCallback(
+              "assistant-ui/eve",
+              "onEvent",
+              onEvent,
+              event,
+            ),
         }
       : {}),
     onFinish: (snapshot) => {
       lastFinishStatusRef.current = snapshot.status;
-      invokeEveLifecycleCallback("onFinish", onFinish, snapshot);
+      void invokeUserCallback(
+        "assistant-ui/eve",
+        "onFinish",
+        onFinish,
+        snapshot,
+      );
     },
     ...(onSessionChange || cloudThread?.isNew
       ? {
@@ -256,7 +243,8 @@ const useEveThreadRuntime = (
               if (aui.threadListItem.getState().status === "new")
                 aui.threadListItem.initialize().catch(() => {});
             }
-            invokeEveLifecycleCallback(
+            void invokeUserCallback(
+              "assistant-ui/eve",
               "onSessionChange",
               onSessionChange,
               session,
