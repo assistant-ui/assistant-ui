@@ -1,3 +1,4 @@
+import { RunActivityDemo } from "@/components/demo/elements/run-activity";
 import type { ComponentType } from "react";
 import {
   GenerationLoaderDemo,
@@ -426,6 +427,14 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "One tool invocation with its request and result tucked behind a disclosure.",
         file: "tool-call.tsx",
         Component: ToolCallDemo,
+      },
+      {
+        slug: "run-activity",
+        title: "Run activity",
+        description:
+          "Commentary and tools in one disclosure, with the final answer always visible.",
+        file: "run-activity.tsx",
+        Component: RunActivityDemo,
       },
       {
         slug: "tool-timeline",
