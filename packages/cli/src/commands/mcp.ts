@@ -371,7 +371,7 @@ async function installForTarget(target: MCPTarget): Promise<void> {
           throw new SyntaxError("Invalid MCP configuration");
         }
       } else {
-        const existingConfig = JSON.parse(content);
+        existingConfig = JSON.parse(content);
         if (
           existingConfig === null ||
           typeof existingConfig !== "object" ||
@@ -395,7 +395,7 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   const updatedContent = updateJsoncConfig(
     content,
     targetConfig.serverKey,
-    target === "zed"
+    target === "zed" || target === "claude-desktop"
       ? deepMerge(
           existingConfig[targetConfig.serverKey]?.["assistant-ui"] ?? {},
           targetConfig.server,
