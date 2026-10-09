@@ -2,7 +2,6 @@ import {
   useState,
   useEffect,
   useInsertionEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useEffectEvent,
@@ -17,6 +16,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
+import { useIsomorphicLayoutEffect } from "@assistant-ui/store/internal";
 import { useIsServerRender } from "../utils/useIsServerRender";
 
 class RemoteThreadListRuntimeCore
@@ -107,7 +107,7 @@ export const useRemoteThreadListRuntime = (
   // The layout phase re-renders hosted threads before this commit yields. An
   // insertion effect cannot notify subscribers, so descendant layout effects
   // of the same commit still see the previous hook.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     runtimeHookStore.setState(options.runtimeHook);
   }, [runtimeHookStore, options.runtimeHook]);
 
