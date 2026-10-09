@@ -1,22 +1,123 @@
-import { getDistinctId } from "@/lib/posthog-server";
+import { updateConfigSchema } from "@/lib/playground-config-schema";
+import { prepareChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   validateFrontendToolsInput,
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
-import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
-import {
-  convertToModelMessages,
-  pruneMessages,
-  stepCountIs,
-  streamText,
-} from "ai";
+import { stepCountIs } from "ai";
 
 export const maxDuration = 30;
+
+const componentShape = updateConfigSchema.shape.components.unwrap().shape;
+const actionBarShape = componentShape.actionBar.unwrap().shape;
+const styleShape = updateConfigSchema.shape.styles.unwrap().shape;
+const colorShape = styleShape.colors.unwrap().shape;
+
+const formatEnumOptions = (options: readonly string[]) =>
+  options.map((option) => `"${option}"`).join(" | ");
+
+const promptDescriptions = {
+  components: {
+    attachments: "(boolean): Enable file attachments",
+    branchPicker: "(boolean): Enable message branch navigation",
+    editMessage: "(boolean): Allow editing sent messages",
+    actionBar: {
+      copy: "(boolean): Show copy button on messages",
+      reload: "(boolean): Show reload/retry button",
+      speak: "(boolean): Show text-to-speech button",
+      feedback: "(boolean): Show thumbs up/down feedback",
+    },
+    threadWelcome: "(boolean): Show welcome screen",
+    suggestions: "(boolean): Show suggestion chips",
+    scrollToBottom: "(boolean): Show scroll-to-bottom button",
+    markdown: "(boolean): Enable markdown rendering",
+    codeHighlightTheme: `(${formatEnumOptions(componentShape.codeHighlightTheme.unwrap().options)}): Code syntax highlighting theme`,
+    reasoning: "(boolean): Show AI reasoning/thinking",
+    sources: "(boolean): Show source citations",
+    followUpSuggestions:
+      "(boolean): Show follow-up suggestions after responses",
+    avatar: "(boolean): Show user/assistant avatars",
+    typingIndicator: `(${formatEnumOptions(componentShape.typingIndicator.unwrap().options)}): Typing indicator style`,
+    loadingIndicator: `(${formatEnumOptions(componentShape.loadingIndicator.unwrap().options)}): Loading indicator style`,
+    loadingText: '(string): Text shown during loading (e.g. "Thinking...")',
+  },
+  styles: {
+    theme: `(${formatEnumOptions(styleShape.theme.unwrap().options)}): Color theme`,
+    colors: {
+      accent: "({light: string, dark: string}): Primary accent color (hex)",
+      background: "({light: string, dark: string}): Background color",
+      foreground: "({light: string, dark: string}): Text color",
+      muted: "({light: string, dark: string}): Muted background",
+      mutedForeground: "({light: string, dark: string}): Muted text",
+      border: "({light: string, dark: string}): Border color",
+      userMessage: "({light: string, dark: string}): User message bubble color",
+      assistantMessage:
+        "({light: string, dark: string}): Assistant message bubble color",
+      composer: "({light: string, dark: string}): Composer/input area color",
+      userAvatar: "({light: string, dark: string}): User avatar color",
+      assistantAvatar:
+        "({light: string, dark: string}): Assistant avatar color",
+      suggestion: "({light: string, dark: string}): Suggestion chip color",
+      suggestionBorder:
+        "({light: string, dark: string}): Suggestion chip border",
+    },
+    borderRadius: `(${formatEnumOptions(styleShape.borderRadius.unwrap().options)}): Corner rounding`,
+    maxWidth: '(string): Max content width (e.g. "44rem", "56rem", "100%")',
+    fontFamily:
+      '(string): Font family (e.g. "system-ui", "Inter, sans-serif", "Georgia, serif", "ui-monospace, monospace")',
+    fontSize: `(${formatEnumOptions(styleShape.fontSize.unwrap().options)}): Base font size`,
+    messageSpacing: `(${formatEnumOptions(styleShape.messageSpacing.unwrap().options)}): Space between messages`,
+    userMessagePosition: `(${formatEnumOptions(styleShape.userMessagePosition.unwrap().options)}): User message alignment`,
+    animations: "(boolean): Enable animations",
+  },
+} satisfies {
+  components: {
+    [K in keyof typeof componentShape]: K extends "actionBar"
+      ? Record<keyof typeof actionBarShape, string>
+      : string;
+  };
+  styles: {
+    [K in keyof typeof styleShape]: K extends "colors"
+      ? Record<keyof typeof colorShape, string>
+      : string;
+  };
+};
+
+function formatFields(
+  shape: Record<string, unknown>,
+  descriptions: Record<string, string | Record<string, string>>,
+  nestedShapes: Record<string, Record<string, unknown>> = {},
+): string {
+  return Object.keys(shape)
+    .flatMap((key) => {
+      const description = descriptions[key];
+      if (description === undefined)
+        throw new Error(`Missing ${key} description`);
+      if (typeof description === "string") return `- ${key} ${description}`;
+      const nestedShape = nestedShapes[key];
+      if (nestedShape === undefined) throw new Error(`Missing ${key} shape`);
+      return Object.keys(nestedShape).map(
+        (nestedKey) => `- ${key}.${nestedKey} ${description[nestedKey]}`,
+      );
+    })
+    .join("\n");
+}
+
+const componentFields = formatFields(
+  componentShape,
+  promptDescriptions.components,
+  {
+    actionBar: actionBarShape,
+  },
+);
+const styleFields = formatFields(styleShape, promptDescriptions.styles, {
+  colors: colorShape,
+});
 
 const SYSTEM_PROMPT = `You are a UI customization assistant for the assistant-ui playground. Users describe how they want their chat UI to look, and you apply changes by calling the update_config tool.
 
@@ -25,48 +126,10 @@ const SYSTEM_PROMPT = `You are a UI customization assistant for the assistant-ui
 The config has two top-level sections: "components" and "styles".
 
 ### components
-- attachments (boolean): Enable file attachments
-- branchPicker (boolean): Enable message branch navigation
-- editMessage (boolean): Allow editing sent messages
-- actionBar.copy (boolean): Show copy button on messages
-- actionBar.reload (boolean): Show reload/retry button
-- actionBar.speak (boolean): Show text-to-speech button
-- actionBar.feedback (boolean): Show thumbs up/down feedback
-- threadWelcome (boolean): Show welcome screen
-- suggestions (boolean): Show suggestion chips
-- scrollToBottom (boolean): Show scroll-to-bottom button
-- markdown (boolean): Enable markdown rendering
-- codeHighlightTheme ("none" | "github" | "vitesse" | "tokyo-night" | "one-dark-pro" | "dracula"): Code syntax highlighting theme
-- reasoning (boolean): Show AI reasoning/thinking
-- sources (boolean): Show source citations
-- followUpSuggestions (boolean): Show follow-up suggestions after responses
-- avatar (boolean): Show user/assistant avatars
-- typingIndicator ("none" | "dot"): Typing indicator style
-- loadingIndicator ("none" | "spinner" | "text"): Loading indicator style
-- loadingText (string): Text shown during loading (e.g. "Thinking...")
+${componentFields}
 
 ### styles
-- theme ("light" | "dark" | "system"): Color theme
-- colors.accent ({light: string, dark: string}): Primary accent color (hex)
-- colors.background ({light: string, dark: string}): Background color
-- colors.foreground ({light: string, dark: string}): Text color
-- colors.muted ({light: string, dark: string}): Muted background
-- colors.mutedForeground ({light: string, dark: string}): Muted text
-- colors.border ({light: string, dark: string}): Border color
-- colors.userMessage ({light: string, dark: string}): User message bubble color
-- colors.assistantMessage ({light: string, dark: string}): Assistant message bubble color
-- colors.composer ({light: string, dark: string}): Composer/input area color
-- colors.userAvatar ({light: string, dark: string}): User avatar color
-- colors.assistantAvatar ({light: string, dark: string}): Assistant avatar color
-- colors.suggestion ({light: string, dark: string}): Suggestion chip color
-- colors.suggestionBorder ({light: string, dark: string}): Suggestion chip border
-- borderRadius ("none" | "sm" | "md" | "lg" | "full"): Corner rounding
-- maxWidth (string): Max content width (e.g. "44rem", "56rem", "100%")
-- fontFamily (string): Font family (e.g. "system-ui", "Inter, sans-serif", "Georgia, serif", "ui-monospace, monospace")
-- fontSize ("13px" | "14px" | "15px" | "16px"): Base font size
-- messageSpacing ("compact" | "comfortable" | "spacious"): Space between messages
-- userMessagePosition ("right" | "left"): User message alignment
-- animations (boolean): Enable animations
+${styleFields}
 
 ## Available Presets
 
@@ -162,46 +225,34 @@ export async function POST(req: Request) {
       return new Response("Config too large", { status: 400 });
     }
 
-    const { model, providerOptions } = resolveChatModel();
-    const distinctId = getDistinctId(req);
+    const modelConfig = resolveChatModel();
 
     const aiSDKTools = frontendTools(tools ?? {});
-    const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
-      reasoning: "none",
-    });
+    const prunedMessages = await prepareChatMessages(messages, aiSDKTools);
 
-    const result = streamText({
-      abortSignal: req.signal,
-      model,
-      ...(providerOptions ? { providerOptions } : {}),
-      system:
-        SYSTEM_PROMPT +
-        `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,
-      messages: prunedMessages,
-      maxOutputTokens: 4000,
-      stopWhen: stepCountIs(3),
-      tools: aiSDKTools,
-      ...posthogTelemetry({
-        distinctId,
+    const { result, messageMetadata } = streamDocsChat(
+      req,
+      modelConfig,
+      {
         spanName: "playground_chat",
         source: "playground_chat",
-      }),
-      onError: async ({ error }) => {
-        console.error("[api/playground-chat]", error);
       },
-    });
+      {
+        system:
+          SYSTEM_PROMPT +
+          `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,
+        messages: prunedMessages,
+        maxOutputTokens: 4000,
+        stopWhen: stepCountIs(3),
+        tools: aiSDKTools,
+        onError: async ({ error }) => {
+          console.error("[api/playground-chat]", error);
+        },
+      },
+    );
 
     return result.toUIMessageStreamResponse({
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish-step") {
-          return { modelId: part.response.modelId };
-        }
-        if (part.type === "finish") {
-          return { usage: part.totalUsage };
-        }
-        return undefined;
-      },
+      messageMetadata,
     });
   } catch (e) {
     console.error("[api/playground-chat]", e);

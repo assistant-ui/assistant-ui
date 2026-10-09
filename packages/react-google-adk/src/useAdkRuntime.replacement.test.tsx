@@ -9,7 +9,7 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAdkRuntime } from "./useAdkRuntime";
-import type { AdkEvent, AdkThreadSnapshot } from "./types";
+import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
@@ -172,6 +172,39 @@ describe("useAdkRuntime replacement runs", () => {
     );
     return capture.runtime!;
   };
+
+  it("starts one run with both staged messages", async () => {
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+    ): AsyncGenerator<AdkEvent> {});
+    const runtime = await mountWithCheckpoint(stream, async () => null);
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+        startRun: false,
+      });
+    });
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        startRun: false,
+      });
+    });
+    const parentId = runtime.thread.getState().messages[1]!.id;
+
+    await act(async () => {
+      await runtime.thread.startRun({ parentId });
+    });
+
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(stream.mock.calls[0]![0]).toMatchObject([
+      { type: "human", content: "first" },
+      { type: "human", content: "second" },
+    ]);
+  });
 
   it("starts an edit made while a run streams from the truncated thread", async () => {
     const releaseStale = deferred();

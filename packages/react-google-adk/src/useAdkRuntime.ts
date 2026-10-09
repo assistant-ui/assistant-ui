@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   pickExternalStoreSharedOptions,
@@ -22,6 +23,8 @@ import {
   createAbortableThreadLoad,
   createCloudThreadListAdapterCreateFallback,
   isRecord,
+  RunLeases,
+  type RunLease,
 } from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
@@ -187,6 +190,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, []);
 
   const {
+    controller,
     messages,
     stateDelta,
     agentInfo,
@@ -263,21 +267,21 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
-  const runGenerationRef = useRef(0);
+  const [runLeases] = useState(() => new RunLeases());
   const reloadLookupRef = useRef<{
-    generation: number;
+    lease: RunLease;
     beforeReload: AdkThreadSnapshot;
   } | null>(null);
 
   const runExclusive = async (
     run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
-    const generation = ++runGenerationRef.current;
+    const lease = runLeases.begin();
     try {
       setIsRunning(true);
-      await run(() => runGenerationRef.current === generation);
+      await run(lease.isCurrent);
     } finally {
-      if (runGenerationRef.current === generation) setIsRunning(false);
+      if (lease.isCurrent()) setIsRunning(false);
     }
   };
 
@@ -299,7 +303,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   };
 
   const stopRun = () => {
-    runGenerationRef.current++;
+    runLeases.invalidate();
     setIsRunning(false);
     cancel();
   };
@@ -353,43 +357,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     adkMessagesRef.current = messages;
   }, [messages]);
 
-  const stagedMessagesRef = useRef(
-    new Map<
-      string,
-      {
-        message: AdkMessage & { id: string };
-        runConfig: AppendMessage["runConfig"];
-      }
-    >(),
+  const stagedMessageCount = useSyncExternalStore(
+    controller.subscribe,
+    controller.getStagedMessageCount,
+    controller.getStagedMessageCount,
   );
-  const [stagedMessageCount, setStagedMessageCount] = useState(0);
   const hasStagedMessages = stagedMessageCount > 0;
-
-  const getStagedRun = (parentId: string | null) => {
-    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
-
-    const staged: AdkMessage[] = [];
-    for (const message of adkMessagesRef.current) {
-      if (message.id && stagedMessagesRef.current.has(message.id)) {
-        staged.push(stagedMessagesRef.current.get(message.id)!.message);
-      }
-      if (message.id === parentId) break;
-    }
-
-    return {
-      messages: staged,
-      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
-    };
-  };
 
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toAdkUserMessage(msg);
-    stagedMessagesRef.current.set(stagedMessage.id, {
-      message: stagedMessage,
-      runConfig: msg.runConfig,
+    controller.dispatch({
+      type: "staged.stage",
+      entry: { message: stagedMessage, runConfig: msg.runConfig },
     });
-    setStagedMessageCount(stagedMessagesRef.current.size);
-    const nextMessages = [...adkMessagesRef.current, stagedMessage];
+    const nextMessages = [...controller.getState().messages, stagedMessage];
     adkMessagesRef.current = nextMessages;
     setMessages(nextMessages);
   };
@@ -544,11 +525,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           replaceMessages(truncated);
           if (!(msg.startRun ?? msg.role === "user")) {
             const stagedMessage = toAdkUserMessage(msg);
-            stagedMessagesRef.current.set(stagedMessage.id, {
-              message: stagedMessage,
-              runConfig: msg.runConfig,
+            controller.dispatch({
+              type: "staged.stage",
+              entry: { message: stagedMessage, runConfig: msg.runConfig },
             });
-            setStagedMessageCount(stagedMessagesRef.current.size);
             const nextMessages = [...truncated, stagedMessage];
             adkMessagesRef.current = nextMessages;
             setMessages(nextMessages);
@@ -574,12 +554,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           onReload: async (parentId, config) => {
             const initialLoad = waitForInitialLoad();
             if (initialLoad && !(await initialLoad).active) return;
-            const stagedRun = getStagedRun(parentId);
+            const stagedRun = controller.getStagedRun(parentId);
             if (stagedRun) {
-              for (const message of stagedRun.messages) {
-                stagedMessagesRef.current.delete(message.id);
-              }
-              setStagedMessageCount(stagedMessagesRef.current.size);
+              controller.dispatch({
+                type: "staged.unstage",
+                ids: stagedRun.messages.map((message) => message.id!),
+              });
               return handleSendMessage(stagedRun.messages, {
                 runConfig: config.runConfig ?? stagedRun.runConfig,
               });
@@ -608,7 +588,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             const externalId = aui.threadListItem.getState().externalId;
             return runExclusive(async (isCurrent) => {
               const lookup = {
-                generation: runGenerationRef.current,
+                lease: runLeases.current(),
                 beforeReload,
               };
               reloadLookupRef.current = lookup;
@@ -674,10 +654,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     onCancel: unstable_allowCancellation
       ? async () => {
           const lookup = reloadLookupRef.current;
-          const beforeReload =
-            lookup?.generation === runGenerationRef.current
-              ? lookup.beforeReload
-              : undefined;
+          const beforeReload = lookup?.lease.isCurrent()
+            ? lookup.beforeReload
+            : undefined;
           stopRun();
           // A reload stopped before it sent leaves the ADK session holding the
           // turn it removed, so the thread shows that turn again.

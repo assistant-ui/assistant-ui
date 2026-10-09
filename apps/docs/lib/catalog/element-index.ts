@@ -34,6 +34,7 @@ export const ELEMENT_INDEX: readonly (readonly [
   ["regenerate-menu", "Regenerate with", "elements-regenerate-menu", false],
   ["confidence-marker", "Confidence", "elements-confidence-marker", false],
   ["tool-call", "Tool call", "elements-tool-call", false],
+  ["run-activity", "Run activity", "elements-run-activity", false],
   ["tool-timeline", "Tool timeline", "elements-tool-timeline", false],
   ["terminal-block", "Terminal block", "elements-terminal-block", false],
   ["code-diff", "Code diff", "elements-code-diff", false],

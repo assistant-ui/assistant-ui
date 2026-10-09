@@ -4,6 +4,7 @@ import { useId, type ComponentProps, type ReactNode } from "react";
 import { CheckIcon, Loader2Icon, TerminalIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, inkButton, mono, paper } from "./surfaces";
+import { useReceiptFocus } from "./receipt-focus";
 
 export type ApprovalState = "request" | "running" | "done" | "denied";
 
@@ -68,10 +69,12 @@ export function ApprovalCard({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
 
   return (
     <div
       {...props}
+      {...focusHandlers}
       role="group"
       data-variant={variant}
       data-slot="approval-card"
@@ -186,6 +189,8 @@ export function ApprovalCard({
         ) : (
           <div
             key={state}
+            ref={receiptRef}
+            tabIndex={-1}
             role="status"
             className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300 motion-reduce:animate-none"
           >
