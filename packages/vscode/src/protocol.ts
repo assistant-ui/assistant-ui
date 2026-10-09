@@ -19,6 +19,8 @@ export type FetchRequestMessage = BridgeEnvelope<"fetch:request"> & {
 
 export type FetchAbortMessage = BridgeEnvelope<"fetch:abort">;
 
+export type FetchResetMessage = BridgeEnvelope<"fetch:reset">;
+
 export type FetchHeadMessage = BridgeEnvelope<"fetch:head"> & {
   status: number;
   statusText: string;
@@ -46,6 +48,7 @@ export type RpcResponseMessage = BridgeEnvelope<"rpc:response"> &
 export type WebviewToHostMessage =
   | FetchRequestMessage
   | FetchAbortMessage
+  | FetchResetMessage
   | RpcRequestMessage;
 
 export type HostToWebviewMessage =
@@ -85,6 +88,7 @@ const WEBVIEW_TO_HOST: Record<
     isHeaders(m.headers) &&
     (m.body === null || isBytes(m.body)),
   "fetch:abort": hasNoPayload,
+  "fetch:reset": hasNoPayload,
   "rpc:request": (m) => isString(m.method) && Array.isArray(m.params),
 };
 

@@ -1,3 +1,5 @@
+import { VSCODE_BRIDGE_CHANNEL } from "../protocol";
+
 export type VSCodeApi<TState = unknown> = {
   postMessage(message: unknown): void;
   getState(): TState | undefined;
@@ -20,5 +22,10 @@ export function getVSCodeApi<TState = unknown>(): VSCodeApi<TState> {
     );
   }
   api = acquire();
+  api.postMessage({
+    channel: VSCODE_BRIDGE_CHANNEL,
+    kind: "fetch:reset",
+    id: "",
+  });
   return api as VSCodeApi<TState>;
 }
