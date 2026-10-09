@@ -74,6 +74,7 @@
     "fflate": "^0.8.3",
     "fumadocs-core": "^16.16.2",
     "fumadocs-mdx": "^15.4.6",
+    "generative-frame": "workspace:*",
     "heat-graph": "workspace:*",
     "input-otp": "^1.5.0",
     "just-bash": "^3.6.0",

@@ -331,24 +331,27 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastObservedScrollHeight.current = scrollHeight;
     lastObservedClientHeight.current = clientHeight;
 
-    const scrollBehavior = scrollingToBottomBehaviorRef.current;
-    if (scrollBehavior && hasActiveTopAnchor()) {
-      // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
-      scrollingToBottomBehaviorRef.current = null;
-    } else if (scrollBehavior) {
-      scrollToBottom(scrollBehavior);
-    } else if (
-      autoScroll &&
-      !(isRunning && hasActiveTopAnchor()) &&
-      followBottomRef.current &&
-      !followPausedRef.current
-    ) {
-      scrollToBottom("instant");
-    } else if (
-      prependAnchorRef.current &&
-      !keepMessageAt(div, prependAnchorRef.current, heldScrollTopRef)
-    ) {
-      prependAnchorRef.current = null;
+    // A scheduled frame owns the pending behavior; resize callbacks must not apply it early.
+    if (scheduledFrameRef.current === null) {
+      const scrollBehavior = scrollingToBottomBehaviorRef.current;
+      if (scrollBehavior && hasActiveTopAnchor()) {
+        // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
+        scrollingToBottomBehaviorRef.current = null;
+      } else if (scrollBehavior) {
+        scrollToBottom(scrollBehavior);
+      } else if (
+        autoScroll &&
+        !(isRunning && hasActiveTopAnchor()) &&
+        followBottomRef.current &&
+        !followPausedRef.current
+      ) {
+        scrollToBottom("instant");
+      } else if (
+        prependAnchorRef.current &&
+        !keepMessageAt(div, prependAnchorRef.current, heldScrollTopRef)
+      ) {
+        prependAnchorRef.current = null;
+      }
     }
 
     handleScroll();
@@ -358,12 +361,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     onResizeRef.current = onResize;
   });
   const resizeRef = useOnResizeContent(() => onResizeRef.current());
-  // Re-observing each render moves this commit's resize handling from the
-  // mutation microtask to the fresh observer's first notification, after a
-  // scheduled scroll frame runs; initialize and run-start scrolling rely on it.
-  useIsomorphicLayoutEffect(() => {
-    if (divRef.current) resizeRef(divRef.current);
-  });
 
   const scrollRef = useManagedRef<HTMLElement>(
     useCallback(

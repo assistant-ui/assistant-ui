@@ -146,6 +146,7 @@ export const createThreadViewportAutoScroll = (input: {
   };
 
   const followGrowth = () => {
+    if (frame !== null) return;
     if (intent) {
       scrollToBottom(intent);
     } else if (input.getOptions().autoScroll && followBottom && !followPaused) {

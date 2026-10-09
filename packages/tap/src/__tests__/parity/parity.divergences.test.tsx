@@ -16,7 +16,6 @@ import { describe, it, expect } from "vitest";
 import { useEffect, useLayoutEffect, useReducer, useState } from "react";
 import {
   isDevMode,
-  onReact18,
   runScenario,
   TAP_ENVS,
   type Scenario,
@@ -29,77 +28,69 @@ const countOf = (events: string[], entry: string) =>
 const perRender = isDevMode ? 2 : 1;
 
 describe("divergence: eager dispatch bailout is more aggressive than React's", () => {
-  // Fails on React 18: tapRoot renders once per update where React's StrictMode renders twice (useDevStrictMode never detects StrictMode, so useTapRoot runs without strict emulation). Shipped React 18 incompatibility.
-  it.skipIf(onReact18 && isDevMode)(
-    "same-value dispatch right after an update: React renders once more; tap roots bail",
-    async () => {
-      // React's eager bailout needs idle lanes on the fiber AND its alternate;
-      // a committed update leaves the alternate's lanes stale, so the next
-      // same-value dispatch still renders (a bailout render that clears them).
-      // tap bails on Object.is equality whenever its batch is empty: strictly
-      // fewer renders, identical state. Matching React exactly takes a lanes
-      // emulation (dirty bit + bailout-render detection + effect suppression +
-      // args guard); it was implemented and reverted as not worth the hot-path
-      // complexity, since only impure updaters and render bodies can observe
-      // the difference.
-      const scenario: Scenario = {
-        name: "",
-        use: (log) => {
-          const [count, setCount] = useState(0);
-          log(`render ${count}`);
-          return { set: (n: number) => setCount(n) };
-        },
-        drive: async ({ api, act }) => {
-          await act(() => api().set(1));
-          await act(() => api().set(1));
-        },
-      };
+  it("same-value dispatch right after an update: React renders once more; tap roots bail", async () => {
+    // React's eager bailout needs idle lanes on the fiber AND its alternate;
+    // a committed update leaves the alternate's lanes stale, so the next
+    // same-value dispatch still renders (a bailout render that clears them).
+    // tap bails on Object.is equality whenever its batch is empty: strictly
+    // fewer renders, identical state. Matching React exactly takes a lanes
+    // emulation (dirty bit + bailout-render detection + effect suppression +
+    // args guard); it was implemented and reverted as not worth the hot-path
+    // complexity, since only impure updaters and render bodies can observe
+    // the difference.
+    const scenario: Scenario = {
+      name: "",
+      use: (log) => {
+        const [count, setCount] = useState(0);
+        log(`render ${count}`);
+        return { set: (n: number) => setCount(n) };
+      },
+      drive: async ({ api, act }) => {
+        await act(() => api().set(1));
+        await act(() => api().set(1));
+      },
+    };
 
-      const react = await runScenario("react", scenario);
-      expect(countOf(react, "render 1")).toBe(2 * perRender);
+    const react = await runScenario("react", scenario);
+    expect(countOf(react, "render 1")).toBe(2 * perRender);
 
-      for (const env of ["tapRoot", "createTapRoot"] as const) {
-        const tap = await runScenario(env, scenario);
-        expect(countOf(tap, "render 1")).toBe(perRender);
-      }
+    for (const env of ["tapRoot", "createTapRoot"] as const) {
+      const tap = await runScenario(env, scenario);
+      expect(countOf(tap, "render 1")).toBe(perRender);
+    }
 
-      const bridge = await runScenario("bridge", scenario);
-      expect(bridge).toEqual(react);
-    },
-  );
+    const bridge = await runScenario("bridge", scenario);
+    expect(bridge).toEqual(react);
+  });
 
-  // Fails on React 18: tapRoot renders once per update where React's StrictMode renders twice (useDevStrictMode never detects StrictMode, so useTapRoot runs without strict emulation). Shipped React 18 incompatibility.
-  it.skipIf(onReact18 && isDevMode)(
-    "no-change render: React strips no-deps effects (bailoutHooks); tap commits them",
-    async () => {
-      // Consistent with tap's whole-tree re-renders, which refire no-deps
-      // effects on every update anyway.
-      const scenario: Scenario = {
-        name: "",
-        use: (log) => {
-          const [state, dispatch] = useReducer((s: number) => s, 42);
-          log(`render ${state}`);
-          useEffect(() => {
-            log("effect");
-            return () => log("cleanup");
-          });
-          return { dispatch };
-        },
-        drive: async ({ api, act }) => {
-          await act(() => api().dispatch(0));
-        },
-      };
+  it("no-change render: React strips no-deps effects (bailoutHooks); tap commits them", async () => {
+    // Consistent with tap's whole-tree re-renders, which refire no-deps
+    // effects on every update anyway.
+    const scenario: Scenario = {
+      name: "",
+      use: (log) => {
+        const [state, dispatch] = useReducer((s: number) => s, 42);
+        log(`render ${state}`);
+        useEffect(() => {
+          log("effect");
+          return () => log("cleanup");
+        });
+        return { dispatch };
+      },
+      drive: async ({ api, act }) => {
+        await act(() => api().dispatch(0));
+      },
+    };
 
-      const react = await runScenario("react", scenario);
+    const react = await runScenario("react", scenario);
 
-      for (const env of TAP_ENVS) {
-        const tap = await runScenario(env, scenario);
-        expect(countOf(tap, "render 42")).toBe(countOf(react, "render 42"));
-        expect(countOf(tap, "effect")).toBe(countOf(react, "effect") + 1);
-        expect(countOf(tap, "cleanup")).toBe(countOf(react, "cleanup") + 1);
-      }
-    },
-  );
+    for (const env of TAP_ENVS) {
+      const tap = await runScenario(env, scenario);
+      expect(countOf(tap, "render 42")).toBe(countOf(react, "render 42"));
+      expect(countOf(tap, "effect")).toBe(countOf(react, "effect") + 1);
+      expect(countOf(tap, "cleanup")).toBe(countOf(react, "cleanup") + 1);
+    }
+  });
 });
 
 describe("fully-bailable bridge dispatch matches React", () => {
@@ -143,36 +134,32 @@ describe("divergence: dispatch from an unmount cleanup applies (Activity semanti
     unmountAtEnd: true,
   };
 
-  // Fails on React 18: tapRoot renders once per update where React's StrictMode renders twice (useDevStrictMode never detects StrictMode, so useTapRoot runs without strict emulation). Shipped React 18 incompatibility.
-  it.skipIf(onReact18 && isDevMode)(
-    "React drops it (deletion); tap roots apply it like an Activity hide",
-    async () => {
-      const react = await runScenario("react", scenario);
-      const bridge = await runScenario("bridge", scenario);
-      expect(bridge).toEqual(react);
+  it("React drops it (deletion); tap roots apply it like an Activity hide", async () => {
+    const react = await runScenario("react", scenario);
+    const bridge = await runScenario("bridge", scenario);
+    expect(bridge).toEqual(react);
 
+    if (isDevMode) {
+      // In dev the strict remount cycle runs the cleanup while still mounted,
+      // so even React renders 99 during mount.
+      expect(react).toContain("render 99");
+    } else {
+      expect(react).not.toContain("render 99");
+    }
+
+    for (const env of ["tapRoot", "createTapRoot"] as const) {
+      const tap = await runScenario(env, scenario);
       if (isDevMode) {
-        // In dev the strict remount cycle runs the cleanup while still mounted,
-        // so even React renders 99 during mount.
-        expect(react).toContain("render 99");
+        // The strict remount cycle already set 99 while mounted; the unmount
+        // dispatch then bails eagerly on equality, masking the divergence.
+        expect(tap).toEqual(react);
       } else {
-        expect(react).not.toContain("render 99");
+        // tap cannot distinguish this deletion from an Activity-style hide,
+        // so the update applies and the (pure) render runs; effects stay off.
+        expect(tap).toEqual([...react, "render 99"]);
       }
-
-      for (const env of ["tapRoot", "createTapRoot"] as const) {
-        const tap = await runScenario(env, scenario);
-        if (isDevMode) {
-          // The strict remount cycle already set 99 while mounted; the unmount
-          // dispatch then bails eagerly on equality, masking the divergence.
-          expect(tap).toEqual(react);
-        } else {
-          // tap cannot distinguish this deletion from an Activity-style hide,
-          // so the update applies and the (pure) render runs; effects stay off.
-          expect(tap).toEqual([...react, "render 99"]);
-        }
-      }
-    },
-  );
+    }
+  });
 });
 
 describe("divergence: useLayoutEffect is an alias for useEffect", () => {

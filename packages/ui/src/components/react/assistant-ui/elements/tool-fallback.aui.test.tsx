@@ -54,6 +54,33 @@ const renderTool = (props: Partial<ToolCallMessagePartProps> = {}) => {
 };
 
 describe("ToolFallback", () => {
+  it("forwards the approval ref through its receipt and clears it on unmount", () => {
+    const ref = createRef<HTMLDivElement>();
+    const view = render(
+      <ToolFallbackApproval ref={ref} approval={pendingApproval} />,
+    );
+    const group = view.container.querySelector(
+      '[data-slot="tool-fallback-approval"]',
+    );
+    expect(group).not.toBeNull();
+    expect(ref.current).toBe(group);
+
+    view.rerender(
+      <ToolFallbackApproval
+        ref={ref}
+        approval={{ ...pendingApproval, approved: true }}
+      />,
+    );
+    const receipt = view.container.querySelector(
+      '[data-slot="tool-fallback-approval-receipt"]',
+    );
+    expect(receipt).not.toBeNull();
+    expect(ref.current).toBe(receipt);
+
+    view.unmount();
+    expect(ref.current).toBeNull();
+  });
+
   it("preserves focus assigned during the answer commit", () => {
     function Composer({ answered }: { answered: boolean }) {
       const ref = useRef<HTMLInputElement>(null);

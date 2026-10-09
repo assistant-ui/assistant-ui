@@ -1,0 +1,16 @@
+{
+  "title": "Generative Frame",
+  "pages": [
+    "index",
+    "quickstart",
+    "react",
+    "assistant-ui",
+    "tools",
+    "spec-mode",
+    "delegation",
+    "repair",
+    "theming",
+    "security",
+    "api-reference"
+  ]
+}

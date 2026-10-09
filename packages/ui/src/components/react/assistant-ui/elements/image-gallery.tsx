@@ -50,8 +50,8 @@ export function ImageGallery({
     () => new Set(),
   );
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const previousRef = useRef<HTMLButtonElement>(null);
-  const nextRef = useRef<HTMLButtonElement>(null);
+  const previousRef = useRef<HTMLButtonElement | null>(null);
+  const nextRef = useRef<HTMLButtonElement | null>(null);
   const index = images.findIndex((image) => image.id === activeId);
   if (activeId !== null && index === -1) setActiveId(null);
   const activeImage = index === -1 ? undefined : images[index];

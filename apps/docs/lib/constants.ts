@@ -47,6 +47,13 @@ export const PRODUCTS: Product[] = [
     external: false,
   },
   {
+    slug: "generative-frame",
+    label: "Generative Frame",
+    href: "/generative-frame",
+    description: "Streaming widgets from model output",
+    external: false,
+  },
+  {
     slug: "native",
     label: "React Native",
     href: "/native",

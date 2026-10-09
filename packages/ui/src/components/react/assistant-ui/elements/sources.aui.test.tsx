@@ -1,10 +1,8 @@
-import { version } from "react";
+import { createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceIcon, Sources } from "./sources.aui";
-
-const onReact18 = version.startsWith("18.");
 
 const imageDescriptors = {
   complete: Object.getOwnPropertyDescriptor(
@@ -74,23 +72,31 @@ describe("SourceIcon", () => {
     expect(screen.getByText("E")).toBeTruthy();
   });
 
-  // SourceIcon is a plain function component, so React 18 drops a caller's ref.
-  it.skipIf(onReact18)(
-    "detects the failure even when the caller passes a ref",
-    () => {
-      stubImage(true, 0);
-      const callerRef = vi.fn();
+  it("detects the failure even when the caller passes a ref", () => {
+    stubImage(true, 0);
+    const callerRef = vi.fn();
 
-      render(
-        <SourceIcon url="https://example.com/reference" ref={callerRef} />,
-      );
+    render(<SourceIcon url="https://example.com/reference" ref={callerRef} />);
 
-      expect(screen.getByText("E")).toBeTruthy();
-      expect(callerRef).toHaveBeenCalledWith(
-        screen.getByText("E") as HTMLSpanElement,
-      );
-    },
-  );
+    expect(screen.getByText("E")).toBeTruthy();
+    expect(callerRef).toHaveBeenCalledWith(
+      screen.getByText("E") as HTMLSpanElement,
+    );
+  });
+
+  it("forwards the image and fallback through the caller ref", () => {
+    stubImage(false, 0);
+    const ref = createRef<HTMLSpanElement>();
+    const { container, unmount } = render(
+      <SourceIcon url="https://example.com/reference" ref={ref} />,
+    );
+    const image = container.querySelector('[data-slot="source-icon"]')!;
+    expect(ref.current).toBe(image);
+    fireEvent.error(image);
+    expect(ref.current).toBe(screen.getByText("E"));
+    unmount();
+    expect(ref.current).toBeNull();
+  });
 });
 
 describe("Sources", () => {

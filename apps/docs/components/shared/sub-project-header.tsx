@@ -4,17 +4,14 @@ import { type ReactNode, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { GitHubIcon } from "@/components/icons/github";
 import Image from "next/image";
-import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import {
   Activity,
+  AppWindow,
   Box,
-  Check,
   ChevronDown,
   FlaskConical,
   Grid3x3,
-  LayoutGrid,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -30,14 +27,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SUB_PROJECTS } from "@/lib/constants";
 import { docsSiteBaseUrl, getDocsSite } from "@/lib/docs-sites";
-import { ThemeToggle } from "./theme-toggle";
-import { CartButton } from "./shop-entry";
+import { HeaderActions } from "./header-actions";
 import { HeaderBrandLink } from "./header-brand-link";
 import {
   headerBarClassName,
   headerSlashClassName,
   headerSwitcherClassName,
 } from "./header-chrome";
+import { OtherOssProjectsItem, ProjectMenuRadioItem } from "./project-menu";
 import { useScrolled } from "@/hooks/use-scrolled";
 
 export interface SubProjectBreadcrumb {
@@ -166,7 +163,12 @@ export function SubProjectHeader({
           </span>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        <HeaderActions
+          githubHref={githubPath}
+          githubLabel="View on GitHub"
+          githubClassName="hidden peer-empty:flex sm:flex"
+          actions={actions}
+        >
           <div
             data-sub-project-header-portal
             className="peer flex items-center gap-1"
@@ -185,19 +187,7 @@ export function SubProjectHeader({
               Docs
             </Link>
           )}
-          <CartButton />
-          <a
-            href={githubPath}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors peer-empty:flex sm:flex"
-            aria-label="View on GitHub"
-          >
-            <GitHubIcon className="size-4" />
-          </a>
-          <ThemeToggle />
-          {actions}
-        </div>
+        </HeaderActions>
       </div>
     </header>
   );
@@ -205,6 +195,7 @@ export function SubProjectHeader({
 
 const PROJECT_ICONS: Record<string, LucideIcon> = {
   "safe-content-frame": ShieldCheck,
+  "generative-frame": AppWindow,
   "tw-shimmer": Sparkles,
   "heat-graph": Grid3x3,
   "react-o11y": Activity,
@@ -214,12 +205,6 @@ const PROJECT_ICONS: Record<string, LucideIcon> = {
 };
 
 const HOME_VALUE = "__assistant-ui";
-const OSS_VALUE = "__oss";
-
-const itemClassName = cn(
-  "flex h-8 cursor-default items-center gap-2 rounded-sm px-2 text-[13px] tracking-tight transition-colors outline-none select-none",
-  "data-[highlighted]:bg-foreground/5 data-[checked]:bg-foreground/6 data-[checked]:font-medium",
-);
 
 /** Same look as the docs platform switcher: the parent site, this project, and every other OSS project. */
 function ProjectSwitcher({
@@ -237,7 +222,6 @@ function ProjectSwitcher({
   const Icon = PROJECT_ICONS[name] ?? Box;
   const go = (value: string) => {
     if (value === HOME_VALUE) router.push(homeHref);
-    else if (value === OSS_VALUE) router.push("/oss");
     else router.push(current?.href ?? `/${name}`);
   };
 
@@ -260,49 +244,28 @@ function ProjectSwitcher({
           value={name}
           onValueChange={(value) => go(String(value))}
         >
-          <MenuPrimitive.RadioItem
+          <ProjectMenuRadioItem
             value={HOME_VALUE}
-            closeOnClick
-            className={itemClassName}
+            icon={
+              <Image
+                src="/favicon/icon.svg"
+                alt=""
+                width={16}
+                height={16}
+                className="size-4 shrink-0 opacity-70 dark:hue-rotate-180 dark:invert"
+              />
+            }
           >
-            <Image
-              src="/favicon/icon.svg"
-              alt=""
-              width={16}
-              height={16}
-              className="size-4 shrink-0 opacity-70 dark:hue-rotate-180 dark:invert"
-            />
-            <span className="min-w-0 flex-1 truncate text-left">
-              assistant-ui
-            </span>
-            <span className="size-3.5 shrink-0" />
-          </MenuPrimitive.RadioItem>
-          <MenuPrimitive.RadioItem
+            assistant-ui
+          </ProjectMenuRadioItem>
+          <ProjectMenuRadioItem
             value={name}
-            closeOnClick
-            className={itemClassName}
+            icon={<Icon className="text-muted-foreground size-4 shrink-0" />}
           >
-            <Icon className="text-muted-foreground size-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-            <MenuPrimitive.RadioItemIndicator
-              keepMounted
-              className="flex shrink-0 data-[unchecked]:invisible"
-            >
-              <Check className="text-foreground size-3.5" />
-            </MenuPrimitive.RadioItemIndicator>
-          </MenuPrimitive.RadioItem>
+            {label}
+          </ProjectMenuRadioItem>
           <DropdownMenuSeparator />
-          <MenuPrimitive.RadioItem
-            value={OSS_VALUE}
-            closeOnClick
-            className={itemClassName}
-          >
-            <LayoutGrid className="text-muted-foreground size-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-left">
-              Other OSS projects
-            </span>
-            <span className="size-3.5 shrink-0" />
-          </MenuPrimitive.RadioItem>
+          <OtherOssProjectsItem />
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useMemo,
   use,
   createContext,
 } from "react";
@@ -13,6 +14,7 @@ import type {
 import type { AssistantClient, ClientNames } from "../types/client";
 import { getClientInstanceId, isScopeAvailable } from "./client-accessor";
 import { useClientStack, type ClientStack } from "./tap-client-stack-context";
+import type { ScopedSignal } from "./scoped-signal";
 
 type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
   event: TEvent,
@@ -23,6 +25,7 @@ type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
 export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   emit: EmitFn;
+  markChanged: (signal: ScopedSignal) => void;
 };
 
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
@@ -51,6 +54,26 @@ export const useAssistantClientRef = () => {
 
 export const useOptionalAssistantClientRef = () =>
   use(AssistantTapContext)?.clientRef;
+
+/**
+ * Whether the caller runs inside a tap resource under a store host. Such a
+ * reader keeps the host-wide subscription: a tap-root host delivers it inside
+ * flushTapSync, which a wake from another host's flush would bypass.
+ */
+export const useIsTapHosted = () => use(AssistantTapContext) !== null;
+
+/**
+ * Creates the signal a client marks on its host when it renders, or none
+ * outside a host, which keeps its readers on every notification.
+ */
+export const useScopedSignal = () => {
+  const markChanged = use(AssistantTapContext)?.markChanged;
+  const signal = useMemo<ScopedSignal | undefined>(
+    () => (markChanged ? { readers: new Set(), version: 0 } : undefined),
+    [markChanged],
+  );
+  return { signal, markChanged };
+};
 
 const useAssistantScopeEffectWithClientRef = (
   clientRef: AssistantTapContextValue["clientRef"] | undefined,

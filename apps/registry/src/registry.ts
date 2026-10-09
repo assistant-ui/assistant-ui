@@ -49,7 +49,6 @@ type ElementRegistryEntry = {
   file: string;
   dependencies?: string[];
   devDependencies?: string[];
-  usesCollapsible?: boolean;
   usesElements?: string[];
   usesHooks?: string[];
   usesSurfaces?: boolean;
@@ -80,7 +79,6 @@ const createElementRegistryItem = (
     ...(entry.usesHooks ?? []).map(
       (name) => `https://r.assistant-ui.com/${name}.json`,
     ),
-    ...(entry.usesCollapsible ? ["collapsible"] : []),
     ...(entry.usesUi ?? []),
   ],
   ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
@@ -88,6 +86,22 @@ const createElementRegistryItem = (
 });
 
 const elementsRegistryItems: RegistryItem[] = [
+  {
+    name: "elements-collapsible-root",
+    type: "registry:component",
+    title: "Collapsible Root",
+    description: "Ref-bearing disclosure root for assistant-ui components.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/collapsible-root.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/collapsible-root.tsx",
+      },
+    ],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
+  },
   {
     name: "elements-surfaces",
     type: "registry:component",
@@ -201,8 +215,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
     file: "reasoning-panel.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["range"],
+    usesElements: ["range", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "streaming-text",
@@ -267,7 +280,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "One tool invocation with its request and result tucked behind a disclosure.",
     file: "tool-call.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
+    usesElements: ["collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "tool-timeline",
@@ -276,8 +289,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A whole working session summarized as verbs, targets, and file stats.",
     file: "tool-timeline.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["range"],
+    usesElements: ["range", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "terminal-block",
@@ -312,8 +324,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Citations collapsed into a pill, expanding into scannable source cards.",
     file: "sources.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["href"],
+    usesElements: ["href", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "inline-citation",
@@ -1149,13 +1160,32 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/eve"],
-    bundledRegistryDependencies: ["https://r.assistant-ui.com/thread.json"],
+    bundledRegistryDependencies: [
+      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/eve-ask-question.json",
+    ],
     docs: "Eve installs registry files without touching CSS, so add the reasoning and collapsible styles to app/globals.css, and replace the default auth policy in agent/channels/eve.ts before deploying: https://www.assistant-ui.com/docs/runtimes/eve/quickstart",
     meta: {
       eve: {
         requires: ">=0.27.6",
       },
     },
+  },
+  {
+    name: "eve-ask-question",
+    type: "registry:component",
+    title: "Eve Ask Question",
+    description:
+      "Renders Eve's built-in ask_question tool as a standalone question with answer controls, outside the collapsed tool group.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/eve-ask-question.tsx",
+        sourcePath: "templates/eve/components/eve-ask-question.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["https://r.assistant-ui.com/tool-fallback.json"],
   },
   {
     name: "thread",
@@ -1417,7 +1447,9 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
       },
     ],
-    registryDependencies: ["collapsible"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+    ],
     dependencies: ["lucide-react", "class-variance-authority", "tw-shimmer"],
     css: {
       '@import "tw-shimmer"': {},
@@ -1667,7 +1699,11 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
-    registryDependencies: ["button", "collapsible", "textarea"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+      "button",
+      "textarea",
+    ],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
@@ -1692,7 +1728,9 @@ export const registry: RegistryItem[] = [
       "class-variance-authority",
       "tw-shimmer",
     ],
-    registryDependencies: ["collapsible"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+    ],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
