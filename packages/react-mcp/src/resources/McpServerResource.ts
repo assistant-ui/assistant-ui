@@ -7,8 +7,6 @@ import {
   StreamableHTTPClientTransport,
   UnauthorizedError,
   type ClientOptions,
-  type ElicitRequest,
-  type ElicitResult,
   type StreamableHTTPClientTransportOptions,
 } from "@modelcontextprotocol/client";
 import {
@@ -23,19 +21,16 @@ import {
   isAuthStateForServerUrl,
   isSecureNetworkUrl,
 } from "../utils/serverUrl";
-import { validateElicitationContent } from "./validateElicitationContent";
 import type { MCPStorage } from "./storage/types";
 import type {
   MCPAuthConfig,
   MCPConnectionState,
-  MCPElicitation,
-  MCPElicitationResponse,
   MCPServerKind,
   MCPServerState,
   MCPToolInfo,
 } from "../mcp-scope";
-import { createMcpId } from "../utils/createMcpId";
 import { beginMcpServerRemovalFence } from "./McpServerRemovalFence";
+import { useMcpElicitationLifecycle } from "./McpElicitationLifecycle";
 
 export type McpServerResourceProps = {
   id: string;
@@ -97,10 +92,12 @@ const useMcpServerResourceInstance = (
   const [tools, setTools] = useState<MCPToolInfo[]>([]);
   const [lastError, setLastError] = useState<{ message: string } | null>(null);
   const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
-  const [pendingElicitations, setPendingElicitations] = useState<
-    MCPElicitation[]
-  >([]);
-
+  const {
+    pendingElicitations,
+    cancelPendingElicitations,
+    requestElicitation,
+    answerElicitation,
+  } = useMcpElicitationLifecycle();
   const clientRef = useRef<Client | null>(null);
   const transportRef = useRef<StreamableHTTPClientTransport | null>(null);
   const pendingTransportRef = useRef<StreamableHTTPClientTransport | null>(
@@ -115,17 +112,6 @@ const useMcpServerResourceInstance = (
     promise: Promise<void>;
     resolve: () => void;
   } | null>(null);
-  const elicitationResolversRef = useRef(
-    new Map<
-      string,
-      {
-        resolve: (result: ElicitResult) => void;
-        signal: AbortSignal;
-        onAbort: () => void;
-        requestedSchema: unknown;
-      }
-    >(),
-  );
   const pendingDisposalRef = useRef<{ cancelled: boolean } | null>(null);
   const mountedRef = useRef(true);
 
@@ -153,37 +139,6 @@ const useMcpServerResourceInstance = (
     const transport = pendingTransportRef.current;
     pendingTransportRef.current = null;
     await closeQueuedTransports(transport ? [transport] : []);
-  };
-
-  const resolvePendingElicitation = (id: string, result: ElicitResult) => {
-    const entry = elicitationResolversRef.current.get(id);
-    if (!entry) return false;
-    elicitationResolversRef.current.delete(id);
-    entry.signal.removeEventListener("abort", entry.onAbort);
-    setPendingElicitations((current) =>
-      current.filter((elicitation) => elicitation.id !== id),
-    );
-    entry.resolve(result);
-    return true;
-  };
-
-  const setPendingElicitationError = (
-    id: string,
-    error: NonNullable<MCPElicitation["error"]>,
-  ) => {
-    if (!elicitationResolversRef.current.has(id)) return false;
-    setPendingElicitations((current) =>
-      current.map((elicitation) =>
-        elicitation.id === id ? { ...elicitation, error } : elicitation,
-      ),
-    );
-    return true;
-  };
-
-  const cancelPendingElicitations = () => {
-    for (const [id] of elicitationResolversRef.current) {
-      resolvePendingElicitation(id, { action: "cancel" });
-    }
   };
 
   const detachTransports = () => {
@@ -390,49 +345,10 @@ const useMcpServerResourceInstance = (
         clientOptions,
       );
       if (props.elicitation !== false) {
-        client.setRequestHandler(
-          "elicitation/create",
-          (request: ElicitRequest, context): Promise<ElicitResult> => {
-            if (!isCurrentConnection(generation)) {
-              return Promise.resolve({ action: "cancel" });
-            }
-            if (!("requestedSchema" in request.params)) {
-              return Promise.resolve({ action: "cancel" });
-            }
-            const { message, requestedSchema } = request.params;
-
-            const id = createMcpId();
-            const promise = new Promise<ElicitResult>((resolve) => {
-              const onAbort = () => {
-                resolvePendingElicitation(id, { action: "cancel" });
-              };
-              elicitationResolversRef.current.set(id, {
-                resolve,
-                signal: context.mcpReq.signal,
-                onAbort,
-                requestedSchema,
-              });
-            });
-            setPendingElicitations((current) => [
-              ...current,
-              {
-                id,
-                message,
-                requestedSchema,
-              },
-            ]);
-            const entry = elicitationResolversRef.current.get(id);
-            if (entry) {
-              if (context.mcpReq.signal.aborted) {
-                entry.onAbort();
-              } else {
-                context.mcpReq.signal.addEventListener("abort", entry.onAbort, {
-                  once: true,
-                });
-              }
-            }
-            return promise;
-          },
+        client.setRequestHandler("elicitation/create", (request, context) =>
+          requestElicitation(request, context.mcpReq.signal, () =>
+            isCurrentConnection(generation),
+          ),
         );
       }
       const startedAt = Date.now();
@@ -736,58 +652,7 @@ const useMcpServerResourceInstance = (
       return await client.readResource({ uri });
     },
     completeAuth: doCompleteAuth,
-    answerElicitation: (
-      id: string,
-      response: MCPElicitationResponse,
-    ): readonly { property: string; message: string }[] | undefined => {
-      if (response.action === "accept") {
-        const entry = elicitationResolversRef.current.get(id);
-        if (!entry) return undefined;
-
-        if (
-          typeof response.content !== "object" ||
-          response.content === null ||
-          Array.isArray(response.content)
-        ) {
-          const errors = [
-            {
-              property: "content",
-              message: "Response content must be an object.",
-            },
-          ];
-          setPendingElicitationError(id, {
-            message: "Invalid elicitation content: content.",
-            properties: ["content"],
-          });
-          return errors;
-        }
-
-        const errors = validateElicitationContent(
-          entry.requestedSchema,
-          response.content,
-        );
-        if (errors.length > 0) {
-          const properties = [
-            ...new Set(errors.map((error) => error.property)),
-          ];
-          setPendingElicitationError(id, {
-            message: `Invalid elicitation content: ${properties.join(", ")}.`,
-            properties,
-          });
-          return errors;
-        }
-
-        const result: ElicitResult = {
-          action: "accept",
-          content: response.content as ElicitResult["content"],
-        };
-        resolvePendingElicitation(id, result);
-        return undefined;
-      }
-
-      resolvePendingElicitation(id, { action: response.action });
-      return undefined;
-    },
+    answerElicitation,
   };
 };
 
